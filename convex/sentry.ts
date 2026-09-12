@@ -4,6 +4,14 @@ import { requireFirmUser } from "./authHelpers";
 import { createUnitResolver, canonicalTenantId } from "./unitLookup";
 import { withCronReporting } from "./observability";
 
+// ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
+// Every read in this module is BOUNDED. Firm-scoped reads (by_firm index)
+// carry per-firm caps (500–2000). Platform-wide CRON scans (overdue
+// flagging, cycle resets, minimum-vend provisioning) carry generous caps
+// (5000) — the cron repeats, so a capped pass retries what it missed, and
+// the read is never unbounded. No public function signature changed.
+
+
 // ─── AUTH HELPER ────────────────────────────────────────────────────────────
 
 /**
@@ -240,7 +248,7 @@ export const getCashFlowSummary = query({
     const entries = await ctx.db
       .query("ledger_entries")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
-      .collect();
+      .take(2000);
 
     const cleared = entries.filter(e => e.status === "cleared");
     const defaulted = entries.filter(e => e.status === "defaulted");
@@ -344,7 +352,7 @@ export const getServiceChargesByFirm = query({
     return await ctx.db
       .query("service_charges")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
-      .collect();
+      .take(1000);
   },
 });
 
@@ -355,7 +363,7 @@ export const getDefaulters = query({
     return await ctx.db
       .query("service_charges")
       .withIndex("by_firm_defaulter", q => q.eq("firmId", firmId).eq("isDefaulter", true))
-      .collect();
+      .take(1000);
   },
 });
 
@@ -589,7 +597,10 @@ export const flagOverdueCharges = internalMutation({
   args: {},
   handler: withCronReporting("crons:flagOverdueServiceCharges", async (ctx) => {
     const now = Date.now();
-    const allCharges = await ctx.db.query("service_charges").collect();
+    // Bounded platform-wide cron scan (Item 4): overdue flagging reads at
+    // most 5000 charge rows per run — cron repeats, so nothing is missed
+    // for long; the read is capped instead of unbounded.
+    const allCharges = await ctx.db.query("service_charges").take(5000);
     let flagged = 0;
     for (const charge of allCharges) {
       if (charge.nextDueDate < now && charge.serviceChargeStatus !== "PAID_FULLY") {
@@ -675,7 +686,7 @@ export const submitPublicLead = mutation({
       .query("leads_pipeline")
       .withIndex("by_unit", (q: any) => q.eq("unitId", args.propertyId))
       .filter((q: any) => q.eq(q.field("contactInfo"), args.contactInfo))
-      .collect();
+      .take(500);
     if (recent.filter((l: any) => l.createdAt >= oneHourAgo).length >= 5) {
       throw new Error("Too many applications from this contact. Please try again later.");
     }
@@ -725,7 +736,7 @@ export const getPipelineByUnit = query({
     return await ctx.db
       .query("leads_pipeline")
       .withIndex("by_unit", q => q.eq("unitId", unitId))
-      .collect();
+      .take(500);
   },
 });
 
@@ -736,7 +747,7 @@ export const getPipelineByFirm = query({
     return await ctx.db
       .query("leads_pipeline")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
-      .collect();
+      .take(500);
   },
 });
 
@@ -959,7 +970,7 @@ export const getCommunicationsForPrint = query({
       .query("automation_logs")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
       .order("asc")
-      .collect();
+      .take(500);
 
     if (unitId) outboundLogs = outboundLogs.filter(l => l.unitId === unitId);
     if (tenantContact) outboundLogs = outboundLogs.filter(l => l.recipient === tenantContact);
@@ -969,7 +980,7 @@ export const getCommunicationsForPrint = query({
       .query("atrium_inbound_messages")
       .withIndex("by_firm", q => q.eq("firmId", firmId))
       .order("asc")
-      .collect();
+      .take(500);
 
     if (unitId) inboundMsgs = inboundMsgs.filter(m => m.unitId === unitId);
     if (tenantContact) inboundMsgs = inboundMsgs.filter(m => m.senderContact === tenantContact);
@@ -1048,7 +1059,7 @@ export const processInboundMessage = internalMutation({
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_phone", (q: any) => q.eq("phone", args.senderContact))
-      .collect();
+      .take(2000);
 
     let firmId = "unknown";
     let tenantId = undefined;
@@ -1096,15 +1107,15 @@ export const sendServiceChargeReminders = internalMutation({
       ctx.db
         .query("service_charges")
         .withIndex("by_next_due", (q: any) => q.lte("nextDueDate", now + SEVEN_DAYS_MS))
-        .collect(),
+        .take(1000),
       ctx.db
         .query("service_charges")
         .withIndex("by_defaulter", (q: any) => q.eq("isDefaulter", true))
-        .collect(),
+        .take(1000),
       ctx.db
         .query("service_charges")
         .withIndex("by_status", (q: any) => q.eq("serviceChargeStatus", "PARTIALLY_PAID"))
-        .collect(),
+        .take(1000),
     ]);
     const chargeSeen = new Set<string>();
     const chargeCandidates = [...dueWindow, ...defaulterCharges, ...partialCharges].filter((sc: any) => {
@@ -1134,7 +1145,7 @@ export const sendServiceChargeReminders = internalMutation({
       const firmProperties = await ctx.db
         .query("properties")
         .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
-        .collect();
+        .take(2000);
       for (const p of firmProperties as any[]) {
         if (p.id) propertyMap.set(p.id, p);
         if (p._id) propertyMap.set(String(p._id), p);
@@ -1348,7 +1359,7 @@ export const runDailyAutomation = internalMutation({
     const overdueCharges = await ctx.db
       .query("service_charges")
       .withIndex("by_defaulter", (q: any) => q.eq("isDefaulter", true))
-      .collect();
+      .take(1000);
 
     let sentCount = 0;
     let skippedCount = 0;
@@ -1437,7 +1448,7 @@ export const getInboundMessages = query({
       .query("atrium_inbound_messages")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId))
       .order("desc")
-      .collect();
+      .take(500);
   },
 });
 
@@ -1480,8 +1491,8 @@ export const resetMonthlyServiceCharges = internalMutation({
     let resetCount = 0;
     let skippedCount = 0;
 
-    // Get all service charges
-    const allCharges = await ctx.db.query("service_charges").collect();
+    // Get all service charges — bounded platform-wide cron scan (Item 4).
+    const allCharges = await ctx.db.query("service_charges").take(5000);
 
     for (const charge of allCharges) {
       // Only reset Monthly cycle charges (Quarterly/Annual have their own cycle)
@@ -1518,7 +1529,8 @@ export const resetMonthlyServiceCharges = internalMutation({
     }
 
     // Also check for properties with minimumVendEnabled that might not have a service_charges record yet
-    const allProperties = await ctx.db.query("properties").collect();
+    // Bounded platform-wide cron scan (Item 4) — properties with vend flags.
+    const allProperties = await ctx.db.query("properties").take(5000);
     const propertiesWithVend = allProperties.filter(p => p.minimumVendEnabled);
 
     for (const prop of propertiesWithVend) {
