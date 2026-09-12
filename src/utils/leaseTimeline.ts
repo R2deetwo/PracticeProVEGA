@@ -323,7 +323,14 @@ export function buildRentTimeline(args: {
 
 // ─── Summary (drives the readable status chips) ─────────────────────────────
 export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Date()): TimelineSummary {
-    const real = periods.filter(p => !p.isAdvance);
+    // Advance-settled periods that have ALREADY ARRIVED count as settled
+    // months (a fully advance-paid unit is CLEAR, not invisible). Only
+    // FUTURE pre-paid cycles are excluded from "what's owed right now".
+    const nowMs = now.getTime();
+    const real = periods.filter(p => {
+        if (!p.isAdvance) return true;
+        return new Date(p.dueDate).getTime() <= nowMs;
+    });
     if (real.length === 0) return {
         state: 'none', dueCount: 0, overdueCount: 0, outstandingTotal: 0,
         currentPeriod: null, nextDueDate: null, settledThrough: null,
@@ -368,6 +375,74 @@ export function summarizeTimeline(periods: TimelinePeriod[], now: Date = new Dat
         state: 'clear', dueCount: 0, overdueCount: 0, outstandingTotal: 0,
         currentPeriod: null, nextDueDate, settledThrough,
     };
+}
+
+// ─── Advance payments (pay N cycles ahead — ONE receipt) ────────────────────
+/** A stored advance-payment row (what lands in scPeriods / mvPeriods). */
+export interface AdvanceRow {
+    index: number;
+    dueDate: string;
+    status: 'advance_paid';
+    amount: number;
+    paidDate: string;
+    paidOnTime: boolean;
+    isAdvance: boolean;
+    receiptNumber?: string;
+}
+
+/**
+ * Build the stored rows for an advance payment covering N cycles from an
+ * anchor period — "they paid six months in advance" is ONE payment, N
+ * cycles, ONE receipt (not six receipts). The anchor itself is settled by
+ * the payment (it becomes advance_paid) plus the following N-1 cycles.
+ */
+export function buildAdvanceRows(args: {
+    anchor: TimelinePeriod;
+    cycles: number;
+    cadence: CadenceResolution;
+    paidDate?: string;
+}): AdvanceRow[] {
+    const cycles = Math.max(1, Math.min(12, Math.round(args.cycles)));
+    const today = args.paidDate || new Date().toISOString().split('T')[0];
+    const rows: AdvanceRow[] = [];
+    for (let k = 0; k < cycles; k++) {
+        rows.push({
+            index: args.anchor.index + k,
+            dueDate: addMonthsISO(args.anchor.dueDate, k * args.cadence.months),
+            status: 'advance_paid',
+            amount: args.cadence.perPeriodAmount,
+            paidDate: today,
+            paidOnTime: true,
+            isAdvance: true,
+        });
+    }
+    return rows;
+}
+
+/** Add months to an ISO date string, calendar-accurate. */
+export function addMonthsISO(isoDate: string, months: number): string {
+    return toDateISO(addMonths(new Date(isoDate), months));
+}
+
+/**
+ * Human coverage label for an advance payment — "Sep 2026 – Feb 2027
+ * (6 months)" on monthly cadence, "… (2 cycles)" on longer cadences.
+ */
+export function advanceCoverageLabel(
+    anchorDueDate: string,
+    cycles: number,
+    cadenceMonths: number,
+): { from: string; to: string; label: string } {
+    const from = monthLabel(anchorDueDate);
+    const to = monthLabel(addMonthsISO(anchorDueDate, (Math.max(1, cycles) - 1) * cadenceMonths));
+    const unit = cadenceMonths === 1
+        ? (cycles === 1 ? 'month' : 'months')
+        : (cycles === 1 ? 'cycle' : 'cycles');
+    // A single cycle reads "Sep 2026 (1 month)" — no "Sep – Sep".
+    const label = from === to
+        ? `${from} (${cycles} ${unit})`
+        : `${from} – ${to} (${cycles} ${unit})`;
+    return { from, to, label };
 }
 
 // ─── High-level convenience (used by views) ─────────────────────────────────

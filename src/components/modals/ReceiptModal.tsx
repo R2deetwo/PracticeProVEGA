@@ -38,12 +38,14 @@ interface ReceiptModalProps {
     tenantName: string;
     unitId?: string;
     propertyId?: string;
+    /** Advance receipts: what the payment covers, e.g. "Sep 2026 – Feb 2027 (6 months)". */
+    coverageNote?: string;
     onClose: () => void;
     onIssued?: (receiptNumber: string) => void;
 }
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({
-    period, chargeType, unitName, tenantName, unitId, propertyId, onClose, onIssued,
+    period, chargeType, unitName, tenantName, unitId, propertyId, coverageNote, onClose, onIssued,
 }) => {
     const { coreState } = useCoreState();
     const { currentUser, bearerToken } = useAuth();
@@ -65,7 +67,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     const paymentDate = period.paidDate || new Date().toISOString().split('T')[0];
     const settlementMethod = period.paidOnTime === false ? 'Paid Late' :
                               period.paidOnTime === true ? 'Paid On Time' :
-                              period.isAdvance ? 'Advance Payment' : 'Settled';
+                              period.isAdvance || coverageNote ? 'Advance Payment' : 'Settled';
     const billingPeriod = (() => {
         try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
         catch { return `Period ${period.index}`; }
@@ -103,7 +105,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     <div class="row"><span class="label">Resident Name</span><span class="value">${tenantName}</span></div>
     <div class="row"><span class="label">Unit</span><span class="value">${unitName}</span></div>
     <div class="row"><span class="label">Charge Type</span><span class="value">${chargeTypeLabel}</span></div>
-    <div class="row"><span class="label">Billing Period</span><span class="value">${billingPeriod}</span></div>
+    <div class="row"><span class="label">Billing Period</span><span class="value">${coverageNote || billingPeriod}</span></div>
+    ${coverageNote ? `<div class="row"><span class="label">Covers</span><span class="value">${coverageNote}</span></div>` : ''}
     <div class="row"><span class="label">Payment Date</span><span class="value">${formatDateShort(paymentDate)}</span></div>
     <div class="row"><span class="label">Settlement Method</span><span class="value"><span class="badge">${settlementMethod}</span></span></div>
   </div>
@@ -142,10 +145,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 content: buildReceiptContent({
                     receiptNumber,
                     chargeTypeLabel,
-                    billingPeriod,
+                    billingPeriod: coverageNote || billingPeriod,
                     amountPaid,
                     paymentDate,
                     settlementMethod,
+                    coverageNote,
                 }),
                 unitId: unitId,
                 propertyId: propertyId,
@@ -246,8 +250,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                         </div>
                         <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-zinc-800/50">
                             <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Billing Period</span>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white">{billingPeriod}</span>
+                            <span className="text-xs font-bold text-slate-900 dark:text-white">{coverageNote || billingPeriod}</span>
                         </div>
+                        {coverageNote && (
+                            <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-zinc-800/50">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Covers</span>
+                                <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{coverageNote}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between py-1.5 border-b border-slate-50 dark:border-zinc-800/50">
                             <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Payment Date</span>
                             <span className="text-xs font-bold text-slate-900 dark:text-white">{formatDateShort(paymentDate)}</span>

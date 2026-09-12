@@ -18,12 +18,15 @@ import { describe, it, expect } from 'vitest';
 import {
     buildTimeline,
     buildRentTimeline,
+    buildAdvanceRows,
+    advanceCoverageLabel,
     resolveCadence,
     summarizeTimeline,
     serviceChargeTimeline,
     monthLabel,
     periodMonths,
     type CadenceResolution,
+    type TimelinePeriod,
 } from '../../src/utils/leaseTimeline';
 
 // Deterministic clock — the engine must be pure w.r.t. `now`.
@@ -445,7 +448,6 @@ describe('summarizeTimeline — late is SETTLED, never "due" (the 3-late-payment
     });
 });
 
-
 // ─── Minimum vend — monthly grid ────────────────────────────────────────────
 describe('minimum vend — monthly grid like SC (the MV tracking report)', () => {
     // User report 2026-09-12: "minimum vend is a monthly thing as well. So
@@ -466,6 +468,9 @@ describe('minimum vend — monthly grid like SC (the MV tracking report)', () =>
     });
 
     it('legacy annual-step MV marks land on their own month of the monthly grid', () => {
+        // Stored MV ledger written under the old rent-frequency stepping:
+        // marks 12 months apart. On the monthly grid the Jan mark lands on
+        // Jan; the 2027 mark simply sits in the future until time reaches it.
         const periods = buildTimeline({
             leaseStart: '2026-01-01', cadence: mvMonthly,
             stored: [
@@ -560,5 +565,89 @@ describe('serviceChargeTimeline — one call, whole picture', () => {
 
     it('monthLabel formats "Aug 2026"', () => {
         expect(monthLabel('2026-08-09')).toBe('Aug 2026');
+    });
+});
+
+// ─── Advance payments — one payment, N cycles, ONE receipt ──────────────────
+describe('buildAdvanceRows + advanceCoverageLabel — pay N cycles ahead', () => {
+    const anchorOf = (index: number, dueDate: string): TimelinePeriod => ({
+        index, dueDate, windowEnd: '2026-01-31', status: 'due',
+        amount: 10000, paidAmount: 0,
+    });
+
+    it('six months in advance → 6 rows, calendar-stepped, anchor included', () => {
+        const rows = buildAdvanceRows({
+            anchor: anchorOf(3, '2026-03-01'),
+            cycles: 6,
+            cadence: monthly(10000),
+            paidDate: '2026-02-20',
+        });
+        expect(rows).toHaveLength(6);
+        expect(rows[0]).toMatchObject({ index: 3, dueDate: '2026-03-01', status: 'advance_paid', paidDate: '2026-02-20' });
+        expect(rows[1].dueDate).toBe('2026-04-01');
+        expect(rows[5]).toMatchObject({ index: 8, dueDate: '2026-08-01' });
+        expect(rows.every(r => r.isAdvance && r.paidOnTime && r.amount === 10000)).toBe(true);
+    });
+
+    it('quarterly cadence steps cycles, not months', () => {
+        const rows = buildAdvanceRows({
+            anchor: anchorOf(2, '2026-04-01'),
+            cycles: 3,
+            cadence: { months: 3, perPeriodAmount: 500000, frequency: 'Quarterly', explicit: true },
+        });
+        expect(rows.map(r => r.dueDate)).toEqual(['2026-04-01', '2026-07-01', '2026-10-01']);
+        expect(rows.every(r => r.amount === 500000)).toBe(true);
+    });
+
+    it('cycles are clamped to 1..12', () => {
+        const rows = buildAdvanceRows({ anchor: anchorOf(1, '2026-01-01'), cycles: 40, cadence: monthly(10000) });
+        expect(rows).toHaveLength(12);
+        const floor = buildAdvanceRows({ anchor: anchorOf(1, '2026-01-01'), cycles: 0, cadence: monthly(10000) });
+        expect(floor).toHaveLength(1);
+    });
+
+    it('coverage label speaks months on monthly cadence, cycles otherwise', () => {
+        expect(advanceCoverageLabel('2026-09-01', 6, 1).label).toBe('Sep 2026 – Feb 2027 (6 months)');
+        expect(advanceCoverageLabel('2026-09-01', 1, 1).label).toBe('Sep 2026 (1 month)');
+        expect(advanceCoverageLabel('2026-01-01', 2, 6).label).toBe('Jan 2026 – Jul 2026 (2 cycles)');
+        expect(advanceCoverageLabel('2026-09-01', 6, 1).from).toBe('Sep 2026');
+        expect(advanceCoverageLabel('2026-09-01', 6, 1).to).toBe('Feb 2027');
+    });
+
+    it('round-trip: advance rows render as blue advance periods via buildTimeline', () => {
+        // Anchor Sep 2026 is elapsed; the covered cycles run into the future.
+        const rows = buildAdvanceRows({
+            anchor: anchorOf(2, '2026-09-01'),
+            cycles: 6,
+            cadence: monthly(10000),
+            paidDate: '2026-09-05',
+        });
+        const periods = buildTimeline({
+            leaseStart: '2026-08-01', cadence: monthly(10000),
+            stored: rows,
+            now: new Date('2026-09-15'),
+        });
+        // Aug + Sep elapsed head; Sep override reads advance_paid; the
+        // future covered cycles append as advance periods.
+        expect(periods.length).toBe(1 + 6);
+        expect(periods.find(p => p.dueDate === '2026-09-01')?.status).toBe('advance_paid');
+        expect(periods.filter(p => p.isAdvance).length).toBeGreaterThanOrEqual(6);
+        expect(periods.find(p => p.dueDate === '2027-02-01')?.status).toBe('advance_paid');
+    });
+
+    it('advance-covered cycles never count as owed in the summary', () => {
+        const rows = buildAdvanceRows({
+            anchor: anchorOf(1, '2026-01-01'),
+            cycles: 12,
+            cadence: monthly(10000),
+        });
+        const periods = buildTimeline({
+            leaseStart: '2026-01-01', cadence: monthly(10000),
+            stored: rows,
+            now: new Date('2026-06-15'),
+        });
+        const s = summarizeTimeline(periods, new Date('2026-06-15'));
+        expect(s.state).toBe('clear'); // half a year covered in advance
+        expect(s.outstandingTotal).toBe(0);
     });
 });

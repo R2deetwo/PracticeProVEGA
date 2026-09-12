@@ -43,10 +43,13 @@ import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
 import {
     buildTimeline,
     buildRentTimeline,
+    buildAdvanceRows,
+    advanceCoverageLabel,
     serviceChargeTimeline,
     summarizeTimeline,
     monthAbbr,
     monthLabel,
+    type CadenceResolution,
     type TimelinePeriod,
     type TimelineSummary,
 } from '../../utils/leaseTimeline';
@@ -247,11 +250,18 @@ interface QuickPaymentDrawerProps {
     onStatusChange: (status: 'paid' | 'late' | 'outstanding' | 'advance_paid') => void;
     onGenerateReceipt: () => void;
     onPeriodSelect: (period: TimelinePeriod) => void;
+    /** Log an advance payment: N cycles from this period, ONE receipt. */
+    onAdvancePayment: (cycles: number) => void;
+    /** Cadence of the selected stream (1 = monthly) + per-cycle charge. */
+    cadenceMonths: number;
+    perPeriodAmount: number;
 }
 
 const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     period, chargeType, unitName, allPeriods, onClose, onStatusChange, onGenerateReceipt, onPeriodSelect,
+    onAdvancePayment, cadenceMonths, perPeriodAmount,
 }) => {
+    const [advanceCycles, setAdvanceCycles] = useState(1);
     if (!period) return null;
     const meta = getStatusMeta(period);
 
@@ -352,23 +362,22 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                         </p>
                     </div>
 
-                    {/* Toggle buttons — 4 states: Paid On Time, Paid Late, Outstanding, Advance Paid */}
+                    {/* Toggle buttons — 3 states: Paid On Time, Paid Late, Outstanding.
+                        (Advance is its own flow below — it covers N cycles.) */}
                     <div>
                         <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                             Change Status
                         </p>
-                        <div className="grid grid-cols-2 gap-2">
-                            {(['paid', 'late', 'outstanding', 'advance_paid'] as const).map(s => {
+                        <div className="grid grid-cols-3 gap-2">
+                            {(['paid', 'late', 'outstanding'] as const).map(s => {
                                 const isActive = period.status === s;
                                 const colorClass =
                                     s === 'paid' ? 'bg-emerald-500' :
                                     s === 'late' ? 'bg-amber-500' :
-                                    s === 'advance_paid' ? 'bg-blue-500' :
                                     'bg-red-500';
                                 const labelName =
                                     s === 'paid' ? 'Paid On Time' :
                                     s === 'late' ? 'Paid Late' :
-                                    s === 'advance_paid' ? 'Advance Paid' :
                                     'Outstanding';
                                 return (
                                     <button
@@ -389,6 +398,59 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                             Marking a late period as Paid settles the balance but retains the
                             &ldquo;Paid Late&rdquo; flag in the historical timeline.
                         </p>
+                    </div>
+
+                    {/* ── Advance Payment — N cycles from this period, ONE receipt ── */}
+                    <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40">
+                        <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-1">
+                            Advance Payment
+                        </p>
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mb-3">
+                            Resident paid ahead? One payment covers {cadenceMonths === 1 ? 'months' : 'cycles'} from
+                            this period — a single receipt is issued for the whole range.
+                        </p>
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setAdvanceCycles(c => Math.max(1, c - 1))}
+                                    disabled={advanceCycles <= 1}
+                                    aria-label="Fewer cycles"
+                                    className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-300 font-black text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                >
+                                    −
+                                </button>
+                                <span className="min-w-16 text-center">
+                                    <span className="block text-lg font-black text-blue-700 dark:text-blue-300 leading-none">{advanceCycles}</span>
+                                    <span className="block text-3xs font-bold text-slate-400 uppercase tracking-wide mt-0.5">
+                                        {cadenceMonths === 1 ? (advanceCycles === 1 ? 'month' : 'months') : (advanceCycles === 1 ? 'cycle' : 'cycles')}
+                                    </span>
+                                </span>
+                                <button
+                                    onClick={() => setAdvanceCycles(c => Math.min(12, c + 1))}
+                                    disabled={advanceCycles >= 12}
+                                    aria-label="More cycles"
+                                    className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-800 border border-blue-200 dark:border-blue-800/60 text-blue-600 dark:text-blue-300 font-black text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-2xs font-bold text-slate-400 uppercase tracking-wide">Covers</p>
+                                <p className="text-xs font-black text-blue-700 dark:text-blue-300">
+                                    {advanceCoverageLabel(period.dueDate, advanceCycles, cadenceMonths).label}
+                                </p>
+                                <p className="text-2xs font-bold text-slate-500 dark:text-zinc-400 mt-0.5">
+                                    {formatNairaFull(perPeriodAmount * advanceCycles)} total
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => onAdvancePayment(advanceCycles)}
+                            className="w-full px-4 py-2.5 text-white text-xs font-bold rounded-lg bg-blue-500 hover:bg-blue-600 shadow-sm transition-colors flex items-center justify-center gap-2"
+                        >
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-200" />
+                            Log Advance Payment · {advanceCycles} {cadenceMonths === 1 ? (advanceCycles === 1 ? 'month' : 'months') : (advanceCycles === 1 ? 'cycle' : 'cycles')}
+                        </button>
                     </div>
 
                     {/* Receipt prompt */}
@@ -650,17 +712,21 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         chargeType: 'SC' | 'MV',
         periodsKey: 'scPeriods' | 'mvPeriods',
         baseRental: Property['rentalDetails'],
+        coverage?: { cycles: number; label: string; unit: string; indexes: number[] },
     ) => {
         const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
         const tenantName = rental?.tenantName || 'Resident';
         const unitName = rental?.unitName || unit.description || 'Unit';
         const chargeTypeLabel = chargeType === 'SC' ? 'Service Charge' : 'Minimum Vend';
-        const billingPeriod = (() => {
-            try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
-            catch { return `Period ${period.index}`; }
-        })();
+        const billingPeriod = coverage
+            ? coverage.label
+            : (() => {
+                try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); }
+                catch { return `Period ${period.index}`; }
+            })();
         const receiptNumber = `RC-${Date.now().toString().slice(-6)}-${period.index}`;
         const settlementMethod = period.paidOnTime === false ? 'Paid Late' :
+                                  coverage ? `Advance Payment (${coverage.cycles} ${coverage.unit})` :
                                   period.isAdvance ? 'Advance Payment' : 'Paid On Time';
         const paymentDate = period.paidDate || new Date().toISOString().split('T')[0];
 
@@ -680,6 +746,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                     amountPaid: period.amount,
                     paymentDate,
                     settlementMethod,
+                    coverageNote: coverage?.label,
                     autoGenerated: true,
                 }),
                 unitId: unit.id,
@@ -693,8 +760,16 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         // 2. Persist the receipt number — on the ledger that already carries
         //    this tick's mark + aggregates (baseRental), NOT the stale
         //    `rental` closure (which previously reverted the manual mark).
+        //    An ADVANCE receipt stamps every covered cycle's row.
         const currentPeriods = ((baseRental as any)?.[periodsKey] as any[]) || [];
-        const updatedPeriods = upsertReceiptNumber(currentPeriods, period.index, receiptNumber);
+        let updatedPeriods = currentPeriods;
+        if (coverage) {
+            for (const idx of coverage.indexes) {
+                updatedPeriods = upsertReceiptNumber(updatedPeriods, idx, receiptNumber);
+            }
+        } else {
+            updatedPeriods = upsertReceiptNumber(currentPeriods, period.index, receiptNumber);
+        }
         onUpdate({ ...baseRental!, [periodsKey]: updatedPeriods } as Property['rentalDetails']);
 
         // 3. Activity log — BEST-EFFORT: a log failure must never orphan a
@@ -791,6 +866,76 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
         if (!selectedPeriod) return;
         setReceiptModalOpen(true);
     }, [selectedPeriod]);
+
+    // ── ADVANCE PAYMENT — "they paid six months in advance" ─────────────
+    // ONE payment, N cycles, ONE receipt. The anchor period is settled by
+    // the payment plus the following N-1 cycles; each covered row is stored
+    // advance_paid and stamped with the SAME receipt number after delivery.
+    const handleAdvancePayment = useCallback((cycles: number) => {
+        if (!selectedPeriod) return;
+        const periodsKey = selectedChargeType === 'SC' ? 'scPeriods' : 'mvPeriods';
+        const cadence: CadenceResolution = selectedChargeType === 'SC'
+            ? scCadence
+            : { months: 1, perPeriodAmount: mvAmount, frequency: 'Monthly', explicit: false };
+        const cov = advanceCoverageLabel(selectedPeriod.dueDate, cycles, cadence.months);
+        const rows = buildAdvanceRows({ anchor: selectedPeriod, cycles, cadence });
+
+        // Merge into the stored ledger by index (same-index rows are
+        // replaced by the advance row; everything else is untouched).
+        const currentPeriods = ((rental as any)?.[periodsKey] as any[]) || [];
+        const byIndex = new Map<number, any>();
+        for (const p of currentPeriods) {
+            const idx = Number(p?.index) || 0;
+            if (idx > 0) byIndex.set(idx, p);
+        }
+        for (const r of rows) {
+            byIndex.set(r.index, { ...byIndex.get(r.index), ...r, coverageNote: cov.label });
+        }
+        const updatedPeriods = Array.from(byIndex.values())
+            .sort((a, b) => (a.index || 0) - (b.index || 0));
+
+        // SC aggregates stay live off the engine (tenant portal reads them).
+        let aggregateStatus: 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' | undefined;
+        let outstandingBalance: number | undefined;
+        if (selectedChargeType === 'SC') {
+            const mergedRental = { ...rental, scPeriods: updatedPeriods };
+            const { summary } = serviceChargeTimeline({ unit, rental: mergedRental });
+            if (summary.state === 'clear') aggregateStatus = 'PAID_FULLY';
+            else if (summary.state === 'due' || summary.state === 'overdue') {
+                aggregateStatus = updatedPeriods.some(p => p.status === 'paid' || p.status === 'advance_paid')
+                    ? 'PARTIALLY_PAID' : 'UNPAID';
+            }
+            outstandingBalance = Math.round(summary.outstandingTotal);
+        }
+
+        const updatedRental = {
+            ...rental,
+            [periodsKey]: updatedPeriods,
+            ...(selectedChargeType === 'SC' ? {
+                serviceChargeStatus: aggregateStatus,
+                outstandingServiceChargeBalance: outstandingBalance,
+            } : {}),
+        } as Property['rentalDetails'];
+        onUpdate(updatedRental!);
+
+        const todayIso = new Date().toISOString().split('T')[0];
+        setSelectedPeriod(prev => prev ? {
+            ...prev, status: 'advance_paid' as const, isAdvance: true,
+            paidOnTime: true, paidDate: todayIso,
+        } : prev);
+
+        // ONE receipt for the whole range — amount = cycles × per-cycle.
+        const unitWord = cadence.months === 1
+            ? (cycles === 1 ? 'month' : 'months')
+            : (cycles === 1 ? 'cycle' : 'cycles');
+        autoIssueReceipt(
+            { ...selectedPeriod, status: 'advance_paid' as const, isAdvance: true, paidOnTime: true, paidDate: todayIso, amount: cadence.perPeriodAmount * cycles },
+            selectedChargeType,
+            periodsKey,
+            updatedRental,
+            { cycles, label: cov.label, unit: unitWord, indexes: rows.map(r => r.index) },
+        );
+    }, [selectedPeriod, selectedChargeType, rental, unit, scCadence, mvAmount, onUpdate, autoIssueReceipt]);
 
     // Persist a receipt number to the stored period (button toggles to
     // [View Issued Receipt]). Upsert — a mark that hasn't been persisted
@@ -907,6 +1052,9 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                     onStatusChange={handleStatusChange}
                     onGenerateReceipt={handleGenerateReceipt}
                     onPeriodSelect={(p) => setSelectedPeriod(p)}
+                    onAdvancePayment={handleAdvancePayment}
+                    cadenceMonths={selectedChargeType === 'SC' ? scCadence.months : 1}
+                    perPeriodAmount={selectedChargeType === 'SC' ? scCadence.perPeriodAmount : mvAmount}
                 />
             )}
 
@@ -919,6 +1067,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                     unitName={rental?.unitName || unit.description || 'Unit'}
                     tenantName={rental?.tenantName || 'Resident'}
                     unitId={unit.id}
+                    coverageNote={(selectedPeriod as any).coverageNote}
                     onClose={() => setReceiptModalOpen(false)}
                     onIssued={handleReceiptIssued}
                 />
