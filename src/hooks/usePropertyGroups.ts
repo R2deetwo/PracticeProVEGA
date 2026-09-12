@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Property } from '../types';
+import { resolveServiceChargeAmount } from '../utils/serviceCharge';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -174,7 +175,11 @@ export function usePropertyGroups(properties: Property[]): {
             tenantPhone: unit.tenantPhone || (p as any).rentalDetails?.tenantPhone || '',
             tenantEmail: unit.tenantEmail || (p as any).rentalDetails?.tenantEmail || '',
             rentAmount: unit.rentAmount || (p as any).rentalDetails?.rentAmount,
-            serviceCharge: unit.serviceCharge || (p as any).rentalDetails?.serviceCharge,
+            // Unified resolution (Item 2): 0 is a REAL value — an exempt unit
+            // no longer inherits the property-level service charge just
+            // because its own 0 was falsy. Amount-first also matches what
+            // scheduled WhatsApp sends use server-side.
+            serviceCharge: resolveServiceChargeAmount({ unit, rental: unit.rentalDetails, defaultProperty: p }),
             legalFee: unit.legalFee || (p as any).rentalDetails?.legalFee,
             agencyFee: unit.agencyFee || (p as any).rentalDetails?.agencyFee,
             cautionDeposit: unit.cautionDeposit || (p as any).rentalDetails?.cautionDeposit,
@@ -200,7 +205,8 @@ export function usePropertyGroups(properties: Property[]): {
           tenantPhone: rental.tenantPhone || (p as any).tenantPhone,
           tenantEmail: rental.tenantEmail || (p as any).tenantEmail,
           rentAmount: rental.rentAmount || (p as any).rentAmount,
-          serviceCharge: rental.serviceCharge,
+          // Unified resolution (Item 2) — same chain as the embedded-unit branch.
+          serviceCharge: resolveServiceChargeAmount({ unit: p, rental }),
           legalFee: rental.legalFee,
           agencyFee: rental.agencyFee,
           cautionDeposit: rental.cautionDeposit,

@@ -770,10 +770,15 @@ export const getLogRecipientContext = internalQuery({
       const p: any = await ctx.db.get(args.propertyId as any);
       if (!p) return null;
       const rd = p.rentalDetails || {};
+      // Item 2 (0-valid resolution): `|| undefined` used to swallow a REAL 0
+      // (exempt unit) into a dropped template variable, which shifts param
+      // counts and fails approved-template sends. 0 stays 0; only junk (NaN)
+      // falls back to undefined.
+      const scRaw = Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0);
       return {
         tenantName: p.tenantName || undefined,
         rentAmount: Number(rd.rentAmount ?? p.rentAmount ?? 0) || undefined,
-        serviceCharge: Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0) || undefined,
+        serviceCharge: Number.isFinite(scRaw) ? scRaw : undefined,
         propertyAddress: p.propertyAddress || p.address || undefined,
       };
     } catch {

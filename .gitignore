@@ -25,3 +25,6 @@ android/app/release.keystore
 !android/app/debug.keystore
 dist-admin/
 dist/
+
+# TS incremental build artifact (never commit)
+tsconfig.tsbuildinfo

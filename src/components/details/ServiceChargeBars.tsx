@@ -51,6 +51,7 @@ import { api } from '../../../convex/_generated/api';
 import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { CalendarIcon, XIcon, CheckCircleIcon, DownloadIcon } from '../../constants';
+import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
 import ReceiptModal from '../modals/ReceiptModal';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -719,7 +720,9 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({ unit, onUp
     const mvLabel = (unit as any).minimumVendLabel || 'Min Vend';
 
     // SC amount
-    const scAmount = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
+    // Unified resolution (Item 2) — same chain as the units grid / SC table;
+    // a defined 0 is respected (rendered as no SC), never skipped.
+    const scAmount = resolveServiceChargeAmount({ unit, rental: unit.rentalDetails });
 
     // Compute periods — SC uses its own frequency (with rent fallback),
     // MV uses rent frequency (no separate MV frequency field exists yet).

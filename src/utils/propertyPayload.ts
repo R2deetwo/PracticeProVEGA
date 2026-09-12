@@ -1,4 +1,5 @@
 import { Property } from '../types';
+import { resolveServiceCharge } from './serviceCharge';
 
 export interface UnitRentalInput {
   id: string;
@@ -142,7 +143,8 @@ export function getUnitDisplay(unit: Property & { rentalDetails?: Record<string,
     (rd.unitName as string) ||
     unit.description?.match(/\((.*?)\)/)?.[1] ||
     '';
-  const scAmount = Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0);
+  const sc = resolveServiceCharge({ unit, rental: (unit.rentalDetails ?? undefined) as Record<string, unknown> | undefined });
+  const scAmount = sc.amount;
   const scStatus = (rd.serviceChargeStatus as string) || '';
   const outstandingBalance = Number(rd.outstandingServiceChargeBalance ?? 0);
   const leaseStart = rd.leaseStart as string | undefined;
@@ -181,6 +183,8 @@ export function getUnitDisplay(unit: Property & { rentalDetails?: Record<string,
     unitId: unit.id,
     convexId: (unit as { _id?: string })._id,
     serviceChargeAmount: scAmount,
+    /** Which priority level produced serviceChargeAmount — dev-mode debug field. */
+    serviceChargeSource: sc.source,
     serviceChargeStatus: scStatus as 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID' | '',
     outstandingServiceChargeBalance: outstandingBalance,
     /** Term progress 0..1 (null if dates missing) */

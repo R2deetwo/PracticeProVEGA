@@ -24,6 +24,7 @@ import { createPortal } from 'react-dom';
 import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatDateShort } from '../../utils/formatting';
 import { XIcon, CheckCircleIcon, PlusIcon, DownloadIcon } from '../../constants';
+import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
 
 // ─── Helpers (duplicated from ServiceChargeBars for independence) ────────────
 const periodMonths = (freq?: string): number => {
@@ -98,7 +99,9 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
         ? (rental?.serviceChargeFrequency ?? rental?.rentFrequency)
         : rental?.rentFrequency;
 
-    const scAmount = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
+    // Unified resolution (Item 2) — 0 is a real value; same chain as the
+    // property view so the onboarding ledger matches what every surface shows.
+    const scAmount = resolveServiceChargeAmount({ unit, rental: unit.rentalDetails });
     const mvAmount = Number((unit as any).minimumVendAmount || 0);
     const perPeriodAmount = chargeType === 'SC' ? scAmount : mvAmount;
 

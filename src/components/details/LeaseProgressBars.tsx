@@ -20,6 +20,7 @@
 import React, { useMemo } from 'react';
 import { Property, RentPayment } from '../../types';
 import { formatNairaCompact, formatNairaFull, formatDateShort } from '../../utils/formatting';
+import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
 import NairaSymbol from '../NairaSymbol';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -130,7 +131,10 @@ export const LeaseProgressBars: React.FC<LeaseProgressBarsProps> = ({ property, 
     //
     // When the expected amount is 0 or undefined, we render nothing for this bar.
     const serviceCharge = useMemo(() => {
-        const expected = Number(rental?.serviceChargeAmount ?? rental?.serviceCharge ?? 0);
+        // Unified resolution (Item 2) — same chain as the units grid / SC
+        // table, 0 kept as a real value (the `<= 0` guard below then hides
+        // the bar, which is a display choice, not a resolution one).
+        const expected = resolveServiceChargeAmount({ unit: property, rental });
         if (!expected || expected <= 0) return null;
 
         const status = (rental?.serviceChargeStatus || 'UNPAID').toUpperCase();

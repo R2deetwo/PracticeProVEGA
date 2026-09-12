@@ -33,6 +33,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
+import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
 import { ComposeModalPrefill } from './ComposeModal';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
@@ -112,7 +113,10 @@ function deriveLeaseServiceCharges(properties: any[]): LeaseSc[] {
     if (embedded.length > 0) {
       for (const u of embedded) {
         const rd = u?.rentalDetails || {};
-        const amount = Number(rd.serviceChargeAmount ?? u?.serviceChargeAmount ?? u?.serviceCharge ?? 0) || 0;
+        // Unified resolution (Item 2) — the records this monitor creates are
+        // what the tenant portal and billing view display; the SAME chain as
+        // PropertyDetailView keeps every surface in agreement.
+        const amount = resolveServiceChargeAmount({ unit: u, rental: rd });
         if (amount > 0) {
           const unitName = u?.unitName || u?.name || '';
           out.push({
@@ -126,7 +130,8 @@ function deriveLeaseServiceCharges(properties: any[]): LeaseSc[] {
       }
     } else {
       const rd = p?.rentalDetails || {};
-      const amount = Number(rd.serviceChargeAmount ?? rd.serviceCharge ?? 0) || 0;
+      // Unified resolution (Item 2) — see the embedded branch above.
+      const amount = resolveServiceChargeAmount({ unit: p, rental: rd });
       if (amount > 0) {
         out.push({
           unitKey: String(p.id),

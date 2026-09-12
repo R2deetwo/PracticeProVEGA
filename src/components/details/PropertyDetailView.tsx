@@ -32,6 +32,7 @@ import { ServiceChargeBars } from './ServiceChargeBars';
 import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
+import { resolveServiceCharge, resolveServiceChargeAmount, serviceChargeDebugTitle } from '../../utils/serviceCharge';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
     <div className="w-full min-w-0 overflow-x-hidden break-words whitespace-normal text-left max-w-full" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
@@ -1044,9 +1045,18 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     subText="Auto-calculated (2 weeks before statutory notice)"
                                                 />
                                             )}
-                                            {(property.rentalDetails.serviceCharge || 0) > 0 && (
-                                                <DetailItem label="Service Charge" value={<><NairaSymbol />{formatNaira(property.rentalDetails.serviceCharge || 0)}</>} />
-                                            )}
+                                            {(() => {
+                                                // Unified resolution — property's own SC uses the same chain
+                                                // (amount-first, 0-valid) as the units grid / SC table.
+                                                const scRes = resolveServiceCharge({ unit: property, rental: property.rentalDetails });
+                                                return scRes.amount > 0 ? (
+                                                    <DetailItem label="Service Charge" value={
+                                                        <span data-sc-source={import.meta.env.DEV ? scRes.source : undefined} title={serviceChargeDebugTitle(scRes.source)}>
+                                                            <NairaSymbol />{formatNaira(scRes.amount)}
+                                                        </span>
+                                                    } />
+                                                ) : null;
+                                            })()}
                                             {property.minimumVendEnabled && (
                                                 <DetailItem 
                                                     label={property.minimumVendLabel || 'Minimum Vend'} 
@@ -1361,7 +1371,12 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 // ── SC status badge renderer ──
                                                 const scStatus = d.serviceChargeStatus || (rental as any).serviceChargeStatus || (unit as any).serviceChargeStatus;
                                                 const scOutstanding = d.outstandingServiceChargeBalance || (rental as any).outstandingServiceChargeBalance || 0;
-                                                const scAmount = d.serviceChargeAmount || Number((unit as any).serviceCharge || (rental as any).serviceCharge || 0);
+                                                // Unified service-charge resolution (Item 2): 0 is a REAL value at
+                                                // every level; the parent property is the last-resort fallback.
+                                                // Replaces the old `d.serviceChargeAmount || unit.serviceCharge ||
+                                                // rental.serviceCharge || 0` chain that skipped legitimate 0s.
+                                                const scResolution = resolveServiceCharge({ unit, rental, defaultProperty: property });
+                                                const scAmount = scResolution.amount;
 
                                                 const renderScBadge = () => {
                                                     if (d.remindersPaused) {
@@ -1826,10 +1841,13 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                             {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
                                                                             {tenantPhone && <DetailItem label="Phone" value={tenantPhone} />}
                                                                             {tenantEmail && <DetailItem label="Email" value={<span className="truncate block">{tenantEmail}</span>} />}
-                                                                            {((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0) > 0 && (
+                                                                            {(() => {
+                                                                                // Unified resolution — same chain as the units grid / SC table.
+                                                                                const scRes = resolveServiceCharge({ unit, rental: (unit as any).rentalDetails, defaultProperty: property });
+                                                                                return scRes.amount > 0 ? (
                                                                                 <DetailItem label="Service Charge" value={
-                                                                                    <>
-                                                                                        ₦{Number((unit as any).serviceCharge || (unit as any).rentalDetails?.serviceCharge || 0).toLocaleString()}
+                                                                                    <span data-sc-source={import.meta.env.DEV ? scRes.source : undefined} title={serviceChargeDebugTitle(scRes.source)}>
+                                                                                        ₦{scRes.amount.toLocaleString()}
                                                                                         {(() => {
                                                                                             const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
                                                                                             if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Clear</span>;
@@ -1837,9 +1855,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                             if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>;
                                                                                             return null;
                                                                                         })()}
-                                                                                    </>
+                                                                                    </span>
                                                                                 } />
-                                                                            )}
+                                                                                ) : null;
+                                                                            })()}
                                                                             {(() => {
                                                                                 const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
                                                                                 const outstanding = d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0;
@@ -2006,15 +2025,17 @@ const PropertyDetailViewContent: React.FC = () => {
                         {/* Revenue Summary Cards — fluid flex-grid for dark-mode containment */}
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                             {(() => {
+                                // Dev-mode histogram of which resolution level each unit's SC came from.
+                                const scSourceCounts = new Map<string, number>();
                                 const allRent = units.reduce((sum: number, u: Property) => {
                                     const rd = u.rentalDetails || {};
                                     const rent = Number((rd as any).rentAmount || 0);
                                     return sum + rent;
                                 }, 0);
                                 const allServiceCharge = units.reduce((sum: number, u: Property) => {
-                                    const rd = u.rentalDetails || {};
-                                    const sc = Number((rd as any).serviceChargeAmount || (rd as any).serviceCharge || 0);
-                                    return sum + sc;
+                                    const sc = resolveServiceCharge({ unit: u, rental: (u as any).rentalDetails, defaultProperty: property });
+                                    scSourceCounts.set(sc.source, (scSourceCounts.get(sc.source) || 0) + 1);
+                                    return sum + sc.amount;
                                 }, 0);
                                 // Minimum Vend aggregator — sums MV across all units
                                 const allMinVend = property.minimumVendEnabled
@@ -2051,6 +2072,11 @@ const PropertyDetailViewContent: React.FC = () => {
                                 //    The card-level `title` attribute also carries the full
                                 //    text as a fallback for non-marquee users.
                                 const collectionStatusText = `${paidCount} Paid / ${partialCount} Partial / ${unpaidCount} Outstanding`;
+                                // Dev-mode only: where each unit's service charge came from,
+                                // appended to the SERVICE CHARGES card tooltip.
+                                const scSourcesDebug = import.meta.env.DEV
+                                    ? `\n${[...scSourceCounts.entries()].map(([s, n]) => `${n}×${s}`).join(', ')}`
+                                    : '';
                                 return (
                                     <>
                                         {/* TOTAL ANNUAL RENT + RECURRING REVENUE — hidden for
@@ -2076,7 +2102,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                         <StatCard
                                             title="SERVICE CHARGES"
                                             value={formatNairaCompact(allServiceCharge)}
-                                            tooltipText={formatNairaFull(allServiceCharge)}
+                                            tooltipText={`${formatNairaFull(allServiceCharge)}${scSourcesDebug}`}
                                             icon={<Receipt />}
                                             colorClass="bg-amber-600"
                                         />
@@ -2139,7 +2165,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                         {units.map((unit: Property) => {
                                             const d = getUnitDisplay(unit);
                                             const rd = (unit.rentalDetails || {}) as any;
-                                            const scAmount = d.serviceChargeAmount || Number(rd.serviceCharge || 0);
+                                            // Unified resolution — identical chain to the units grid and
+                                            // the revenue summary above, so all three agree per unit.
+                                            const scResolution = resolveServiceCharge({ unit, rental: rd, defaultProperty: property });
+                                            const scAmount = scResolution.amount;
                                             const scStatus = d.serviceChargeStatus || rd.serviceChargeStatus || '';
                                             const outstanding = d.outstandingServiceChargeBalance || rd.outstandingServiceChargeBalance || 0;
                                             const mvAmount = property.minimumVendEnabled ? Number(property.minimumVendAmount || 0) : 0;
@@ -2167,7 +2196,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     {property.rentCollectionMode !== 'Management Only (No Rent)' && (
                                                         <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
                                                     )}
-                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
+                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white" data-sc-source={import.meta.env.DEV ? scResolution.source : undefined} title={serviceChargeDebugTitle(scResolution.source)}>{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
                                                     {/* MINIMUM VEND cell — shown when MV enabled */}
                                                     {property.minimumVendEnabled && (
                                                         <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{mvAmount > 0 ? `₦${mvAmount.toLocaleString()}` : '—'}</td>
