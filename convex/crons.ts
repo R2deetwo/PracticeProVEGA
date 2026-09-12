@@ -304,4 +304,15 @@ crons.daily(
   {}
 );
 
+// ─── ITEM 4: QUERY DEMAND OBSERVABILITY ──────────────────────────────────
+// Weekly (Sundays 03:20 UTC). Records per-table row counts into
+// table_size_records so the growth of every bounded table is visible
+// BEFORE it approaches its .take(n) cap. See convex/queryMetrics.ts.
+crons.weekly(
+  "recordTableSizes",
+  { dayOfWeek: "sunday", hourUTC: 3, minuteUTC: 20 },
+  internal.queryMetrics.recordTableSizes,
+  {}
+);
+
 export default crons;

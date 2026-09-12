@@ -44,6 +44,7 @@ import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushNotificationsNode from "../pushNotificationsNode.js";
+import type * as queryMetrics from "../queryMetrics.js";
 import type * as retainerBilling from "../retainerBilling.js";
 import type * as salesInquiries from "../salesInquiries.js";
 import type * as search from "../search.js";
@@ -107,6 +108,7 @@ declare const fullApi: ApiFromModules<{
   proactive: typeof proactive;
   pushNotifications: typeof pushNotifications;
   pushNotificationsNode: typeof pushNotificationsNode;
+  queryMetrics: typeof queryMetrics;
   retainerBilling: typeof retainerBilling;
   salesInquiries: typeof salesInquiries;
   search: typeof search;

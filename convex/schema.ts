@@ -773,6 +773,20 @@ export default defineSchema({
     _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
+  // Item 4 observability: weekly per-table row counts (queryMetrics.ts).
+  // One document per weekly recording — growth trends against the bounding
+  // caps land here before any cap is ever hit.
+  table_size_records: defineTable({
+    recordedAt: nullableString,
+    weekOf: nullableString,
+    sizes: v.optional(v.array(v.object({
+      table: v.string(),
+      rowCount: v.number(),
+      capped: v.boolean(),
+    }))),
+    totalRows: v.optional(v.number()),
+    monitoredCount: v.optional(v.number()),
+  }).index("by_recorded_at", ["recordedAt"]),
   archive: defineTable({
     firmId: nullableString,
     itemType: nullableString,
