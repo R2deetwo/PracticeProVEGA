@@ -27,6 +27,7 @@ const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 import { View, SubscriptionPlan } from '../types';
 import { useFeatures } from '../hooks/useFeatures';
+import { formatFirmLegalName } from '../utils/professionalIdentity';
 
 interface SidebarProps {
     currentView: View;
@@ -177,9 +178,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
         return () => window.removeEventListener('aloa_x_toggled', handleToggle);
     }, []);
 
-    // Logo / Initials Logic
-    const firmName = coreState.firmDetails.name || (isProperty ? 'My Agency' : 'My Firm');
-    const firmInitials = firmName.substring(0, 2).toUpperCase();
+    // Logo / Initials Logic — the name at the top of the page carries the
+    // firm's legal form ("Atrium Estates Ltd", "The Estate of X") once set.
+    const firmName = formatFirmLegalName({
+        name: coreState.firmDetails.name || (isProperty ? 'My Agency' : 'My Firm'),
+        legalEntityType: (coreState.firmDetails as any).legalEntityType,
+        legalEntityCustom: (coreState.firmDetails as any).legalEntityCustom,
+    });
+    const firmInitials = (coreState.firmDetails.name || 'F').substring(0, 2).toUpperCase();
     const logoUrl = coreState.firmDetails.logoUrl;
 
     // Fetch available workspaces when dropdown opens

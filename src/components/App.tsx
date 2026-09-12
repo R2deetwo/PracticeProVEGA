@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { View, ModalType, AppState, Task, Document, User, NotePage, HistoryEntry, Invoice, UserRole, Theme, TaskStatus, ClientMessage, Contact, Lead, AppMode, SubscriptionPlan } from '../types';
+import { readPendingIdentity, clearPendingIdentity } from '../utils/professionalIdentity';
 import { useMatterState } from '../contexts/MatterContext';
 import { useFinanceState } from '../contexts/FinanceContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
@@ -576,10 +577,47 @@ export const App: React.FC = () => {
     const { financeState } = useFinanceState();
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
-    const { coreState, isDataLoaded } = useCoreState();
+    const { coreState, coreActions, isDataLoaded } = useCoreState();
     const { startTour } = useOnboarding();
     const ui = useUI();
     const { isSessionLocked, setIsSessionLocked, goBack } = ui;
+
+    // ─── PROFESSIONAL IDENTITY — one-shot apply from signup ─────────────────
+    // The signup form asks for the user's role + the organization's legal
+    // form BEFORE a firm exists server-side. The answers are parked in
+    // localStorage; this effect stamps them onto the firm + user profile on
+    // the first load where both exist, then clears the parking slot. A
+    // failure leaves the slot in place — it retries on the next load.
+    const appliedPendingIdentity = React.useRef(false);
+    React.useEffect(() => {
+        if (appliedPendingIdentity.current) return;
+        if (!currentUser || !coreState.firmDetails?.id) return;
+        const pending = readPendingIdentity();
+        if (!pending) { appliedPendingIdentity.current = true; return; }
+        appliedPendingIdentity.current = true;
+        (async () => {
+            try {
+                if (pending.legalEntityType) {
+                    await coreActions.handleUpdateFirmDetails({
+                        ...coreState.firmDetails,
+                        legalEntityType: pending.legalEntityType,
+                        ...(pending.legalEntityCustom ? { legalEntityCustom: pending.legalEntityCustom } : {}),
+                    });
+                }
+                if (pending.professionalTitle) {
+                    await coreActions.handleUpdateUser(currentUser.id, {
+                        professionalTitle: pending.professionalTitle,
+                        ...(pending.titleCustom ? { titleCustom: pending.titleCustom } : {}),
+                    } as any);
+                }
+                clearPendingIdentity();
+            } catch (e) {
+                // Retry on the next full load.
+                appliedPendingIdentity.current = false;
+                console.warn('[PendingIdentity] apply failed — will retry on next load:', e);
+            }
+        })();
+    }, [currentUser, coreState.firmDetails, coreActions]);
 
     // ─── Push Notifications: Register device on native platform ────────────
     // Registers the device with FCM on app boot (if native + logged in).

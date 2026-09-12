@@ -5,6 +5,7 @@ import { inputClassic } from '../../utils/formStyles';
 import { formatNumberWithCommas, parseFormattedNumber } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 import { useUI } from '../../contexts/UIContext';
+import { LEGAL_ENTITY_TYPES, formatFirmLegalName } from '../../utils/professionalIdentity';
 
 interface FirmDetailsFormProps {
   firmDetails: FirmDetails;
@@ -21,6 +22,12 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
   const [revenueTarget, setRevenueTarget] = useState(firmDetails.monthlyRevenueTarget || 5000000);
   const [headerTextColor, setHeaderTextColor] = useState(firmDetails.headerTextColor || '#111827'); // Default dark slate
   const [vatRateInput, setVatRateInput] = useState(firmDetails.taxSettings?.vatRate ? (firmDetails.taxSettings.vatRate * 100).toString() : '7.5');
+  // LEGAL FORM (user feedback 2026-09-12): the firm name alone "seems a
+  // little unprofessional cause there is not LTD or Cooperative or The
+  // Estate of X" — the legal form rides on the name in the app header and
+  // every piece of correspondence.
+  const [legalEntityType, setLegalEntityType] = useState(firmDetails.legalEntityType || '');
+  const [legalEntityCustom, setLegalEntityCustom] = useState(firmDetails.legalEntityCustom || '');
   const [defaultStateOfPractice, setDefaultStateOfPractice] = useState(firmDetails.defaultStateOfPractice || 'Lagos');
 
   // Hidden file inputs refs
@@ -50,6 +57,8 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
         ...firmDetails, 
         name, 
         address, 
+        legalEntityType,
+        ...(legalEntityType === 'Other' ? { legalEntityCustom } : { legalEntityCustom: '' }),
         logoUrl, 
         letterheadUrl, 
         monthlyRevenueTarget: revenueTarget,
@@ -141,6 +150,28 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
             <label htmlFor="firmName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Firm Name</label>
             <input autoComplete="off" data-lpignore="true"  type="text" id="firmName" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} required />
           </div>
+
+          {/* ─── Legal Form — rides on the name in correspondence ─── */}
+          <div className="border border-gray-200 dark:border-zinc-700 rounded-lg p-3 bg-gray-50 dark:bg-zinc-800/60">
+            <label htmlFor="legalEntityType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Legal Form <span className="text-xs text-gray-400">(shows as “{formatFirmLegalName({ name: name || 'Firm Name', legalEntityType, legalEntityCustom })}” in emails &amp; receipts)</span>
+            </label>
+            <select
+              id="legalEntityType"
+              value={legalEntityType}
+              onChange={e => setLegalEntityType(e.target.value)}
+              className={commonInputClass}
+            >
+              <option value="">Not specified — name as-is</option>
+              {LEGAL_ENTITY_TYPES.map(t => (
+                <option key={t} value={t}>{t === 'Other' ? 'Other (e.g. The Estate of X)' : t}</option>
+              ))}
+            </select>
+            {legalEntityType === 'Other' && (
+              <input autoComplete="off" data-lpignore="true" type="text" value={legalEntityCustom} onChange={e => setLegalEntityCustom(e.target.value)} placeholder="e.g. The Estate of Chief A. N. Other" className={commonInputClass + ' mt-2'} />
+            )}
+          </div>
+
           <div>
             <label htmlFor="firmAddress" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Office Address</label>
             <textarea id="firmAddress" value={address} onChange={e => setAddress(e.target.value)} rows={3} className={commonInputClass} required />

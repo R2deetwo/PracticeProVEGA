@@ -93,6 +93,10 @@ export interface ReceiptEmailInput {
     pdfAttached?: boolean;
     /** The resident's portal entry link (button under the amount). */
     portalUrl?: string;
+    /** Firm name + legal form ("Atrium Estates Ltd") — correspondence identity. */
+    firmLegalName?: string;
+    /** Signer block ("Ada Obi — Property Manager") for the issuer line. */
+    signerBlock?: string;
 }
 
 const naira = (n: number) => `₦${Math.round(n).toLocaleString('en-NG')}`;
@@ -136,9 +140,11 @@ export function buildReceiptEmailHtml(input: ReceiptEmailInput): string {
     ].join('\n');
 
     return buildEmailHtml({
-        firmName: input.firmName,
+        firmName: input.firmLegalName || input.firmName,
         body,
-        footerNote: 'This is an official receipt issued by your property manager.',
+        footerNote: input.signerBlock
+            ? `Issued by ${input.firmLegalName || input.firmName} — ${input.signerBlock}.`
+            : 'This is an official receipt issued by your property manager.',
     });
 }
 
@@ -168,12 +174,13 @@ export function buildReceiptEmailSubject(input: {
  */
 export function buildReceiptPdfBase64(input: ReceiptEmailInput): string {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const legalName = input.firmLegalName || input.firmName || 'PracticePro';
 
-    // Header — firm name + document kind, centred, emerald accent.
+    // Header — firm legal name + document kind, centred, emerald accent.
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(5, 150, 105);
-    doc.text(input.firmName || 'PracticePro', 105, 28, { align: 'center' });
+    doc.text(legalName, 105, 28, { align: 'center' });
 
     doc.setFontSize(9.5);
     doc.setTextColor(100, 116, 139);
@@ -221,12 +228,15 @@ export function buildReceiptPdfBase64(input: ReceiptEmailInput): string {
     doc.setTextColor(5, 150, 105);
     doc.text(nairaPdf(input.amountPaid), 105, y + 16.5, { align: 'center' });
 
-    // Footer — issuer + issue date.
+    // Footer — issuer (legal name + signer) + issue date.
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text(`This is an official receipt issued by ${input.firmName || 'PracticePro'} via PracticePro.`, 105, 282, { align: 'center' });
-    doc.text(`Issued on ${new Date().toISOString().split('T')[0]}`, 105, 287, { align: 'center' });
+    doc.text(`This is an official receipt issued by ${legalName} via PracticePro.`, 105, 282, { align: 'center' });
+    if (input.signerBlock) {
+        doc.text(`Issued by ${input.signerBlock}.`, 105, 286.5, { align: 'center' });
+    }
+    doc.text(`Issued on ${new Date().toISOString().split('T')[0]}`, 105, 291, { align: 'center' });
 
     return arrayBufferToBase64(doc.output('arraybuffer'));
 }

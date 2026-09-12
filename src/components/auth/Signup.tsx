@@ -8,6 +8,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { EyeIcon, EyeOffIcon, MailIcon, CheckCircleIcon, ZapIcon } from '../../constants';
 import { AppMode, SubscriptionPlan } from '../../types';
+import { PROFESSIONAL_TITLES, LEGAL_ENTITY_TYPES, savePendingIdentity } from '../../utils/professionalIdentity';
 // R13: the signup form's ToS + Privacy checkboxes are a REAL legal consent —
 // record them so the app never re-prompts the same acceptance.
 import { markTermsAccepted, TERMS_VERSION } from '../TermsAcceptance';
@@ -46,6 +47,18 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  const [restoreNotes, setRestoreNotes] = React.useState('');
  const [restoreSubmitted, setRestoreSubmitted] = React.useState(false);
  const [isSubmittingRestore, setIsSubmittingRestore] = React.useState(false);
+
+ // PROFESSIONAL IDENTITY (user feedback 2026-09-12): "the person may
+ // describe themselves in a limited number of ways and then other such as
+ // Property Manager, Facilities Manager, Property Administrator... and
+ // the company name without LTD or Cooperative seems a little
+ // unprofessional... let this be something the user can do in their
+ // onboarding." Both optional; parked in localStorage and applied one-shot
+ // to the firm + user profile on first app load.
+ const [professionalTitle, setProfessionalTitle] = React.useState('');
+ const [titleCustom, setTitleCustom] = React.useState('');
+ const [legalEntityType, setLegalEntityType] = React.useState('');
+ const [legalEntityCustom, setLegalEntityCustom] = React.useState('');
  const submitDataRestoreRequest = useMutation(api.feedback.submitDataRestoreRequest);
  // R13: durable consent record (NDPA §25) — same mutation the in-app
  // TermsAcceptance bar writes, so the server sees the signup consent too.
@@ -163,6 +176,15 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    );
 
    if (result.success) {
+    // Park the onboarding identity so the first app load stamps it onto
+    // the firm (legal form) + user profile (professional title) — reflected
+    // in the app header, emails and receipts.
+    savePendingIdentity({
+     professionalTitle,
+     ...(professionalTitle === 'Other' ? { titleCustom } : {}),
+     legalEntityType,
+     ...(legalEntityType === 'Other' ? { legalEntityCustom } : {}),
+    });
     setStep('verify');
    } else {
     if (result.code === 'EMAIL_EXISTS') {
@@ -529,6 +551,56 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <div className="grid grid-cols-1 gap-4">
       <input autoComplete="off" data-lpignore="true" type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Full Name" className={commonInputClass} required />
       <input autoComplete="off" data-lpignore="true" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Work Email" className={commonInputClass} required />
+     </div>
+
+     {/* Professional identity — optional, applied to profile + correspondence */}
+     <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+      <p className="text-2xs font-bold text-slate-500 uppercase tracking-wide">How should you appear in correspondence? <span className="font-normal normal-case">(optional)</span></p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+       <div>
+        <label htmlFor="su-title" className="block text-2xs font-semibold text-slate-500 mb-1">Your role</label>
+        <select
+         id="su-title"
+         value={professionalTitle}
+         onChange={e => setProfessionalTitle(e.target.value)}
+         className="w-full min-h-[44px] text-sm text-slate-900 bg-white border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+        >
+         <option value="">Select a role…</option>
+         {PROFESSIONAL_TITLES.map(t => <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>)}
+        </select>
+        {professionalTitle === 'Other' && (
+         <input
+          type="text"
+          value={titleCustom}
+          onChange={e => setTitleCustom(e.target.value)}
+          placeholder="e.g. Head of Estate Operations"
+          className="w-full mt-2 min-h-[44px] text-sm text-slate-900 bg-white border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+         />
+        )}
+       </div>
+       <div>
+        <label htmlFor="su-entity" className="block text-2xs font-semibold text-slate-500 mb-1">Your organization's legal form</label>
+        <select
+         id="su-entity"
+         value={legalEntityType}
+         onChange={e => setLegalEntityType(e.target.value)}
+         className="w-full min-h-[44px] text-sm text-slate-900 bg-white border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+        >
+         <option value="">Select a legal form…</option>
+         {LEGAL_ENTITY_TYPES.map(t => <option key={t} value={t}>{t === 'Other' ? 'Other (e.g. The Estate of X)' : t}</option>)}
+        </select>
+        {legalEntityType === 'Other' && (
+         <input
+          type="text"
+          value={legalEntityCustom}
+          onChange={e => setLegalEntityCustom(e.target.value)}
+          placeholder="e.g. The Estate of Chief A. N. Other"
+          className="w-full mt-2 min-h-[44px] text-sm text-slate-900 bg-white border border-slate-300 rounded-lg px-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+         />
+        )}
+       </div>
+      </div>
+      <p className="text-2xs text-slate-400">Used in your app header, emails and receipts — “{legalEntityType && legalEntityType !== 'Other' ? 'Atrium Estates Ltd' : 'Atrium Estates'} · {professionalTitle && professionalTitle !== 'Other' ? professionalTitle : 'your title'}”.</p>
      </div>
 
      <div className="flex flex-col gap-1">

@@ -94,6 +94,22 @@ describe('buildReceiptEmailHtml — the receipt in the resident\u2019s inbox', (
         expect(html).not.toContain('Open your resident portal');
     });
 
+    it('carries the legal name + signer block in the issuer line', () => {
+        const html = buildReceiptEmailHtml({
+            ...input,
+            firmLegalName: 'Atrium Estates Ltd',
+            signerBlock: 'Ada Obi — Property Manager, Atrium Estates Ltd',
+        });
+        expect(html).toContain('Atrium Estates Ltd');
+        expect(html).toContain('Issued by Atrium Estates Ltd — Ada Obi — Property Manager, Atrium Estates Ltd.');
+    });
+
+    it('falls back to the plain firm name when no legal identity is set', () => {
+        const html = buildReceiptEmailHtml(input);
+        expect(html).toContain('Atrium Estates');
+        expect(html).toContain('official receipt issued by your property manager');
+    });
+
     it('escapes HTML in tenant-provided fields', () => {
         const html = buildReceiptEmailHtml({ ...input, tenantName: '<script>alert(1)</script>' });
         expect(html).not.toContain('<script>');

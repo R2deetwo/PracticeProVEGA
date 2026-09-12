@@ -7,6 +7,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { LockClosedIcon, ZapIcon, TrashIcon, UserCircleIcon, DesktopComputerIcon } from '../../constants';
 import { useProduct } from '../../contexts/ProductContext';
+import { PROFESSIONAL_TITLES } from '../../utils/professionalIdentity';
 import FeedbackButton from '../FeedbackButton';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
@@ -74,6 +75,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
     const { updateCurrentUser } = useAuth();
     const { isLegal, isProperty } = useProduct();
     const [userName, setUserName] = useState(currentUser.name);
+    // PROFESSIONAL TITLE (user feedback 2026-09-12): "the person may
+    // describe themselves in a limited number of ways and then other such
+    // as Property Manager, Facilities Manager, Property Administrator" —
+    // used in correspondence signatures and receipts.
+    const [titleInput, setTitleInput] = useState(currentUser.professionalTitle || '');
+    const [titleCustomInput, setTitleCustomInput] = useState(currentUser.titleCustom || '');
     const [activeSubTab, setActiveSubTab] = useState<'general' | 'appearance'>(initialSubTab || 'general');
 
     // API Key State
@@ -84,11 +91,18 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
     });
 
     const handleProfileUpdate = () => {
-        if (userName.trim() === currentUser.name) {
+        const titleChanged =
+            titleInput !== (currentUser.professionalTitle || '') ||
+            titleCustomInput !== (currentUser.titleCustom || '');
+        if (userName.trim() === currentUser.name && !titleChanged) {
             addToast('No changes to save.', { type: 'info' });
             return;
         }
-        onUpdateUser({ name: userName.trim() });
+        onUpdateUser({
+            ...(userName.trim() !== currentUser.name ? { name: userName.trim() } : {}),
+            professionalTitle: titleInput || undefined,
+            ...(titleInput === 'Other' ? { titleCustom: titleCustomInput } : { titleCustom: undefined }),
+        });
         addToast('Profile updated successfully!', { type: 'success' });
     };
 
@@ -145,6 +159,26 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                 <label htmlFor="userEmail" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Email (Login ID)</label>
                                 <input autoComplete="off" data-lpignore="true"  type="email" id="userEmail" value={currentUser.email} readOnly disabled className={`${commonInputClass} cursor-not-allowed bg-slate-100 dark:bg-zinc-800`} />
                                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Your email is used for logging in and cannot be changed.</p>
+                            </div>
+
+                            {/* Professional title — how you appear in correspondence */}
+                            <div>
+                                <label htmlFor="professionalTitle" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Professional Title</label>
+                                <select
+                                    id="professionalTitle"
+                                    value={titleInput}
+                                    onChange={(e) => setTitleInput(e.target.value)}
+                                    className={commonInputClass}
+                                >
+                                    <option value="">Not specified</option>
+                                    {PROFESSIONAL_TITLES.map(t => (
+                                        <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>
+                                    ))}
+                                </select>
+                                {titleInput === 'Other' && (
+                                    <input autoComplete="off" data-lpignore="true" type="text" value={titleCustomInput} onChange={(e) => setTitleCustomInput(e.target.value)} placeholder="e.g. Head of Estate Operations" className={commonInputClass} />
+                                )}
+                                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Appears in your email signatures and on receipts you issue.</p>
                             </div>
                             {/* Profile update button — explicit primary styling.
                                 Was: bg-slate-900 dark:bg-white dark:bg-zinc-900 (conflicting

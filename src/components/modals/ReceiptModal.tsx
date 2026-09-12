@@ -30,6 +30,7 @@ import { XIcon, DownloadIcon, CheckCircleIcon, SendIcon } from '../../constants'
 import { formatNairaFull, formatDateShort } from '../../utils/formatting';
 import { buildReceiptLogArgs, buildReceiptContent } from '../../utils/receiptDelivery';
 import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64, receiptPdfFileName, buildTenantPortalLoginUrl } from '../../utils/emailDelivery';
+import { formatFirmLegalName, formatSignerBlock } from '../../utils/professionalIdentity';
 import { ServiceChargePeriod } from '../../types';
 
 interface ReceiptModalProps {
@@ -78,6 +79,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     })();
 
     const firmName = coreState?.firmDetails?.name || 'PracticePro';
+    // Correspondence identity — the legal form rides on the firm name and
+    // the issuer carries their professional title (2026-09-12).
+    const firmLegalName = formatFirmLegalName({
+        name: coreState?.firmDetails?.name,
+        legalEntityType: (coreState?.firmDetails as any)?.legalEntityType,
+        legalEntityCustom: (coreState?.firmDetails as any)?.legalEntityCustom,
+    });
+    const signerBlock = formatSignerBlock({
+        userName: currentUser?.name,
+        professionalTitle: (currentUser as any)?.professionalTitle,
+        titleCustom: (currentUser as any)?.titleCustom,
+        firmLegalName,
+    });
 
     const handleDownloadPdf = () => {
         // Generate an inline printable receipt (HTML → print dialog → save as PDF).
@@ -178,6 +192,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                         name: receiptPdfFileName(receiptNumber),
                         contentBase64: buildReceiptPdfBase64({
                             firmName,
+                            firmLegalName,
+                            signerBlock,
                             receiptNumber,
                             tenantName,
                             unitName,
@@ -199,6 +215,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                         subject: buildReceiptEmailSubject({ receiptNumber, chargeTypeLabel, billingPeriod: coverageNote || billingPeriod }),
                         htmlContent: buildReceiptEmailHtml({
                             firmName,
+                            firmLegalName,
+                            signerBlock,
                             receiptNumber,
                             tenantName,
                             unitName,
