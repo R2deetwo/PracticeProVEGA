@@ -176,6 +176,21 @@ jobs:
       - name: Typecheck Convex backend (belt-and-braces before deploy)
         run: npx tsc -p convex --noEmit
 
+      - name: Ensure FIREBASE_SERVICE_ACCOUNT_JSON is set (before deploy — env changes require a redeploy to take effect)
+        continue-on-error: true
+        env:
+          FCM_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$FCM_SA_JSON" ]; then
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT_JSON GitHub secret is not set — FCM v1 push delivery stays disabled (hasFcmServiceAccount=false). Generate a private key in Firebase Console (project practicepro-42178 → Project Settings → Service accounts → Generate new private key) and add it as the repo secret FIREBASE_SERVICE_ACCOUNT_JSON."
+            exit 0
+          fi
+          if npx convex env set FIREBASE_SERVICE_ACCOUNT_JSON "$FCM_SA_JSON"; then
+            echo "✓ FIREBASE_SERVICE_ACCOUNT_JSON set on production — FCM v1 push enabled (picked up by the deploy below)"
+          else
+            echo "::warning::Could not set FIREBASE_SERVICE_ACCOUNT_JSON (the deploy key may lack env permissions). Set it once in the Convex dashboard (gregarious-malamute-537 → Settings → Environment Variables)."
+          fi
+
       - name: Deploy Convex production backend
         run: npx convex deploy --cmd "echo 'Convex production deployed'"
 
