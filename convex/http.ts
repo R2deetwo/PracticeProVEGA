@@ -3,6 +3,7 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { handleChakraWebhook } from "./sentryWebhook";
 import { handlePaystackWebhookImpl } from "./paystack";
+import { decodeUnsubscribeToken } from "./emailBranding";
 
 const http = httpRouter();
 
@@ -109,6 +110,57 @@ http.route({
         "Access-Control-Allow-Origin": "*",
       }
     });
+  }),
+});
+
+// ─── AUTOMATED EMAIL UNSUBSCRIBE ────────────────────────────────────────────
+// Every automated tenant/client email footer carries a tokenized
+// /unsubscribe?t=... link (see convex/emailBranding.ts). This public route
+// verifies the token, records the opt-out, and confirms with a small
+// friendly page — no login required. The automation engine AND the
+// scheduled-message dispatcher both honour the opt-out list.
+http.route({
+  path: "/unsubscribe",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const url = new URL(request.url);
+    const token = url.searchParams.get("t") || "";
+    try {
+      const decoded = decodeUnsubscribeToken(token);
+      if (!decoded) {
+        return new Response(
+          `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribe — PracticePro</title></head>` +
+          `<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:40px 20px;max-width:480px;margin:0 auto;text-align:center;color:#0f172a;">` +
+          `<h2 style="margin-bottom:8px;">This link isn't valid</h2>` +
+          `<p style="color:#64748b;font-size:14px;">The unsubscribe link may have been truncated by your email app. Try opening the full link, or reply to the email asking to be removed.</p></body></html>`,
+          { status: 400, headers: { "Content-Type": "text/html; charset=utf-8" } }
+        );
+      }
+      const firmName = await ctx.runQuery(internal.automationEngine.getFirmName, { firmId: decoded.firmId });
+      await ctx.runMutation(internal.automationEngine.recordOptOut, {
+        firmId: decoded.firmId,
+        contactKey: decoded.contactKey,
+        source: "email_footer",
+      });
+      const label = decoded.contactKey.includes("@") ? decoded.contactKey : "this phone number";
+      return new Response(
+        `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unsubscribed — PracticePro</title></head>` +
+        `<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;padding:48px 20px;max-width:480px;margin:0 auto;text-align:center;color:#0f172a;">` +
+        `<div style="width:56px;height:56px;border-radius:50%;background:#ccfbf1;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;">` +
+        `<span style="font-size:26px;color:#0d9488;">✓</span></div>` +
+        `<h2 style="margin:0 0 10px;">You're unsubscribed</h2>` +
+        `<p style="color:#475569;font-size:14px;line-height:1.6;margin:0 0 14px;">${label} will no longer receive automated rent, service-charge or lease reminders from <strong>${firmName || "this organisation"}</strong>.</p>` +
+        `<p style="color:#94a3b8;font-size:12px;line-height:1.6;">Important notices that concern your tenancy or money may still be sent to you directly. To re-enable reminders, contact ${firmName || "your property manager"}.</p>` +
+        `<p style="color:#cbd5e1;font-size:11px;margin-top:28px;">Powered by PracticePro Systems</p></body></html>`,
+        { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
+    } catch (err: any) {
+      return new Response(
+        `<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:40px;text-align:center;color:#0f172a;">` +
+        `<h2>Something went wrong</h2><p style="color:#64748b;font-size:14px;">Please try again, or reply to the email asking to be removed.</p></body></html>`,
+        { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } }
+      );
+    }
   }),
 });
 

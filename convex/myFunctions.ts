@@ -2129,6 +2129,101 @@ export const requestPasswordReset = mutation({
 });
 
 /**
+ * findFounderAccounts — FOUNDER APP ACCOUNT RECOVERY (2026-09-14).
+ *
+ * The founder reported: "I forgot my password AND I don't even remember
+ * the email I used." This lookup lets them self-serve: type any part of
+ * the name on the account → see MASKED emails of matching Founder-role
+ * accounts → pick one → continue into the standard emailed-code password
+ * reset (requestPasswordReset). The recovery code itself only ever goes
+ * to the real inbox, so revealing masked addresses here is safe (the
+ * industry-standard j***@gmail.com shape — enough to recognise your own
+ * address, useless to an attacker).
+ *
+ * Guards: ≥3-character query, Founder-role accounts only, max 5 results,
+ * deactivated accounts hidden.
+ */
+export const findFounderAccounts = query({
+  args: { nameQuery: v.string() },
+  handler: async (ctx, args) => {
+    const q = String(args.nameQuery || "").trim().toLowerCase();
+    if (q.length < 3) return { matches: [] };
+
+    const maskEmail = (email: string): string => {
+      const [local, domain] = email.split("@");
+      if (!domain) return "***";
+      const shown = local.slice(0, 1);
+      const tail = local.length > 1 ? local.slice(-1) : "";
+      return `${shown}***${tail}@${domain}`;
+    };
+
+    const users = await ctx.db.query("users").take(500);
+    const matches = users
+      .filter((u: any) => {
+        if (String(u.role || "") !== "Founder") return false;
+        if (u.deactivatedAt) return false;
+        const name = String(u.name || "").toLowerCase();
+        const email = String(u.email || "").toLowerCase();
+        return (name.includes(q) || email.includes(q)) && !!u.email;
+      })
+      .slice(0, 5)
+      .map((u: any) => ({
+        maskedEmail: maskEmail(String(u.email)),
+        displayName: String(u.name || ""),
+        // Human hint for "which account is mine" — signup year/month.
+        memberSince: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 7) : null,
+      }));
+    return { matches };
+  },
+});
+
+/**
+ * sendFounderRecoveryCode — second half of founder account recovery.
+ * The client only knows the masked email + which match it picked; this
+ * mutation re-resolves the same filtered list SERVER-SIDE (the client
+ * can never point it at an arbitrary account), generates the recovery
+ * code, and emails the real address a recovery link that also reveals
+ * which email the account uses. From there the founder completes the
+ * standard reset (resetPassword with the emailed code).
+ */
+export const sendFounderRecoveryCode = mutation({
+  args: { nameQuery: v.string(), matchIndex: v.number() },
+  handler: async (ctx, args) => {
+    const q = String(args.nameQuery || "").trim().toLowerCase();
+    if (q.length < 3) return { success: false, message: "Search again first (min 3 characters)." };
+
+    const users = await ctx.db.query("users").take(500);
+    const matches = users.filter((u: any) => {
+      if (String(u.role || "") !== "Founder") return false;
+      if (u.deactivatedAt) return false;
+      const name = String(u.name || "").toLowerCase();
+      const email = String(u.email || "").toLowerCase();
+      return (name.includes(q) || email.includes(q)) && !!u.email;
+    });
+    const idx = Math.trunc(args.matchIndex);
+    if (idx < 0 || idx >= matches.length || idx > 4) {
+      return { success: false, message: "That match is no longer available — search again." };
+    }
+    const user: any = matches[idx];
+    const code = "RCV-" + numericCode(6);
+    await ctx.db.patch(user._id, { recoveryCode: code });
+    try {
+      const appDomain = "https://practice-pro-vega.vercel.app";
+      const recoveryLink = `${appDomain}/?view=login&recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
+      await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendRecoveryEmail, {
+        email: user.email,
+        code,
+        recoveryLink,
+      });
+    } catch (e: any) {
+      console.error("Failed to send founder recovery email", e?.message);
+      return { success: false, message: "Could not send the recovery email — please retry." };
+    }
+    return { success: true };
+  },
+});
+
+/**
  * requestPortalPasswordReset — Password reset for portal users (Client/Tenant).
  *
  * Similar to requestPasswordReset but sends the recovery link to the

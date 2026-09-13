@@ -57,6 +57,11 @@ export const Settings: React.FC = () => {
     const [sessionTimeout, setSessionTimeout] = useState(() => safeGet('founder_session_timeout', '15'));
 
     const [notifNewUsers, setNotifNewUsers] = useState(() => safeGetBool('founder_notif_new_users', true));
+    // PUSH DIAGNOSTICS (2026-09-14): persist the last test-push result in
+    // component state so the fix path stays ON SCREEN next to the button —
+    // a 5-second toast was the founder's only guidance before, which is
+    // exactly why the same error kept re-appearing "with no explanation".
+    const [lastPushResult, setLastPushResult] = useState<any>(null);
     const [notifChurn, setNotifChurn] = useState(() => safeGetBool('founder_notif_churn', true));
     const [notifScaling, setNotifScaling] = useState(() => safeGetBool('founder_notif_scaling', true));
     const [notifMilestone, setNotifMilestone] = useState(() => safeGetBool('founder_notif_milestone', true));
@@ -296,6 +301,7 @@ export const Settings: React.FC = () => {
                                             title: 'PracticePro Test Push',
                                             body: 'If you can see this, push notifications are working correctly!',
                                         });
+                                        setLastPushResult(result);
                                         if (result.success && (result.sent || 0) > 0) {
                                             addToast(`Test push DELIVERED to ${result.sent} of ${result.totalDevices || result.sent} device(s)!`, { type: 'success' });
                                         } else if (result.reason === 'FCM_NOT_CONFIGURED' || result.reason === 'LEGACY_FCM_REMOVED' || result.reason === 'INVALID_SERVICE_ACCOUNT') {
@@ -313,6 +319,7 @@ export const Settings: React.FC = () => {
                                         // and back in) instead of a raw "Unauthenticated…" error.
                                         const msg = String(e?.message || '');
                                         const isAuth = /unauthenticated|session token|sign in|session has expired|verified session/i.test(msg);
+                                        setLastPushResult({ success: false, reason: 'AUTH', error: msg });
                                         addToast(
                                             isAuth
                                                 ? 'Your session has expired — please sign out and sign back in, then try again.'
@@ -325,6 +332,39 @@ export const Settings: React.FC = () => {
                             >
                                 Send Test Push Notification
                             </button>
+
+                            {/* Persistent result panel — the toast evaporates; this explains WHY and WHAT TO DO. */}
+                            {lastPushResult && (
+                                <div className={`mt-3 rounded-lg border p-3 text-xs leading-relaxed ${
+                                    lastPushResult.success && (lastPushResult.sent || 0) > 0
+                                        ? 'border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/70 dark:bg-emerald-900/10 text-emerald-700 dark:text-emerald-400'
+                                        : 'border-amber-200 dark:border-amber-900/50 bg-amber-50/70 dark:bg-amber-900/10 text-amber-800 dark:text-amber-300'
+                                }`}>
+                                    {lastPushResult.success && (lastPushResult.sent || 0) > 0 ? (
+                                        <p className="font-semibold">
+                                            Delivered to {lastPushResult.sent} of {lastPushResult.totalDevices || lastPushResult.sent} registered device(s) — the whole pipeline (token registration → FCM v1 dispatch → device) is verified.
+                                        </p>
+                                    ) : lastPushResult.reason === 'NO_REGISTERED_DEVICES' ? (
+                                        <div className="space-y-1.5">
+                                            <p className="font-bold">Your account has no registered device tokens yet.</p>
+                                            <p><strong>Why:</strong> the Founder APK (com.practicepro.admin) can only register with FCM after it is added as an Android app in the Firebase project — the build currently ships without that registration, so founder-app devices never produce tokens.</p>
+                                            <p><strong>The fix (one-time, ~3 minutes):</strong></p>
+                                            <ol className="list-decimal ml-4 space-y-0.5">
+                                                <li>Firebase Console → project <strong>practicepro-42178</strong> → Project Settings → Your apps → <strong>Add app → Android</strong> → package name <code className="px-1 bg-amber-100 dark:bg-amber-900/40 rounded">com.practicepro.admin</code> → Register.</li>
+                                                <li>Download the new google-services.json (it now lists BOTH apps) and commit it to <code className="px-1 bg-amber-100 dark:bg-amber-900/40 rounded">android/app/google-services.json</code>, then rebuild the Founder APK.</li>
+                                                <li>Meanwhile: log into the <strong>main PracticePro app</strong> on this phone with your founder account — its tokens register immediately and this test will deliver there.</li>
+                                            </ol>
+                                        </div>
+                                    ) : lastPushResult.reason === 'AUTH' ? (
+                                        <p className="font-semibold">Session expired — sign out and back in, then test again.</p>
+                                    ) : (
+                                        <p className="font-semibold">
+                                            {lastPushResult.reason ? `${lastPushResult.reason}: ` : ''}
+                                            {lastPushResult.error || (lastPushResult.errors || []).join(' | ') || 'Push failed — see the toast for details.'}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

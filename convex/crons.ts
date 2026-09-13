@@ -37,20 +37,38 @@ crons.daily(
 );
 
 // Atrium Daily Automation: overdue late notices, reminders (8:00 AM WAT = 7:00 AM UTC)
-crons.daily(
-  "sentryDailyAutomation",
-  { hourUTC: 7, minuteUTC: 0 },
-  internal.sentry.runDailyAutomation,
-  {}
-);
+// ── RETIRED 2026-09-14 (Automation Engine consolidation) ─────────────────────
+// This cron and serviceChargeWhatsAppReminder below were the two scattered
+// reminder writers — they overlapped (a charge 1 day overdue was selected
+// by BOTH, producing two messages in one morning) and bypassed the per-firm
+// toggles. BOTH are replaced by automationEngine.runAutomationEngine: the
+// single daily orchestration pass that evaluates every firm's workflows
+// (rent collection ladder, service-charge notices, lease milestones) and
+// enqueues through scheduled_messages with hard dedup keys.
+// The underlying sentry functions remain in sentry.ts (unused by crons) so
+// history stays greppable; manual one-off runs are still possible.
+//
+// crons.daily("sentryDailyAutomation", { hourUTC: 7, minuteUTC: 0 },
+//   internal.sentry.runDailyAutomation, {});
 
 // Service Charge WhatsApp Reminders: every morning at 7:30 AM WAT (6:30 UTC)
-// Scans all active tenancies with unpaid service charges and triggers
-// automated WhatsApp reminder notifications via the integration gateway
+// ── RETIRED 2026-09-14 — replaced by the Automation Engine (see above). ────
+// crons.daily("serviceChargeWhatsAppReminder", { hourUTC: 6, minuteUTC: 30 },
+//   internal.sentry.sendServiceChargeReminders, {});
+
+// ─── AUTOMATION ENGINE (the single orchestration point) ────────────────────
+// Daily at 6:30 UTC (7:30 AM WAT). Evaluates every firm's automation
+// workflows — rent & service-charge collection ladders, lease-expiry
+// milestones, rent reviews — resolves live targets, applies suppression
+// gates (paid, pending payment proof, opt-outs, muted/paused), enforces
+// the dispatch-ledger idempotency contract, and enqueues scheduled_messages
+// for the 5-minute dispatcher. Runs AFTER walletAutoDeductions (6:15) so
+// wallet-paid residents are already PAID_FULLY and never reminded, and
+// BEFORE processScheduledMessages picks up the 07:00 UTC dispatch slot.
 crons.daily(
-  "serviceChargeWhatsAppReminder",
+  "automationEngine",
   { hourUTC: 6, minuteUTC: 30 },
-  internal.sentry.sendServiceChargeReminders,
+  internal.automationEngine.runAutomationEngine,
   {}
 );
 

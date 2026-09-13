@@ -1509,7 +1509,10 @@ export default defineSchema({
     channel: v.union(v.literal("whatsapp"), v.literal("email"), v.literal("sms")),
     content: v.string(),
     scheduledFor: v.number(),               // timestamp when it should go out
-    status: v.union(v.literal("scheduled"), v.literal("sent"), v.literal("failed"), v.literal("cancelled")),
+    // "sending" = atomically claimed by the dispatch processor (prevents
+    // double-send when two processor runs overlap); "paused" = held while a
+    // payment receipt is pending verification (resumes if rejected).
+    status: v.union(v.literal("scheduled"), v.literal("sending"), v.literal("sent"), v.literal("failed"), v.literal("cancelled"), v.literal("paused")),
     sentAt: v.optional(v.number()),
     failureReason: v.optional(v.string()),
     isAutomation: v.optional(v.boolean()),  // true if triggered by automation rule
@@ -1543,12 +1546,83 @@ export default defineSchema({
     automationLogId: v.optional(v.id("automation_logs")),
     createdAt: v.number(),
     updatedAt: v.number(),
+    // ─── AUTOMATION ENGINE (2026-09-14) ───────────────────────────────
+    // The Scheduled Messages area is now the single orchestration point for
+    // ALL automated tenant/client/vendor messaging. Every engine-enqueued
+    // row stamps its origin (workflowKey/stepKey) and an idempotency key
+    // (dedupKey) so a tenant can never receive the same reminder twice for
+    // one billing period / milestone.
+    workflowKey: v.optional(v.string()),       // e.g. "rent_collection"
+    stepKey: v.optional(v.string()),           // e.g. "pre_7", "late_14"
+    dedupKey: v.optional(v.string()),          // firm|workflow|step|tenantKey|period
+    // Paused rows hold when a tenant uploads a payment receipt pending
+    // verification (the WhatsApp-era behaviour the user asked to restore):
+    // approved payment → row is cancelled; rejected → row resumes.
+    pauseReason: v.optional(v.string()),       // "payment_review" | manual note
+    pausedAt: v.optional(v.number()),
 })
     .index("by_firm", ["firmId"])
     .index("by_status", ["status"])
     .index("by_scheduled", ["scheduledFor"])
     .index("by_firm_status", ["firmId", "status"])
-    .index("by_automation", ["isAutomation"]),
+    .index("by_automation", ["isAutomation"])
+    .index("by_dedup_key", ["dedupKey"]),
+
+  // ─── AUTOMATION ENGINE: per-firm workflow configs ───────────────────
+  // One row per (firmId, workflowKey). Seeded from AUTOMATION_WORKFLOW_DEFAULTS
+  // on first read so every firm starts with the Atrium pre-built workflows.
+  automation_workflows: defineTable({
+    firmId: v.string(),
+    workflowKey: v.string(),               // "rent_collection" | "service_charge" | "lease_expiry" | "rent_review" | "utility_recurring"
+    enabled: v.boolean(),                  // master toggle shown in the UI
+    steps: v.array(v.object({
+      key: v.string(),                     // "pre_7" | "due_day" | "late_7" | ...
+      enabled: v.boolean(),                // per-step toggle
+      offsetDays: v.number(),              // negative = before anchor, 0 = on the day, positive = after
+      channel: v.string(),                 // "email" | "whatsapp" (email preferred when the tenant has an email)
+      messageType: v.string(),             // scheduled_messages.messageType value
+    })),
+    scopePropertyIds: v.optional(v.array(v.string())),  // empty/undefined = all properties
+    seededAt: v.number(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_workflow", ["firmId", "workflowKey"]),
+
+  // ─── AUTOMATION ENGINE: dispatch ledger (idempotency + audit) ───────
+  // One row per (workflow, step, tenantKey, period) the engine ever
+  // enqueued or deliberately suppressed. Presence of a row = the tenant
+  // has already been handled for that period — the hard no-duplicate
+  // guarantee the user demanded.
+  automation_dispatch_log: defineTable({
+    firmId: v.string(),
+    workflowKey: v.string(),
+    stepKey: v.string(),
+    tenantKey: v.string(),                 // tenantId or normalized contact
+    periodKey: v.string(),                 // "2026-09" billing month, or milestone anchor "2026-10-01"
+    outcome: v.string(),                   // "enqueued" | "suppressed_paid" | "suppressed_proof_pending" | "suppressed_optout" | "suppressed_muted" | "skipped_no_contact"
+    scheduledMessageId: v.optional(v.id("scheduled_messages")),
+    detail: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_firm_workflow", ["firmId", "workflowKey"])
+    .index("by_dedup", ["firmId", "workflowKey", "stepKey", "tenantKey", "periodKey"]),
+
+  // ─── MESSAGE OPT-OUTS (unsubscribe from automated notices) ──────────
+  // Recipients of automated emails can unsubscribe via the footer link.
+  // The engine and the dispatch processor both check this table, so an
+  // opt-out is enforced even for rows queued before the opt-out happened.
+  message_opt_outs: defineTable({
+    firmId: v.string(),
+    contactKey: v.string(),                // lowercased email or normalized phone
+    channel: v.string(),                   // "email" | "whatsapp" | "all"
+    token: v.string(),                     // secret embedded in the unsubscribe link
+    source: v.string(),                    // "email_footer" | "manual"
+    createdAt: v.number(),
+  })
+    .index("by_firm_contact", ["firmId", "contactKey"])
+    .index("by_token", ["token"]),
 
   // ─── Portal Conversations ──────────────────────────────────────────
   // Groups portal messages into threaded conversations between a portal

@@ -486,6 +486,36 @@ export const recordPaystackEvent = internalMutation({
       }
     } else if (args.eventType === 'charge.success') {
       handled = 'charge_success';
+      // UNIFIED PAYMENT PIPELINE (2026-09-14): a tenant rent payment made
+      // via Paystack Inline creates a payment_proof with status
+      // 'pending_verification' and paystackReference set. This webhook is
+      // the authoritative confirmation — verify the proof and release the
+      // automation-engine payment suppression (paused collection-ladder
+      // messages for that tenant are cancelled: payment verified by
+      // Paystack, exactly as the user specified).
+      if (args.reference) {
+        try {
+          const proof = await ctx.db
+            .query("payment_proofs")
+            .withIndex("by_paystack_reference", (q: any) => q.eq("paystackReference", args.reference))
+            .first();
+          if (proof && (proof as any).status === 'pending_verification') {
+            const nowIso = new Date().toISOString();
+            await ctx.db.patch(proof._id, {
+              status: 'verified',
+              updatedAt: nowIso,
+            } as any);
+            await ctx.runMutation(internal.automationEngine.onPaymentProofApproved, {
+              firmId: String((proof as any).firmId),
+              tenantKey: (proof as any).tenantId || undefined,
+              unitId: (proof as any).unitId || undefined,
+              tenantEmail: (proof as any).tenantEmail || undefined,
+            });
+          }
+        } catch (e: any) {
+          console.warn('[paystack] tenant proof verification hook failed:', e?.message);
+        }
+      }
     }
 
     await ctx.db.insert("paystackEvents", {

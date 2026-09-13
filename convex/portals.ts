@@ -4,6 +4,7 @@ import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { requireStaffCaller, requirePortalCaller, resolveCaller, assertSameFirm } from "./callerAuth";
 import { withCronReporting } from "./observability";
+import { buildAutomatedEmailHtml } from "./emailBranding";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED. Unbounded `.collect()` calls were
@@ -3144,6 +3145,9 @@ export const processScheduledMessages = internalAction({
   args: {},
   handler: withCronReporting("crons:processScheduledMessages", async (ctx, _args) => {
     const now = Date.now();
+    // Recovery first: flip crashed "sending" rows back to "scheduled" so
+    // this run picks them up (and the queue UI never shows a zombie send).
+    await ctx.runMutation(internal.portals.reclaimStaleSending, {});
     // Query due messages via a helper query
     const dueMessages: any[] = await ctx.runQuery(internal.portals.getDueScheduledMessages, {});
     let processed = 0;
@@ -3152,6 +3156,34 @@ export const processScheduledMessages = internalAction({
 
     for (const msg of dueMessages) {
       try {
+        // ATOMIC CLAIM (2026-09-14): mark "scheduled"→"sending" BEFORE any
+        // provider call. Overlapping processor runs can no longer both send
+        // the same row — the second claim returns alreadyClaimed and skips.
+        const claim: any = await ctx.runMutation(internal.portals.claimScheduledMessage, { messageId: msg._id });
+        if (!claim?.claimed) {
+          continue;
+        }
+
+        // DISPATCH-TIME OPT-OUT (defense in depth): the engine checks at
+        // enqueue, but a recipient may have unsubscribed since the row was
+        // queued — honour it here too, even for rows queued before opt-out.
+        const optOutKey = (msg.recipientEmail || msg.recipientPhone || "").toString().toLowerCase();
+        if (msg.isAutomation && optOutKey) {
+          try {
+            const optedOut = await ctx.runQuery(internal.automationEngine.isContactOptedOut, {
+              firmId: msg.firmId, contactKey: optOutKey,
+            });
+            if (optedOut) {
+              await ctx.runMutation(internal.portals.updateScheduledMessageStatus, {
+                messageId: msg._id,
+                status: "cancelled",
+                failureReason: "recipient_opted_out",
+              });
+              continue;
+            }
+          } catch {}
+        }
+
         let sendSuccess = false;
         let sendError = '';
         // MAPPED failure class (Task 39/Item 1) — carried through to the
@@ -3180,6 +3212,16 @@ export const processScheduledMessages = internalAction({
           if (emails.length === 0) {
             sendError = sendError || "No email address could be resolved for this message";
           }
+          // AUTOMATED-EMAIL BRANDING (2026-09-14): system-sent emails wear the
+          // letterhead + the footer the user specified — "this is an automated
+          // message", an unsubscribe link, and a small "Powered by PracticePro
+          // Systems" line. Manual sends keep their composer-provided HTML.
+          let firmNameForEmail = "PracticePro";
+          if (msg.isAutomation) {
+            try {
+              firmNameForEmail = (await ctx.runQuery(internal.automationEngine.getFirmName, { firmId: msg.firmId })) || "PracticePro";
+            } catch {}
+          }
           for (const rcpt of emails) {
             try {
               // VERIFY the provider result — a returned failure is NOT an
@@ -3189,7 +3231,14 @@ export const processScheduledMessages = internalAction({
                 to: rcpt.email,
                 toName: rcpt.name || rcpt.email,
                 subject: msg.messageType ? `${msg.messageType.replace(/_/g, ' ')}` : 'Message from your Property Manager',
-                htmlContent: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><p style="white-space:pre-line;">${msg.content}</p></div>`,
+                htmlContent: msg.isAutomation
+                  ? buildAutomatedEmailHtml({
+                      firmId: String(msg.firmId),
+                      firmName: firmNameForEmail,
+                      body: msg.content,
+                      contactKey: rcpt.email.toLowerCase(),
+                    })
+                  : `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;"><p style="white-space:pre-line;">${msg.content}</p></div>`,
               });
               if (result?.success && !result?.simulated) {
                 sendSuccess = true;
@@ -3349,6 +3398,51 @@ export const getDueScheduledMessages = internalQuery({
       .withIndex("by_status", (q) => q.eq("status", "scheduled"))
       .take(500);
     return dueMessages.filter((m) => m.scheduledFor <= now);
+  },
+});
+
+/**
+ * reclaimStaleSending — Internal mutation called at the START of every
+ * processor run. Rows stuck in "sending" for >10 minutes (a crashed or
+ * timed-out dispatch action) are flipped back to "scheduled" so the next
+ * run retries them. Without this, one crash would strand a message in
+ * "sending" forever while the queue UI shows it as perpetually dispatching.
+ */
+export const reclaimStaleSending = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 10 * 60_000;
+    const stale = await ctx.db
+      .query("scheduled_messages")
+      .withIndex("by_status", (q) => q.eq("status", "sending"))
+      .take(100);
+    let reclaimed = 0;
+    for (const m of stale) {
+      if ((m.updatedAt || m.scheduledFor || 0) < cutoff) {
+        await ctx.db.patch(m._id, { status: "scheduled", updatedAt: Date.now() });
+        reclaimed++;
+      }
+    }
+    return { reclaimed };
+  },
+});
+
+/**
+ * claimScheduledMessage — Internal mutation: transactional claim of a due
+ * row ("scheduled" → "sending"). Two overlapping processor runs fetch the
+ * same due list; the SECOND claim finds the row already in "sending" and
+ * returns alreadyClaimed=true, so only one run performs the actual provider
+ * send. This closes the double-send window the old after-the-fact status
+ * write left open for the entire duration of provider calls.
+ */
+export const claimScheduledMessage = internalMutation({
+  args: { messageId: v.id("scheduled_messages") },
+  handler: async (ctx, args) => {
+    const m = await ctx.db.get(args.messageId);
+    if (!m) return { claimed: false, alreadyClaimed: true, reason: "missing" };
+    if (m.status !== "scheduled") return { claimed: false, alreadyClaimed: true, reason: m.status };
+    await ctx.db.patch(args.messageId, { status: "sending", updatedAt: Date.now() });
+    return { claimed: true, alreadyClaimed: false };
   },
 });
 
@@ -5046,7 +5140,7 @@ export const submitPaymentProof = mutation({
       }
     }
     const now = Date.now();
-    return await ctx.db.insert("payment_proofs", {
+    const proofId = await ctx.db.insert("payment_proofs", {
       firmId: args.firmId,
       tenantId: args.tenantId,
       tenantName: args.tenantName,
@@ -5064,6 +5158,26 @@ export const submitPaymentProof = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // PAYMENT SUPPRESSION (restored 2026-09-14, Automation Engine): the
+    // moment a tenant uploads a receipt, HOLD their pending automated
+    // reminders (status → "paused"). If verification approves the payment
+    // the hold becomes permanent (cancelled); if it is rejected the paused
+    // ladder resumes so the day-of and late-notice sequence follows — the
+    // exact WhatsApp-era behaviour the user asked to carry over.
+    if ((args.status || 'pending_review') === 'pending_review') {
+      try {
+        await ctx.runMutation(internal.automationEngine.onPaymentProofSubmitted, {
+          firmId: args.firmId,
+          tenantKey: args.tenantId,
+          unitId: args.unitId,
+          tenantEmail: args.tenantEmail || undefined,
+        });
+      } catch (e: any) {
+        console.warn("[paymentProof] suppression hold failed:", e?.message);
+      }
+    }
+    return proofId;
   },
 });
 
@@ -5129,6 +5243,32 @@ export const updatePaymentProofStatus = mutation({
     }
     const { proofId, sessionToken: _st, ...updates } = args;
     await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
+
+    // PAYMENT SUPPRESSION OUTCOMES (Automation Engine, 2026-09-14):
+    //   approved → cancel the paused collection ladder for this tenant
+    //   (payment verified by a human — no more reminders this period).
+    //   rejected → resume the paused ladder (day-of / late notices follow
+    //   naturally, exactly as the user described the WhatsApp-era flow).
+    const proofAny = proof as any;
+    try {
+      if (args.status === "approved") {
+        await ctx.runMutation(internal.automationEngine.onPaymentProofApproved, {
+          firmId: String(proofAny.firmId),
+          tenantKey: proofAny.tenantId || undefined,
+          unitId: proofAny.unitId || undefined,
+          tenantEmail: proofAny.tenantEmail || undefined,
+        });
+      } else if (args.status === "rejected") {
+        await ctx.runMutation(internal.automationEngine.onPaymentProofRejected, {
+          firmId: String(proofAny.firmId),
+          tenantKey: proofAny.tenantId || undefined,
+          unitId: proofAny.unitId || undefined,
+          tenantEmail: proofAny.tenantEmail || undefined,
+        });
+      }
+    } catch (e: any) {
+      console.warn("[paymentProof] suppression outcome hook failed:", e?.message);
+    }
   },
 });
 

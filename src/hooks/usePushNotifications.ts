@@ -183,5 +183,13 @@ export function usePushNotifications(userId?: string, firmId?: string, sessionTo
       listenerHandles.forEach(h => { h.remove?.().catch(() => {}); });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, firmId, registerToken]);
+  }, [userId, firmId, registerToken, sessionToken]);
+  // ^ sessionToken added to deps (2026-09-14): the bearer token can arrive
+  // one render AFTER the user object (async storage reads / cross-tab
+  // adoption in AuthContext). The old closure captured a null token, the
+  // registerPushToken mutation then failed its server-side session check
+  // ("Unauthenticated") and — because the effect never re-ran — the device
+  // stayed token-less for the whole session. Pushes silently never arrived.
+  // With sessionToken in the deps, a late token re-triggers registration;
+  // isRegistered guards double-registration when both land in one render.
 }
