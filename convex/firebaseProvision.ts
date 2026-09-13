@@ -133,6 +133,9 @@ export interface ProvisionResult {
   googleServicesClient?: any;
   /** Raw google-services.json file contents for this app (single client). */
   rawConfig?: string;
+  /** Provisioning diagnostics — removed together with this file. */
+  debugConfigResponse?: string;
+  debugConfigFilename?: string | null;
 }
 
 /**
@@ -241,6 +244,30 @@ export const provisionFounderApp = action({
         }
         target = JSON.parse(createBody) as AndroidApp;
         didCreate = true;
+        // Round-1 finding: androidApps.create may return an Operation (name:
+        // "operations/…", no appId). The app IS created — re-list to resolve
+        // the real AndroidApp record.
+        if (!target || !target.appId) {
+          const relistRes = await fetch(
+            `${MANAGEMENT_BASE}/projects/${project}/androidApps`,
+            { headers: authHeaders }
+          );
+          const relistBody = await relistRes.text();
+          if (relistRes.ok) {
+            const relist: any = JSON.parse(relistBody);
+            target = (relist.apps || []).find(
+              (a: AndroidApp) => a.packageName === ADMIN_PACKAGE_NAME
+            );
+          } else {
+            return {
+              success: false,
+              action: "error",
+              reason: "CREATE_RESOLVE_FAILED",
+              error: `create ok but re-list failed (${relistRes.status}): ${relistBody.slice(0, 300)}`,
+              projectId: project,
+            };
+          }
+        }
       }
 
       if (!target || !target.appId) {
@@ -270,7 +297,17 @@ export const provisionFounderApp = action({
         };
       }
       const config: any = JSON.parse(configBody);
-      const rawConfig: string | undefined = config.fileContents;
+      // AndroidAppConfig.configFileContents is base64 (format: "byte").
+      // Round-1 finding: the field is NOT `fileContents` — checking both,
+      // decoding only when needed.
+      let rawConfig: string | undefined;
+      if (typeof config.configFileContents === "string" && config.configFileContents) {
+        rawConfig = Buffer.from(config.configFileContents, "base64").toString("utf8");
+      } else if (typeof config.fileContents === "string" && config.fileContents) {
+        rawConfig = config.fileContents;
+      } else {
+        rawConfig = undefined;
+      }
 
       let googleServicesClient: any = undefined;
       if (rawConfig) {
@@ -294,6 +331,10 @@ export const provisionFounderApp = action({
         },
         googleServicesClient,
         ...(rawConfig ? { rawConfig } : {}),
+        // Raw config response body for shape diagnosis (kept until
+        // provisioning is confirmed; removed with this file afterwards).
+        debugConfigResponse: configBody.slice(0, 4000),
+        debugConfigFilename: config.configFilename ?? null,
       };
     } catch (err: any) {
       return {
