@@ -78,15 +78,26 @@ export const createSession = internalMutation({
   },
   handler: async (ctx, args) => {
     // Opportunistic hygiene: cap concurrent sessions per user (keep the
-    // 10 newest — oldest are pruned). Bounded work, no full scan.
+    // newest — oldest are pruned). Bounded work, no full scan.
+    //
+    // CAP RAISED 10 → 25 (2026-09-14, "messaging stops working after a
+    // while"): every fresh APK install/re-login creates a NEW session row
+    // (the APK pipeline ships multiple builds a day during active
+    // development, and the founder tests on several devices). At a cap of
+    // 10, the 11th login silently revoked the session on the device the
+    // user was actively using — every mutation then failed with
+    // "Unauthenticated" (messaging "broken", test push erroring) until a
+    // manual re-login. 25 concurrent sessions absorbs realistic device
+    // churn while still bounding the table.
+    const SESSION_SOFT_CAP = 25;
     const existing = await ctx.db
       .query("sessions")
       .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
       .order("desc")
       .collect();
     const active = existing.filter((s: any) => s.revokedAt == null);
-    if (active.length >= 10) {
-      const toRevoke = active.slice(9);
+    if (active.length >= SESSION_SOFT_CAP) {
+      const toRevoke = active.slice(SESSION_SOFT_CAP - 1);
       for (const s of toRevoke) {
         await ctx.db.patch(s._id, { revokedAt: Date.now() });
       }

@@ -75,8 +75,8 @@ const TrialNudgeBanner: React.FC = () => {
     }
     if (daysElapsed === 7) {
       return {
-        title: 'Day 7 — Try WhatsApp messaging',
-        body: 'Send your first WhatsApp rent reminder or court date notification. Automated messaging is included in your trial.',
+        title: 'Day 7 — Try automated reminders',
+        body: 'Send your first rent reminder or court date notification — automated by email and the portal, with one-tap WhatsApp share. Included in your trial.',
         cta: 'Send Message',
         ctaAction: () => navigateTo('messages'),
         urgency: 'info' as const,
@@ -94,7 +94,7 @@ const TrialNudgeBanner: React.FC = () => {
     if (daysRemaining <= 7 && daysRemaining > 1) {
       return {
         title: `Trial ends in ${daysRemaining} days`,
-        body: `Your ${trialPlan} trial ends soon. Locked features after expiry: AI document generation, bulk invoicing, WhatsApp integration. Upgrade now to keep them.`,
+        body: `Your ${trialPlan} trial ends soon. Locked features after expiry: AI document generation, bulk invoicing, automated reminders. Upgrade now to keep them.`,
         cta: 'Upgrade Now',
         ctaAction: () => navigateTo('settings', null, { settingsTargetId: 'subscription-management' }),
         urgency: 'warning' as const,

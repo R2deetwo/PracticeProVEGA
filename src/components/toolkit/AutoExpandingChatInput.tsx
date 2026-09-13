@@ -303,11 +303,18 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                         </svg>
                     </button>
                 )}
+                {/* Send button (2026-09-14): the paper-plane icon IS the button.
+                    The old fixed w-10 h-10 square also rendered sendLabel text
+                    inside it — a 40px box cannot fit icon + "Send" so the label
+                    clipped/overflowed ("big 'send' squeezed into the send
+                    button"). Now: icon-only by default (40px square, matching
+                    the attach/voice buttons); when a caller explicitly needs a
+                    label the button widens to fit instead of clipping. */}
                 <button
                     onClick={handleSendClick}
                     disabled={disabled || sendDisabled}
-                    aria-label={sendAriaLabel}
-                    className={`flex-shrink-0 w-10 h-10 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${sendButtonClassName}`}
+                    aria-label={sendAriaLabel || (sendLabel ? `${sendLabel}` : 'Send message')}
+                    className={`flex-shrink-0 ${sendLabel ? 'px-3 min-w-10 h-10' : 'w-10 h-10'} bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${sendButtonClassName}`}
                 >
                     {sendIcon || (
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -222,7 +222,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                         <li><strong>Tasks, calendar, and finance:</strong> Task tracking with deadlines; integrated calendar{isVega ? ' with automatic calculation based on Nigerian court rules' : ''}; invoicing and {isVega ? 'time-entry billing' : 'rent collection'}.</li>
                                         <li><strong>{isVega ? 'Client' : 'Tenant'} communications:</strong> Secure messaging and portal features.</li>
                                         <li><strong>Task delegation and verification:</strong> Internal staff delegate tasks to {isVega ? 'clients' : 'residents'}. External stakeholders can mark tasks complete, which routes to "Pending Verification" for internal review.</li>
-                                        <li><strong>Multi-channel notifications:</strong> In-app, email, and WhatsApp (where opted in). Internal staff get in-app only; external stakeholders get in-app plus email by default. Manage preferences in Settings.</li>
+                                        <li><strong>Multi-channel notifications:</strong> In-app and email. Internal staff get in-app only; external stakeholders get in-app plus email by default. WhatsApp is available as a manual share (the Platform pre-composes the message and opens WhatsApp on your device — you review and send it from your own account). Manage preferences in Settings.</li>
                                         <li><strong>Presence tracking:</strong> Team members' online status is visible to all firm members, for operational coordination only.</li>
                                     </ul>
                                 </div>

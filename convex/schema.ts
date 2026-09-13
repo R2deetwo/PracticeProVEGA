@@ -423,7 +423,11 @@ export default defineSchema({
     expiresAt: v.optional(v.number()), // Auto-expiry timestamp (null = never expires)
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]).index("by_user", ["userId"])
     // Phase 4 (perf): broadcast + sales-lead queries previously full-scanned
-    .index("by_type", ["type"]),
+    .index("by_type", ["type"])
+    // MESSAGING RELIABILITY (2026-09-14): pruneReadNotifications seeks read
+    // rows older than 30d without a full table scan (the table grows by one
+    // row per admin per portal message — unbounded without this purge).
+    .index("by_isRead", ["isRead", "createdAt"]),
 
   invoices: defineTable({
     firmId: nullableString,

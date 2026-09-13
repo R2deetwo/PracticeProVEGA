@@ -460,6 +460,21 @@ const Header: React.FC = React.memo(() => {
                                     {notifTab === 'firm' && aggregatedNotifications.filter(n => !(n as any)._isBroadcast).length > 0 && (
                                         <button onClick={() => handleMarkNotificationsRead(aggregatedNotifications.filter(n => !(n as any)._isBroadcast && !n.isRead).map(n => String(n._id || n.id || '')))} className="text-2xs font-bold text-primary-600 hover:underline">Mark all read</button>
                                     )}
+                                    {/* CLEAR ALL — hoisted to the header (2026-09-14). It used
+                                        to live ONLY in the footer below the (unbounded) list:
+                                        with dozens of messages the user could never scroll far
+                                        enough to reach it ("i could not get to the bottom of the
+                                        page"). The footer copy stays as a convenience; this one
+                                        is permanently visible. */}
+                                    {aggregatedNotifications.length > 0 && (
+                                        <button
+                                            onClick={handleClearAllNotifications}
+                                            className="text-2xs font-bold text-slate-500 hover:text-red-600 dark:text-zinc-400 dark:hover:text-red-400 transition-colors"
+                                            title="Delete all notifications (both tabs)"
+                                        >
+                                            Clear all
+                                        </button>
+                                    )}
                                     <button onClick={() => setNotificationsOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300">
                                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                     </button>

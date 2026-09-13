@@ -308,7 +308,17 @@ export const Settings: React.FC = () => {
                                             addToast(`Push failed: ${result.error || result.reason || 'Unknown error'}`, { type: 'error' });
                                         }
                                     } catch (e: any) {
-                                        addToast(`Push test error: ${e?.message || 'Failed'}`, { type: 'error' });
+                                        // PUSH TEST FIX (2026-09-14): translate session
+                                        // rejections into the actionable instruction (sign out
+                                        // and back in) instead of a raw "Unauthenticated…" error.
+                                        const msg = String(e?.message || '');
+                                        const isAuth = /unauthenticated|session token|sign in|session has expired|verified session/i.test(msg);
+                                        addToast(
+                                            isAuth
+                                                ? 'Your session has expired — please sign out and sign back in, then try again.'
+                                                : `Push test error: ${msg || 'Failed'}`,
+                                            { type: 'error', duration: isAuth ? 9000 : 5000 }
+                                        );
                                     }
                                 }}
                                 className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-colors"

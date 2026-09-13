@@ -298,7 +298,7 @@ const HelpView: React.FC = () => {
                                         <li><strong>Documents:</strong> Upload, organize, and {hasLegalFeatures ? 'analyze' : 'manage'} documents. Link to {hasLegalFeatures && hasPropertyFeatures ? 'matters or properties' : isProperty ? 'properties' : 'matters'}.</li>
                                         <li><strong>Research Studio <span className="text-3xs px-1 bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 rounded">BETA</span>:</strong> AI-powered workspace for {isProperty ? 'analyzing property documents and generating reports' : 'analyzing case files, generating chronologies, and preparing legal arguments'}.</li>
                                         <li><strong>Calendar:</strong> {isProperty ? 'Track inspections, rent reviews, and meetings' : 'Track court dates, filing deadlines, and client meetings'}. Includes property events for Komplete firms.</li>
-                                        <li><strong>Messaging:</strong> Unified inbox for team chat, WhatsApp/email from residents, and notices.</li>
+                                        <li><strong>Messaging:</strong> Unified inbox for team chat, inbound email from residents, and notices.</li>
                                         <li><strong>DraftPro:</strong> Built-in document editor with AI drafting, watermarks, and formatting tools.</li>
                                         <li><strong>Billing:</strong> Record billable time, generate invoices, and manage payments.</li>
                                     </ul>
@@ -508,7 +508,7 @@ const HelpView: React.FC = () => {
                                     <p className="text-sm mb-2">The Messages page is your unified inbox for all communications:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Conversations:</strong> Two-way chat threads with {hasLegalFeatures ? 'clients' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'residents' : ''} via the portal</li>
-                                        {hasPropertyFeatures && <li><strong>WhatsApp & Email Inbox:</strong> Inbound messages from residents via WhatsApp and email appear here for response</li>}
+                                        {hasPropertyFeatures && <li><strong>WhatsApp & Email Inbox:</strong> Inbound messages from residents via email appear here for response; WhatsApp-channel sends are composed in-app and shared to WhatsApp with one tap</li>}
                                         <li><strong>Sent:</strong> The record of every message your firm has sent — email, WhatsApp, portal and in-app — with delivery status and the reason for any failure</li>
                                         <li><strong>Notices:</strong> Post announcements visible to {hasPropertyFeatures ? 'residents' : 'clients'} on their portal</li>
                                         <li><strong>Scheduled:</strong> View and manage scheduled/automated messages</li>

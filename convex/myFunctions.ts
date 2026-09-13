@@ -3832,6 +3832,135 @@ export const clearAllNotifications = mutation({
 });
 
 /**
+ * markMessagingNotificationsRead — BADGE FIX (2026-09-14).
+ *
+ * PROBLEM: the sidebar/bottom-nav Messages badge counts notifications rows
+ * where link.view === 'messaging'. Those rows are created by notifyFirmAdmins
+ * (portal messages, tickets, service requests) with NO conversation link, so
+ * opening a thread in MessagesView never marked them read — a user with 24
+ * opened messages kept a "24" badge forever (only the bell's "Mark all read"
+ * could clear it). Opening the Messages page IS viewing those messages: mark
+ * every messaging-scoped notification for this user as read.
+ */
+export const markMessagingNotificationsRead = mutation({
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const userIdStr = String(user._id);
+    const userLegacyId = String((user as any).id || '');
+    const now = new Date().toISOString();
+
+    let updated = 0;
+    const candidateSets = await Promise.all([
+      ctx.db.query("notifications").withIndex("by_user", (q: any) => q.eq("userId", userIdStr)).take(500),
+      userLegacyId
+        ? ctx.db.query("notifications").withIndex("by_user", (q: any) => q.eq("userId", userLegacyId)).take(500)
+        : Promise.resolve([] as any[]),
+    ]);
+
+    const seen = new Set<string>();
+    for (const set of candidateSets) {
+      for (const n of set as any[]) {
+        const id = String(n._id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        if (n.isRead) continue;
+        if (n.link?.view !== 'messaging') continue;
+        try {
+          await ctx.db.patch(n._id, { isRead: true, updatedAt: now } as any);
+          updated++;
+        } catch {}
+      }
+    }
+    return { success: true, updated };
+  },
+});
+
+/**
+ * markConversationNotificationsRead — BADGE FIX companion.
+ *
+ * Marks every messaging-scoped notification whose link points at a given
+ * conversation (link.id OR link.context.activeConversationId OR
+ * link.context.selectedInboxId) as read. Called when the admin opens a
+ * specific resident/client thread so the badge decrements thread-by-thread.
+ */
+export const markConversationNotificationsRead = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    conversationId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const userIdStr = String(user._id);
+    const userLegacyId = String((user as any).id || '');
+    const now = new Date().toISOString();
+    const target = String(args.conversationId);
+
+    let updated = 0;
+    const candidateSets = await Promise.all([
+      ctx.db.query("notifications").withIndex("by_user", (q: any) => q.eq("userId", userIdStr)).take(500),
+      userLegacyId
+        ? ctx.db.query("notifications").withIndex("by_user", (q: any) => q.eq("userId", userLegacyId)).take(500)
+        : Promise.resolve([] as any[]),
+    ]);
+
+    const seen = new Set<string>();
+    for (const set of candidateSets) {
+      for (const n of set as any[]) {
+        const id = String(n._id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        if (n.isRead) continue;
+        if (n.link?.view !== 'messaging') continue;
+        const linkId = n.link?.id ? String(n.link.id) : null;
+        const ctxConv = n.link?.context?.activeConversationId ? String(n.link.context.activeConversationId) : null;
+        const ctxInbox = n.link?.context?.selectedInboxId ? String(n.link.context.selectedInboxId) : null;
+        if (linkId !== target && ctxConv !== target && ctxInbox !== target) continue;
+        try {
+          await ctx.db.patch(n._id, { isRead: true, updatedAt: now } as any);
+          updated++;
+        } catch {}
+      }
+    }
+    return { success: true, updated };
+  },
+});
+
+/**
+ * pruneReadNotifications — MESSAGING RELIABILITY (2026-09-14).
+ *
+ * PROBLEM: every portal message/ticket/service request inserts a notification
+ * row for EVERY admin in the firm. Over months this table grows unboundedly
+ * (tens of thousands of rows), and the by_user/by_firm queries that feed the
+ * badges + the bell + MessagesView slow down — the app "stops working after a
+ * while" from the user's perspective. This cron-side purge deletes READ
+ * notifications older than 30 days (unread ones are kept — they may still
+ * matter) and caps any single user at 2000 rows (oldest first). Runs daily.
+ */
+export const pruneReadNotifications = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+
+    // Composite index seek: [isRead=true, createdAt < 30d ago]. take(500)
+    // per run — the cron repeats daily, so the backlog drains gradually
+    // without ever blocking a function for long.
+    const stale = await ctx.db
+      .query("notifications")
+      .withIndex("by_isRead", (q: any) => q.eq("isRead", true).lt("createdAt", cutoff))
+      .take(500);
+    let deleted = 0;
+    for (const n of stale) {
+      try { await ctx.db.delete(n._id); deleted++; } catch {}
+    }
+
+    return { success: true, scanned: stale.length, deleted };
+  },
+});
+
+
+/**
  * updateTaskStatus — Dedicated mutation for updating a task's status.
  *
  * WHY THIS EXISTS:

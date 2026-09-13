@@ -232,10 +232,12 @@ const PropertyDetailViewContent: React.FC = () => {
             : 'skip'
     );
 
-    const { property, owner, allUnits } = useMemo(() => {
+    const { property, owner, allUnits, archivedUnits } = useMemo(() => {
         let selectedProperty: Property | null = null;
         let propertyOwner: Contact | null = null;
         let units: Property[] = [];
+        // (see ARCHIVED UNITS FIX note below — captured before the filter)
+        let archivedUnitsList: Property[] = [];
 
         if (propertyId) {
             // 1. Check standalone properties
@@ -315,7 +317,14 @@ const PropertyDetailViewContent: React.FC = () => {
                 // clutter daily operations but remain in the Edit Modal
                 // for future reactivation. Deleted units are archived.
                 // Both preserve ledger entries, receipts, and legal history.
-                units = units.filter(u => u.status !== 'Deleted' && u.status !== 'Muted');
+                // ARCHIVED UNITS FIX (2026-09-14): the pre-filter list is
+                // kept so the Units tab can LIST archived units with a
+                // Restore action — previously "Remove Unit" promised
+                // archiving but the units vanished with no way back.
+                // (status 'Deleted'/'Muted' are written dynamically — the
+                // static PropertyStatus union doesn't include them.)
+                archivedUnitsList = units.filter(u => (u as any).status === 'Deleted');
+                units = units.filter(u => (u as any).status !== 'Deleted' && (u as any).status !== 'Muted');
 
                 // SORT by unitName for stable ordering
                 units.sort((a, b) => {
@@ -325,7 +334,7 @@ const PropertyDetailViewContent: React.FC = () => {
                 });
             }
         }
-        return { property: selectedProperty, owner: propertyOwner, allUnits: units };
+        return { property: selectedProperty, owner: propertyOwner, allUnits: units, archivedUnits: archivedUnitsList };
     }, [matterState.contacts, coreState.properties, propertyId, onDemandProperty]);
 
     // Feature Checks — computed unconditionally so hooks always run in same order
@@ -347,11 +356,19 @@ const PropertyDetailViewContent: React.FC = () => {
         if (activeTab !== 'units' || !highlightTarget) return;
         if (!allUnits || !Array.isArray(allUnits)) return;
 
-        // Try to find the specific target unit first
+        // Try to find the specific target unit first.
+        // ID-SHAPE FIX (2026-09-14): lease-expiry / overdue notifications carry
+        // the Convex `_id` of the unit row (units ARE properties-table rows
+        // sharing an address), while the Units tab matches on the custom
+        // `u.id` UUID — the target never matched, so the banner's deep link
+        // opened the Units tab but never highlighted/expanded anything.
+        // Compare BOTH id forms now.
         let targetUnit: Property | undefined;
         if (targetUnitId) {
             targetUnit = allUnits.find((u: Property) =>
-                u.id === targetUnitId || String(u.id) === String(targetUnitId)
+                u.id === targetUnitId ||
+                String(u.id) === String(targetUnitId) ||
+                String((u as any)._id) === String(targetUnitId)
             );
         }
 
@@ -367,9 +384,15 @@ const PropertyDetailViewContent: React.FC = () => {
 
         if (targetUnit) {
             setSelectedUnit(targetUnit);
-            // Scroll into view after a short delay (let the drawer expand)
+            // Scroll into view after a short delay (let the drawer expand).
+            // Try BOTH id forms — data-unit-id renders the custom id, but the
+            // deep-link target may be the Convex _id (see ID-SHAPE FIX above).
             setTimeout(() => {
-                const el = document.querySelector(`[data-unit-id="${targetUnit!.id}"]`);
+                const byCustomId = document.querySelector(`[data-unit-id="${targetUnit!.id}"]`);
+                const byConvexId = (targetUnit as any)._id && String((targetUnit as any)._id) !== String(targetUnit!.id)
+                    ? document.querySelector(`[data-unit-id="${String((targetUnit as any)._id)}"]`)
+                    : null;
+                const el = byCustomId || byConvexId;
                 if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
@@ -1461,7 +1484,10 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             // EMERALD GLOW HIGHLIGHT — when this unit is the target of a
                                                             // critical lease notification deep-link, apply a high-visibility
                                                             // emerald glow + pulse animation for 3 seconds to draw focus.
-                                                            highlightTarget && (highlightTarget === unit.id || highlightTarget === String(unit.id) || highlightTarget === 'overdue')
+                                                            // ID-SHAPE FIX (2026-09-14): deep-links may carry either the
+                                                            // custom id OR the Convex _id — compare both so the pulse
+                                                            // actually lands on the unit in question.
+                                                            highlightTarget && (highlightTarget === unit.id || String(highlightTarget) === String(unit.id) || String(highlightTarget) === String((unit as any)._id) || highlightTarget === 'overdue')
                                                                 ? 'unit-card-highlight ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/30'
                                                                 : ''
                                                         }`}
@@ -2007,6 +2033,72 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </div>
                                 );
                             })()}
+
+                            {/* ── ARCHIVED UNITS (restorable) ────────────────────
+                                ARCHIVED UNITS FIX (2026-09-14): "Remove Unit"
+                                soft-archives (status='Deleted') and the modal
+                                promises "ledger entries, receipts, and
+                                historical records will be preserved" — but
+                                archived units had NO listing and NO restore
+                                anywhere (they just vanished). They are now
+                                listed here with Restore (back to the Units
+                                grid as Vacant) and a permanent delete. */}
+                            {archivedUnits.length > 0 && (
+                                <details className="group">
+                                    <summary className="list-none cursor-pointer select-none">
+                                        <div className="flex items-center gap-2 px-1 py-1">
+                                            <svg className="w-3 h-3 text-slate-400 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                            </svg>
+                                            <span className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
+                                                Archived Units ({archivedUnits.length})
+                                            </span>
+                                            <span className="text-2xs text-slate-400 dark:text-zinc-600">
+                                                hidden from the grid — restore to bring them back
+                                            </span>
+                                        </div>
+                                    </summary>
+                                    <div className="mt-2 space-y-2">
+                                        {archivedUnits.map((unit: Property) => {
+                                            const d = getUnitDisplay(unit);
+                                            return (
+                                                <div key={unit.id} className="flex items-center justify-between gap-3 p-3 bg-slate-100/60 dark:bg-zinc-800/50 rounded-xl border border-slate-200/60 dark:border-zinc-800 opacity-75">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-semibold text-slate-600 dark:text-zinc-300 truncate">
+                                                            {d.name}
+                                                        </p>
+                                                        <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
+                                                            {(unit as any).deletedAt ? `Archived ${new Date((unit as any).deletedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : 'Archived'}
+                                                                                            {(unit as any).rentalDetails?.tenantName ? ` · ${((unit as any).rentalDetails as any).tenantName}` : ''}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                        <button
+                                                            onClick={() => {
+                                                                const full = archivedUnits.find((u: Property) => u.id === unit.id) || unit;
+                                                                const updatePayload: any = { ...full, status: 'Vacant', deletedAt: null };
+                                                                if ((full as any)._id) updatePayload._id = (full as any)._id;
+                                                                updateItem('properties', updatePayload, 'Property').then(() => {
+                                                                    addToast(`Unit "${d.name}" restored to the Units tab.`, { type: 'success' });
+                                                                }).catch(() => {
+                                                                    addToast('Failed to restore unit.', { type: 'error' });
+                                                                });
+                                                            }}
+                                                            className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
+                                                            title="Restore this unit to the Units grid"
+                                                        >
+                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4-4 4-4M5 10h11a4 4 0 014 4v1a4 4 0 01-4 4H9" />
+                                                            </svg>
+                                                            Restore
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </details>
+                            )}
                         </div>
                     );
                 })()}

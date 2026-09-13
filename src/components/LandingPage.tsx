@@ -783,7 +783,7 @@ const VEGA_FEATURE_CATEGORIES = [
         Icon: ScalesIcon,
         items: [
             { title: 'Matter Management', desc: 'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.' },
-            { title: 'Court Date Reminders', desc: 'Automated WhatsApp reminders 7, 3, and 1 day(s) before each hearing. Never miss a court date again — reminders fire automatically based on your matter\'s adjourned date, sent directly to the assigned lawyer(s).', badge: 'Growth+' },
+            { title: 'Court Date Reminders', desc: 'Automated reminders 7, 3, and 1 day(s) before each hearing, delivered by email and in-app. Never miss a court date again — reminders fire automatically based on your matter\'s adjourned date, sent directly to the assigned lawyer(s).', badge: 'Growth+' },
             { title: 'Task Board', desc: 'Kanban-style task management with assignments, due dates, priority levels, and matter linking. Track every deliverable from intake to resolution.' },
             { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, upload and access documents, and submit KYC uploads. Available on Growth and Pro plans.', badge: 'Growth+' },
             { title: 'Contacts & Parties', desc: 'Structured contact management with party grouping, witness tracking, and counsel records. Link contacts to matters and documents automatically.' },
@@ -827,7 +827,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
         items: [
             { title: 'Rent Collection', desc: 'Collect rent in Naira with payment reminders, receipt generation, and payment tracking. Generate invoices and track status at a glance.' },
             { title: 'Service Charge Tracking', desc: 'Itemized SC (Service Charge) and MV (Minimum Vend) tracking per unit. Monitor payment status, flag defaulters, and generate compliance-ready financial reports.' },
-            { title: 'WhatsApp Notifications', desc: 'Send rent reminders and demand notices via WhatsApp directly from the platform. Tiered volume limits with morning notification throttles on Pro plans.', badge: 'Pro' },
+            { title: 'WhatsApp Share', desc: 'Compose rent reminders and demand notices in PracticePro, then share them to WhatsApp with one tap — the message opens pre-written to the right number; you review and send. Automated notices also go out by email and to the residents\' portal.', badge: 'Pro' },
             { title: 'Lease Management', desc: 'Lease expiry alerts and calendar integration. Send renewal notices and rent review communications. Never miss a critical date again.' },
         ],
     },
@@ -1825,7 +1825,7 @@ const HOW_IT_WORKS_STEPS = {
         {
             num: '3',
             title: 'Start practicing',
-            body: 'Draft your first legal document with DraftPro, send a court date reminder via WhatsApp, or run an AI case analysis.',
+            body: 'Draft your first legal document with DraftPro, send a court date reminder, or run an AI case analysis.',
         },
     ],
     atrium: [
@@ -1842,7 +1842,7 @@ const HOW_IT_WORKS_STEPS = {
         {
             num: '3',
             title: 'Start collecting',
-            body: 'Send your first WhatsApp collection reminder, collect a payment via bank transfer with proof upload, or generate a visitor pass with Sentry Pass.',
+            body: 'Send your first collection reminder (email, portal, or one-tap WhatsApp share), collect a payment via bank transfer with proof upload, or generate a visitor pass with Sentry Pass.',
         },
     ],
 };
@@ -2005,7 +2005,7 @@ const FAQ_ITEMS = {
         },
         {
             q: "Do you offer support?",
-            a: "Yes. Email support for all tiers. WhatsApp support for Growth and above. Dedicated account manager for Enterprise and Komplete.",
+            a: "Yes. Email support for all tiers. Priority support for Growth and above. Dedicated account manager for Enterprise and Komplete.",
         },
         {
             q: "Can I switch between plans?",
@@ -2022,8 +2022,8 @@ const FAQ_ITEMS = {
             a: "Yes. Each matter is tagged with its court, judicial division, and matter type. The system supports all Nigerian court tiers (Supreme Court, Court of Appeal, Federal High Court, State High Courts, Magistrate Courts) and can handle matters from any jurisdiction with appropriate caveats.",
         },
         {
-            q: "Do court date reminders really work via WhatsApp?",
-            a: "Yes. Automated WhatsApp reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers. Client-facing reminders are opt-in per matter. Available on the Growth plan and above.",
+            q: "How do court date reminders reach me?",
+            a: "Automated reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers by email and in-app notification. Client-facing reminders are opt-in per matter. Available on the Growth plan and above.",
         },
         {
             q: "Can my clients access their case information?",
@@ -2045,11 +2045,11 @@ const FAQ_ITEMS = {
         },
         {
             q: "What happens if a resident doesn't pay?",
-            a: "The Revenue Monitor tracks defaulters by days overdue and sends automated WhatsApp demand notices. You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
+            a: "The Revenue Monitor tracks defaulters by days overdue and sends automated demand notices by email and to the residents' portal (with a one-tap WhatsApp share for phone-first residents). You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
         },
         {
             q: "I'm a property owner living abroad. Can I use PracticePro to manage my Nigerian properties?",
-            a: "Yes. While PracticePro Atrium is built primarily for professional property managers, diaspora property owners can use it directly to manage their own portfolios. You get real-time visibility into collections, service charges, maintenance tickets, and resident communications via the dashboard and WhatsApp alerts. Your residents use the Residents' Portal for payments and requests. You can also assign a local property manager with granular access controls if you want boots on the ground — or run everything yourself remotely.",
+            a: "Yes. While PracticePro Atrium is built primarily for professional property managers, diaspora property owners can use it directly to manage their own portfolios. You get real-time visibility into collections, service charges, maintenance tickets, and resident communications via the dashboard and automated email/portal alerts. Your residents use the Residents' Portal for payments and requests. You can also assign a local property manager with granular access controls if you want boots on the ground — or run everything yourself remotely.",
         },
     ],
 };
@@ -2168,12 +2168,13 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
     </div>
 );
 
-// ─── WHATSAPP FLOATING ACTION BUTTON ──────────────────────────────────────
-// PracticePro doesn't have a registered WhatsApp Business number yet.
-// The FAB opens the Contact Sales drawer instead — the actual working
-// conversion flow (email-based, responds within 24 hours).
-// When a WhatsApp Business number is registered, replace the onClick with:
-// href="https://wa.me/234XXXXXXXXXX?text=Hi%20PracticePro..."
+// ─── CHAT FLOATING ACTION BUTTON ───────────────────────────────────────────
+// WHATSAPP REMOVAL (2026-09-14): the FAB previously wore WhatsApp's logo and
+// brand green, implying a WhatsApp chat — but PracticePro has no registered
+// WhatsApp Business number and the integration is retired. To keep the page
+// honest, the FAB is now a neutral "Chat with us" bubble (emerald brand
+// color, chat glyph) that opens the Contact Sales drawer — the actual
+// working conversion flow (email-based, responds within 24 hours).
 //
 // MOBILE POSITIONING:
 //   - On mobile (default), sits at bottom-24 (96px) — ABOVE the MobileStickyCTA
@@ -2184,12 +2185,12 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
 const WhatsAppFAB: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full bg-[#25D366] shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-600 shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >
-        <svg className="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+        <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
         </svg>
     </button>
 );

@@ -146,7 +146,13 @@ export const createMaintenanceTicket = mutation({
         title: `New maintenance ticket: ${args.subject}`,
         message: `${args.tenantName || 'A resident'} submitted a maintenance request${requestTypeLabel ? ` (${requestTypeLabel})` : ''}: ${args.subject}`,
         type: "portal_maintenance_ticket",
-        link: { view: "messaging", initialTab: "inbox" },
+        // BADGE FIX: carry the conversation id so opening the thread in
+        // MessagesView can mark THIS notification read (the badge then
+        // decrements). Previously link.id was missing → the row could only
+        // be cleared by "Mark all read" in the bell.
+        link: conversationId
+          ? { view: "messaging", initialTab: "inbox", id: conversationId, context: { activeConversationId: conversationId, initialTab: "inbox", selectedInboxId: conversationId } }
+          : { view: "messaging", initialTab: "inbox" },
         actorName: args.tenantName,
         actorEmail: undefined,
       });
@@ -930,6 +936,7 @@ export const createClientServiceRequest = mutation({
 
     // 2. CRITICAL WIRING — also create a portal_message in the client's
     //    conversation so the practitioner sees it in their unified inbox.
+    let serviceRequestConversationId: string | undefined;
     if (args.clientId) {
       try {
         const conversation = await getOrCreateConversation(ctx, {
@@ -941,6 +948,7 @@ export const createClientServiceRequest = mutation({
           matterId: args.matterId,
         });
         const conversationId = String(conversation._id);
+        serviceRequestConversationId = conversationId;
 
         const messageContent = [
           `📋 New service request — ${args.requestTypeLabel}`,
@@ -996,7 +1004,10 @@ export const createClientServiceRequest = mutation({
         title: `New service request: ${args.subject}`,
         message: `${args.clientName || 'A client'} submitted a service request (${args.requestTypeLabel}): ${args.subject}`,
         type: "portal_service_request",
-        link: { view: "messaging", initialTab: "inbox" },
+        // BADGE FIX: conversation link (see portal_maintenance_ticket note).
+        link: serviceRequestConversationId
+          ? { view: "messaging", initialTab: "inbox", id: serviceRequestConversationId, context: { activeConversationId: serviceRequestConversationId, initialTab: "inbox", selectedInboxId: serviceRequestConversationId } }
+          : { view: "messaging", initialTab: "inbox" },
         actorName: args.clientName,
         actorEmail: args.clientEmail,
       });
@@ -4429,7 +4440,8 @@ export const sendPortalMessage = mutation({
         title: `New portal message from ${args.senderName || 'portal user'}`,
         message: `${args.senderName || 'A portal user'} sent: ${args.content.substring(0, 120)}${args.content.length > 120 ? '...' : ''}`,
         type: "portal_new_message",
-        link: { view: "messaging", initialTab: "inbox" },
+        // BADGE FIX: conversation link (see portal_maintenance_ticket note).
+        link: { view: "messaging", initialTab: "inbox", id: String(conversationId), context: { activeConversationId: String(conversationId), initialTab: "inbox", selectedInboxId: String(conversationId) } },
         actorName: args.senderName,
         actorEmail: args.senderEmail,
       });

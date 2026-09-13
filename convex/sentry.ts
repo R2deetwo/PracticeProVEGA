@@ -547,7 +547,15 @@ export const markChargeAsPaid = mutation({
               unitId: sc.unitId,
               tenantId: sc.tenantId,
               messageType: "payment_receipt",
-              channel: tenantPhone ? "whatsapp" : "email",
+            // WHATSAPP REMOVAL (2026-09-14): the Chakra WhatsApp API
+            // integration is retired. Automated sends now go EMAIL-FIRST
+            // (Brevo is wired and live); phone-only tenants keep the
+            // whatsapp channel so the message is composed and visible in the
+            // Sent tab, where a one-tap "Share via WhatsApp" (wa.me deep
+            // link with the message prefilled) lets the practitioner send
+            // it manually. Receipt codes/references are embedded in the
+            // content, so nothing is lost.
+            channel: tenantEmail ? "email" : "whatsapp",
               recipient,
               messagePreview: confirmMessage,
               messageContent: confirmMessage,
@@ -558,7 +566,15 @@ export const markChargeAsPaid = mutation({
             await ctx.db.insert("scheduled_messages", {
               firmId: auth.firmId,
               content: confirmMessage,
-              channel: tenantPhone ? "whatsapp" : "email",
+            // WHATSAPP REMOVAL (2026-09-14): the Chakra WhatsApp API
+            // integration is retired. Automated sends now go EMAIL-FIRST
+            // (Brevo is wired and live); phone-only tenants keep the
+            // whatsapp channel so the message is composed and visible in the
+            // Sent tab, where a one-tap "Share via WhatsApp" (wa.me deep
+            // link with the message prefilled) lets the practitioner send
+            // it manually. Receipt codes/references are embedded in the
+            // content, so nothing is lost.
+            channel: tenantEmail ? "email" : "whatsapp",
               scheduledFor: Date.now(), // Send immediately
               status: "scheduled",
               messageType: "payment_receipt",
@@ -865,6 +881,60 @@ export const deleteAutomationLog = mutation({
     }
     await ctx.db.delete(logId);
     return { deleted: true };
+  },
+});
+
+// ─── SENT TAB: GROUPED RECIPIENT OPERATIONS (2026-09-14) ────────────────────
+// USER DIRECTIVE: "why are sent messages not organized in terms of who they
+// are sent to so that instead of having to delete messages one at a time we
+// can delete all messages sent to a particular person at once?" The Sent tab
+// now groups rows by recipient; these mutations operate on a whole recipient
+// group in one call (firm-verified like the per-row variants).
+
+export const archiveAutomationLogsByRecipient = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    recipient: v.string(),
+    archived: v.optional(v.boolean()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, { recipient, archived, userEmail, sessionToken }) => {
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
+    const next = archived ?? true;
+    // by_firm scan bounded at 1000 (mirrors getAutomationLogs' window) —
+    // recipient-matched rows are a subset.
+    const logs = await ctx.db
+      .query("automation_logs")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", auth.firmId))
+      .filter((q: any) => q.eq(q.field("recipient"), recipient))
+      .take(1000);
+    for (const log of logs) {
+      await ctx.db.patch(log._id, {
+        isArchived: next,
+        archivedAt: next ? Date.now() : undefined,
+      });
+    }
+    return { recipient, archived: next, updated: logs.length };
+  },
+});
+
+export const deleteAutomationLogsByRecipient = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    recipient: v.string(),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, { recipient, userEmail, sessionToken }) => {
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
+    const logs = await ctx.db
+      .query("automation_logs")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", auth.firmId))
+      .filter((q: any) => q.eq(q.field("recipient"), recipient))
+      .take(1000);
+    for (const log of logs) {
+      await ctx.db.delete(log._id);
+    }
+    return { recipient, deleted: logs.length };
   },
 });
 
@@ -1322,8 +1392,10 @@ export const sendServiceChargeReminders = internalMutation({
         messagePreview = `Dear ${tenantName}, your ${chargeLabel} service charge of ₦${charge.amount.toLocaleString()} for ${unitName} is ${daysOverdue} day(s) overdue. Kindly make payment to avoid penalties.`;
       }
 
-      // 5. Determine channel — prefer WhatsApp if phone available
-      const channel = tenantPhone ? "whatsapp" as const : "email" as const;
+      // WHATSAPP REMOVAL (2026-09-14): email-first — see the payment_receipt
+      // note above. Phone-only tenants keep a whatsapp-channel row that the
+      // practitioner sends manually via the Sent tab's wa.me share button.
+      const channel = tenantEmail ? "email" as const : "whatsapp" as const;
       const recipient = tenantPhone || tenantEmail;
 
       // 6. Log the automation and create a scheduled_message for the real
@@ -1443,7 +1515,9 @@ export const runDailyAutomation = internalMutation({
       // tenants got a "no_phone" failure and nothing was ever sent);
       // processScheduledMessages corrects the status from the provider
       // outcome via updateAutomationLogStatus.
-      const lateChannel = tenantPhone ? "whatsapp" as const : "email" as const;
+      // WHATSAPP REMOVAL (2026-09-14): email-first — see the payment_receipt
+      // note above for the manual-share path for phone-only tenants.
+      const lateChannel = tenantEmail ? "email" as const : "whatsapp" as const;
       const automationLogId = await ctx.db.insert("automation_logs", {
         firmId: charge.firmId, unitId: charge.unitId, tenantId: charge.tenantId,
         messageType: "late_notice", channel: lateChannel, recipient: tenantPhone || tenantEmail,

@@ -9,7 +9,7 @@
  * Feature-gated: canUseTenantPortal (Atrium Growth+ only)
  * Role-gated: Only users with role === 'Tenant'
  */
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -2328,21 +2328,60 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
   const [pendingFiles, setPendingFiles] = useState<{ file: File; name: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [chatAtBottom, setChatAtBottom] = useState(true);
+  const lastSeenChatIdRef = useRef<string | null>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // ── Auto-scroll policy (FIX 2026-09-14: “when I try to scroll up to see
+  //    previous messages it scrolls back down”) ──
+  // The old effect keyed on the `conversationMessages` ARRAY IDENTITY —
+  // every Convex push (heartbeat, notifications, any query update) returns
+  // a fresh array, so the effect re-fired constantly and yanked the resident
+  // to the bottom while they read history. Fix (same pattern as the staff
+  // MessageThread): only scroll when a GENUINELY NEW message arrives AND the
+  // user is at the bottom (or the new message is the resident's own send).
+  const handleChatScroll = useCallback(() => {
+    const el = chatScrollRef.current;
+    if (!el) return;
+    setChatAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+  }, []);
+
   useEffect(() => {
-    if (conversationMessages && conversationMessages.length > 0) {
+    if (!conversationMessages || conversationMessages.length === 0) return;
+    const last = conversationMessages[conversationMessages.length - 1] as any;
+    const lastId = last?._id ? String(last._id) : null;
+    const isNew = lastId !== null && lastId !== lastSeenChatIdRef.current;
+    if (lastId !== null) lastSeenChatIdRef.current = lastId;
+    if (!isNew) return;
+    const isMine = last?.senderId === userId;
+    if (chatAtBottom || isMine) {
       const timer = setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       return () => clearTimeout(timer);
     }
-  }, [conversationMessages]);
+    // New message from the manager while the resident is scrolled up:
+    // stay put — the “Jump to latest” pill surfaces instead.
+  }, [conversationMessages, chatAtBottom, userId]);
 
-  // Mark conversation as read when opened
+  // Opening a (different) thread: reset the tracker and snap to bottom.
+  useEffect(() => {
+    lastSeenChatIdRef.current = null;
+    setChatAtBottom(true);
+    if (conversationMessages && conversationMessages.length > 0) {
+      const t = setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }), 50);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversationId]);
+
+  // Mark conversation as read when opened — AND when new messages arrive
+  // while the thread is open (fixes the tenant-side badge re-inflating
+  // while you're looking at the thread: the old effect only fired when the
+  // conversation id CHANGED, so fresh admin replies re-added unread counts).
   useEffect(() => {
     if (activeConversationId) {
       markRead({ conversationId: activeConversationId }).catch(() => {});
     }
-  }, [activeConversationId]);
+  }, [activeConversationId, conversationMessages?.length]);
 
   // ── BUG FIX (Task 10 + Task 11): Clear the unread inbound-messages badge ──
   // When the tenant opens the Messages tab, mark all their unread
@@ -2500,8 +2539,24 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
 
   // ─── Chat View (when a conversation is active) ────────────────────────
   if (activeConversationId && activeConversation) {
+    // MOBILE COMPACTNESS (2026-09-14): group consecutive same-sender
+    // messages — the sender label row (name + timestamp + ⋮) only renders
+    // when the sender CHANGES or there is a >5-minute gap. Previously every
+    // single bubble carried a full label row + a 12px gap (space-y-3),
+    // which read as “a lot of gaps between the messages” on phones.
+    const visibleChatMessages = ((conversationMessages as any[]) || []).filter((msg: any) => !msg.isDeleted);
+    const fiveMin = 5 * 60 * 1000;
+    const showLabelFor = (idx: number): boolean => {
+      const msg = visibleChatMessages[idx];
+      const prev = visibleChatMessages[idx - 1];
+      if (!prev) return true;
+      const dayChange = new Date(msg.createdAt).toDateString() !== new Date(prev.createdAt).toDateString();
+      const gap = Math.abs(new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) > fiveMin;
+      const senderChange = (prev.senderId || prev.senderName) !== (msg.senderId || msg.senderName);
+      return senderChange || gap || dayChange;
+    };
     return (
-      <div className="flex flex-col h-[calc(100dvh-220px)] min-h-[400px] min-h-0">
+      <div className="flex flex-col h-[calc(100dvh-230px)] min-h-[340px]">
         {/* Chat header */}
         <div className="flex-shrink-0 flex items-center gap-3 px-4 py-3 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 rounded-t-xl">
           <button
@@ -2551,7 +2606,24 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
             3. PORTAL DESIGN LANGUAGE: emerald accent + participant-side delete
                semantics (soft-delete visible only to the participant).
             Revisit once MessageThread grows a URL-resolver prop. */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-slate-50 dark:bg-zinc-900 custom-scrollbar">
+        <div
+          ref={chatScrollRef}
+          onScroll={handleChatScroll}
+          className="relative flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1.5 bg-slate-50 dark:bg-zinc-900 custom-scrollbar"
+        >
+          {/* Jump to latest — surfaces whenever the resident scrolls up */}
+          {!chatAtBottom && visibleChatMessages.length > 0 && (
+            <button
+              onClick={() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="sticky top-2 ml-auto mr-1 flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-zinc-700 border border-slate-200 dark:border-zinc-600 shadow-lg text-slate-500 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-600 transition-colors z-10"
+              aria-label="Scroll to latest message"
+              title="Jump to latest"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 13l-7 7-7-7M14 6l-2-2-2 2" />
+              </svg>
+            </button>
+          )}
           {conversationMessages === undefined ? (
             <div className="flex justify-center py-8">
               <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
@@ -2567,11 +2639,13 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
             // but getConversationMessages still returns them. Without this
             // filter, deleted messages would stay visible forever (the user's
             // "delete doesn't work" complaint).
-            conversationMessages
-              .filter((msg: any) => !msg.isDeleted)
-              .map((msg: any) => {
+            visibleChatMessages
+              .map((msg: any, idx: number) => {
               const isMe = msg.senderId === userId;
               const isDeleted = msg.isDeleted;
+              // Compact grouping: label row only when the sender changes or
+              // a >5min/day gap breaks the run (see showLabelFor above).
+              const showLabel = showLabelFor(idx);
 
               // Show deleted placeholder for soft-deleted messages
               if (isDeleted) {
@@ -2591,8 +2665,10 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
               return (
                 <div key={msg._id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[85%] group ${isMe ? 'order-2' : 'order-1'}`}>
-                    {/* Sender label */}
-                    <div className={`flex items-center gap-1.5 mb-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    {/* Sender label — ONLY when the sender changes / time gap
+                        (compact grouping). Timestamp + ⋮ actions live here. */}
+                    {showLabel && (
+                    <div className={`flex items-center gap-1.5 mb-0.5 ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
                         {isMe ? 'You' : (msg.senderName || 'Property Manager')}
                       </span>
@@ -2616,9 +2692,10 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                         </svg>
                       </button>
                     </div>
-                    {/* Bubble */}
+                    )}
+                    {/* Bubble — slimmer padding on mobile (py-2 / px-3.5) */}
                     <div
-                      className={`group relative rounded-2xl px-4 py-2.5 shadow-sm ${
+                      className={`group relative rounded-2xl px-3.5 py-2 shadow-sm ${
                         isMe
                           ? 'bg-emerald-600 text-white rounded-tr-none'
                           : 'bg-white dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 border border-slate-200 dark:border-zinc-700 rounded-tl-none'
@@ -2815,10 +2892,15 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
                 <button
                   onClick={handleSendMessage}
                   disabled={isSending || !messageContent.trim()}
-                  className="self-end px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  className="self-end w-10 h-10 flex-shrink-0 flex items-center justify-center bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  aria-label="Send message"
+                  title="Send"
                 >
-                  <SendIcon className="w-3.5 h-3.5" />
-                  {isSending ? 'Sending...' : 'Send'}
+                  {isSending ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <SendIcon className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>

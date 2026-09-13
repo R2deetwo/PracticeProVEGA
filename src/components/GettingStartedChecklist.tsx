@@ -62,7 +62,7 @@ const ATRIUM_ITEMS: ChecklistItem[] = [
   { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Units tab → edit a unit → set service charge.' },
   { key: 'hasBankAccount',           label: 'Configure bank account',       action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For rent collections.' },
   { key: 'hasInvitedResidentToPortal', label: 'Invite a resident to portal', action: { kind: 'view', view: 'settings' },           hint: 'Residents self-serve rent payments.' },
-  { key: 'hasSentReminder',         label: 'Send your first rent reminder', action: { kind: 'view', view: 'messaging' },          hint: 'WhatsApp or email nudge to a defaulter.' },
+  { key: 'hasSentReminder',         label: 'Send your first rent reminder', action: { kind: 'view', view: 'messaging' },          hint: 'Email/portal nudge to a defaulter (or a one-tap WhatsApp share).' },
 ];
 
 const KOMPLETE_ITEMS: ChecklistItem[] = [

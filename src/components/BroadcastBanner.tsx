@@ -867,7 +867,21 @@ export const BroadcastBanner: React.FC = () => {
                                                 'dashboard': 'dashboard',
                                                 'atriumEngine': 'billing',
                                             };
-                                            const targetView = viewMap[view] || view;
+                                            let targetView = viewMap[view] || view;
+
+                                            // LEASE-BANNER DEEP-LINK FIX (2026-09-14): the
+                                            // deepLink for lease-expiry / overdue-rent banners is
+                                            // `properties/<propertyId>?tab=units&targetUnit=…&highlight=…`,
+                                            // but navigateTo('properties', id, ctx) routes to the
+                                            // LIST page and silently DROPS the id, the Units tab,
+                                            // and the highlight ("it only takes me into the
+                                            // properties page"). With an entityId present we
+                                            // navigate to propertyDetail instead — that view's
+                                            // deep-link handler consumes tab/targetUnit/highlight,
+                                            // scrolls to the unit and pulses it.
+                                            if (view === 'properties' && entityId) {
+                                                targetView = 'propertyDetail';
+                                            }
 
                                             // Use client-side navigateTo — preserves history stack
                                             // so the back button returns the user to where they were.

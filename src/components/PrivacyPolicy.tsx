@@ -310,7 +310,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                         <li>Notify you about account activity, new features, and maintenance</li>
                                         <li>Request feedback and run user surveys</li>
                                         <li>Send marketing messages (only with your consent — opt out anytime)</li>
-                                        <li><strong>Automated multi-channel alerts:</strong> When tasks are assigned or reminders trigger, PracticePro may send in-app, email, or WhatsApp alerts. External contacts ({isVega ? 'clients' : 'residents'}) get email by default and WhatsApp only if they opt in. Internal staff get in-app alerts only. Change notification settings, including turning off WhatsApp, anytime in Settings.</li>
+                                        <li><strong>Automated multi-channel alerts:</strong> When tasks are assigned or reminders trigger, PracticePro may send in-app or email alerts. External contacts ({isVega ? 'clients' : 'residents'}) get email by default. Internal staff get in-app alerts only. WhatsApp, where offered, is a manual share: PracticePro pre-composes a message and opens WhatsApp on your device, and you send it from your own account — such sends are not processed by PracticePro. Change notification settings anytime in Settings.</li>
                                         <li><strong>Task notices:</strong> When a task is assigned to you, PracticePro uses your name, email, and (if needed) phone number to send assignment notices and reminders. We need this to deliver the service your firm signed up for.</li>
                                     </ul>
                                 </div>

@@ -220,7 +220,7 @@ cd android && ./gradlew assembleRelease
 | Enterprise | Custom | Unlimited | Unlimited | Unlimited |
 
 ### Atrium (Property) — Monthly or Annual
-| Tier | Price | Units | Tenants | WhatsApp/mo |
+| Tier | Price | Units | Tenants | Automated notices |
 |------|-------|-------|---------|-------------|
 | Starter | N49,000/mo or N490,000/yr | 10 | 15 | 250 |
 | Growth | N96,500/mo or N965,000/yr | 25 | 40 | 500 |
@@ -281,7 +281,7 @@ All 5 primary AI prompts are sourced from versioned markdown files in `/ai/promp
   - Day 0: Welcome + setup
   - Day 1: First payment recorded
   - Day 3: First invoice sent
-  - Day 7: Try WhatsApp messaging
+  - Day 7: Try automated reminders
   - Day 14: Midpoint check-in
   - Day 23: Trial ending soon (7 days)
   - Day 29: Last-chance nudge

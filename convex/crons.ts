@@ -304,6 +304,20 @@ crons.daily(
   {}
 );
 
+// ─── MESSAGING RELIABILITY: NOTIFICATION PRUNING ─────────────────────────
+// Daily at 3:20 UTC. notifyFirmAdmins inserts a notifications row for every
+// admin on every portal message/ticket/service request — the table grows
+// unboundedly and the badge/bell queries degrade over months ("the app
+// stops working after a while"). Purge READ notifications older than 30
+// days; 500 rows per run drains any backlog gradually. Unread rows are
+// kept (they may still matter to the user).
+crons.daily(
+  "pruneReadNotifications",
+  { hourUTC: 3, minuteUTC: 20 },
+  internal.myFunctions.pruneReadNotifications,
+  {}
+);
+
 // ─── ITEM 4: QUERY DEMAND OBSERVABILITY ──────────────────────────────────
 // Weekly (Sundays 03:20 UTC). Records per-table row counts into
 // table_size_records so the growth of every bounded table is visible

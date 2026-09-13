@@ -158,9 +158,9 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h2>6. Communication and Notifications</h2>
 
-                    <h3>6.1 WhatsApp and SMS Notifications</h3>
+                    <h3>6.1 Email, In-App, and WhatsApp Share</h3>
                     <p>
-                        The Platform may send notifications via WhatsApp Business API and SMS gateways, including rent reminders, demand notices, <strong>court date reminders</strong>, and matter updates. <strong>Court date reminders</strong> (available on the Growth plan and above) are sent automatically 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s) on the matter. Client-facing court reminders are disabled by default — lawyers must explicitly opt in per matter if they want clients to receive hearing notifications. WhatsApp is managed at the platform level — firms enable it in Settings → Integrations. Message volumes are subject to fair-use limits. Monthly quotas reset on the 1st of each month. You are responsible for ensuring that your clients and residents have consented to receiving such communications under the NDPA 2023 before enabling notifications on their behalf.
+                        The Platform sends automated notifications by <strong>email and in-app message</strong>, including rent reminders, demand notices, and matter updates. <strong>Court date reminders</strong> (available on the Growth plan and above) are sent automatically 7, 3, and 1 day(s) before each scheduled hearing to the assigned lawyer(s) on the matter. Client-facing court reminders are disabled by default — lawyers must explicitly opt in per matter if they want clients to receive hearing notifications. <strong>WhatsApp:</strong> the Platform does not send messages through the WhatsApp Business API; where a WhatsApp option appears (for example, sharing an invitation, a receipt, or a demand notice with a resident), the Platform opens WhatsApp on your device with the message pre-composed, and <strong>you review and send it yourself</strong> from your own WhatsApp account. You are responsible for ensuring that your clients and residents have consented to receiving such communications under the NDPA 2023 before sending them anything on any channel.
                     </p>
 
                     <h3>6.2 Email Communications</h3>
@@ -190,7 +190,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>7.4 Tier Limits</h3>
                     <p>
-                        Each subscription tier has capacity limits, including maximum users, active matters, managed units, tenants, WhatsApp notification volumes, and storage. Exceeding these limits requires upgrading to a higher tier. PracticePro may contact you when you approach your tier's limits.
+                        Each subscription tier has capacity limits, including maximum users, active matters, managed units, tenants, and storage. Exceeding these limits requires upgrading to a higher tier. PracticePro may contact you when you approach your tier's limits.
                     </p>
 
                     <h2>8. Intellectual Property</h2>

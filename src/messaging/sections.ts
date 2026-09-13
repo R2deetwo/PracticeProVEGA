@@ -64,11 +64,14 @@ export function getSmartDefaultOpenSection(ctx: SmartDefaultContext): InboxSecti
 }
 
 /**
- * Fall back when the preferred section does not render (e.g. no support
- * thread yet, or the product hides that section). Never opens a section the
- * product wouldn't draw — an orphan "open" state on a hidden section is
- * indistinguishable from "all collapsed", but the fallback keeps the page
- * USEFUL (something visible is open) instead of purely empty.
+ * Fall back when the preferred section does not render. Never opens a
+ * section the product wouldn't draw — an orphan "open" state on a hidden
+ * section is indistinguishable from "all collapsed", but the fallback keeps
+ * the page USEFUL (something visible is open) instead of purely empty.
+ *
+ * 2026-09-14 (user directive): the PracticePro Team section now ALWAYS
+ * renders (it gained a start-thread compose box, so it's useful even with
+ * no existing thread) — 'system' is never dropped for lacking a thread.
  */
 export function refineDefaultOpenSection(
   preferred: InboxSectionId | null,
@@ -76,7 +79,10 @@ export function refineDefaultOpenSection(
 ): InboxSectionId | null {
   const fallback: InboxSectionId = ctx.isAtrium ? 'portal_residents' : 'portal_clients';
   let choice = preferred;
-  if (choice === 'system' && !ctx.hasSupportThread) choice = fallback;
+  if (choice === 'system' && !ctx.hasSupportThread) {
+    // Section still renders (start-thread affordance) — keep it open so
+    // teamless users see their support channel on first visit.
+  }
   if (choice === 'portal_clients' && !ctx.hasClientsSection) choice =
     ctx.hasResidentsSection ? 'portal_residents' : null;
   if (choice === 'portal_residents' && !ctx.hasResidentsSection) choice =

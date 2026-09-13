@@ -30,6 +30,17 @@ import {
   CHAKRA_WHATSAPP_BILLING_URL,
 } from '../../utils/deliveryErrors';
 import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
+// WHATSAPP MANUAL SHARE (2026-09-14): the API integration is retired —
+// whatsapp-channel rows get a one-tap wa.me handoff (message prefilled,
+// user hits send in WhatsApp) instead of an undeliverable automated send.
+import { whatsappShareUrl } from '../../utils/whatsappShare';
+
+// WhatsApp brand glyph for the share button (not in shared constants).
+const WhatsAppGlyph = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+  </svg>
+);
 
 // Archive-box icon (not in shared constants) — the Sent tab's archive action.
 const ArchiveBoxIcon = ({ className }: { className?: string }) => (
@@ -107,7 +118,18 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
   // removes it permanently. Both are firm-verified on the server.
   const archiveLog = useMutation(api.sentry.archiveAutomationLog);
   const deleteLog = useMutation(api.sentry.deleteAutomationLog);
+  // GROUPED operations (2026-09-14): the user asked "why are sent messages
+  // not organized in terms of who they are sent to so that instead of
+  // having to delete messages one at a time we can delete all messages sent
+  // to a particular person at once?" — the list now groups by recipient and
+  // these mutations act on a whole group in one call.
+  const archiveLogGroup = useMutation(api.sentry.archiveAutomationLogsByRecipient);
+  const deleteLogGroup = useMutation(api.sentry.deleteAutomationLogsByRecipient);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  const [busyRecipient, setBusyRecipient] = useState<string | null>(null);
+  // One recipient group expanded at a time (message detail rows keep their
+  // own expandedId). All groups collapsed = the tidy default.
+  const [expandedRecipient, setExpandedRecipient] = useState<string | null>(null);
 
   const logs = useQuery(
     api.sentry.getAutomationLogs,
@@ -131,6 +153,30 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
     if (channelFilter === 'all') return rows;
     return rows.filter(l => l.channel === channelFilter);
   }, [logs, channelFilter]);
+
+  // ── RECIPIENT GROUPING (2026-09-14) ──────────────────────────────
+  // Group the sent rows by recipient so the list reads "who you've messaged"
+  // instead of a flat firehose — and so a whole recipient's history can be
+  // archived/deleted in one action. Groups sort by most recent activity;
+  // rows inside a group sort newest-first.
+  const recipientGroups = useMemo(() => {
+    const byRecipient = new Map<string, any[]>();
+    for (const row of filtered) {
+      const key = String(row.recipient || 'Unknown recipient').trim() || 'Unknown recipient';
+      const arr = byRecipient.get(key);
+      if (arr) arr.push(row);
+      else byRecipient.set(key, [row]);
+    }
+    const groups = Array.from(byRecipient.entries()).map(([recipient, rows]) => ({
+      recipient,
+      rows: [...rows].sort((a, b) => (b.sentAt || 0) - (a.sentAt || 0)),
+      lastAt: Math.max(...rows.map(r => r.sentAt || 0)),
+      delivered: rows.filter(r => r.status === 'sent').length,
+      failed: rows.filter(r => r.status === 'failed').length,
+    }));
+    groups.sort((a, b) => b.lastAt - a.lastAt);
+    return groups;
+  }, [filtered]);
 
   // Archived rows (restorable) — the audit-friendly alternative to deleting.
   const archived = useMemo(
@@ -240,6 +286,57 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
     }
   };
 
+  // ── Group management: whole-recipient archive / delete ────────────
+  const handleArchiveGroup = async (recipient: string, next: boolean) => {
+    if (busyRecipient) return;
+    setBusyRecipient(recipient);
+    try {
+      const res: any = await archiveLogGroup({
+        recipient,
+        archived: next,
+        userEmail: currentUser?.email,
+        sessionToken: bearerToken ?? undefined,
+      });
+      addToast(
+        next
+          ? `Archived ${res?.updated ?? ''} message${res?.updated === 1 ? '' : 's'} to ${recipient}. Restore them below.`
+          : `Restored ${res?.updated ?? ''} message${res?.updated === 1 ? '' : 's'} to ${recipient}.`,
+        { type: 'success' }
+      );
+      if (!next) setExpandedRecipient(recipient);
+    } catch (e: any) {
+      addToast(e?.message || 'Failed. Try again.', { type: 'error' });
+    } finally {
+      setBusyRecipient(null);
+    }
+  };
+
+  const handleDeleteGroup = async (recipient: string, count: number) => {
+    const ok = await confirm({
+      title: `Delete all ${count} messages to this recipient?`,
+      message: `Every message sent to ${recipient} will be permanently removed from your send history. Archive them instead if you might need the records.`,
+      confirmLabel: 'Delete all',
+      cancelLabel: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
+    if (busyRecipient) return;
+    setBusyRecipient(recipient);
+    try {
+      const res: any = await deleteLogGroup({
+        recipient,
+        userEmail: currentUser?.email,
+        sessionToken: bearerToken ?? undefined,
+      });
+      if (expandedRecipient === recipient) setExpandedRecipient(null);
+      addToast(`Deleted ${res?.deleted ?? count} message${(res?.deleted ?? count) === 1 ? '' : 's'} to ${recipient}.`, { type: 'success' });
+    } catch (e: any) {
+      addToast(e?.message || 'Failed. Try again.', { type: 'error' });
+    } finally {
+      setBusyRecipient(null);
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col min-h-0">
       {ConfirmDialog}
@@ -322,10 +419,10 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
         </div>
       </div>
 
-      {/* Log list */}
+      {/* Log list — grouped by recipient (2026-09-14) */}
       <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-950/40">
         <div className="max-w-4xl mx-auto p-3 sm:p-4">
-          {filtered.length === 0 ? (
+          {recipientGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
                 <MailIcon className="w-6 h-6 text-slate-400" />
@@ -339,7 +436,99 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map((log: any) => {
+              {recipientGroups.map(group => {
+                const isGroupOpen = expandedRecipient === group.recipient;
+                const groupBusy = busyRecipient === group.recipient;
+                return (
+                  <div
+                    key={group.recipient}
+                    className={`rounded-xl border bg-white dark:bg-zinc-900 overflow-hidden transition-colors ${
+                      group.failed > 0
+                        ? 'border-rose-200 dark:border-rose-900/40'
+                        : 'border-slate-200 dark:border-zinc-800'
+                    }`}
+                  >
+                    {/* ── Group header: recipient + counts + group actions ── */}
+                    <div className="px-4 py-2.5 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors">
+                      <button
+                        onClick={() => setExpandedRecipient(isGroupOpen ? null : group.recipient)}
+                        className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                        aria-label={isGroupOpen ? 'Collapse messages' : 'Show messages'}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 flex items-center justify-center flex-shrink-0 text-xs font-black">
+                          {group.recipient.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-bold text-slate-900 dark:text-white truncate max-w-full sm:max-w-[220px]">
+                              {group.recipient}
+                            </span>
+                            <span className="text-2xs font-bold text-slate-400 dark:text-zinc-500">
+                              {group.rows.length} message{group.rows.length === 1 ? '' : 's'}
+                            </span>
+                            {group.delivered > 0 && (
+                              <span className="text-2xs font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                {group.delivered} delivered
+                              </span>
+                            )}
+                            {group.failed > 0 && (
+                              <span className="text-2xs font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400">
+                                {group.failed} failed
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
+                            Last: {group.rows[0] ? ((MSG_TYPE_LABELS as Record<string, string>)[group.rows[0].messageType] || group.rows[0].messageType) : '—'} · {timeAgo(group.lastAt)}
+                          </p>
+                        </div>
+                        <ChevronDownIcon className={`w-4 h-4 text-slate-400 transition-transform flex-shrink-0 ${isGroupOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {/* Whole-group actions — one tap archives/deletes the
+                          ENTIRE history for this recipient. */}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* WhatsApp handoff — shares the LATEST message to this
+                            recipient (codes/references included). */}
+                        {group.rows.some((r: any) => r.channel === 'whatsapp') && (() => {
+                          const waRow = group.rows.find((r: any) => r.channel === 'whatsapp' && (r.messageContent || r.messagePreview));
+                          if (!waRow) return null;
+                          return (
+                            <a
+                              href={whatsappShareUrl(waRow.recipient, waRow.messageContent || waRow.messagePreview)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                              title={`Open WhatsApp to ${group.recipient} with the latest message prefilled`}
+                            >
+                              <WhatsAppGlyph className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">WhatsApp</span>
+                            </a>
+                          );
+                        })()}
+                        <button
+                          onClick={() => handleArchiveGroup(group.recipient, true)}
+                          disabled={groupBusy}
+                          className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                          title={`Archive all ${group.rows.length} messages to ${group.recipient} (restorable below)`}
+                        >
+                          <ArchiveBoxIcon className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Archive all</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGroup(group.recipient, group.rows.length)}
+                          disabled={groupBusy}
+                          className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors disabled:opacity-50"
+                          title={`Delete all ${group.rows.length} messages to ${group.recipient} permanently`}
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Delete all</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* ── Group rows (individual messages) ── */}
+                    {isGroupOpen && (
+                      <div className="border-t border-slate-100 dark:border-zinc-800 divide-y divide-slate-100 dark:divide-zinc-800">
+                        {group.rows.map((log: any) => {
                 const st = STATUS_STYLES[log.status] || STATUS_STYLES.logged;
                 const isExpanded = expandedId === log._id;
                 const isWhatsApp = log.channel === 'whatsapp';
@@ -349,17 +538,10 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                   : null;
                 const showRaw = showRawIds.has(log._id);
                 return (
-                  <div
-                    key={log._id}
-                    className={`rounded-xl border bg-white dark:bg-zinc-900 overflow-hidden transition-colors ${
-                      log.status === 'failed'
-                        ? 'border-rose-200 dark:border-rose-900/40'
-                        : 'border-slate-200 dark:border-zinc-800'
-                    }`}
-                  >
+                  <div key={log._id}>
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : log._id)}
-                      className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors"
+                      className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-zinc-800/60 transition-colors"
                     >
                       <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${st.dot}`} />
                       <div className="min-w-0 flex-1">
@@ -377,20 +559,13 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                             {st.label}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
-                          → {log.recipient}
-                          {log.senderName ? ` · by ${log.senderName}` : ''}
-                        </p>
-                        {/* Failure reason — the MAPPED reason by default; the
-                            raw provider text is behind the Details toggle in
-                            the expanded row (admins only). */}
                         {log.status === 'failed' && (
-                          <p className="text-xs text-rose-600 dark:text-rose-400 mt-1 truncate">
+                          <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5 truncate">
                             {mapped || summarizeError(log.errorMessage, 120)}
                           </p>
                         )}
                         {!isExpanded && log.messagePreview && (
-                          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-1 truncate">
+                          <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5 truncate">
                             {log.messagePreview}
                           </p>
                         )}
@@ -404,7 +579,7 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                     </button>
 
                     {isExpanded && (
-                      <div className="px-4 pb-3 pt-1 border-t border-slate-100 dark:border-zinc-800">
+                      <div className="px-4 pb-3 pt-1">
                         <div className="grid grid-cols-2 gap-2 text-2xs text-slate-400 dark:text-zinc-500 mb-2">
                           <span>Sent: {log.sentAt ? formatTimestamp(log.sentAt) : '—'}</span>
                           {log.messageId && <span className="truncate">Provider id: {log.messageId}</span>}
@@ -436,10 +611,24 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                           </pre>
                         )}
 
-                        {/* ── Row management (2026-09-14): archive + delete ──
-                            Archive hides the row (restorable below); delete
-                            removes it permanently (with confirmation). */}
-                        <div className="flex items-center gap-2 pt-1">
+                        {/* ── Row management: share + archive + delete (single message) ── */}
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          {/* WHATSAPP MANUAL SHARE — the integration is retired;
+                              wa.me opens WhatsApp with this exact message
+                              prefilled to the recipient (codes and references
+                              included). */}
+                          {log.channel === 'whatsapp' && (log.messageContent || log.messagePreview) && (
+                            <a
+                              href={whatsappShareUrl(log.recipient, log.messageContent || log.messagePreview)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 text-2xs font-bold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                              title="Open WhatsApp with this message prefilled — review and send"
+                            >
+                              <WhatsAppGlyph className="w-3.5 h-3.5" />
+                              Send via WhatsApp
+                            </a>
+                          )}
                           <button
                             onClick={() => handleArchive(log, true)}
                             disabled={busyRowId === log._id}
@@ -459,6 +648,11 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                             Delete
                           </button>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                );
+                        })}
                       </div>
                     )}
                   </div>

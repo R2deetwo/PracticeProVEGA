@@ -137,19 +137,27 @@ const CompleteSetupBanner: React.FC = () => {
 
   return (
     <div className="relative rounded-2xl bg-gradient-to-r from-primary-600 to-emerald-500 text-white shadow-lg shadow-primary-600/20 overflow-hidden">
-      {/* Decorative check-circle pattern */}
-      <div className="absolute inset-0 opacity-10">
+      {/* Decorative check-circle pattern — hidden on small screens (visual
+          noise in the slim mobile layout; the circles also pushed the
+          banner's visual weight up on 360px portrait). */}
+      <div className="absolute inset-0 opacity-10 hidden sm:block">
         <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/20" />
         <div className="absolute right-12 bottom-2 w-16 h-16 rounded-full bg-white/10" />
       </div>
 
-      <div className="relative px-4 sm:px-6 py-4 flex items-center gap-4 flex-wrap">
-        <div className="flex-shrink-0 w-12 h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
-          <span className="text-sm font-black">{doneCount}/{totalCount}</span>
+      {/* MOBILE SLIM LAYOUT (2026-09-14): the user's long-standing complaint
+          — "the getting started banner looks too thick… unwieldy on the
+          phone/portrait/apk". On <sm the banner is now ONE slim row:
+          smaller counter circle, tighter paddings (py-2.5), no wrapping
+          (flex-nowrap), truncated title/next-step, compact CTA. Desktop
+          keeps the original roomy layout via sm: breakpoints. */}
+      <div className="relative px-3 sm:px-6 py-2.5 sm:py-4 flex items-center gap-2.5 sm:gap-4 flex-nowrap sm:flex-wrap">
+        <div className="flex-shrink-0 w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur flex items-center justify-center">
+          <span className="text-2xs sm:text-sm font-black">{doneCount}/{totalCount}</span>
         </div>
 
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm sm:text-base font-bold tracking-tight">
+          <h3 className="text-xs sm:text-base font-bold tracking-tight truncate">
             {progressPct >= 50
               ? 'Almost there — finish setting up your workspace'
               : 'Welcome to PracticePro — let\'s finish your setup'}
@@ -160,12 +168,13 @@ const CompleteSetupBanner: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
           <button
             onClick={handleCTA}
-            className="px-4 py-2 bg-white text-primary-700 text-xs font-black uppercase tracking-widest rounded-lg shadow-sm hover:bg-white/90 transition-colors"
+            className="px-2.5 py-1.5 sm:px-4 sm:py-2 bg-white text-primary-700 text-2xs sm:text-xs font-black uppercase tracking-widest rounded-lg shadow-sm hover:bg-white/90 transition-colors whitespace-nowrap"
           >
-            Continue Setup
+            <span className="sm:hidden">Continue</span>
+            <span className="hidden sm:inline">Continue Setup</span>
           </button>
           <button
             onClick={handleDismiss}
@@ -178,8 +187,8 @@ const CompleteSetupBanner: React.FC = () => {
         </div>
       </div>
 
-      {/* Progress bar at the bottom of the banner */}
-      <div className="h-1 bg-white/20">
+      {/* Progress bar at the bottom of the banner — hairline on mobile */}
+      <div className="h-0.5 sm:h-1 bg-white/20">
         <div
           className="h-full bg-white transition-all duration-500"
           style={{ width: `${progressPct}%` }}

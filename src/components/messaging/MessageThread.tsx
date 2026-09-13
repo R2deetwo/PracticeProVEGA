@@ -387,21 +387,40 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
         setIsAtBottom(scrollHeight - scrollTop - clientHeight < 100);
     }, []);
 
-    // Auto-scroll: stick to bottom on new messages when already at bottom
-    // or when the newest message is the user's own (matches prior ChatWindow
-    // behaviour across all threads). Skipped in embedded mode — the parent
-    // owns scrolling there.
+    // ── Auto-scroll policy (FIX 2026-09-14: “scrolls back down no matter
+    //    what I do”) ──
+    // Two bugs made the thread yank the user to the bottom constantly:
+    //   1. The effect keyed on the `sorted` ARRAY IDENTITY — Convex pushes
+    //      a fresh array on every re-render (heartbeat, notifications,
+    //      any query update), and the parent recomputed `messages` inline,
+    //      so the effect re-fired constantly.
+    //   2. `last?.isMe` short-circuited the isAtBottom guard — when the
+    //      firm's own reply was the last message, EVERY re-render forced a
+    //      scroll to bottom even while the admin was reading history.
+    // Fix: remember the LAST MESSAGE ID we've seen. Only scroll when a
+    // genuinely NEW message arrives AND (the user is at the bottom OR the
+    // new message is the user's own send). Pure re-renders do nothing.
+    const lastSeenIdRef = useRef<string | null>(null);
     useEffect(() => {
         if (embedded) return;
         const last = sorted[sorted.length - 1];
+        const lastId = last?.id ?? null;
+        const isNewMessage = lastId !== lastSeenIdRef.current;
+        if (lastId !== null) lastSeenIdRef.current = lastId;
+        if (!isNewMessage) return;
         if (isAtBottom || last?.isMe) {
             const t = setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             return () => clearTimeout(t);
         }
+        // New message from the other side while the user is scrolled up:
+        // stay put — the sticky “Jump to latest” button surfaces instead.
     }, [sorted, isAtBottom, embedded]);
 
-    // Thread switch: jump straight to bottom without smooth scroll.
+    // Thread switch: jump straight to bottom without smooth scroll, and
+    // reset the new-message tracker so opening a thread doesn't count as
+    // "no new message" on the first render.
     useEffect(() => {
+        lastSeenIdRef.current = null;
         if (embedded || sorted.length === 0) {
             endRef.current?.scrollIntoView({ behavior: 'auto' });
         }

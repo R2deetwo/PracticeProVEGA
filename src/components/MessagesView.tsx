@@ -217,8 +217,8 @@ const InlineTicketReply: React.FC<{
                     onSend={handleSend}
                     placeholder="Type your reply to the resident/client..."
                     sendDisabled={!text.trim() || sending}
-                    sendLabel={sending ? 'Sending...' : 'Send Reply'}
-                    sendAriaLabel="Send reply"
+                    sendIcon={sending ? undefined : <SendIcon />}
+                    sendAriaLabel={sending ? 'Sending reply' : 'Send reply'}
                     hint="Shift+Enter to send"
                     containerClassName="w-full"
                     textareaClassName="text-base bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700"
@@ -441,6 +441,35 @@ const MessagesView: React.FC = () => {
     // after the founder has responded. The input is permanently mounted
     // at the bottom of the System Inbox thread.
     const userReplyToFeedback = useMutation(api.feedback.userReplyToFeedback);
+    // ─── START A NEW SUPPORT THREAD ───────────────────────────────────
+    // 2026-09-14: the PracticePro Team section now always renders; users
+    // without an existing thread get this compose box in the System Inbox
+    // so the channel is usable from day one (not reply-only).
+    const submitFeedback = useMutation(api.feedback.submitFeedback);
+    const [feedbackNewThreadText, setFeedbackNewThreadText] = useState('');
+    const [isStartingFeedbackThread, setIsStartingFeedbackThread] = useState(false);
+
+    const handleStartFeedbackThread = async () => {
+        if (!feedbackNewThreadText.trim() || isStartingFeedbackThread) return;
+        if (!firmId || !currentUser) return;
+        setIsStartingFeedbackThread(true);
+        try {
+            await submitFeedback({
+                firmId: String(firmId),
+                userId: String(currentUser.id || currentUser._id),
+                userName: currentUser.name || currentUser.email || 'User',
+                userEmail: currentUser.email || '',
+                type: 'Support',
+                message: feedbackNewThreadText.trim(),
+            });
+            addToast('Message sent. The PracticePro team will reply here.', { type: 'success' });
+            setFeedbackNewThreadText('');
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to send message.', { type: 'error' });
+        } finally {
+            setIsStartingFeedbackThread(false);
+        }
+    };
     const [feedbackReplyText, setFeedbackReplyText] = useState('');
     const [isSendingFeedbackReply, setIsSendingFeedbackReply] = useState(false);
 
@@ -772,6 +801,14 @@ const MessagesView: React.FC = () => {
     const sendAdminReply = useMutation(api.portals.sendAdminReply);
     const markPortalRead = useMutation(api.portals.markPortalMessageRead);
     const markConvReadByAdmin = useMutation(api.portals.markConversationReadByAdmin);
+    // BADGE FIX (2026-09-14): the Messages badge also counts notifications
+    // rows (link.view === 'messaging') created by notifyFirmAdmins — opening
+    // a thread never cleared them ("24 messages but the badge stays at 24").
+    // markMessagingNotificationsRead clears them all when the page opens;
+    // markConversationNotificationsRead clears the ones linked to a specific
+    // thread when that thread is clicked.
+    const markMessagingNotifsRead = useMutation(api.myFunctions.markMessagingNotificationsRead);
+    const markConversationNotifsRead = useMutation(api.myFunctions.markConversationNotificationsRead);
 
     // ── Team Chat: server-side message + notification mutation ──
     // This atomically creates the chat message AND notifications for all
@@ -1051,6 +1088,15 @@ const MessagesView: React.FC = () => {
         for (const conv of unreadConversations) {
             markConvReadByAdmin({ conversationId: String(conv._id) }).catch(() => {});
         }
+
+        // BADGE FIX: the badge ALSO counts notifications rows where
+        // link.view === 'messaging' (created by notifyFirmAdmins for every
+        // portal message/ticket/service request). Opening the Messages page
+        // IS viewing them — mark them all read so the badge actually drops.
+        markMessagingNotifsRead({
+            userEmail: currentUser?.email,
+            sessionToken: (bearerToken ?? undefined) || undefined,
+        }).catch(() => {});
     }, [atriumInbound, portalMessages, portalConversations]);
 
     // ── Sub-thread state ──
@@ -1420,8 +1466,11 @@ const MessagesView: React.FC = () => {
                                     return (
                                         <>
                                             {/* ── Section: PracticePro Team (System Inbox) ──────────────────
-                                                Pinned at the top — founder replies to user feedback. */}
-                                            {myFeedback.length > 0 && (
+                                                Pinned at the top — founder replies to user feedback.
+                                                2026-09-14: ALWAYS renders (user directive — the section
+                                                vanished for users without an existing thread). The row
+                                                doubles as the entry point to START a support thread. */}
+                                            {(
                                                 <>
                                                     <SectionHeader
                                                         icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>}
@@ -1477,9 +1526,13 @@ const MessagesView: React.FC = () => {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    {myFeedback[0] && (
+                                                    {myFeedback[0] ? (
                                                         <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-1 pl-10">
                                                             {myFeedback[0].adminReply || myFeedback[0].message}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-xs text-slate-400 dark:text-zinc-500 line-clamp-1 pl-10">
+                                                            Message the PracticePro team — questions, bugs, or help getting started
                                                         </p>
                                                     )}
                                                 </div>
@@ -1680,6 +1733,12 @@ const MessagesView: React.FC = () => {
                                                             setSelectedInboxId(convId);
                                                             setSelectedSection('client_tenant');
                                                             if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
+                                                            // BADGE FIX: clear notifications linked to this thread
+                                                            markConversationNotifsRead({
+                                                                conversationId: convId,
+                                                                userEmail: currentUser?.email,
+                                                                sessionToken: (bearerToken ?? undefined) || undefined,
+                                                            }).catch(() => {});
                                                         }}
                                                         className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
                                                     >
@@ -1763,6 +1822,12 @@ const MessagesView: React.FC = () => {
                                                             setSelectedInboxId(convId);
                                                             setSelectedSection('client_tenant');
                                                             if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
+                                                            // BADGE FIX: clear notifications linked to this thread
+                                                            markConversationNotifsRead({
+                                                                conversationId: convId,
+                                                                userEmail: currentUser?.email,
+                                                                sessionToken: (bearerToken ?? undefined) || undefined,
+                                                            }).catch(() => {});
                                                         }}
                                                         className={`py-2 px-3 border-b border-slate-100 dark:border-zinc-800 cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-zinc-800 ${isThisSelected ? `border-l-2 ${activeTint}` : ''} ${isSelected ? 'bg-rose-50 dark:bg-rose-900/10' : ''}`}
                                                     >
@@ -2094,7 +2159,7 @@ const MessagesView: React.FC = () => {
                                                     }}
                                                     placeholder="Type a message..."
                                                     sendDisabled={!teamReplyText.trim() && teamAttachments.length === 0}
-                                                    sendLabel="Send"
+                                                    sendIcon={<SendIcon />}
                                                     sendAriaLabel="Send team message"
                                                     containerClassName="flex-1"
                                                 />
@@ -2168,35 +2233,39 @@ const MessagesView: React.FC = () => {
 
                                     {/* Message Content — Conversation View
                                         flex: 1 1 0% + min-h-0 forces Safari to bound
-                                        the scroll container to viewport height. */}
-                                    <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-                                        <div className="max-w-2xl mx-auto w-full box-border">
-                                            {/* Conversation-based thread view — shared
-                                                MessageThread (variant 'client_tenant'). Messages are
-                                                normalised to UnifiedMessage first (epoch-ms sentAt,
-                                                resolved isMe, attachments). Ticket badges ride the
-                                                renderAboveBubble slot; ticket controls, threaded
-                                                replies and the inline ticket composer ride
-                                                renderBelowBubble; progressive-disclosure content
-                                                rides renderBubbleContent. */}
-                                            {selectedInboundMsg._inboxType === 'conversation' ? (
-                                                (() => {
-                                                    // BUG FIX (Task 12): Filter out isDeleted messages — the
-                                                    // adminDeletePortalMessage mutation marks them as isDeleted:true
-                                                    // but getConversationMessages still returns them. Without
-                                                    // this filter, deleted messages would stay visible forever.
-                                                    const threadMsgs = sortUnifiedMessages(
-                                                        ((conversationMessages as any[]) || [])
-                                                            .filter((msg: any) => !msg.isDeleted)
-                                                            .map((msg: any) => normalizePortalMessage(msg, currentUser))
-                                                    );
-                                                    return (
-                                                        <MessageThread
-                                                            className="ticket-body-scroll"
-                                                            innerClassName="max-w-2xl mx-auto w-full box-border"
-                                                            variant="client_tenant"
-                                                            threadKey={String(selectedInboxId)}
-                                                            messages={threadMsgs}
+                                        the scroll container to viewport height.
+
+                                        SCROLL FIX (2026-09-14): previously the shared
+                                        MessageThread was nested INSIDE this outer
+                                        overflow-y-auto div, so MessageThread's own
+                                        scroller never actually scrolled — its onScroll
+                                        never fired, isAtBottom stayed true, the auto-
+                                        scroll effect fired on every re-render and the
+                                        thread kept forcing the admin back to the bottom
+                                        ("no matter what I do it just keeps forcing its
+                                        way back down"). Now the conversation branch
+                                        renders MessageThread DIRECTLY in the flex column
+                                        — its root is the one true scroller (identical to
+                                        the working team-DM thread). The legacy branch
+                                        keeps the old scroll wrapper. */}
+                                    {selectedInboundMsg._inboxType === 'conversation' ? (
+                                        (() => {
+                                            // BUG FIX (Task 12): Filter out isDeleted messages — the
+                                            // adminDeletePortalMessage mutation marks them as isDeleted:true
+                                            // but getConversationMessages still returns them. Without
+                                            // this filter, deleted messages would stay visible forever.
+                                            const threadMsgs = sortUnifiedMessages(
+                                                ((conversationMessages as any[]) || [])
+                                                    .filter((msg: any) => !msg.isDeleted)
+                                                    .map((msg: any) => normalizePortalMessage(msg, currentUser))
+                                            );
+                                            return (
+                                                <MessageThread
+                                                    className="bg-white dark:bg-zinc-900"
+                                                    innerClassName="max-w-2xl mx-auto w-full box-border"
+                                                    variant="client_tenant"
+                                                    threadKey={String(selectedInboxId)}
+                                                    messages={threadMsgs}
                                                             emptyState={<div className="flex flex-col items-center justify-center py-16 text-center"><p className="text-sm text-slate-400">No messages in this conversation yet.</p></div>}
                                                             renderBubbleContent={(m) => (
                                                                 <MessageContent content={m.content} isAdmin={m.isMe} />
@@ -2344,7 +2413,8 @@ const MessagesView: React.FC = () => {
                                                     );
                                                 })()
                                             ) : (
-                                                <>
+                                                <div className="ticket-body-scroll flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+                                                    <div className="max-w-2xl mx-auto w-full box-border">
                                                     {/* Legacy single-message view (inbound WhatsApp/Email or legacy portal message) */}
                                                     <div className="flex justify-start mb-4">
                                                         <div className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl rounded-tl-none px-5 py-4 shadow-sm max-w-[85%]">
@@ -2373,8 +2443,6 @@ const MessagesView: React.FC = () => {
                                                             </div>
                                                         </div>
                                                     )}
-                                                </>
-                                            )}
 
                                             {/* AI Suggested Reply (only for inbound messages with AI analysis) */}
                                             {selectedInboundMsg._inboxType === 'inbound' && selectedInboundMsg.aiAnalysis?.suggestedReply && (
@@ -2392,8 +2460,9 @@ const MessagesView: React.FC = () => {
                                                     </button>
                                                 </div>
                                             )}
-                                        </div>
-                                    </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                     {/* The separate "Ticket Status Bars" section has been REMOVED.
                                         Ticket controls (status pills + assign dropdown) are now
@@ -2548,8 +2617,48 @@ const MessagesView: React.FC = () => {
                                     {/* Conversation thread */}
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                         {myFeedback.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center py-12 text-center">
-                                                <p className="text-sm text-slate-400">No messages yet</p>
+                                            /* START-THREAD VIEW — the section always renders now
+                                               (2026-09-14); a user with no existing support
+                                               conversation gets a compose box instead of a dead
+                                               "No messages yet" stub. */
+                                            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+                                                <div className="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/40 flex items-center justify-center mb-4">
+                                                    <svg className="w-7 h-7 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                                                    </svg>
+                                                </div>
+                                                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Message the PracticePro team</h4>
+                                                <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-xs mb-4 leading-relaxed">
+                                                    Questions, bug reports, or help getting started. We reply right here — you&apos;ll see it in your notifications.
+                                                </p>
+                                                <div className="w-full max-w-md flex items-end gap-2">
+                                                    <textarea
+                                                        value={feedbackNewThreadText}
+                                                        onChange={(e) => setFeedbackNewThreadText(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                                e.preventDefault();
+                                                                handleStartFeedbackThread();
+                                                            }
+                                                        }}
+                                                        placeholder="Type your message…"
+                                                        rows={2}
+                                                        className="flex-1 px-3 py-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 resize-none"
+                                                    />
+                                                    <button
+                                                        onClick={handleStartFeedbackThread}
+                                                        disabled={!feedbackNewThreadText.trim() || isStartingFeedbackThread}
+                                                        className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-primary-600 text-white rounded-full hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        aria-label="Send to PracticePro team"
+                                                        title="Send to PracticePro team"
+                                                    >
+                                                        {isStartingFeedbackThread ? (
+                                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        ) : (
+                                                            <SendIcon className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                </div>
                                             </div>
                                         ) : (
                                             myFeedback.map((fb: any) => {
@@ -2689,14 +2798,15 @@ const MessagesView: React.FC = () => {
                                                     }
                                                 }}
                                                 disabled={!feedbackReplyText.trim() || isSendingFeedbackReply}
-                                                className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 flex-shrink-0"
+                                                className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                aria-label="Send reply to PracticePro team"
+                                                title="Send"
                                             >
                                                 {isSendingFeedbackReply ? (
                                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                                                 ) : (
-                                                    <SendIcon className="w-4 h-4" />
+                                                    <SendIcon className="w-5 h-5" />
                                                 )}
-                                                Send
                                             </button>
                                         </div>
                                         <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-1">

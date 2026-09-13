@@ -25,7 +25,7 @@ import subprocess
 import os
 from pathlib import Path
 
-PROJECT_ROOT = Path("/home/z/my-project")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ANDROID_RES = PROJECT_ROOT / "android" / "app" / "src" / "main" / "res"
 PUBLIC_DIR = PROJECT_ROOT / "public"
 RESOURCES_DIR = PROJECT_ROOT / "resources"

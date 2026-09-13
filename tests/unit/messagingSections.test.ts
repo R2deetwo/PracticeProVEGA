@@ -51,7 +51,7 @@ describe('getSmartDefaultOpenSection (first-visit default)', () => {
     ).toBe('portal_clients');
   });
 
-  it('falls back to Residents when a teamless user has no support thread yet (Atrium)', () => {
+  it('keeps PracticePro Team open for a teamless user with no support thread yet (section always renders now)', () => {
     expect(
       getSmartDefaultOpenSection({
         ...baseCtx,
@@ -60,7 +60,7 @@ describe('getSmartDefaultOpenSection (first-visit default)', () => {
         isAtrium: true,
         hasResidentsSection: true,
       })
-    ).toBe('portal_residents');
+    ).toBe('system');
   });
 
   it('returns null (everything collapsed) when nothing relevant renders', () => {

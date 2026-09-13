@@ -373,7 +373,20 @@ const TestPushButton: React.FC = () => {
         addToast('No devices were notified. Make sure you have the APK installed and notifications enabled.', { type: 'info', duration: 6000 });
       }
     } catch (e: any) {
-      addToast(e?.message || 'Failed to send test push.', { type: 'error' });
+      // PUSH TEST FIX (2026-09-14): a rejected bearer (session expired /
+      // revoked — e.g. the old 10-session cap silently revoking the active
+      // device) surfaced as a raw "Unauthenticated…" string with no way
+      // forward. Translate it into the actionable instruction: sign out and
+      // back in (which mints a fresh session), which ALSO re-registers the
+      // FCM token with the new session.
+      const msg = String(e?.message || '');
+      const isAuth = /unauthenticated|session token|sign in|session has expired|verified session/i.test(msg);
+      addToast(
+        isAuth
+          ? 'Your session has expired — please sign out and sign back in, then try again. (This also refreshes your device registration.)'
+          : (msg || 'Failed to send test push.'),
+        { type: 'error', duration: isAuth ? 9000 : 5000 }
+      );
     } finally {
       setIsSending(false);
     }
