@@ -114,6 +114,24 @@ const FounderApp: React.FC = () => {
     // in google-services.json is rejected by Firebase at token registration.
     usePushNotifications(currentUser?.id, currentUser?.firmId, bearerToken);
 
+    // ─── Push tap deep-linking ──────────────────────────────────────
+    // 'pp:navigate' is broadcast by usePushNotifications when a messaging
+    // push is tapped. The founder app has no 'messaging' view (its
+    // founder↔user conversations live under 'feedback'), so chat/portal
+    // push taps route there. Mostly defensive: firm chat pushes target
+    // firm members, not founders — the founder's pushes (feedback, leads,
+    // broadcasts) arrive via founderNotifications.
+    React.useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail || {};
+            if (detail.view === 'messaging') {
+                setActiveView('feedback');
+            }
+        };
+        window.addEventListener('pp:navigate', handler);
+        return () => window.removeEventListener('pp:navigate', handler);
+    }, []);
+
     const showSplash = !splashDone || isLoadingSession;
 
     if (showSplash) {

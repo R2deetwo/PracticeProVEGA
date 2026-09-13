@@ -387,6 +387,27 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
         setIsAtBottom(scrollHeight - scrollTop - clientHeight < 100);
     }, []);
 
+    // ── Thread switch: ALWAYS jump to bottom ──────────────────────────
+    // (FIX 2026-09-14: “when I open the conversation it does not scroll to
+    // the bottom”) The old version only jumped when the thread was EMPTY,
+    // which is exactly backwards — an empty thread has nothing to scroll
+    // to, and a thread WITH messages was left wherever the previous
+    // thread's scroll position / stale isAtBottom left it. Now: every
+    // thread open snaps to the latest message instantly (no smooth
+    // animation), marks at-bottom true so the new-message effect behaves,
+    // and resets the tracker. Runs BEFORE the new-message effect (below)
+    // so its bookkeeping can't be clobbered mid-handoff.
+    useEffect(() => {
+        if (embedded) return;
+        lastSeenIdRef.current = null;
+        setIsAtBottom(true);
+        const raf = requestAnimationFrame(() => {
+            endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+        });
+        return () => cancelAnimationFrame(raf);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [threadKey]);
+
     // ── Auto-scroll policy (FIX 2026-09-14: “scrolls back down no matter
     //    what I do”) ──
     // Two bugs made the thread yank the user to the bottom constantly:
@@ -400,6 +421,8 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
     // Fix: remember the LAST MESSAGE ID we've seen. Only scroll when a
     // genuinely NEW message arrives AND (the user is at the bottom OR the
     // new message is the user's own send). Pure re-renders do nothing.
+    // (The last-seen ref is reset by the thread-switch effect above, so a
+    // first load after opening a thread also scrolls.)
     const lastSeenIdRef = useRef<string | null>(null);
     useEffect(() => {
         if (embedded) return;
@@ -409,23 +432,12 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
         if (lastId !== null) lastSeenIdRef.current = lastId;
         if (!isNewMessage) return;
         if (isAtBottom || last?.isMe) {
-            const t = setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+            const t = setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 100);
             return () => clearTimeout(t);
         }
         // New message from the other side while the user is scrolled up:
         // stay put — the sticky “Jump to latest” button surfaces instead.
     }, [sorted, isAtBottom, embedded]);
-
-    // Thread switch: jump straight to bottom without smooth scroll, and
-    // reset the new-message tracker so opening a thread doesn't count as
-    // "no new message" on the first render.
-    useEffect(() => {
-        lastSeenIdRef.current = null;
-        if (embedded || sorted.length === 0) {
-            endRef.current?.scrollIntoView({ behavior: 'auto' });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [threadKey]);
 
     const showAvatarsForMsg = (msg: UnifiedMessage, idx: number) => {
         if (!showAvatars || msg.isMe) return false;
@@ -541,7 +553,7 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
                                             )}
                                             {renderBubbleContent
                                                 ? renderBubbleContent(msg)
-                                                : <span className="text-sm leading-relaxed whitespace-pre-wrap break-words break-all">{msg.content}</span>
+                                                : <span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</span>
                                             }
                                             <AttachmentGrid msg={msg} isMe={msg.isMe} />
                                             {failed && onRetry && (

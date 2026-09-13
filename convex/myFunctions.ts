@@ -3252,7 +3252,32 @@ export const sendChatMessage = mutation({
       await Promise.all(notificationPromises);
     }
 
-    // 5. Return the message id + conversation id so the client can update
+    // 5. REAL FCM PUSH to recipients' devices (2026-09-14: "no push when I
+    //    send a message to a user on the APK"). Every send path previously
+    //    stopped at the in-app notification rows — nothing on the server
+    //    dispatched an FCM push, and no client polling existed to show a
+    //    local notification. Fire-and-forget: a push failure must NEVER
+    //    fail the message send.
+    if (recipientIds.length > 0) {
+      try {
+        await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+          userIds: recipientIds,
+          title: "New Message",
+          body: `${senderName} sent you a message.`,
+          data: {
+            type: "chat_message",
+            view: "messaging",
+            conversationId,
+            // Deep-link context for the tap handler (pp:navigate event)
+            initialTab: "inbox",
+          },
+        });
+      } catch (e: any) {
+        console.warn("[sendChatMessage] Push dispatch failed:", e?.message);
+      }
+    }
+
+    // 6. Return the message id + conversation id so the client can update
     //    its optimistic UI state.
     return { messageId, conversationId };
   },

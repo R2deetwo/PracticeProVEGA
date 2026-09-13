@@ -626,6 +626,22 @@ export const App: React.FC = () => {
     // FCM_SERVER_KEY mechanism was shut down by Google in June 2024).
     usePushNotifications(currentUser?.id, currentUser?.firmId, bearerToken);
 
+    // ─── Push tap deep-linking ──────────────────────────────────────────────
+    // usePushNotifications has no router access, so it broadcasts a
+    // 'pp:navigate' CustomEvent when a messaging push is tapped. Route it
+    // through the same navigateTo the in-app notification bell uses, so
+    // tapping "Chigozie sent you a message" opens THAT conversation.
+    React.useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail || {};
+            if (detail.view === 'messaging') {
+                navigateTo('messaging', detail.id, detail.context);
+            }
+        };
+        window.addEventListener('pp:navigate', handler);
+        return () => window.removeEventListener('pp:navigate', handler);
+    }, [navigateTo]);
+
     // ─── Visitor Analytics: Track page views on public routes ──────────────
     // Fires a page_view analytics event when unauthenticated users visit
     // public routes (landing, login, legal docs). This data feeds the

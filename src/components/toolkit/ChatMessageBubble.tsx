@@ -9,7 +9,8 @@
  * - Right-aligned for own messages, left-aligned for others
  * - Timestamp right-aligned inside the bubble
  * - Menu renders via React Portal to document.body (escapes all overflow/stacking)
- * - break-all for long strings without spaces (prevents layout overflow)
+ * - break-words for long strings without spaces (prevents layout overflow —
+ *   break-all was removed: it let short words wrap mid-word, e.g. "WELL?" → "WE"/"LL?")
  */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -160,8 +161,15 @@ export const ChatMessageBubble: React.FC<ChatMessageBubbleProps> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className={`px-3.5 py-1.5 rounded-2xl text-sm shadow-sm ${isMe ? 'bg-primary-600 text-white rounded-br-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-md'}`}>
-                        <p className="leading-snug whitespace-pre-wrap break-words break-all">{content}</p>
+                    <div className={`px-3.5 py-1.5 rounded-2xl text-sm shadow-sm min-w-0 ${isMe ? 'bg-primary-600 text-white rounded-br-md' : 'bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white rounded-bl-md'}`}>
+                        {/* break-words (NOT break-all): break-all makes the
+                            browser treat ONE character as the minimum line
+                            width, so short words like "WELL?" wrap mid-word
+                            ("WE"/"LL?") whenever the flex chain exerts any
+                            squeeze. break-words still breaks genuinely long
+                            unbroken strings (URLs, hashes) without ever
+                            splitting a normal word. */}
+                        <p className="leading-snug whitespace-pre-wrap break-words">{content}</p>
                         <span className={`block text-2xs mt-0.5 text-right ${isMe ? 'text-primary-200' : 'text-slate-400'}`}>
                             {isEdited && <span className="italic mr-1 opacity-80">edited</span>}
                             {timeStr}

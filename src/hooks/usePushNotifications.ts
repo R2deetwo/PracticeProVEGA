@@ -130,6 +130,30 @@ export function usePushNotifications(userId?: string, firmId?: string, sessionTo
               }).catch(() => {
                 window.open(data.apkUrl, '_blank');
               });
+              return;
+            }
+
+            // Messaging pushes (chat_message / portal_reply / message):
+            // deep-link into the exact conversation. The hook has no router
+            // access, so it broadcasts a window event; App/AdminApp listen
+            // and call their navigateTo. Payload mirrors the in-app
+            // notification link shape (view + context) the bell uses.
+            if (data?.view === 'messaging' || data?.type === 'chat_message' || data?.type === 'portal_reply') {
+              const conversationId = data.conversationId || data.id || null;
+              window.dispatchEvent(new CustomEvent('pp:navigate', {
+                detail: {
+                  view: 'messaging',
+                  id: conversationId || undefined,
+                  context: {
+                    initialTab: data.initialTab || 'inbox',
+                    ...(conversationId ? {
+                      activeConversationId: String(conversationId),
+                      selectedInboxId: String(conversationId),
+                      selectedInboxType: data.type === 'portal_reply' ? 'client_tenant' : 'team',
+                    } : {}),
+                  },
+                },
+              }));
             }
           })
         );

@@ -4527,6 +4527,30 @@ export const sendAdminReply = mutation({
       updatedAt: now,
     });
 
+    // REAL FCM PUSH to the participant's devices (2026-09-14: "no push when
+    // I send a message"). The tenant/client gets a notification-shade push
+    // when the admin replies — previously only an in-app row they'd see on
+    // their next app open. participantId is a users-table id; portal users
+    // who log in on the APK register device tokens automatically.
+    // Fire-and-forget: a push failure never fails the reply.
+    try {
+      const participantId = conversation.participantId ? String(conversation.participantId) : null;
+      if (participantId) {
+        await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+          userIds: [participantId],
+          title: "New Reply",
+          body: `${args.adminName || "Your property manager"} replied to your message.`,
+          data: {
+            type: "portal_reply",
+            view: "messaging",
+            conversationId: args.conversationId,
+          },
+        });
+      }
+    } catch (e: any) {
+      console.warn("[sendAdminReply] Push dispatch failed:", (e as any)?.message);
+    }
+
     // Also mark any unread participant messages in this conversation as read
     // (admin is viewing the conversation, so mark participant messages as read)
     const participantMessages = await ctx.db
@@ -5834,19 +5858,40 @@ async function notifyFirmAdmins(
     }
   }
 
+  // 2.5 REAL FCM PUSH to the admins' devices (2026-09-14). This function's
+  //     old comment assumed "the frontend polls for new notifications and
+  //     triggers a local notification" — no such polling exists anywhere in
+  //     the client, so portal submissions never reached anyone's notification
+  //     shade. Dispatch a real FCM push to every admin with a registered
+  //     device; admins without tokens still get the email from step 3.
+  //     Fire-and-forget: a push failure never blocks the portal submission.
+  try {
+    await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+      userIds: admins.map((a: any) => String(a._id)),
+      title: args.title,
+      body: args.message,
+      data: {
+        type: args.type,
+        view: args.link?.view || "messaging",
+        conversationId: String(args.link?.id || args.link?.context?.activeConversationId || ""),
+      },
+    });
+  } catch (e: any) {
+    console.warn("[notifyFirmAdmins] Push dispatch failed:", (e as any)?.message);
+  }
+
   // 3. Schedule an email notification — BUT only if the primary admin hasn't
   //    registered for push notifications. Smart delivery: push OR email, not both.
-  //    If the admin has the mobile app installed with notifications enabled, they'll
-  //    get a push notification instead (the frontend polls for new notifications and
-  //    triggers a local notification). No need to spam their inbox too.
+  //    If the admin has the mobile app installed, step 2.5 dispatches a REAL
+  //    FCM push to their registered device tokens. No need to spam their inbox too.
   try {
     const emailEnabled = await isEmailNotificationEnabled(ctx, args.firmId, args.type);
     if (emailEnabled) {
       // Find the firm's primary admin email (first Admin user)
       const primaryAdmin = admins.find((u: any) => u.role === "Admin") || admins[0];
-      // SMART DELIVERY: skip email if the admin has push notifications enabled.
-      // The frontend will detect the new in-app notification (created in step 2)
-      // and show a local notification on their phone.
+      // SMART DELIVERY: skip email if the admin has push notifications enabled —
+      // step 2.5 dispatches a REAL FCM push to their registered devices, so
+      // email on top would be double-notification spam.
       const hasPushEnabled = primaryAdmin && (primaryAdmin as any).pushNotificationEnabled === true;
       if (primaryAdmin?.email && !hasPushEnabled) {
         ctx.scheduler.runAfter(0, internal.portals.sendAdminNotificationEmail, {

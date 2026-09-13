@@ -390,3 +390,31 @@ export function mapLegacyInboxType(legacy: string | null | undefined): InboxSect
         default: return null;
     }
 }
+
+/**
+ * pickLatestMessage — the newest row in a conversation, ORDER-INDEPENDENTLY.
+ *
+ * WHY THIS EXISTS (2026-09-14 regression): the team-DMs accordion showed the
+ * FIRST message instead of the last. The inbox memo took `convMessages[0]`
+ * trusting a comment that claimed getChatMessages({firmId}) returns DESC
+ * (newest first) — it actually returns ASC (oldest first). Any future
+ * change to the query's ordering would silently flip the preview again;
+ * computing max-by-timestamp is immune to input order.
+ *
+ * Accepts rows with timestamp/createdAt in ISO-string or epoch-ms form
+ * (toEpochMs handles both) and skips deleted rows.
+ */
+export function pickLatestMessage<T extends Record<string, any>>(messages: T[] | undefined | null): T | undefined {
+    if (!messages || messages.length === 0) return undefined;
+    let best: T | undefined;
+    let bestAt = -Infinity;
+    for (const m of messages) {
+        if ((m as any).isDeleted) continue;
+        const at = toEpochMs((m as any).timestamp ?? (m as any).createdAt);
+        if (at > bestAt) {
+            bestAt = at;
+            best = m;
+        }
+    }
+    return best;
+}

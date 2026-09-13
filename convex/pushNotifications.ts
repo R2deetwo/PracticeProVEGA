@@ -335,6 +335,56 @@ export const notifyAppUpdate = mutation({
 // fire-and-forget fan-outs (notifyAppUpdate, notifyFounders); the public
 // test actions dispatch inline and return real results.
 
+/**
+ * internalMutation: dispatchPushToUsers — REAL FCM push for specific users.
+ *
+ * THE MISSING PIECE (2026-09-14, "no push when I send a message to a user
+ * on the APK"): every message-send path created in-app notification rows
+ * and stopped there. Nothing ever dispatched an FCM push for messages —
+ * notifyFirmAdmins even assumed "the frontend polls for new notifications
+ * and triggers a local notification", but no such polling exists anywhere
+ * in the client. Recipients on the APK only learned about new messages
+ * when they happened to open the app.
+ *
+ * Callers: sendChatMessage (team DMs — myFunctions.ts), notifyFirmAdmins
+ * (every portal inbound: messages, tickets, service requests — portals.ts),
+ * sendAdminReply (admin → tenant/client — portals.ts). Internal-only (not
+ * publicly invokable), fire-and-forget via the scheduler so an FCM failure
+ * can never break the message send itself.
+ */
+export const dispatchPushToUsers = internalMutation({
+  args: {
+    userIds: v.array(v.string()),
+    title: v.string(),
+    body: v.string(),
+    data: v.optional(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const tokens: string[] = [];
+    for (const userId of args.userIds) {
+      try {
+        const userTokens = await ctx.db
+          .query("user_push_tokens")
+          .withIndex("by_user_active", (q: any) =>
+            q.eq("userId", userId).eq("isActive", true)
+          )
+          .collect();
+        for (const t of userTokens as any[]) tokens.push(t.token);
+      } catch (e: any) {
+        console.warn("[dispatchPushToUsers] token lookup failed for", userId, e?.message);
+      }
+    }
+    if (tokens.length === 0) return { dispatched: 0 };
+    ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
+      tokens,
+      title: args.title,
+      body: args.body,
+      data: args.data ?? {},
+    });
+    return { dispatched: tokens.length };
+  },
+});
+
 // Round 8 auth retrofit: sendToUsers was DELETED. It was a public, fully
 // unauthenticated mutation that inserted in-app notifications and dispatched
 // FCM pushes to ARBITRARY user ids — a mass-notification/impersonation

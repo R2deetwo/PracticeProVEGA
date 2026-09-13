@@ -29,6 +29,7 @@ import {
     normalizeChatMessage,
     normalizePortalMessage,
     sortUnifiedMessages,
+    pickLatestMessage,
 } from '../messaging/model';
 import {
     INBOX_SECTION_IDS,
@@ -693,9 +694,14 @@ const MessagesView: React.FC = () => {
                 const convMessages = (messages as any[]).filter((m: any) =>
                     (String(m.conversationId) === String(c.id) || String(m.conversationId) === String(c._id)) && !m.isDeleted
                 );
-                // messages array comes from getChatMessages in DESC order (newest first).
-                // So convMessages[0] is the NEWEST message, not the last element.
-                const lastMsg = convMessages[0];
+                // FIX (2026-09-14): the accordion preview showed the FIRST
+                // message instead of the LATEST. getChatMessages({firmId})
+                // returns messages sorted ASCENDING (oldest first) — a stale
+                // comment here claimed DESC and took convMessages[0] as
+                // "newest". Pick the latest ORDER-INDEPENDENTLY (max by
+                // timestamp via pickLatestMessage) so the preview is correct
+                // no matter what order the query returns.
+                const lastMsg = pickLatestMessage(convMessages);
                 const unreadCount = (coreState.notifications || []).filter((n: any) =>
                     !n.isRead &&
                     n.userId === myId &&
