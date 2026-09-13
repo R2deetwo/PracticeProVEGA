@@ -1,42 +1,54 @@
 /**
  * AutomationWorkflows — the pre-built automation library panel.
  *
- * THE USER'S SPEC (2026-09-14): "transform the Scheduled Messages area into
- * an active, user-triggerable Automation & Scheduled Dispatch Engine" with
- * out-of-the-box workflows, ONE-CLICK toggles, adjustable offset days, and
- * visibility into who will be messaged. This panel renders one card per
- * workflow (rent collection ladder, service-charge notices, lease
- * milestones, rent reviews) straight from the engine's defaults merged with
- * the firm's stored overrides:
+ * INTUITIVENESS REDESIGN (user feedback, 2026-09-14):
+ *   1. "When I increase the days, the number does not change — it does but
+ *      at the bottom in a smaller font." → Step titles are now SEMANTIC and
+ *      number-free ("Notice of Default"), and the offset stepper shows the
+ *      number BIG and centred — the number being changed IS the number being
+ *      displayed, with the before/after wording flipping automatically.
+ *   2. "I cannot see what the messages they want to send look like." → Every
+ *      step has "See the message": the exact text residents receive, rendered
+ *      with a live recipient's details (or a realistic sample). "Edit
+ *      message" rewrites the template the engine sends; "Reset" returns to
+ *      the factory text.
+ *   3. "I thought there would be ability to turn it off per unit as well." →
+ *      Per-unit opt-outs: quick mute next to any recipient in "Who gets
+ *      these?", plus a firm-wide per-unit management panel.
  *
- *   ┌────────────────────────────────────────────────┐
- *   │ ● Rent & Service Charge Collections      [ON]  │
- *   │   description…                                 │
- *   │   ▸ 7 days before due    [✓]  − 7 [±]  Email   │
- *   │   ▸ 3 days before due    [✓]  − 3 [±]  Auto    │
- *   │   ▸ Notice of Default    [✓]  + 7 [±]  Auto    │
- *   │   …                                            │
- *   │   [Who gets these? ▾]                          │
- *   └────────────────────────────────────────────────┘
+ *   ┌──────────────────────────────────────────────────────┐
+ *   │ ● Rent & Service Charge Collections            [ON]  │
+ *   │   ▸ Notice of Default      [−] 7 [+] days after      │
+ *   │     the rent due date · See the message              │
+ *   │   ▸ Who gets these? →                               │
+ *   └──────────────────────────────────────────────────────┘
  *
  * Changes save immediately (optimistic toggle + mutation) — no "Save" button
  * to forget. Everything the panel stamps flows into the engine's nightly
  * evaluation at 6:30 UTC and the 5-minute dispatch queue below it.
  */
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { BoltIcon } from './ScheduledTabIcons';
+import { BoltIcon, PauseIcon, PlayIcon } from './ScheduledTabIcons';
+import { UsersIcon, EyeIcon, SearchIcon } from '../../constants';
+import { renderMergeFields } from '../../utils/mergeFields';
 
 interface WorkflowStep {
   key: string;
   label: string;
+  title?: string;
   offsetDays: number;
   enabled: boolean;
   channel: 'auto' | 'email' | 'whatsapp';
   messageType: string;
+  /** effective text residents receive (custom override or default) */
+  subject?: string;
+  /** factory text — the Reset target */
+  defaultSubject?: string;
+  subjectEdited?: boolean;
 }
 
 interface WorkflowCard {
@@ -51,16 +63,40 @@ interface WorkflowCard {
 
 interface TargetPreview {
   count: number;
+  total?: number;
   sample: Array<{
     tenantName: string | null; unit: string; property: string;
     email: string | null; phone: string | null; amountDue: number | null;
-    anchor: string; paid: boolean;
+    anchor: string; paid: boolean; unitId?: string; optedOut?: boolean;
   }>;
 }
 
-const offsetLabel = (d: number) => (d === 0 ? 'on the day' : d < 0 ? `${-d} day${-d === 1 ? '' : 's'} before` : `${d} day${d === 1 ? '' : 's'} after`);
+interface UnitStatus {
+  unitKey: string;
+  label: string;
+  tenantName: string;
+  property: string;
+  optedOut: boolean;
+}
+
+/** Short anchor noun for the stepper sentence, per workflow. */
+const ANCHOR_SHORT: Record<string, string> = {
+  rent_collection: 'the rent due date',
+  service_charge: 'the due date',
+  lease_expiry: 'lease expiry',
+  rent_review: 'the review date',
+};
 
 const CHANNEL_LABELS: Record<string, string> = { auto: 'Email → WhatsApp', email: 'Email only', whatsapp: 'WhatsApp only' };
+
+const fmtDay = (d: number) => (d < 0 ? `${-d} day${-d === 1 ? '' : 's'} before` : d === 0 ? 'on the day' : `${d} day${d === 1 ? '' : 's'} after`);
+
+const rangeSummary = (offsets: number[]): string => {
+  if (!offsets.length) return '';
+  const min = Math.min(...offsets);
+  const max = Math.max(...offsets);
+  return min === max ? fmtDay(min) : `${fmtDay(min)} → ${fmtDay(max)}`;
+};
 
 /** Toggle switch — one click, no modals. */
 const Switch: React.FC<{ on: boolean; onChange: (next: boolean) => void; label: string; accent?: boolean }> = ({ on, onChange, label, accent }) => (
@@ -76,10 +112,17 @@ const Switch: React.FC<{ on: boolean; onChange: (next: boolean) => void; label: 
   </button>
 );
 
+const ChevronIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+  </svg>
+);
+
 export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) => {
   const { currentUser, bearerToken } = useAuth();
   const { addToast } = useUI();
   const sessionToken = (bearerToken ?? undefined) || undefined;
+  const auth = { userEmail: currentUser?.email, sessionToken };
 
   const overview = useQuery(
     api.automationEngine.getAutomationOverview,
@@ -87,15 +130,29 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
   );
   const setWorkflowEnabled = useMutation(api.automationEngine.setWorkflowEnabled);
   const updateWorkflowStep = useMutation(api.automationEngine.updateWorkflowStep);
+  const setUnitOptOut = useMutation(api.automationEngine.setUnitAutomationOptOut);
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [previewFor, setPreviewFor] = useState<string | null>(null);
+  const [msgOpen, setMsgOpen] = useState<string | null>(null);       // "wfKey/stepKey" — See the message
+  const [editing, setEditing] = useState<string | null>(null);       // same key, edit mode on
+  const [editDraft, setEditDraft] = useState('');
+  const [unitPanelOpen, setUnitPanelOpen] = useState(false);
+  const [unitSearch, setUnitSearch] = useState('');
+
   const preview = useQuery(
     api.automationEngine.previewWorkflowTargets,
     previewFor && firmId && currentUser ? { firmId, workflowKey: previewFor, userEmail: currentUser.email, sessionToken } : 'skip'
   );
 
-  const auth = { userEmail: currentUser?.email, sessionToken };
+  const unitStatus = useQuery(
+    api.automationEngine.listUnitAutomationStatus,
+    unitPanelOpen && firmId && currentUser ? { firmId, userEmail: currentUser.email, sessionToken } : 'skip'
+  );
+
+  const workflows: WorkflowCard[] = (overview as any)?.workflows || [];
+  const firmName: string = (overview as any)?.firmName || 'your property manager';
+  const optedOutUnits: Array<{ unitKey: string; label: string }> = (overview as any)?.optedOutUnits || [];
 
   const toggleWorkflow = async (wf: WorkflowCard, next: boolean) => {
     try {
@@ -106,13 +163,14 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
     }
   };
 
-  const saveStep = async (wf: WorkflowCard, step: WorkflowStep, patch: Partial<WorkflowStep>) => {
+  const saveStep = async (wf: WorkflowCard, step: WorkflowStep, patch: Partial<WorkflowStep> & { subject?: string }) => {
     try {
       await updateWorkflowStep({
         firmId, workflowKey: wf.key, stepKey: step.key,
         ...(patch.enabled !== undefined ? { enabled: patch.enabled } : {}),
         ...(patch.offsetDays !== undefined ? { offsetDays: patch.offsetDays } : {}),
         ...(patch.channel !== undefined ? { channel: patch.channel } : {}),
+        ...(patch.subject !== undefined ? { subject: patch.subject } : {}),
         ...auth,
       });
     } catch (e: any) {
@@ -120,7 +178,67 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
     }
   };
 
-  const workflows: WorkflowCard[] = (overview as any)?.workflows || [];
+  const saveSubject = async (wf: WorkflowCard, step: WorkflowStep, text: string) => {
+    try {
+      await updateWorkflowStep({ firmId, workflowKey: wf.key, stepKey: step.key, subject: text, ...auth });
+      addToast(
+        text.trim() ? 'Message updated — residents now receive your wording.' : 'Message reset to the PracticePro default.',
+        { type: 'success' }
+      );
+      setEditing(null);
+    } catch (e: any) {
+      addToast(e.message || 'Could not save the message.', { type: 'error' });
+    }
+  };
+
+  const toggleUnitAutomation = async (unitKey: string, optOut: boolean, label?: string) => {
+    try {
+      await setUnitOptOut({ firmId, unitKey, optOut, ...(label ? { label } : {}), ...auth });
+      addToast(
+        optOut
+          ? 'Automation off for this unit — its residents get no automated reminders.'
+          : 'Automation back on for this unit.',
+        { type: 'success' }
+      );
+    } catch (e: any) {
+      addToast(e.message || 'Could not update this unit.', { type: 'error' });
+    }
+  };
+
+  /** Merge vars for the step preview: a live recipient when loaded, else a realistic sample. */
+  const sampleVarsFor = (step: WorkflowStep) => {
+    const live = (preview as any)?.sample?.find((s: any) => !s.optedOut) || (preview as any)?.sample?.[0];
+    if (live) {
+      return {
+        tenant_name: live.tenantName || 'your resident',
+        unit_number: live.unit ? `${live.unit}, ${live.property}` : live.property,
+        amount_due: live.amountDue,
+        due_date: live.anchor
+          ? new Date(`${live.anchor}T00:00:00`).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+          : '',
+        property_name: live.property,
+        firm_name: firmName,
+        payment_link: 'your portal payment link',
+      };
+    }
+    const due = new Date(Date.now() + step.offsetDays * 86_400_000);
+    return {
+      tenant_name: 'Mrs. Adaeze Okonkwo',
+      unit_number: 'Flat 2A, 12 Marina Road',
+      amount_due: 850000,
+      due_date: due.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }),
+      property_name: 'Marina Heights',
+      firm_name: firmName,
+      payment_link: 'your portal payment link',
+    };
+  };
+
+  const filteredUnits = useMemo(() => {
+    const list: UnitStatus[] = (unitStatus as any)?.units || [];
+    if (!unitSearch) return list.slice(0, 80);
+    const q = unitSearch.toLowerCase();
+    return list.filter((u) => u.label.toLowerCase().includes(q) || u.property.toLowerCase().includes(q)).slice(0, 80);
+  }, [unitStatus, unitSearch]);
 
   return (
     <section className="space-y-3">
@@ -141,6 +259,8 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
       {workflows.map((wf) => {
         const open = expanded === wf.key;
         const activeSteps = wf.steps.filter((s) => s.enabled).length;
+        const activeOffsets = wf.steps.filter((s) => s.enabled).map((s) => s.offsetDays);
+        const anchorShort = ANCHOR_SHORT[wf.key] || 'the trigger date';
         return (
           <div
             key={wf.key}
@@ -165,96 +285,223 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
                       customized
                     </span>
                   )}
-                  {wf.enabled && (
+                  {wf.enabled && activeSteps > 0 && (
                     <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
                       {activeSteps} message{activeSteps === 1 ? '' : 's'} active
+                    </span>
+                  )}
+                  {optedOutUnits.length > 0 && (
+                    <span
+                      onClick={(e) => { e.stopPropagation(); setUnitPanelOpen(true); }}
+                      className="px-1.5 py-0.5 rounded text-2xs font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 cursor-pointer"
+                      title="Units excluded from all automation"
+                    >
+                      {optedOutUnits.length} unit{optedOutUnits.length === 1 ? '' : 's'} off
                     </span>
                   )}
                 </div>
                 <p className={`text-xs leading-relaxed mt-1 ${wf.enabled ? 'text-slate-500 dark:text-zinc-400' : 'text-slate-400 dark:text-zinc-500'}`}>
                   {wf.description}
                 </p>
-                <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
-                  Anchored to {wf.anchor}.
-                </p>
+                {wf.enabled && activeSteps > 0 && (
+                  <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1 tabular-nums">
+                    Sends {rangeSummary(activeOffsets)} — anchored to {anchorShort.replace('the ', '').replace('the ', '')}.
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <svg
-                  className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
+                <ChevronIcon className={`w-3.5 h-3.5 text-slate-400 transition-transform ${open ? 'rotate-90' : ''}`} />
                 <Switch on={wf.enabled} accent onChange={(next) => toggleWorkflow(wf, next)} label={`Enable ${wf.name}`} />
               </div>
             </div>
 
-            {/* Steps — per-step toggle, offset adjuster, channel */}
+            {/* Steps — semantic title, BIG offset stepper, message preview */}
             {open && (
-              <div className="px-4 pb-4 space-y-1.5 border-t border-slate-100 dark:border-zinc-800 pt-3">
-                {wf.steps.map((step) => (
-                  <div
-                    key={step.key}
-                    className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800/50"
-                  >
-                    <Switch on={step.enabled} onChange={(next) => saveStep(wf, step, { enabled: next })} label={step.label} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-slate-700 dark:text-zinc-300 truncate">{step.label}</div>
-                      <div className="text-2xs text-slate-400 dark:text-zinc-500">{offsetLabel(step.offsetDays)}</div>
-                    </div>
-                    {/* Offset adjuster — tweak without rewriting the rule */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => saveStep(wf, step, { offsetDays: step.offsetDays - 1 })}
-                        className="w-6 h-6 rounded-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-800"
-                        title="One day earlier"
-                      >−</button>
-                      <span className="text-2xs font-bold text-slate-500 dark:text-zinc-400 w-10 text-center tabular-nums">
-                        {step.offsetDays === 0 ? 'day 0' : `${step.offsetDays > 0 ? '+' : ''}${step.offsetDays}d`}
-                      </span>
-                      <button
-                        onClick={() => saveStep(wf, step, { offsetDays: step.offsetDays + 1 })}
-                        className="w-6 h-6 rounded-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-xs font-bold hover:bg-slate-100 dark:hover:bg-zinc-800"
-                        title="One day later"
-                      >+</button>
-                    </div>
-                    <select
-                      value={step.channel}
-                      onChange={(e) => saveStep(wf, step, { channel: e.target.value as WorkflowStep['channel'] })}
-                      className="text-2xs font-bold rounded-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 px-1.5 py-1 flex-shrink-0"
-                      title="Delivery channel"
+              <div className="px-4 pb-4 space-y-2 border-t border-slate-100 dark:border-zinc-800 pt-3">
+                {wf.steps.map((step) => {
+                  const stepKey = `${wf.key}/${step.key}`;
+                  const msgOpenHere = msgOpen === stepKey;
+                  const editingHere = editing === stepKey;
+                  const isBefore = step.offsetDays < 0;
+                  const phrase = step.offsetDays === 0 ? `on ${anchorShort}` : `${isBefore ? 'days before' : 'days after'} ${anchorShort}`;
+                  return (
+                    <div
+                      key={step.key}
+                      className={`p-3 rounded-lg space-y-2 transition-colors ${
+                        step.enabled ? 'bg-slate-50 dark:bg-zinc-800/50' : 'bg-slate-50/50 dark:bg-zinc-800/25 opacity-70'
+                      }`}
                     >
-                      {Object.entries(CHANNEL_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>{label}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
+                      {/* Identity + channel */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Switch on={step.enabled} onChange={(next) => saveStep(wf, step, { enabled: next })} label={step.title || step.label} />
+                          <span className="text-xs font-bold text-slate-800 dark:text-zinc-200 truncate">
+                            {step.title || step.label}
+                          </span>
+                          {step.subjectEdited && (
+                            <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 flex-shrink-0">
+                              custom text
+                            </span>
+                          )}
+                        </div>
+                        <select
+                          value={step.channel}
+                          onChange={(e) => saveStep(wf, step, { channel: e.target.value as WorkflowStep['channel'] })}
+                          className="text-2xs font-bold rounded-md bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 px-1.5 py-1 flex-shrink-0"
+                          title="Delivery channel"
+                        >
+                          {Object.entries(CHANNEL_LABELS).map(([value, label]) => (
+                            <option key={value} value={value}>{label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* THE TIMING — the number being changed IS the number being displayed */}
+                      <div className="flex items-center gap-2.5 flex-wrap pl-[52px]">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => saveStep(wf, step, { offsetDays: step.offsetDays - 1 })}
+                            className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 active:scale-95 transition-all"
+                            title="One day earlier"
+                          >−</button>
+                          <span className="text-base font-extrabold text-slate-900 dark:text-white w-8 text-center tabular-nums leading-none py-0.5">
+                            {Math.abs(step.offsetDays)}
+                          </span>
+                          <button
+                            onClick={() => saveStep(wf, step, { offsetDays: step.offsetDays + 1 })}
+                            className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 text-sm font-bold hover:bg-slate-100 dark:hover:bg-zinc-800 active:scale-95 transition-all"
+                            title="One day later"
+                          >+</button>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                          {phrase}
+                        </span>
+                        <button
+                          onClick={() => { setMsgOpen(msgOpenHere ? null : stepKey); setEditing(null); }}
+                          className={`ml-auto flex items-center gap-1 px-2 py-1 rounded-md text-2xs font-bold transition-colors ${
+                            msgOpenHere
+                              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+                              : 'text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20'
+                          }`}
+                        >
+                          <EyeIcon className="w-3 h-3" />
+                          {msgOpenHere ? 'Hide the message' : 'See the message'}
+                        </button>
+                      </div>
+
+                      {/* Message preview / editor */}
+                      {msgOpenHere && !editingHere && (
+                        <div className="ml-[52px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-2xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
+                              What the resident receives
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => { setEditDraft(step.subject || ''); setEditing(stepKey); }}
+                                className="text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                              >
+                                Edit message
+                              </button>
+                              {step.subjectEdited && (
+                                <button
+                                  onClick={() => saveSubject(wf, step, '')}
+                                  className="text-2xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 hover:underline"
+                                  title="Return to the PracticePro default wording"
+                                >
+                                  Reset
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs leading-relaxed text-slate-700 dark:text-zinc-300 whitespace-pre-line">
+                            {renderMergeFields(step.subject || '', sampleVarsFor(step))}
+                          </p>
+                          <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
+                            Sample shown with {(preview as any)?.sample?.length ? 'a live recipient\u2019s' : 'a sample'} details —
+                            each resident automatically gets their own name, unit and amount.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Message editor */}
+                      {editingHere && (
+                        <div className="ml-[52px] rounded-lg border border-primary-200 dark:border-primary-900/40 bg-white dark:bg-zinc-900 p-3 space-y-2">
+                          <span className="text-2xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
+                            Edit the message
+                          </span>
+                          <textarea
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            rows={4}
+                            placeholder="Write the message residents will receive…"
+                            className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
+                          />
+                          <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
+                            Saving <strong>replaces</strong> the text every resident receives for this step. Tags like
+                            {' {{tenant_name}}'}, {' {{amount_due}}'} and {' {{due_date}}'} fill in per recipient at send time.
+                          </p>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => setEditing(null)}
+                              className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 dark:text-zinc-400 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => saveSubject(wf, step, editDraft)}
+                              disabled={!editDraft.trim()}
+                              className={`px-3.5 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                                editDraft.trim() ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-primary-400/50 text-white cursor-not-allowed'
+                              }`}
+                            >
+                              Save message
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {/* Recipient auto-population preview */}
                 <div className="pt-2">
                   {previewFor === wf.key ? (
                     <div className="rounded-lg border border-teal-200 dark:border-teal-900/50 bg-teal-50/50 dark:bg-teal-900/10 p-3">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-2xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
-                          Who gets these — {preview === undefined ? 'resolving…' : `${preview.count} recipient${preview.count === 1 ? '' : 's'} right now`}
+                        <span className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400">
+                          <UsersIcon className="w-3 h-3" />
+                          Who gets these — {preview === undefined ? 'resolving…' : `${preview.count} resident${preview.count === 1 ? '' : 's'} right now`}
                         </span>
                         <button onClick={() => setPreviewFor(null)} className="text-2xs text-slate-400 hover:text-slate-600 font-bold">close</button>
                       </div>
                       {preview?.sample && preview.sample.length > 0 && (
-                        <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1">
+                        <div className="max-h-44 overflow-y-auto custom-scrollbar space-y-1">
                           {preview.sample.map((t, i) => (
-                            <div key={i} className="flex items-center gap-2 text-2xs text-slate-600 dark:text-zinc-400">
-                              <span className="font-bold truncate max-w-[10rem]">{t.tenantName || '(no name)'}</span>
+                            <div
+                              key={i}
+                              className={`flex items-center gap-2 text-2xs text-slate-600 dark:text-zinc-400 ${t.optedOut ? 'opacity-50' : ''}`}
+                            >
+                              <span className="font-bold truncate max-w-[9rem]">{t.tenantName || '(no name)'}</span>
                               <span className="truncate">{t.unit ? `${t.unit} · ` : ''}{t.property}</span>
                               {t.amountDue != null && <span className="text-teal-600 dark:text-teal-400 font-bold tabular-nums">₦{t.amountDue.toLocaleString('en-NG')}</span>}
                               {t.paid && <span className="px-1 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-bold">paid</span>}
-                              <span className="text-slate-300 dark:text-zinc-600">due {t.anchor}</span>
+                              {t.optedOut && <span className="px-1 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 font-bold">automation off</span>}
+                              {t.unitId && (
+                                <button
+                                  onClick={() => toggleUnitAutomation(String(t.unitId), !t.optedOut, `${t.unit || t.property}${t.tenantName ? ` — ${t.tenantName}` : ''}`)}
+                                  className={`ml-auto p-1 rounded flex-shrink-0 transition-colors ${
+                                    t.optedOut
+                                      ? 'text-orange-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                                      : 'text-slate-300 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                                  }`}
+                                  title={t.optedOut ? 'Turn automation back on for this unit' : 'Turn automation off for this unit'}
+                                >
+                                  {t.optedOut ? <PlayIcon className="w-3 h-3" /> : <PauseIcon className="w-3 h-3" />}
+                                </button>
+                              )}
                             </div>
                           ))}
-                          {preview.count > preview.sample.length && (
-                            <div className="text-2xs text-slate-400">+ {preview.count - preview.sample.length} more…</div>
-                          )}
                         </div>
                       )}
                       {preview && preview.count === 0 && (
@@ -262,12 +509,18 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
                           No live targets today — recipients appear automatically as rent/charges come due.
                         </p>
                       )}
+                      {preview?.total != null && preview.total > preview.count && (
+                        <p className="text-2xs text-orange-600 dark:text-orange-400 mt-2">
+                          {preview.total - preview.count} excluded by per-unit settings.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); setPreviewFor(wf.key); }}
-                      className="text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
+                      className="flex items-center gap-1.5 text-2xs font-bold text-primary-600 dark:text-primary-400 hover:underline"
                     >
+                      <UsersIcon className="w-3 h-3" />
                       Who gets these? →
                     </button>
                   )}
@@ -277,6 +530,69 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
           </div>
         );
       })}
+
+      {/* Per-unit automation settings — the user's "turn it off per unit" switch */}
+      <div className="rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+        <button
+          onClick={() => setUnitPanelOpen(!unitPanelOpen)}
+          className="w-full flex items-center justify-between gap-3 p-4 text-left hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors"
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <UsersIcon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+              <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">Per-unit settings</span>
+              {(overview as any)?.optedOutUnits?.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400">
+                  {(overview as any).optedOutUnits.length} unit{(overview as any).optedOutUnits.length === 1 ? '' : 's'} excluded
+                </span>
+              )}
+            </div>
+            <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
+              Turn automated reminders off for specific units — those residents are skipped by every workflow above.
+            </p>
+          </div>
+          <ChevronIcon className={`w-3.5 h-3.5 text-slate-400 transition-transform flex-shrink-0 ${unitPanelOpen ? 'rotate-90' : ''}`} />
+        </button>
+
+        {unitPanelOpen && (
+          <div className="px-4 pb-4 space-y-2 border-t border-slate-100 dark:border-zinc-800 pt-3">
+            <div className="relative">
+              <SearchIcon className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={unitSearch}
+                onChange={(e) => setUnitSearch(e.target.value)}
+                placeholder="Search units, tenants or buildings…"
+                className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-sm text-slate-900 dark:text-white placeholder-slate-400"
+              />
+            </div>
+            {unitStatus === undefined && (
+              <p className="text-2xs text-slate-400">Loading units…</p>
+            )}
+            <div className="max-h-56 overflow-y-auto custom-scrollbar rounded-lg border border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-800">
+              {filteredUnits.map((u) => (
+                <div key={u.unitKey} className={`flex items-center justify-between gap-3 p-2.5 ${u.optedOut ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">{u.label}</p>
+                    <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
+                      {u.optedOut ? 'No automated reminders — skipped by all workflows' : u.tenantName ? `${u.tenantName} · ${u.property}` : u.property}
+                    </p>
+                  </div>
+                  <Switch
+                    on={!u.optedOut}
+                    onChange={(next) => toggleUnitAutomation(u.unitKey, !next, u.label)}
+                    label={`Automation for ${u.label}`}
+                  />
+                </div>
+              ))}
+              {unitStatus !== undefined && filteredUnits.length === 0 && (
+                <p className="p-3 text-2xs text-slate-400">
+                  {unitSearch ? 'No units match that search.' : 'No units yet — add properties first.'}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Vega roadmap note (architecture slot, per the user's directive) */}
       <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed px-1">

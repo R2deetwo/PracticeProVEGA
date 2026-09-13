@@ -40,6 +40,12 @@ import { isDueNow } from '../../messaging/sections';
 import { renderMergeFields, hasMergeFields, nextRentDueTs, MERGE_FIELD_TAGS } from '../../utils/mergeFields';
 import { AutomationWorkflows } from './AutomationWorkflows';
 import { BoltIcon, PauseIcon, PlayIcon } from './ScheduledTabIcons';
+import {
+  SCHEDULE_TEMPLATES,
+  templateForType,
+  isPristineTemplateText,
+  type MessageTemplate,
+} from '../../utils/messageTemplates';
 
 const CHANNEL_STYLES: Record<string, string> = {
   whatsapp: 'text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
@@ -221,6 +227,23 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
   };
 
   const setChannel = (channel: 'email' | 'whatsapp') => setScheduleForm((prev) => ({ ...prev, channel }));
+
+  /** Pre-populate from the picked template — the listed types ARE the templates
+   *  (user spec 2026-09-14): selecting one fills the text residents receive. */
+  const applyTemplate = (tpl: MessageTemplate) => {
+    setScheduleForm((prev) => ({ ...prev, messageType: tpl.type as typeof prev.messageType, content: tpl.template }));
+  };
+
+  /** Open the composer; if it's empty, seed it with the current type's template
+   *  so the user immediately SEES what will be sent. */
+  const openScheduleForm = () => {
+    setShowScheduleForm(true);
+    setScheduleForm((prev) => {
+      if (prev.content.trim()) return prev;
+      const t = templateForType(prev.messageType);
+      return t ? { ...prev, content: t.template } : prev;
+    });
+  };
 
   const handleScheduleMessage = async () => {
     const { channel, messageType, content, scheduledFor } = scheduleForm;
@@ -467,7 +490,13 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                 </span>
               )}
               <button
-                onClick={() => setShowScheduleForm(!showScheduleForm)}
+                onClick={() => {
+                  if (showScheduleForm) {
+                    setShowScheduleForm(false);
+                  } else {
+                    openScheduleForm();
+                  }
+                }}
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
                   showScheduleForm
                     ? 'bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300'
@@ -520,7 +549,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
             {mine.length === 0 ? (
               <p className="text-xs text-slate-400 dark:text-zinc-500 px-1">
                 None of your own yet —{' '}
-                <button onClick={() => setShowScheduleForm(true)} className="font-bold text-primary-600 dark:text-primary-400 hover:underline">
+                <button onClick={openScheduleForm} className="font-bold text-primary-600 dark:text-primary-400 hover:underline">
                   schedule one
                 </button>{' '}
                 to a whole audience or a single tenant.
@@ -534,6 +563,35 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
           {showScheduleForm && (
             <section className="bg-white dark:bg-zinc-900 rounded-xl border border-slate-200 dark:border-zinc-700 p-4 space-y-4">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Schedule a message</h3>
+
+              {/* Message template — the listed types pre-populate the text */}
+              <div>
+                <label className="block text-2xs font-bold text-slate-500 uppercase mb-1.5">Message template</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {SCHEDULE_TEMPLATES.map((tpl) => {
+                    const active = scheduleForm.messageType === tpl.type
+                      && (tpl.template.trim() === scheduleForm.content.trim() || (tpl.key === 'blank' && !scheduleForm.content.trim()));
+                    return (
+                      <button
+                        key={tpl.key}
+                        onClick={() => applyTemplate(tpl)}
+                        className={`px-3 py-1.5 text-2xs font-bold rounded-lg transition-colors ${
+                          active
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'
+                        }`}
+                        title={tpl.description}
+                      >
+                        {tpl.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1.5">
+                  {SCHEDULE_TEMPLATES.find((t) => t.type === scheduleForm.messageType && t.key !== 'blank')?.description
+                    || 'Write your own message — tags below fill in per recipient.'}
+                </p>
+              </div>
 
               {/* Audience scope */}
               <div>
@@ -668,7 +726,16 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                   <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Message Type</label>
                   <select
                     value={scheduleForm.messageType}
-                    onChange={(e) => setScheduleForm((prev) => ({ ...prev, messageType: e.target.value }))}
+                    onChange={(e) => {
+                      const nextType = e.target.value;
+                      setScheduleForm((prev) => {
+                        // Auto-swap the template text unless the user customized it —
+                        // picking "Late payment notice" fills the notice text.
+                        const tpl = templateForType(nextType);
+                        const swap = tpl && isPristineTemplateText(prev.content);
+                        return { ...prev, messageType: nextType, content: swap ? (tpl as MessageTemplate).template : prev.content };
+                      });
+                    }}
                     className="w-full p-2 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm"
                   >
                     {Object.entries(MSG_TYPE_LABELS).map(([key, label]) => (

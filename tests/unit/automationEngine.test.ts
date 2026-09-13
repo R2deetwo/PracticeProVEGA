@@ -54,6 +54,7 @@ import {
     buildAutomatedEmailHtml,
 } from '../../convex/emailBranding';
 import { renderMergeFields as clientRender } from '../../src/utils/mergeFields';
+import { SCHEDULE_TEMPLATES } from '../../src/utils/messageTemplates';
 
 // ─── PART 1: engine math ────────────────────────────────────────────────────
 
@@ -152,6 +153,55 @@ describe('automation engine: workflow library', () => {
     });
 });
 
+// ─── PART 1b: intuitiveness round (user feedback 2026-09-14) ───────────────
+// "When I increase the days, the number does not change." → titles are
+// number-free and semantic; "I cannot see what the messages look like." →
+// every step text is previewable/editable; "turn it off per unit as well" →
+// per-unit opt-outs; "clicking a type would not pre-populate" → the listed
+// types ARE the templates.
+
+describe('automation engine: intuitiveness round', () => {
+    it('every step has a NUMBER-FREE semantic title (offsets adjust without contradicting it)', () => {
+        for (const wf of AUTOMATION_WORKFLOW_DEFAULTS) {
+            for (const step of wf.steps) {
+                expect(step.title).toBeTruthy();
+                expect((step.title || '').length).toBeGreaterThan(2);
+                expect(step.title).not.toMatch(/\d/);
+            }
+        }
+    });
+
+    it('the schedule-form starter templates ARE the engine texts (one voice per notice type)', () => {
+        // (template key, engine workflow, engine step, distinctive core wording)
+        const pairs: Array<[string, string, string, string]> = [
+            ['rent_reminder', 'rent_collection', 'pre_7',
+                'a quick heads-up: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}'],
+            ['late_notice', 'rent_collection', 'late_7',
+                'NOTICE OF DEFAULT: rent of {{amount_due}} for {{unit_number}} is now 7 days overdue (due {{due_date}})'],
+            ['service_charge_alert', 'service_charge', 'pre_3',
+                'service charge contribution of {{amount_due}} is due on {{due_date}}'],
+            ['lease_renewal', 'lease_expiry', 'expiry_90',
+                'your tenancy for {{unit_number}} expires on {{due_date}}'],
+        ];
+        for (const [tplKey, wfKey, stepKey, core] of pairs) {
+            const tpl = SCHEDULE_TEMPLATES.find((t) => t.key === tplKey)!;
+            expect(tpl).toBeTruthy();
+            const wf = AUTOMATION_WORKFLOW_DEFAULTS.find((w) => w.key === wfKey)!;
+            const step = wf.steps.find((s) => s.key === stepKey)!;
+            expect(tpl.template).toContain(core);
+            expect(tpl.type).toBe(step.messageType);
+        }
+    });
+
+    it('schedule templates only use resolvable merge fields', () => {
+        const allowed = ['tenant_name', 'unit_number', 'amount_due', 'due_date', 'property_name', 'firm_name', 'payment_link'];
+        for (const tpl of SCHEDULE_TEMPLATES) {
+            const tags = [...tpl.template.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g)].map((m) => m[1]);
+            for (const tag of tags) expect(allowed).toContain(tag);
+        }
+    });
+});
+
 // ─── PART 2: suppression + footer contracts ────────────────────────────────
 
 describe('unsubscribe tokens', () => {
@@ -218,6 +268,9 @@ const portalsSrc = read('convex/portals.ts');
 const cronsSrc = read('convex/crons.ts');
 const httpSrc = read('convex/http.ts');
 const paystackSrc = read('convex/paystack.ts');
+const schemaSrc = read('convex/schema.ts');
+const workflowsUiSrc = read('src/components/messaging/AutomationWorkflows.tsx');
+const scheduledTabSrc = read('src/components/messaging/ScheduledTab.tsx');
 const loginSrc = read('src/admin/AdminLogin.tsx');
 const settingsSrc = read('src/admin/views/Settings.tsx');
 
@@ -266,6 +319,61 @@ describe('orchestration: one engine, no duplicate crons', () => {
         expect(runBlock).toContain('paidThisPeriod');
         expect(runBlock).toContain('isOptedOut');
         expect(runBlock).toContain('hasPendingPaymentProof');
+    });
+
+    it('per-unit opt-outs gate the engine (the "turn it off per unit" switch)', () => {
+        // Table exists with both lookup indexes
+        expect(schemaSrc).toContain('automation_unit_opt_outs: defineTable');
+        expect(schemaSrc).toContain('.index("by_firm_unit"');
+        expect(schemaSrc).toContain('.index("by_firm_active"');
+        // Engine loads the alias set BEFORE dispatching and records the outcome
+        const runBlock = engineSrc.slice(engineSrc.indexOf('runAutomationEngine = internalMutation'));
+        expect(runBlock).toContain('loadUnitOptOutAliases');
+        expect(runBlock).toContain('"suppressed_unit_optout"');
+        // The alias set matches target unit ids in EVERY stored shape
+        expect(engineSrc).toContain('for (const a of (r.aliases as string[] | undefined) || [])');
+        // Management surface for the UI
+        expect(engineSrc).toContain('setUnitAutomationOptOut = mutation');
+        expect(engineSrc).toContain('listUnitAutomationStatus = query');
+        // The preview answers "who gets these?" with per-unit state
+        const previewBlock = engineSrc.slice(engineSrc.indexOf('previewWorkflowTargets = query'));
+        expect(previewBlock).toContain('unitId: t.unitId');
+        expect(previewBlock).toContain('optedOut: optOuts.has');
+        expect(previewBlock).toContain('count: effective.length');
+        // The workflow card renders the per-unit panel and quick-mute
+        expect(workflowsUiSrc).toContain('Per-unit settings');
+        expect(workflowsUiSrc).toContain('toggleUnitAutomation');
+    });
+
+    it('custom step text is honoured end-to-end (subject override = "replace what is sent")', () => {
+        // Validator accepts the subject field
+        expect(engineSrc).toContain('subject: v.optional(v.string())');
+        // Stored override beats the default at ENGINE dispatch time
+        const mergeBlock = engineSrc.slice(engineSrc.indexOf('async function loadFirmWorkflows'));
+        expect(mergeBlock).toContain('subject: typeof s.subject === "string" && s.subject.trim() ? s.subject : d.subject');
+        expect(engineSrc).toContain('renderMergeFields(step.subject');
+        // Empty string = explicit factory reset
+        expect(engineSrc).toContain('return t ? t.slice(0, 1000) : undefined');
+        // The overview exposes effective vs default text so the UI can show
+        // both and offer Reset
+        const overviewBlock = engineSrc.slice(engineSrc.indexOf('getAutomationOverview = query'));
+        expect(overviewBlock).toContain('subjectEdited');
+        expect(overviewBlock).toContain('defaultSubject');
+        expect(overviewBlock).toContain('firmName');
+        expect(overviewBlock).toContain('optedOutUnits');
+        // The UI previews + edits the message inline
+        expect(workflowsUiSrc).toContain('See the message');
+        expect(workflowsUiSrc).toContain('saveSubject');
+        expect(workflowsUiSrc).toContain('renderMergeFields(step.subject');
+    });
+
+    it('the create-form pre-populates from the selected type (the listed types ARE the templates)', () => {
+        expect(scheduledTabSrc).toContain('Message template');
+        expect(scheduledTabSrc).toContain('SCHEDULE_TEMPLATES.map');
+        expect(scheduledTabSrc).toContain('applyTemplate');
+        expect(scheduledTabSrc).toContain('openScheduleForm');
+        // Type-swap only replaces untouched template text, never a user draft
+        expect(scheduledTabSrc).toContain('isPristineTemplateText');
     });
 });
 

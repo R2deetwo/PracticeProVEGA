@@ -1581,6 +1581,7 @@ export default defineSchema({
       offsetDays: v.number(),              // negative = before anchor, 0 = on the day, positive = after
       channel: v.string(),                 // "email" | "whatsapp" (email preferred when the tenant has an email)
       messageType: v.string(),             // scheduled_messages.messageType value
+      subject: v.optional(v.string()),     // CUSTOM message template override (undefined = engine default text)
     })),
     scopePropertyIds: v.optional(v.array(v.string())),  // empty/undefined = all properties
     seededAt: v.number(),
@@ -1623,6 +1624,28 @@ export default defineSchema({
   })
     .index("by_firm_contact", ["firmId", "contactKey"])
     .index("by_token", ["token"]),
+
+  // ─── PER-UNIT AUTOMATION OPT-OUTS ───────────────────────────────────
+  // The user's spec (2026-09-14): "I also thought that there would be
+  // ability to turn it off per unit as well." A row = one unit whose
+  // residents are excluded from ALL automated workflows (a landlord who
+  // manages a unit personally, a VIP exempt from the ladder, etc.).
+  // unitKey is the ENGINE composite (`${property._id}_${unit.id}`); aliases
+  // carries every other stored id shape so service-charge targets match
+  // no matter which format their rows carry.
+  automation_unit_opt_outs: defineTable({
+    firmId: v.string(),
+    unitKey: v.string(),                   // engine composite unit id
+    aliases: v.optional(v.array(v.string())), // other id shapes the unit may be stored as
+    label: v.string(),                     // "Flat 2A — Mrs. Adaeze Okonkwo" (display)
+    propertyAddress: v.optional(v.string()),
+    active: v.boolean(),                   // false = row kept for history, suppression lifted
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm_unit", ["firmId", "unitKey"])
+    .index("by_firm_active", ["firmId", "active"]),
 
   // ─── Portal Conversations ──────────────────────────────────────────
   // Groups portal messages into threaded conversations between a portal

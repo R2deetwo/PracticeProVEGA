@@ -52,7 +52,8 @@ import { withCronReporting } from "./observability";
 
 export interface WorkflowStepDefault {
   key: string;
-  label: string;
+  label: string;           // legacy timing label (compat; the UI shows title + live offset phrase)
+  title: string;           // semantic, NUMBER-FREE name — never contradicts an adjusted offset
   offsetDays: number;      // relative to the anchor date (negative = before)
   enabled: boolean;
   channel: "auto" | "email" | "whatsapp"; // auto = email when the tenant has one, else WhatsApp
@@ -83,19 +84,19 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     anchor: "each unit's rent due date (day-of-month of the lease start)",
     defaultEnabled: true,
     steps: [
-      { key: "pre_7", label: "7 days before due", offsetDays: -7, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "pre_7", label: "7 days before due", title: "Gentle heads-up", offsetDays: -7, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Hi {{tenant_name}}, a quick heads-up: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}." },
-      { key: "pre_3", label: "3 days before due", offsetDays: -3, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "pre_3", label: "3 days before due", title: "Rent reminder", offsetDays: -3, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Reminder: rent of {{amount_due}} for {{unit_number}} is due in 3 days ({{due_date}})." },
-      { key: "pre_1", label: "1 day before due", offsetDays: -1, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "pre_1", label: "1 day before due", title: "Final reminder", offsetDays: -1, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Final reminder — {{amount_due}} for {{unit_number}} is due tomorrow, {{due_date}}." },
-      { key: "due_day", label: "Due date (morning)", offsetDays: 0, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "due_day", label: "Due date (morning)", title: "Due-date reminder", offsetDays: 0, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Your rent of {{amount_due}} for {{unit_number}} is due today ({{due_date}}). Pay here: {{payment_link}}" },
-      { key: "grace_3", label: "3 days after (courtesy)", offsetDays: 3, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "grace_3", label: "3 days after (courtesy)", title: "Courtesy grace note", offsetDays: 3, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Courtesy note: we haven't received the {{amount_due}} for {{unit_number}} (was due {{due_date}}). If you've already paid, kindly upload your receipt in your portal." },
-      { key: "late_7", label: "7 days late — Notice of Default", offsetDays: 7, enabled: true, channel: "auto", messageType: "late_notice",
+      { key: "late_7", label: "7 days late — Notice of Default", title: "Notice of Default", offsetDays: 7, enabled: true, channel: "auto", messageType: "late_notice",
         subject: "NOTICE OF DEFAULT: rent of {{amount_due}} for {{unit_number}} is now 7 days overdue (due {{due_date}})." },
-      { key: "late_14", label: "14 days late — escalated demand", offsetDays: 14, enabled: true, channel: "auto", messageType: "late_notice",
+      { key: "late_14", label: "14 days late — escalated demand", title: "Escalated demand", offsetDays: 14, enabled: true, channel: "auto", messageType: "late_notice",
         subject: "Escalated demand: the outstanding {{amount_due}} for {{unit_number}} (due {{due_date}}) is now 14 days overdue." },
     ],
   },
@@ -107,13 +108,13 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     anchor: "each service charge's next due date",
     defaultEnabled: true,
     steps: [
-      { key: "pre_3", label: "3 days before due", offsetDays: -3, enabled: true, channel: "auto", messageType: "service_charge_alert",
+      { key: "pre_3", label: "3 days before due", title: "Service-charge heads-up", offsetDays: -3, enabled: true, channel: "auto", messageType: "service_charge_alert",
         subject: "Hi {{tenant_name}}, your {{unit_number}} service charge contribution of {{amount_due}} is due on {{due_date}}." },
-      { key: "due_day", label: "Due date", offsetDays: 0, enabled: true, channel: "auto", messageType: "service_charge_alert",
+      { key: "due_day", label: "Due date", title: "Due-date notice", offsetDays: 0, enabled: true, channel: "auto", messageType: "service_charge_alert",
         subject: "Service charge of {{amount_due}} for {{unit_number}} is due today ({{due_date}})." },
-      { key: "late_7", label: "7 days overdue", offsetDays: 7, enabled: true, channel: "auto", messageType: "service_charge_alert",
+      { key: "late_7", label: "7 days overdue", title: "Overdue alert", offsetDays: 7, enabled: true, channel: "auto", messageType: "service_charge_alert",
         subject: "Your service charge contribution of {{amount_due}} for {{unit_number}} (due {{due_date}}) is now 7 days in arrears." },
-      { key: "late_14", label: "14 days overdue", offsetDays: 14, enabled: true, channel: "auto", messageType: "late_notice",
+      { key: "late_14", label: "14 days overdue", title: "Escalated demand", offsetDays: 14, enabled: true, channel: "auto", messageType: "late_notice",
         subject: "Overdue service charge: {{amount_due}} for {{unit_number}} (due {{due_date}}) is 14 days late. Please settle to avoid penalties." },
     ],
   },
@@ -125,11 +126,11 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     anchor: "the tenancy end date",
     defaultEnabled: false,
     steps: [
-      { key: "expiry_90", label: "90 days before expiry", offsetDays: -90, enabled: true, channel: "auto", messageType: "lease_renewal",
+      { key: "expiry_90", label: "90 days before expiry", title: "Early renewal prompt", offsetDays: -90, enabled: true, channel: "auto", messageType: "lease_renewal",
         subject: "Hi {{tenant_name}}, your tenancy for {{unit_number}} expires on {{due_date}} (90 days). Shall we begin renewal terms?" },
-      { key: "expiry_60", label: "60 days before expiry", offsetDays: -60, enabled: true, channel: "auto", messageType: "lease_renewal",
+      { key: "expiry_60", label: "60 days before expiry", title: "Renewal reminder", offsetDays: -60, enabled: true, channel: "auto", messageType: "lease_renewal",
         subject: "Reminder: your {{unit_number}} lease expires {{due_date}} (60 days). Renewal terms are ready when you are." },
-      { key: "expiry_30", label: "30 days before expiry", offsetDays: -30, enabled: true, channel: "auto", messageType: "lease_renewal",
+      { key: "expiry_30", label: "30 days before expiry", title: "Final renewal notice", offsetDays: -30, enabled: true, channel: "auto", messageType: "lease_renewal",
         subject: "Final renewal notice: the {{unit_number}} tenancy ends on {{due_date}} (30 days). Confirm your renewal to hold the unit." },
     ],
   },
@@ -141,9 +142,9 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     anchor: "the unit's rent review / escalation date",
     defaultEnabled: false,
     steps: [
-      { key: "review_60", label: "60 days before review", offsetDays: -60, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "review_60", label: "60 days before review", title: "Rent-review notice", offsetDays: -60, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Notice of upcoming rent review for {{unit_number}} effective {{due_date}}." },
-      { key: "review_30", label: "30 days before review", offsetDays: -30, enabled: true, channel: "auto", messageType: "rent_reminder",
+      { key: "review_30", label: "30 days before review", title: "Final rent-review notice", offsetDays: -30, enabled: true, channel: "auto", messageType: "rent_reminder",
         subject: "Your rent for {{unit_number}} will be reviewed on {{due_date}} (30 days). New terms will follow in writing." },
     ],
   },
@@ -527,17 +528,42 @@ async function loadFirmWorkflows(ctx: any, firmId: string): Promise<Array<{ def:
   return AUTOMATION_WORKFLOW_DEFAULTS.map((def) => {
     const stored = byKey.get(def.key);
     if (stored && Array.isArray(stored.steps) && stored.steps.length) {
-      // Merge: stored step overrides (offset/enabled/channel) over defaults;
-      // new default steps appear automatically.
+      // Merge: stored step overrides (offset/enabled/channel/SUBJECT) over
+      // defaults; new default steps appear automatically.
       const byStep = new Map((stored.steps as any[]).map((s: any) => [String(s.key), s]));
       const steps = def.steps.map((d) => {
         const s = byStep.get(d.key);
-        return s ? { ...d, enabled: !!s.enabled, offsetDays: Number(s.offsetDays ?? d.offsetDays), channel: (s.channel || d.channel) as WorkflowStepDefault["channel"] } : d;
+        return s ? {
+          ...d,
+          enabled: !!s.enabled,
+          offsetDays: Number(s.offsetDays ?? d.offsetDays),
+          channel: (s.channel || d.channel) as WorkflowStepDefault["channel"],
+          // custom template beats the default text; trim guards whitespace-only saves
+          subject: typeof s.subject === "string" && s.subject.trim() ? s.subject : d.subject,
+        } : d;
       });
       return { def, steps, enabled: !!stored.enabled };
     }
     return { def, steps: def.steps, enabled: def.defaultEnabled };
   });
+}
+
+/** Active per-unit opt-outs for a firm, as a flat alias set (all id shapes). */
+async function loadUnitOptOutAliases(ctx: any, firmId: string): Promise<Set<string>> {
+  try {
+    const rows: any[] = await ctx.db
+      .query("automation_unit_opt_outs")
+      .withIndex("by_firm_active", (q: any) => q.eq("firmId", firmId).eq("active", true))
+      .take(2000);
+    const set = new Set<string>();
+    for (const r of rows) {
+      if (r.unitKey) set.add(String(r.unitKey));
+      for (const a of (r.aliases as string[] | undefined) || []) set.add(String(a));
+    }
+    return set;
+  } catch {
+    return new Set<string>();
+  }
 }
 
 async function recordDispatch(
@@ -632,6 +658,7 @@ export const runAutomationEngine = internalMutation({
       try {
         const workflows = await loadFirmWorkflows(ctx, firmId);
         const firmName = String(firm.name || "your property manager");
+        const unitOptOuts = await loadUnitOptOutAliases(ctx, firmId);
         const resolvers: Record<string, () => Promise<EngineTarget[]>> = {
           rent_collection: () => resolveRentTargets(ctx, firmId),
           service_charge: () => resolveServiceChargeTargets(ctx, firmId),
@@ -662,6 +689,10 @@ export const runAutomationEngine = internalMutation({
                   continue;
                 }
                 // ── Suppression gates ──
+                if (unitOptOuts.has(String(t.unitId))) {
+                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_unit_optout");
+                  suppressed++; continue;
+                }
                 if (t.extra.paidThisPeriod === true) {
                   await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_paid");
                   suppressed++; continue;
@@ -881,7 +912,14 @@ export const getAutomationOverview = query({
       const stored = byKey.get(def.key);
       const steps = def.steps.map((d) => {
         const s = stored && (stored.steps as any[] || []).find((x: any) => String(x.key) === d.key);
-        return s ? { ...d, enabled: !!s.enabled, offsetDays: Number(s.offsetDays ?? d.offsetDays), channel: (s.channel || d.channel) } : d;
+        const customSubject = s && typeof s.subject === "string" && s.subject.trim() ? s.subject : null;
+        const base = {
+          key: d.key, label: d.label, title: d.title, messageType: d.messageType,
+          subject: customSubject ?? d.subject,   // EFFECTIVE text residents receive
+          defaultSubject: d.subject,             // factory text — the Reset target
+          subjectEdited: !!customSubject,
+        };
+        return s ? { ...base, enabled: !!s.enabled, offsetDays: Number(s.offsetDays ?? d.offsetDays), channel: (s.channel || d.channel) } : { ...base, enabled: d.enabled, offsetDays: d.offsetDays, channel: d.channel };
       });
       return {
         key: def.key, name: def.name, description: def.description, anchor: def.anchor,
@@ -890,6 +928,20 @@ export const getAutomationOverview = query({
         isCustomized: !!stored,
       };
     });
+
+    // Firm name (message previews render {{firm_name}} exactly as sends do).
+    let firmName = "your property manager";
+    try {
+      const firm: any = await ctx.db.get(args.firmId as any);
+      if (firm?.name) firmName = String(firm.name);
+    } catch { /* firmId not a doc id — keep the fallback */ }
+
+    // Per-unit opt-outs (the user's per-unit off switch).
+    const optRows: any[] = await ctx.db
+      .query("automation_unit_opt_outs")
+      .withIndex("by_firm_active", (q: any) => q.eq("firmId", args.firmId).eq("active", true))
+      .take(2000);
+    const optedOutUnits = optRows.map((r: any) => ({ unitKey: String(r.unitKey), label: String(r.label || r.unitKey) }));
 
     // Live queue counts for the header badges.
     const active: any[] = await ctx.db
@@ -902,7 +954,10 @@ export const getAutomationOverview = query({
       .take(500);
     const automationQueue = active.filter((m: any) => m.isAutomation).length;
 
-    return { workflows, queue: { automationQueued: automationQueue, manualQueued: active.length - automationQueue, paused: paused.length } };
+    return {
+      workflows, firmName, optedOutUnits,
+      queue: { automationQueued: automationQueue, manualQueued: active.length - automationQueue, paused: paused.length },
+    };
   },
 });
 
@@ -910,6 +965,9 @@ const STEP_FIELDS = {
   enabled: v.optional(v.boolean()),
   offsetDays: v.optional(v.number()),
   channel: v.optional(v.string()),
+  // Custom message text (merge fields allowed). Non-empty → override;
+  // EMPTY STRING → reset to the engine default (explicit factory reset).
+  subject: v.optional(v.string()),
 };
 
 export const setWorkflowEnabled = mutation({
@@ -947,18 +1005,28 @@ export const updateWorkflowStep = mutation({
     if (!def || !stepDef) throw new Error(`Unknown workflow step: ${args.workflowKey}/${args.stepKey}`);
     if (args.offsetDays != null && Math.abs(args.offsetDays) > 180) throw new Error("Offset must be within ±180 days.");
 
+    /** Subject pass-through: provided string (even empty = reset) wins;
+     *  absent → preserve the stored override untouched. */
+    const mergeSubject = (prev: unknown): string | undefined => {
+      if (typeof args.subject === "string") {
+        const t = args.subject.trim();
+        return t ? t.slice(0, 1000) : undefined;   // empty → default text
+      }
+      return typeof prev === "string" && prev.trim() ? prev.slice(0, 1000) : undefined;
+    };
+
     const existing = await ctx.db
       .query("automation_workflows").withIndex("by_firm_workflow", (q: any) => q.eq("firmId", args.firmId).eq("workflowKey", args.workflowKey)).first();
     const now = Date.now();
-    let steps: Array<{ key: string; enabled: boolean; offsetDays: number; channel: string; messageType: string }>;
+    let steps: Array<{ key: string; enabled: boolean; offsetDays: number; channel: string; messageType: string; subject?: string }>;
     if (existing && Array.isArray(existing.steps) && existing.steps.length) {
       steps = (existing.steps as any[]).map((s: any) => String(s.key) === args.stepKey
-        ? { key: s.key, enabled: args.enabled ?? !!s.enabled, offsetDays: args.offsetDays ?? Number(s.offsetDays), channel: args.channel || s.channel, messageType: s.messageType }
-        : { key: s.key, enabled: !!s.enabled, offsetDays: Number(s.offsetDays), channel: s.channel, messageType: s.messageType });
+        ? { key: s.key, enabled: args.enabled ?? !!s.enabled, offsetDays: args.offsetDays ?? Number(s.offsetDays), channel: args.channel || s.channel, messageType: s.messageType, subject: mergeSubject(s.subject) }
+        : { key: s.key, enabled: !!s.enabled, offsetDays: Number(s.offsetDays), channel: s.channel, messageType: s.messageType, ...(typeof s.subject === "string" && s.subject.trim() ? { subject: s.subject } : {}) });
       await ctx.db.patch(existing._id, { steps: steps as any, updatedAt: now, updatedBy: caller.email || undefined });
     } else {
       steps = def.steps.map((s) => s.key === args.stepKey
-        ? { key: s.key, enabled: args.enabled ?? s.enabled, offsetDays: args.offsetDays ?? s.offsetDays, channel: args.channel || s.channel, messageType: s.messageType }
+        ? { key: s.key, enabled: args.enabled ?? s.enabled, offsetDays: args.offsetDays ?? s.offsetDays, channel: args.channel || s.channel, messageType: s.messageType, subject: mergeSubject(undefined) }
         : { key: s.key, enabled: s.enabled, offsetDays: s.offsetDays, channel: s.channel, messageType: s.messageType });
       await ctx.db.insert("automation_workflows", {
         firmId: args.firmId, workflowKey: args.workflowKey, enabled: def.defaultEnabled,
@@ -979,16 +1047,157 @@ export const previewWorkflowTargets = query({
     else if (args.workflowKey === "service_charge") targets = await resolveServiceChargeTargets(ctx, args.firmId);
     else if (args.workflowKey === "lease_expiry") targets = await resolveLeaseTargets(ctx, args.firmId);
     else if (args.workflowKey === "rent_review") targets = await resolveRentReviewTargets(ctx, args.firmId);
+    const optOuts = await loadUnitOptOutAliases(ctx, args.firmId);
+    const effective = targets.filter((t) => !optOuts.has(String(t.unitId)));
     return {
-      count: targets.length,
+      count: effective.length,   // who actually gets messaged (opted-out units excluded)
+      total: targets.length,
       sample: targets.slice(0, 25).map((t) => ({
         tenantName: t.tenantName, unit: t.unitLabel, property: t.propertyName,
         email: t.tenantEmail, phone: t.tenantPhone,
         amountDue: t.amountDue,
         anchor: new Date(t.anchorTs).toISOString().slice(0, 10),
         paid: t.extra.paidThisPeriod === true,
+        unitId: t.unitId,                       // for the per-unit off switch
+        optedOut: optOuts.has(String(t.unitId)),
       })),
     };
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7b. Per-unit opt-out (the user's "turn it off per unit" switch)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Turn ALL automated workflows off (or back on) for ONE unit.
+ * The stored aliases carry every id shape the unit may be referenced by,
+ * so rent/lease/review targets AND service-charge targets match regardless
+ * of which format their rows carry.
+ */
+export const setUnitAutomationOptOut = mutation({
+  args: {
+    firmId: v.string(), unitKey: v.string(), optOut: v.boolean(),
+    label: v.optional(v.string()), propertyAddress: v.optional(v.string()),
+    userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
+    if (!args.unitKey) throw new Error("unitKey is required.");
+
+    // Resolve the property+unit server-side and collect EVERY id shape.
+    const aliases = new Set<string>([args.unitKey]);
+    let label = (args.label || "").trim() || args.unitKey;
+    let propertyAddress = (args.propertyAddress || "").trim() || undefined;
+    try {
+      const resolver = createUnitResolver(ctx, args.firmId);
+      const ref = await resolver.resolveUnit(args.unitKey);
+      if (ref) {
+        const prop: any = ref.property || {};
+        const unit: any = ref.unit;
+        const propIds = new Set<string>();
+        if (prop._id) propIds.add(String(prop._id));
+        if (prop.id != null) propIds.add(String(prop.id));
+        const unitParts = new Set<string>();
+        if (unit) {
+          if (unit.id != null) unitParts.add(String(unit.id));
+          if (unit.unitName) unitParts.add(String(unit.unitName));
+          if (unit.name) unitParts.add(String(unit.name));
+        }
+        for (const pid of propIds) {
+          for (const up of unitParts) aliases.add(`${pid}_${up}`);
+        }
+        // A STANDALONE property (no embedded units) IS the unit — its bare
+        // ids are genuine unit keys. A multi-unit property must NOT match
+        // on its bare id or one opt-out would silence sibling units.
+        if (!Array.isArray(prop.units) || prop.units.length === 0) {
+          for (const pid of propIds) aliases.add(pid);
+        }
+        const unitName = unitParts.values().next().value as string | undefined;
+        const tenant = String(unit?.tenantName || prop.rentalDetails?.tenantName || "");
+        if (unitName) label = (args.label || "").trim() || `${unitName}${tenant ? ` — ${tenant}` : ""}`;
+        if (prop.address) propertyAddress = (args.propertyAddress || "").trim() || String(prop.address);
+      }
+    } catch { /* best-effort enrichment — raw key still works for engine-format ids */ }
+
+    const now = Date.now();
+    const all: any[] = await ctx.db
+      .query("automation_unit_opt_outs").withIndex("by_firm_unit", (q: any) => q.eq("firmId", args.firmId)).collect();
+    const row = all.find((r: any) =>
+      String(r.unitKey) === args.unitKey || (r.aliases as string[] | undefined)?.includes(args.unitKey));
+
+    if (args.optOut) {
+      if (row) {
+        await ctx.db.patch(row._id, {
+          active: true,
+          aliases: Array.from(aliases),
+          label, ...(propertyAddress ? { propertyAddress } : {}),
+          updatedAt: now, updatedBy: caller.email || undefined,
+        });
+      } else {
+        await ctx.db.insert("automation_unit_opt_outs", {
+          firmId: args.firmId, unitKey: args.unitKey, aliases: Array.from(aliases),
+          label, ...(propertyAddress ? { propertyAddress } : {}),
+          active: true, createdBy: caller.email || undefined, createdAt: now, updatedAt: now,
+        });
+      }
+      return { success: true, optedOut: true };
+    }
+
+    if (row) {
+      await ctx.db.patch(row._id, { active: false, updatedAt: now, updatedBy: caller.email || undefined });
+      return { success: true, optedOut: false };
+    }
+    return { success: true, optedOut: false };
+  },
+});
+
+/** Every unit in the firm with its automation on/off state (management panel). */
+export const listUnitAutomationStatus = query({
+  args: { firmId: v.string(), userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
+    const props: any[] = await ctx.db
+      .query("properties").withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId)).take(2000);
+    const optRows: any[] = await ctx.db
+      .query("automation_unit_opt_outs")
+      .withIndex("by_firm_active", (q: any) => q.eq("firmId", args.firmId).eq("active", true))
+      .take(2000);
+    const byKey = new Map<string, any>();
+    for (const r of optRows) {
+      byKey.set(String(r.unitKey), r);
+      for (const a of (r.aliases as string[] | undefined) || []) byKey.set(String(a), r);
+    }
+
+    const units: Array<{ unitKey: string; label: string; tenantName: string; property: string; optedOut: boolean }> = [];
+    for (const p of props) {
+      const addr = String((p as any).address || "").split(",")[0] || "Property";
+      const unitsArr: any[] = Array.isArray(p.units) ? p.units : [];
+      if (unitsArr.length === 0) {
+        // Standalone property — key format matches resolveRentTargets' fallback.
+        const tenant = String((p as any).rentalDetails?.tenantName || "");
+        units.push({
+          unitKey: String(p._id), label: tenant ? `${addr} — ${tenant}` : addr,
+          tenantName: tenant, property: addr, optedOut: byKey.has(String(p._id)),
+        });
+      } else {
+        for (const u of unitsArr) {
+          // Key format is byte-identical to resolveRentTargets line: u.id != null
+          // ? `${p._id}_${u.id}` : String(p._id) — the by-construction match.
+          const unitKey = u.id != null ? `${p._id}_${u.id}` : String(p._id);
+          const unitName = String(u.unitName || u.name || u.id || "");
+          const tenant = String(u.tenantName || (p as any).rentalDetails?.tenantName || "");
+          units.push({
+            unitKey,
+            label: unitName ? `${unitName}${tenant ? ` — ${tenant}` : ""}` : (tenant ? `${addr} — ${tenant}` : addr),
+            tenantName: tenant, property: addr, optedOut: byKey.has(unitKey),
+          });
+        }
+      }
+    }
+    // Tenanted units first (those are the ones residents actually occupy).
+    units.sort((a, b) => Number(b.tenantName ? 1 : 0) - Number(a.tenantName ? 1 : 0));
+    return { units, optedOutCount: units.filter((u) => u.optedOut).length };
   },
 });
 

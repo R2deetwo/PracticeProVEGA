@@ -151,3 +151,74 @@ export function buildMessage(
 
   return result;
 }
+
+// ── Scheduled-message starter templates ────────────────────────────────────
+// THE USER'S SPEC (2026-09-14): "the ones that are listed there should be the
+// template so that if the user tries to create a new one, this would replace
+// what is already sent… those scheduled message types are to be prepopulated
+// and are what the residents (or clients as the case may be) get."
+//
+// These are the SCHEDULE-tab starter texts: they use the engine's lowercase
+// merge fields ({{tenant_name}} …) which resolve per recipient at send time —
+// unlike buildMessage's uppercase placeholders, which resolve at compose time
+// for the instant-send modal. Template texts are pinned by unit test to the
+// AUTOMATION_WORKFLOW_DEFAULTS step subjects in convex/automationEngine.ts so
+// manual schedules and automated sends share one voice per notice type.
+
+export interface MessageTemplate {
+  key: string;
+  type: AutomationMessageType | string;
+  label: string;
+  description: string;
+  template: string;
+}
+
+export const SCHEDULE_TEMPLATES: MessageTemplate[] = [
+  {
+    key: 'rent_reminder',
+    type: 'rent_reminder',
+    label: 'Rent reminder',
+    description: 'Friendly heads-up before rent falls due',
+    template:
+      'Hi {{tenant_name}}, a quick heads-up: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}. You can pay easily from your resident portal.',
+  },
+  {
+    key: 'late_notice',
+    type: 'late_notice',
+    label: 'Late payment notice',
+    description: 'Notice of Default for overdue rent',
+    template:
+      'NOTICE OF DEFAULT: rent of {{amount_due}} for {{unit_number}} is now 7 days overdue (due {{due_date}}). Kindly settle promptly to avoid penalties — you can pay from your resident portal.',
+  },
+  {
+    key: 'service_charge_alert',
+    type: 'service_charge_alert',
+    label: 'Service charge due',
+    description: 'Service-charge contribution reminder',
+    template:
+      'Hi {{tenant_name}}, your {{unit_number}} service charge contribution of {{amount_due}} is due on {{due_date}}. Kindly settle via your resident portal.',
+  },
+  {
+    key: 'lease_renewal',
+    type: 'lease_renewal',
+    label: 'Lease renewal',
+    description: 'Renewal prompt ahead of lease expiry',
+    template:
+      'Hi {{tenant_name}}, your tenancy for {{unit_number}} expires on {{due_date}}. Shall we begin renewal terms? Reply here or via your resident portal.',
+  },
+  {
+    key: 'blank',
+    type: 'custom',
+    label: 'Blank',
+    description: 'Write your own message',
+    template: '',
+  },
+];
+
+/** Template lookup by message type (first match wins; blank excluded). */
+export const templateForType = (messageType: string): MessageTemplate | null =>
+  SCHEDULE_TEMPLATES.find((t) => t.key !== 'blank' && t.type === messageType) || null;
+
+/** True when the content is untouched template text (safe to auto-swap). */
+export const isPristineTemplateText = (content: string): boolean =>
+  !content.trim() || SCHEDULE_TEMPLATES.some((t) => t.template.trim() === content.trim());
