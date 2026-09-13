@@ -43,15 +43,15 @@ const STRINGS_XML_BACKUP = path.join(ROOT, 'android', 'app', 'strings.xml.admin-
 const VERSION_PROPS = path.join(ROOT, 'android', 'app', 'version.properties');
 const VERSION_PROPS_BACKUP = path.join(ROOT, 'android', 'app', 'version.properties.admin-backup');
 // ─── google-services.json patch paths ─────────────────────────────────
-// The admin APK uses applicationId 'com.practicepro.admin', but the
-// google-services.json only has a client for 'com.practicepro.app'.
-// Firebase's Gradle plugin (com.google.gms.google-services) fails with:
-//   "No matching client found for package name 'com.practicepro.admin'"
-// We patch build.gradle to comment out the google-services plugin for
-// the admin build. The admin APK doesn't need FCM push notifications
-// (it's the founder dashboard — notifications go to the user app).
-// The build.gradle patch is reversible (restored after the build on
-// local dev machines; left in place for CI since the runner is ephemeral).
+// The admin APK uses applicationId 'com.practicepro.admin'. Since 2026-09-14
+// the committed google-services.json contains BOTH clients — com.practicepro.app
+// AND a GENUINE com.practicepro.admin entry (registered in Firebase project
+// practicepro-42178 via the Firebase Management API, appId
+// 1:738464564911:android:6bfab42383e206522d365a). The Google Services Gradle
+// plugin picks the client matching the current applicationId at build time,
+// so one file serves both APK builds and founder-APK FCM registration works.
+// Step 2c-iv below verifies the genuine admin client is present and only
+// falls back to a build-only clone (no runtime FCM) if it ever goes missing.
 const GOOGLE_SERVICES_JSON = path.join(ROOT, 'android', 'app', 'google-services.json');
 const GOOGLE_SERVICES_JSON_BACKUP = path.join(ROOT, 'android', 'app', 'google-services.json.admin-backup');
 

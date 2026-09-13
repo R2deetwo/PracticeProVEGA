@@ -313,10 +313,10 @@ export const sendFcmPush = internalAction({
 const NO_DEVICES_GUIDANCE =
   "No active device tokens found for your account. Tokens register automatically when you " +
   "log into the app on your Android device and grant notification permission. " +
-  "IMPORTANT: the Founder APK (com.practicepro.admin) can only register with FCM after " +
-  "'com.practicepro.admin' is added as an Android app in the Firebase project " +
-  "(Firebase Console → Project Settings → Your apps → Add app → Android). Until then, " +
-  "log into the MAIN PracticePro app on your device to register your account's token.";
+  "NOTE: com.practicepro.admin is registered in Firebase since 2026-09-14 — if you are on the " +
+  "Founder APK and still see this, update to the latest founder build, sign out and back in, " +
+  "and accept the notification permission prompt. Alternatively, log into the MAIN PracticePro " +
+  "app on your device to register your account's token there.";
 
 /** Explicit shapes to break TS7022 circular inference (the handlers reference
  * `internal`, whose generated type transitively imports this module). */

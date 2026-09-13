@@ -12,6 +12,12 @@ on:
       - 'android/app/build.gradle'
       - 'android/app/proguard-rules.pro'
       - 'android/app/src/main/java/**'
+      # Firebase config changes MUST rebuild the founder APK — the
+      # google-services Gradle plugin reads this file at build time.
+      - 'android/app/google-services.json'
+      # The push-registration hook is bundled into the APK — changes to it
+      # (e.g. the sessionToken race fix) need a rebuild to reach devices.
+      - 'src/hooks/usePushNotifications.ts'
   workflow_dispatch:
 
 # Cancel superseded runs — prevents race conditions when multiple admin

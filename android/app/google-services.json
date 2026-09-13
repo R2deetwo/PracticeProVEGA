@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:738464564911:android:6bfab42383e206522d365a",
+        "android_client_info": {
+          "package_name": "com.practicepro.admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCT8mGDEdBoCjy0hMcWzVNGUmMSUokAiRk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:738464564911:android:9a0a3708a933d51d2d365a",
         "android_client_info": {
           "package_name": "com.practicepro.app"

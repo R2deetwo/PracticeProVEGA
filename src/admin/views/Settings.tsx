@@ -347,12 +347,13 @@ export const Settings: React.FC = () => {
                                     ) : lastPushResult.reason === 'NO_REGISTERED_DEVICES' ? (
                                         <div className="space-y-1.5">
                                             <p className="font-bold">Your account has no registered device tokens yet.</p>
-                                            <p><strong>Why:</strong> the Founder APK (com.practicepro.admin) can only register with FCM after it is added as an Android app in the Firebase project — the build currently ships without that registration, so founder-app devices never produce tokens.</p>
-                                            <p><strong>The fix (one-time, ~3 minutes):</strong></p>
+                                            <p><strong>Why:</strong> this device hasn't registered a push token. If you're on the <strong>Founder APK</strong>, make sure it's the latest build (Firebase registration for com.practicepro.admin went live 2026-09-14 — older founder APKs can never register) and that you granted notification permission when prompted.</p>
+                                            <p><strong>Fix:</strong></p>
                                             <ol className="list-decimal ml-4 space-y-0.5">
-                                                <li>Firebase Console → project <strong>practicepro-42178</strong> → Project Settings → Your apps → <strong>Add app → Android</strong> → package name <code className="px-1 bg-amber-100 dark:bg-amber-900/40 rounded">com.practicepro.admin</code> → Register.</li>
-                                                <li>Download the new google-services.json (it now lists BOTH apps) and commit it to <code className="px-1 bg-amber-100 dark:bg-amber-900/40 rounded">android/app/google-services.json</code>, then rebuild the Founder APK.</li>
-                                                <li>Meanwhile: log into the <strong>main PracticePro app</strong> on this phone with your founder account — its tokens register immediately and this test will deliver there.</li>
+                                                <li>Update to the latest <strong>Founder APK</strong> (check the in-app APK banner / GitHub releases), then sign out and back in.</li>
+                                                <li>Accept the notification permission prompt (Android Settings → Apps → PracticePro Founder → Notifications if it was dismissed).</li>
+                                                <li>Alternatively: log into the <strong>main PracticePro app</strong> on this phone with your founder account — its tokens register immediately and this test will deliver there.</li>
+                                                <li>Then tap “Send Test Push Notification” again.</li>
                                             </ol>
                                         </div>
                                     ) : lastPushResult.reason === 'AUTH' ? (
