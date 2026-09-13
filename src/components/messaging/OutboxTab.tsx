@@ -20,7 +20,9 @@ import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { ChevronDownIcon, MailIcon } from '../../constants';
+import { useUI } from '../../contexts/UIContext';
+import { ChevronDownIcon, MailIcon, TrashIcon } from '../../constants';
+import { useConfirm } from '../ui/ConfirmDialog';
 import {
   summarizeError,
   mappedErrorClass,
@@ -28,6 +30,20 @@ import {
   CHAKRA_WHATSAPP_BILLING_URL,
 } from '../../utils/deliveryErrors';
 import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
+
+// Archive-box icon (not in shared constants) — the Sent tab's archive action.
+const ArchiveBoxIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
+
+// Undo/restore icon for archived rows.
+const UndoIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4-4 4-4M5 10h11a4 4 0 014 4v1a4 4 0 01-4 4H9" />
+  </svg>
+);
 
 const CHANNEL_STYLES: Record<string, string> = {
   whatsapp: 'text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/30',
@@ -78,6 +94,8 @@ interface OutboxTabProps {
 
 export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
   const { currentUser, bearerToken } = useAuth() as any;
+  const { addToast } = useUI();
+  const { confirm, ConfirmDialog } = useConfirm();
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   // Per-row "Details" toggle: reveals the RAW provider error (admin-only
@@ -85,6 +103,11 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
   const [showRawIds, setShowRawIds] = useState<Set<string>>(new Set());
   const [retrying, setRetrying] = useState(false);
   const [retrySummary, setRetrySummary] = useState<string | null>(null);
+  // Row management (2026-09-14): archive hides a row (restorable), delete
+  // removes it permanently. Both are firm-verified on the server.
+  const archiveLog = useMutation(api.sentry.archiveAutomationLog);
+  const deleteLog = useMutation(api.sentry.deleteAutomationLog);
+  const [busyRowId, setBusyRowId] = useState<string | null>(null);
 
   const logs = useQuery(
     api.sentry.getAutomationLogs,
@@ -104,13 +127,19 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
   const retryFailed = useMutation(api.communications.retryFailedWhatsApp as any);
 
   const filtered = useMemo(() => {
-    const rows = (logs as any[]).filter(l => l.direction !== 'inbound');
+    const rows = (logs as any[]).filter(l => l.direction !== 'inbound' && !l.isArchived);
     if (channelFilter === 'all') return rows;
     return rows.filter(l => l.channel === channelFilter);
   }, [logs, channelFilter]);
 
+  // Archived rows (restorable) — the audit-friendly alternative to deleting.
+  const archived = useMemo(
+    () => (logs as any[]).filter(l => l.direction !== 'inbound' && l.isArchived),
+    [logs]
+  );
+
   const stats = useMemo(() => {
-    const rows = (logs as any[]).filter(l => l.direction !== 'inbound');
+    const rows = (logs as any[]).filter(l => l.direction !== 'inbound' && !l.isArchived);
     return {
       total: rows.length,
       delivered: rows.filter(l => l.status === 'sent').length,
@@ -164,11 +193,59 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
     }
   };
 
+  // ── Row management: archive / delete / restore ─────────────────────────
+  const handleArchive = async (log: any, next: boolean) => {
+    if (busyRowId) return;
+    setBusyRowId(log._id);
+    try {
+      await archiveLog({
+        logId: log._id,
+        archived: next,
+        userEmail: currentUser?.email,
+        sessionToken: bearerToken ?? undefined,
+      });
+      if (expandedId === log._id) setExpandedId(null);
+      addToast(next ? 'Message archived.' : 'Message restored.', { type: 'success' });
+    } catch (e: any) {
+      addToast(e?.message || 'Failed. Try again.', { type: 'error' });
+    } finally {
+      setBusyRowId(null);
+    }
+  };
+
+  const handleDelete = async (log: any) => {
+    const label = (MSG_TYPE_LABELS as Record<string, string>)[log.messageType] || log.messageType;
+    const ok = await confirm({
+      title: 'Delete this sent message?',
+      message: `The ${label} to ${log.recipient || 'this recipient'} will be permanently removed from your send history. Archive it instead if you might need the record.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      danger: true,
+    });
+    if (!ok) return;
+    if (busyRowId) return;
+    setBusyRowId(log._id);
+    try {
+      await deleteLog({
+        logId: log._id,
+        userEmail: currentUser?.email,
+        sessionToken: bearerToken ?? undefined,
+      });
+      if (expandedId === log._id) setExpandedId(null);
+      addToast('Message deleted.', { type: 'success' });
+    } catch (e: any) {
+      addToast(e?.message || 'Failed. Try again.', { type: 'error' });
+    } finally {
+      setBusyRowId(null);
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col min-h-0">
+      {ConfirmDialog}
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Sent</h2>
@@ -247,7 +324,7 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
 
       {/* Log list */}
       <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-950/40">
-        <div className="max-w-3xl mx-auto p-3 sm:p-4">
+        <div className="max-w-4xl mx-auto p-3 sm:p-4">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
@@ -358,12 +435,95 @@ export const OutboxTab: React.FC<OutboxTabProps> = ({ firmId }) => {
                             {log.messageContent || log.messagePreview}
                           </pre>
                         )}
+
+                        {/* ── Row management (2026-09-14): archive + delete ──
+                            Archive hides the row (restorable below); delete
+                            removes it permanently (with confirmation). */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            onClick={() => handleArchive(log, true)}
+                            disabled={busyRowId === log._id}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-2xs font-bold text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                            title="Hide this message from the Sent list (restorable)"
+                          >
+                            <ArchiveBoxIcon className="w-3.5 h-3.5" />
+                            Archive
+                          </button>
+                          <button
+                            onClick={() => handleDelete(log)}
+                            disabled={busyRowId === log._id}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 text-2xs font-bold text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors disabled:opacity-50"
+                            title="Delete this message permanently"
+                          >
+                            <TrashIcon className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
+          )}
+
+          {/* ── Archived rows (restorable) ── */}
+          {archived.length > 0 && (
+            <details className="group mt-4">
+              <summary className="list-none cursor-pointer select-none">
+                <div className="flex items-center gap-2 px-1 pb-1">
+                  <svg className="w-3 h-3 text-slate-400 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  <span className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
+                    Archived ({archived.length})
+                  </span>
+                  <ArchiveBoxIcon className="w-3 h-3 text-slate-400" />
+                </div>
+              </summary>
+              <div className="mt-2 space-y-2">
+                {archived.map((log: any) => {
+                  const st = STATUS_STYLES[log.status] || STATUS_STYLES.logged;
+                  return (
+                    <div key={log._id} className="flex items-center justify-between gap-3 p-3 bg-slate-100/60 dark:bg-zinc-800/50 rounded-xl border border-slate-200/60 dark:border-zinc-800 opacity-75">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="text-xs font-semibold text-slate-600 dark:text-zinc-300 truncate">
+                            {(MSG_TYPE_LABELS as Record<string, string>)[log.messageType] || log.messageType}
+                          </span>
+                          <span className={`text-2xs font-bold px-1.5 py-0.5 rounded-full uppercase ${CHANNEL_STYLES[log.channel] || CHANNEL_STYLES.sms}`}>
+                            {log.channel}
+                          </span>
+                          <span className={`text-2xs font-bold px-1.5 py-0.5 rounded-full ${st.chip}`}>{st.label}</span>
+                        </div>
+                        <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
+                          → {log.recipient} · {log.sentAt ? timeAgo(log.sentAt) : '—'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => handleArchive(log, false)}
+                          disabled={busyRowId === log._id}
+                          className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors disabled:opacity-50"
+                          title="Move back to the Sent list"
+                        >
+                          <UndoIcon className="w-3.5 h-3.5" />
+                          Restore
+                        </button>
+                        <button
+                          onClick={() => handleDelete(log)}
+                          disabled={busyRowId === log._id}
+                          className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors disabled:opacity-50"
+                          title="Delete permanently"
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
           )}
         </div>
       </div>

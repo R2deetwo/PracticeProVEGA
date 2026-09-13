@@ -11,7 +11,15 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { usePropertyGroups } from '../../hooks/usePropertyGroups';
-import { PlusIcon, BellIcon, TrashIcon } from '../../constants';
+import { PlusIcon, BellIcon } from '../../constants';
+
+// Archive-box icon (not in shared constants) — clearer than a trash can
+// for the archive action on notices.
+const ArchiveBoxIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
 
 interface NoticeBoardTabProps {
   firmId: string;
@@ -109,8 +117,8 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
   return (
     <div className="w-full h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4">
-        <div className="max-w-3xl mx-auto">
+      <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3">
+        <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-1">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Notice Board</h2>
@@ -229,8 +237,8 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
       </div>
 
       {/* Notices List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="max-w-3xl mx-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/60 dark:bg-zinc-950/40">
+        <div className="max-w-4xl mx-auto p-4 sm:p-6">
           {activeNotices.length === 0 && archivedNotices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mb-4">
@@ -282,10 +290,10 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                             </div>
                             <button
                               onClick={() => archiveNotice({ noticeId: notice._id }).then(() => addToast('Notice archived.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to archive.', { type: 'error' }))}
-                              className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors flex-shrink-0"
-                              title="Archive notice"
+                              className="p-1.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex-shrink-0"
+                              title="Archive notice (move to the archived list below)"
                             >
-                              <TrashIcon className="w-3.5 h-3.5" />
+                              <ArchiveBoxIcon className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>

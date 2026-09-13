@@ -30,6 +30,13 @@ import {
     normalizePortalMessage,
     sortUnifiedMessages,
 } from '../messaging/model';
+import {
+    INBOX_SECTION_IDS,
+    getSmartDefaultOpenSection,
+    loadPersistedCollapsed,
+    persistCollapsed,
+} from '../messaging/sections';
+import type { InboxSectionId } from '../messaging/sections';
 import { ListItemSkeleton } from './toolkit/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
 import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
@@ -390,7 +397,8 @@ const MessagesView: React.FC = () => {
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
     // ── Team DM state (team chat renders inside the Conversations inbox) ──
-    const myFeedback = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' }) || [];
+    const myFeedbackResult = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' });
+    const myFeedback = myFeedbackResult || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
     // Atrium: inbound WhatsApp/Email messages from residents
@@ -502,13 +510,71 @@ const MessagesView: React.FC = () => {
         team: boolean;
     }>({ request: true, ticket: true, replied: true, portal: true, team: true });
 
-    // Slack-style collapsible section state — each category can be expanded/collapsed
-    const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+    // ── Slack-style collapsible section state — SMART DEFAULTS + PERSISTED ──
+    // USER DIRECTIVE (2026-09-14): every section starts CLOSED on first
+    // visit except ONE contextually-relevant section — no team → the
+    // PracticePro support channel; Atrium → Residents; Vega/Komplete →
+    // Clients. Once the user manually collapses/expands sections, THEIR
+    // layout is remembered (per user, via localStorage) and restored on
+    // every return visit — "the one that was left open stays open".
+    const [collapsedSections, setCollapsedSections] = useState<Set<InboxSectionId>>(() =>
+        // Start fully collapsed; the effect below opens the smart default
+        // once auth + data are settled (or restores the saved layout).
+        new Set<InboxSectionId>(INBOX_SECTION_IDS)
+    );
+    const hasManualToggleRef = useRef(false);
+    const defaultsAppliedRef = useRef(false);
+
+    // Other firm members besides me → "has a team".
+    const myUserId = currentUser?.id || currentUser?._id || '';
+    const hasTeamMembers = useMemo(
+        () => (users as any[]).some((u: any) => {
+            const uid = String(u?.id || u?._id || '');
+            return uid && uid !== String(myUserId);
+        }),
+        [users, myUserId]
+    );
+
+    // Sections that actually RENDER for this product/user (an "open" state
+    // on a section that never draws is indistinguishable from all-collapsed).
+    const availableSectionCtx = useMemo(() => ({
+        isAtrium: isProperty,
+        hasTeam: hasTeamMembers,
+        hasSupportThread: (myFeedback as any[]).length > 0,
+        hasClientsSection: isLegal || isUnified,
+        hasResidentsSection: hasPropertyFeatures || isUnified,
+    }), [isProperty, hasTeamMembers, myFeedback, isLegal, isUnified, hasPropertyFeatures]);
+
+    // Apply the smart default ONCE (after data settles), or restore the
+    // user's saved layout. Never fights a manual toggle: once the user
+    // touches a section header this effect stands down permanently.
+    useEffect(() => {
+        if (hasManualToggleRef.current || defaultsAppliedRef.current) return;
+        const uid = String(currentUser?.id || currentUser?._id || '');
+        if (!uid) return;                        // wait for auth
+        if (myFeedbackResult === undefined) return;   // wait for support-thread presence
+
+        const stored = loadPersistedCollapsed(uid);
+        if (stored) {
+            setCollapsedSections(stored);
+            defaultsAppliedRef.current = true;
+            return;
+        }
+        const openSection = getSmartDefaultOpenSection(availableSectionCtx);
+        setCollapsedSections(new Set<InboxSectionId>(
+            INBOX_SECTION_IDS.filter((id) => id !== openSection)
+        ));
+        defaultsAppliedRef.current = true;
+    }, [currentUser?.id, currentUser?._id, myFeedbackResult, availableSectionCtx]);
+
     const toggleSection = (sectionId: string) => {
+        hasManualToggleRef.current = true;
         setCollapsedSections(prev => {
             const next = new Set(prev);
-            if (next.has(sectionId)) next.delete(sectionId);
-            else next.add(sectionId);
+            if (next.has(sectionId as InboxSectionId)) next.delete(sectionId as InboxSectionId);
+            else next.add(sectionId as InboxSectionId);
+            const uid = String(currentUser?.id || currentUser?._id || '');
+            if (uid) persistCollapsed(uid, next);
             return next;
         });
     };

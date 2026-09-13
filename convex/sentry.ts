@@ -819,6 +819,55 @@ export const getAutomationLogs = query({
   },
 });
 
+// ─── SENT TAB ROW MANAGEMENT (2026-09-14) ───────────────────────────────────
+// USER DIRECTIVE: "sent messages — there's no way to delete a message or
+// archive these things." Archive = soft-hide (restorable, keeps the audit
+// trail); delete = permanent removal (firm-verified, like every other
+// destructive sentry action).
+
+export const archiveAutomationLog = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    logId: v.id("automation_logs"),
+    archived: v.optional(v.boolean()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, { logId, archived, userEmail, sessionToken }) => {
+    // SECURITY: verify the caller belongs to the log's firm (same pattern
+    // as deleteInboundMessage — auth first, then firm ownership).
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
+    const log = await ctx.db.get(logId);
+    if (!log) throw new Error("Message log not found");
+    if (log.firmId !== auth.firmId) {
+      throw new Error("Not authorized: log belongs to a different firm.");
+    }
+    const next = archived ?? true;
+    await ctx.db.patch(logId, {
+      isArchived: next,
+      archivedAt: next ? Date.now() : undefined,
+    });
+    return { archived: next };
+  },
+});
+
+export const deleteAutomationLog = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    logId: v.id("automation_logs"),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, { logId, userEmail, sessionToken }) => {
+    const auth = await requireSentryAuth(ctx, userEmail, undefined, sessionToken);
+    const log = await ctx.db.get(logId);
+    if (!log) throw new Error("Message log not found");
+    if (log.firmId !== auth.firmId) {
+      throw new Error("Not authorized: log belongs to a different firm.");
+    }
+    await ctx.db.delete(logId);
+    return { deleted: true };
+  },
+});
+
 // ─── MESSAGES DELIVERY FIX ──────────────────────────────────────────────────
 // The automation crons previously wrote status:"sent" into automation_logs at
 // scheduling time and never corrected it — so the Messages screen claimed

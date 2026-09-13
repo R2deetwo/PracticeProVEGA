@@ -1270,7 +1270,12 @@ export default defineSchema({
     // behind the admin-only Details toggle.
     errorClass: v.optional(v.string()),
     messageId: v.optional(v.string()),
-    triggeredBy: v.optional(v.string()), 
+    triggeredBy: v.optional(v.string()),
+    // MESSAGES UX FIX (2026-09-14): user asked to manage the Sent tab —
+    // rows can be archived (hidden from the main list, restorable) or
+    // hard-deleted. Archiving keeps the audit trail intact for compliance.
+    isArchived: v.optional(v.boolean()),
+    archivedAt: v.optional(v.number()),
   })
     .index("by_firm", ["firmId"])
     .index("by_unit", ["unitId"])

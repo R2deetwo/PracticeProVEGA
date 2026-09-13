@@ -3055,11 +3055,31 @@ export const createScheduledMessage = mutation({
     isAutomation: v.optional(v.boolean()),
     triggeredBy: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    // MESSAGES UX FIX (2026-09-14): the Scheduled tab's form previously
+    // created rows with NO resolvable recipient (tenantIds empty) — the cron
+    // could only fail them with "no email address could be resolved". The
+    // dispatch path already prefers the contact embedded at scheduling
+    // time (recipientEmail/recipientPhone), so the form now passes it.
+    recipientEmail: v.optional(v.string()),
+    recipientPhone: v.optional(v.string()),
+    recipientName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: firmId was trusted — any caller could schedule
     // messages into another firm's pipeline.
     const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
+    // MESSAGES UX FIX: reject rows the dispatch cron could never deliver —
+    // a scheduled message with no resolvable recipient is a silent failure.
+    const hasTenantRecipients = !!(args.tenantIds && args.tenantIds.length > 0);
+    if (args.channel === "email" && !args.recipientEmail && !hasTenantRecipients) {
+      throw new Error("Enter the recipient's email address (or select recipients) to schedule an email.");
+    }
+    if (args.channel === "whatsapp" && !args.recipientPhone && !hasTenantRecipients) {
+      throw new Error("Enter the recipient's phone number (or select recipients) to schedule a WhatsApp message.");
+    }
+    if (args.scheduledFor <= Date.now()) {
+      throw new Error("Pick a future date and time — messages due now are sent immediately from the compose window.");
+    }
     const { sessionToken: _st, ...record } = args;
     const now = Date.now();
     return await ctx.db.insert("scheduled_messages", {
