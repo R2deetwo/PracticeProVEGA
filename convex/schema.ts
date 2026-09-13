@@ -550,6 +550,14 @@ export default defineSchema({
     // Prevents duplicate chat messages on network retry. Generated client-side
     // per send attempt; the sendChatMessage mutation dedups on (authorId, idempotencyKey).
     idempotencyKey: nullableString,
+    // ─── ATTACHMENTS ───────────────────────────────────────────────────
+    // Convex file-storage IDs of files attached to the message (uploaded via
+    // generateUploadUrl) + display names. Optional + only written when
+    // non-empty — matches the sendChatMessage validator (REGRESSION GUARD:
+    // the client previously sent these fields with no schema/validator home,
+    // and Convex rejected every team DM send as an "extra field").
+    attachments: v.optional(v.array(v.string())),
+    attachmentNames: v.optional(v.array(v.string())),
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
   }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_idempotency", ["idempotencyKey"]),

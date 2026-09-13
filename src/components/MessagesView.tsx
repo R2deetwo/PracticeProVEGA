@@ -2151,8 +2151,13 @@ const MessagesView: React.FC = () => {
                                                                 // can see and download the files. Previously attachments were
                                                                 // uploaded to Convex storage but the storageId was discarded
                                                                 // — files were silently lost.
-                                                                attachments: attachments.map(a => a.storageId),
-                                                                attachmentNames: attachments.map(a => a.name),
+                                                                // REGRESSION GUARD (messages-don't-send bug): send these ONLY
+                                                                // when non-empty. `.map()` on an empty array produces `[]`,
+                                                                // which is still a payload field — the old backend validator
+                                                                // rejected it and EVERY text-only team DM failed with
+                                                                // ArgumentValidationError "extra field 'attachmentNames'".
+                                                                attachments: attachments.length > 0 ? attachments.map(a => a.storageId) : undefined,
+                                                                attachmentNames: attachments.length > 0 ? attachments.map(a => a.name) : undefined,
                                                                 idempotencyKey: uuidv4(),
                                                             });
                                                         } catch (err: any) { console.error('[Team chat] Reply failed:', err); addToast(err?.message || 'Failed to send message. Please try again.', { type: 'error' }); }

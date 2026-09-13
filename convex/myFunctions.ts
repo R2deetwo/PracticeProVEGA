@@ -3100,6 +3100,17 @@ export const sendChatMessage = mutation({
     // returns the existing messageId WITHOUT inserting a duplicate or
     // re-issuing notifications. Generate on the client with uuidv4() per send.
     idempotencyKey: v.optional(v.string()),
+    // ─── ATTACHMENTS ─────────────────────────────────────────────
+    // Convex file-storage IDs of files attached to this message (uploaded
+    // client-side via generateUploadUrl). REGRESSION GUARD: these fields were
+    // previously sent by the client WITHOUT existing here — Convex rejected
+    // EVERY team DM send with ArgumentValidationError "extra field
+    // 'attachmentNames'" (empty arrays are still extra fields). They are now
+    // first-class args, sanitized and persisted onto the chatMessages row.
+    // Client MUST omit them (pass undefined) when there are no attachments —
+    // never empty arrays — so plain-text sends stay minimal.
+    attachments: v.optional(v.array(v.string())),
+    attachmentNames: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     // 1. Authenticate the caller (verifies session OR userEmail fallback).
@@ -3108,6 +3119,17 @@ export const sendChatMessage = mutation({
     const senderId = args.authorId || auth.userId;
     const senderName = args.authorName || auth.user?.name || "A colleague";
     const now = new Date().toISOString();
+
+    // ─── ATTACHMENT SANITIZATION ─────────────────────────────────
+    // Cap the count and string lengths, and align names to ids so a malformed
+    // or hostile payload can never write runaway data into chatMessages.
+    const MAX_ATTACHMENTS = 10;
+    const rawAttachments = (args.attachments ?? []).filter((s) => typeof s === "string" && s.length > 0);
+    const attachments = rawAttachments.slice(0, MAX_ATTACHMENTS).map((s) => s.slice(0, 200));
+    const attachmentNames = attachments.map((_, i) => {
+      const raw = args.attachmentNames?.[i];
+      return (typeof raw === "string" && raw.trim().length > 0) ? raw.trim().slice(0, 200) : `File ${i + 1}`;
+    });
 
     // ─── DEDUP CHECK ──────────────────────────────────────────────────
     // If idempotencyKey is provided, check for an existing message with the
@@ -3188,6 +3210,9 @@ export const sendChatMessage = mutation({
       status: "sent",
       // Persist idempotencyKey so future retries can dedup against this row
       idempotencyKey: args.idempotencyKey || null,
+      // Attachments (Convex storage IDs + display names). Spread only when
+      // non-empty so pre-existing rows and no-attachment messages stay clean.
+      ...(attachments.length > 0 ? { attachments, attachmentNames } : {}),
     });
 
     // 4. Create notifications for every OTHER member of the conversation.
