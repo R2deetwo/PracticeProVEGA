@@ -36,7 +36,7 @@ import { useConfirm } from '../ui/ConfirmDialog';
 import { usePropertyGroups } from '../../hooks/usePropertyGroups';
 import { PlusIcon, ClockIcon, TrashIcon, SendIcon, SearchIcon } from '../../constants';
 import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
-import { partitionScheduledMessages, isDueNow } from '../../messaging/sections';
+import { isDueNow } from '../../messaging/sections';
 import { renderMergeFields, hasMergeFields, nextRentDueTs, MERGE_FIELD_TAGS } from '../../utils/mergeFields';
 import { AutomationWorkflows } from './AutomationWorkflows';
 import { BoltIcon, PauseIcon, PlayIcon } from './ScheduledTabIcons';
