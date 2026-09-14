@@ -125,7 +125,9 @@ describe('chat sender identity (source-scanned contract)', () => {
         const aloa = read('src/components/aloa/AloaChat.tsx');
         expect(aloa).toContain('overflow-y-auto overflow-x-hidden');
 
-        const tenant = read('src/components/tenant/TenantPortal.tsx');
+        // P5 split: the tenant chat surface moved from the TenantPortal.tsx
+        // monolith into TenantPortal/MessagesTab.tsx.
+        const tenant = read('src/components/tenant/TenantPortal/MessagesTab.tsx');
         expect(tenant).toContain('overflow-y-auto overflow-x-hidden');
     });
 });
