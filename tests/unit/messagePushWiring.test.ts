@@ -133,7 +133,7 @@ describe('push wiring — server side (source contract)', () => {
         expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
         expect(block).toContain('userIds: recipientIds');
         // A push failure must never fail the message send.
-        expect(block).toMatch(/Push dispatch failed/);
+        expect(block).toMatch(/logError\(/); // P6: failures now recorded to error_events, not just consoled
     });
 
     it('notifyFirmAdmins dispatches a real FCM push to the firm admins (all portal inbound)', () => {
@@ -171,7 +171,7 @@ describe('push wiring — server side (source contract)', () => {
         expect(block).toContain('tag: `feedback:');
         expect(block).toContain('practicepro-messages');
         // A push failure must never fail the reply.
-        expect(block).toMatch(/Push dispatch failed/);
+        expect(block).toMatch(/logError\(/); // P6: failures now recorded to error_events, not just consoled
     });
 
     it('adminReplyToFeedback dispatches a real FCM push to the thread owner (founder → user)', () => {
@@ -179,13 +179,13 @@ describe('push wiring — server side (source contract)', () => {
         expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
         expect(block).toContain('feedback.userId');
         expect(block).toContain('tag: `feedback:');
-        expect(block).toMatch(/Push dispatch failed/);
+        expect(block).toMatch(/logError\(/); // P6: failures now recorded to error_events, not just consoled
     });
 
     it('submitFeedback notifies founders of new threads/issues with a categorized push', () => {
         const block = fnBlock(read('convex/feedback.ts'), 'export const submitFeedback = mutation');
         expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
-        expect(block).toMatch(/Founder notification failed/);
+        expect(block).toMatch(/logError\(/); // P6: failures now recorded to error_events
         // Issue-like reports land on the tasks channel, everything else on messages.
         expect(block).toContain('practicepro-tasks');
         expect(block).toContain('practicepro-messages');
@@ -214,14 +214,14 @@ describe('push wiring — server side (source contract)', () => {
     it('updateMaintenanceTicketStatus pushes status changes to the resident', () => {
         const block = fnBlock(read('convex/portals.ts'), 'export const updateMaintenanceTicketStatus = mutation');
         expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
-        expect(block).toMatch(/Push to resident failed/);
+        expect(block).toMatch(/logError\(/); // P6: failures now recorded to error_events
         expect(block).toContain('practicepro-tasks');
     });
 
     it('updateClientServiceRequestStatus pushes status changes to the client', () => {
         const block = fnBlock(read('convex/portals.ts'), 'export const updateClientServiceRequestStatus = mutation');
         expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
-        expect(block).toMatch(/Push to client failed/);
+        expect(block).toMatch(/logError\(/); // P6: failures now recorded to error_events
     });
 });
 
