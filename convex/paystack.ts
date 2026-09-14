@@ -25,6 +25,7 @@
 
 import { internalAction, httpAction, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { randomHex } from "./secureRandom";
@@ -146,7 +147,11 @@ export const initiateClientPayment = action({
       // Non-fatal: invoice may not exist for subscription-only flows.
       // The reference is also stored in the subscriptionRequests table
       // (created by createSubscriptionRequest) so the webhook can match.
-      console.warn(`[initiateClientPayment] Could not mark invoice reference (may be a subscription-only flow): ${(e as any)?.message}`);
+      await logError(ctx, {
+        scope: "payment", name: "paystack:initiateClientPayment:markInvoiceReference",
+        error: e, severity: "warning",
+        context: { reference, note: "may be a subscription-only flow" },
+      });
     }
 
     // If this is a subscription payment (firmId + plan provided), also store
@@ -162,7 +167,12 @@ export const initiateClientPayment = action({
           amount: args.amount,
         });
       } catch (e) {
-        console.warn(`[initiateClientPayment] Could not mark subscription request reference: ${(e as any)?.message}`);
+        await logError(ctx, {
+          scope: "payment", name: "paystack:initiateClientPayment:markSubscriptionReference",
+          error: e, severity: "warning",
+          firmId: args.firmId || null,
+          context: { reference, plan: args.plan, billingInterval: args.billingInterval },
+        });
       }
     }
 
@@ -513,7 +523,11 @@ export const recordPaystackEvent = internalMutation({
             });
           }
         } catch (e: any) {
-          console.warn('[paystack] tenant proof verification hook failed:', e?.message);
+          await logError(ctx, {
+            scope: "payment", name: "paystack:webhook:tenantProofVerification",
+            error: e, severity: "warning",
+            context: { reference: args.reference },
+          });
         }
       }
     }

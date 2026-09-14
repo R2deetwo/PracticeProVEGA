@@ -38,6 +38,7 @@ import {
   internalAction,
 } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 import { withCronReporting } from "./observability";
@@ -635,9 +636,12 @@ export const processOutboxEntry = internalAction({
       { outboxId: args.outboxId },
     );
     if (!entry) {
-      console.warn(
-        `[retainerBilling.processOutboxEntry] entry not found: ${args.outboxId}`,
-      );
+      await logError(ctx, {
+        scope: "payment", name: "retainerBilling:processOutboxEntry:missingEntry",
+        error: new Error(`entry not found: ${args.outboxId}`),
+        severity: "warning",
+        context: { outboxId: args.outboxId },
+      });
       return;
     }
     if (entry.state !== "Queued") {

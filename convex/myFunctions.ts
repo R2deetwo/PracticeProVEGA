@@ -2,6 +2,7 @@
 import { query, mutation, action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
+import { logError } from "./observability";
 import { Id } from "./_generated/dataModel";
 import { checkRateLimit } from "./securityHelpers";
 
@@ -3722,7 +3723,12 @@ export const sendChatMessage = mutation({
           notificationCount: messageCount,
         });
       } catch (e: any) {
-        console.warn("[sendChatMessage] Push dispatch failed:", e?.message);
+        await logError(ctx, {
+          scope: "messaging", name: "myFunctions:sendChatMessage:pushDispatch",
+          error: e, severity: "warning",
+          firmId,
+          context: { conversationId, recipients: recipientIds.length },
+        });
       }
     }
 

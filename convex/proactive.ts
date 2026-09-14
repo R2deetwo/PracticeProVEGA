@@ -1,5 +1,6 @@
 import { internalMutation, internalAction, internalQuery, query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { internal } from "./_generated/api";
 import { requireStaffCaller, assertSameFirm } from "./callerAuth";
 
@@ -563,7 +564,11 @@ export const generateMorningBriefing = internalAction({
       // ── CALL AI ──────────────────────────────────────────────────
       const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
       if (!apiKey) {
-        console.warn(`[Proactive] No API key for firm ${firmId}, skipping briefing.`);
+        await logError(ctx, {
+          scope: "automation", name: "proactive:briefing:missingApiKey",
+          error: new Error("GEMINI_API_KEY not set — briefing skipped"),
+          severity: "warning", firmId,
+        });
         continue;
       }
 
@@ -584,7 +589,11 @@ export const generateMorningBriefing = internalAction({
         );
 
         if (!aiResponse.ok) {
-          console.warn(`[Proactive] AI call failed for firm ${firmId}: ${aiResponse.statusText}`);
+          await logError(ctx, {
+            scope: "automation", name: "proactive:briefing:aiCallFailed",
+            error: new Error(`Gemini call failed: ${aiResponse.statusText}`),
+            severity: "warning", firmId,
+          });
           continue;
         }
 
@@ -610,7 +619,10 @@ export const generateMorningBriefing = internalAction({
           briefingsCreated++;
         }
       } catch (err) {
-        console.error(`[Proactive] Briefing generation error for firm ${firmId}:`, err);
+        await logError(ctx, {
+          scope: "automation", name: "proactive:briefing:generation",
+          error: err, firmId,
+        });
       }
     }
 

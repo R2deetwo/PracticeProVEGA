@@ -1,6 +1,7 @@
 
 import { mutation, query, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { api, internal } from "./_generated/api";
 import { resolveCaller, requireFounderCaller } from "./callerAuth";
 
@@ -156,7 +157,10 @@ export const submitFeedback = mutation({
         });
       }
     } catch (e: any) {
-      console.warn("[submitFeedback] Founder notification failed:", e?.message);
+      await logError(ctx, {
+        scope: "messaging", name: "feedback:submit:founderNotification",
+        error: e, severity: "warning",
+      });
     }
 
     return feedbackId;
@@ -242,7 +246,10 @@ export const getFeedbackList = query({
 
       return filtered;
     } catch (error: any) {
-      console.error('[getFeedbackList] Error:', error);
+      await logError(ctx, {
+        scope: "messaging", name: "feedback:getFeedbackList",
+        error,
+      });
       // Return empty array on any error — never throw to the client
       return [];
     }
@@ -536,7 +543,11 @@ export const adminReplyToFeedback = mutation({
         notificationCount: Math.max(1, replyCount),
       });
     } catch (e: any) {
-      console.warn("[adminReplyToFeedback] Push dispatch failed:", e?.message);
+      await logError(ctx, {
+        scope: "messaging", name: "feedback:adminReply:pushDispatch",
+        error: e, severity: "warning",
+        context: { feedbackId: args.feedbackId },
+      });
     }
 
     // ─── Send Brevo email to the user (OPTIONAL) ────────────────────
@@ -597,7 +608,11 @@ export const sendReplyEmail = internalAction({
       } as any);
       console.log(`[feedback] Reply email sent to ${args.userEmail}`);
     } catch (e: any) {
-      console.error(`[feedback] Failed to send reply email to ${args.userEmail}:`, e.message);
+      await logError(ctx, {
+        scope: "messaging", name: "feedback:adminReply:replyEmail",
+        error: e,
+        context: { userEmail: args.userEmail },
+      });
     }
   },
 });
@@ -722,7 +737,11 @@ export const userReplyToFeedback = mutation({
           notificationCount: replyCount,
         });
       } catch (e: any) {
-        console.warn("[userReplyToFeedback] Push dispatch failed:", e?.message);
+        await logError(ctx, {
+          scope: "messaging", name: "feedback:userReply:pushDispatch",
+          error: e, severity: "warning",
+          context: { feedbackId: args.feedbackId },
+        });
       }
     }
 

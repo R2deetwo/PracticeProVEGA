@@ -30,6 +30,93 @@ import { requireFounder } from "./founderMetrics";
 
 export const ERROR_RETENTION_DAYS = 30;
 
+// ─── Shared logging helper (P6 adoption, 2026-09-14) ────────────────────────
+
+/**
+ * logError — the one-liner error paths should call instead of console.log.
+ *
+ * Writes a row to `error_events` with severity, function name, and relevant
+ * context (firmId / userId / arbitrary JSON), AND keeps a compact
+ * console.error line so the Convex dashboard logs stay readable. Never
+ * throws — a reporting problem must never make the failure worse.
+ *
+ * Works from any Convex context:
+ *   - mutation ctx  → direct transactional table write
+ *   - action ctx    → relay through the internal capture mutation
+ *
+ * Usage:
+ *   } catch (e) {
+ *     await logError(ctx, {
+ *       scope: "payment",
+ *       name: "payments:completePaystackPayment",
+ *       error: e,
+ *       severity: "warning",
+ *       firmId: args.firmId,
+ *       context: { reference: args.reference },
+ *     });
+ *   }
+ */
+export async function logError(
+  ctx: any,
+  opts: {
+    scope: string;                 // 'payment' | 'messaging' | 'automation' | ...
+    name: string;                  // '<file>:<function>' identifier
+    error: unknown;                // the thrown error (or new Error('state'))
+    severity?: "error" | "warning";
+    firmId?: string | null;
+    userId?: string | null;
+    context?: Record<string, unknown>;
+  }
+): Promise<void> {
+  try {
+    const message = String(
+      (opts.error as any)?.message || opts.error || "unknown error"
+    ).slice(0, 2000);
+
+    // Keep dashboard logs readable — same info, one line. Emitted BEFORE
+    // context building so even an unserializable context can't silence it.
+    console.error(`[${opts.scope}] ${opts.name}: ${message}`);
+
+    let context: string | undefined;
+    try {
+      context = JSON.stringify({
+        ...(opts.firmId ? { firmId: opts.firmId } : {}),
+        ...(opts.userId ? { userId: opts.userId } : {}),
+        ...(opts.context ?? {}),
+      })?.slice(0, 4000);
+    } catch {
+      context = JSON.stringify({ contextError: "unserializable context" });
+    }
+
+    if (typeof ctx?.db?.insert === "function") {
+      await ctx.db.insert("error_events", {
+        scope: opts.scope,
+        name: opts.name,
+        message,
+        stack: (opts.error as any)?.stack
+          ? String((opts.error as any).stack).slice(0, 4000)
+          : undefined,
+        context,
+        severity: opts.severity ?? "error",
+        timestamp: Date.now(),
+      });
+    } else if (typeof ctx?.runMutation === "function") {
+      await ctx.runMutation(internal.observability.captureErrorEvent, {
+        scope: opts.scope,
+        name: opts.name,
+        message,
+        stack: (opts.error as any)?.stack
+          ? String((opts.error as any).stack).slice(0, 4000)
+          : undefined,
+        context,
+        severity: opts.severity ?? "error",
+      });
+    }
+  } catch {
+    // Never let telemetry break the caller.
+  }
+}
+
 // ─── Writers (internal only — never exposed to the client) ──────────────────
 
 export const captureErrorEvent = internalMutation({

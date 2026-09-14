@@ -23,6 +23,7 @@
 
 import { internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { internal } from "./_generated/api";
 
 // ─── PROVIDER SELECTION ─────────────────────────────────────────────────────
@@ -167,7 +168,12 @@ export const completePaystackPayment = internalMutation({
       } as any);
       invoiceId = invoice._id;
     } else {
-      console.warn(`[completePaystackPayment] No invoice found for reference ${args.reference}`);
+      await logError(ctx, {
+        scope: "payment", name: "payments:completePaystackPayment:noInvoice",
+        error: new Error(`No invoice found for reference ${args.reference}`),
+        severity: "warning",
+        context: { reference: args.reference },
+      });
     }
 
     // ─── CRO AUDIT FIX (B7): also check subscriptionRequests for this reference ──

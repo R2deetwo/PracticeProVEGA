@@ -1,5 +1,6 @@
 import { action, internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
 
@@ -82,7 +83,11 @@ export const sendEmail = action({
       // { success: true, simulated: true } here, so every caller that only
       // checked result.success marked the message "sent" while NOTHING was
       // delivered. An unconfigured provider is a FAILURE, not a success.
-      console.warn("[Brevo] No API key set (PracticePro_Vega_Mailer / BREVO_API_KEY) — email NOT delivered.");
+      await logError(_ctx, {
+        scope: "messaging", name: "communications:brevo:missingApiKey",
+        error: new Error("Brevo API key not set — email NOT delivered"),
+        severity: "warning",
+      });
       return {
         success: false,
         simulated: true,
@@ -135,7 +140,11 @@ export const sendEmail = action({
 
       if (!response.ok) {
         const err = await response.text();
-        console.error("[Brevo] API Error:", err);
+        await logError(_ctx, {
+          scope: "messaging", name: "communications:brevo:apiError",
+          error: new Error(`Brevo API error (${response.status}): ${err}`),
+          context: { status: response.status },
+        });
         return { success: false, simulated: false, error: `Brevo API error (${response.status}): ${err}` };
       }
 
@@ -144,7 +153,10 @@ export const sendEmail = action({
       // audit trail can correlate with the provider.
       return { success: true, simulated: false, messageId: data?.messageId };
     } catch (error: any) {
-      console.error("[Brevo] Send failed:", error);
+      await logError(_ctx, {
+        scope: "messaging", name: "communications:brevo:sendFailed",
+        error,
+      });
       return { success: false, simulated: false, error: error.message };
     }
   },
@@ -267,7 +279,12 @@ export const sendWhatsApp = action({
         if (!response.ok || !data) {
           const parsed = extractWaError(data);
           const errText = parsed ?? (raw && raw.length > 0 ? raw.slice(0, 300) : null);
-          console.error("[WhatsApp] Chakra API Error:", response.status, raw.slice(0, 1000));
+          await logError(ctx, {
+            scope: "messaging", name: "communications:whatsapp:chakraApiError",
+            error: new Error(`Chakra API error (HTTP ${response.status})`),
+            severity: "warning",
+            context: { status: response.status, body: raw.slice(0, 500) },
+          });
           // 402 is Chakra's billing gate (template sends disabled on the
           // current plan) — classify it so the admin UI can show the upgrade
           // banner and disabled send instead of a cryptic raw error.
@@ -285,7 +302,12 @@ export const sendWhatsApp = action({
         const messageId = data?.messages?.[0]?.id;
         if (!messageId) {
           const parsed = extractWaError(data);
-          console.error("[WhatsApp] Chakra 200 but no Meta message id — treating as failure:", raw.slice(0, 1000));
+          await logError(ctx, {
+            scope: "messaging", name: "communications:whatsapp:noMessageId",
+            error: new Error("Chakra 200 but no Meta message id — treating as failure"),
+            severity: "warning",
+            context: { body: raw.slice(0, 500) },
+          });
           return {
             ok: false, httpStatus: response.status, data, raw,
             errorClass: classifyWhatsAppError(parsed, response.status),
@@ -295,7 +317,10 @@ export const sendWhatsApp = action({
         }
         return { ok: true, httpStatus: response.status, data, raw, messageId };
       } catch (error: any) {
-        console.error("[WhatsApp] Send failed:", error);
+        await logError(ctx, {
+          scope: "messaging", name: "communications:whatsapp:sendFailed",
+          error,
+        });
         // httpStatus 0 = the fetch itself threw (network/DNS/timeout) —
         // classified as service_unavailable, never a silent "unknown".
         return { ok: false, httpStatus: 0, data: null, raw: "", errorClass: "service_unavailable", error: explainWhatsAppError(error?.message || String(error), 0) };
@@ -318,7 +343,10 @@ export const sendWhatsApp = action({
           reason: blocked ? (result.error ?? "") : undefined,
         });
       } catch (e: any) {
-        console.warn("[WhatsApp] gateway-health write failed:", e?.message || e);
+        await logError(ctx, {
+          scope: "messaging", name: "communications:whatsapp:gatewayHealthWrite",
+          error: e, severity: "warning", firmId: args.firmId,
+        });
       }
     };
 
@@ -448,7 +476,10 @@ async function resolveFirmTemplateMapping(
       varOrder: Array.isArray(doc.varOrder) ? doc.varOrder.map(String) : undefined,
     };
   } catch (e: any) {
-    console.warn("[WhatsApp] mapping lookup failed:", e?.message || e);
+    await logError(ctx, {
+      scope: "messaging", name: "communications:whatsapp:mappingLookup",
+      error: e, severity: "warning",
+    });
     return null;
   }
 }

@@ -40,6 +40,7 @@
 
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { logError } from "./observability";
 import { internal } from "./_generated/api";
 import { requireStaffCaller, assertSameFirm } from "./callerAuth";
 import { createUnitResolver, canonicalTenantId } from "./unitLookup";
@@ -765,7 +766,11 @@ export const runAutomationEngine = internalMutation({
           if (!resolve) continue;
           let targets: EngineTarget[] = [];
           try { targets = await resolve(); } catch (e: any) {
-            console.warn(`[automationEngine] target resolution failed firm=${firmId} wf=${wf.def.key}:`, e?.message);
+            await logError(ctx, {
+              scope: "automation", name: "automationEngine:targetResolution",
+              error: e, severity: "warning", firmId,
+              context: { workflow: wf.def.key },
+            });
             continue;
           }
           if (targets.length === 0) continue;
@@ -842,11 +847,18 @@ export const runAutomationEngine = internalMutation({
             enqueued++;
             if (isPaymentWf) claimedToday.add(String(t.tenantKey));
           } catch (e: any) {
-            console.warn(`[automationEngine] enqueue failed firm=${firmId} wf=${wf.def.key} step=${step.key}:`, e?.message);
+            await logError(ctx, {
+              scope: "automation", name: "automationEngine:enqueue",
+              error: e, severity: "warning", firmId,
+              context: { workflow: wf.def.key, step: step.key },
+            });
           }
         }
       } catch (e: any) {
-        console.warn(`[automationEngine] firm ${firmId} failed:`, e?.message);
+        await logError(ctx, {
+          scope: "automation", name: "automationEngine:firmRun",
+          error: e, firmId,
+        });
       }
     }
     console.log(`[automationEngine] firms=${firms.length} workflows=${workflowsRun} enqueued=${enqueued} suppressed=${suppressed} skipped=${skipped}`);

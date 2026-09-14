@@ -1,6 +1,7 @@
 import { mutation, query, action, internalQuery, internalMutation, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
+import { logError } from "./observability";
 import { requireFirmUser } from "./authHelpers";
 import { requireStaffCaller, requirePortalCaller, resolveCaller, assertSameFirm } from "./callerAuth";
 import { withCronReporting } from "./observability";
@@ -158,7 +159,11 @@ export const createMaintenanceTicket = mutation({
         actorEmail: undefined,
       });
     } catch (err) {
-      console.warn("[createMaintenanceTicket] Failed to notify admins:", (err as any)?.message);
+      await logError(ctx, {
+        scope: "messaging", name: "portals:createMaintenanceTicket:notifyAdmins",
+        error: err, severity: "warning",
+        firmId: args.firmId,
+      });
     }
 
     return ticketId;
@@ -361,7 +366,11 @@ export const updateMaintenanceTicketStatus = mutation({
             });
           }
         } catch (pushErr: any) {
-          console.warn('[updateMaintenanceTicketStatus] Push to resident failed:', pushErr?.message);
+          await logError(ctx, {
+            scope: "messaging", name: "portals:updateMaintenanceTicketStatus:pushToResident",
+            error: pushErr, severity: "warning",
+            context: { ticketId, status: updates.status },
+          });
         }
       }
     }
@@ -1047,7 +1056,11 @@ export const createClientServiceRequest = mutation({
         actorEmail: args.clientEmail,
       });
     } catch (err) {
-      console.warn("[createClientServiceRequest] Failed to notify admins:", (err as any)?.message);
+      await logError(ctx, {
+        scope: "messaging", name: "portals:createClientServiceRequest:notifyAdmins",
+        error: err, severity: "warning",
+        firmId: args.firmId,
+      });
     }
 
     return requestId;
@@ -1159,7 +1172,11 @@ export const updateClientServiceRequestStatus = mutation({
             });
           }
         } catch (pushErr: any) {
-          console.warn('[updateClientServiceRequestStatus] Push to client failed:', pushErr?.message);
+          await logError(ctx, {
+            scope: "messaging", name: "portals:updateClientServiceRequestStatus:pushToClient",
+            error: pushErr, severity: "warning",
+            context: { requestId, status: updates.status },
+          });
         }
       }
     }
