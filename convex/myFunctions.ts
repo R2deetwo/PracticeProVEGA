@@ -3208,7 +3208,11 @@ export const sendChatMessage = mutation({
     attachmentNames: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    // 1. Authenticate the caller (verifies session OR userEmail fallback).
+    // 1. Authenticate the caller. Strict identity (R16): only a verified
+    //    bearer sessionToken (or a server-managed Convex Auth identity in
+    //    resolveCaller-based flows) resolves a caller — see callerAuth.ts
+    //    resolveCaller / authHelpers.ts requireFirmUser. The userEmail arg
+    //    is accepted for backward API compatibility but is IGNORED.
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
     const senderId = args.authorId || auth.userId;

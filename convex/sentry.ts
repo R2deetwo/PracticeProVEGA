@@ -19,8 +19,10 @@ import { withCronReporting } from "./observability";
  * Sentry functions previously trusted client-supplied firmId with ZERO
  * caller verification — anyone could read/write ANY firm's ledger, service
  * charges, pipeline and inbox (critical IDOR). This helper enforces:
- *   1. Caller has a verified user session (userEmail → users table lookup;
- *      portal roles Tenant/Client are blocked by requireFirmUser).
+ *   1. Caller has a verified bearer session (requireFirmUser validates the
+ *      sessionToken hash against the sessions table; the caller-supplied
+ *      userEmail arg is ignored — see authHelpers.ts). Portal roles
+ *      Tenant/Client are blocked by requireFirmUser.
  *   2. If a firmId is supplied, it must match the caller's own firm.
  * Returns the verified auth context so writes use the session-derived
  * firmId, never raw client input.

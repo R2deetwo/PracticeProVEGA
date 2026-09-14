@@ -16,14 +16,16 @@
  *     the presented token (pure-TS sha256 — runs in queries/mutations,
  *     where node:crypto is unavailable).
  *   - Sessions expire (30 days) and are revoked on logout / on demand.
- *   - resolveCaller (callerAuth.ts) now trusts a valid session first and
- *     logs the legacy email path during the migration window. Round 15
- *     flips strict mode on: email-only identity will be REJECTED.
+ *   - resolveCaller (callerAuth.ts) trusts a valid session first. The
+ *     legacy email acceptance branch was DELETED at the Round 16 cutover:
+ *     email-only identity is REJECTED (proven live by production spoof
+ *     probes).
  *
- * MIGRATION WINDOW (Rounds 13→15): existing callers keep sending emails;
- * nothing breaks. AuthContext stores the session token from login and
- * revokes it on logout. The ~165 call-site sweep to `sessionToken` is
- * Round 15's work — this is the foundation it needs.
+ * MIGRATION WINDOW (Rounds 13→15) — CLOSED at Round 16: callers still send
+ * userEmail for API-shape compatibility, but it is ignored by auth.
+ * AuthContext stores the session token from login and revokes it on
+ * logout. The ~165 call-site sweep to `sessionToken` completed in
+ * Round 15; this module is now the only accepted identity proof.
  */
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";

@@ -43,7 +43,7 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
 );
 
 const TrustAccountTab: React.FC = () => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { coreState } = useCoreState();
     const { addToast } = useUI();
     const { confirm, ConfirmDialog } = useConfirm();
@@ -54,8 +54,20 @@ const TrustAccountTab: React.FC = () => {
     const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
 
     // ─── Queries ────────────────────────────────────────────────────────
-    const trustBalance = useQuery(api.trustAccount.getTrustBalance, firmId ? { firmId } : 'skip');
-    const transactions = useQuery(api.trustAccount.getTrustTransactions, firmId ? { firmId } : 'skip');
+    // R16 strict identity: every guarded Convex call needs the bearer
+    // sessionToken. These two queries previously passed ONLY firmId —
+    // after the strict cutover the handlers threw "Unauthenticated" on
+    // every call, so the balance card stayed "—" and the ledger never
+    // loaded (silent useQuery failure — no error toast). Same pattern as
+    // VmsAddonPanel / DataProvider createItem.
+    const trustBalance = useQuery(
+        api.trustAccount.getTrustBalance,
+        firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
+    );
+    const transactions = useQuery(
+        api.trustAccount.getTrustTransactions,
+        firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
+    );
 
     // ─── PER-TRANSACTION CLIENT TRUST BALANCE (Phase 3) ────────────────────
     // Each transaction row already showed the FIRM-wide running balance —
@@ -161,6 +173,8 @@ const TrustAccountTab: React.FC = () => {
                             }
                             await recordTransaction({
                                 firmId,
+                                userEmail: currentUser?.email,
+                                sessionToken: (bearerToken ?? undefined),
                                 matterId: data.matterId,
                                 clientName: data.clientName,
                                 type: 'deposit',
@@ -212,6 +226,8 @@ const TrustAccountTab: React.FC = () => {
                             }
                             await recordTransaction({
                                 firmId,
+                                userEmail: currentUser?.email,
+                                sessionToken: (bearerToken ?? undefined),
                                 matterId: data.matterId,
                                 clientName: data.clientName,
                                 type: data.transferToOperating ? 'transfer' : 'withdrawal',
@@ -281,7 +297,7 @@ const TrustAccountTab: React.FC = () => {
                                         });
                                         if (!ok) return;
                                         try {
-                                            await deleteTransaction({ transactionId: tx._id, firmId });
+                                            await deleteTransaction({ transactionId: tx._id, firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                                             addToast('Transaction deleted.', { type: 'success' });
                                         } catch (err: any) {
                                             addToast(err.message || 'Failed to delete.', { type: 'error' });
