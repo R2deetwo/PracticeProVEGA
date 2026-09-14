@@ -517,8 +517,9 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <p>Subscriptions automatically renew at the end of each billing period unless you cancel before the renewal date. We will notify you of upcoming renewals.</p>
                                 </div>
                                 <div id="12-3" className="space-y-8">
-                                    <h3 className="text-xl font-bold">12.3 Non-refundable</h3>
-                                    <p>Subscription fees are non-refundable, except where we have materially failed to deliver the subscribed services, or as otherwise required by the Federal Competition and Consumer Protection Act 2018.</p>
+                                    <h3 className="text-xl font-bold">12.3 Refunds</h3>
+                                    <p>Subscription fees are non-refundable, except: (a) annual plans include a 30-day money-back guarantee — if you submit a refund request within 30 days of payment (from Settings, Billing &amp; Plans, or by contacting us), we will refund the annual subscription fee in full; (b) where we have materially failed to deliver the subscribed services; or (c) as otherwise required by the Federal Competition and Consumer Protection Act 2018.</p>
+                                    <p>Refund requests are reviewed within 24 hours of submission and, once approved, are processed to your original payment method. Depending on your bank, a processed refund may take 5–10 business days to appear. Refunds for monthly plans and for requests made outside the 30-day guarantee window are granted at our discretion, considering the circumstances of the request and the services already delivered.</p>
                                 </div>
                                 <div id="12-4" className="space-y-8">
                                     <h3 className="text-xl font-bold">12.4 Price changes</h3>

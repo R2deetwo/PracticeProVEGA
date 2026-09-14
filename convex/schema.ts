@@ -2278,6 +2278,55 @@ export default defineSchema({
     .index("by_custom_id", ["id"])
     .index("by_idempotency", ["idempotencyKey"]),
 
+  // ─── REFUND REQUESTS (P3 — 30-day money-back guarantee backend) ─────────
+  // Minimal refund pipeline. Marketing promises a "30-day money-back
+  // guarantee on annual plans" (LandingPage badge/FAQ, UsagePolicy §7.1,
+  // ResourcesPage, README) — this table makes that promise operational:
+  //   1. A firm user (customer) submits a request from Settings → Billing,
+  //      OR the founder files one on a customer's behalf (email/WhatsApp
+  //      requests that arrive outside the app).
+  //   2. The founder approves or denies it (human decision — never auto).
+  //   3. The founder executes the money movement MANUALLY in the Paystack
+  //      dashboard (the app deliberately does NOT call the Paystack refund
+  //      API) and marks the request processed, pasting the refund reference.
+  //   4. The paystack webhook's refund.processed event closes the loop:
+  //      an approved request is auto-marked processed when Paystack
+  //      confirms the money moved (see convex/paystack.ts).
+  // Status flow: 'pending' → 'approved' → 'processed'
+  //                        ↘ 'denied'
+  //              'pending' → 'cancelled' (withdrawn by the requesting firm)
+  refundRequests: defineTable({
+    firmId: v.string(),                     // firm the refund concerns
+    subscriptionRequestId: nullableString,  // paid subscriptionRequests row this refund relates to (when known)
+    transactionReference: nullableString,   // Paystack reference of the payment being refunded
+    requestedByUserId: nullableString,      // firm user who submitted (null = founder-filed on behalf)
+    requestedByEmail: nullableString,       // requester email (display)
+    submittedBy: v.string(),                // 'customer' | 'founder'
+    plan: nullableString,                   // plan the refund concerns
+    billingInterval: nullableString,        // 'annual' | 'monthly'
+    amount: nullableNumber,                 // NGN amount requested (defaults to the paid amount)
+    reason: v.string(),                     // customer's reason for the refund
+    eligibility: nullableString,            // 'guarantee' | 'discretionary' | 'unverified' — computed server-side at submission
+    status: v.string(),                     // 'pending' | 'approved' | 'denied' | 'processed' | 'cancelled'
+    statusTrail: v.optional(v.array(v.object({
+      status: v.string(),                   // status AFTER this entry's action
+      at: v.string(),                       // ISO timestamp
+      by: v.string(),                       // actor email or 'paystack_webhook'
+      note: v.optional(v.string()),         // optional decision/processing note
+    }))),
+    decidedBy: nullableString,              // founder email who approved/denied
+    decidedAt: nullableString,              // ISO timestamp of the decision
+    processedBy: nullableString,            // founder email (or 'paystack_webhook') who executed/confirmed the refund
+    processedAt: nullableString,            // ISO timestamp the refund was processed
+    paystackRefundReference: nullableString,// Paystack refund reference pasted by the founder (manual money movement)
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_status", ["status"])
+    .index("by_subscription_request", ["subscriptionRequestId"])
+    .index("by_reference", ["transactionReference"]),
+
   // ── Security Tables ──────────────────────────────────────────────────
   // Rate limiting: tracks request counts per IP + per user for throttling.
   rateLimits: defineTable({

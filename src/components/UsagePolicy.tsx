@@ -172,7 +172,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>7.1 Subscription Fees</h3>
                     <p>
-                        Subscription fees are billed in Nigerian Naira (NGN) according to your selected tier and billing cycle. Both Vega and Atrium offer monthly or annual billing. Komplete is billed annually only. Fees are payable in advance and are non-refundable except as expressly provided in our refund policy or required by law. Annual plans include a 30-day money-back guarantee.
+                        Subscription fees are billed in Nigerian Naira (NGN) according to your selected tier and billing cycle. Both Vega and Atrium offer monthly or annual billing. Komplete is billed annually only. Fees are payable in advance and are non-refundable except under the 30-day money-back guarantee for annual plans (see our Terms of Service, Section 12.3) or as required by law. You can submit a refund request at any time from Settings, Billing &amp; Plans, and we will review it within 24 hours.
                     </p>
 
                     <h3>7.2 Service Charge Equivalent (SCE)</h3>
@@ -231,7 +231,7 @@ const UsagePolicy: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                     <h3>10.1 Termination by You</h3>
                     <p>
-                        You may terminate your subscription at any time by contacting PracticePro. Termination takes effect at the end of your current billing cycle. No refunds are provided for partial billing periods except as required by law.
+                        You may terminate your subscription at any time by contacting PracticePro. Termination takes effect at the end of your current billing cycle. No refunds are provided for partial billing periods except as required by law or under the 30-day money-back guarantee for annual plans (Section 7.1).
                     </p>
 
                     <h3>10.2 Termination by PracticePro</h3>

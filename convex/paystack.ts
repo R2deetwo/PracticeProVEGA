@@ -487,6 +487,50 @@ export const recordPaystackEvent = internalMutation({
             } as any);
           }
         }
+        // P3 refund pipeline: close the loop on a matching refundRequest.
+        // An APPROVED request whose Paystack refund just landed is
+        // auto-completed (the webhook is the authoritative "money moved"
+        // signal). A still-PENDING request keeps its status (the founder
+        // still owes the firm an explicit decision) but gets a trail entry
+        // so the decision is made with full information.
+        if (args.reference) {
+          try {
+            const refundRequest = await ctx.db
+              .query("refundRequests")
+              .withIndex("by_reference", (q: any) => q.eq("transactionReference", args.reference))
+              .first();
+            if (refundRequest) {
+              const rr: any = refundRequest;
+              const trail = [...(rr.statusTrail || []), {
+                status: rr.status === 'approved' ? 'processed' : rr.status,
+                at: nowIso,
+                by: 'paystack_webhook',
+                note: 'Paystack confirmed refund.processed for the referenced payment'
+                  + (args.amount ? ` (₦${args.amount.toLocaleString('en-NG')})` : ''),
+              }];
+              if (rr.status === 'approved') {
+                await ctx.db.patch(rr._id, {
+                  status: 'processed',
+                  processedBy: 'paystack_webhook',
+                  processedAt: nowIso,
+                  statusTrail: trail,
+                  updatedAt: nowIso,
+                } as any);
+              } else if (rr.status === 'pending') {
+                await ctx.db.patch(rr._id, {
+                  statusTrail: trail,
+                  updatedAt: nowIso,
+                } as any);
+              }
+            }
+          } catch (e: any) {
+            await logError(ctx, {
+              scope: "payment", name: "paystack:webhook:refundRequestLinkage",
+              error: e, severity: "warning",
+              context: { reference: args.reference },
+            });
+          }
+        }
         await notifyFounders(ctx, {
           title: 'Refund Processed',
           message: `A Paystack refund was processed${args.reference ? ` for ${args.reference}` : ''}${args.amount ? ` (₦${args.amount.toLocaleString('en-NG')})` : ''}${firmId ? ` on firm ${firmId}` : ''}. The subscription request is flagged 'refund_review' — decide whether to adjust the firm's plan.`,

@@ -77,6 +77,15 @@ const MORE_ITEMS: NavItem[] = [
         ),
     },
     {
+        view: 'refunds',
+        label: 'Refunds',
+        icon: (
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 17m0 0l2-6m-2 6l6-2m3-3l6 2m0 0l-2-6m2 6l-6-2" transform="rotate(90 12 12)" />
+            </svg>
+        ),
+    },
+    {
         view: 'financials',
         label: 'Financials',
         icon: (
@@ -197,6 +206,8 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     const [pendingCount, setPendingCount] = useState(0);
     const [expiringSoon, setExpiringSoon] = useState(0);
     const [newSignupCount, setNewSignupCount] = useState(0);
+    // P3 — pending refund requests badge on the Refunds nav item.
+    const [refundPendingCount, setRefundPendingCount] = useState(0);
     // REACTIVE: useQuery for real-time sales lead count (no polling needed).
     // Convex WebSocket subscriptions push updates instantly when data changes.
     // Falls back to 0 if the query fails (defensive).
@@ -230,6 +241,16 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                 }
             } catch (e: any) {
                 console.warn('[FounderBottomNav] getFounderAlerts failed:', e?.message || e);
+            }
+            // P3 — pending refund request count (defensive; stays 0 until
+            // the refunds module is deployed to the backend).
+            try {
+                const refundStats = await convex.query(api.refunds.getRefundRequestStats, { tokenIdentifier, sessionToken: bearerToken ?? undefined });
+                if (!cancelled) {
+                    setRefundPendingCount(refundStats?.pending || 0);
+                }
+            } catch (e: any) {
+                console.warn('[FounderBottomNav] getRefundRequestStats failed (backend may not be deployed yet):', e?.message || e);
             }
             // NOTE: Sales lead count is now handled by useQuery (reactive)
             // — no need to poll it here. The WebSocket pushes updates instantly.
@@ -324,6 +345,8 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                     const isUrgent = item.view === 'subscriptions' && expiringSoon > 0;
                                     // Sales lead badge — amber/gold for unread sales leads
                                     const showSalesBadge = item.view === 'sales' && unreadSalesCount > 0;
+                                    // P3 — pending refund badge (rose) on the Refunds item
+                                    const showRefundBadge = item.view === 'refunds' && refundPendingCount > 0;
                                     return (
                                         <button
                                             key={item.view}
@@ -342,6 +365,11 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                                 {showSalesBadge && (
                                                     <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-amber-500 text-white text-2xs font-bold rounded-full flex items-center justify-center animate-pulse">
                                                         {formatBadgeCount(unreadSalesCount)}
+                                                    </span>
+                                                )}
+                                                {showRefundBadge && (
+                                                    <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-rose-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
+                                                        {formatBadgeCount(refundPendingCount)}
                                                     </span>
                                                 )}
                                             </div>

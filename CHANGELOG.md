@@ -4,6 +4,7 @@ User-facing notes on what shipped. One line per thing that matters to people usi
 
 ## Unreleased (on main, next APK build)
 
+- **Refund requests (30-day money-back guarantee)** — the guarantee on annual plans is now a real in-app flow: request a refund from Settings → Billing & Plans, track its status, and withdraw it while pending. The founder reviews every request in a new Refunds view of the founder app; refund money moves manually via Paystack with a full audit trail. Terms of Service §12.3 now matches the guarantee (was: "non-refundable").
 - **Design tokens** — the app's colors now flow through a semantic token layer; first components migrated with zero visual change, and CI now blocks new uses of the inconsistent `gray` palette.
 - **Tenant Portal refactor** — the residents' portal was re-architected internally (16 focused modules instead of one 4,526-line file). No feature changes; faster, safer iteration.
 - **Backend error visibility** — payment, messaging, and automation failures are now recorded in a queryable error log the founder can inspect, not just console output.

@@ -26,6 +26,8 @@ import { FeedbackInbox } from './views/FeedbackInbox';
 import { BroadcastConsole } from './views/BroadcastConsole';
 // CRO AUDIT Track A — Founder-facing subscription request approval queue.
 import { SubscriptionRequestsCenter } from './views/SubscriptionRequestsCenter';
+// P3 — founder refund approval queue (30-day money-back guarantee backend).
+import { RefundRequestsCenter } from './views/RefundRequestsCenter';
 import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
@@ -94,7 +96,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales' | 'refunds';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -135,6 +137,7 @@ const FounderApp: React.FC = () => {
                 feedback: 'feedback',
                 organizations: 'organizations',
                 subscriptions: 'subscriptions',
+                refunds: 'refunds',
                 sales: 'sales',
                 signals: 'signals',
                 notifications: 'notifications',
@@ -200,6 +203,7 @@ const FounderApp: React.FC = () => {
             case 'export': return <ViewErrorBoundary viewName="Export"><ExportCenter /></ViewErrorBoundary>;
             case 'analytics': return <ViewErrorBoundary viewName="Analytics"><AnalyticsView /></ViewErrorBoundary>;
             case 'subscriptions': return <ViewErrorBoundary viewName="Subscriptions"><SubscriptionRequestsCenter /></ViewErrorBoundary>;
+            case 'refunds': return <ViewErrorBoundary viewName="Refunds"><RefundRequestsCenter /></ViewErrorBoundary>;
             case 'security': return <ViewErrorBoundary viewName="Security"><SecurityCenter /></ViewErrorBoundary>;
             case 'notifications': return <ViewErrorBoundary viewName="Notifications"><FounderNotificationsCenter /></ViewErrorBoundary>;
             case 'aloaUsage': return <ViewErrorBoundary viewName="AI Usage"><AloaUsageCenter /></ViewErrorBoundary>;

@@ -987,6 +987,15 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     <EstateCommunityAddonPanel firmDetails={firmDetails} />
                 </AddOnsErrorBoundary>
             )}
+
+            {/* ─── REFUND REQUEST PANEL (P3) ──────────────────────────────
+                The customer-facing half of the 30-day money-back guarantee
+                backend. Shown for ALL products (the guarantee is plan-based,
+                not product-based). Defensive: degrades to static copy if
+                the refunds module isn't deployed yet. */}
+            <AddOnsErrorBoundary>
+                <RefundRequestPanel firmDetails={firmDetails} />
+            </AddOnsErrorBoundary>
         </div>
     );
 };
@@ -1735,6 +1744,247 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
                     </p>
                 </div>
             )}
+        </div>
+    );
+};
+
+// ─── REFUND REQUEST PANEL (P3 — 30-day money-back guarantee backend) ─────
+// The customer half of the refund pipeline. Marketing (landing badge,
+// UsagePolicy §7.1, Terms of Service §12.3) promises a 30-day money-back
+// guarantee on annual plans — this panel gives that promise an in-app
+// entry point: submit a request (reason), track its status trail, and
+// withdraw it while still pending. The founder reviews in the Refunds
+// view of the Founder APK; money moves manually in Paystack.
+//
+// DEFENSIVE QUERY PATTERN: the refunds module requires a Convex deploy
+// to exist on the backend. All calls use useConvex() + try/catch so the
+// panel degrades to its static copy instead of crashing Billing & Plans.
+const RefundRequestPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { addToast } = useUI();
+    const { currentUser, bearerToken } = useAuth();
+    const convex = useConvex();
+
+    const [requests, setRequests] = useState<any[] | undefined>(undefined);
+    const [showForm, setShowForm] = useState(false);
+    const [reason, setReason] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        if (!convex || !currentUser?.email) return;
+        let cancelled = false;
+        const fetchRequests = async () => {
+            try {
+                const rows = await convex.query(api.refunds.getMyRefundRequests, {
+                    userEmail: currentUser.email,
+                    sessionToken: (bearerToken ?? undefined),
+                });
+                if (!cancelled) setRequests(rows || []);
+            } catch (e: any) {
+                console.warn('[RefundRequestPanel] getMyRefundRequests failed (backend may not be deployed yet):', e?.message || e);
+                if (!cancelled) setRequests([]);
+            }
+        };
+        fetchRequests();
+        return () => { cancelled = true; };
+    }, [convex, currentUser?.email, bearerToken]);
+
+    if (!firmDetails?.id) return null;
+
+    const hasOpenRequest = (requests || []).some((r: any) => r.status === 'pending' || r.status === 'approved');
+
+    const submit = async () => {
+        if (!currentUser?.email || !convex) return;
+        if (reason.trim().length < 10) {
+            addToast('Please tell us why you are requesting the refund (at least 10 characters).', { type: 'warning' });
+            return;
+        }
+        setBusy(true);
+        try {
+            const result = await convex.mutation(api.refunds.submitRefundRequest, {
+                userEmail: currentUser.email,
+                sessionToken: (bearerToken ?? undefined),
+                reason: reason.trim(),
+            });
+            addToast(
+                result?.eligibility === 'guarantee'
+                    ? 'Refund request submitted. Your payment is inside the 30-day annual money-back guarantee — we will review within 24 hours.'
+                    : 'Refund request submitted. Our team will review it within 24 hours and notify you here.',
+                { type: 'success', duration: 7000 }
+            );
+            setReason('');
+            setShowForm(false);
+            try {
+                const rows = await convex.query(api.refunds.getMyRefundRequests, {
+                    userEmail: currentUser.email,
+                    sessionToken: (bearerToken ?? undefined),
+                });
+                setRequests(rows || []);
+            } catch {}
+        } catch (e: any) {
+            addToast(e?.message?.split('\n')[0] || 'Failed to submit the refund request.', { type: 'error' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const withdraw = async (requestId: string) => {
+        if (!currentUser?.email || !convex) return;
+        const ok = window.confirm('Withdraw this refund request? The PracticePro team will stop reviewing it.');
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await convex.mutation(api.refunds.cancelMyRefundRequest, {
+                userEmail: currentUser.email,
+                sessionToken: (bearerToken ?? undefined),
+                requestId,
+            });
+            addToast('Refund request withdrawn.', { type: 'info' });
+            try {
+                const rows = await convex.query(api.refunds.getMyRefundRequests, {
+                    userEmail: currentUser.email,
+                    sessionToken: (bearerToken ?? undefined),
+                });
+                setRequests(rows || []);
+            } catch {}
+        } catch (e: any) {
+            addToast(e?.message?.split('\n')[0] || 'Failed to withdraw the request.', { type: 'error' });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const statusChip = (status: string): string => {
+        switch (status) {
+            case 'pending': return 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+            case 'approved': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+            case 'denied': return 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400';
+            case 'processed': return 'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400';
+            default: return 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-400';
+        }
+    };
+
+    const statusLabel = (status: string): string => {
+        switch (status) {
+            case 'pending': return 'Under review';
+            case 'approved': return 'Approved — refund in progress';
+            case 'denied': return 'Declined';
+            case 'processed': return 'Refunded';
+            default: return 'Withdrawn';
+        }
+    };
+
+    return (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                        Refunds &amp; Money-Back Guarantee
+                        <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+                        </svg>
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-zinc-400 mt-1 max-w-2xl">
+                        Annual plans include a <strong>30-day money-back guarantee</strong>: if PracticePro isn't the right fit,
+                        submit a refund request within 30 days of payment and we'll refund you in full. Requests outside the
+                        guarantee window are reviewed at our discretion. See our Terms of Service (Section 12.3) for details.
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                {/* Request form */}
+                {showForm ? (
+                    <div className="space-y-3">
+                        <textarea
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                            rows={4}
+                            maxLength={2000}
+                            placeholder="Tell us why you're requesting a refund (minimum 10 characters)…"
+                            className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-sm text-slate-900 dark:text-white"
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => { setShowForm(false); setReason(''); }}
+                                className="px-4 py-2 text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 text-sm font-bold transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={submit}
+                                disabled={busy}
+                                className="px-4 py-2 bg-slate-800 dark:bg-zinc-600 text-white rounded-lg text-sm font-bold hover:bg-slate-700 dark:hover:bg-zinc-500 disabled:opacity-50 transition-colors"
+                            >
+                                {busy ? 'Submitting…' : 'Submit Refund Request'}
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">
+                            {hasOpenRequest
+                                ? 'You have an open refund request — we\u2019ll notify you here as soon as it\u2019s reviewed.'
+                                : 'Not satisfied? Request a refund — we review every request within 24 hours.'}
+                        </p>
+                        <button
+                            onClick={() => setShowForm(true)}
+                            disabled={hasOpenRequest || busy}
+                            title={hasOpenRequest ? 'You already have an open refund request.' : undefined}
+                            className="px-4 py-2 border-2 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                        >
+                            Request a Refund
+                        </button>
+                    </div>
+                )}
+
+                {/* Request history */}
+                {requests && requests.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                        {requests.map((r: any) => (
+                            <div key={r.id} className="p-3 bg-slate-50 dark:bg-zinc-800/60 rounded-lg border border-slate-100 dark:border-zinc-700">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className={`text-2xs font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${statusChip(r.status)}`}>
+                                                {statusLabel(r.status)}
+                                            </span>
+                                            {r.amount != null && (
+                                                <span className="text-xs font-bold text-slate-700 dark:text-zinc-200">
+                                                    <NairaSymbol />{formatNaira(r.amount)}
+                                                </span>
+                                            )}
+                                            <span className="text-2xs text-slate-400">
+                                                {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ''}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 dark:text-zinc-400 italic mt-1 line-clamp-2">"{r.reason}"</p>
+                                        {(r.statusTrail || []).length > 1 && (
+                                            <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
+                                                {(r.statusTrail || []).slice(-1)[0]?.status} — {new Date((r.statusTrail || []).slice(-1)[0]?.at).toLocaleString()}
+                                                {(r.statusTrail || []).slice(-1)[0]?.by ? ` (by ${(r.statusTrail || []).slice(-1)[0].by})` : ''}
+                                            </p>
+                                        )}
+                                        {r.status === 'processed' && (
+                                            <p className="text-2xs text-emerald-600 dark:text-emerald-400 mt-1">
+                                                Refunded to your original payment method. Depending on your bank it may take 5–10 business days to appear.
+                                            </p>
+                                        )}
+                                    </div>
+                                    {r.status === 'pending' && (
+                                        <button
+                                            onClick={() => withdraw(r.id)}
+                                            disabled={busy}
+                                            className="px-3 py-1.5 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 text-xs font-bold transition-colors disabled:opacity-50 flex-shrink-0"
+                                        >
+                                            Withdraw
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
