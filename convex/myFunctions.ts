@@ -9227,20 +9227,40 @@ export const getGettingStartedChecklist = query({
     const hasPracticeProfile = blueprintApplied;
     const hasPortfolioProfile = blueprintApplied;
 
-    // Has sent at least one WhatsApp or email reminder — check notifications
-    // of type 'service_charge_reminder' or 'invoice_sent' as a proxy.
+    // Has sent at least one outbound reminder/nudge. P1 FIX (2026-09-15):
+    // the old proxy scanned notifications of type 'service_charge_reminder'
+    // / 'rent_reminder' / 'invoice_sent' — types NO writer in the codebase
+    // ever inserts, so this checklist item could never auto-complete from a
+    // real send. The system of record for outbound messages (manual sends
+    // via ComposeModal/AutomationCenter AND automated dispatch, statuses
+    // corrected by the dispatch pipeline) is automation_logs.
     const hasSentReminder = await (async () => {
       try {
-        const sentReminderNotif = await ctx.db
-          .query("notifications")
+        const sentReminderLog = await ctx.db
+          .query("automation_logs")
           .withIndex("by_firm", (q: any) => q.eq("firmId", fid))
-          .filter((q: any) => q.or(
-            q.eq(q.field("type"), "service_charge_reminder"),
-            q.eq(q.field("type"), "rent_reminder"),
-            q.eq(q.field("type"), "invoice_sent")
+          .filter((q: any) => q.and(
+            // Reminder-flavoured types plus 'custom' — manual sends
+            // (MessagesView/ComposeModal, the "one-tap WhatsApp share")
+            // log as 'custom'.
+            q.or(
+              q.eq(q.field("messageType"), "rent_reminder"),
+              q.eq(q.field("messageType"), "late_notice"),
+              q.eq(q.field("messageType"), "service_charge_alert"),
+              q.eq(q.field("messageType"), "penalty_notice"),
+              q.eq(q.field("messageType"), "custom")
+            ),
+            // Honest tracking: only count rows whose delivery the
+            // pipeline confirmed ('sending' is queued-not-delivered,
+            // 'failed' never went out, 'simulated' is an audit-only
+            // copy of a reply that never hit a real channel).
+            q.or(
+              q.eq(q.field("status"), "sent"),
+              q.eq(q.field("status"), "logged")
+            )
           ))
           .first();
-        return !!sentReminderNotif;
+        return !!sentReminderLog;
       } catch {
         return false;
       }

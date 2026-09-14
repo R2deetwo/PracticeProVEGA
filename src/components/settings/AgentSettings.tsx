@@ -6,7 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeIcon, EyeOffIcon, BrainIcon, SearchIcon, ScalesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { setCustomApiKey, getCustomApiKey } from '../../utils/aiUtils';
+import { setCustomApiKey, getCustomApiKey, setInMemoryApiKey } from '../../utils/aiUtils';
 import { getAssistantName } from '../../utils/assistantIdentity';
 import { useProduct } from '../../contexts/ProductContext';
 
@@ -155,7 +155,14 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
     const handleToggleShow = () => {
         if (!showKey) {
             if (customKey === '••••••••••••••••') {
-                setCustomKey(getCustomApiKey() || '');
+                // P1 (2026-09-15): in the B2 world the DEVICE copy can be
+                // empty while the key lives on the account (user.geminiApiKey,
+                // hydrated in-memory by AuthContext). Revealing only the
+                // localStorage copy made "Show" display an EMPTY input —
+                // looking exactly like the key had vanished. Fall back to
+                // the server copy so the reveal is honest on every device.
+                const serverCopy = (typeof serverKey === 'string' && serverKey.length > 0) ? serverKey : '';
+                setCustomKey(getCustomApiKey() || serverCopy);
             }
             setShowKey(true);
         } else {
@@ -177,6 +184,11 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         }
         try {
             setCustomApiKey(cleanKey);
+            // P1 (2026-09-15): sync the IN-MEMORY key too. getGeminiApiKey()
+            // prefers the in-memory copy (B2 fix) — without this, AI calls
+            // kept using the OLD key until the reactive getUserApiKey query
+            // re-emitted (or forever, if that mutation errored non-fatally).
+            setInMemoryApiKey(cleanKey);
             setHasKey(true);
             // Also save to server so it syncs across devices and survives
             // localStorage clearing (refresh, APK reinstall, new device)
@@ -200,6 +212,10 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
     const handleClearKey = () => {
         setCustomApiKey(null);
+        // P1 (2026-09-15): also drop the in-memory copy — the AuthContext
+        // hydration only clears it when the SESSION ends, so a removed key
+        // would otherwise keep working (and keep billing) until logout.
+        setInMemoryApiKey(null);
         setHasKey(false);
         setCustomKey('');
         // Also clear from server (save empty string)

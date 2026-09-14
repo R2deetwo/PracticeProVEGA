@@ -255,7 +255,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                         const cleaned = await cleanTranscriptAction({
                             rawTranscript: rawToClean,
                             contextHint,
-                            firmGeminiApiKey: (coreState.firmDetails as any)?.aiSettings?.geminiApiKey,
+                            // P1 FIX (2026-09-15): the firm key lives at
+                            // aiSettings.firmGeminiApiKey (AgentSettings save
+                            // path, geminiService readers). The old read used
+                            // the same field WITHOUT the "firm" prefix — a
+                            // field nobody writes — so dictation cleanup
+                            // silently lost the firm fallback key on every
+                            // call.
+                            firmGeminiApiKey: (coreState.firmDetails as any)?.aiSettings?.firmGeminiApiKey,
                         });
                         // Persist both versions to the backend
                         await saveTranscripts({

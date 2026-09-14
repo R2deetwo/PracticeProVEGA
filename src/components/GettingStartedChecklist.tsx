@@ -116,12 +116,44 @@ const GettingStartedChecklist: React.FC = () => {
     firmId ? { firmId } : 'skip'
   );
 
+  // Celebration machinery refs — declared BEFORE every effect that uses
+  // them (the server-dismissal adoption effect below cancels an armed
+  // confirmation timer, so the ref must already exist when it runs).
+  const allDoneConfirmedRef = useRef(false);
+  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest evaluation snapshot — updated every relevant render so the
+  // delayed confirmation re-verifies against CURRENT data, not the
+  // closure captured when the timer was armed.
+  const latestEvalRef = useRef<{ checklist: any; items: ChecklistItem[] } | null>(null);
+  // P1 SUPPRESSION (2026-09-15), two more refs:
+  //   • isDismissedRef — mirrors isDismissed so the DELAYED confirmation
+  //     callback can observe the LATEST dismissal state (the server flag
+  //     can land inside the 1s window; the old callback only re-verified
+  //     item doneness and toasted anyway).
+  //   • sawIncompleteRef — latches true the first time a SETTLED
+  //     evaluation finds any item incomplete. The celebration toast now
+  //     fires ONLY for genuine in-session completions; a firm that was
+  //     already all-done before this session (new device, cleared
+  //     storage, first run post-deploy) is silently auto-dismissed
+  //     instead of getting a spurious "You're all set!" for onboarding
+  //     finished long ago.
+  const isDismissedRef = useRef(false);
+  const sawIncompleteRef = useRef(false);
+  useEffect(() => { isDismissedRef.current = isDismissed; }, [isDismissed]);
+
   // Adopt the SERVER dismissal flag whenever it says dismissed (covers new
   // devices, reinstalls and cleared storage). Mirrored into localStorage so
   // the very next mount on this device skips even before the query lands.
   useEffect(() => {
     if (checklist?.dismissed === true && !isDismissed) {
       setIsDismissed(true);
+      // P1: the server-dismissed flag can arrive while a celebration
+      // confirmation is armed (localStorage-miss mount) — cancel it, or
+      // the 1s callback would still toast over the arrived dismissal.
+      if (confirmTimerRef.current !== null) {
+        clearTimeout(confirmTimerRef.current);
+        confirmTimerRef.current = null;
+      }
       try {
         localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
       } catch {}
@@ -153,13 +185,6 @@ const GettingStartedChecklist: React.FC = () => {
     return false;
   };
 
-  const allDoneConfirmedRef = useRef(false);
-  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Latest evaluation snapshot — updated every relevant render so the
-  // delayed confirmation re-verifies against CURRENT data, not the
-  // closure captured when the timer was armed.
-  const latestEvalRef = useRef<{ checklist: any; items: ChecklistItem[] } | null>(null);
-
   useEffect(() => {
     if (!checklist || isDismissed) return;
     // GATE 1: flags must be settled — the hydration-default window can
@@ -169,6 +194,11 @@ const GettingStartedChecklist: React.FC = () => {
     const items = isUnified ? KOMPLETE_ITEMS : isProperty ? ATRIUM_ITEMS : VEGA_ITEMS;
     latestEvalRef.current = { checklist, items };
     const allDone = items.every(item => isItemDone(checklist, item));
+    if (!allDone) {
+      // Latch the in-session "was incomplete" observation — the
+      // celebration below only toasts when this is true.
+      sawIncompleteRef.current = true;
+    }
 
     if (allDone) {
       // GATE 2 + GATE 3: arm a delayed confirmation the FIRST time we see
@@ -176,6 +206,9 @@ const GettingStartedChecklist: React.FC = () => {
       if (!allDoneConfirmedRef.current && confirmTimerRef.current === null) {
         confirmTimerRef.current = setTimeout(() => {
           confirmTimerRef.current = null;
+          // GATE 4 (P1): dismissal may have landed while the window was
+          // armed (server flag adoption or manual X) — never toast then.
+          if (isDismissedRef.current) return;
           // Re-verify with the LATEST snapshot — a transient flicker that
           // reverted (or new data marking an item incomplete again)
           // cancels the celebration entirely and re-arms the transition.
@@ -183,8 +216,14 @@ const GettingStartedChecklist: React.FC = () => {
           if (!snap) return;
           if (!snap.items.every(item => isItemDone(snap.checklist, item))) return;
           allDoneConfirmedRef.current = true;
-          // PHASE 1 FIX: Show celebration before auto-dismissing.
-          addToast?.('🎉 You\'re all set! You\'ve completed the Getting Started checklist. Explore the rest of PracticePro at your own pace.', { type: 'success', duration: 8000 });
+          // GATE 5 (P1): CELEBRATION SUPPRESSION — only toast for a
+          // genuine in-session completion (we watched the checklist
+          // incomplete earlier in THIS mounted session). Firms that were
+          // already all-done when the session started get the SILENT
+          // path: auto-dismiss + persist, no toast.
+          if (sawIncompleteRef.current) {
+            addToast?.('🎉 You\'re all set! You\'ve completed the Getting Started checklist. Explore the rest of PracticePro at your own pace.', { type: 'success', duration: 8000 });
+          }
           setIsDismissed(true);
           try {
             localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');

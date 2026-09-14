@@ -119,3 +119,87 @@ describe("C. The AI key is honest about where it lives", () => {
     expect(aloaChat).not.toMatch(/never sent to our servers/i);
   });
 });
+
+/* ─── P1 POLISH ROUND (2026-09-15) ────────────────────────────────────────────
+ * Three residual P1 defects locked here:
+ *   D. The "You're all set!" celebration still had two firing paths: (a) the
+ *      1s confirmation callback never re-checked dismissal, so a server
+ *      flag landing inside the window still toasted; (b) a firm that was
+ *      already all-done BEFORE the session (new device, cleared storage,
+ *      first run post-deploy) got a spurious celebration for onboarding
+ *      finished long ago.
+ *   E. AI key surfaces: the key reveal showed an empty input when the key
+ *      lived only on the account; saving/clearing didn't sync the
+ *      in-memory key (stale key kept serving AI calls); NoteEditor read a
+ *      firm-key field nobody writes (aiSettings.geminiApiKey vs
+ *      firmGeminiApiKey).
+ *   F. The checklist "Send your first rent reminder" item queried
+ *      notification types no writer ever inserts — it could never
+ *      auto-complete from a real send. It now reads automation_logs (the
+ *      actual outbound-message system of record).
+ */
+
+describe("D. Celebration suppression (P1)", () => {
+  it("only toasts for genuine in-session completions (sawIncompleteRef gate)", () => {
+    expect(checklist).toMatch(/sawIncompleteRef\.current = true/);
+    // The toast itself must be wrapped in the gate...
+    expect(checklist).toMatch(/if \(sawIncompleteRef\.current\) \{\s*addToast\?\.\('🎉/);
+  });
+
+  it("the delayed confirmation re-checks the LATEST dismissal state", () => {
+    expect(checklist).toMatch(/isDismissedRef\.current\) return;/);
+    expect(checklist).toMatch(/isDismissedRef\.current = isDismissed/);
+  });
+
+  it("server-dismissal adoption cancels an armed confirmation timer", () => {
+    // Inside the adoption effect (checklist?.dismissed === true), the
+    // pending confirmTimerRef must be cleared.
+    const adoption = checklist.slice(
+      checklist.indexOf("checklist?.dismissed === true"),
+      checklist.indexOf("ROUND 15"),
+    );
+    expect(adoption).toMatch(/clearTimeout\(confirmTimerRef\.current\)/);
+  });
+
+  it("both dismiss paths still persist to the server (contract from B survives)", () => {
+    const calls = checklist.match(/persistDismissal\(true\)/g) || [];
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("E. AI key surfaces stay in sync (P1)", () => {
+  it("saving a key syncs the in-memory copy immediately", () => {
+    expect(agentSettings).toMatch(/setInMemoryApiKey\(cleanKey\)/);
+  });
+
+  it("clearing a key drops the in-memory copy (no zombie key until logout)", () => {
+    expect(agentSettings).toMatch(/setInMemoryApiKey\(null\)/);
+  });
+
+  it("the reveal falls back to the server copy when the device copy is empty", () => {
+    expect(agentSettings).toMatch(/getCustomApiKey\(\) \|\| serverCopy/);
+  });
+
+  it("NoteEditor reads the firm key from the field that actually exists", () => {
+    const noteEditor = read("src/components/notes/NoteEditor.tsx");
+    expect(noteEditor).toMatch(/aiSettings\?\.firmGeminiApiKey/);
+    expect(noteEditor).not.toMatch(/aiSettings\?\.geminiApiKey/);
+  });
+});
+
+describe("F. hasSentReminder reads the real outbound system of record (P1)", () => {
+  it("queries automation_logs, not the never-written notifications proxy", () => {
+    const fn = myFunctions.slice(myFunctions.indexOf("const hasSentReminder"));
+    expect(fn).toMatch(/query\("automation_logs"\)/);
+    expect(fn).not.toMatch(/query\("notifications"\)/);
+    expect(fn).not.toContain('"service_charge_reminder"');
+    expect(fn).not.toContain('"invoice_sent"');
+  });
+
+  it("counts only confirmed deliveries (sent/logged — not sending/failed/simulated)", () => {
+    const fn = myFunctions.slice(myFunctions.indexOf("const hasSentReminder"));
+    expect(fn).toMatch(/q\.eq\(q\.field\("status"\), "sent"\)/);
+    expect(fn).toMatch(/q\.eq\(q\.field\("status"\), "logged"\)/);
+    expect(fn).not.toMatch(/q\.eq\(q\.field\("status"\), "simulated"\)/);
+  });
+});
