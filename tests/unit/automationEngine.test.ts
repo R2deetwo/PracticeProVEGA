@@ -175,13 +175,13 @@ describe('automation engine: intuitiveness round', () => {
         // (template key, engine workflow, engine step, distinctive core wording)
         const pairs: Array<[string, string, string, string]> = [
             ['rent_reminder', 'rent_collection', 'pre_7',
-                'a quick heads-up: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}'],
+                'A friendly heads-up: your rent of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}'],
             ['late_notice', 'rent_collection', 'late_7',
-                'NOTICE OF DEFAULT: rent of {{amount_due}} for {{unit_number}} is now 7 days overdue (due {{due_date}})'],
+                'NOTICE OF DEFAULT — {{unit_number}}, {{property_name}}'],
             ['service_charge_alert', 'service_charge', 'pre_3',
-                'service charge contribution of {{amount_due}} is due on {{due_date}}'],
+                'Your service charge contribution of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}'],
             ['lease_renewal', 'lease_expiry', 'expiry_90',
-                'your tenancy for {{unit_number}} expires on {{due_date}}'],
+                'Your tenancy for {{unit_number}} at {{property_name}} expires on {{due_date}}'],
         ];
         for (const [tplKey, wfKey, stepKey, core] of pairs) {
             const tpl = SCHEDULE_TEMPLATES.find((t) => t.key === tplKey)!;
@@ -199,6 +199,81 @@ describe('automation engine: intuitiveness round', () => {
             const tags = [...tpl.template.matchAll(/\{\{\s*([a-z0-9_]+)\s*\}\}/g)].map((m) => m[1]);
             for (const tag of tags) expect(allowed).toContain(tag);
         }
+    });
+});
+
+// ─── PART 1c: template completeness round (user feedback 2026-09-14:
+// "messages are sparse and not very helpful… links directing where to make
+// payment, consequences if necessary… standard and complete ones") ──────
+
+describe('automation engine: template completeness round', () => {
+    const stepsOf = (wfKey: string) =>
+        AUTOMATION_WORKFLOW_DEFAULTS.find((w) => w.key === wfKey)!.steps;
+
+    it('every template greets by name and signs off with the firm (one consistent voice)', () => {
+        for (const wf of AUTOMATION_WORKFLOW_DEFAULTS) {
+            for (const step of wf.steps) {
+                expect(step.subject).toContain('{{tenant_name}}');
+                expect(step.subject.trim().endsWith('{{firm_name}}')).toBe(true);
+            }
+        }
+    });
+
+    it('every payment-bearing step tells the resident HOW to pay (payment link)', () => {
+        for (const wfKey of ['rent_collection', 'service_charge']) {
+            for (const step of stepsOf(wfKey)) {
+                expect(step.subject).toContain('{{payment_link}}');
+            }
+        }
+    });
+
+    it('escalation steps state the consequence (charges / recovery)', () => {
+        for (const step of stepsOf('rent_collection')) {
+            if (['late_7', 'late_14'].includes(step.key)) {
+                expect(step.subject).toMatch(/late charges|recovery/i);
+            }
+        }
+        for (const step of stepsOf('service_charge')) {
+            if (['late_7', 'late_14'].includes(step.key)) {
+                expect(step.subject).toMatch(/late charges|rent arrears|recovery/i);
+            }
+        }
+    });
+
+    it('escalation steps leave a door open (arrange payment)', () => {
+        for (const step of stepsOf('rent_collection')) {
+            if (['late_7', 'late_14'].includes(step.key)) {
+                expect(step.subject).toMatch(/reply to this message|contact us now/i);
+            }
+        }
+    });
+
+    it('lease/review steps use NO payment or amount tags (their resolvers have none)', () => {
+        for (const wfKey of ['lease_expiry', 'rent_review']) {
+            for (const step of stepsOf(wfKey)) {
+                expect(step.subject).not.toContain('{{payment_link}}');
+                expect(step.subject).not.toContain('{{amount_due}}');
+            }
+        }
+    });
+
+    it('bodies are OFFSET-AGNOSTIC — no digits, no "in N days"/"tomorrow" that a stepper change could contradict', () => {
+        for (const wf of AUTOMATION_WORKFLOW_DEFAULTS) {
+            for (const step of wf.steps) {
+                expect(step.subject).not.toMatch(/\d/);
+                expect(step.subject).not.toMatch(/tomorrow/i);
+            }
+        }
+    });
+
+    it('preview shows the raw template (one presentation — no live-recipient rendering)', () => {
+        // The UI panel must show the template itself, NOT a rendered sample:
+        // "some have a real name, some have variables — stick with one."
+        const ui = read('src/components/messaging/AutomationWorkflows.tsx');
+        expect(ui).toContain('{step.subject || \'\'}'); // raw template rendered directly
+        expect(ui).not.toContain('sampleVarsFor');
+        expect(ui).not.toContain('Mrs. Adaeze Okonkwo'); // the fabricated sample is gone
+        expect(ui).not.toContain('renderMergeFields');
     });
 });
 
@@ -361,10 +436,14 @@ describe('orchestration: one engine, no duplicate crons', () => {
         expect(overviewBlock).toContain('defaultSubject');
         expect(overviewBlock).toContain('firmName');
         expect(overviewBlock).toContain('optedOutUnits');
-        // The UI previews + edits the message inline
+        // The UI previews + edits the message inline. (2026-09-14
+        // consistency round: the preview shows the RAW template — with the
+        // {{tags}} visible — matching the editor exactly; the rendered
+        // merge-fields sample was removed after the user flagged "some
+        // have a real name, some have variables — stick with one".)
         expect(workflowsUiSrc).toContain('See the message');
         expect(workflowsUiSrc).toContain('saveSubject');
-        expect(workflowsUiSrc).toContain('renderMergeFields(step.subject');
+        expect(workflowsUiSrc).toContain("{step.subject || ''}");
     });
 
     it('the create-form pre-populates from the selected type (the listed types ARE the templates)', () => {

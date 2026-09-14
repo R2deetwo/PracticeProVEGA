@@ -188,6 +188,59 @@ describe("sendFcmPush (internal action)", () => {
     expect(message.notification?.title).toBe("Update ready");
     // FCM v1 requires string data values.
     expect(message.data).toEqual({ type: "app_update", apkUrl: "https://x.apk" });
+
+    // ─── 2026-09-14 incident: payload SCHEMA validation ─────────────────
+    // The live test push failed 3/3 tokens with 400 "Unknown name \"priority\"
+    // at 'message.android.notification': Cannot find field" — because the
+    // payload put a `priority` key inside android.notification, which is not
+    // part of the AndroidNotification proto. The mock above always returns
+    // 200, so ONLY a schema check here can catch that class of bug.
+    // Whitelist = the AndroidNotification fields the FCM v1 REST API
+    // accepts (camelCase JSON names), plus our own disciplined subset.
+    const ANDROID_NOTIFICATION_FIELDS = new Set([
+      "title", "body", "icon", "color", "sound", "tag", "clickAction",
+      "channelId", "ticker", "sticky", "eventTime", "localOnly",
+      "notificationPriority", "defaultSound", "defaultVibrateTimings",
+      "defaultLightSettings", "vibrateTimings", "visibility",
+      "notificationCount", "lightSettings", "image", "bodyLocKey",
+      "bodyLocArgs", "titleLocKey", "titleLocArgs",
+    ]);
+    for (const key of Object.keys(message.android?.notification ?? {})) {
+      expect(ANDROID_NOTIFICATION_FIELDS.has(key)).toBe(true);
+    }
+    expect(message.android?.notification?.priority).toBeUndefined();
+
+    // AndroidConfig (message.android) whitelist too — priority lives HERE,
+    // at the config level, not inside the notification object.
+    const ANDROID_CONFIG_FIELDS = new Set([
+      "collapseKey", "priority", "ttl", "restrictedPackageName",
+      "data", "notification", "fcmOptions", "directBootOk",
+    ]);
+    for (const key of Object.keys(message.android ?? {})) {
+      expect(ANDROID_CONFIG_FIELDS.has(key)).toBe(true);
+    }
+  });
+
+  it("a payload with android.notification.priority would be flagged (the incident, pinned)", () => {
+    // Simulates the EXACT payload shape that production rejected on
+    // 2026-09-14 — guards the whitelist logic itself from rot.
+    const badPayload = {
+      message: {
+        token: "tok-1",
+        notification: { title: "T", body: "B" },
+        android: {
+          priority: "HIGH",
+          notification: { channelId: "practicepro-general", priority: "PRIORITY_HIGH" },
+        },
+      },
+    };
+    const ANDROID_NOTIFICATION_FIELDS = new Set([
+      "channelId", "sound", "icon", "defaultVibrateTimings", "clickAction",
+    ]);
+    const offending = Object.keys(badPayload.message.android.notification).filter(
+      (k) => !ANDROID_NOTIFICATION_FIELDS.has(k)
+    );
+    expect(offending).toContain("priority");
   });
 
   it("retires stale tokens that FCM reports as UNREGISTERED", async () => {

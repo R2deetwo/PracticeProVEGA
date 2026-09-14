@@ -239,8 +239,11 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
   setIsLoading(true);
   setErrorMsg(null);
   try {
-   // Send raw password over TLS — server hashes with PBKDF2
-   const result = await resetPasswordFn({ email, newPassword: newPassword, overrideCode: recoveryCode });
+   // Send raw password over TLS — server hashes with PBKDF2.
+   // Normalize the recovery code (trim + strip internal whitespace) so a
+   // pasted code that line-wrapped in the email client can't fail on stray
+   // spaces — the server normalizes too, this is belt-and-braces.
+   const result = await resetPasswordFn({ email: email.toLowerCase().trim(), newPassword: newPassword, overrideCode: recoveryCode.trim().replace(/\s+/g, '') });
    setIsLoading(false);
    if (result.success) {
     addToast("Password reset successfully. You can now log in.", { type: "success" });

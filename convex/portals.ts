@@ -1500,7 +1500,7 @@ export const createPortalInvite = action({
           <tr>
             <td style="background:#ffffff;border-radius:0 0 12px 12px;padding:20px 40px;border-top:1px solid #e2e8f0;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
               <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#94a3b8;text-align:center;margin:0 0 4px;">
-                PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
+                PracticePro Systems Limited &middot; Lagos, Nigeria
               </p>
               <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#cbd5e1;text-align:center;margin:0;">
                 NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted
@@ -1902,7 +1902,7 @@ export const resendPortalInvite = action({
           <tr>
             <td style="background:#0f172a;border-radius:0 0 16px 16px;padding:20px 32px;border-top:1px solid rgba(255,255,255,0.04);border-left:1px solid rgba(255,255,255,0.06);border-right:1px solid rgba(255,255,255,0.06);">
               <div style="text-align:center;">
-                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria</p>
+                <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#475569;margin:0 0 4px;">PracticePro Systems Limited &middot; Lagos, Nigeria</p>
                 <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#334155;margin:0;">NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted</p>
               </div>
             </td>
@@ -6453,7 +6453,7 @@ function buildLightModeNotificationEmail(opts: {
                 <tr>
                   <td style="text-align:center;">
                     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;color:#a0aec0;margin:0 0 4px;">
-                      PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria
+                      PracticePro Systems Limited &middot; Lagos, Nigeria
                     </p>
                     <p style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:10px;color:#cbd5e0;margin:0;">
                       NDPA 2023 Compliant &middot; ISO 27001 Aligned &middot; AES-256 Encrypted
@@ -6519,7 +6519,7 @@ export const sendAdminNotificationEmail = internalAction({
           <!-- Footer -->
           <tr>
             <td style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
-              <p style="font-size:11px;color:#94a3b8;margin:0;">PracticePro Legal Technologies Ltd &middot; Lagos, Nigeria</p>
+              <p style="font-size:11px;color:#94a3b8;margin:0;">PracticePro Systems Limited &middot; Lagos, Nigeria</p>
             </td>
           </tr>
         </table>

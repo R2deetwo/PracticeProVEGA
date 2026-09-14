@@ -210,14 +210,23 @@ async function dispatchFcm(
             token,
             notification: { title: args.title, body: args.body },
             android: {
+              // Message-level delivery priority — the ONLY valid `priority`
+              // field in the FCM v1 API (AndroidConfig.priority: HIGH/NORMAL).
               priority: "HIGH",
               notification: {
                 // Channel created client-side by ensureNotificationChannels()
                 // BEFORE registration, so background pushes are never dropped.
+                // On Android 8+ visual priority (sound/heads-up) comes from
+                // the CHANNEL's importance, not the notification — so there is
+                // deliberately NO priority field here. `priority` inside
+                // android.notification is not part of the AndroidNotification
+                // proto and FCM v1 rejects the whole send with:
+                //   400 "Unknown name \"priority\" at
+                //   'message.android.notification': Cannot find field"
+                // (the 2026-09-14 live test-push failure — 3/3 tokens 400).
                 channelId: "practicepro-general",
                 sound: "default",
                 icon: "ic_launcher",
-                priority: "PRIORITY_HIGH",
                 defaultVibrateTimings: true,
                 // NO clickAction: default tap opens the launcher activity and
                 // the Capacitor plugin delivers pushNotificationActionPerformed.

@@ -123,8 +123,23 @@ function keyOf(row: any): string {
     return String(row?._id ?? row?.id ?? Math.random().toString(36).slice(2));
 }
 
-function currentUserIdOf(currentUser: { id?: string; _id?: any } | undefined | null): string {
-    return String(currentUser?.id ?? currentUser?._id ?? '');
+/** BOTH id spellings of the current user (custom `id` field AND Convex
+ * `_id`). Senders are persisted with EITHER one depending on the call site
+ * (team sends pass `_id || id`; portal sends may use the users-table `id`).
+ * Own-message detection must match either — a mismatch here silently
+ * breaks isMe, which the thread's auto-scroll depends on ("my own send
+ * didn't scroll me down"). Pure string set comparison, no allocation in
+ * the hot loop beyond the two strings. */
+function isOwnAuthorId(
+    authorId: any,
+    currentUser?: { id?: string; _id?: any } | null,
+): boolean {
+    if (authorId === undefined || authorId === null || authorId === '') return false;
+    const a = String(authorId);
+    if (a === '') return false;
+    if (currentUser?.id !== undefined && currentUser?.id !== null && String(currentUser.id) === a) return true;
+    if (currentUser?._id !== undefined && currentUser?._id !== null && String(currentUser._id) === a) return true;
+    return false;
 }
 
 /** chatMessages — string timestamps, authorId sender, status delivery enum. */
@@ -132,14 +147,13 @@ export function normalizeChatMessage(
     msg: any,
     currentUser?: { id?: string; _id?: any } | null,
 ): UnifiedMessage {
-    const uid = currentUserIdOf(currentUser);
     return {
         id: keyOf(msg),
         kind: 'team',
         sender: { id: msg?.authorId, name: msg?.authorName, role: 'staff' },
         content: msg?.content ?? '',
         sentAt: toEpochMs(msg?.timestamp ?? msg?.createdAt),
-        isMe: Boolean(uid) && String(msg?.authorId) === uid,
+        isMe: isOwnAuthorId(msg?.authorId, currentUser),
         read: 'none', // chatMessages has no per-message read tracking
         deliveryStatus: msg?.status as DeliveryStatus | undefined,
         isDeleted: Boolean(msg?.isDeleted),
@@ -155,14 +169,13 @@ export function normalizeClientMessage(
     msg: any,
     currentUser?: { id?: string; _id?: any } | null,
 ): UnifiedMessage {
-    const uid = currentUserIdOf(currentUser);
     return {
         id: keyOf(msg),
         kind: 'client_tenant',
         sender: { id: msg?.authorId, name: msg?.authorName, role: msg?.authorRole ?? (msg?.isFromClient ? 'Client' : 'staff') },
         content: msg?.content ?? '',
         sentAt: toEpochMs(msg?.timestamp ?? msg?.createdAt),
-        isMe: Boolean(uid) && String(msg?.authorId) === uid,
+        isMe: isOwnAuthorId(msg?.authorId, currentUser),
         read: msg?.isRead === true ? 'read' : 'unread',
         attachments: [],
         raw: msg,
@@ -184,7 +197,6 @@ export function normalizePortalMessage(
      */
     opts?: { firmIsSender?: (m: any) => boolean; perspective?: 'firm' | 'participant' },
 ): UnifiedMessage {
-    const uid = currentUserIdOf(currentUser);
     const senderIsAdmin = opts?.firmIsSender
         ? opts.firmIsSender(msg)
         : String(msg?.senderRole).toLowerCase() === 'admin';
@@ -208,8 +220,8 @@ export function normalizePortalMessage(
         content: msg?.content ?? '',
         sentAt: toEpochMs(msg?.createdAt ?? msg?.timestamp),
         isMe: (opts?.perspective === 'participant'
-            ? participantIsSender || (Boolean(uid) && String(msg?.senderId) === uid)
-            : senderIsAdmin || (Boolean(uid) && String(msg?.senderId) === uid)),
+            ? participantIsSender || isOwnAuthorId(msg?.senderId, currentUser)
+            : senderIsAdmin || isOwnAuthorId(msg?.senderId, currentUser)),
         read,
         isDeleted: Boolean(msg?.isDeleted),
         subject: msg?.subject ?? undefined,

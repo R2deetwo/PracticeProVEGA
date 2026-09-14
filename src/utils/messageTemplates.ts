@@ -178,33 +178,33 @@ export const SCHEDULE_TEMPLATES: MessageTemplate[] = [
     key: 'rent_reminder',
     type: 'rent_reminder',
     label: 'Rent reminder',
-    description: 'Friendly heads-up before rent falls due',
+    description: 'Friendly heads-up before rent falls due — with the payment link',
     template:
-      'Hi {{tenant_name}}, a quick heads-up: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}. You can pay easily from your resident portal.',
+      'Hi {{tenant_name}},\n\nA friendly heads-up: your rent of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}.\n\nYou can pay securely from your resident portal: {{payment_link}}\n\nThank you,\n{{firm_name}}',
   },
   {
     key: 'late_notice',
     type: 'late_notice',
     label: 'Late payment notice',
-    description: 'Notice of Default for overdue rent',
+    description: 'Notice of Default for overdue rent — states the consequence and the deadline',
     template:
-      'NOTICE OF DEFAULT: rent of {{amount_due}} for {{unit_number}} is now 7 days overdue (due {{due_date}}). Kindly settle promptly to avoid penalties — you can pay from your resident portal.',
+      'NOTICE OF DEFAULT — {{unit_number}}, {{property_name}}\n\nHi {{tenant_name}},\n\nThe rent of {{amount_due}} for {{unit_number}}, due on {{due_date}}, is now overdue. Under your tenancy agreement, late payment may attract late charges.\n\nPlease settle the full amount today: {{payment_link}}\nIf payment (or an agreed payment plan) is not in place within seven days, {{firm_name}} may begin formal recovery proceedings, which can affect your tenancy.\n\nIf you are having difficulty paying, contact us now — we would rather agree a plan.\n\n{{firm_name}}',
   },
   {
     key: 'service_charge_alert',
     type: 'service_charge_alert',
     label: 'Service charge due',
-    description: 'Service-charge contribution reminder',
+    description: 'Service-charge contribution reminder — says what it covers and how to pay',
     template:
-      'Hi {{tenant_name}}, your {{unit_number}} service charge contribution of {{amount_due}} is due on {{due_date}}. Kindly settle via your resident portal.',
+      'Hi {{tenant_name}},\n\nYour service charge contribution of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}.\n\nThis covers shared running costs — diesel, security, cleaning and common services.\n\nPay securely: {{payment_link}}\n\n{{firm_name}}',
   },
   {
     key: 'lease_renewal',
     type: 'lease_renewal',
     label: 'Lease renewal',
-    description: 'Renewal prompt ahead of lease expiry',
+    description: 'Renewal prompt ahead of lease expiry — warm, with a clear ask',
     template:
-      'Hi {{tenant_name}}, your tenancy for {{unit_number}} expires on {{due_date}}. Shall we begin renewal terms? Reply here or via your resident portal.',
+      'Hi {{tenant_name}},\n\nYour tenancy for {{unit_number}} at {{property_name}} expires on {{due_date}}. We have valued having you as a resident and would be glad to have you stay.\n\nIf you would like to renew, simply reply to this message and we will send the renewal terms.\n\n{{firm_name}}',
   },
   {
     key: 'blank',

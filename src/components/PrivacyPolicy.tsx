@@ -21,9 +21,10 @@ import { ChevronLeftIcon as ChevronLeft } from '../constants';
  *   - §3.6 (Visitor & Access Code Data) is now gated to Atrium only via `isProperty`.
  *   - §3.4 (Local File Linking) collapsed from five repetitive bullets to three
  *     sentences.
- *   - §5.1 AI Conversation Retention bullet uses ALOA™ for Vega and ARIA™ for
- *     Atrium (matching the `activeProduct` logic). The rest of the file keeps
- *     ALOA™ as the canonical assistant name for both products.
+ *   - §5.1 (AI Conversation Retention bullet and every assistant mention)
+ *     uses ALOA™ for Vega and ARIA™ for Atrium (matching the
+ *     `activeProduct` logic). There is no “canonical ALOA for both”
+ *     anymore — Atrium's assistant is ARIA™, and the policy says so.
  *
  * All legally material disclosures are preserved: NDPA 2023, NDPR 2019,
  * the 60-day data export window, the BYOK model, "we do not sell your data,"
@@ -108,18 +109,22 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8">1. Introduction</h2>
                             <div className="space-y-12">
                                 <p>
-                                    Welcome to PracticePro (also known as {isVega ? '"PracticePro VEGA"' : '"PracticePro ATRIUM"'}),
-                                    a cloud-based {isVega ? 'Litigation System' : 'Property OS'} built for Nigerian{' '}
-                                    {isVega ? 'lawyers and law firms' : 'property managers and real estate agencies'}.
-                                    PracticePro Systems Limited (we call ourselves "PracticePro," "we," "us," or "our")
-                                    protects your personal data. We follow the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>,
+                                    Welcome to PracticePro. <strong>PracticePro Systems Limited</strong>
+                                    ("PracticePro," "we," "us," or "our") is the company behind two
+                                    products: <strong>PracticePro Vega</strong>, a cloud-based Litigation
+                                    System for Nigerian lawyers and law firms, and{' '}
+                                    <strong>PracticePro Atrium</strong>, a cloud-based Property OS for
+                                    Nigerian property managers and real estate agencies. This policy
+                                    covers your use of {isVega ? 'PracticePro Vega' : 'PracticePro Atrium'}
+                                    — the same company and the same protections stand behind both products.
+                                    We follow the <strong>Nigeria Data Protection Act 2023 (NDPA)</strong>,
                                     the <strong>Nigeria Data Protection Regulation 2019 (NDPR)</strong>, and other
                                     Nigerian data protection laws.
                                 </p>
                                 <p>
                                     This policy explains how we collect, use, share, store, and protect your personal
-                                    data when you use PracticePro, including{' '}
-                                    {isProperty ? 'our AI-powered property assistant ALOA™' : 'our AI-powered legal assistant ALOA™'}.
+                                    data when you use {isVega ? 'PracticePro Vega' : 'PracticePro Atrium'}, including{' '}
+                                    our AI assistant {isVega ? 'ALOA™' : 'ARIA™'}.
                                     By using PracticePro, you agree to the practices described here.
                                 </p>
                                 <p>
@@ -139,6 +144,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <div className="space-y-12">
                                 <p>
                                     <strong>Company Name:</strong> PracticePro Systems Limited<br />
+                                    <strong>Products:</strong> PracticePro Vega (legal practice) and PracticePro Atrium (property management)<br />
                                     <strong>Registered Address:</strong> No. 6 Sulaiman Adekanbi Street, Igbo-Efon, Lekki-Epe Expressway, Lagos State<br />
                                     <strong>Email:</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a><br />
                                     <strong>Data Protection Officer (DPO):</strong> <a href="mailto:dpo@practicepro.ng" className="text-primary-600 no-underline hover:underline">dpo@practicepro.ng</a>
@@ -257,7 +263,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold">4.2 To Provide AI-Powered Services</h3>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li>{isProperty ? 'Process documents and property information through ALOA™ for analysis, drafting, and insights' : 'Process documents and case information through ALOA™ for legal research, drafting, and analysis'}</li>
+                                        <li>{isVega ? 'Process documents and case information through ALOA™ for legal research, drafting, and analysis' : 'Process documents and property information through ARIA™ for analysis, drafting, and insights'}</li>
                                         <li>Generate summaries, risk assessments, and document drafts</li>
                                         {isVega && <li>Calculate filing deadlines from Nigerian court rules</li>}
                                         <li>Pull key details from uploaded documents</li>
@@ -342,12 +348,12 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                             <h2 className="text-3xl font-bold mb-8 transition-colors">5. AI Processing and Third-Party Providers</h2>
                             <div className="space-y-12">
                                 <div className="space-y-8">
-                                    <h3 className="text-xl font-bold">5.1 ALOA™ AI Processing</h3>
+                                    <h3 className="text-xl font-bold">5.1 {isVega ? 'ALOA™' : 'ARIA™'} AI Processing</h3>
                                     <p>
-                                        ALOA™ is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting'}. PracticePro uses a <strong>Bring Your Own Key (BYOK)</strong> model — meaning you use your own AI account (called Bring Your Own Key, or BYOK). Here is how it works:
+                                        {isVega ? 'ALOA™' : 'ARIA™'} is {isProperty ? 'our AI-powered property assistant that provides document analysis, portfolio insights, and drafting' : 'our AI-powered legal assistant that provides document analysis, legal research, and drafting'}. PracticePro uses a <strong>Bring Your Own Key (BYOK)</strong> model — meaning you use your own AI account (called Bring Your Own Key, or BYOK). Here is how it works:
                                     </p>
                                     <ul className="list-disc pl-8 space-y-6">
-                                        <li><strong>Your own API key:</strong> To use ALOA™, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. The key is stored in your browser and used to log in directly with the AI provider you choose.</li>
+                                        <li><strong>Your own API key:</strong> To use {isVega ? 'ALOA™' : 'ARIA™'}, you provide your own Google Gemini or OpenAI API key in the AI Settings panel. The key is stored in your browser and used to log in directly with the AI provider you choose.</li>
                                         <li><strong>Direct browser-to-provider transfer:</strong> When you submit a query, upload a document, or request AI content, your data goes straight from your browser to the AI provider (Google or OpenAI). PracticePro does not intercept, store, or route your AI queries.</li>
                                         <li><strong>You are the Data Controller for AI inputs:</strong> Because you supply your own API key and your data goes directly to the AI provider, you (not PracticePro) are the Data Controller for what you submit. Your use of the AI provider follows their Terms and Privacy Policy. We do not process your AI data on anyone else's behalf.</li>
                                         <li><strong>PracticePro does not train models on your data:</strong> We never use your AI inputs or outputs to train any models. Whether the AI provider uses your data for training is governed by your agreement with them. Review their terms and configure data retention in your provider account.</li>
@@ -479,7 +485,7 @@ export const PrivacyPolicy: React.FC<{ onBack: () => void; activeProduct?: 'vega
                                 <div className="space-y-8">
                                     <h3 className="text-xl font-bold transition-colors">10.2 PracticePro as Data Processor</h3>
                                     <p>
-                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and ALOA™ queries you enter, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro only handles this data on your behalf, to provide the service.
+                                        For all {isVega ? 'client data, matter specifics' : 'tenant data, property specifics'}, uploaded files, and {isVega ? 'ALOA™' : 'ARIA™'} queries you enter, the {isVega ? 'legal practitioner or law firm' : 'property manager or agency'} is the Data Controller. PracticePro only handles this data on your behalf, to provide the service.
                                     </p>
                                 </div>
                             </div>

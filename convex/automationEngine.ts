@@ -74,6 +74,26 @@ export interface WorkflowDefinition {
  * Merge fields available in every template:
  *   {{tenant_name}} {{unit_number}} {{amount_due}} {{due_date}}
  *   {{property_name}} {{firm_name}} {{payment_link}}
+ *
+ * TEMPLATE WRITING RULES (2026-09-14, user feedback "messages are sparse
+ * and not very helpful — flesh out; be clear what each message is"):
+ *   1. Every message greets by name and signs off with the firm — one
+ *      consistent voice across the ladder.
+ *   2. Every payment-bearing message says WHAT is due, the AMOUNT, the
+ *      UNIT, the DATE, and HOW to pay ({{payment_link}} — always resolves:
+ *      personal portal token when the resident has one, the portal login
+ *      page otherwise).
+ *   3. Escalation steps state the CONSEQUENCE plainly (late charges per
+ *      the tenancy agreement, formal recovery proceedings) and always
+ *      leave a door open ("reply to arrange payment").
+ *   4. Bodies are OFFSET-AGNOSTIC: no "in 3 days" / "tomorrow" / "7 days
+ *      overdue" — the stepper can change any offset, and the text must
+ *      never contradict it. The anchor date ({{due_date}}) carries the
+ *      timing. Only "today" is allowed, and only on the due-date step
+ *      (true whenever the message arrives on its offset day).
+ *   5. lease_expiry / rent_review steps use NO {{payment_link}} and NO
+ *      {{amount_due}} — those resolvers have no payment data; tags would
+ *      render empty.
  */
 export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
   {
@@ -85,19 +105,19 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     defaultEnabled: true,
     steps: [
       { key: "pre_7", label: "7 days before due", title: "Gentle heads-up", offsetDays: -7, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Hi {{tenant_name}}, a quick heads-up: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}." },
+        subject: "Hi {{tenant_name}},\n\nA friendly heads-up: your rent of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}.\n\nYou can pay securely from your resident portal: {{payment_link}}\n\nThank you,\n{{firm_name}}" },
       { key: "pre_3", label: "3 days before due", title: "Rent reminder", offsetDays: -3, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Reminder: rent of {{amount_due}} for {{unit_number}} is due in 3 days ({{due_date}})." },
+        subject: "Hi {{tenant_name}},\n\nA reminder that your rent of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}.\n\nPay securely: {{payment_link}}\nIf you have already paid, please upload your receipt in the portal so we can confirm quickly.\n\n{{firm_name}}" },
       { key: "pre_1", label: "1 day before due", title: "Final reminder", offsetDays: -1, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Final reminder — {{amount_due}} for {{unit_number}} is due tomorrow, {{due_date}}." },
+        subject: "Hi {{tenant_name}},\n\nFinal reminder: your rent of {{amount_due}} for {{unit_number}} is due on {{due_date}}.\n\nTo avoid late charges under your tenancy agreement, please settle before the due date: {{payment_link}}\n\n{{firm_name}}" },
       { key: "due_day", label: "Due date (morning)", title: "Due-date reminder", offsetDays: 0, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Your rent of {{amount_due}} for {{unit_number}} is due today ({{due_date}}). Pay here: {{payment_link}}" },
+        subject: "Hi {{tenant_name}},\n\nYour rent of {{amount_due}} for {{unit_number}} is due today ({{due_date}}).\n\nPlease pay securely now: {{payment_link}}\nOnce paid, upload your receipt in the portal and we will confirm within one business day.\n\n{{firm_name}}" },
       { key: "grace_3", label: "3 days after (courtesy)", title: "Courtesy grace note", offsetDays: 3, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Courtesy note: we haven't received the {{amount_due}} for {{unit_number}} (was due {{due_date}}). If you've already paid, kindly upload your receipt in your portal." },
+        subject: "Hi {{tenant_name}},\n\nWe have not yet received your rent of {{amount_due}} for {{unit_number}}, which was due on {{due_date}}.\n\nIf you have already paid, please upload your receipt in the portal so we can confirm: {{payment_link}}\nIf you need more time, simply reply to this message — we are happy to discuss a payment plan before any charges apply.\n\n{{firm_name}}" },
       { key: "late_7", label: "7 days late — Notice of Default", title: "Notice of Default", offsetDays: 7, enabled: true, channel: "auto", messageType: "late_notice",
-        subject: "NOTICE OF DEFAULT: rent of {{amount_due}} for {{unit_number}} is now 7 days overdue (due {{due_date}})." },
+        subject: "NOTICE OF DEFAULT — {{unit_number}}, {{property_name}}\n\nHi {{tenant_name}},\n\nThe rent of {{amount_due}} for {{unit_number}}, due on {{due_date}}, is now overdue. Under your tenancy agreement, late payment may attract late charges.\n\nPlease settle the full amount today: {{payment_link}}\nIf payment (or an agreed payment plan) is not in place within seven days, {{firm_name}} may begin formal recovery proceedings, which can affect your tenancy.\n\nIf you are having difficulty paying, contact us now — we would rather agree a plan.\n\n{{firm_name}}" },
       { key: "late_14", label: "14 days late — escalated demand", title: "Escalated demand", offsetDays: 14, enabled: true, channel: "auto", messageType: "late_notice",
-        subject: "Escalated demand: the outstanding {{amount_due}} for {{unit_number}} (due {{due_date}}) is now 14 days overdue." },
+        subject: "FINAL DEMAND — {{unit_number}}, {{property_name}}\n\nHi {{tenant_name}},\n\nDespite earlier reminders, the rent of {{amount_due}} for {{unit_number}}, due on {{due_date}}, remains unpaid. This is a final demand.\n\nPay immediately: {{payment_link}}\nIf the amount is not settled — or a written payment plan agreed — within seven days, {{firm_name}} will commence formal recovery proceedings. This may include termination of the tenancy, recovery of possession, and recovery of costs.\n\nReply to this message now if you wish to arrange payment.\n\n{{firm_name}}" },
     ],
   },
   {
@@ -109,13 +129,13 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     defaultEnabled: true,
     steps: [
       { key: "pre_3", label: "3 days before due", title: "Service-charge heads-up", offsetDays: -3, enabled: true, channel: "auto", messageType: "service_charge_alert",
-        subject: "Hi {{tenant_name}}, your {{unit_number}} service charge contribution of {{amount_due}} is due on {{due_date}}." },
+        subject: "Hi {{tenant_name}},\n\nYour service charge contribution of {{amount_due}} for {{unit_number}} at {{property_name}} is due on {{due_date}}.\n\nThis covers shared running costs — diesel, security, cleaning and common services.\n\nPay securely: {{payment_link}}\n\n{{firm_name}}" },
       { key: "due_day", label: "Due date", title: "Due-date notice", offsetDays: 0, enabled: true, channel: "auto", messageType: "service_charge_alert",
-        subject: "Service charge of {{amount_due}} for {{unit_number}} is due today ({{due_date}})." },
+        subject: "Hi {{tenant_name}},\n\nYour service charge contribution of {{amount_due}} for {{unit_number}} is due today ({{due_date}}).\n\nPay securely now: {{payment_link}} — we confirm receipts in the portal within one business day.\n\n{{firm_name}}" },
       { key: "late_7", label: "7 days overdue", title: "Overdue alert", offsetDays: 7, enabled: true, channel: "auto", messageType: "service_charge_alert",
-        subject: "Your service charge contribution of {{amount_due}} for {{unit_number}} (due {{due_date}}) is now 7 days in arrears." },
+        subject: "Hi {{tenant_name}},\n\nYour service charge contribution of {{amount_due}} for {{unit_number}}, due on {{due_date}}, is now overdue.\n\nPlease settle it today: {{payment_link}}\nUnder your tenancy agreement, overdue service charges may attract late charges and may be recovered as rent arrears.\n\nIf you have already paid, upload your receipt in the portal so we can confirm.\n\n{{firm_name}}" },
       { key: "late_14", label: "14 days overdue", title: "Escalated demand", offsetDays: 14, enabled: true, channel: "auto", messageType: "late_notice",
-        subject: "Overdue service charge: {{amount_due}} for {{unit_number}} (due {{due_date}}) is 14 days late. Please settle to avoid penalties." },
+        subject: "FINAL NOTICE — SERVICE CHARGE, {{unit_number}}\n\nHi {{tenant_name}},\n\nThe service charge of {{amount_due}} for {{unit_number}}, due on {{due_date}}, remains unpaid despite earlier notices.\n\nPay immediately: {{payment_link}}\nIf it is not settled — or a payment plan agreed — within seven days, {{firm_name}} may treat it as recoverable rent arrears and begin formal recovery steps.\n\nReply to this message now if you need to arrange payment.\n\n{{firm_name}}" },
     ],
   },
   {
@@ -127,11 +147,11 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     defaultEnabled: false,
     steps: [
       { key: "expiry_90", label: "90 days before expiry", title: "Early renewal prompt", offsetDays: -90, enabled: true, channel: "auto", messageType: "lease_renewal",
-        subject: "Hi {{tenant_name}}, your tenancy for {{unit_number}} expires on {{due_date}} (90 days). Shall we begin renewal terms?" },
+        subject: "Hi {{tenant_name}},\n\nYour tenancy for {{unit_number}} at {{property_name}} expires on {{due_date}}. We have valued having you as a resident and would be glad to have you stay.\n\nIf you would like to renew, simply reply to this message and we will send the renewal terms.\n\n{{firm_name}}" },
       { key: "expiry_60", label: "60 days before expiry", title: "Renewal reminder", offsetDays: -60, enabled: true, channel: "auto", messageType: "lease_renewal",
-        subject: "Reminder: your {{unit_number}} lease expires {{due_date}} (60 days). Renewal terms are ready when you are." },
+        subject: "Hi {{tenant_name}},\n\nA reminder that your tenancy for {{unit_number}} expires on {{due_date}}.\n\nRenewal terms are ready — reply to this message, or review and accept them in your resident portal.\n\nIf we do not hear from you, we will plan for the unit to be handed back on the expiry date.\n\n{{firm_name}}" },
       { key: "expiry_30", label: "30 days before expiry", title: "Final renewal notice", offsetDays: -30, enabled: true, channel: "auto", messageType: "lease_renewal",
-        subject: "Final renewal notice: the {{unit_number}} tenancy ends on {{due_date}} (30 days). Confirm your renewal to hold the unit." },
+        subject: "FINAL RENEWAL NOTICE — {{unit_number}}\n\nHi {{tenant_name}},\n\nYour tenancy for {{unit_number}} ends on {{due_date}}. If you wish to stay, please confirm your renewal now — reply to this message or accept the terms in your resident portal.\n\nIf we receive no confirmation by the expiry date, we will schedule the move-out inspection and prepare the unit for re-letting.\n\n{{firm_name}}" },
     ],
   },
   {
@@ -143,9 +163,9 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
     defaultEnabled: false,
     steps: [
       { key: "review_60", label: "60 days before review", title: "Rent-review notice", offsetDays: -60, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Notice of upcoming rent review for {{unit_number}} effective {{due_date}}." },
+        subject: "NOTICE OF RENT REVIEW — {{unit_number}}\n\nHi {{tenant_name}},\n\nThe rent for {{unit_number}} will be reviewed with effect from {{due_date}}, as provided in your tenancy agreement. We will send the reviewed terms to you in writing before the review takes effect.\n\nIf you have any questions, simply reply to this message.\n\n{{firm_name}}" },
       { key: "review_30", label: "30 days before review", title: "Final rent-review notice", offsetDays: -30, enabled: true, channel: "auto", messageType: "rent_reminder",
-        subject: "Your rent for {{unit_number}} will be reviewed on {{due_date}} (30 days). New terms will follow in writing." },
+        subject: "Hi {{tenant_name}},\n\nA reminder that the rent review for {{unit_number}} takes effect on {{due_date}}. The reviewed terms follow in writing before that date, as your tenancy agreement requires.\n\nIf you have questions about the review, please reply before the effective date.\n\n{{firm_name}}" },
     ],
   },
 ];
@@ -339,11 +359,21 @@ async function resolveRentTargets(ctx: any, firmId: string): Promise<EngineTarge
         return hMonth === period && (hStatus === "paid" || hStatus === "paid on time" || hStatus === "paid_ontime");
       });
 
+      // Payment link — personal portal deep link when the resident has an
+      // access token; otherwise the portal LOGIN page (never null, so
+      // {{payment_link}} in every rent/service template always resolves to
+      // something actionable — a stripped tag would leave "Pay securely:
+      // " dangling mid-sentence). The login page leaks nothing and is the
+      // same destination the personal link leads to after sign-in.
       let paymentLink: string | null = null;
       if (email) {
         const user = await resolver.userByEmail(email.toLowerCase());
         const token = (user as any)?.portalAccessToken;
-        if (token) paymentLink = `${PORTAL_BASE}/portal/tenant/${token}`;
+        paymentLink = token
+          ? `${PORTAL_BASE}/portal/tenant/${token}`
+          : `${PORTAL_BASE}/portal/tenant/login`;
+      } else {
+        paymentLink = `${PORTAL_BASE}/portal/tenant/login`;
       }
 
       targets.push({
@@ -383,11 +413,17 @@ async function resolveServiceChargeTargets(ctx: any, firmId: string): Promise<En
     const tenantKey = canonical || email?.toLowerCase() || phone || String(sc.unitId);
     const period = `${periodKeyFor(dueTs)}:${String(sc.category || "General")}`;
 
+    // Payment link — personal deep link when a token exists, else the portal
+    // login page ({{payment_link}} must never render empty; see rent resolver).
     let paymentLink: string | null = null;
     if (email) {
       const user = await resolver.userByEmail(email.toLowerCase());
       const token = (user as any)?.portalAccessToken;
-      if (token) paymentLink = `${PORTAL_BASE}/portal/tenant/${token}`;
+      paymentLink = token
+        ? `${PORTAL_BASE}/portal/tenant/${token}`
+        : `${PORTAL_BASE}/portal/tenant/login`;
+    } else {
+      paymentLink = `${PORTAL_BASE}/portal/tenant/login`;
     }
 
     targets.push({

@@ -125,7 +125,7 @@ export const AdminLogin: React.FC = () => {
         setIsLoading(true);
         try {
             const result: any = await convex.action(api.myFunctions.resetPassword, {
-                email: email.trim().toLowerCase(), newPassword, overrideCode: code.trim(),
+                email: email.trim().toLowerCase(), newPassword, overrideCode: code.trim().replace(/\s+/g, ''),
             });
             if (result?.success) {
                 setPassword(newPassword);

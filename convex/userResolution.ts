@@ -34,7 +34,12 @@ import { v } from "convex/values";
 
 /** Fields that must NEVER leave the server through a client-visible query.
  * Kept in one place so getUser's projection and the contract tests cannot
- * drift apart. Do NOT add fields here without extending the strip test. */
+ * drift apart. Do NOT add fields here without extending the strip test.
+ * 2026-09-14: recoveryCode + recoveryCodeIssuedAt + recoveryFailedAttempts
+ * added — a live probe showed the public getUser returned the ACTIVE
+ * recovery code to anyone who knew the email (full account takeover via
+ * resetPassword). Nothing client-side reads these fields (the magic-link
+ * flow gets its code from the URL, not the DB). */
 export const AUTH_STRIP_FIELDS = [
   "password",
   "passwordHash",
@@ -42,6 +47,9 @@ export const AUTH_STRIP_FIELDS = [
   "verificationCode",
   "failedLoginAttempts",
   "lockedUntil",
+  "recoveryCode",
+  "recoveryCodeIssuedAt",
+  "recoveryFailedAttempts",
 ] as const;
 
 /** Convex validator fragment shared by getUser / getUserForAuth args. */

@@ -387,57 +387,66 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
         setIsAtBottom(scrollHeight - scrollTop - clientHeight < 100);
     }, []);
 
-    // ── Thread switch: ALWAYS jump to bottom ──────────────────────────
-    // (FIX 2026-09-14: “when I open the conversation it does not scroll to
-    // the bottom”) The old version only jumped when the thread was EMPTY,
+    // ── Thread switch: ALWAYS jump to bottom (instantly) ──────────────
+    // (FIX 2026-09-14: "when I open the conversation it does not scroll to
+    // the bottom") The old version only jumped when the thread was EMPTY,
     // which is exactly backwards — an empty thread has nothing to scroll
     // to, and a thread WITH messages was left wherever the previous
     // thread's scroll position / stale isAtBottom left it. Now: every
-    // thread open snaps to the latest message instantly (no smooth
-    // animation), marks at-bottom true so the new-message effect behaves,
-    // and resets the tracker. Runs BEFORE the new-message effect (below)
-    // so its bookkeeping can't be clobbered mid-handoff.
+    // thread open snaps to the latest message, marks at-bottom true so the
+    // new-message effect behaves, and resets the tracker. 'instant' beats
+    // the container's CSS `scroll-smooth` — opening a long thread must not
+    // crawl through months of history for seconds (which also LOOKED like
+    // "stuck at the top" mid-animation). If messages load later (async
+    // query after a deep-link), the new-message effect below catches the
+    // arrival via its first-sight branch.
+    const lastSeenIdRef = useRef<string | null>(null);
     useEffect(() => {
         if (embedded) return;
         lastSeenIdRef.current = null;
         setIsAtBottom(true);
         const raf = requestAnimationFrame(() => {
-            endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+            endRef.current?.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'end' });
         });
         return () => cancelAnimationFrame(raf);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [threadKey]);
 
-    // ── Auto-scroll policy (FIX 2026-09-14: “scrolls back down no matter
-    //    what I do”) ──
-    // Two bugs made the thread yank the user to the bottom constantly:
-    //   1. The effect keyed on the `sorted` ARRAY IDENTITY — Convex pushes
-    //      a fresh array on every re-render (heartbeat, notifications,
-    //      any query update), and the parent recomputed `messages` inline,
-    //      so the effect re-fired constantly.
-    //   2. `last?.isMe` short-circuited the isAtBottom guard — when the
-    //      firm's own reply was the last message, EVERY re-render forced a
-    //      scroll to bottom even while the admin was reading history.
-    // Fix: remember the LAST MESSAGE ID we've seen. Only scroll when a
-    // genuinely NEW message arrives AND (the user is at the bottom OR the
-    // new message is the user's own send). Pure re-renders do nothing.
-    // (The last-seen ref is reset by the thread-switch effect above, so a
-    // first load after opening a thread also scrolls.)
-    const lastSeenIdRef = useRef<string | null>(null);
-    useEffect(() => {
-        if (embedded) return;
-        const last = sorted[sorted.length - 1];
-        const lastId = last?.id ?? null;
+    // ── Auto-scroll policy — round 2 (2026-09-14: "send doesn't scroll /
+    //    toast View opens at the top") ──
+    // Round 1 keyed the scroll effect on the `sorted` ARRAY IDENTITY. Both
+    // thread surfaces (team + portal) recompute their messages array
+    // inline in JSX, so EVERY parent re-render produced a fresh identity,
+    // re-ran the effect, and its cleanup CANCELLED the pending 100ms
+    // scroll timeout. The re-render storm that follows every Convex query
+    // update — including the very update that delivers the message you
+    // just SENT, and the burst after a deep-link mount — reliably killed
+    // the scroll before it fired. The visible symptoms were exactly the
+    // two user reports: own sends don't scroll, notification "View" opens
+    // the conversation at the top.
+    // Fix: derive the last message's id as a PRIMITIVE and key the effect
+    // on it. Pure re-renders don't re-run the effect at all, so nothing
+    // can cancel the scroll. It runs in useLayoutEffect — after the DOM
+    // update, before paint, no timer involved. Own sends and thread-opens
+    // jump INSTANTLY (like WhatsApp); incoming messages while at the
+    // bottom glide smoothly; incoming while scrolled up leave you in
+    // place (the sticky "Jump to latest" button surfaces).
+    const lastId = sorted.length > 0 ? sorted[sorted.length - 1].id : null;
+    const lastIsMe = sorted.length > 0 ? !!sorted[sorted.length - 1].isMe : false;
+
+    useLayoutEffect(() => {
+        if (embedded || lastId === null) return;
+        const firstSight = lastSeenIdRef.current === null;
         const isNewMessage = lastId !== lastSeenIdRef.current;
-        if (lastId !== null) lastSeenIdRef.current = lastId;
-        if (!isNewMessage) return;
-        if (isAtBottom || last?.isMe) {
-            const t = setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }), 100);
-            return () => clearTimeout(t);
+        if (firstSight || isNewMessage) lastSeenIdRef.current = lastId;
+        if (!firstSight && !isNewMessage) return;
+        if (firstSight || isAtBottom || lastIsMe) {
+            endRef.current?.scrollIntoView({
+                behavior: firstSight || lastIsMe ? ('instant' as ScrollBehavior) : 'smooth',
+                block: 'end',
+            });
         }
-        // New message from the other side while the user is scrolled up:
-        // stay put — the sticky “Jump to latest” button surfaces instead.
-    }, [sorted, isAtBottom, embedded]);
+    }, [lastId, isAtBottom, lastIsMe, embedded]);
 
     const showAvatarsForMsg = (msg: UnifiedMessage, idx: number) => {
         if (!showAvatars || msg.isMe) return false;

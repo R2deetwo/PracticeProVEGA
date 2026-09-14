@@ -121,6 +121,14 @@ export default defineSchema({
     // next login attempt. Enforces the 10-minute TTL the email promises.
     mfaCodeIssuedAt: nullableNumber,
     recoveryCode: nullableString,
+    // 2026-09-14: when the current recoveryCode was issued (epoch ms).
+    // Absent on legacy records → still accepted (one-shot until used).
+    // New mints stamp this; resetPassword enforces a 60-minute TTL.
+    recoveryCodeIssuedAt: nullableNumber,
+    // 2026-09-14: consecutive failed recovery-code attempts. After
+    // MAX_RECOVERY_ATTEMPTS the stored code is wiped (forces a fresh
+    // email; also kills brute-force guessing of the 6-digit suffix).
+    recoveryFailedAttempts: nullableNumber,
     emailVerified: nullableBoolean,
     externalCounselId: nullableString,
     // ─── AI API Key (stored server-side so it syncs across devices) ───

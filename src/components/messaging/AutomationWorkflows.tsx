@@ -34,7 +34,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { BoltIcon, PauseIcon, PlayIcon } from './ScheduledTabIcons';
 import { UsersIcon, EyeIcon, SearchIcon } from '../../constants';
-import { renderMergeFields } from '../../utils/mergeFields';
 
 interface WorkflowStep {
   key: string;
@@ -151,7 +150,6 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
   );
 
   const workflows: WorkflowCard[] = (overview as any)?.workflows || [];
-  const firmName: string = (overview as any)?.firmName || 'your property manager';
   const optedOutUnits: Array<{ unitKey: string; label: string }> = (overview as any)?.optedOutUnits || [];
 
   const toggleWorkflow = async (wf: WorkflowCard, next: boolean) => {
@@ -205,33 +203,14 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
     }
   };
 
-  /** Merge vars for the step preview: a live recipient when loaded, else a realistic sample. */
-  const sampleVarsFor = (step: WorkflowStep) => {
-    const live = (preview as any)?.sample?.find((s: any) => !s.optedOut) || (preview as any)?.sample?.[0];
-    if (live) {
-      return {
-        tenant_name: live.tenantName || 'your resident',
-        unit_number: live.unit ? `${live.unit}, ${live.property}` : live.property,
-        amount_due: live.amountDue,
-        due_date: live.anchor
-          ? new Date(`${live.anchor}T00:00:00`).toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
-          : '',
-        property_name: live.property,
-        firm_name: firmName,
-        payment_link: 'your portal payment link',
-      };
-    }
-    const due = new Date(Date.now() + step.offsetDays * 86_400_000);
-    return {
-      tenant_name: 'Mrs. Adaeze Okonkwo',
-      unit_number: 'Flat 2A, 12 Marina Road',
-      amount_due: 850000,
-      due_date: due.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' }),
-      property_name: 'Marina Heights',
-      firm_name: firmName,
-      payment_link: 'your portal payment link',
-    };
-  };
+  /** CONSISTENCY (2026-09-14, user feedback): "some have a real name, some
+   * have variables — stick with one." The message preview used to render
+   * with a live recipient's REAL details (or a fabricated sample) while the
+   * editor showed raw {{variables}} — two different presentations of the
+   * same message. Now the preview shows THE TEMPLATE ITSELF, with the
+   * {{tags}} visible, exactly as the editor shows it and exactly as it is
+   * stored. One presentation; what you see is what every resident receives,
+   * with their own details filled in at send time. */
 
   const filteredUnits = useMemo(() => {
     const list: UnitStatus[] = (unitStatus as any)?.units || [];
@@ -389,12 +368,14 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
                         </button>
                       </div>
 
-                      {/* Message preview / editor */}
+                      {/* Message preview / editor — BOTH show the raw
+                          template with {{tags}}: one presentation, exactly
+                          what is stored and sent (tags fill per recipient). */}
                       {msgOpenHere && !editingHere && (
                         <div className="ml-[52px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-3 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-2xs font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-                              What the resident receives
+                              The message every resident receives
                             </span>
                             <div className="flex items-center gap-2">
                               <button
@@ -415,11 +396,11 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
                             </div>
                           </div>
                           <p className="text-xs leading-relaxed text-slate-700 dark:text-zinc-300 whitespace-pre-line">
-                            {renderMergeFields(step.subject || '', sampleVarsFor(step))}
+                            {step.subject || ''}
                           </p>
                           <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
-                            Sample shown with {(preview as any)?.sample?.length ? 'a live recipient\u2019s' : 'a sample'} details —
-                            each resident automatically gets their own name, unit and amount.
+                            Tags like {' {{tenant_name}}'}, {' {{amount_due}}'} and {' {{due_date}}'} fill in each resident's own
+                            details automatically at send time — nobody else ever sees another resident's name or amount.
                           </p>
                         </div>
                       )}
@@ -433,13 +414,14 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
                           <textarea
                             value={editDraft}
                             onChange={(e) => setEditDraft(e.target.value)}
-                            rows={4}
+                            rows={8}
                             placeholder="Write the message residents will receive…"
                             className="w-full px-3 py-2 rounded-lg bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-600 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500"
                           />
                           <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
                             Saving <strong>replaces</strong> the text every resident receives for this step. Tags like
-                            {' {{tenant_name}}'}, {' {{amount_due}}'} and {' {{due_date}}'} fill in per recipient at send time.
+                            {' {{tenant_name}}'}, {' {{amount_due}}'}, {' {{due_date}}'} and {' {{payment_link}}'} fill in
+                            each resident's own details at send time.
                           </p>
                           <div className="flex items-center justify-end gap-2">
                             <button
