@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PracticePro CRO Audit Cover</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #f7f7f6;
+    font-family: 'Inter', sans-serif;
+    color: #22211f;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .cover-page {
+    position: relative;
+    width: 794px; height: 1123px;
+    background: #f7f7f6;
+    overflow: hidden;
+    border: none !important;
+    outline: none !important;
+  }
+  /* Layer 1: Background grid */
+  .layer-bg {
+    position: absolute; inset: 0; z-index: 1;
+    overflow: hidden;
+    background-image:
+      linear-gradient(to right, rgba(136,116,34,0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(136,116,34,0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  /* Layer 1b: Decorative watermark numeral */
+  .watermark {
+    position: absolute;
+    right: 20px; bottom: 20px;
+    font-family: 'Playfair Display', serif;
+    font-size: 320px; font-weight: 900;
+    color: rgba(136,116,34,0.045);
+    line-height: 1; z-index: 1;
+    letter-spacing: -8px;
+    pointer-events: none;
+  }
+  /* Layer 2: Structure - thick left anchor line */
+  .layer-struct { position: absolute; inset: 0; z-index: 2; }
+  .anchor-line {
+    position: absolute;
+    left: 95.28px; /* 0.12 * 794 */
+    top: 112.3px;  /* 0.10 * 1123 */
+    width: 6px;
+    height: 898.4px; /* 0.80 * 1123 */
+    background: #584f35;
+  }
+  .top-rule {
+    position: absolute;
+    left: 155px; top: 95px;
+    width: 80px; height: 1px;
+    background: #584f35;
+    opacity: 0.6;
+  }
+  .bottom-rule {
+    position: absolute;
+    left: 155px; bottom: 100px;
+    width: 220px; height: 1px;
+    background: #584f35;
+    opacity: 0.4;
+  }
+  /* Layer 3: Content */
+  .layer-content {
+    position: absolute; inset: 0; z-index: 3;
+    padding-left: 155px;  /* 0.12*W + 30pt offset */
+    padding-right: 80px;
+  }
+  .kicker {
+    position: absolute;
+    left: 155px;
+    top: 168px;  /* 0.15 * 1123 */
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #584f35;
+    opacity: 0.7;
+  }
+  .kicker .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #8f7422;
+    border-radius: 50%;
+    margin: 0 10px 2px 0;
+    vertical-align: middle;
+  }
+  .hero-title {
+    position: absolute;
+    left: 155px;
+    top: 280px;  /* ~0.25 * 1123 */
+    font-family: 'Playfair Display', serif;
+    font-size: 64px;
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -1.5px;
+    color: #22211f;
+    max-width: 580px;
+  }
+  .hero-title .accent { color: #8f7422; font-style: italic; }
+  .subtitle {
+    position: absolute;
+    left: 155px;
+    top: 460px;  /* below title */
+    font-size: 18px;
+    font-weight: 400;
+    color: #584f35;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+    max-width: 520px;
+  }
+  .summary {
+    position: absolute;
+    left: 155px;
+    top: 555px;  /* 0.50 * 1123 */
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.7;
+    color: #22211f;
+    opacity: 0.85;
+    max-width: 460px;  /* W * 0.58 */
+  }
+  .summary p { margin: 0 0 10px 0; }
+  .summary .lead { font-weight: 500; color: #584f35; }
+  /* Stat strip */
+  .stat-strip {
+    position: absolute;
+    left: 155px;
+    top: 760px;  /* ~0.68 * 1123 */
+    display: flex;
+    gap: 36px;
+  }
+  .stat {
+    border-left: 2px solid #8f7422;
+    padding-left: 14px;
+  }
+  .stat .num {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    font-weight: 900;
+    color: #22211f;
+    line-height: 1;
+  }
+  .stat .label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #87857d;
+    margin-top: 6px;
+  }
+  /* Meta block */
+  .meta-block {
+    position: absolute;
+    left: 155px;
+    bottom: 110px;
+    display: flex;
+    gap: 60px;
+  }
+  .meta-item .meta-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #87857d;
+    margin-bottom: 5px;
+  }
+  .meta-item .meta-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #22211f;
+  }
+  /* Footer */
+  .footer {
+    position: absolute;
+    right: 60px;
+    bottom: 40px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #87857d;
+    opacity: 0.6;
+  }
+  /* Top-right tag */
+  .top-tag {
+    position: absolute;
+    right: 60px;
+    top: 95px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #8f7422;
+    text-align: right;
+  }
+  .top-tag .sub {
+    display: block;
+    font-size: 10px;
+    color: #87857d;
+    font-weight: 400;
+    margin-top: 4px;
+    letter-spacing: 1.5px;
+  }
+  /* Confidentiality stamp */
+  .stamp {
+    position: absolute;
+    right: 60px;
+    top: 220px;
+    border: 1.5px solid #8b4741;
+    color: #8b4741;
+    padding: 8px 16px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    transform: rotate(-4deg);
+    opacity: 0.75;
+  }
+</style>
+</head>
+<body>
+<div class="cover-page">
+  <!-- Layer 1: Background -->
+  <div class="layer-bg"></div>
+  <div class="watermark">CRO</div>
+
+  <!-- Layer 2: Structure -->
+  <div class="layer-struct">
+    <div class="anchor-line"></div>
+    <div class="top-rule"></div>
+    <div class="bottom-rule"></div>
+  </div>
+
+  <!-- Layer 3: Content -->
+  <div class="layer-content">
+    <div class="kicker"><span class="dot"></span>Strategic Audit &middot; PracticePro Systems</div>
+
+    <h1 class="hero-title">
+      Conversion<br>
+      Rate<br>
+      <span class="accent">Optimization</span><br>
+      &amp; PLG Audit
+    </h1>
+
+    <div class="subtitle">
+      Onboarding, Sales Funnel &amp; Payment Gateway<br>
+      Assessment across Atrium, Vega &amp; Komplete
+    </div>
+
+    <div class="summary">
+      <p class="lead">An end-to-end audit of the user acquisition pipeline, grounded in a line-by-line review of the live Convex + React codebase.</p>
+      <p>This report evaluates Time-to-Value, friction points, tier communication, the manual bank-transfer flow, the 14-day trial system, and the actual operational status of every payment gateway. It closes with a concrete three-track refactor plan: immediate UX quick-wins, copy rewrites, and a streamlined 3-step onboarding redesign.</p>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat">
+        <div class="num">9</div>
+        <div class="label">Clicks to Value</div>
+      </div>
+      <div class="stat">
+        <div class="num">0 / 4</div>
+        <div class="label">Gateways Live</div>
+      </div>
+      <div class="stat">
+        <div class="num">14</div>
+        <div class="label">Critical Findings</div>
+      </div>
+      <div class="stat">
+        <div class="num">3</div>
+        <div class="label">Track Refactor</div>
+      </div>
+    </div>
+
+    <div class="meta-block">
+      <div class="meta-item">
+        <div class="meta-label">Prepared For</div>
+        <div class="meta-value">PracticePro Founder Office</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Engagement</div>
+        <div class="meta-value">Product-Led Growth Audit</div>
+      </div>
+      <div class="meta-item">
+        <div class="meta-label">Issue Date</div>
+        <div class="meta-value">August 2026</div>
+      </div>
+    </div>
+
+    <div class="top-tag">
+      Vol. 01
+      <span class="sub">Internal Strategy</span>
+    </div>
+
+    <div class="stamp">Confidential</div>
+
+    <div class="footer">PracticePro Systems &middot; CRO Audit v1.0</div>
+  </div>
+</div>
+</body>
+</html>
