@@ -3234,6 +3234,23 @@ export const processScheduledMessages = internalAction({
     let processed = 0;
     let sent = 0;
     let failed = 0;
+    // AUTOMATION DIGEST (2026-09-14): per-firm sent/failed tallies for this
+    // dispatch run — after the loop, each firm with automation activity gets
+    // ONE admin notification (in-app + push, Messages channel, deep-links to
+    // the Scheduled tab). Firm names are cached per run for the resident
+    // push titles in createConversationFromScheduled.
+    const automationDigest = new Map<string, { sent: number; failed: number }>();
+    const firmNamesByFirm = new Map<string, string>();
+    const getFirmName = async (firmId: string): Promise<string> => {
+      const key = String(firmId);
+      if (firmNamesByFirm.has(key)) return firmNamesByFirm.get(key)!;
+      let name = "PracticePro";
+      try {
+        name = (await ctx.runQuery(internal.automationEngine.getFirmName, { firmId: key })) || "PracticePro";
+      } catch {}
+      firmNamesByFirm.set(key, name);
+      return name;
+    };
 
     for (const msg of dueMessages) {
       try {
@@ -3299,9 +3316,7 @@ export const processScheduledMessages = internalAction({
           // Systems" line. Manual sends keep their composer-provided HTML.
           let firmNameForEmail = "PracticePro";
           if (msg.isAutomation) {
-            try {
-              firmNameForEmail = (await ctx.runQuery(internal.automationEngine.getFirmName, { firmId: msg.firmId })) || "PracticePro";
-            } catch {}
+            firmNameForEmail = await getFirmName(String(msg.firmId));
           }
           for (const rcpt of emails) {
             try {
@@ -3438,7 +3453,25 @@ export const processScheduledMessages = internalAction({
             messageType: msg.messageType,
             propertyId: msg.propertyId,
             triggeredBy: msg.triggeredBy,
+            // Automation provenance — stamps the thread message + drives
+            // the "Automated" conversation tag (never a false "Replied").
+            isAutomation: msg.isAutomation === true,
+            scheduledMessageId: msg._id,
+            workflowKey: (msg as any).workflowKey,
+            stepKey: (msg as any).stepKey,
+            firmName: firmNamesByFirm.get(String(msg.firmId)) || undefined,
           });
+        }
+
+        // ── Automation digest aggregation (admin accountability) ──
+        // One notification per FIRM per dispatch run — never one per
+        // message (a 100-unit estate must not receive 100 pushes at
+        // 08:05). Fires after the loop via notifyAutomationDigest.
+        if (msg.isAutomation === true) {
+          const key = String(msg.firmId);
+          const agg = automationDigest.get(key) || { sent: 0, failed: 0 };
+          if (sendSuccess) agg.sent += 1; else agg.failed += 1;
+          automationDigest.set(key, agg);
         }
 
         processed++;
@@ -3459,6 +3492,33 @@ export const processScheduledMessages = internalAction({
           }
         } catch {}
         failed++;
+        // The per-message catch is ALSO a dispatch outcome — count it in the
+        // digest so a firm whose sends exploded in exceptions still hears.
+        if (msg.isAutomation === true) {
+          const key = String(msg.firmId);
+          const agg = automationDigest.get(key) || { sent: 0, failed: 0 };
+          agg.failed += 1;
+          automationDigest.set(key, agg);
+        }
+      }
+    }
+
+    // ── AUTOMATION DIGEST: notify each firm's admins (one notification per
+    // firm per run). This is the accountability layer the user asked for —
+    // "knowing when an automated message has been sent out" — without
+    // per-message push spam. Failures are always included; an all-sent run
+    // gets a calmer wording. Fire-and-forget per firm: a digest failure
+    // must never fail the dispatch action.
+    for (const [firmId, agg] of automationDigest) {
+      if (agg.sent + agg.failed === 0) continue;
+      try {
+        await ctx.runMutation(internal.portals.notifyAutomationDigest, {
+          firmId,
+          sent: agg.sent,
+          failed: agg.failed,
+        });
+      } catch (digestErr: any) {
+        console.warn(`[processScheduledMessages] digest notify failed for ${firmId}:`, digestErr?.message);
       }
     }
 
@@ -3554,6 +3614,19 @@ export const updateScheduledMessageStatus = internalMutation({
  * portal_message in each recipient's conversation when a scheduled
  * message is successfully sent. This makes the sent message appear in
  * All Conversations alongside real-time messages.
+ *
+ * AUTOMATION TRACKING (2026-09-14, user directive "a robust system that
+ * keeps everyone accountable and everything well tracked"):
+ *   • Provenance: every engine-generated portal_message is stamped with
+ *     isAutomation + scheduledMessageId + workflowKey/stepKey, and the
+ *     conversation gets lastMessageIsAutomation — so the admin inbox shows
+ *     an "Automated" tag instead of a misleading "Replied" (the founder was
+ *     told a human replied when a scheduled robot had), and the thread can
+ *     trace the message back to its delivery record.
+ *   • Resident push: automated messages fire the SAME FCM push a manual
+ *     admin reply does (Messages channel, per-conversation tag, badge =
+ *     unread count, 90-char lock-screen preview) — previously residents
+ *     only learned about automated notices on their next app open.
  */
 export const createConversationFromScheduled = internalMutation({
   args: {
@@ -3563,6 +3636,13 @@ export const createConversationFromScheduled = internalMutation({
     messageType: v.optional(v.string()),
     propertyId: v.optional(v.string()),
     triggeredBy: v.optional(v.string()),
+    // Automation provenance (all optional — manual scheduled sends leave
+    // them unset and behave exactly as before).
+    isAutomation: v.optional(v.boolean()),
+    scheduledMessageId: v.optional(v.id("scheduled_messages")),
+    workflowKey: v.optional(v.string()),
+    stepKey: v.optional(v.string()),
+    firmName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -3589,17 +3669,52 @@ export const createConversationFromScheduled = internalMutation({
           propertyId: args.propertyId,
           status: "read",
           isRead: false,
+          // Automation provenance — the audit trail (see docblock).
+          isAutomation: args.isAutomation === true ? true : undefined,
+          scheduledMessageId: args.scheduledMessageId,
+          workflowKey: args.workflowKey,
+          stepKey: args.stepKey,
           createdAt: now,
           updatedAt: now,
         });
 
+        const nextUnread = ((conversation as any).unreadByParticipant || 0) + 1;
         await ctx.db.patch(conversation._id, {
           lastMessageAt: now,
           lastMessagePreview: `📤 ${args.content.substring(0, 70)}`.substring(0, 80),
           lastMessageBy: "admin",
-          unreadByParticipant: ((conversation as any).unreadByParticipant || 0) + 1,
+          // Automated send → "Automated" tag, never a false "Replied".
+          lastMessageIsAutomation: args.isAutomation === true ? true : false,
+          unreadByParticipant: nextUnread,
           updatedAt: now,
         });
+
+        // ── Resident push (same treatment as a manual admin reply) ──
+        // Fire-and-forget: a push failure must never fail the send.
+        // Smart categorization: Messages channel (MAX importance),
+        // per-conversation tag so notices collapse into one tray row,
+        // badge = the resident's unread count, body = real preview text.
+        try {
+          const preview = (args.content || "").replace(/\s+/g, " ").trim();
+          const shortPreview = preview.length > 90 ? preview.slice(0, 89).trimEnd() + "…" : preview;
+          const pushTitle = args.firmName || "Your property manager";
+          await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+            userIds: [tenantId],
+            title: pushTitle,
+            body: shortPreview || "sent you an automated message",
+            data: {
+              type: "portal_reply",
+              view: "messaging",
+              conversationId,
+              senderName: pushTitle,
+            },
+            channelId: "practicepro-messages",
+            tag: `conversation:${conversationId}`,
+            notificationCount: nextUnread,
+          });
+        } catch (pushErr: any) {
+          console.warn("[createConversationFromScheduled] Resident push failed:", pushErr?.message);
+        }
       } catch (err) {
         console.warn("[createConversationFromScheduled] Failed:", (err as any)?.message);
       }
@@ -4598,6 +4713,8 @@ export const sendPortalMessage = mutation({
         lastMessageAt: now,
         lastMessagePreview: args.content.substring(0, 80),
         lastMessageBy: "admin",
+        // Human sender — clears any prior "Automated" tag on the thread.
+        lastMessageIsAutomation: false,
         unreadByParticipant: (conversation.unreadByParticipant || 0) + 1,
         updatedAt: now,
       });
@@ -4706,6 +4823,8 @@ export const sendAdminReply = mutation({
       lastMessageAt: now,
       lastMessagePreview: args.content.substring(0, 80),
       lastMessageBy: "admin",
+      // Human admin reply — replaces the "Automated" tag with "Replied".
+      lastMessageIsAutomation: false,
       unreadByParticipant: (conversation.unreadByParticipant || 0) + 1,
       updatedAt: now,
     });
@@ -5235,6 +5354,8 @@ export const replyToPortalMessage = mutation({
           lastMessageAt: now,
           lastMessagePreview: args.replyContent.substring(0, 80),
           lastMessageBy: "admin",
+          // Human admin reply — replaces the "Automated" tag with "Replied".
+          lastMessageIsAutomation: false,
           unreadByParticipant: (conversation.unreadByParticipant || 0) + 1,
           updatedAt: now,
         });
@@ -6111,6 +6232,45 @@ export const getPortalAccessToken = query({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
+ * notifyAutomationDigest — internalMutation called by the
+ * processScheduledMessages dispatch action after a run, once per firm with
+ * automation activity. Creates ONE in-app notification + ONE FCM push for
+ * the firm's admin team summarising what the automation engine just did
+ * ("12 automated messages sent, 2 failed — review in Scheduled").
+ *
+ * USER DIRECTIVE (2026-09-14): "we need to ensure there is some way of
+ * tracking this and know when an automated message has been sent out…
+ * a robust system that keeps everyone accountable." The digest is the
+ * push-side answer; the Scheduled tab's Live queue + history and the
+ * Outbox's automation_logs are the full audit trail it links to.
+ *
+ * Deliberately ONE digest per firm per dispatch run (never per message):
+ * a 100-unit estate sends ~100 ladder messages in the 08:00 WAT batch —
+ * per-message pushes would be an un-installable spam storm.
+ */
+export const notifyAutomationDigest = internalMutation({
+  args: { firmId: v.string(), sent: v.number(), failed: v.number() },
+  handler: async (ctx, args) => {
+    const total = args.sent + args.failed;
+    if (total <= 0) return { success: true, skipped: true };
+    const title = args.failed > 0
+      ? `Automation: ${args.failed} of ${total} message${total === 1 ? "" : "s"} failed`
+      : `Automation sent ${args.sent} message${args.sent === 1 ? "" : "s"}`;
+    const message = args.failed > 0
+      ? `${args.sent} automated message${args.sent === 1 ? "" : "s"} delivered, ${args.failed} failed — check the Scheduled tab for reasons and follow-up.`
+      : `Automated reminders went out to ${args.sent} recipient${args.sent === 1 ? "" : "s"}. Full delivery history is in Messages → Scheduled.`;
+    await notifyFirmAdmins(ctx, {
+      firmId: args.firmId,
+      title,
+      message,
+      type: "automation_digest",
+      link: { view: "messaging", context: { initialTab: "scheduled" } },
+    });
+    return { success: true };
+  },
+});
+
+/**
  * notifyFirmAdmins — Internal helper that creates an in-app notification
  * for every Admin/Lawyer/Paralegal in the firm AND optionally schedules an
  * email notification. Used by createMaintenanceTicket, createClientServiceRequest,
@@ -6274,6 +6434,12 @@ export const NOTIFICATION_TYPE_DEFAULTS: Record<string, {
   portal_maintenance_ticket: { label: "New Maintenance Ticket",   category: "portal", defaultEnabled: true,  description: "A resident submitted a new maintenance ticket" },
   portal_service_request:    { label: "New Service Request",      category: "portal", defaultEnabled: true,  description: "A client submitted a new service request" },
   portal_payment_proof:      { label: "Payment Proof Submitted",  category: "portal", defaultEnabled: true,  description: "A resident uploaded a payment proof for review" },
+
+  // ── Automation digest (admin-facing — accountability for engine sends) ──
+  // One per firm per dispatch run: "Automation sent 12 messages" /
+  // "3 of 15 failed". Push + in-app always; email OFF by default (the
+  // Scheduled tab is the audit trail, the push is the heads-up).
+  automation_digest:     { label: "Automation Digest",       category: "property", defaultEnabled: false, description: "Summary when scheduled automations send or fail" },
 
   // ── System ──
   verification_code:     { label: "Verification Code",      category: "system",   defaultEnabled: true,  alwaysOn: true, description: "Email verification during signup" },

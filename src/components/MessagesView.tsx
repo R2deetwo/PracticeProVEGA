@@ -20,6 +20,7 @@ import TeamMessageModal from './modals/TeamMessageModal';
 // was merged into Conversations (inbox) in a prior session.
 import { NoticeBoardTab, ScheduledTab, OutboxTab } from './messaging';
 import { MessageThread } from './messaging/MessageThread';
+import { AUTOMATION_WORKFLOW_LABELS } from '../utils/messageTypes';
 import {
     InboxSection,
     ClientThreadTag,
@@ -532,13 +533,17 @@ const MessagesView: React.FC = () => {
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     // ── Conversation type filters ─────────────────────────────────────────
+    // 'automated' (2026-09-14): conversations whose last admin-side message
+    // came from the automation engine — separate from 'replied' so a human
+    // reply and a scheduled robot send are never conflated again.
     const [typeFilters, setTypeFilters] = useState<{
         request: boolean;
         ticket: boolean;
         replied: boolean;
+        automated: boolean;
         portal: boolean;
         team: boolean;
-    }>({ request: true, ticket: true, replied: true, portal: true, team: true });
+    }>({ request: true, ticket: true, replied: true, automated: true, portal: true, team: true });
 
     // ── Slack-style collapsible section state — SMART DEFAULTS + PERSISTED ──
     // USER DIRECTIVE (2026-09-14): every section starts CLOSED on first
@@ -651,6 +656,7 @@ const MessagesView: React.FC = () => {
             if (convTag === 'request' && !typeFilters.request) return false;
             if (convTag === 'ticket' && !typeFilters.ticket) return false;
             if (convTag === 'replied' && !typeFilters.replied) return false;
+            if (convTag === 'automated' && !typeFilters.automated) return false;
             if (convTag === 'general' && !typeFilters.portal) return false;
             // Search filter
             if (conversationSearch.trim()) {
@@ -1333,11 +1339,12 @@ const MessagesView: React.FC = () => {
                                 {((portalConversations as any[]).length > 0 || teamConversationsForInbox.length > 0) && selectedConvIds.size === 0 && (
                                     <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar whitespace-nowrap">
                                         {([
-                                            { key: 'team'    as const, label: 'Team',     style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
-                                            { key: 'request' as const, label: 'Requests',  style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
-                                            { key: 'ticket'  as const, label: 'Tickets',   style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       dot: 'bg-amber-400' },
-                                            { key: 'replied' as const, label: 'Replied',   style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         dot: 'bg-blue-400' },
-                                            { key: 'portal'  as const, label: 'Portal',    style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', dot: 'bg-emerald-400' },
+                                            { key: 'team'     as const, label: 'Team',      style: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',       dot: 'bg-indigo-400' },
+                                            { key: 'request'  as const, label: 'Requests',   style: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',           dot: 'bg-rose-400' },
+                                            { key: 'ticket'   as const, label: 'Tickets',    style: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',       dot: 'bg-amber-400' },
+                                            { key: 'replied'  as const, label: 'Replied',    style: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         dot: 'bg-blue-400' },
+                                            { key: 'automated' as const, label: 'Automated',  style: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',           dot: 'bg-cyan-400' },
+                                            { key: 'portal'   as const, label: 'Portal',     style: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', dot: 'bg-emerald-400' },
                                         ]).map(f => (
                                             <label
                                                 key={f.key}
@@ -1471,7 +1478,7 @@ const MessagesView: React.FC = () => {
                                                 </div>
                                                 <p className="text-sm font-medium text-slate-500 dark:text-zinc-400">No conversations match your filters</p>
                                                 <button
-                                                    onClick={() => setTypeFilters({ request: true, ticket: true, replied: true, portal: true, team: true })}
+                                                    onClick={() => setTypeFilters({ request: true, ticket: true, replied: true, automated: true, portal: true, team: true })}
                                                     className="mt-3 px-3 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
                                                 >
                                                     Show all
@@ -1742,6 +1749,8 @@ const MessagesView: React.FC = () => {
                                                     ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
                                                     : convTag === 'replied'
                                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
+                                                    : convTag === 'automated'
+                                                    ? 'bg-cyan-50 dark:bg-cyan-900/20 border-l-cyan-500'
                                                     : 'bg-violet-50 dark:bg-violet-900/20 border-l-violet-500';
                                                 return (
                                                     <div
@@ -1770,7 +1779,13 @@ const MessagesView: React.FC = () => {
                                                                 </button>
                                                                 {(conv.unreadByAdmin || 0) > 0
                                                                     ? <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />
-                                                                    : (conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />)}
+                                                                    : (conv.lastMessageBy === 'admin' && (
+                                                                        // Automated last send → zap glyph (not a "you replied"
+                                                                        // checkmark — nothing human happened here).
+                                                                        conv.lastMessageIsAutomation === true
+                                                                            ? <svg className="w-3 h-3 text-cyan-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 00.77 1.64H9.5l-1.4 6.53a1 1 0 001.72.86l8.09-10.97a1 1 0 00-.77-1.64H12.9l1.05-4.89A1 1 0 0013 2z" /></svg>
+                                                                            : <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                                                                    ))}
                                                                 <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
                                                                     {conv.participantName || 'Unknown'}
                                                                 </span>
@@ -1831,6 +1846,8 @@ const MessagesView: React.FC = () => {
                                                     ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500'
                                                     : convTag === 'replied'
                                                     ? 'bg-blue-50 dark:bg-blue-900/20 border-l-blue-500'
+                                                    : convTag === 'automated'
+                                                    ? 'bg-cyan-50 dark:bg-cyan-900/20 border-l-cyan-500'
                                                     : 'bg-sky-50 dark:bg-sky-900/20 border-l-sky-500';
                                                 return (
                                                     <div
@@ -1859,7 +1876,13 @@ const MessagesView: React.FC = () => {
                                                                 </button>
                                                                 {(conv.unreadByAdmin || 0) > 0
                                                                     ? <span className={`w-2 h-2 rounded-full ${typeStyle.dot} flex-shrink-0`} />
-                                                                    : (conv.lastMessageBy === 'admin' && <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />)}
+                                                                    : (conv.lastMessageBy === 'admin' && (
+                                                                        // Automated last send → zap glyph (not a "you replied"
+                                                                        // checkmark — nothing human happened here).
+                                                                        conv.lastMessageIsAutomation === true
+                                                                            ? <svg className="w-3 h-3 text-cyan-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 00.77 1.64H9.5l-1.4 6.53a1 1 0 001.72.86l8.09-10.97a1 1 0 00-.77-1.64H12.9l1.05-4.89A1 1 0 0013 2z" /></svg>
+                                                                            : <CheckIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                                                                    ))}
                                                                 <span className={`text-sm truncate max-w-[140px] ${(conv.unreadByAdmin || 0) > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
                                                                     {conv.participantName || 'Unknown'}
                                                                 </span>
@@ -2315,15 +2338,32 @@ const MessagesView: React.FC = () => {
                                                                     addToast(err.message || 'Failed to delete message.', { type: 'error' });
                                                                 }
                                                             }}
-                                                            renderAboveBubble={(m) => (
-                                                                (m.linkedTicketId || m.linkedRequestId) ? (
+                                                            renderAboveBubble={(m) => {
+                                                                // AUTOMATION PROVENANCE (2026-09-14): engine-sent messages
+                                                                // wear a zap badge naming the workflow + step, and link to
+                                                                // the delivery trail in Scheduled. Previously they looked
+                                                                // like ordinary admin messages (only an "Automated:" subject
+                                                                // prefix) and the conversation was falsely tagged "Replied".
+                                                                const raw = (m as any).raw;
+                                                                if (raw?.isAutomation) {
+                                                                    const wfName = AUTOMATION_WORKFLOW_LABELS[String(raw.workflowKey)] || raw.workflowKey || 'Automation';
+                                                                    return (
+                                                                        <div className="mb-1.5">
+                                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400" title={`${wfName}${raw.stepKey ? ` · step ${raw.stepKey}` : ''} — scheduled message sent automatically. Delivery history: Messages → Scheduled.`}>
+                                                                                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4.09 12.97a1 1 0 00.77 1.64H9.5l-1.4 6.53a1 1 0 001.72.86l8.09-10.97a1 1 0 00-.77-1.64H12.9l1.05-4.89A1 1 0 0013 2z" /></svg>
+                                                                                Automated · {wfName}{raw.stepKey ? ` · ${raw.stepKey.replace(/_/g, ' ')}` : ''}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return (m.linkedTicketId || m.linkedRequestId) ? (
                                                                     <div className="mb-1.5">
                                                                         <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-2xs font-bold ${m.linkedTicketId ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
                                                                             {m.linkedTicketId ? 'T:' : 'R:'} {m.requestTypeLabel || (m.linkedTicketId ? 'Ticket' : 'Request')}
                                                                         </span>
                                                                     </div>
-                                                                ) : null
-                                                            )}
+                                                                ) : null;
+                                                            }}
                                                             renderBelowBubble={(m) => {
                                                                 const msgTicketId = m.linkedTicketId || m.linkedRequestId;
                                                                 if (!msgTicketId) return null;

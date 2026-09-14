@@ -584,12 +584,36 @@ export const AloaXView: React.FC = () => {
     return () => document.body.classList.remove('aloax-is-processing');
   }, [isProcessing]);
 
+  // ── API KEY PERSISTENCE (2026-09-14) ──────────────────────────────
+  // The indexer prompt used to save ONLY to localStorage, which the update
+  // refresh wiped — so users had to re-enter their key every time the app
+  // updated. Keys entered here now take the same dual path as Settings →
+  // Agents: device copy + server copy (user.geminiApiKey), so they survive
+  // updates and follow the account to new devices.
+  const saveApiKeyToServer = useMutation(api.myFunctions.saveUserApiKey);
+  const saveApiKeyEverywhere = useCallback((raw: string) => {
+    const clean = raw.replace(/[^ -~]/g, '').trim();
+    if (!clean) return;
+    setCustomApiKey(clean);
+    if (currentUser?.email) {
+      saveApiKeyToServer({
+        tokenIdentifier: currentUser.email,
+        sessionToken: bearerToken ?? undefined,
+        apiKey: clean,
+      }).catch((e) => {
+        console.warn('[AloaXView] API key server sync failed:', e?.message);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.email, bearerToken]);
+
   const resolveApiKey = useCallback((): string | null => {
     const existing = getGeminiApiKey();
     if (existing) return existing;
-    if (apiKeyInput.trim()) { setCustomApiKey(apiKeyInput.trim()); return apiKeyInput.trim(); }
+    if (apiKeyInput.trim()) { saveApiKeyEverywhere(apiKeyInput.trim()); return apiKeyInput.trim(); }
     return null;
-  }, [apiKeyInput]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKeyInput, saveApiKeyEverywhere]);
 
   useEffect(() => {
     setResumableSessions(checkpointManager.current.findResumableSessions());
@@ -784,14 +808,14 @@ export const AloaXView: React.FC = () => {
               </button>
             </div>
             <p className="text-sm text-slate-600 dark:text-zinc-300 mb-4">
-              Your key is stored only on this device. Get one free at{' '}
+              Your key syncs to your PracticePro account and survives app updates. Get one free at{' '}
               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline font-medium">aistudio.google.com</a>
             </p>
             <input autoComplete="off" data-lpignore="true"  id="api-key-input" type="password" value={apiKeyInput} onChange={e => setApiKeyInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } if (e.key === 'Escape') setShowApiKeyPrompt(false); }}
+              onKeyDown={e => { if (e.key === 'Enter' && apiKeyInput) { saveApiKeyEverywhere(apiKeyInput); setShowApiKeyPrompt(false); } if (e.key === 'Escape') setShowApiKeyPrompt(false); }}
               placeholder="AIzaSy…" className="w-full px-4 py-2.5 border border-slate-200 dark:border-zinc-600 rounded-lg bg-slate-50 dark:bg-zinc-900 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4" />
             <div className="flex gap-2">
-              <button onClick={() => { if (apiKeyInput) { setCustomApiKey(apiKeyInput); setShowApiKeyPrompt(false); } }} disabled={!apiKeyInput}
+              <button onClick={() => { if (apiKeyInput) { saveApiKeyEverywhere(apiKeyInput); setShowApiKeyPrompt(false); } }} disabled={!apiKeyInput}
                 className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold rounded-lg text-sm transition-colors">
                 Save & Continue
               </button>

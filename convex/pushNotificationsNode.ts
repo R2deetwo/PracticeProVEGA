@@ -150,7 +150,10 @@ export function channelForType(type?: string): string {
     type === "portal_message" || type === "portal_new_message" ||
     type === "incoming_message" || type === "feedback_user_reply" ||
     type === "feedback_reply" || type === "feedback_new" ||
-    type === "feedback_issue" || type === "feedback_auto_reply"
+    type === "feedback_issue" || type === "feedback_auto_reply" ||
+    // Automation digest (2026-09-14): messaging-activity summary — belongs
+    // with the other message notifications, deep-links to the Scheduled tab.
+    type === "automation_digest"
   ) {
     return "practicepro-messages";
   }

@@ -150,39 +150,25 @@ export function useVersionCheck(): VersionCheckState {
     // Clear all caches so the new JS bundle is fetched fresh.
     try { if ('caches' in window) caches.keys().then(keys => keys.forEach(k => caches.delete(k))).catch(() => {}); } catch {}
 
-    // Clear localStorage (except auth/session keys) so stale data doesn't
-    // interfere with the new version.
-    const PRESERVE_PATTERNS = [
-      /^practicepro_cached_user$/,
-      /^practicepro_user_session$/,
-      /^practicepro_portal_session$/,
-      /^practicepro_portal_type$/,
-      /^practicepro_original_session$/,
-      /^practicepro_impersonation_role$/,
-      /^practicepro_session_locked$/,
-      /^practicepro_theme_u:/, // R12: per-user theme prefs survive refresh (scoped per account)
-      /^practicepro_fontSize$/,
-      /^practicepro_cookie_consent$/,
-      /^practicepro_ai_consent$/,
-      /^practicepro_content_protection$/,
-      /^practicepro_tour_completed$/,
-      /^practicepro_dismissed_tips$/,
-      /^practicepro_last_seen_version$/,
-      /^practicepro_push_registered_this_session$/,
-      /^practicepro_last_notified_version$/, // Preserve in localStorage too (belt-and-suspenders)
-      /^draft_/,
-      /^local_cached_files$/,
-    ];
-    const shouldPreserve = (key: string) => PRESERVE_PATTERNS.some(p => p.test(key));
-
-    try {
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && !shouldPreserve(key)) keysToRemove.push(key);
-      }
-      keysToRemove.forEach(k => localStorage.removeItem(k));
-    } catch {}
+    // ─── LOCAL STORAGE IS NO LONGER WIPED (2026-09-14) ─────────────────
+    // The old refresh() deleted every localStorage key except an
+    // allow-list. That allow-list whack-a-mole caused recurring,
+    // user-visible data loss on EVERY deploy ("refresh to update"):
+    //   • practicepro_checklist_dismissed_<firmId> was wiped → the
+    //     Getting Started checklist re-armed → the "🎉 You're all set!"
+    //     celebration toast fired on every single update (GATE 2's ref
+    //     starts false on each mount, so an all-done checklist always
+    //     looked like a fresh transition).
+    //   • practicepro_custom_gemini_key was wiped → users had to re-enter
+    //     their Gemini API key after every deploy ("the AI resets and
+    //     asks for consent like it's the first time").
+    //   • practicepro:aloa:session:* was wiped → ALOA conversations
+    //     restarted from scratch.
+    // None of that deletion ever helped serve the new bundle — the
+    // Cache API clear + cache-busting URL param below do that. User
+    // preferences, dismissals, keys and sessions now ALL survive update
+    // refreshes. Anything genuinely version-sensitive belongs on the
+    // server (Convex), not in a wipe list here.
 
     // Reload with cache-busting parameter
     const url = new URL(window.location.href);

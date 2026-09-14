@@ -50,6 +50,8 @@ import TemplatesSettings, { TemplateSubTab, CategorySubTab } from './TemplatesSe
 // import HelpView from '../HelpView';
 import { useOnboarding } from '../../contexts/OnboardingProvider';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { CHECKLIST_DISMISSED_KEY_PREFIX, BANNER_DISMISSED_KEY_PREFIX } from '../GettingStartedChecklist';
 import AutomationSettings from './AutomationSettings';
 import SubscriptionSettings from './SubscriptionSettings';
@@ -396,7 +398,13 @@ const SidebarContents: React.FC<{
 const HelpOnboardingPanel: React.FC = () => {
     const { resetTour } = useOnboarding();
     const { addToast, navigateTo } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
+    // SERVER-SIDE CHECKLIST DISMISSAL (2026-09-14): the dismissal now also
+    // lives on the firm record (firms.checklistDismissedAt) so it survives
+    // update refreshes, APK reinstalls and new devices. Restoring the
+    // checklist must clear BOTH stores or the widget would re-hide itself
+    // the moment the Convex query lands.
+    const setChecklistDismissed = useMutation(api.myFunctions.setGettingStartedChecklistDismissed);
 
     const handleRestartTour = () => {
         resetTour();
@@ -412,6 +420,14 @@ const HelpOnboardingPanel: React.FC = () => {
         try {
             localStorage.removeItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`);
             localStorage.removeItem(`${BANNER_DISMISSED_KEY_PREFIX}${firmId}`);
+            // Clear the durable server-side dismissal too.
+            setChecklistDismissed({
+                dismissed: false,
+                sessionToken: bearerToken ?? undefined,
+                userEmail: currentUser?.email,
+            }).catch(() => {
+                addToast("Restored locally — the server copy couldn't be cleared, so the widget may re-hide. Try again in a moment.", { type: 'info' });
+            });
             addToast("Setup checklist reset. The Getting Started widget will reappear on your next dashboard visit.", { type: 'success' });
             setTimeout(() => window.location.reload(), 1200);
         } catch (e) {

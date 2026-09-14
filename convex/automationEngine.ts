@@ -1350,6 +1350,94 @@ export const getAutomationQueue = query({
   },
 });
 
+/**
+ * getUpcomingAutomation — the "Upcoming" projection for the Scheduled tab.
+ *
+ * USER CONTEXT (2026-09-14): the engine enqueues at 06:30 UTC for a 07:00
+ * UTC dispatch, so the Live Queue only shows each morning's batch for ~30
+ * minutes before it sends. The user expected to "see upcoming messages
+ * like queued messages" AHEAD of time. This query projects what the engine
+ * WILL send over the next `days` days by applying each enabled workflow
+ * step's offset to the CURRENT anchor of each live target — without
+ * enqueuing anything (delivery semantics, suppression timing and the
+ * dedup ledger are all untouched; the nightly run remains the only
+ * enqueuer).
+ *
+ * Honesty contract: a projection is a PLAN, not a promise. The nightly
+ * engine re-checks every gate at enqueue time (paid, proof pending,
+ * opt-outs, muted properties, same-day overlap), so rows here are marked
+ * `planned` and the UI must label them as such. Anchors that recur
+ * monthly (rent due dates) contribute only their CURRENT cycle — a step
+ * whose trigger date already passed this cycle is omitted, not rolled
+ * forward (the resolver will hand the engine next month's anchor then).
+ */
+export const getUpcomingAutomation = query({
+  args: { firmId: v.string(), days: v.optional(v.number()), userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
+    const horizonDays = Math.min(Math.max(args.days ?? 14, 1), 31);
+    const todayUtc = new Date(); todayUtc.setUTCHours(0, 0, 0, 0);
+    const todayMs = todayUtc.getTime();
+    const horizonMs = todayMs + horizonDays * 86_400_000;
+
+    const workflows = await loadFirmWorkflows(ctx, args.firmId);
+    const unitOptOuts = await loadUnitOptOutAliases(ctx, args.firmId);
+    const resolvers: Record<string, () => Promise<EngineTarget[]>> = {
+      rent_collection: () => resolveRentTargets(ctx, args.firmId),
+      service_charge: () => resolveServiceChargeTargets(ctx, args.firmId),
+      lease_expiry: () => resolveLeaseTargets(ctx, args.firmId),
+      rent_review: () => resolveRentReviewTargets(ctx, args.firmId),
+    };
+
+    const rows: any[] = [];
+    // Per-contact opt-out memo: the same target appears once per step, and
+    // isOptedOut is a DB query — memoize so a 100-target × 7-step ladder
+    // costs 100 lookups, not 700.
+    const optOutMemo = new Map<string, boolean>();
+    const targetOptedOut = async (t: EngineTarget): Promise<boolean> => {
+      const key = `${t.tenantEmail || ""}|${t.tenantPhone || ""}`;
+      if (optOutMemo.has(key)) return optOutMemo.get(key)!;
+      const out = await isOptedOut(ctx, args.firmId, t.tenantEmail, t.tenantPhone);
+      optOutMemo.set(key, out);
+      return out;
+    };
+    for (const wf of workflows) {
+      if (!wf.enabled) continue;
+      const resolve = resolvers[wf.def.key];
+      if (!resolve) continue;
+      let targets: EngineTarget[] = [];
+      try { targets = await resolve(); } catch { continue; }
+      for (const step of wf.steps) {
+        if (!step.enabled) continue;
+        for (const t of targets) {
+          if (unitOptOuts.has(String(t.unitId))) continue;
+          if (await targetOptedOut(t)) continue;
+          const anchorDay = new Date(t.anchorTs); anchorDay.setUTCHours(0, 0, 0, 0);
+          const triggerMs = anchorDay.getTime() + step.offsetDays * 86_400_000;
+          if (triggerMs < todayMs || triggerMs > horizonMs) continue;
+          rows.push({
+            triggerAt: triggerMs,
+            workflowKey: wf.def.key,
+            workflowName: wf.def.name,
+            stepKey: step.key,
+            stepTitle: step.title,
+            channel: resolveChannel(step.channel, t.tenantEmail),
+            tenantName: t.tenantName,
+            tenantEmail: t.tenantEmail || null,
+            tenantPhone: t.tenantPhone || null,
+            unitLabel: t.unitLabel,
+            propertyName: t.propertyName,
+            amountDue: t.amountDue,
+            paidThisPeriod: t.extra.paidThisPeriod === true,
+          });
+        }
+      }
+    }
+    rows.sort((a, b) => a.triggerAt - b.triggerAt);
+    return { days: horizonDays, rows: rows.slice(0, 300), truncated: rows.length > 300 };
+  },
+});
+
 /** Pause one queued automation dispatch (manual override). */
 export const pauseScheduledAutomation = mutation({
   args: { messageId: v.id("scheduled_messages"), userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },

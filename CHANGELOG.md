@@ -4,6 +4,11 @@ User-facing notes on what shipped. One line per thing that matters to people usi
 
 ## Unreleased (on main, next APK build)
 
+- **Update refresh no longer wipes your settings** — the "refresh to update" flow used to clear saved preferences from the device, which made the "You're all set!" toast reappear after every update and made the AI ask for your API key again like the first time. All of that data now survives updates, and the setup-checklist dismissal is stored on your account so it also survives reinstalls and new devices.
+- **AI API key syncs to your account** — enter your Gemini key once; it now survives app updates and follows you to new devices. Settings → Agents shows whether the key is saved to your account, and the document indexer's key prompt saves the same way.
+- **Automated messages are labelled honestly** — a scheduled rent/service-charge message in a resident's thread now shows an "Automated" tag (with the workflow and step that sent it) instead of a misleading "Replied"; there's a matching Automated filter in the inbox.
+- **Upcoming automation preview** — Messages → Scheduled now shows a 14-day "Upcoming" projection of what the automation engine plans to send, before it sends it.
+- **Push notifications for automated messages** — residents get the same notification-shade push for automated messages as for personal replies, and the team gets one daily digest notification per dispatch run ("Automation sent 12 messages" / "3 of 15 failed") that deep-links to the Scheduled tab.
 - **Refund requests (30-day money-back guarantee)** — the guarantee on annual plans is now a real in-app flow: request a refund from Settings → Billing & Plans, track its status, and withdraw it while pending. The founder reviews every request in a new Refunds view of the founder app; refund money moves manually via Paystack with a full audit trail. Terms of Service §12.3 now matches the guarantee (was: "non-refundable").
 - **Design tokens** — the app's colors now flow through a semantic token layer; first components migrated with zero visual change, and CI now blocks new uses of the inconsistent `gray` palette.
 - **Tenant Portal refactor** — the residents' portal was re-architected internally (16 focused modules instead of one 4,526-line file). No feature changes; faster, safer iteration.

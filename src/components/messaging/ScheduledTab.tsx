@@ -111,6 +111,18 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
     api.automationEngine.getAutomationQueue,
     firmId && currentUser ? { firmId, ...auth } : 'skip'
   );
+  // UPCOMING PROJECTION (2026-09-14): the user expected to see planned
+  // automation BEFORE it sends (“see upcoming messages like queued
+  // messages”). The Live Queue only holds each morning's batch for ~30
+  // minutes (engine enqueues 07:30 WAT → dispatches 08:00), so this query
+  // projects the next 14 days from the workflow configs + live anchors.
+  // It is a PLAN, not a promise — the nightly engine re-checks paid/
+  // paused/opt-out gates at enqueue time, so rows here can still drop out.
+  const upcoming = useQuery(
+    api.automationEngine.getUpcomingAutomation,
+    firmId && currentUser ? { firmId, days: 14, ...auth } : 'skip'
+  );
+  const [upcomingExpanded, setUpcomingExpanded] = useState(true);
   const cancelScheduled = useMutation(api.portals.cancelScheduledMessage);
   const createScheduled = useMutation(api.portals.createScheduledMessage);
   const pauseAutomation = useMutation(api.automationEngine.pauseScheduledAutomation);
@@ -721,6 +733,73 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
               </div>
             ) : (
               <div className="space-y-2">{groupRows(automationQueue).map((g) => renderGroupCard(g, 'automation'))}</div>
+            )}
+          </section>
+
+          {/* ── 2b. Upcoming — the 14-day automation projection ── */}
+          <section>
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <BoltIcon className="w-3.5 h-3.5 text-cyan-500" />
+              <button
+                onClick={() => setUpcomingExpanded((v) => !v)}
+                className="flex items-center gap-2 text-2xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors"
+              >
+                Upcoming (next 14 days){upcoming?.rows ? ` — ${upcoming.rows.length} planned` : ''}
+                <ChevronDownIcon className={`w-3 h-3 transition-transform ${upcomingExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium hidden sm:inline">
+                — what the engine is lined up to send; plans, not promises
+              </span>
+            </div>
+            {upcomingExpanded && (
+              <>
+                <p className="text-2xs text-slate-400 dark:text-zinc-500 mb-2 px-1 leading-relaxed">
+                  Projected from your workflow steps and each unit's current dates. The engine re-checks
+                  everything the morning it sends — residents who pay, upload receipts, or opt out drop out
+                  of this list automatically.
+                  {(upcoming as any)?.truncated && ' Showing the first 300 planned sends.'}
+                </p>
+                {!upcoming || upcoming.rows.length === 0 ? (
+                  <div className="p-4 rounded-xl border border-dashed border-slate-200 dark:border-zinc-800 text-xs text-slate-400 dark:text-zinc-500 leading-relaxed">
+                    No automated messages planned for the next two weeks. Enable a workflow above and this
+                    projection fills in as anchors (rent due dates, charge cycles, lease expiries) approach.
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {Object.entries(
+                      upcoming.rows.reduce<Record<string, any[]>>((acc, r: any) => {
+                        const dayKey = new Date(r.triggerAt).toLocaleDateString('en-NG', { weekday: 'short', day: 'numeric', month: 'short' });
+                        (acc[dayKey] = acc[dayKey] || []).push(r);
+                        return acc;
+                      }, {})
+                    ).map(([day, rows]) => (
+                      <div key={day} className="p-2.5 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900/60">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-2xs font-bold text-slate-600 dark:text-zinc-300">{day}</span>
+                          <span className="text-2xs text-slate-400">· {rows.length} planned</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {rows.map((r: any, i: number) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-2xs font-semibold bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-400 max-w-full"
+                              title={`${(WORKFLOW_LABELS[r.workflowKey] || r.workflowKey)} · ${r.stepTitle}${r.tenantName ? ` · ${r.tenantName}` : ''}${r.unitLabel ? ` (${r.unitLabel}, ${r.propertyName})` : ''} · via ${r.channel}`}
+                            >
+                              <BoltIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                              <span className="truncate max-w-[14rem]">
+                                {r.stepTitle} · {r.tenantName || 'resident'}{r.unitLabel ? ` (${r.unitLabel})` : ''}
+                              </span>
+                              {r.paidThisPeriod && (
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400" title="Paid this period — the engine will suppress this send">· paid</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </section>
 

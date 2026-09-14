@@ -29,6 +29,17 @@ export function getMsgTypeLabel(type: string): string {
   );
 }
 
+// ── Automation workflow labels (2026-09-14) ─────────────────────────────────
+// Mirrors AUTOMATION_WORKFLOW_DEFAULTS in convex/automationEngine.ts — the
+// admin surfaces (thread "Automated" badges, Scheduled tab projections)
+// render these instead of raw keys. Keep in sync when a workflow is added.
+export const AUTOMATION_WORKFLOW_LABELS: Record<string, string> = {
+  rent_collection: 'Rent Collection',
+  service_charge: 'Service Charge',
+  lease_expiry: 'Lease & Tenancy',
+  rent_review: 'Rent Review',
+};
+
 // ── Type-driven financials: which figures a message may use ─────────────────
 // ROOT FIX (user feedback 2026-09-08): "I'm talking about the service charge
 // but it adds up figures it ought not to have added." Previously EVERY

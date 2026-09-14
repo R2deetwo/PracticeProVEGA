@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,10 +72,30 @@ const KOMPLETE_ITEMS: ChecklistItem[] = [
 ];
 
 const GettingStartedChecklist: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { navigateTo, openModal, addToast, setHighlightTarget } = useUI();
   const { isProperty, isUnified, isProductResolved } = useProduct();
   const firmId = (currentUser as any)?.firmId || '';
+
+  // SERVER-SIDE DISMISSAL (2026-09-14): firms.checklistDismissedAt is the
+  // durable source of truth. localStorage alone was wiped by every update
+  // refresh / APK reinstall / device change — resurrecting the checklist and
+  // re-firing the "You're all set!" celebration on firms that finished
+  // onboarding long ago. Local state mirrors the server flag (and keeps the
+  // localStorage copy for offline snappiness), and BOTH dismiss paths
+  // (celebration + manual X) persist to the server.
+  const setDismissedOnServer = useMutation(api.myFunctions.setGettingStartedChecklistDismissed);
+  const persistDismissal = (dismissed: boolean) => {
+    setDismissedOnServer({
+      dismissed,
+      sessionToken: bearerToken ?? undefined,
+      userEmail: currentUser?.email,
+    }).catch((e) => {
+      // Non-fatal: localStorage still holds the local copy; the server flag
+      // catches up on the next dismiss/restore action.
+      console.warn('[GettingStartedChecklist] server dismissal persist failed:', e?.message);
+    });
+  };
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -95,6 +115,18 @@ const GettingStartedChecklist: React.FC = () => {
     api.myFunctions.getGettingStartedChecklist,
     firmId ? { firmId } : 'skip'
   );
+
+  // Adopt the SERVER dismissal flag whenever it says dismissed (covers new
+  // devices, reinstalls and cleared storage). Mirrored into localStorage so
+  // the very next mount on this device skips even before the query lands.
+  useEffect(() => {
+    if (checklist?.dismissed === true && !isDismissed) {
+      setIsDismissed(true);
+      try {
+        localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
+      } catch {}
+    }
+  }, [checklist, isDismissed, firmId]);
 
   // ROUND 15 — CELEBRATION CORRECTNESS. The user reported the "You're
   // all set!" toast firing while one checklist step was still incomplete.
@@ -157,6 +189,8 @@ const GettingStartedChecklist: React.FC = () => {
           try {
             localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
           } catch {}
+          // Durable dismissal — survives reinstalls and new devices.
+          persistDismissal(true);
         }, 1000);
       }
     } else {
@@ -365,6 +399,7 @@ const GettingStartedChecklist: React.FC = () => {
     try {
       localStorage.setItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`, 'true');
     } catch {}
+    persistDismissal(true);
   };
 
   const handleExpand = () => setIsCollapsed(false);

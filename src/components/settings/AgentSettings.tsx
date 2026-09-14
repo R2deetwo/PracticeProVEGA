@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FirmDetails, User, UserRole } from '../../types';
-import { useConvex, useMutation } from 'convex/react';
+import { useConvex, useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeIcon, EyeOffIcon, BrainIcon, SearchIcon, ScalesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
@@ -114,13 +114,27 @@ const AgentRow: React.FC<{ icon: React.ReactNode; name: string; desc: string; tr
 const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirmDetails, currentUser }) => {
     const { addToast } = useUI();
     const { isProperty } = useProduct();
-    const { bearerToken } = useAuth();
+    const { currentUser: authUser, bearerToken } = useAuth();
     const convex = useConvex();
     const saveApiKeyMutation = useMutation(api.myFunctions.saveUserApiKey);
     const [customKey, setCustomKey] = useState('');
     const [hasKey, setHasKey] = useState(false);
     const [showKey, setShowKey] = useState(false);
     const isFirmAdmin = currentUser.role === UserRole.Admin;
+
+    // ── SERVER-SYNCED KEY STATE (2026-09-14) ──────────────────────────────
+    // PERSISTENCE FIX: the update-refresh flow used to wipe the local key,
+    // after which this panel showed "no key configured" even though the
+    // user's key was safe on their user record (user.geminiApiKey, hydrated
+    // in-memory by AuthContext for every AI call). Users re-entered keys
+    // that were never lost. The panel now reflects the ACCOUNT state: the
+    // key is "configured" if EITHER the device copy or the server copy
+    // exists, and the footer says where it lives.
+    const serverKey = useQuery(
+        api.myFunctions.getUserApiKey,
+        (authUser?.email && bearerToken) ? { tokenIdentifier: authUser.email, sessionToken: bearerToken } : 'skip'
+    );
+    const hasServerKey = !!(serverKey && typeof serverKey === 'string' && (serverKey as string).length > 0);
 
     useEffect(() => {
         const storedGemini = getCustomApiKey();
@@ -129,6 +143,14 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
             setCustomKey('••••••••••••••••');
         }
     }, []);
+
+    // Server copy arrives async — reflect it without clobbering a local key.
+    useEffect(() => {
+        if (hasServerKey) {
+            setHasKey(true);
+            setCustomKey((prev) => (prev ? prev : '••••••••••••••••'));
+        }
+    }, [hasServerKey]);
 
     const handleToggleShow = () => {
         if (!showKey) {
@@ -232,7 +254,8 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
             <SettingsCard title="API Key Configuration" id="api-config">
                 <p className="text-xs text-slate-600 dark:text-zinc-400 mb-3">
-                    Enter your Google Gemini API Key. Stored locally and used for Chat, Drafting, and Analysis.
+                    Enter your Google Gemini API Key. Used for Chat, Drafting, and Analysis — it syncs to your
+                    PracticePro account so it survives app updates and follows you to new devices.
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-3 items-end">
@@ -269,8 +292,10 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                             onClick={async () => {
                                 try {
                                     addToast("Testing connection...", { type: 'info' });
-                                    const { streamGemini, AI_CONFIG } = await import('../../utils/aiUtils');
-                                    const savedKey = getCustomApiKey();
+                                    const { streamGemini, AI_CONFIG, getGeminiApiKey } = await import('../../utils/aiUtils');
+                                    // Device copy first, else the in-memory server key
+                                    // (covers the synced-from-account case).
+                                    const savedKey = getCustomApiKey() || getGeminiApiKey();
                                     let rawKey = (customKey && customKey !== '••••••••••••••••') ? customKey : savedKey;
                                     const keyToTest = rawKey ? rawKey.replace(/[^ -~]/g, '').trim() : null;
 
@@ -302,7 +327,13 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                 <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                         <LockClosedIcon className="w-3 h-3" />
-                        <span>Stored locally. Never sent to our servers.</span>
+                        <span>
+                            {hasKey
+                                ? (hasServerKey
+                                    ? 'Saved to your PracticePro account — works on every device and update.'
+                                    : 'Saved on this device.')
+                                : 'Encrypted in transit. Used only for your own AI requests.'}
+                        </span>
                     </div>
                     <a
                         href="https://aistudio.google.com/app/apikey"

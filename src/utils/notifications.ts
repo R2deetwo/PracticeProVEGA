@@ -240,7 +240,9 @@ function getChannelForType(type?: string): string {
         type === 'portal_message' || type === 'portal_new_message' ||
         type === 'incoming_message' || type === 'feedback_user_reply' ||
         type === 'feedback_reply' || type === 'feedback_new' ||
-        type === 'feedback_issue' || type === 'feedback_auto_reply'
+        type === 'feedback_issue' || type === 'feedback_auto_reply' ||
+        // Automation digest (2026-09-14) — matches server channelForType.
+        type === 'automation_digest'
     ) return 'practicepro-messages';
     if (
         type === 'task' || type === 'task_assignment' || type === 'deadline' ||

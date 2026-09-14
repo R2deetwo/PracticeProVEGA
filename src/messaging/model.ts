@@ -28,7 +28,7 @@ export type ThreadKind =
 
 /** Display tag within a client_tenant thread — replaces the old
  *  ConversationType union and its preview-prefix sniffing (T:/R:/A:/🚫). */
-export type ClientThreadTag = 'ticket' | 'request' | 'replied' | 'general';
+export type ClientThreadTag = 'ticket' | 'request' | 'replied' | 'automated' | 'general';
 
 // ─── Canonical shapes ─────────────────────────────────────────────────────
 export interface UnifiedSender {
@@ -335,10 +335,17 @@ export function deriveClientThreadTag(
         if (m?.linkedTicketId) return 'ticket';
         if (m?.linkedRequestId) return 'request';
     }
-    // Fallbacks in priority order: explicit fields on the conversation row,
-    // then last-message sender.
+    // AUTOMATION TAG FIX (2026-09-14): an automated send (rent ladder,
+    // service-charge notice…) must never present as "Replied" — the
+    // founder opened a resident thread for the FIRST time and was told a
+    // human had replied. When the last admin-side message came from the
+    // automation engine (portal_conversations.lastMessageIsAutomation,
+    // set by createConversationFromScheduled and cleared by every human
+    // send path), the tag is "Automated" instead.
     const lastBy = conv?.lastMessageBy;
-    if (lastBy === 'admin') return 'replied';
+    if (lastBy === 'admin') {
+        return conv?.lastMessageIsAutomation === true ? 'automated' : 'replied';
+    }
     return 'general';
 }
 
@@ -358,6 +365,11 @@ export const CLIENT_THREAD_TAG_STYLES: Record<ClientThreadTag, { badge: string; 
         badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
         dot: 'bg-blue-500',
         label: 'Replied',
+    },
+    automated: {
+        badge: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+        dot: 'bg-cyan-500',
+        label: 'Automated',
     },
     general: {
         badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',

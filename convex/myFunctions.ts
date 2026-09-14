@@ -2056,6 +2056,45 @@ export const saveUserApiKey = mutation({
 });
 
 /**
+ * mutation: setGettingStartedChecklistDismissed
+ * Persists the Getting-Started checklist dismissal SERVER-SIDE on the firm
+ * record (firms.checklistDismissedAt). Called by the checklist widget on
+ * manual dismiss AND on the completion celebration, and by Settings → Help
+ * "Restore Setup Checklist" with dismissed=false.
+ *
+ * Why server-side: the previous localStorage-only dismissal
+ * (practicepro_checklist_dismissed_<firmId>) was wiped by APK reinstalls,
+ * device changes and storage clears — resurrecting the checklist on firms
+ * that completed onboarding long ago and re-firing the "🎉 You're all set!"
+ * celebration toast on every update. The firm record is durable; any
+ * logged-in device reads the same state.
+ *
+ * Auth: R16b session-verified caller (resolveCaller) — only a member of
+ * the firm can change that firm's checklist state. assertSameFirm guards
+ * the cross-firm case for joined users.
+ */
+export const setGettingStartedChecklistDismissed = mutation({
+  args: {
+    dismissed: v.boolean(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const firmId = (caller as any).firmId;
+    if (!firmId) throw new Error("No firm is associated with this account.");
+    const firm: any = await ctx.db.get(firmId as any).catch(() => null);
+    if (!firm) throw new Error("Firm not found.");
+    const now = Date.now();
+    await ctx.db.patch(firm._id, {
+      checklistDismissedAt: args.dismissed ? now : undefined,
+      updatedAt: new Date(now).toISOString(),
+    });
+    return { success: true, dismissed: args.dismissed };
+  },
+});
+
+/**
  * query: getUserApiKey
  * Retrieves the user's stored Gemini API key from their user record.
  * Used on login to sync the key to localStorage.
@@ -8887,6 +8926,12 @@ export const getGettingStartedChecklist = query({
 
     return {
       product,
+      // SERVER-SIDE DISMISSAL (2026-09-14): durable across APK reinstalls,
+      // device changes and storage clears — localStorage dismissal alone
+      // re-armed the checklist (and the "You're all set!" celebration) on
+      // every update refresh. The UI treats this flag exactly like the old
+      // localStorage key; Settings → Help "Restore Setup Checklist" clears it.
+      dismissed: !!(firm as any).checklistDismissedAt,
       hasMatter: allMatters.length > 0,
       hasProperty: allProperties.length > 0,
       hasContact: !!firstContact,

@@ -78,6 +78,15 @@ export default defineSchema({
     downgradedAt: nullableNumber,        // epoch ms — when the soft downgrade fired
     downgradedFromPlan: nullableString,  // the paid plan the firm lost (for restore UX)
     ingestionAccess: v.optional(v.boolean()),
+    // ─── GETTING-STARTED CHECKLIST DISMISSAL (server-side, 2026-09-14) ──
+    // localStorage dismissal keyed by firmId was wiped by every APK
+    // reinstall / device change / storage clear — resurrecting the
+    // checklist and re-firing the "You're all set!" celebration on firms
+    // that completed onboarding long ago. The firm record is the durable
+    // source of truth: set when the checklist is dismissed (manually or
+    // via the completion celebration), cleared by the Settings → Help
+    // "Restore Setup Checklist" affordance.
+    checklistDismissedAt: v.optional(v.number()),
     createdAt: nullableString,
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
@@ -1691,6 +1700,14 @@ export default defineSchema({
     lastMessageAt: v.number(),
     lastMessagePreview: nullableString,  // first 80 chars of last message
     lastMessageBy: nullableString,       // "participant" or "admin"
+    // AUTOMATION TAG FIX (2026-09-14): true when the LAST admin-side message
+    // in this conversation was sent by the automation engine (rent ladder,
+    // service-charge notices…) rather than a human. The inbox derives its
+    // display tag from this: "Automated" instead of "Replied" — a founder
+    // opening a resident thread for the first time must never be told a
+    // human replied when a scheduled robot did. Cleared (false) whenever a
+    // human admin (or the resident) sends the next message.
+    lastMessageIsAutomation: v.optional(v.boolean()),
     unreadByAdmin: v.optional(v.number()), // count of unread messages for admin
     unreadByParticipant: v.optional(v.number()), // count of unread replies for participant
     createdAt: v.number(),
@@ -1743,6 +1760,19 @@ export default defineSchema({
     // Messages WITHOUT threadTicketId are general conversation messages.
     // Messages WITH threadTicketId are replies within that ticket's sub-thread.
     threadTicketId: nullableString,         // groups replies under a specific ticket
+    // ─── AUTOMATION PROVENANCE (2026-09-14) ───────────────────────────
+    // Set when this message was created by the Scheduled Messages engine
+    // (createConversationFromScheduled) rather than a human. Powers the
+    // "Automated" badge in the admin thread view and the conversation's
+    // lastMessageIsAutomation tag, and links the thread message back to its
+    // delivery record (scheduled_messages row: sentAt, provider messageId,
+    // failure reason) and its workflow origin (workflowKey/stepKey — e.g.
+    // rent_collection / late_7). This is the audit trail that answers
+    // "who received what, when, from which automation step".
+    isAutomation: v.optional(v.boolean()),
+    scheduledMessageId: v.optional(v.id("scheduled_messages")),
+    workflowKey: v.optional(v.string()),    // e.g. "rent_collection"
+    stepKey: v.optional(v.string()),        // e.g. "pre_7", "late_14"
     createdAt: v.number(),
     updatedAt: v.number(),
   })

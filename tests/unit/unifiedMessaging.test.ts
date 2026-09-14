@@ -194,8 +194,32 @@ describe('deriveClientThreadTag — data-derived badges (replaces prefix sniffin
     expect(deriveClientThreadTag({}, [])).toBe('general');
   });
 
+  // ── AUTOMATION TAG FIX (2026-09-14) ────────────────────────────────────────
+  // A scheduled/automated send (rent ladder, service-charge notice) sets
+  // lastMessageBy='admin' AND lastMessageIsAutomation=true on the
+  // conversation. The tag must say "Automated" — never "Replied" — so a
+  // founder opening a resident thread for the first time is never told a
+  // human replied when a scheduled robot did.
+  it('automated last message → "automated", not "replied"', () => {
+    expect(deriveClientThreadTag({ lastMessageBy: 'admin', lastMessageIsAutomation: true }, [])).toBe('automated');
+  });
+
+  it('human admin reply (flag false/absent) → "replied"', () => {
+    expect(deriveClientThreadTag({ lastMessageBy: 'admin', lastMessageIsAutomation: false }, [])).toBe('replied');
+    expect(deriveClientThreadTag({ lastMessageBy: 'admin' }, [])).toBe('replied');
+  });
+
+  it('resident reply after an automated send clears the automation tag (participant wins)', () => {
+    expect(deriveClientThreadTag({ lastMessageBy: 'participant', lastMessageIsAutomation: true }, [])).toBe('general');
+  });
+
+  it('ticket/request origin still outranks the automation flag', () => {
+    expect(deriveClientThreadTag({ lastMessageBy: 'admin', lastMessageIsAutomation: true }, [{ linkedTicketId: 't1' }])).toBe('ticket');
+    expect(deriveClientThreadTag({ lastMessageBy: 'admin', lastMessageIsAutomation: true }, [{ linkedRequestId: 'rq1' }])).toBe('request');
+  });
+
   it('every tag has a visual identity (badge classes + label)', () => {
-    for (const tag of ['ticket', 'request', 'replied', 'general'] as const) {
+    for (const tag of ['ticket', 'request', 'replied', 'automated', 'general'] as const) {
       expect(CLIENT_THREAD_TAG_STYLES[tag].badge).toMatch(/bg-/);
       expect(CLIENT_THREAD_TAG_STYLES[tag].label.length).toBeGreaterThan(0);
     }
