@@ -28,6 +28,7 @@ This folder holds the **active source of truth** documentation. Historical mater
 | [`docs/testing/PUSH_VERIFICATION_PROTOCOL.md`](testing/PUSH_VERIFICATION_PROTOCOL.md) | Manual hardware checklist for push categorization/dedup |
 | [`docs/worklog/`](worklog/) | Monthly engineering worklog (current month + archive) |
 | [`docs/adr/`](adr/) | Architecture Decision Records |
+| [`docs/design/TOKENS.md`](design/TOKENS.md) | Design tokens — inventory, semantic role layer, migration batches |
 | [`docs/glossary.md`](glossary.md) | Product names (Vega, Atrium, Komplete, ALOA, ARIA) & Nigerian legal/property terms |
 | [`SECURITY.md`](../SECURITY.md) | Vulnerability reporting policy |
 | [`CHANGELOG.md`](../CHANGELOG.md) | User-facing changelog (what shipped) |

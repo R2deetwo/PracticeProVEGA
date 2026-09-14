@@ -96,8 +96,8 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
   const hiddenMattersCount = userTasks.byMatter.length - INITIAL_MATTERS_TO_SHOW;
 
   return (
-    <div className="card-premium flex flex-col h-full overflow-hidden halo-hover border-slate-200/60 dark:border-zinc-800/60 shadow-xl">
-      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/50 dark:bg-zinc-900/50 gap-2">
+    <div className="card-premium flex flex-col h-full overflow-hidden halo-hover border-hairline/60 dark:border-zinc-800/60 shadow-xl">
+      <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-100 dark:border-zinc-800/50 bg-surface/50 dark:bg-zinc-900/50 gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="p-1.5 rounded-lg bg-primary-600/10 text-primary-600 dark:text-primary-400 flex-shrink-0">
             <TasksIcon className="w-4 h-4" />
@@ -105,16 +105,16 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
           <h3 className="text-xs sm:text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white leading-none truncate">{widgetTitle}</h3>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex bg-slate-200/50 dark:bg-zinc-800/50 p-0.5 rounded-lg border border-slate-200 dark:border-zinc-700">
+          <div className="flex bg-slate-200/50 dark:bg-zinc-800/50 p-0.5 rounded-lg border border-hairline dark:border-zinc-700">
             <button 
                 onClick={() => setViewType('due')}
-                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tight rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tight rounded-md transition-all ${viewType === 'due' ? 'bg-white dark:bg-zinc-700 text-strong dark:text-white shadow-sm' : 'text-subtle'}`}
             >
                 Due
             </button>
             <button 
                 onClick={() => setViewType('matter')}
-                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tight rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400'}`}
+                className={`active-press px-2 py-0.5 text-3xs font-black uppercase tracking-tight rounded-md transition-all ${viewType === 'matter' ? 'bg-white dark:bg-zinc-700 text-strong dark:text-white shadow-sm' : 'text-subtle'}`}
             >
                 Matter
             </button>
@@ -135,10 +135,10 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
           </div>
         ) : !hasTasks ? (
           <div className="flex flex-col items-center justify-center text-center p-8 h-full opacity-40">
-            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-3">
-              <TasksIcon className="h-6 w-6 text-slate-400" />
+            <div className="w-12 h-12 rounded-full bg-surface-2 dark:bg-zinc-800 flex items-center justify-center mb-3">
+              <TasksIcon className="h-6 w-6 text-subtle" />
             </div>
-            <p className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-widest leading-loose">
+            <p className="text-xs font-bold text-muted dark:text-zinc-500 uppercase tracking-widest leading-loose">
               Zero pending tasks<br/>Peace acquired
             </p>
           </div>
@@ -149,20 +149,20 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                 <div className="flex justify-between items-start gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-xs text-slate-800 dark:text-rose-200 truncate group-hover:text-rose-700 dark:group-hover:text-rose-300 transition-colors">{task.title}</p>
-                    <p className="text-3xs font-bold text-slate-400 uppercase tracking-tight mt-0.5 truncate">{task.matterTitle || 'No Matter Assigned'}</p>
+                    <p className="text-3xs font-bold text-subtle uppercase tracking-tight mt-0.5 truncate">{task.matterTitle || 'No Matter Assigned'}</p>
                   </div>
                   <p className="text-3xs font-black text-rose-600 dark:text-rose-400 bg-rose-100/50 dark:bg-rose-900/30 px-2 py-0.5 rounded-full uppercase border border-rose-200/50 shrink-0 shadow-sm">{formatDueDate(task.dueDate || '')}</p>
                 </div>
               </div>
             ))}
             {userTasks.upcoming.map(task => (
-              <div key={task.id} onClick={() => handleTaskClick(task)} className="active-press px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-all border-l-2 border-transparent group">
+              <div key={task.id} onClick={() => handleTaskClick(task)} className="active-press px-4 sm:px-5 py-3.5 cursor-pointer hover:bg-surface dark:hover:bg-zinc-800/40 transition-all border-l-2 border-transparent group">
                 <div className="flex justify-between items-start gap-3">
                    <div className="min-w-0 flex-1">
-                    <p className="font-bold text-xs text-slate-700 dark:text-zinc-300 truncate group-hover:text-primary-600 transition-colors">{task.title}</p>
-                    <p className="text-3xs font-bold text-slate-400 uppercase tracking-tight mt-0.5 truncate">{task.matterTitle || 'Internal'}</p>
+                    <p className="font-bold text-xs text-body dark:text-zinc-300 truncate group-hover:text-primary-600 transition-colors">{task.title}</p>
+                    <p className="text-3xs font-bold text-subtle uppercase tracking-tight mt-0.5 truncate">{task.matterTitle || 'Internal'}</p>
                   </div>
-                  <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 bg-slate-100/30 dark:bg-zinc-800/50 px-2 py-0.5 rounded-full border border-slate-200/20 shrink-0">{formatDueDate(task.dueDate || '')}</p>
+                  <p className="text-3xs font-bold text-subtle dark:text-zinc-500 bg-surface-2/30 dark:bg-zinc-800/50 px-2 py-0.5 rounded-full border border-hairline/20 shrink-0">{formatDueDate(task.dueDate || '')}</p>
                 </div>
               </div>
             ))}
@@ -173,7 +173,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                     <div key={matterGroup.id} className="px-5 py-3 group/matter">
                         <div className="flex items-center gap-2 mb-1.5 opacity-60 group-hover/matter:opacity-100 transition-opacity">
                             <div className="h-2.5 w-0.5 bg-primary-500 rounded-full" />
-                            <h4 className="text-3xs font-black uppercase tracking-eyebrow text-slate-500 dark:text-zinc-400 line-clamp-1">{matterGroup.title}</h4>
+                            <h4 className="text-3xs font-black uppercase tracking-eyebrow text-muted dark:text-zinc-400 line-clamp-1">{matterGroup.title}</h4>
                         </div>
                         <div className="space-y-0.5">
                           {matterGroup.tasks.slice(0, 3).map(task => (
@@ -182,9 +182,9 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                                   onClick={() => handleTaskClick(task)}
                                   className="py-1.5 flex justify-between items-center group/item cursor-pointer"
                               >
-                                  <span className="text-2xs font-bold text-slate-700 dark:text-zinc-300 truncate group-hover/item:text-primary-600 dark:group-hover/item:text-primary-400 transition-colors uppercase tracking-tight">{task.title}</span>
+                                  <span className="text-2xs font-bold text-body dark:text-zinc-300 truncate group-hover/item:text-primary-600 dark:group-hover/item:text-primary-400 transition-colors uppercase tracking-tight">{task.title}</span>
                                   <div className="flex items-center gap-2 shrink-0">
-                                    <span className={`text-3xs font-black uppercase tracking-tight px-1.5 py-0.5 rounded ${task.priority === 'High' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500'}`}>
+                                    <span className={`text-3xs font-black uppercase tracking-tight px-1.5 py-0.5 rounded ${task.priority === 'High' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 shadow-sm' : 'bg-surface-2 dark:bg-zinc-800 text-subtle dark:text-zinc-500'}`}>
                                       {task.priority || 'Medium'}
                                     </span>
                                   </div>
@@ -206,7 +206,7 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
                     <div className="px-5 py-3">
                         <button 
                             onClick={() => setShowAllMatters(!showAllMatters)}
-                            className="w-full py-1.5 bg-slate-50/50 dark:bg-zinc-900/30 border border-slate-200/50 dark:border-zinc-800/50 rounded-lg text-3xs font-black uppercase tracking-widest text-slate-400 hover:text-primary-600 hover:border-primary-200 transition-all"
+                            className="w-full py-1.5 bg-surface/50 dark:bg-zinc-900/30 border border-hairline/50 dark:border-zinc-800/50 rounded-lg text-3xs font-black uppercase tracking-widest text-subtle hover:text-primary-600 hover:border-primary-200 transition-all"
                         >
                             {showAllMatters ? 'Show Less' : `Show ${hiddenMattersCount} Other Matters`}
                         </button>

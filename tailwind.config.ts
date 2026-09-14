@@ -43,8 +43,8 @@ const config: Config = {
                                 foreground: 'hsl(var(--secondary-foreground))'
                         },
                         muted: {
-                                DEFAULT: 'hsl(var(--muted))',
-                                foreground: 'hsl(var(--muted-foreground))'
+                                DEFAULT: 'rgb(var(--text-muted) / <alpha-value>)',
+                                foreground: 'rgb(var(--text-subtle) / <alpha-value>)'
                         },
                         accent: {
                                 DEFAULT: 'hsl(var(--accent))',
@@ -122,6 +122,27 @@ const config: Config = {
                                 primary: '#10b981',      // Emerald green — keeps your brand identity
                                 surface: '#F8FAF6',      // Very light off-white with a hint of green
                                 card: '#FFFFFF',          // Pure white for card elevation
+                        },
+                        // ─── SEMANTIC ROLE TOKENS (P4, docs/design/TOKENS.md) ──
+                        // Exact aliases of the neutral scale vars — a class swap
+                        // (text-slate-900 → text-strong) is zero-visual-change by
+                        // construction: same var, same value, every theme. The old
+                        // shadcn `muted` entry (hsl(var(--muted)) — var never
+                        // defined, zero usages) was repurposed into this layer.
+                        // NOTE: a Tailwind color key serves every utility prefix
+                        // (text-/bg-/border-), so border roles get DISTINCT key
+                        // names (hairline/edge) that alias the --border-* vars —
+                        // sharing the `subtle`/`strong` keys would have made
+                        // border-subtle resolve to the TEXT value (slate-400),
+                        // caught by the built-CSS equivalence check.
+                        strong:  'rgb(var(--text-strong) / <alpha-value>)',      // = slate-900
+                        body:    'rgb(var(--text-body) / <alpha-value>)',        // = slate-700
+                        subtle:  'rgb(var(--text-subtle) / <alpha-value>)',     // = slate-400
+                        hairline: 'rgb(var(--border-subtle) / <alpha-value>)',   // border-hairline = slate-200
+                        edge:    'rgb(var(--border-strong) / <alpha-value>)',    // border-edge = slate-300
+                        surface: {
+                                DEFAULT: 'rgb(var(--bg-surface) / <alpha-value>)',   // = slate-50
+                                2: 'rgb(var(--bg-surface-2) / <alpha-value>)',       // = slate-100
                         },
                 },
                 // ─── BORDER RADIUS (3 tokens, enforced) ─────────────────────────

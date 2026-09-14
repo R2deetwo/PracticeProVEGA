@@ -183,6 +183,23 @@
   --pad-card: 1.5rem;
   --pad-card-lg: 2.5rem;
   --pad-card-xl: 3rem;
+
+  /* ===== Semantic Role Tokens (P4 design-token adoption, 2026-09-14) ===== */
+  /* docs/design/TOKENS.md is the spec. These are VARIABLE REFERENCES, not
+   * literals — they track every theme override automatically, so migrating a
+   * component from e.g. text-slate-900 to text-strong is a zero-visual-change
+   * refactor by construction (identical var, identical value, all themes).
+   * Discipline: only swap a class when the token aliases its exact variable;
+   * anything without an exact alias (text-slate-600, dark:text-zinc-*) stays
+   * until a later batch defines it deliberately. */
+  --text-strong:   var(--color-slate-900);   /* headings, emphasized text   */
+  --text-body:     var(--color-slate-700);   /* body copy                   */
+  --text-muted:    var(--color-slate-500);   /* secondary text, captions    */
+  --text-subtle:   var(--color-slate-400);   /* placeholders, timestamps    */
+  --bg-surface:    var(--color-slate-50);    /* page/inset backgrounds      */
+  --bg-surface-2:  var(--color-slate-100);   /* nested surfaces, hover fill */
+  --border-subtle: var(--color-slate-200);   /* default borders, dividers   */
+  --border-strong: var(--color-slate-300);   /* emphasized borders          */
 }
 
 /* ===== Smooth Theme Transitions ===== */

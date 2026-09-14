@@ -34,7 +34,7 @@ const getPriorityColorClass = (priority?: 'High' | 'Medium' | 'Low'): string => 
         case 'High': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
         case 'Medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
         case 'Low': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
-        default: return 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400';
+        default: return 'bg-surface-2 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400';
     }
 };
 
@@ -99,7 +99,7 @@ const TaskRow: React.FC<{
                 onViewDetails(task.id, {});
             }}
             className={`cursor-pointer relative overflow-visible transition-colors border-b border-gray-100 dark:border-zinc-800 last:border-0
-                ${isKeyboardSelected ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-inset ring-primary-300 dark:ring-primary-700 z-10' : (isSelected ? 'bg-blue-50 dark:bg-zinc-800' : 'hover:bg-slate-50 dark:hover:bg-zinc-800/50')}
+                ${isKeyboardSelected ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-inset ring-primary-300 dark:ring-primary-700 z-10' : (isSelected ? 'bg-blue-50 dark:bg-zinc-800' : 'hover:bg-surface dark:hover:bg-zinc-800/50')}
             `}
         >
             <td className="px-6 py-4 whitespace-nowrap w-10">
@@ -118,7 +118,7 @@ const TaskRow: React.FC<{
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
                 {matter ? (
-                    <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-700 rounded text-xs font-medium truncate max-w-[150px] inline-block" title={matter.title}>
+                    <span className="px-2 py-1 bg-surface-2 dark:bg-zinc-700 rounded text-xs font-medium truncate max-w-[150px] inline-block" title={matter.title}>
                         {matter.title}
                     </span>
                 ) : <span className="text-gray-400 italic text-xs">No matter</span>}
@@ -139,7 +139,7 @@ const TaskRow: React.FC<{
                 </td>
             )}
             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
-                <span className={`${task.status === 'done' ? 'text-slate-400 dark:text-zinc-500' : getDueDateColor(task.dueDate || null)} text-xs`}>
+                <span className={`${task.status === 'done' ? 'text-subtle dark:text-zinc-500' : getDueDateColor(task.dueDate || null)} text-xs`}>
                     {task.status === 'done' ? 'Completed' : (task.dueDate ? formatDueDate(task.dueDate) : '—')}
                 </span>
             </td>
@@ -161,19 +161,19 @@ const TaskRow: React.FC<{
                         className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity
                         ${task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                 task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                    'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}
+                                    'bg-surface-2 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}
                     >
                         {task.status.replace('_', ' ')}
                         <ChevronDownIcon className="w-3 h-3" />
                     </button>
 
                     {isStatusOpen && (
-                        <div className="absolute top-full left-0 mt-1 w-32 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 z-[50] py-1 animate-fade-in-up">
+                        <div className="absolute top-full left-0 mt-1 w-32 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[50] py-1 animate-fade-in-up">
                             {TaskStatusValues.map(status => (
                                 <button
                                     key={status}
                                     onClick={(e) => { e.stopPropagation(); onUpdateTaskStatus(task.id, status); setIsStatusOpen(false); }}
-                                    className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 capitalize flex items-center justify-between"
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-surface-2 dark:hover:bg-zinc-700 text-body dark:text-slate-200 capitalize flex items-center justify-between"
                                 >
                                     {status.replace('_', ' ')}
                                     {task.status === status && <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>}
@@ -430,7 +430,7 @@ const TaskCard: React.FC<{
                         className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-semibold ${task.status === 'done' ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-gray-900 dark:text-white'}`}>
+                        <div className={`text-sm font-semibold ${task.status === 'done' ? 'text-subtle dark:text-zinc-500 line-through' : 'text-gray-900 dark:text-white'}`}>
                             {task.title}
                         </div>
                         {task.description && (
@@ -449,19 +449,19 @@ const TaskCard: React.FC<{
                             ${task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                     task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                         task.status === 'pending_verification' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                                            'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}
+                                            'bg-surface-2 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'}`}
                         >
                             {task.status.replace('_', ' ')}
                             <ChevronDownIcon className="w-3 h-3" />
                         </button>
 
                         {isStatusOpen && (
-                            <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 z-[60] py-1 animate-fade-in-up">
+                            <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[60] py-1 animate-fade-in-up">
                                 {TaskStatusValues.map(status => (
                                     <button
                                         key={status}
                                         onClick={(e) => { e.stopPropagation(); onUpdateTaskStatus(task.id, status); setIsStatusOpen(false); }}
-                                        className="w-full text-left px-3 py-2 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-200 capitalize flex items-center justify-between"
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-surface-2 dark:hover:bg-zinc-700 text-body dark:text-slate-200 capitalize flex items-center justify-between"
                                     >
                                         {status.replace('_', ' ')}
                                         {task.status === status && <div className="w-1.5 h-1.5 rounded-full bg-primary-500"></div>}
@@ -489,7 +489,7 @@ const TaskCard: React.FC<{
 
                     {/* Matter badge */}
                     {matter && (
-                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-zinc-700 rounded text-3xs font-medium truncate max-w-[120px]" title={matter.title}>
+                        <span className="px-2 py-0.5 bg-surface-2 dark:bg-zinc-700 rounded text-3xs font-medium truncate max-w-[120px]" title={matter.title}>
                             {matter.title}
                         </span>
                     )}
@@ -557,16 +557,16 @@ const SectionHeader: React.FC<{
 }> = ({ title, count, isCollapsed, onToggle, accentColor = 'bg-primary-500' }) => (
     <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 sm:px-6 py-2 bg-slate-50/80 dark:bg-zinc-900/30 hover:bg-slate-100 dark:hover:bg-zinc-900/50 transition-colors border-b border-slate-200 dark:border-zinc-800"
+        className="w-full flex items-center justify-between px-4 sm:px-6 py-2 bg-surface/80 dark:bg-zinc-900/30 hover:bg-surface-2 dark:hover:bg-zinc-900/50 transition-colors border-b border-hairline dark:border-zinc-800"
     >
         <div className="flex items-center gap-2 min-w-0">
             <div className={`h-4 w-1 ${accentColor} rounded-full flex-shrink-0`} />
             <span className="text-2xs font-black uppercase tracking-wide-label text-slate-600 dark:text-zinc-300 truncate">
                 {title}
             </span>
-            <span className="text-3xs font-bold text-slate-400 ml-1 flex-shrink-0">({count})</span>
+            <span className="text-3xs font-bold text-subtle ml-1 flex-shrink-0">({count})</span>
         </div>
-        <ChevronDownIcon className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+        <ChevronDownIcon className={`w-4 h-4 text-subtle flex-shrink-0 transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
     </button>
 );
 
@@ -792,7 +792,7 @@ const TaskList: React.FC<TaskListProps> = ({
     };
 
     return (
-        <div className="flex-grow flex flex-col min-h-0 shadow-sm sm:rounded-lg border-t sm:border border-slate-200 dark:border-zinc-700 overflow-hidden bg-slate-50 sm:bg-white dark:bg-zinc-900 sm:dark:bg-zinc-800">
+        <div className="flex-grow flex flex-col min-h-0 shadow-sm sm:rounded-lg border-t sm:border border-hairline dark:border-zinc-700 overflow-hidden bg-surface sm:bg-white dark:bg-zinc-900 sm:dark:bg-zinc-800">
             {sortedTasks.length > 0 ? (
                 <>
                     {/* ─── Mobile card layout (below sm: breakpoint) ─── */}
@@ -800,7 +800,7 @@ const TaskList: React.FC<TaskListProps> = ({
                         {taskGroups.map((group) => {
                             const isCollapsed = group.title !== null && collapsedSections.has(group.key);
                             return (
-                                <div key={group.key} className="border-b border-slate-200 dark:border-zinc-800 last:border-0">
+                                <div key={group.key} className="border-b border-hairline dark:border-zinc-800 last:border-0">
                                     {group.title && (
                                         <SectionHeader
                                             title={group.title}
@@ -838,7 +838,7 @@ const TaskList: React.FC<TaskListProps> = ({
                     {/* ─── Desktop table layout (sm: and up) ─── */}
                     <div className="hidden sm:block flex-grow overflow-auto custom-scrollbar">
                         <table className="min-w-[600px] w-full divide-y divide-slate-200 dark:divide-zinc-700">
-                            <thead className="bg-slate-50 dark:bg-zinc-800 sticky top-0 z-10 shadow-sm">
+                            <thead className="bg-surface dark:bg-zinc-800 sticky top-0 z-10 shadow-sm">
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-left w-10">
                                         <input autoComplete="off" data-lpignore="true" 
@@ -849,13 +849,13 @@ const TaskList: React.FC<TaskListProps> = ({
                                             checked={sortedTasks.length > 0 && selectedTasks.size === sortedTasks.length}
                                         />
                                     </th>
-                                    <th scope="col" onClick={() => requestSort('title')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 upper tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Task</th>
-                                    <th scope="col" onClick={() => requestSort('matter')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Matter</th>
-                                    {appMode === 'multi' && <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Assigned</th>}
-                                    <th scope="col" onClick={() => requestSort('dueDate')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Due Date</th>
-                                    <th scope="col" onClick={() => requestSort('priority')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Priority</th>
-                                    <th scope="col" onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-slate-700 dark:hover:text-zinc-300">Status</th>
-                                    <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">Delivery</th>
+                                    <th scope="col" onClick={() => requestSort('title')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 upper tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Task</th>
+                                    <th scope="col" onClick={() => requestSort('matter')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Matter</th>
+                                    {appMode === 'multi' && <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider">Assigned</th>}
+                                    <th scope="col" onClick={() => requestSort('dueDate')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Due Date</th>
+                                    <th scope="col" onClick={() => requestSort('priority')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Priority</th>
+                                    <th scope="col" onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Status</th>
+                                    <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider">Delivery</th>
                                     <th scope="col" className="relative px-6 py-3">
                                         <span className="sr-only">Actions</span>
                                     </th>
@@ -865,14 +865,14 @@ const TaskList: React.FC<TaskListProps> = ({
                                 {taskGroups.map((group) => (
                                     <React.Fragment key={group.key}>
                                         {group.title && (
-                                            <tr className="bg-slate-50/50 dark:bg-zinc-900/30">
+                                            <tr className="bg-surface/50 dark:bg-zinc-900/30">
                                                 <td colSpan={appMode === 'multi' ? 9 : 8} className="px-6 py-2">
                                                     <div className="flex items-center gap-2">
                                                         <div className="h-4 w-1 bg-primary-500 rounded-full" />
-                                                        <span className="text-2xs font-black uppercase tracking-wide-label text-slate-500 dark:text-zinc-400">
+                                                        <span className="text-2xs font-black uppercase tracking-wide-label text-muted dark:text-zinc-400">
                                                             {group.title}
                                                         </span>
-                                                        <span className="text-3xs font-bold text-slate-400 ml-2">({group.tasks.length} items)</span>
+                                                        <span className="text-3xs font-bold text-subtle ml-2">({group.tasks.length} items)</span>
                                                     </div>
                                                 </td>
                                             </tr>

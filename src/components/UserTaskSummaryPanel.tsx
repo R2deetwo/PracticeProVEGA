@@ -28,17 +28,17 @@ const FilterPill: React.FC<{
                 flex-shrink-0 flex items-center gap-2 p-1.5 pr-3 rounded-full transition-all duration-200 border
                 ${isActive 
                     ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 shadow-sm' 
-                    : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-zinc-600'
+                    : 'bg-white dark:bg-zinc-800 border-hairline dark:border-zinc-700 hover:border-primary-300 dark:hover:border-zinc-600'
                 }
             `}
         >
             {avatar}
             <div className="flex flex-col items-start min-w-[80px]">
-                <span className={`text-xs font-semibold truncate max-w-[100px] ${isActive ? 'text-primary-800 dark:text-primary-200' : 'text-slate-700 dark:text-zinc-300'}`}>
+                <span className={`text-xs font-semibold truncate max-w-[100px] ${isActive ? 'text-primary-800 dark:text-primary-200' : 'text-body dark:text-zinc-300'}`}>
                     {label}
                 </span>
                 <div className="flex gap-2 text-3xs leading-none">
-                    <span className="text-slate-500 dark:text-zinc-400 font-medium">{activeCount} Active</span>
+                    <span className="text-muted dark:text-zinc-400 font-medium">{activeCount} Active</span>
                     {overdueCount > 0 && (
                         <span className="text-red-500 font-bold">{overdueCount} Late</span>
                     )}

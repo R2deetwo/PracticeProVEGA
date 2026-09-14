@@ -89,5 +89,8 @@ jobs:
           echo "Running: python3 scripts/audit-identity.py"
           python3 scripts/audit-identity.py
 
+      - name: Design-token gate (P4 — gray-* growth banned; docs/design/TOKENS.md)
+        run: node scripts/check-design-tokens.mjs
+
       - name: Run unit test suite
         run: npx vitest run
