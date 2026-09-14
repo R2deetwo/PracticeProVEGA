@@ -4635,18 +4635,30 @@ export const sendAdminReply = mutation({
     // their next app open. participantId is a users-table id; portal users
     // who log in on the APK register device tokens automatically.
     // Fire-and-forget: a push failure never fails the reply.
+    //
+    // SMART CATEGORIZATION (2026-09-14): messages channel (MAX importance),
+    // per-conversation tag so N replies collapse into one tray row, badge =
+    // the participant's unread count, and the body carries the ACTUAL reply
+    // text (lock-screen readable preview).
     try {
       const participantId = conversation.participantId ? String(conversation.participantId) : null;
       if (participantId) {
+        const replyPreview = (args.content || "").replace(/\s+/g, " ").trim();
+        const shortReply = replyPreview.length > 90 ? replyPreview.slice(0, 89).trimEnd() + "…" : replyPreview;
+        const replyTitle = args.adminName || "Your property manager";
         await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
           userIds: [participantId],
-          title: "New Reply",
-          body: `${args.adminName || "Your property manager"} replied to your message.`,
+          title: replyTitle,
+          body: shortReply || "replied to your message",
           data: {
             type: "portal_reply",
             view: "messaging",
             conversationId: args.conversationId,
+            senderName: replyTitle,
           },
+          channelId: "practicepro-messages",
+          tag: `conversation:${args.conversationId}`,
+          notificationCount: (conversation.unreadByParticipant || 0) + 1,
         });
       }
     } catch (e: any) {
@@ -6080,6 +6092,15 @@ async function notifyFirmAdmins(
   //     device; admins without tokens still get the email from step 3.
   //     Fire-and-forget: a push failure never blocks the portal submission.
   try {
+    // Smart categorization (2026-09-14): channelId auto-derived from args.type
+    // (portal_new_message → messages channel; maintenance/service requests →
+    // tasks channel) by dispatchFcm. Per-conversation tag groups each portal
+    // thread into ONE tray row; the body already carries the real preview.
+    const conversationTag = args.link?.id
+      ? `conversation:${String(args.link.id)}`
+      : args.link?.context?.activeConversationId
+        ? `conversation:${String(args.link.context.activeConversationId)}`
+        : undefined;
     await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
       userIds: admins.map((a: any) => String(a._id)),
       title: args.title,
@@ -6089,6 +6110,7 @@ async function notifyFirmAdmins(
         view: args.link?.view || "messaging",
         conversationId: String(args.link?.id || args.link?.context?.activeConversationId || ""),
       },
+      ...(conversationTag ? { tag: conversationTag } : {}),
     });
   } catch (e: any) {
     console.warn("[notifyFirmAdmins] Push dispatch failed:", (e as any)?.message);

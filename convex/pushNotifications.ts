@@ -358,6 +358,10 @@ export const dispatchPushToUsers = internalMutation({
     title: v.string(),
     body: v.string(),
     data: v.optional(v.any()),
+    // Smart categorization pass-throughs (see pushNotificationsNode.ts):
+    channelId: v.optional(v.string()),
+    tag: v.optional(v.string()),
+    notificationCount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const tokens: string[] = [];
@@ -380,6 +384,9 @@ export const dispatchPushToUsers = internalMutation({
       title: args.title,
       body: args.body,
       data: args.data ?? {},
+      ...(args.channelId ? { channelId: args.channelId } : {}),
+      ...(args.tag ? { tag: args.tag } : {}),
+      ...(args.notificationCount ? { notificationCount: args.notificationCount } : {}),
     });
     return { dispatched: tokens.length };
   },

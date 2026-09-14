@@ -121,6 +121,41 @@ export function stringifyData(data: any): Record<string, string> {
   return out;
 }
 
+// ─── Smart categorization (2026-09-14 round) ─────────────────────────────────
+// The client creates THREE Android notification channels (see
+// src/utils/notifications.ts ensureNotificationChannels) so users can tune
+// sound/vibration per category in system settings:
+//   practicepro-messages (MAX)  — chat/portal messages, heads-up + sound
+//   practicepro-tasks    (HIGH) — task assignments, deadlines, overdue
+//   practicepro-general  (DEFAULT) — everything else
+// The server must ROUTE each push to the right channel — before this round
+// every push landed on practicepro-general, so messages buzzed like chores.
+// Mirrors getChannelForType() client-side; kept in sync deliberately.
+export function channelForType(type?: string): string {
+  if (
+    type === "chat_message" || type === "message" || type === "portal_reply" ||
+    type === "portal_message" || type === "portal_new_message" ||
+    type === "incoming_message"
+  ) {
+    return "practicepro-messages";
+  }
+  if (
+    type === "task" || type === "task_assignment" || type === "deadline" ||
+    type === "overdue" || type === "portal_maintenance_ticket" ||
+    type === "portal_service_request"
+  ) {
+    return "practicepro-tasks";
+  }
+  return "practicepro-general";
+}
+
+/** Truncate a message body to a lock-screen-friendly preview. */
+function previewBody(text: string, max = 90): string {
+  const clean = (text || "").replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  return clean.slice(0, max - 1).trimEnd() + "…";
+}
+
 const FCM_NOT_CONFIGURED_GUIDANCE =
   "FCM is not configured on this Convex deployment. Set FIREBASE_SERVICE_ACCOUNT_JSON " +
   "(Firebase Console → Project Settings → Service accounts → Generate new private key, " +
@@ -136,6 +171,15 @@ export interface FcmDispatchArgs {
   title: string;
   body: string;
   data?: any;
+  /** Android notification channel; auto-derived from data.type when absent. */
+  channelId?: string;
+  /** Per-conversation grouping key. Android REPLACES the tray notification
+   *  that carries the same tag, so N messages in one conversation collapse
+   *  into ONE tray row (WhatsApp-style) instead of N stacked rows. */
+  tag?: string;
+  /** Unread badge rendered on the notification (Android notificationCount,
+   *  iOS aps.badge). */
+  notificationCount?: number;
 }
 
 export interface FcmDispatchResult {
@@ -193,6 +237,9 @@ async function dispatchFcm(
     const accessToken = await getAccessToken(serviceAccount);
     const project = serviceAccount.project_id;
     const data = stringifyData(args.data);
+    // Smart categorization: explicit channelId wins, else derive from type.
+    const channelId = args.channelId || channelForType(args.data?.type);
+    const body = previewBody(args.body);
 
     let sent = 0;
     let failed = 0;
@@ -208,7 +255,7 @@ async function dispatchFcm(
         chunk.map(async (token) => {
           const message = {
             token,
-            notification: { title: args.title, body: args.body },
+            notification: { title: args.title, body },
             android: {
               // Message-level delivery priority — the ONLY valid `priority`
               // field in the FCM v1 API (AndroidConfig.priority: HIGH/NORMAL).
@@ -224,17 +271,24 @@ async function dispatchFcm(
                 //   400 "Unknown name \"priority\" at
                 //   'message.android.notification': Cannot find field"
                 // (the 2026-09-14 live test-push failure — 3/3 tokens 400).
-                channelId: "practicepro-general",
+                channelId,
                 sound: "default",
                 icon: "ic_launcher",
                 defaultVibrateTimings: true,
+                // Tag: Android replaces the tray row carrying the same tag —
+                // per-conversation tags collapse N messages into ONE row.
+                // notificationCount: the "N messages" badge on that row.
+                // Both ARE valid AndroidNotification v1 proto fields (unlike
+                // `priority`, which 400s — see comment above).
+                ...(args.tag ? { tag: args.tag } : {}),
+                ...(args.notificationCount ? { notificationCount: args.notificationCount } : {}),
                 // NO clickAction: default tap opens the launcher activity and
                 // the Capacitor plugin delivers pushNotificationActionPerformed.
               },
             },
             apns: {
               payload: {
-                aps: { sound: "default", badge: 1 },
+                aps: { sound: "default", badge: args.notificationCount || 1 },
               },
             },
             data,
@@ -308,6 +362,9 @@ export const sendFcmPush = internalAction({
     title: v.string(),
     body: v.string(),
     data: v.optional(v.any()),
+    channelId: v.optional(v.string()),
+    tag: v.optional(v.string()),
+    notificationCount: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<FcmDispatchResult> => {
     return dispatchFcm(ctx, args);

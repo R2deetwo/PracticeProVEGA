@@ -206,11 +206,52 @@ export async function registerForNotifications(): Promise<boolean> {
 
 /**
  * Determine which notification channel to use based on the notification type.
+ * Mirrors channelForType() in convex/pushNotificationsNode.ts — keep in sync.
+ * (2026-09-14: chat_message / portal_* types added; task_assignment moved to
+ * the TASKS channel where it belongs — it was previously miscategorized onto
+ * the messages channel.)
  */
 function getChannelForType(type?: string): string {
-    if (type === 'message' || type === 'task_assignment') return 'practicepro-messages';
-    if (type === 'task' || type === 'deadline' || type === 'overdue') return 'practicepro-tasks';
+    if (
+        type === 'message' || type === 'chat_message' || type === 'portal_reply' ||
+        type === 'portal_message' || type === 'portal_new_message' ||
+        type === 'incoming_message'
+    ) return 'practicepro-messages';
+    if (
+        type === 'task' || type === 'task_assignment' || type === 'deadline' ||
+        type === 'overdue' || type === 'portal_maintenance_ticket' ||
+        type === 'portal_service_request'
+    ) return 'practicepro-tasks';
     return 'practicepro-general';
+}
+
+// ─── Smart grouping (2026-09-14) ─────────────────────────────────────────────
+// DETERMINISTIC per-conversation notification ids: the Header's Convex watcher
+// and the FCM foreground listener both call showLocalNotification for the SAME
+// incoming message (in-app row + push payload, ~1s apart). With Date.now()
+// ids those stacked as TWO tray rows for one message. With a stable
+// per-conversation id the second schedule() REPLACES the first — one row per
+// conversation, newest preview text — the local-notification equivalent of
+// FCM's android.notification.tag (WhatsApp-style collapse).
+
+/** Extract the conversation/thread identity from either payload shape:
+ *  push data ({conversationId, ...}) or in-app link ({id, context: {...}}). */
+function conversationKeyOf(extra?: Record<string, any>): string | null {
+    if (!extra) return null;
+    const direct = extra.conversationId ?? extra.id;
+    if (typeof direct === 'string' && direct) return direct;
+    const ctx = extra.context ?? extra.link;
+    const nested = ctx?.activeConversationId ?? ctx?.selectedInboxId ?? ctx?.conversationId;
+    if (typeof nested === 'string' && nested) return nested;
+    return null;
+}
+
+/** djb2 hash → positive 31-bit int (Capacitor notification ids are Int32).
+ *  Falls back to 1 (never 0 — some plugins treat 0 as "auto"). */
+function stableNotificationId(key: string): number {
+    let h = 5381;
+    for (let i = 0; i < key.length; i++) h = ((h << 5) + h + key.charCodeAt(i)) & 0x7fffffff;
+    return h || 1;
 }
 
 /**
@@ -243,8 +284,12 @@ export async function showLocalNotification(opts: {
     if (!Capacitor.isNativePlatform()) return;
 
     try {
-        const id = opts.id || Date.now();
         const channelId = getChannelForType(opts.type);
+        // Smart grouping: stable id per conversation so re-displays REPLACE the
+        // tray row instead of stacking (see block comment above). Non-conversation
+        // notifications keep unique Date.now() ids.
+        const convKey = conversationKeyOf(opts.extraData);
+        const id = opts.id ?? (convKey ? stableNotificationId(`pp|${channelId}|${convKey}`) : Date.now());
 
         await LocalNotifications.schedule({
             notifications: [

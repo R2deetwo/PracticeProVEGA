@@ -3582,6 +3582,17 @@ export const sendChatMessage = mutation({
     //    (The sender doesn't get a notification for their own message.)
     //    This runs in the SAME transaction as the message insert, so it's
     //    all-or-nothing. If the message is saved, the notifications are saved.
+    //
+    //    SMART PREVIEWS (2026-09-14): the notification body carries the ACTUAL
+    //    message text, not just "sent you a message" — recipients read the
+    //    message from the bell, toast, and push shade without opening the app.
+    const cleanContent = (args.content || "").replace(/\s+/g, " ").trim();
+    const truncated = cleanContent.length > 90 ? cleanContent.slice(0, 89).trimEnd() + "…" : cleanContent;
+    const chatPreview = truncated
+      ? `${senderName}: ${truncated}`
+      : attachments.length > 0
+        ? `${senderName} sent an attachment`
+        : `${senderName} sent you a message`;
     const recipientIds = memberIds.filter((id) => id && id !== senderId);
     if (recipientIds.length > 0) {
       const notificationPromises = recipientIds.map((recipientId) => {
@@ -3591,7 +3602,7 @@ export const sendChatMessage = mutation({
           firmId,
           userId: recipientId,
           title: "New Message",
-          message: `${senderName} sent you a message.`,
+          message: chatPreview,
           type: "message",
           isRead: false,
           link: {
@@ -3621,19 +3632,51 @@ export const sendChatMessage = mutation({
     //    dispatched an FCM push, and no client polling existed to show a
     //    local notification. Fire-and-forget: a push failure must NEVER
     //    fail the message send.
+    //
+    //    SMART CATEGORIZATION (2026-09-14 round):
+    //    - channelId "practicepro-messages": the MAX-importance channel the
+    //      client pre-creates (heads-up + sound) — not the general channel.
+    //    - tag `conversation:<id>`: Android REPLACES the tray row with the
+    //      same tag, so N messages in one conversation collapse into ONE
+    //      WhatsApp-style row instead of N stacked rows.
+    //    - notificationCount: non-deleted message count in the conversation —
+    //      the "N messages" badge on the collapsed row.
+    //    - body carries the ACTUAL message text (lock-screen readable).
+    //    - title: the sender (DM) or "sender · group" (group chat).
     if (recipientIds.length > 0) {
       try {
+        // Badge source: non-deleted messages in this conversation (read-your-
+        // writes inside the same transaction includes the just-sent message).
+        const conversationMessages = await ctx.db
+          .query("chatMessages")
+          .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
+          .collect();
+        const messageCount = conversationMessages.filter((m: any) => !m.isDeleted).length;
+
+        const isGroup = (existingConv as any)?.type === "group";
+        const conversationName = (existingConv as any)?.name || args.conversationName || "Team chat";
+        const pushTitle = isGroup ? `${senderName} · ${conversationName}` : senderName;
+        const pushBody = truncated
+          ? truncated
+          : attachments.length > 0
+            ? "sent an attachment"
+            : `${senderName} sent you a message`;
+
         await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
           userIds: recipientIds,
-          title: "New Message",
-          body: `${senderName} sent you a message.`,
+          title: pushTitle,
+          body: pushBody,
           data: {
             type: "chat_message",
             view: "messaging",
             conversationId,
             // Deep-link context for the tap handler (pp:navigate event)
             initialTab: "inbox",
+            senderName,
           },
+          channelId: "practicepro-messages",
+          tag: `conversation:${conversationId}`,
+          notificationCount: messageCount,
         });
       } catch (e: any) {
         console.warn("[sendChatMessage] Push dispatch failed:", e?.message);

@@ -33,6 +33,7 @@ import {
   sendTestPush,
   sendTestPushToUser,
   stringifyData,
+  channelForType,
 } from "../../convex/pushNotificationsNode";
 
 type FetchMock = ReturnType<typeof vi.fn>;
@@ -264,6 +265,87 @@ describe("sendFcmPush (internal action)", () => {
     expect(result.deactivated).toBe(2);
     const retired = (ctx.runMutation as FetchMock).mock.calls.map((c: any[]) => c[1]);
     expect(retired).toEqual([{ token: "tok-1" }, { token: "tok-2" }]);
+  });
+});
+
+describe("channelForType — smart categorization routing (2026-09-14)", () => {
+  it("routes every message type to the MAX-importance messages channel", () => {
+    for (const type of ["chat_message", "message", "portal_reply", "portal_message", "portal_new_message", "incoming_message"]) {
+      expect(channelForType(type)).toBe("practicepro-messages");
+    }
+  });
+
+  it("routes tasks, deadlines and portal requests to the tasks channel", () => {
+    for (const type of ["task", "task_assignment", "deadline", "overdue", "portal_maintenance_ticket", "portal_service_request"]) {
+      expect(channelForType(type)).toBe("practicepro-tasks");
+    }
+  });
+
+  it("routes everything else (app updates, broadcasts, system) to general", () => {
+    for (const type of ["app_update", "broadcast", "system", undefined]) {
+      expect(channelForType(type)).toBe("practicepro-general");
+    }
+  });
+});
+
+describe("sendFcmPush — categorization payload (tag / notificationCount / channel)", () => {
+  it("carries tag + notificationCount + explicit channelId for chat messages", async () => {
+    (process.env as any).FIREBASE_SERVICE_ACCOUNT_JSON = JSON.stringify(SERVICE_ACCOUNT);
+    delete (process.env as any).FCM_SERVER_KEY;
+    vi.stubGlobal("fetch", makeFetchMock());
+
+    const result: any = await (sendFcmPush as any)._handler(makeCtx(), {
+      tokens: ["tok-1"],
+      title: "UBAH",
+      body: "hello there",
+      data: { type: "chat_message", conversationId: "conv-7" },
+      channelId: "practicepro-messages",
+      tag: "conversation:conv-7",
+      notificationCount: 4,
+    });
+
+    expect(result.success).toBe(true);
+    const message = capturedMessages[0]?.message;
+    expect(message.android?.notification?.channelId).toBe("practicepro-messages");
+    expect(message.android?.notification?.tag).toBe("conversation:conv-7");
+    expect(message.android?.notification?.notificationCount).toBe(4);
+    expect(message.apns?.payload?.aps?.badge).toBe(4);
+  });
+
+  it("AUTO-DERIVES the messages channel from data.type when channelId is absent", async () => {
+    (process.env as any).FIREBASE_SERVICE_ACCOUNT_JSON = JSON.stringify(SERVICE_ACCOUNT);
+    delete (process.env as any).FCM_SERVER_KEY;
+    vi.stubGlobal("fetch", makeFetchMock());
+
+    await (sendFcmPush as any)._handler(makeCtx(), {
+      tokens: ["tok-1"],
+      title: "UBAH",
+      body: "hello",
+      data: { type: "chat_message", conversationId: "conv-7" },
+    });
+
+    const message = capturedMessages[0]?.message;
+    expect(message.android?.notification?.channelId).toBe("practicepro-messages");
+    // No tag/notificationCount passed → fields omitted entirely (not null).
+    expect(message.android?.notification?.tag).toBeUndefined();
+    expect(message.android?.notification?.notificationCount).toBeUndefined();
+  });
+
+  it("truncates long bodies to a lock-screen preview (90 chars + ellipsis)", async () => {
+    (process.env as any).FIREBASE_SERVICE_ACCOUNT_JSON = JSON.stringify(SERVICE_ACCOUNT);
+    delete (process.env as any).FCM_SERVER_KEY;
+    vi.stubGlobal("fetch", makeFetchMock());
+
+    const longBody = "a".repeat(200);
+    await (sendFcmPush as any)._handler(makeCtx(), {
+      tokens: ["tok-1"],
+      title: "T",
+      body: longBody,
+    });
+
+    const message = capturedMessages[0]?.message;
+    expect(message.notification?.body?.length).toBe(90);
+    expect(message.notification?.body?.endsWith("…")).toBe(true);
   });
 });
 
