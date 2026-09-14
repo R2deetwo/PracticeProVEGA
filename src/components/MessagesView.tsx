@@ -19,6 +19,7 @@ import TeamMessageModal from './modals/TeamMessageModal';
 // SIMPLIFY FIX: dead AtriumInbox import removed — the WhatsApp & Email tab
 // was merged into Conversations (inbox) in a prior session.
 import { NoticeBoardTab, ScheduledTab, OutboxTab } from './messaging';
+import { SectionErrorBoundary } from './ui/SectionErrorBoundary';
 import { MessageThread } from './messaging/MessageThread';
 import { AUTOMATION_WORKFLOW_LABELS } from '../utils/messageTypes';
 import {
@@ -2910,8 +2911,14 @@ const MessagesView: React.FC = () => {
                 )}
 
                 {/* ═══ SCHEDULED TAB ═══ */}
+                {/* SectionErrorBoundary (2026-09-14 incident): a failing
+                    backend query in this tab used to hit the ROOT boundary
+                    and replace the entire app. Scope it here so the rest of
+                    Messages stays interactive. */}
                 {activeTab === 'scheduled' && (
-                    <ScheduledTab firmId={firmId} />
+                    <SectionErrorBoundary sectionName="Scheduled messages">
+                        <ScheduledTab firmId={firmId} />
+                    </SectionErrorBoundary>
                 )}
 
                 {/* ═══ OUTBOX TAB ═══ — sent-messages history */}

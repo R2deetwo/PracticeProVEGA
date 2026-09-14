@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -25,6 +26,38 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/notification_accent" />
+
+        <!-- ─── WHATSAPP-GRADE PUSH (2026-09-14) ────────────────────────
+             The stock @capacitor/push-notifications MessagingService only
+             relays messages to JS — it never posts anything itself, so
+             data-only FCM messages (the payload shape that enables
+             MessagingStyle stacking + inline reply) would be invisible.
+
+             Our PracticeProMessagingService REPLACES the plugin's service
+             as the MESSAGING_EVENT handler (tools:node="remove" strips the
+             library declaration from the merged manifest so exactly ONE
+             service receives FCM events). It posts the tray notification in
+             EVERY app state, adds the reply action for conversational
+             pushes, and still forwards to the plugin's static bridge so
+             JS listeners keep firing. See
+             java/com/practicepro/app/push/PracticeProMessagingService.java. -->
+        <service
+            android:name="com.capacitorjs.plugins.pushnotifications.MessagingService"
+            tools:node="remove" />
+        <service
+            android:name=".push.PracticeProMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- Inline-reply handler: receives the RemoteInput text from the
+             notification's Reply action, POSTs to /api/push-reply with the
+             server-minted replyToken, and updates the notification. -->
+        <receiver
+            android:name=".push.PushReplyReceiver"
+            android:exported="false" />
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"

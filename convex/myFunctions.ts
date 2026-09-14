@@ -3760,6 +3760,11 @@ export const sendChatMessage = mutation({
           channelId: "practicepro-messages",
           tag: `conversation:${conversationId}`,
           notificationCount: messageCount,
+          // WHATSAPP-GRADE PUSH (2026-09-14): mark conversational — capable
+          // devices (native PracticeProMessagingService) get an inline-reply
+          // action on the notification; the replyToken is minted per user
+          // inside the FCM dispatcher and posts through /api/push-reply.
+          replyable: "1",
         });
       } catch (e: any) {
         await logError(ctx, {
@@ -3774,6 +3779,163 @@ export const sendChatMessage = mutation({
     // 6. Return the message id + conversation id so the client can update
     //    its optimistic UI state.
     return { messageId, conversationId };
+  },
+});
+
+/**
+ * internalMutation: sendPushReplyMessage — the WhatsApp-style inline-reply
+ * path (2026-09-14).
+ *
+ * Called ONLY by the /api/push-reply httpAction AFTER it has verified the
+ * replyToken (HMAC-minted at push dispatch time, bound to userId +
+ * conversationId, 24h expiry — see pushReplyAuth.ts). Internal = not
+ * publicly invokable; the replyToken IS the auth gate.
+ *
+ * Mirrors sendChatMessage's core (conversation resolve → insert → notify →
+ * push) but trusts the verified userId instead of a session. Membership is
+ * re-checked: the reply only lands if the user is still in the conversation.
+ * Recipients get the same notification + FCM treatment as a normal send —
+ * including replyable:"1", so a reply chain can continue entirely from the
+ * notification shade, exactly like WhatsApp.
+ */
+export const sendPushReplyMessage = internalMutation({
+  args: {
+    userId: v.string(),          // from the verified replyToken
+    conversationId: v.string(),  // cross-checked against the token
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // 1. Resolve the sender from the token's userId. The users table's _id
+    //    is the canonical id used in conversation memberIds and dispatch.
+    let user: any = null;
+    try {
+      user = await ctx.db.get(args.userId as Id<"users">);
+    } catch { /* not a Convex id — reject below */ }
+    if (!user) return { success: false, error: "USER_NOT_FOUND" };
+
+    const firmId = user.firmId || null;
+    const senderId = String(user._id);
+    const senderName = user.name || user.email?.split("@")[0] || "Team member";
+
+    // 2. Content hygiene: notifications carry short previews; a reply typed
+    //    into RemoteInput is a text message — cap it, strip control chars.
+    const content = String(args.content || "").replace(/\s+/g, " ").trim().slice(0, 1000);
+    if (!content) return { success: false, error: "EMPTY_REPLY" };
+
+    // 3. Resolve the conversation (custom uuid id first, then Convex _id —
+    //    same dual lookup as sendChatMessage) and require membership.
+    let existingConv: any = await ctx.db
+      .query("chatConversations")
+      .withIndex("by_custom_id", (q) => q.eq("id", args.conversationId))
+      .first();
+    if (!existingConv) {
+      try { existingConv = await ctx.db.get(args.conversationId as Id<"chatConversations">); } catch {}
+    }
+    if (!existingConv) return { success: false, error: "CONVERSATION_NOT_FOUND" };
+
+    const memberIds: string[] = (existingConv.memberIds as string[]) || [];
+    const memberIdsNormalized = memberIds.map(String);
+    if (!memberIdsNormalized.includes(senderId)) {
+      return { success: false, error: "NOT_A_MEMBER" };
+    }
+
+    const conversationId = args.conversationId;
+    const now = new Date().toISOString();
+
+    // 4. Insert the message row (same shape as sendChatMessage).
+    const messageId = crypto.randomUUID();
+    await ctx.db.insert("chatMessages", {
+      id: messageId,
+      conversationId,
+      content,
+      authorId: senderId,
+      authorName: senderName,
+      timestamp: now,
+      createdAt: now,
+      updatedAt: now,
+      firmId: firmId || undefined,
+      isDeleted: false,
+      status: "sent",
+      // Provenance: the push-reply- prefix marks this row as typed in the
+      // notification shade (the schema has no dedicated source field, so
+      // the idempotency key doubles as the origin marker).
+      idempotencyKey: `push-reply-${messageId}`,
+    });
+
+    // 5. Bell notifications for the OTHER members (same shape as
+    //    sendChatMessage's step 4).
+    const recipientIds = memberIdsNormalized.filter((id) => id && id !== senderId);
+    const cleanContent = content.length > 90 ? content.slice(0, 89).trimEnd() + "…" : content;
+    const chatPreview = `${senderName}: ${cleanContent}`;
+    if (recipientIds.length > 0) {
+      await Promise.all(recipientIds.map((recipientId) => {
+        const notificationId = crypto.randomUUID();
+        return ctx.db.insert("notifications", {
+          id: notificationId,
+          firmId: firmId || undefined,
+          userId: recipientId,
+          title: "New Message",
+          message: chatPreview,
+          type: "message",
+          isRead: false,
+          link: {
+            view: "messaging",
+            id: conversationId,
+            context: {
+              activeConversationId: conversationId,
+              initialTab: "inbox",
+              selectedInboxId: conversationId,
+              selectedInboxType: "team",
+            },
+          },
+          timestamp: Date.now(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }));
+    }
+
+    // 6. FCM push to the other members (reply chain continues from the
+    //    shade). Fire-and-forget via the scheduler — a push failure must
+    //    never fail the reply (the message row is already committed).
+    if (recipientIds.length > 0) {
+      try {
+        const conversationMessages = await ctx.db
+          .query("chatMessages")
+          .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
+          .collect();
+        const messageCount = conversationMessages.filter((m: any) => !m.isDeleted).length;
+        const isGroup = existingConv.type === "group";
+        const conversationName = existingConv.name || "Team chat";
+        const pushTitle = isGroup ? `${senderName} · ${conversationName}` : senderName;
+
+        await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+          userIds: recipientIds,
+          title: pushTitle,
+          body: content,
+          data: {
+            type: "chat_message",
+            view: "messaging",
+            conversationId,
+            initialTab: "inbox",
+            senderName,
+          },
+          channelId: "practicepro-messages",
+          tag: `conversation:${conversationId}`,
+          notificationCount: messageCount,
+          replyable: "1",
+        });
+      } catch (e: any) {
+        await logError(ctx, {
+          scope: "messaging", name: "myFunctions:sendPushReplyMessage:pushDispatch",
+          error: e, severity: "warning",
+          firmId: firmId || undefined,
+          context: { conversationId, recipients: recipientIds.length },
+        });
+      }
+    }
+
+    return { success: true, messageId, conversationId };
   },
 });
 

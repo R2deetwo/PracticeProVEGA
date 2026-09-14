@@ -38,3 +38,4 @@ export { default as FinancialStatusBadge } from './FinancialStatusBadge';
 // EmptyState already exists one level up with 11 adopters — re-export
 // rather than duplicate (single source of truth).
 export { default as EmptyState } from '../EmptyState';
+export { SectionErrorBoundary } from './SectionErrorBoundary';

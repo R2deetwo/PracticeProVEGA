@@ -6,7 +6,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useUI } from '../../contexts/UIContext';
 import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../../types';
-import { formatNaira, formatLargeNumber } from '../../utils/formatting';
+import { formatNaira, formatLargeNumber, formatNairaWhole } from '../../utils/formatting';
 import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles } from 'lucide-react';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 // ── Icons ─────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
             paymentRef: form.paymentRef,
             userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
           },
-          label: `${form.type} ledger entry — ₦${parseFloat(form.amount).toLocaleString()}`,
+          label: `${form.type} ledger entry — ${formatNairaWhole(form.amount)}`,
         });
         addToast('Ledger entry saved offline. Will sync when you reconnect.', { type: 'info', duration: 6000 });
         onClose();
@@ -213,8 +213,8 @@ const CashFlowChart: React.FC<{ data: Record<string, { income: number; risk: num
       {entries.map(([month, v]) => (
         <div key={month} className="flex-1 flex flex-col items-center gap-0.5">
           <div className="w-full flex flex-col-reverse gap-0.5">
-            <div className="w-full rounded-sm bg-emerald-500/80 transition-all" style={{ height: `${(v.income / max) * 60}px` }} title={`Income: ₦${v.income.toLocaleString()}`} />
-            {v.risk > 0 && <div className="w-full rounded-sm bg-rose-500/60" style={{ height: `${(v.risk / max) * 60}px` }} title={`At Risk: ₦${v.risk.toLocaleString()}`} />}
+            <div className="w-full rounded-sm bg-emerald-500/80 transition-all" style={{ height: `${(v.income / max) * 60}px` }} title={`Income: ${formatNairaWhole(v.income)}`} />
+            {v.risk > 0 && <div className="w-full rounded-sm bg-rose-500/60" style={{ height: `${(v.risk / max) * 60}px` }} title={`At Risk: ${formatNairaWhole(v.risk)}`} />}
           </div>
           <span className="text-3xs text-slate-600 font-medium">{month.slice(5)}</span>
         </div>
@@ -334,7 +334,7 @@ const LedgerManager: React.FC = () => {
         ${entry.paymentRef ? `<tr><td>Ref</td><td>${esc(entry.paymentRef)}</td></tr>` : ''}
         ${entry.description ? `<tr><td>Note</td><td>${esc(entry.description)}</td></tr>` : ''}
       </table>
-      <div class="total">₦${entry.amount.toLocaleString('en-NG')}</div>
+      <div class="total">${formatNairaWhole(entry.amount)}</div>
       <div class="footer">This is an auto-generated receipt from Atrium OS.<br/>Hash: ${entry.txHash} — Immutable Record</div>
       </body></html>`);
     win.document.close();

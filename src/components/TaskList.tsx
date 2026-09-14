@@ -58,6 +58,22 @@ const STATUS_ORDER: TaskStatus[] = [
 // Two 64px buttons = 128px reveal.
 const ACTION_REVEAL_WIDTH = 128;
 
+// Estimated rendered height of the status dropdown (4 options × ~32px +
+// padding + margin). Used by the flip-up collision check below.
+const STATUS_DROPDOWN_EST_HEIGHT = 170;
+
+// FLIP-UP COLLISION DETECTION (2026-09-14 bug): the status dropdown always
+// opened downward, so on the LAST table row the 4th option ("Done") fell
+// below the viewport edge — the user literally could not move a task from
+// Pending Verification to Done because the option existed but was clipped
+// out of sight. Both the desktop row and the mobile card use this: measure
+// the space below the trigger when opening; flip the panel above when tight.
+const shouldDropUp = (anchor: HTMLElement | null): boolean => {
+    if (!anchor) return false;
+    const rect = anchor.getBoundingClientRect();
+    return window.innerHeight - rect.bottom < STATUS_DROPDOWN_EST_HEIGHT;
+};
+
 // ─── Desktop table row ─────────────────────────────────────────────────────
 // Original implementation preserved. Used for sm: and up viewports.
 const TaskRow: React.FC<{
@@ -76,6 +92,7 @@ const TaskRow: React.FC<{
     const assignedUsers = (task.assignedUsers || []).map(id => users.find(u => u.id === id)).filter(Boolean) as User[];
 
     const [isStatusOpen, setIsStatusOpen] = useState(false);
+    const [statusDropsUp, setStatusDropsUp] = useState(false);
     const statusRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -87,6 +104,12 @@ const TaskRow: React.FC<{
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [isStatusOpen]);
+
+    const toggleStatusDropdown = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isStatusOpen) setStatusDropsUp(shouldDropUp(statusRef.current));
+        setIsStatusOpen(!isStatusOpen);
+    };
 
     return (
         <tr
@@ -157,7 +180,7 @@ const TaskRow: React.FC<{
             <td className="px-6 py-4 whitespace-nowrap overflow-visible interactive-cell">
                 <div className="relative" ref={statusRef}>
                     <button
-                        onClick={(e) => { e.stopPropagation(); setIsStatusOpen(!isStatusOpen); }}
+                        onClick={toggleStatusDropdown}
                         className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wide rounded-full cursor-pointer hover:opacity-80 transition-opacity
                         ${task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                 task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
@@ -168,7 +191,10 @@ const TaskRow: React.FC<{
                     </button>
 
                     {isStatusOpen && (
-                        <div className="absolute top-full left-0 mt-1 w-32 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[50] py-1 animate-fade-in-up">
+                        <div
+                            className={`absolute ${statusDropsUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-32 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[50] py-1 animate-fade-in-up`}
+                            role="menu"
+                        >
                             {TaskStatusValues.map(status => (
                                 <button
                                     key={status}
@@ -274,7 +300,17 @@ const TaskCard: React.FC<{
     const assignedUsers = (task.assignedUsers || []).map(id => users.find(u => u.id === id)).filter(Boolean) as User[];
 
     const [isStatusOpen, setIsStatusOpen] = useState(false);
+    const [statusDropsUp, setStatusDropsUp] = useState(false);
     const statusRef = useRef<HTMLDivElement>(null);
+
+    // Same flip-up collision detection as the desktop row (see
+    // shouldDropUp above) — the mobile card's dropdown had the identical
+    // clipping bug at the bottom of the list.
+    const toggleStatusDropdown = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isStatusOpen) setStatusDropsUp(shouldDropUp(statusRef.current));
+        setIsStatusOpen(!isStatusOpen);
+    };
 
     // Swipe gesture state (adapted from Toast.tsx)
     const [swipeOffset, setSwipeOffset] = useState(0);
@@ -444,7 +480,7 @@ const TaskCard: React.FC<{
                     {/* Status dropdown — same logic as desktop row */}
                     <div className="relative interactive-cell" ref={statusRef}>
                         <button
-                            onClick={(e) => { e.stopPropagation(); setIsStatusOpen(!isStatusOpen); }}
+                            onClick={toggleStatusDropdown}
                             className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold uppercase tracking-wide rounded-full cursor-pointer
                             ${task.status === 'done' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                     task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
@@ -456,7 +492,10 @@ const TaskCard: React.FC<{
                         </button>
 
                         {isStatusOpen && (
-                            <div className="absolute top-full left-0 mt-1 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[60] py-1 animate-fade-in-up">
+                            <div
+                                className={`absolute ${statusDropsUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[60] py-1 animate-fade-in-up`}
+                                role="menu"
+                            >
                                 {TaskStatusValues.map(status => (
                                     <button
                                         key={status}

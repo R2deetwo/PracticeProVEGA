@@ -7,10 +7,15 @@
  *      Android 8+ discards notifications posted to a nonexistent channel)
  *   2. Requests notification permission
  *   3. Registers with FCM to get a device token
- *   4. Saves the token to the backend (user_push_tokens table)
- *   5. Shows foreground pushes as local notifications (FCM does NOT display
- *      notification payloads while the app is open — previously they were
- *      only console.logged, so users saw nothing while using the app)
+ *   4. Saves the token to the backend (user_push_tokens table) WITH the
+ *      bundle's push capability flags — the WhatsApp-grade signal: the JS
+ *      bundle and the native PracticeProMessagingService ship in the SAME
+ *      APK, so "data_only" here tells the server this device can receive
+ *      data-only FCM messages that the service renders as MessagingStyle
+ *      notifications with inline reply (see pushNotificationsNode.ts).
+ *   5. NO local re-posting of foreground pushes — the native service owns
+ *      the tray row in EVERY app state (this was the duplicate-notification
+ *      bug: the service posted one row, this listener posted a second).
  *   6. Listens for notification taps (APK download actions, navigation)
  *
  * Usage: `usePushNotifications(currentUser?.id, currentUser?.firmId, bearerToken)`
@@ -27,7 +32,21 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { ensureNotificationChannels, showLocalNotification } from '../utils/notifications';
+import { ensureNotificationChannels } from '../utils/notifications';
+
+/**
+ * Push capabilities THIS bundle's APK carries (2026-09-14, WhatsApp-grade
+ * push round). Registered alongside the FCM token so the server can pick
+ * the right payload shape per device:
+ *   - data_only: the native PracticeProMessagingService is present and
+ *     renders data-only FCM messages as MessagingStyle notifications with
+ *     per-conversation stacking and inline reply.
+ *   - inline_reply: the notification reply action posts through
+ *     /api/push-reply with a server-minted replyToken.
+ * Stale APKs (no capabilities registered) keep receiving notification
+ * payloads — delivery never regresses during rollout.
+ */
+const PUSH_CAPABILITIES = 'data_only,inline_reply';
 
 export function usePushNotifications(userId?: string, firmId?: string, sessionToken?: string | null) {
   const registerToken = useMutation(api.pushNotifications.registerPushToken);
@@ -73,7 +92,9 @@ export function usePushNotifications(userId?: string, firmId?: string, sessionTo
         listenerHandles.push(
           await PushNotifications.addListener('registration', (token: Token) => {
             console.log('[push] Device registered with FCM:', token.value.slice(0, 20) + '...');
-            // Save token to backend (session-verified server-side)
+            // Save token to backend (session-verified server-side) — WITH
+            // this APK's push capabilities so the FCM dispatcher can send
+            // data-only messages to the native MessagingStyle service.
             registerToken({
               userId,
               firmId: firmId || undefined,
@@ -81,6 +102,7 @@ export function usePushNotifications(userId?: string, firmId?: string, sessionTo
               token: token.value,
               deviceType: Capacitor.getPlatform(), // 'android' | 'ios'
               deviceName: navigator.userAgent.slice(0, 100),
+              capabilities: PUSH_CAPABILITIES,
             }).catch(err => console.error('[push] Failed to save token to backend:', err?.message || err));
           })
         );
@@ -98,19 +120,18 @@ export function usePushNotifications(userId?: string, firmId?: string, sessionTo
           })
         );
 
-        // STEP 4 — Foreground notifications: FCM does NOT display them while
-        // the app is open; re-display as a local notification so the user
-        // actually sees something (distinct channel + haptic + tap handling).
+        // STEP 4 — Foreground push receipt: the native
+        // PracticeProMessagingService has ALREADY posted the tray
+        // notification for data-only messages (it runs for foreground,
+        // background and killed-app states alike). Re-posting here was the
+        // duplicate-notification bug ("two notifications that give a
+        // preview"): the service's row + this listener's local row.
+        // This listener now stays OBSERVATION-ONLY: JS-side effects that
+        // need the event (analytics, in-app toast when the Header watcher
+        // hasn't fired) can hook on; display is the service's job.
         listenerHandles.push(
           await PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-            console.log('[push] Notification received in foreground:', notification.title);
-            const data = (notification.data || {}) as Record<string, any>;
-            showLocalNotification({
-              title: notification.title || 'PracticePro',
-              body: notification.body || '',
-              type: data.type,
-              extraData: data,
-            }).catch(() => {});
+            console.log('[push] Notification received in foreground:', notification.title || '(data-only)');
           })
         );
 

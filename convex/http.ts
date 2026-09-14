@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { handleChakraWebhook } from "./sentryWebhook";
 import { handlePaystackWebhookImpl } from "./paystack";
 import { decodeUnsubscribeToken } from "./emailBranding";
+import { verifyReplyToken } from "./pushReplyAuth";
 
 const http = httpRouter();
 
@@ -328,6 +329,86 @@ http.route({
     const counts = await ctx.runQuery(internal.observability.getErrorEventCounts, {});
 
     return new Response(JSON.stringify({ simulated, counts }, null, 2), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
+    });
+  }),
+});
+
+// ─── WhatsApp-style notification reply (2026-09-14) ─────────────────────────
+//
+// POST /api/push-reply — the endpoint Android's PushReplyReceiver calls when
+// the user replies to a message directly from the notification shade.
+//
+// AUTH MODEL: no session exists in the receiver (the app may not be running).
+// The FCM data payload carried a replyToken — HMAC-bound to (userId,
+// conversationId), 24h expiry — minted at push-dispatch time (see
+// pushReplyAuth.ts). Verification here is the ONLY gate; the internal
+// mutation it unlocks re-checks conversation membership.
+//
+// Payload: { replyToken: string, conversationId: string, text: string }
+http.route({
+  path: "/api/push-reply",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    // Preflight for the (unlikely) browser-based caller.
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type",
+        },
+      });
+    }
+
+    let body: any;
+    try {
+      body = await request.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const { replyToken, conversationId, text } = body || {};
+    if (typeof replyToken !== "string" || typeof conversationId !== "string" || typeof text !== "string" || !text.trim()) {
+      return new Response(JSON.stringify({ error: "Missing replyToken, conversationId or text" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const verified = await verifyReplyToken(
+      process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+      replyToken,
+      conversationId
+    );
+    if (!verified) {
+      return new Response(JSON.stringify({ error: "Invalid or expired reply token" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const result = await ctx.runMutation(internal.myFunctions.sendPushReplyMessage, {
+      userId: verified.userId,
+      conversationId,
+      content: text.slice(0, 1000),
+    });
+
+    if (!result.success) {
+      return new Response(JSON.stringify({ error: result.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, messageId: result.messageId }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",

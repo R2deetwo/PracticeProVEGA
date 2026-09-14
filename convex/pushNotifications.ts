@@ -44,6 +44,11 @@ export const registerPushToken = mutation({
     token: v.string(),
     deviceType: v.string(),
     deviceName: v.optional(v.string()),
+    // WHATSAPP-GRADE PUSH: comma-joined capability flags from the client
+    // bundle (see schema.ts user_push_tokens.capabilities). Set by
+    // usePushNotifications — mirrors the native service shipping in the
+    // same APK. Additive: unknown flags are ignored by the dispatcher.
+    capabilities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: userId was trusted as-is — any caller could
@@ -67,6 +72,7 @@ export const registerPushToken = mutation({
         firmId: args.firmId || existing.firmId,
         deviceType: args.deviceType,
         deviceName: args.deviceName || existing.deviceName,
+        capabilities: args.capabilities ?? (existing as any).capabilities ?? null,
         isActive: true,
         updatedAt: now,
       });
@@ -80,6 +86,7 @@ export const registerPushToken = mutation({
       token: args.token,
       deviceType: args.deviceType,
       deviceName: args.deviceName,
+      capabilities: args.capabilities ?? null,
       isActive: true,
       createdAt: now,
       updatedAt: now,
@@ -351,6 +358,13 @@ export const notifyAppUpdate = mutation({
  * sendAdminReply (admin → tenant/client — portals.ts). Internal-only (not
  * publicly invokable), fire-and-forget via the scheduler so an FCM failure
  * can never break the message send itself.
+ *
+ * WHATSAPP-GRADE PUSH (2026-09-14 round 3): token records (with their
+ * registered capabilities) flow through to the FCM dispatcher so it can
+ * pick the payload shape per device — data-only for APKs whose native
+ * PracticeProMessagingService posts MessagingStyle notifications with
+ * inline reply; notification payloads for everything else (stale APKs,
+ * future iOS) so delivery never regresses.
  */
 export const dispatchPushToUsers = internalMutation({
   args: {
@@ -362,9 +376,12 @@ export const dispatchPushToUsers = internalMutation({
     channelId: v.optional(v.string()),
     tag: v.optional(v.string()),
     notificationCount: v.optional(v.number()),
+    // Reply capability: when "1", capable devices get an inline-reply
+    // action on the notification (team chat only — see mintReplyToken).
+    replyable: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const tokens: string[] = [];
+    const tokenRecords: { token: string; userId: string; deviceType: string; capabilities?: string }[] = [];
     for (const userId of args.userIds) {
       try {
         const userTokens = await ctx.db
@@ -373,22 +390,33 @@ export const dispatchPushToUsers = internalMutation({
             q.eq("userId", userId).eq("isActive", true)
           )
           .collect();
-        for (const t of userTokens as any[]) tokens.push(t.token);
+        for (const t of userTokens as any[]) {
+          tokenRecords.push({
+            token: t.token,
+            userId,
+            deviceType: String(t.deviceType || "android"),
+            // null (legacy row) → undefined, matching the scheduler's
+            // generated arg type (v.optional(v.string())).
+            capabilities: (t.capabilities as string) || undefined,
+          });
+        }
       } catch (e: any) {
         console.warn("[dispatchPushToUsers] token lookup failed for", userId, e?.message);
       }
     }
-    if (tokens.length === 0) return { dispatched: 0 };
+    if (tokenRecords.length === 0) return { dispatched: 0 };
     ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-      tokens,
+      tokens: tokenRecords.map((r) => r.token),
+      tokenRecords,
       title: args.title,
       body: args.body,
       data: args.data ?? {},
       ...(args.channelId ? { channelId: args.channelId } : {}),
       ...(args.tag ? { tag: args.tag } : {}),
       ...(args.notificationCount ? { notificationCount: args.notificationCount } : {}),
+      ...(args.replyable ? { replyable: args.replyable } : {}),
     });
-    return { dispatched: tokens.length };
+    return { dispatched: tokenRecords.length };
   },
 });
 

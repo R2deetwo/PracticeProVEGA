@@ -35,6 +35,35 @@ export const formatNaira = (
 };
 
 /**
+ * Whole-naira formatter with the ₦ symbol — the deterministic replacement
+ * for the inline `₦${x.toLocaleString()}` pattern that was scattered across
+ * financial surfaces (audit workstream 5.1).
+ *
+ * WHY THIS EXISTS: bare `toLocaleString()` is LOCALE-DEPENDENT — on a
+ * device set to de-DE the same rent figure renders "₦1.234.567" instead of
+ * "₦1,234,567". This helper pins en-NG grouping while matching the inline
+ * pattern's exact digit behavior (no forced kobo: 17400000 -> "₦17,400,000",
+ * 1234.5 -> "₦1,234.5"), so migrating an existing inline usage is a
+ * zero-visual-change refactor on en-locale devices AND becomes deterministic
+ * everywhere else.
+ *
+ * For kobo-exact financial documents use formatNairaFull ("₦17,400,000.00").
+ */
+export const formatNairaWhole = (
+  amount: number | string,
+  opts: { withSymbol?: boolean } = {}
+): string => {
+  const { withSymbol = true } = opts;
+  const num =
+    typeof amount === 'string' ? parseFloat(amount.replace(/[^0-9.-]/g, '')) : amount;
+  if (typeof num !== 'number' || isNaN(num)) return withSymbol ? '₦0' : '0';
+  // No options = spec defaults (0..3 fraction digits) — identical to the
+  // inline pattern, but with the locale pinned to en-NG.
+  const formatted = num.toLocaleString('en-NG');
+  return withSymbol ? `₦${formatted}` : formatted;
+};
+
+/**
  * Compact Naira formatter for tight card layouts where a full
  * "17,400,000.00" would overflow. Returns strings like:
  *   ₦0.00, ₦1,234, ₦17.4M, ₦2.1B

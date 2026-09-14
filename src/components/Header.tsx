@@ -20,6 +20,19 @@ interface HeaderProps {
     onToggleToolkit: () => void;
 }
 
+// DUPLICATE-NOTIFICATION FIX (2026-09-14): notification types the SERVER
+// pushes via FCM at send time. For these, the tray row is owned by the
+// native MessagingStyle service (or the system tray on stale APKs) — the
+// Header watcher must NOT post a competing local row. Kept in sync with
+// the FCM dispatch callers (sendChatMessage, notifyFirmAdmins,
+// sendAdminReply, feedback threads) and channelForType's message bucket.
+const FCM_PUSHED_TYPES = new Set([
+    'message', 'chat_message', 'portal_reply', 'portal_message',
+    'portal_new_message', 'incoming_message', 'feedback_user_reply',
+    'feedback_reply', 'feedback_new', 'feedback_issue', 'feedback_auto_reply',
+    'automation_digest',
+]);
+
 const getNotificationStyle = (type: string = 'info') => {
     switch (type) {
         case 'success': return { icon: <div className="w-2 h-2 bg-green-500 rounded-full" />, color: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800' };
@@ -30,6 +43,7 @@ const getNotificationStyle = (type: string = 'info') => {
 };
 
 const Header: React.FC = React.memo(() => {
+    const isNativePlatform = Capacitor.isNativePlatform();
     const { theme, setTheme, navigateTo, goBack, goForward, canGoBack, canGoForward, setMobileSearchOpen, openModal, toggleCommandPalette, toggleSidebarRetraction, activePeers, addToast, setIsSessionLocked } = useUI();
     const { currentUser, logout, isImpersonating, revertToOriginalUser, bearerToken } = useAuth();
     const { coreState, isDataLoaded } = useCoreState();
@@ -233,7 +247,17 @@ const Header: React.FC = React.memo(() => {
                     // Native push notification (mobile only) — shows in the
                     // phone's notification shade if the app is backgrounded.
                     // Also triggers haptic feedback + sound via the notification manager.
-                    try {
+                    //
+                    // DUPLICATE-NOTIFICATION FIX (2026-09-14): the FCM push
+                    // for conversational types (message/chat_message/
+                    // portal_*/feedback_*) is dispatched by the SERVER at
+                    // send time — the native PracticeProMessagingService (or
+                    // the system tray for stale APKs) posts that tray row.
+                    // Posting a SECOND local row here produced the
+                    // "two notifications that give a preview" bug. Local
+                    // posting is now reserved for types the server does NOT
+                    // push — everything else relies on FCM delivery.
+                    if (isNativePlatform && !FCM_PUSHED_TYPES.has(String(n.type || ''))) {
                         import('../utils/notifications').then(({ showLocalNotification }) => {
                             showLocalNotification({
                                 title: n.title || 'PracticePro',
@@ -242,7 +266,7 @@ const Header: React.FC = React.memo(() => {
                                 extraData: n.link,
                             });
                         });
-                    } catch {}
+                    }
                 }
             }
         });

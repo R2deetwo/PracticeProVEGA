@@ -50,6 +50,7 @@ import { action, internalAction } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { createSign } from "node:crypto";
+import { mintReplyToken } from "./pushReplyAuth";
 
 // ─── OAuth2 access token (module-level cache) ───────────────────────────────
 
@@ -198,6 +199,15 @@ export interface FcmDispatchArgs {
   /** Unread badge rendered on the notification (Android notificationCount,
    *  iOS aps.badge). */
   notificationCount?: number;
+  /** "1" = attach an inline-reply action for capable devices (team chat). */
+  replyable?: string;
+  /** Per-token capability records (userId/deviceType/capabilities) resolved
+   *  by dispatchPushToUsers. Absent → legacy payload shape for every token
+   *  (stale APKs, test pushes). Present → Android tokens with the
+   *  "data_only" capability get data-only messages that the native
+   *  PracticeProMessagingService turns into MessagingStyle notifications
+   *  with inline reply; everything else keeps the notification payload. */
+  tokenRecords?: { token: string; userId: string; deviceType: string; capabilities?: string | null }[];
 }
 
 export interface FcmDispatchResult {
@@ -259,6 +269,16 @@ async function dispatchFcm(
     const channelId = args.channelId || channelForType(args.data?.type);
     const body = previewBody(args.body);
 
+    // Capability index (WHATSAPP-GRADE PUSH, 2026-09-14 round 3):
+    // tokens whose APK ships the native MessagingStyle service. Those get
+    // data-only messages; the service posts the tray notification itself
+    // with full control (per-conversation stacking + inline reply). Tokens
+    // without the record/capability keep the system-tray notification
+    // payload — delivery on stale APKs never regresses.
+    const recordByToken = new Map(
+      (args.tokenRecords || []).map((r) => [r.token, r])
+    );
+
     let sent = 0;
     let failed = 0;
     const errors: string[] = [];
@@ -271,55 +291,93 @@ async function dispatchFcm(
       const chunk = args.tokens.slice(i, i + CHUNK);
       await Promise.all(
         chunk.map(async (token) => {
-          const message = {
-            token,
-            notification: { title: args.title, body },
-            android: {
-              // Message-level delivery priority — the ONLY valid `priority`
-              // field in the FCM v1 API (AndroidConfig.priority: HIGH/NORMAL).
-              priority: "HIGH",
-              notification: {
-                // Channel created client-side by ensureNotificationChannels()
-                // BEFORE registration, so background pushes are never dropped.
-                // On Android 8+ visual priority (sound/heads-up) comes from
-                // the CHANNEL's importance, not the notification — so there is
-                // deliberately NO priority field here. `priority` inside
-                // android.notification is not part of the AndroidNotification
-                // proto and FCM v1 rejects the whole send with:
-                //   400 "Unknown name \"priority\" at
-                //   'message.android.notification': Cannot find field"
-                // (the 2026-09-14 live test-push failure — 3/3 tokens 400).
-                channelId,
-                sound: "default",
-                // Icon: MUST be a drawable resource name. The previous
-                // ic_launcher is a MIPMAP (adaptive launcher art) — the FCM
-                // drawable lookup failed and Android silently fell back to
-                // the generic white-circle-with-'i' badge (the exact "badge
-                // shows a circle with an 'i'" complaint). ic_notification is
-                // a real alpha-only drawable shipped in res/drawable and
-                // wired as the FCM default via AndroidManifest meta-data.
-                icon: "ic_notification",
-                // Brand-green accent for the badge/expanded notification.
-                color: "#10B981",
-                defaultVibrateTimings: true,
-                // Tag: Android replaces the tray row carrying the same tag —
-                // per-conversation tags collapse N messages into ONE row.
-                // notificationCount: the "N messages" badge on that row.
-                // Both ARE valid AndroidNotification v1 proto fields (unlike
-                // `priority`, which 400s — see comment above).
-                ...(args.tag ? { tag: args.tag } : {}),
-                ...(args.notificationCount ? { notificationCount: args.notificationCount } : {}),
-                // NO clickAction: default tap opens the launcher activity and
-                // the Capacitor plugin delivers pushNotificationActionPerformed.
-              },
-            },
-            apns: {
-              payload: {
-                aps: { sound: "default", badge: args.notificationCount || 1 },
-              },
-            },
-            data,
-          };
+          const record = recordByToken.get(token);
+          const dataOnlyCapable =
+            !!record &&
+            record.deviceType === "android" &&
+            String(record.capabilities || "").includes("data_only");
+
+          const message: any = dataOnlyCapable
+            ? {
+                // ── DATA-ONLY → native PracticeProMessagingService ──
+                // The service reads the __-prefixed display fields to post
+                // a MessagingStyle notification with per-conversation
+                // history + inline reply. tag/count/replyToken ride the
+                // data payload (no android.notification section at all).
+                token,
+                android: {
+                  priority: "HIGH",
+                  data: {
+                    ...data,
+                    __title: args.title,
+                    __body: body,
+                    __channel: channelId,
+                    ...(args.tag ? { __tag: args.tag } : {}),
+                    ...(args.notificationCount
+                      ? { __count: String(args.notificationCount) }
+                      : {}),
+                    ...(args.replyable === "1" && record!.userId && data.conversationId
+                      ? {
+                          __replyToken: await mintReplyToken(
+                            serviceAccountJson!,
+                            record!.userId,
+                            data.conversationId
+                          ),
+                        }
+                      : {}),
+                  },
+                },
+              }
+            : {
+                // ── LEGACY → system-tray notification payload ──
+                token,
+                notification: { title: args.title, body },
+                android: {
+                  // Message-level delivery priority — the ONLY valid `priority`
+                  // field in the FCM v1 API (AndroidConfig.priority: HIGH/NORMAL).
+                  priority: "HIGH",
+                  notification: {
+                    // Channel created client-side by ensureNotificationChannels()
+                    // BEFORE registration, so background pushes are never dropped.
+                    // On Android 8+ visual priority (sound/heads-up) comes from
+                    // the CHANNEL's importance, not the notification — so there is
+                    // deliberately NO priority field here. `priority` inside
+                    // android.notification is not part of the AndroidNotification
+                    // proto and FCM v1 rejects the whole send with:
+                    //   400 "Unknown name \"priority\" at
+                    //   'message.android.notification': Cannot find field"
+                    // (the 2026-09-14 live test-push failure — 3/3 tokens 400).
+                    channelId,
+                    sound: "default",
+                    // Icon: MUST be a drawable resource name. The previous
+                    // ic_launcher is a MIPMAP (adaptive launcher art) — the FCM
+                    // drawable lookup failed and Android silently fell back to
+                    // the generic white-circle-with-'i' badge (the exact "badge
+                    // shows a circle with an 'i'" complaint). ic_notification is
+                    // a real alpha-only drawable shipped in res/drawable and
+                    // wired as the FCM default via AndroidManifest meta-data.
+                    icon: "ic_notification",
+                    // Brand-green accent for the badge/expanded notification.
+                    color: "#10B981",
+                    defaultVibrateTimings: true,
+                    // Tag: Android replaces the tray row carrying the same tag —
+                    // per-conversation tags collapse N messages into ONE row.
+                    // notificationCount: the "N messages" badge on that row.
+                    // Both ARE valid AndroidNotification v1 proto fields (unlike
+                    // `priority`, which 400s — see comment above).
+                    ...(args.tag ? { tag: args.tag } : {}),
+                    ...(args.notificationCount ? { notificationCount: args.notificationCount } : {}),
+                    // NO clickAction: default tap opens the launcher activity and
+                    // the Capacitor plugin delivers pushNotificationActionPerformed.
+                  },
+                },
+                apns: {
+                  payload: {
+                    aps: { sound: "default", badge: args.notificationCount || 1 },
+                  },
+                },
+                data,
+              };
 
           try {
             const res = await fetch(
@@ -392,6 +450,17 @@ export const sendFcmPush = internalAction({
     channelId: v.optional(v.string()),
     tag: v.optional(v.string()),
     notificationCount: v.optional(v.number()),
+    replyable: v.optional(v.string()),
+    tokenRecords: v.optional(
+      v.array(
+        v.object({
+          token: v.string(),
+          userId: v.string(),
+          deviceType: v.string(),
+          capabilities: v.optional(v.string()),
+        })
+      )
+    ),
   },
   handler: async (ctx, args): Promise<FcmDispatchResult> => {
     return dispatchFcm(ctx, args);

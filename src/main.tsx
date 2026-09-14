@@ -34,6 +34,19 @@ if (!CONVEX_URL) {
 // Initialize Client
 const convex = new ConvexReactClient(CONVEX_URL);
 
+// ─── Native reply endpoint discovery (WhatsApp-grade push, 2026-09-14) ────
+// PushReplyReceiver (Android) POSTs notification-shade replies to
+// <convexUrl>/api/push-reply. The native side can't read VITE_CONVEX_URL,
+// so we persist it once per boot into @capacitor/preferences (SharedPreferences
+// "CapacitorStorage") where the receiver reads it. Web/no-op safe.
+try {
+  if (typeof window !== 'undefined' && (window as any).Capacitor?.isNativePlatform?.()) {
+    import('@capacitor/preferences').then(({ Preferences }) =>
+      Preferences.set({ key: 'pp_convex_url', value: CONVEX_URL })
+    ).catch(() => {});
+  }
+} catch { /* never block boot on this */ }
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");

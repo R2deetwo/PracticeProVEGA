@@ -2420,6 +2420,17 @@ export default defineSchema({
     token: v.string(),              // FCM device token
     deviceType: v.string(),         // 'android' | 'ios' | 'web'
     deviceName: nullableString,     // Optional: "Samsung S23" etc.
+    // WHATSAPP-GRADE PUSH (2026-09-14): comma-joined capability flags the
+    // CLIENT registers with its token — e.g. "data_only,messaging_style,
+    // inline_reply". Because the JS bundle and the native
+    // PracticeProMessagingService ship in the SAME APK, the JS capability
+    // list is a faithful proxy for the native service's presence. The FCM
+    // dispatcher uses it to decide the payload shape: capable Android
+    // tokens get data-only messages (service posts a MessagingStyle
+    // notification with inline reply); legacy tokens keep notification
+    // payloads (system-tray post, no reply action) so stale APKs never
+    // lose delivery.
+    capabilities: nullableString,
     isActive: v.boolean(),          // Set to false when token is revoked
     createdAt: v.number(),
     updatedAt: v.number(),
