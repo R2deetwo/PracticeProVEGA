@@ -2863,7 +2863,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             }
                         }
                     }}
-                    className={`flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-white dark:bg-zinc-950 transition-all min-w-0`}
+                    className={`flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar bg-white dark:bg-zinc-950 transition-all min-w-0`}
                 >
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8">

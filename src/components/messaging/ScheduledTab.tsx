@@ -34,12 +34,12 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { usePropertyGroups } from '../../hooks/usePropertyGroups';
-import { PlusIcon, ClockIcon, TrashIcon, SendIcon, SearchIcon } from '../../constants';
+import { PlusIcon, ClockIcon, TrashIcon, SendIcon, SearchIcon, UsersIcon } from '../../constants';
 import { MSG_TYPE_LABELS } from '../../utils/messageTypes';
 import { isDueNow } from '../../messaging/sections';
 import { renderMergeFields, hasMergeFields, nextRentDueTs, MERGE_FIELD_TAGS } from '../../utils/mergeFields';
 import { AutomationWorkflows } from './AutomationWorkflows';
-import { BoltIcon, PauseIcon, PlayIcon } from './ScheduledTabIcons';
+import { BoltIcon, PauseIcon, PlayIcon, ChevronDownIcon } from './ScheduledTabIcons';
 import {
   SCHEDULE_TEMPLATES,
   templateForType,
@@ -360,110 +360,293 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
     return null;
   };
 
-  // ── Row renderer (shared by pending sections) ────────────────────────────
-  const renderRow = (msg: any, variant: 'mine' | 'automation') => {
-    const due = isDueNow(msg);
-    const paused = msg.status === 'paused';
-    const wf = workflowLabel(msg);
+  // ── WHO GETS THIS MESSAGE? (restored 2026-09-14, round 2) ────────────────
+  // USER CONTEXT: "I wonder why you got rid of the 'who gets this message?'
+  // in the scheduled messages schedules." The fan-out design (one DB row per
+  // recipient, manual AND engine) used to render one card per row with a
+  // name truncated to ~100px — a 30-resident send buried the queue under 30
+  // identical cards and the recipients were near-invisible. Rows sharing the
+  // same content + send time + workflow step now collapse into ONE card with
+  // an explicit "Who gets this message?" expander listing every recipient.
+  const unitLabelFor = (unitId: string | null | undefined): string | null => {
+    if (!unitId) return null;
+    const u = flatUnits.find((f: any) => String(f.id) === String(unitId));
+    if (!u) return null;
+    return (u as any).unitName ? `${(u as any).unitName}, ${(u as any).shortAddress || (u as any).address}` : ((u as any).shortAddress || (u as any).address);
+  };
+
+  const groupKeyOf = (m: any) => [
+    m.channel, m.messageType, m.workflowKey || 'manual', m.stepKey || '',
+    String(m.content || ''), Math.round(Number(m.scheduledFor || 0) / 60000),
+  ].join('\u00a6');
+
+  const groupRows = (rows: any[]): Array<{ key: string; rows: any[] }> => {
+    const map = new Map<string, any[]>();
+    for (const r of rows) {
+      const k = groupKeyOf(r);
+      const bucket = map.get(k);
+      if (bucket) bucket.push(r); else map.set(k, [r]);
+    }
+    return Array.from(map.entries()).map(([key, rs]) => ({ key, rows: rs }));
+  };
+
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  // ── Group-card renderer (mobile-first, 2026-09-14 round 2) ──────────────
+  // One card per (content + send time + workflow step): identical fan-out
+  // rows collapse into ONE card, and every card carries an explicit
+  // "Who gets this message?" expander with the full recipient list.
+  const handleCancelGroup = async (group: { key: string; rows: any[] }) => {
+    const label = MSG_TYPE_LABELS[group.rows[0]?.messageType as keyof typeof MSG_TYPE_LABELS] || 'message';
+    const count = group.rows.length;
+    const ok = await confirm({
+      title: `Stop this ${label}?`,
+      message: `It will no longer be sent to ${count} recipient${count === 1 ? '' : 's'}. You can always schedule a new one.`,
+      confirmLabel: 'Stop it',
+      cancelLabel: 'Leave it',
+      danger: true,
+    });
+    if (!ok) return;
+    let stopped = 0, failed = 0;
+    for (const row of group.rows) {
+      try {
+        await cancelScheduled({ messageId: row._id, ...auth });
+        stopped++;
+      } catch {
+        failed++;
+      }
+    }
+    if (stopped > 0 && failed === 0) addToast(`Stopped for ${stopped} recipient${stopped === 1 ? '' : 's'}.`, { type: 'success' });
+    else if (stopped > 0) addToast(`Stopped for ${stopped}, failed for ${failed}.`, { type: 'error' });
+    else addToast('Failed to stop message.', { type: 'error' });
+  };
+
+  const renderGroupCard = (group: { key: string; rows: any[] }, variant: 'mine' | 'automation') => {
+    const lead = group.rows[0];
+    const count = group.rows.length;
+    const multi = count > 1;
+    const expanded = expandedGroups.has(group.key);
+    const pausedCount = group.rows.filter((r: any) => r.status === 'paused').length;
+    const allPaused = pausedCount === count && count > 0;
+    const anyDue = group.rows.some((r: any) => isDueNow(r) && r.status === 'scheduled' && r.pauseReason !== 'payment_review');
+    const wf = workflowLabel(lead);
+    const statusLabel = allPaused
+      ? 'On hold'
+      : pausedCount > 0 ? `${count - pausedCount} of ${count} held` : (STATUS_LABELS[lead.status] || lead.status);
+    const statusCls = pausedCount > 0 ? STATUS_STYLES.paused : (STATUS_STYLES[lead.status] || STATUS_STYLES.scheduled);
+    const recipientsSummary = multi
+      ? `${count} recipient${count === 1 ? '' : 's'}`
+      : recipientLabel(lead);
+    const leadPaused = lead.status === 'paused';
     return (
       <div
-        key={msg._id}
-        className={`p-3.5 rounded-xl border transition-colors ${
-          paused
+        key={group.key}
+        className={`rounded-xl border transition-colors ${
+          allPaused
             ? 'bg-orange-50/70 dark:bg-orange-900/10 border-orange-200 dark:border-orange-900/40'
             : variant === 'automation'
               ? 'bg-slate-50/70 dark:bg-zinc-800/40 border-slate-200/70 dark:border-zinc-800'
               : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800'
         }`}
       >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${CHANNEL_STYLES[msg.channel] || 'text-slate-500 bg-slate-100'}`}>
-                {msg.channel}
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">
-                {MSG_TYPE_LABELS[msg.messageType as keyof typeof MSG_TYPE_LABELS] || msg.messageType}
-              </span>
-              <span className={`px-1.5 py-0.5 rounded text-2xs font-bold ${STATUS_STYLES[msg.status] || STATUS_STYLES.scheduled}`}>
-                {STATUS_LABELS[msg.status] || msg.status}
-              </span>
-              {wf && (
-                <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400">
-                  {wf}
+        <div className="p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${CHANNEL_STYLES[lead.channel] || 'text-slate-500 bg-slate-100'}`}>
+                  {lead.channel}
                 </span>
-              )}
-              {due && !paused && msg.status === 'scheduled' && (
-                <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
-                  due now
+                <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400">
+                  {MSG_TYPE_LABELS[lead.messageType as keyof typeof MSG_TYPE_LABELS] || lead.messageType}
                 </span>
-              )}
-            </div>
-            <p className={`text-xs leading-relaxed line-clamp-2 mb-1 ${variant === 'automation' ? 'text-slate-500 dark:text-zinc-500' : 'text-slate-600 dark:text-zinc-400'}`}>
-              {msg.content}
-            </p>
-            <div className="flex items-center gap-2 text-2xs text-slate-400 dark:text-zinc-500 flex-wrap">
-              <span className="font-bold">
-                {paused ? 'On hold' : msg.scheduledFor ? `Goes out ${formatWhen(msg.scheduledFor)}` : 'No date set'}
-              </span>
-              <span aria-hidden>·</span>
-              <span className="truncate">→ {recipientLabel(msg)}</span>
-            </div>
-            {msg.pauseReason === 'payment_review' && (
-              <p className="text-2xs text-orange-600 dark:text-orange-400 mt-1 leading-relaxed">
-                Held automatically — this tenant uploaded a payment receipt awaiting verification. It will
-                resume if the payment is rejected.
+                <span className={`px-1.5 py-0.5 rounded text-2xs font-bold ${statusCls}`}>{statusLabel}</span>
+                {wf && (
+                  <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400">
+                    {wf}
+                  </span>
+                )}
+                {anyDue && (
+                  <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                    due now
+                  </span>
+                )}
+              </div>
+              <p className={`text-xs leading-relaxed line-clamp-2 mb-1 ${variant === 'automation' ? 'text-slate-500 dark:text-zinc-500' : 'text-slate-600 dark:text-zinc-400'}`}>
+                {lead.content}
               </p>
+              <div className="text-2xs text-slate-400 dark:text-zinc-500 font-bold">
+                {lead.scheduledFor ? `Goes out ${formatWhen(lead.scheduledFor)}` : 'No date set'}
+              </div>
+              {lead.pauseReason === 'payment_review' && (
+                <p className="text-2xs text-orange-600 dark:text-orange-400 mt-1 leading-relaxed">
+                  Held automatically — a payment receipt is awaiting verification. It will resume if the payment is rejected.
+                </p>
+              )}
+            </div>
+            {/* Single dispatch: one-tap hold/stop stay in the header. */}
+            {!multi && (
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {leadPaused && (
+                  <button
+                    onClick={() => handleResume(lead)}
+                    className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                    title="Resume this dispatch"
+                  >
+                    <PlayIcon className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {!leadPaused && lead.status === 'scheduled' && (
+                  <button
+                    onClick={() => handlePause(lead)}
+                    className="p-1.5 rounded text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                    title="Hold this dispatch (e.g. the tenant already settled)"
+                  >
+                    <PauseIcon className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={() => handleCancel(lead)}
+                  className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                  title={variant === 'mine' ? 'Stop this scheduled message' : 'Stop this automatic message'}
+                >
+                  <TrashIcon className="w-3.5 h-3.5" />
+                </button>
+              </div>
             )}
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {paused && (
-              <button
-                onClick={() => handleResume(msg)}
-                className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                title="Resume this dispatch"
-              >
-                <PlayIcon className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {!paused && msg.status === 'scheduled' && (
-              <button
-                onClick={() => handlePause(msg)}
-                className="p-1.5 rounded text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
-                title="Hold this dispatch (e.g. the tenant already settled)"
-              >
-                <PauseIcon className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              onClick={() => handleCancel(msg)}
-              className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
-              title={variant === 'mine' ? 'Stop this scheduled message' : 'Stop this automatic message'}
-            >
-              <TrashIcon className="w-3.5 h-3.5" />
-            </button>
-          </div>
+
+          {/* WHO GETS THIS MESSAGE? — the restored, unmissable affordance */}
+          <button
+            onClick={() => toggleGroup(group.key)}
+            className={`mt-2 w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+              expanded
+                ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-900/40'
+                : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-800'
+            }`}
+            aria-expanded={expanded}
+          >
+            <UsersIcon className="w-4 h-4 flex-shrink-0 text-primary-600 dark:text-primary-400" />
+            <span className="text-xs font-bold text-primary-700 dark:text-primary-300 flex-shrink-0">Who gets this message?</span>
+            <span className="text-2xs text-slate-500 dark:text-zinc-400 truncate flex-1 min-w-0 text-right">
+              {expanded ? 'hide' : recipientsSummary}
+            </span>
+            <ChevronDownIcon className={`w-3.5 h-3.5 flex-shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Expanded: the full recipient list, each with its own controls */}
+          {expanded && (
+            <div className="mt-2 rounded-lg border border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-800 overflow-hidden">
+              {group.rows.map((row: any) => {
+                const rPaused = row.status === 'paused';
+                const unit = unitLabelFor(row.unitId);
+                const contact = row.recipientEmail || row.recipientPhone;
+                return (
+                  <div key={row._id} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-zinc-900/60">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${rPaused ? 'bg-orange-400' : 'bg-emerald-400'}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 truncate">{recipientLabel(row)}</p>
+                      <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
+                        {unit || ''}{unit && contact ? ' · ' : ''}{contact || ''}
+                        {rPaused ? ' · on hold' : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      {rPaused && (
+                        <button
+                          onClick={() => handleResume(row)}
+                          className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                          title="Resume this dispatch"
+                        >
+                          <PlayIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {!rPaused && row.status === 'scheduled' && (
+                        <button
+                          onClick={() => handlePause(row)}
+                          className="p-1.5 rounded text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+                          title="Hold this dispatch (e.g. the tenant already settled)"
+                        >
+                          <PauseIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleCancel(row)}
+                        className="p-1.5 rounded text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                        title="Stop this scheduled message"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {multi && (
+                <button
+                  onClick={() => handleCancelGroup(group)}
+                  className="w-full px-3 py-2.5 text-2xs font-bold text-rose-600 dark:text-rose-400 bg-white dark:bg-zinc-900/60 hover:bg-rose-50 dark:hover:bg-rose-900/10 transition-colors text-left"
+                >
+                  Stop all {count} dispatches
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
-  const historyRow = (msg: any) => (
-    <div key={msg._id} className="p-2.5 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900/60">
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className={`px-1.5 py-0.5 rounded text-2xs font-bold ${STATUS_STYLES[msg.status] || ''}`}>
-          {STATUS_LABELS[msg.status] || msg.status}
-        </span>
-        <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${CHANNEL_STYLES[msg.channel] || ''}`}>{msg.channel}</span>
-        <span className="text-2xs text-slate-400 truncate flex-1 min-w-0">{msg.content?.slice(0, 90)}…</span>
-        <span className="text-2xs text-slate-400 truncate max-w-[8rem]">→ {recipientLabel(msg)}</span>
-        <span className="text-2xs text-slate-400 flex-shrink-0">{msg.sentAt ? formatWhen(msg.sentAt) : ''}</span>
+  // History groups by the same key — a 30-recipient send is ONE line with
+  // an expandable recipient list, not 30 identical rows.
+  const historyGroupRow = (group: { key: string; rows: any[] }) => {
+    const lead = group.rows[0];
+    const count = group.rows.length;
+    const expanded = expandedGroups.has(group.key);
+    const okCount = group.rows.filter((r: any) => r.status === 'sent').length;
+    return (
+      <div key={group.key} className="p-2.5 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-white dark:bg-zinc-900/60">
+        <button onClick={() => toggleGroup(group.key)} className="w-full flex items-center gap-2 flex-wrap text-left">
+          <span className={`px-1.5 py-0.5 rounded text-2xs font-bold ${STATUS_STYLES[lead.status] || ''}`}>
+            {count > 1 ? `${okCount}/${count} sent` : (STATUS_LABELS[lead.status] || lead.status)}
+          </span>
+          <span className={`px-1.5 py-0.5 rounded text-2xs font-bold uppercase ${CHANNEL_STYLES[lead.channel] || ''}`}>{lead.channel}</span>
+          <span className="text-2xs text-slate-400 truncate flex-1 min-w-0">{lead.content?.slice(0, 90)}{(lead.content?.length || 0) > 90 ? '…' : ''}</span>
+          <span className="text-2xs text-slate-400 truncate max-w-[10rem]">
+            {count > 1 ? `${count} recipients` : `→ ${recipientLabel(lead)}`}
+          </span>
+          <span className="text-2xs text-slate-400 flex-shrink-0">{lead.sentAt ? formatWhen(lead.sentAt) : ''}</span>
+          <ChevronDownIcon className={`w-3 h-3 text-slate-400 transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+        {expanded && (
+          <div className="mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap gap-1.5">
+            {group.rows.map((row: any) => (
+              <span
+                key={row._id}
+                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-2xs font-semibold max-w-full ${
+                  row.status === 'sent'
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'
+                }`}
+                title={row.failureReason || undefined}
+              >
+                <span className="truncate max-w-[12rem]">{recipientLabel(row)}</span>
+                {row.status !== 'sent' && <span className="font-bold">· {STATUS_LABELS[row.status] || row.status}</span>}
+              </span>
+            ))}
+          </div>
+        )}
+        {lead.failureReason && !expanded && (
+          <p className="text-2xs text-rose-500 dark:text-rose-400 mt-1 truncate">{lead.failureReason}</p>
+        )}
       </div>
-      {msg.failureReason && (
-        <p className="text-2xs text-rose-500 dark:text-rose-400 mt-1 truncate">{msg.failureReason}</p>
-      )}
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="w-full h-full flex flex-col min-h-0">
@@ -471,14 +654,14 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
       {/* Header */}
       <div className="flex-shrink-0 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-1">
-            <div>
+          <div className="flex items-start justify-between gap-2 mb-1 flex-wrap">
+            <div className="min-w-0 flex-1">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Scheduled & Automation</h2>
-              <p className="text-xs text-slate-500 dark:text-zinc-400">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 hidden sm:block">
                 The engine room — every automated reminder is orchestrated and dispatched from here.
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto sm:justify-end">
               {automationQueue.length > 0 && (
                 <span className="px-2.5 py-1 bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 text-xs font-bold rounded-full">
                   {automationQueue.length} queued
@@ -497,7 +680,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                     openScheduleForm();
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg shadow-sm transition-all ${
                   showScheduleForm
                     ? 'bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300'
                     : 'bg-primary-600 text-white hover:bg-primary-700'
@@ -525,7 +708,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
               <h3 className="text-2xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">
                 Live queue ({automationQueue.length})
               </h3>
-              <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">
+              <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium hidden sm:inline">
                 — automated dispatches waiting to go out; pause any of them
               </span>
             </div>
@@ -537,7 +720,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                 verification runs.
               </div>
             ) : (
-              <div className="space-y-2">{automationQueue.map((msg: any) => renderRow(msg, 'automation'))}</div>
+              <div className="space-y-2">{groupRows(automationQueue).map((g) => renderGroupCard(g, 'automation'))}</div>
             )}
           </section>
 
@@ -545,6 +728,9 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
           <section>
             <h3 className="text-2xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400 mb-2 px-1">
               Your scheduled messages ({mine.length})
+              <span className="normal-case font-medium tracking-normal text-slate-400 dark:text-zinc-500 hidden sm:inline">
+                — your own sends, one card per message with its recipients
+              </span>
             </h3>
             {mine.length === 0 ? (
               <p className="text-xs text-slate-400 dark:text-zinc-500 px-1">
@@ -555,7 +741,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                 to a whole audience or a single tenant.
               </p>
             ) : (
-              <div className="space-y-2">{mine.map((msg: any) => renderRow(msg, 'mine'))}</div>
+              <div className="space-y-2">{groupRows(mine).map((g) => renderGroupCard(g, 'mine'))}</div>
             )}
           </section>
 
@@ -828,7 +1014,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
                     </span>
                   </div>
                 </summary>
-                <div className="space-y-1.5">{history.map(historyRow)}</div>
+                <div className="space-y-1.5">{groupRows(history).map(historyGroupRow)}</div>
               </details>
             </section>
           )}

@@ -702,6 +702,16 @@ const MessagesView: React.FC = () => {
                 // timestamp via pickLatestMessage) so the preview is correct
                 // no matter what order the query returns.
                 const lastMsg = pickLatestMessage(convMessages);
+                // 2026-09-14 (moniker resilience): the header/moniker used to
+                // resolve the OTHER member solely from coreState.users — any
+                // hiccup in that query (or a member outside the staff list)
+                // dropped the name to 'Unknown' and the avatar to '?'. Fall
+                // back to the latest message's authorName (now persisted and
+                // read-enriched server-side) so the identity never blanks.
+                const otherMemberResolvedName =
+                    (otherMember?.name && String(otherMember.name).trim())
+                    || (lastMsg?.authorName && String(lastMsg.authorName).trim())
+                    || undefined;
                 const unreadCount = (coreState.notifications || []).filter((n: any) =>
                     !n.isRead &&
                     n.userId === myId &&
@@ -715,6 +725,7 @@ const MessagesView: React.FC = () => {
                     id: c.id,
                     otherMember,
                     otherMemberId,
+                    otherMemberResolvedName,
                     isOnline: isPeerOnline(otherMemberId),
                     lastMsg,
                     lastMessageAt: lastMsg?.timestamp || lastMsg?.createdAt || c.createdAt,
@@ -1637,12 +1648,12 @@ const MessagesView: React.FC = () => {
                                                                 {/* Avatar with online status dot (the "moniker") */}
                                                                 <div className="relative flex-shrink-0">
                                                                     <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold text-xs">
-                                                                        {tc.otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                                        {tc.otherMemberResolvedName?.charAt(0)?.toUpperCase() || '?'}
                                                                     </div>
                                                                     <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-zinc-900 ${tc.isOnline ? 'bg-green-500' : 'bg-slate-300 dark:bg-zinc-600'}`}></span>
                                                                 </div>
                                                                 <span className={`text-sm truncate max-w-[100px] ${tc.unreadCount > 0 ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-600 dark:text-zinc-300'}`}>
-                                                                    {tc.otherMember?.name || 'Team member'}
+                                                                    {tc.otherMemberResolvedName || 'Team member'}
                                                                 </span>
                                                                 {/* Team badge on same line as name — slimmer profile */}
                                                                 <span className={`px-1.5 py-0.5 rounded uppercase font-bold text-2xs ${typeStyle.badge} flex-shrink-0`}>
@@ -1965,11 +1976,11 @@ const MessagesView: React.FC = () => {
                                             </button>
                                             <div className="flex-shrink-0">
                                                 <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-700 dark:text-indigo-400 font-bold text-sm">
-                                                    {tc.otherMember?.name?.charAt(0)?.toUpperCase() || '?'}
+                                                    {tc.otherMemberResolvedName?.charAt(0)?.toUpperCase() || '?'}
                                                 </div>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{tc.otherMember?.name || 'Unknown'}</p>
+                                                <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{tc.otherMemberResolvedName || 'Unknown'}</p>
                                                 <p className="text-xs text-slate-400 flex items-center gap-1">
                                                     {tc.isOnline ? (
                                                         <><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block"></span> Active now</>

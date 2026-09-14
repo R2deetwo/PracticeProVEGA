@@ -129,6 +129,14 @@ export default defineSchema({
     // MAX_RECOVERY_ATTEMPTS the stored code is wiped (forces a fresh
     // email; also kills brute-force guessing of the 6-digit suffix).
     recoveryFailedAttempts: nullableNumber,
+    // 2026-09-14 (reset-link round): ONE-CLICK password reset links. The
+    // emailed link carries a 48-hex-char random token; ONLY its SHA-256
+    // is stored here (a DB leak must not yield usable links). The token
+    // identifies the user via the by_reset_token index, is single-use
+    // (hash cleared on success) and expires 60 minutes after mint —
+    // mirroring the recovery-code TTL contract the emails already state.
+    resetTokenHash: nullableString,
+    resetTokenIssuedAt: nullableNumber,
     emailVerified: nullableBoolean,
     externalCounselId: nullableString,
     // ─── AI API Key (stored server-side so it syncs across devices) ───
@@ -171,7 +179,12 @@ export default defineSchema({
     // Phase 4 (perf): login (authHelpers) + portal messaging (portals.ts)
     // previously full-scanned users on every call. Optional-string index:
     // docs without email are excluded from the index.
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    // 2026-09-14 (reset-link round): one-click password reset links resolve
+    // the account by the SHA-256 hash of the emailed token — index seek, no
+    // table scan. Optional-string index: only users with an ACTIVE pending
+    // link are indexed at all.
+    .index("by_reset_token", ["resetTokenHash"]),
 
   // ─── R13: SESSION TOKENS (Phase 3 identity foundation) ──────────────────
   // Bearer sessions issued by verifyLogin. Only the SHA-256 hash of the
@@ -544,6 +557,13 @@ export default defineSchema({
     id: nullableString,
     conversationId: nullableString,
     authorId: nullableString,
+    // 2026-09-14: sender display name, denormalized at send time. The
+    // server-side sendChatMessage mutation used to persist ONLY authorId —
+    // mid-conversation threads started rendering "Unknown sender" with a
+    // 'U' avatar because nothing on the row carried the name. New sends
+    // persist it; getChatMessages enriches legacy rows via the users table
+    // (authorId lookup) so no backfill migration is needed.
+    authorName: nullableString,
     userId: nullableString,
     content: nullableString,
     timestamp: nullableString,

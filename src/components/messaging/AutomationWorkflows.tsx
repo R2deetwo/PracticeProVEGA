@@ -32,7 +32,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
-import { BoltIcon, PauseIcon, PlayIcon } from './ScheduledTabIcons';
+import { BoltIcon, PauseIcon, PlayIcon, ShieldIcon } from './ScheduledTabIcons';
 import { UsersIcon, EyeIcon, SearchIcon } from '../../constants';
 
 interface WorkflowStep {
@@ -221,12 +221,12 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
 
   return (
     <section className="space-y-3">
-      <div className="flex items-center gap-2 px-1">
-        <BoltIcon className="w-3.5 h-3.5 text-amber-500" />
+      <div className="flex items-center gap-2 px-1 flex-wrap">
+        <BoltIcon className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
         <h3 className="text-2xs font-bold uppercase tracking-widest text-slate-500 dark:text-zinc-400">
           Automation workflows
         </h3>
-        <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium">
+        <span className="text-2xs text-slate-400 dark:text-zinc-500 font-medium hidden sm:inline">
           — every automated reminder is orchestrated here, evaluated daily at 7:30 AM
         </span>
       </div>
@@ -240,6 +240,12 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
         const activeSteps = wf.steps.filter((s) => s.enabled).length;
         const activeOffsets = wf.steps.filter((s) => s.enabled).map((s) => s.offsetDays);
         const anchorShort = ANCHOR_SHORT[wf.key] || 'the trigger date';
+        // 2026-09-14 (overlap-guard UI): the two PAYMENT ladders share due dates
+        // in practice; the engine now guarantees at most ONE payment reminder per
+        // resident per day. Surface that promise on both cards so the names
+        // ("Rent Collection Ladder" vs "Service Charge Reminders") can't be read
+        // as double-messaging.
+        const isPaymentLadder = wf.key === 'rent_collection' || wf.key === 'service_charge';
         return (
           <div
             key={wf.key}
@@ -279,9 +285,15 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
                     </span>
                   )}
                 </div>
-                <p className={`text-xs leading-relaxed mt-1 ${wf.enabled ? 'text-slate-500 dark:text-zinc-400' : 'text-slate-400 dark:text-zinc-500'}`}>
+                <p className={`text-xs leading-relaxed mt-1 ${open ? '' : 'line-clamp-2'} ${wf.enabled ? 'text-slate-500 dark:text-zinc-400' : 'text-slate-400 dark:text-zinc-500'}`}>
                   {wf.description}
                 </p>
+                {isPaymentLadder && (
+                  <p className="text-2xs text-teal-600 dark:text-teal-400 mt-1.5 flex items-center gap-1 flex-wrap">
+                    <ShieldIcon className="w-3 h-3 flex-shrink-0" />
+                    One payment reminder per resident per day — never double-sends with the other ladder.
+                  </p>
+                )}
                 {wf.enabled && activeSteps > 0 && (
                   <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1 tabular-nums">
                     Sends {rangeSummary(activeOffsets)} — anchored to {anchorShort.replace('the ', '').replace('the ', '')}.

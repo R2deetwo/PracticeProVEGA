@@ -128,6 +128,9 @@ import NotFoundView from './NotFoundView';
 import ClientPortalLogin from './portal/ClientPortalLogin';
 import TenantPortalLogin from './portal/TenantPortalLogin';
 import SetupPassword from './portal/SetupPassword';
+// 2026-09-14 (reset-link round): one-click password reset landing page —
+// public route carrying the emailed token, mounted like /setup-password.
+import ResetPasswordView from './auth/ResetPasswordView';
 import { GatekeeperInterface } from './portal/GatekeeperInterface';
 import WhatsNew from './WhatsNew';
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
@@ -649,7 +652,7 @@ export const App: React.FC = () => {
     // effectiveness and conversion signals.
     const trackPageView = React.useCallback((pathname: string) => {
         try {
-            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse', '/apply'];
+            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/reset-password', '/gatehouse', '/apply'];
             // /apply/<propertyId> is a public route — the exact-match list only
             // contains the bare '/apply' prefix, so match the prefix here too.
             if (!publicPaths.includes(pathname) && !pathname.startsWith('/apply/') && !pathname.startsWith('/gatehouse')) return;
@@ -848,7 +851,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/gatehouse', '/apply'];
+        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/reset-password', '/gatehouse', '/apply'];
 
         // TASK 15: Redirect authenticated users away from landing-page routes
         // (/vega, /atrium, /komplet) to the dashboard. These routes are for
@@ -1210,7 +1213,11 @@ export const App: React.FC = () => {
         // even authenticated portal users should be able to view the landing page
         // without being redirected away. This fixes the "landing page forces redirect
         // to portal" bug.
-        const landingPaths = ['/', '/vega', '/atrium', '/komplet'];
+        // EXCEPTION (2026-09-14): /reset-password and /setup-password are standalone
+        // public pages a LOGGED-IN portal user must still reach — the one-click reset
+        // email link opens in whatever browser/tab the resident has, and bouncing
+        // them to the portal before the page renders made the link a no-op.
+        const landingPaths = ['/', '/vega', '/atrium', '/komplet', '/reset-password', '/setup-password'];
         if (currentUser && isPortalUserRole && !landingPaths.includes(location.pathname)) {
             const isOnPortalRoute = location.pathname.startsWith('/portal/');
             if (!isOnPortalRoute) {
@@ -1266,6 +1273,10 @@ export const App: React.FC = () => {
             return <TenantPortalLogin />;
         }
         if (location.pathname === '/setup-password') return <SetupPassword />;
+        // ONE-CLICK RESET LINK LANDING (2026-09-14): the recovery emails’
+        // “Set a new password now” button opens /reset-password?token=… —
+        // the user types only the new password (no recovery code).
+        if (location.pathname === '/reset-password') return <ResetPasswordView />;
 
         // GATEHOUSE ROUTE — public, unauthenticated access for security
         // guards / gate operators. The GatekeeperInterface allows verification

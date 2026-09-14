@@ -39,7 +39,11 @@ import { v } from "convex/values";
  * added — a live probe showed the public getUser returned the ACTIVE
  * recovery code to anyone who knew the email (full account takeover via
  * resetPassword). Nothing client-side reads these fields (the magic-link
- * flow gets its code from the URL, not the DB). */
+ * flow gets its code from the URL, not the DB).
+ * 2026-09-14 (reset-link round): resetTokenHash + resetTokenIssuedAt added —
+ * same class of leak (a leaked hash is not directly usable, but the hash +
+ * the public completePasswordResetWithToken would let an attacker brute the
+ * 192-bit token offline; strip it at the source like everything else). */
 export const AUTH_STRIP_FIELDS = [
   "password",
   "passwordHash",
@@ -50,6 +54,8 @@ export const AUTH_STRIP_FIELDS = [
   "recoveryCode",
   "recoveryCodeIssuedAt",
   "recoveryFailedAttempts",
+  "resetTokenHash",
+  "resetTokenIssuedAt",
 ] as const;
 
 /** Convex validator fragment shared by getUser / getUserForAuth args. */

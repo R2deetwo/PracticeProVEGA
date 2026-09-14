@@ -98,9 +98,9 @@ export interface WorkflowDefinition {
 export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
   {
     key: "rent_collection",
-    name: "Rent & Service Charge Collections",
+    name: "Rent Collection Ladder",
     description:
-      "The full collection ladder: gentle heads-up before rent is due, the due-date demand, a courtesy grace note, then escalating overdue notices (Notice of Default at 7 days, demand at 14).",
+      "RENT only — the full collection ladder: gentle heads-up before rent is due, the due-date demand, a courtesy grace note, then escalating overdue notices (Notice of Default at 7 days, final demand at 14). Never double-messages a resident on the same day (see the Service Charge workflow below).",
     anchor: "each unit's rent due date (day-of-month of the lease start)",
     defaultEnabled: true,
     steps: [
@@ -122,9 +122,9 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
   },
   {
     key: "service_charge",
-    name: "Service Charge & Utility Contributions",
+    name: "Service Charge Reminders",
     description:
-      "Automated notices for diesel, security, cleaning and other service-charge cycles — before the contribution is due, on the day, and as it falls into arrears.",
+      "SERVICE CHARGE only — notices for diesel, security, cleaning and other service-charge cycles, before the contribution is due, on the day, and as it falls into arrears. A resident gets at most ONE payment reminder per day, so this workflow and the Rent Collection ladder never double-send to the same person on the same day.",
     anchor: "each service charge's next due date",
     defaultEnabled: true,
     steps: [
@@ -174,6 +174,26 @@ export const AUTOMATION_WORKFLOW_DEFAULTS: WorkflowDefinition[] = [
  * court_date (7/3/1-day hearing reminders), retainer cycles, filing
  * deadlines. Same engine, same ledger, different target resolvers. */
 export const AUTOMATION_WORKFLOW_KEYS = AUTOMATION_WORKFLOW_DEFAULTS.map((w) => w.key);
+
+// ── SAME-DAY OVERLAP GUARD — pure policy helpers (exported for unit tests) ──
+// The two PAYMENT ladders (rent + service charge) share due dates in
+// practice; the engine enforces at most ONE payment reminder per resident
+// per day, preferring more severe steps. Informational workflows
+// (lease_expiry, rent_review) are exempt.
+export const PAYMENT_WORKFLOW_KEYS = new Set<string>(["rent_collection", "service_charge"]);
+
+/** 0 = escalation (Notices of Default / final demands), 1 = due-day,
+ *  2 = pre-due/grace reminders, 3 = informational (exempt from the guard).
+ *  Lower dispatches first and claims the resident's day. */
+export function paymentSeverity(
+  workflowKey: string,
+  step: { offsetDays: number; messageType: string }
+): number {
+  if (!PAYMENT_WORKFLOW_KEYS.has(String(workflowKey))) return 3;
+  if (step.offsetDays >= 7 || step.messageType === "late_notice") return 0;
+  if (step.offsetDays === 0) return 1;
+  return 2;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 2. Pure helpers (exported for unit tests)
@@ -689,6 +709,20 @@ export const runAutomationEngine = internalMutation({
     const firms: any[] = await ctx.db.query("firms").take(2000);
     let workflowsRun = 0, enqueued = 0, suppressed = 0, skipped = 0;
 
+    // ── SAME-DAY OVERLAP GUARD (2026-09-14) ─────────────────────────────
+    // USER CONTEXT: "I just hope there is no overlap with messages, 'cause
+    // you called one rent and service charge and the other service charge."
+    // Rent and service charge cycles share due dates in practice, so both
+    // workflows could message the SAME resident on the SAME day. Contract:
+    // at most ONE payment reminder per resident per day — escalations
+    // (Notice of Default / final demands) outrank due-day and pre-due
+    // reminders, and rent outranks service charge within the same tier
+    // (evaluated first in defs order; Array.prototype.sort is stable).
+    // Lease/renewal workflows are informational and exempt.
+    const dayStartUtc = new Date(scheduledFor); dayStartUtc.setUTCHours(0, 0, 0, 0);
+    const dayStartMs = dayStartUtc.getTime();
+    const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+
     for (const firm of firms) {
       const firmId = String(firm._id);
       try {
@@ -702,6 +736,28 @@ export const runAutomationEngine = internalMutation({
           rent_review: () => resolveRentReviewTargets(ctx, firmId),
         };
 
+        // Tenants that already receive an automated PAYMENT reminder today
+        // (pre-seeded from earlier engine runs / re-runs, then appended as
+        // this run claims residents).
+        const claimedToday = new Set<string>();
+        const todaysRows: any[] = await ctx.db
+          .query("scheduled_messages")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+          .take(500);
+        for (const m of todaysRows) {
+          if (!m.isAutomation) continue;
+          if (!PAYMENT_WORKFLOW_KEYS.has(String(m.workflowKey))) continue;
+          const status = String(m.status || "");
+          if (status === "cancelled" || status === "failed" || status === "sent_failed") continue;
+          const at = Number(m.scheduledFor || 0);
+          if (at < dayStartMs || at >= dayEndMs) continue;
+          for (const tid of (m.tenantIds as string[] | undefined) || []) claimedToday.add(String(tid));
+        }
+
+        // Collect every trigger-day candidate first, then dispatch in
+        // SEVERITY order (escalations > due-day > pre-due > informational).
+        interface EngineCandidate { wf: { def: WorkflowDefinition; steps: WorkflowStepDefault[]; enabled: boolean }; step: WorkflowStepDefault; t: EngineTarget; }
+        const candidates: EngineCandidate[] = [];
         for (const wf of workflows) {
           if (!wf.enabled) continue;
           workflowsRun++;
@@ -713,69 +769,80 @@ export const runAutomationEngine = internalMutation({
             continue;
           }
           if (targets.length === 0) continue;
-
           for (const step of wf.steps) {
             if (!step.enabled) continue;
             for (const t of targets) {
-              try {
-                if (!isTriggerDay(t.anchorTs, step.offsetDays, now)) continue;
-                const dedupKey = buildDedupKey(firmId, wf.def.key, step.key, t.tenantKey, t.periodKey);
-                if (await alreadyDispatched(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey)) {
-                  skipped++;
-                  continue;
-                }
-                // ── Suppression gates ──
-                if (unitOptOuts.has(String(t.unitId))) {
-                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_unit_optout");
-                  suppressed++; continue;
-                }
-                if (t.extra.paidThisPeriod === true) {
-                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_paid");
-                  suppressed++; continue;
-                }
-                if (await isOptedOut(ctx, firmId, t.tenantEmail, t.tenantPhone)) {
-                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_optout");
-                  suppressed++; continue;
-                }
-                if (await hasPendingPaymentProof(ctx, firmId, t.tenantKey, t.unitId)) {
-                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_proof_pending");
-                  suppressed++; continue;
-                }
-                const channel = resolveChannel(step.channel, t.tenantEmail);
-                if (channel === "email" && !t.tenantEmail) {
-                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "skipped_no_contact", undefined, "email step, tenant has no email");
-                  skipped++; continue;
-                }
-                if (channel === "whatsapp" && !t.tenantPhone) {
-                  await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "skipped_no_contact", undefined, "whatsapp step, tenant has no phone");
-                  skipped++; continue;
-                }
-
-                const content = renderMergeFields(step.subject, {
-                  tenant_name: t.tenantName,
-                  unit_number: t.unitLabel ? `${t.unitLabel}, ${t.propertyName}` : t.propertyName,
-                  amount_due: t.amountDue,
-                  due_date: new Date(t.anchorTs).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }),
-                  property_name: t.propertyName,
-                  firm_name: firmName,
-                  payment_link: t.paymentLink,
-                });
-
-                const messageId = await enqueueMessage(ctx, {
-                  firmId, propertyId: t.propertyId, unitId: t.unitId, tenantKey: t.tenantKey,
-                  tenantName: t.tenantName, tenantEmail: t.tenantEmail, tenantPhone: t.tenantPhone,
-                  channel, messageType: step.messageType, content,
-                  amountDue: t.amountDue,
-                  dueLabel: new Date(t.anchorTs).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }),
-                  paymentLink: t.paymentLink,
-                  workflowKey: wf.def.key, stepKey: step.key, dedupKey, scheduledFor, firmName,
-                });
-                await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "enqueued", messageId);
-                enqueued++;
-              } catch (e: any) {
-                console.warn(`[automationEngine] enqueue failed firm=${firmId} wf=${wf.def.key} step=${step.key}:`, e?.message);
-              }
+              if (!isTriggerDay(t.anchorTs, step.offsetDays, now)) continue;
+              candidates.push({ wf, step, t });
             }
+          }
+        }
+        candidates.sort((a, b) => paymentSeverity(a.wf.def.key, a.step) - paymentSeverity(b.wf.def.key, b.step));
+
+        for (const { wf, step, t } of candidates) {
+          try {
+            const isPaymentWf = PAYMENT_WORKFLOW_KEYS.has(wf.def.key);
+            if (isPaymentWf && claimedToday.has(String(t.tenantKey))) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_daily_overlap", undefined,
+                "this resident already gets another payment reminder today — one per resident per day");
+              suppressed++; continue;
+            }
+            const dedupKey = buildDedupKey(firmId, wf.def.key, step.key, t.tenantKey, t.periodKey);
+            if (await alreadyDispatched(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey)) {
+              skipped++;
+              continue;
+            }
+            // ── Suppression gates ──
+            if (unitOptOuts.has(String(t.unitId))) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_unit_optout");
+              suppressed++; continue;
+            }
+            if (t.extra.paidThisPeriod === true) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_paid");
+              suppressed++; continue;
+            }
+            if (await isOptedOut(ctx, firmId, t.tenantEmail, t.tenantPhone)) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_optout");
+              suppressed++; continue;
+            }
+            if (await hasPendingPaymentProof(ctx, firmId, t.tenantKey, t.unitId)) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "suppressed_proof_pending");
+              suppressed++; continue;
+            }
+            const channel = resolveChannel(step.channel, t.tenantEmail);
+            if (channel === "email" && !t.tenantEmail) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "skipped_no_contact", undefined, "email step, tenant has no email");
+              skipped++; continue;
+            }
+            if (channel === "whatsapp" && !t.tenantPhone) {
+              await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "skipped_no_contact", undefined, "whatsapp step, tenant has no phone");
+              skipped++; continue;
+            }
+
+            const content = renderMergeFields(step.subject, {
+              tenant_name: t.tenantName,
+              unit_number: t.unitLabel ? `${t.unitLabel}, ${t.propertyName}` : t.propertyName,
+              amount_due: t.amountDue,
+              due_date: new Date(t.anchorTs).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }),
+              property_name: t.propertyName,
+              firm_name: firmName,
+              payment_link: t.paymentLink,
+            });
+
+            const messageId = await enqueueMessage(ctx, {
+              firmId, propertyId: t.propertyId, unitId: t.unitId, tenantKey: t.tenantKey,
+              tenantName: t.tenantName, tenantEmail: t.tenantEmail, tenantPhone: t.tenantPhone,
+              channel, messageType: step.messageType, content,
+              amountDue: t.amountDue,
+              dueLabel: new Date(t.anchorTs).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" }),
+              paymentLink: t.paymentLink,
+              workflowKey: wf.def.key, stepKey: step.key, dedupKey, scheduledFor, firmName,
+            });
+            await recordDispatch(ctx, firmId, wf.def.key, step.key, t.tenantKey, t.periodKey, "enqueued", messageId);
+            enqueued++;
+            if (isPaymentWf) claimedToday.add(String(t.tenantKey));
+          } catch (e: any) {
+            console.warn(`[automationEngine] enqueue failed firm=${firmId} wf=${wf.def.key} step=${step.key}:`, e?.message);
           }
         }
       } catch (e: any) {

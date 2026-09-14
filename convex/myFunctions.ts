@@ -17,7 +17,10 @@ import { checkRateLimit } from "./securityHelpers";
 // id / dual userId forms) were left in place — they scan one firm's rows,
 // not the table. firmActivity moved from a table post-filter onto the
 // existing by_firm index. No public function signature changed.
-import { numericCode, codeFromCharset } from "./secureRandom";
+import { numericCode, codeFromCharset, randomHex } from "./secureRandom";
+// 2026-09-14 (reset-link round): one-click password-reset tokens are stored
+// hashed (sha256Hex runs in every Convex runtime — see convex/sha256.ts).
+import { sha256Hex } from "./sha256";
 // Task 20: login-code verification rules (normalize, TTL, hint, copy)
 import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./codeVerification";
 // Task 21: shared user-record resolution + NDPA privacy projection
@@ -913,6 +916,46 @@ export const getPropertyDetails = query({
  * Uses the existing by_conversation index which was always deployed.
  * For the firm-wide unread count query, uses .filter() safely.
  */
+// ── "Unknown sender" read-time repair (2026-09-14) ──────────────────────────
+// Team chat rows written before authorName was persisted (and any row whose
+// author record was renamed/deleted) resolve their display name HERE, via the
+// users table: first by the users-table custom `id` index, then by Convex _id.
+// In-memory only — queries can't write — so no backfill migration is needed
+// and every consumer (thread sender labels, conversation headers, inbox
+// moniker fallbacks) heals the moment this deploys.
+async function enrichChatAuthorNames(ctx: any, messages: any[]): Promise<any[]> {
+  const missing = messages.filter(
+    (m: any) => m && m.authorId && !(typeof m.authorName === "string" && m.authorName.trim())
+  );
+  if (missing.length === 0) return messages;
+
+  const nameById = new Map<string, string>();
+  const seen = new Set<string>();
+  for (const m of missing) {
+    const key = String(m.authorId);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    try {
+      const byCustomId: any = await ctx.db
+        .query("users")
+        .withIndex("by_custom_id", (q: any) => q.eq("id", key))
+        .first();
+      if (byCustomId?.name) { nameById.set(key, String(byCustomId.name)); continue; }
+    } catch { /* fall through to _id lookup */ }
+    try {
+      const byId: any = await ctx.db.get(key);
+      if (byId?.name) nameById.set(key, String(byId.name));
+    } catch { /* not a Convex _id shape — leave unresolved */ }
+  }
+  if (nameById.size === 0) return messages;
+  return messages.map((m: any) => {
+    const resolved = m?.authorId ? nameById.get(String(m.authorId)) : undefined;
+    return resolved && !(typeof m.authorName === "string" && m.authorName.trim())
+      ? { ...m, authorName: resolved }
+      : m;
+  });
+}
+
 export const getChatMessages = query({
   args: {
     conversationId: v.optional(v.string()),
@@ -928,11 +971,12 @@ export const getChatMessages = query({
         // chronological order (oldest first, newest at bottom). Without
         // this, messages load out of order on refresh (e.g. Aug 14 messages
         // appearing above Aug 13 messages).
-        return await ctx.db
+        const byConv = await ctx.db
           .query("chatMessages")
           .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId as any))
           .order("asc")
           .take(500);
+        return await enrichChatAuthorNames(ctx, byConv);
       }
 
       const firmId = args.firmId;
@@ -966,7 +1010,8 @@ export const getChatMessages = query({
       const unique = Array.from(new Map(combined.map(m => [m._id, m])).values());
       // Sort by _creationTime ascending (oldest first) so the chat renders
       // in chronological order with the newest message at the bottom.
-      return unique.sort((a: any, b: any) => (a._creationTime || 0) - (b._creationTime || 0));
+      const sorted = unique.sort((a: any, b: any) => (a._creationTime || 0) - (b._creationTime || 0));
+      return await enrichChatAuthorNames(ctx, sorted);
 
     } catch (e) {
       console.error("getChatMessages error:", e);
@@ -1304,6 +1349,27 @@ export const updateUserSecurityFields = internalMutation({
   args: { userId: v.id("users"), fields: v.any() },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.userId, args.fields);
+  },
+});
+
+// ─── ONE-CLICK PASSWORD RESET (2026-09-14, reset-link round) ─────────────────
+// getUserByResetTokenHash — resolves the account owning a pending reset link
+// by the SHA-256 of the emailed token (index seek). Internal only: never
+// expose a way to probe which hashes exist.
+export const getUserByResetTokenHash = internalQuery({
+  args: { tokenHash: v.string() },
+  handler: async (ctx, args) => {
+    const user: any = await ctx.db
+      .query("users")
+      .withIndex("by_reset_token", (q) => q.eq("resetTokenHash", args.tokenHash))
+      .first();
+    if (!user) return null;
+    return {
+      userId: user._id,
+      email: user.email ?? null,
+      role: user.role ?? null,
+      resetTokenIssuedAt: user.resetTokenIssuedAt ?? null,
+    };
   },
 });
 
@@ -2167,6 +2233,90 @@ export const resetPassword = action({
   }
 });
 
+/**
+ * completePasswordResetWithToken — the one-click path (2026-09-14).
+ *
+ * USER CONTEXT: "can we just do it without the reset code? send me where I
+ * can reset the password without the difficulty." The emailed link carries a
+ * 48-hex random token; this action is what the /reset-password page calls.
+ * No code, no email typing — just the new password.
+ *
+ * Security contract (mirrors the recovery-code path):
+ *   • the DB stores ONLY sha256(token) — a DB leak yields no usable links;
+ *   • single-use: the hash is cleared on success, so a replayed link hits
+ *     "invalid or already used";
+ *   • 60-minute TTL (resetTokenIssuedAt), same window the email promises;
+ *   • a successful reset retires every pending login/recovery/MFA code and
+ *     clears lockouts (a reset PROVES account control — same rationale as
+ *     resetPassword above);
+ *   • wrong-token responses are deliberately generic (no account probing).
+ */
+export const completePasswordResetWithToken = action({
+  args: { token: v.string(), newPassword: v.string() },
+  handler: async (ctx, args) => {
+    const raw = String(args.token || "").trim();
+    if (raw.length < 32) {
+      return {
+        success: false,
+        message: "This reset link looks incomplete. Open the newest reset email and tap its 'Set a new password now' button.",
+      };
+    }
+    const tokenHash = sha256Hex(raw);
+    const user: any = await ctx.runQuery(internal.myFunctions.getUserByResetTokenHash, { tokenHash });
+    if (!user) {
+      return {
+        success: false,
+        message:
+          "This reset link is invalid or has already been used. Request a fresh one via 'Forgot password?' — the newest email always carries the working link.",
+      };
+    }
+
+    // TTL — only enforced when the mint stamped resetTokenIssuedAt (it always
+    // does for links minted by this deploy; the guard keeps the message
+    // honest for any hand-minted edge case).
+    const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 60 minutes
+    const issuedAt = Number(user.resetTokenIssuedAt || 0);
+    if (issuedAt && Date.now() - issuedAt > RESET_TOKEN_TTL_MS) {
+      return {
+        success: false,
+        message:
+          "This reset link has expired (links stay valid for 60 minutes). Request a fresh one via 'Forgot password?' — it only takes a moment.",
+      };
+    }
+
+    if (String(args.newPassword || "").length < 8) {
+      return { success: false, message: "Choose a new password of at least 8 characters." };
+    }
+
+    const hashedPassword: any = await ctx.runAction(internal.authUtils.hashPassword, {
+      password: args.newPassword,
+    });
+
+    await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+      userId: user.userId,
+      fields: {
+        password: hashedPassword,
+        // Single-use + clean slate (same reset semantics as resetPassword).
+        resetTokenHash: null,
+        resetTokenIssuedAt: null,
+        verificationCode: null,
+        recoveryCode: null,
+        recoveryCodeIssuedAt: null,
+        recoveryFailedAttempts: 0,
+        mfaCode: null,
+        mfaCodeIssuedAt: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+
+    // The caller just proved control of this account's inbox — echoing the
+    // email back confirms WHICH account was reset (no enumeration: the token,
+    // not the email, is the credential here).
+    return { success: true, email: user.email ?? null, role: user.role ?? null };
+  },
+});
+
 export const requestPasswordReset = mutation({
   args: { email: v.string() },
   handler: async (ctx, args) => {
@@ -2181,20 +2331,28 @@ export const requestPasswordReset = mutation({
     // PRNG). 2026-09-14: also stamp issuance (60-min TTL) and reset the
     // failed-attempt counter so a fresh email always starts from zero.
     const code = "RCV-" + numericCode(6);
+    // 2026-09-14 (reset-link round): ONE-CLICK link token — the email's
+    // primary CTA opens /reset-password and sets the new password with no
+    // code typing at all. Only the SHA-256 lands in the DB.
+    const resetToken = randomHex(48);
     await ctx.db.patch(user._id, {
       recoveryCode: code,
       recoveryCodeIssuedAt: Date.now(),
       recoveryFailedAttempts: 0,
+      resetTokenHash: sha256Hex(resetToken),
+      resetTokenIssuedAt: Date.now(),
     });
 
     try {
       const appDomain = "https://practice-pro-vega.vercel.app";
+      const oneClickLink = `${appDomain}/reset-password?token=${resetToken}`;
       const recoveryLink = `${appDomain}/?view=login&recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
 
       await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendRecoveryEmail, { 
         email: user.email, 
         code: code,
-        recoveryLink: recoveryLink
+        recoveryLink: recoveryLink,
+        resetLink: oneClickLink,
       });
     } catch (e) {
       console.error("Failed to send recovery email", e);
@@ -2282,18 +2440,25 @@ export const sendFounderRecoveryCode = mutation({
     }
     const user: any = matches[idx];
     const code = "RCV-" + numericCode(6);
+    // 2026-09-14 (reset-link round): one-click token alongside the code —
+    // the founder opens the link and types ONLY the new password.
+    const resetToken = randomHex(48);
     await ctx.db.patch(user._id, {
       recoveryCode: code,
       recoveryCodeIssuedAt: Date.now(),
       recoveryFailedAttempts: 0,
+      resetTokenHash: sha256Hex(resetToken),
+      resetTokenIssuedAt: Date.now(),
     });
     try {
       const appDomain = "https://practice-pro-vega.vercel.app";
+      const oneClickLink = `${appDomain}/reset-password?token=${resetToken}`;
       const recoveryLink = `${appDomain}/?view=login&recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
       await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendRecoveryEmail, {
         email: user.email,
         code,
         recoveryLink,
+        resetLink: oneClickLink,
       });
     } catch (e: any) {
       console.error("Failed to send founder recovery email", e?.message);
@@ -2332,20 +2497,26 @@ export const requestPortalPasswordReset = mutation({
     // PRNG). 2026-09-14: also stamp issuance (60-min TTL) and reset the
     // failed-attempt counter so a fresh email always starts from zero.
     const code = "RCV-" + numericCode(6);
+    // 2026-09-14 (reset-link round): one-click token — portal users too.
+    const resetToken = randomHex(48);
     await ctx.db.patch(user._id, {
       recoveryCode: code,
       recoveryCodeIssuedAt: Date.now(),
       recoveryFailedAttempts: 0,
+      resetTokenHash: sha256Hex(resetToken),
+      resetTokenIssuedAt: Date.now(),
     });
 
     try {
       const appDomain = "https://practice-pro-vega.vercel.app";
+      const oneClickLink = `${appDomain}/reset-password?token=${resetToken}&portal=${args.portalType}`;
       const recoveryLink = `${appDomain}/portal/${args.portalType}/login?recoveryCode=${code}&email=${encodeURIComponent(user.email ?? "")}`;
 
       await ctx.scheduler.runAfter(0, (internal as any).myFunctions.sendPortalRecoveryEmail, { 
         email: user.email, 
         code: code,
         recoveryLink: recoveryLink,
+        resetLink: oneClickLink,
         portalType: args.portalType,
       });
     } catch (e) {
@@ -3381,12 +3552,19 @@ export const sendChatMessage = mutation({
     }
 
     // 3. Save the chat message.
+    // 2026-09-14 ("unknown sender" fix): persist authorName on the row. The
+    // mutation computed senderName for notification text but never stored
+    // it — every team message sent since the server-mutation cutover
+    // rendered as "Unknown sender" with a 'U' avatar (isMe still worked, so
+    // the OTHER member's bubbles lost their name). Legacy rows are
+    // name-resolved at read time by getChatMessages.
     const messageId = crypto.randomUUID();
     await ctx.db.insert("chatMessages", {
       id: messageId,
       conversationId,
       content: args.content,
       authorId: senderId,
+      authorName: senderName,
       timestamp: now,
       createdAt: now,
       updatedAt: now,
@@ -5237,17 +5415,26 @@ export const sendVerificationEmail = internalAction({
 });
 
 export const sendRecoveryEmail = internalAction({
-  args: { email: v.string(), code: v.string(), recoveryLink: v.string(), product: v.optional(v.string()) },
+  args: { email: v.string(), code: v.string(), recoveryLink: v.string(), resetLink: v.optional(v.string()), product: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const brand = getProductBranding(args.product);
+
+    // 2026-09-14 (reset-link round): the ONE-CLICK link is the primary CTA
+    // — it opens /reset-password and the user types only the new password.
+    // The code + prefilled-code link stay as the fallback for email clients
+    // that strip links or corporate filters that rewrite URLs.
+    const primaryButton = args.resetLink
+      ? `<a href="${args.resetLink}" style="display:inline-block;background-color:${BRAND_GREEN};color:#ffffff;padding:16px 32px;font-size:16px;font-weight:bold;text-decoration:none;border-radius:8px;">Set a new password now</a>
+         <p style="color:#718096;font-size:13px;line-height:1.6;margin:12px 0 0 0;">No code needed — the link signs you straight into the reset page. It works once and expires in 60 minutes.</p>`
+      : `<a href="${args.recoveryLink}" style="display:inline-block;background-color:${BRAND_GREEN};color:#ffffff;padding:14px 28px;font-size:16px;font-weight:bold;text-decoration:none;border-radius:8px;">Reset Password</a>`;
 
     const bodyHtml = `
       <p style="color:#1a202c;font-size:17px;font-weight:600;margin:0 0 8px 0;">Reset Your Security Key</p>
       <p style="color:#4a5568;font-size:15px;line-height:1.7;margin:0 0 32px 0;">
-        We received a request to reset the password for your account. Click the secure link below to instantly enter a new password.
+        We received a request to reset the password for your account.
       </p>
       <div style="text-align:center;margin-bottom:32px;">
-        <a href="${args.recoveryLink}" style="display:inline-block;background-color:${BRAND_GREEN};color:#ffffff;padding:14px 28px;font-size:16px;font-weight:bold;text-decoration:none;border-radius:8px;">Reset Password</a>
+        ${primaryButton}
       </div>
       <p style="color:#718096;font-size:14px;line-height:1.6;margin:0 0 16px 0;">
         If the button doesn't work, you can also enter this recovery code manually in the app:
@@ -5256,8 +5443,8 @@ export const sendRecoveryEmail = internalAction({
         <span style="display:inline-block;font-size:24px;font-weight:800;color:${BRAND_GREEN_DARK};letter-spacing:4px;">${args.code}</span>
       </div>
       <p style="color:#718096;font-size:13px;line-height:1.6;margin:0 0 16px 0;">
-        This code expires in 60 minutes. Requesting a new code (or a new link) immediately
-        replaces this one — if you request again, always use the code from the
+        Links and codes expire after 60 minutes. Requesting a new one immediately
+        replaces the previous code — if you request again, always use the
         <strong>newest</strong> email.
       </p>
       <p style="color:#718096;font-size:14px;line-height:1.6;margin:0;">
@@ -5372,13 +5559,19 @@ export const sendWelcomeEmail = internalAction({
  * Atrium for Tenant) so the user recognizes the product they use.
  */
 export const sendPortalRecoveryEmail = internalAction({
-  args: { email: v.string(), code: v.string(), recoveryLink: v.string(), portalType: v.string() },
+  args: { email: v.string(), code: v.string(), recoveryLink: v.string(), resetLink: v.optional(v.string()), portalType: v.string() },
   handler: async (ctx, args) => {
     const isTenant = args.portalType === 'tenant';
     const brandName = isTenant ? 'ATRIUM' : 'VEGA';
     const brandColor = isTenant ? '#52797f' : '#4cc9f0';
     const gradientEnd = isTenant ? '#2a4a4f' : '#1a3a5c';
     const portalLabel = isTenant ? 'Residents' : 'Client';
+
+    // 2026-09-14 (reset-link round): one-click primary CTA; code fallback.
+    const primaryButton = args.resetLink
+      ? `<a href="${args.resetLink}" style="display: inline-block; background-color: ${isTenant ? '#52797f' : '#4f46e5'}; color: #ffffff; padding: 16px 32px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 8px;">Set a new password now</a>
+           <p style="color: #718096; font-size: 13px; line-height: 1.6; margin: 12px 0 0 0;">No code needed — the link opens the reset page directly. It works once and expires in 60 minutes.</p>`
+      : `<a href="${args.recoveryLink}" style="display: inline-block; background-color: ${isTenant ? '#52797f' : '#4f46e5'}; color: #ffffff; padding: 14px 28px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 8px;">Reset Password</a>`;
 
     const html = `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
@@ -5391,11 +5584,11 @@ export const sendPortalRecoveryEmail = internalAction({
         <div style="padding: 40px 32px;">
           <p style="color: #1a202c; font-size: 17px; font-weight: 600; margin: 0 0 8px 0;">Reset Your Portal Password</p>
           <p style="color: #4a5568; font-size: 15px; line-height: 1.7; margin: 0 0 32px 0;">
-            We received a request to reset the password for your ${portalLabel} Portal account. Click the secure link below to set a new password.
+            We received a request to reset the password for your ${portalLabel} Portal account.
           </p>
           
           <div style="text-align: center; margin-bottom: 32px;">
-            <a href="${args.recoveryLink}" style="display: inline-block; background-color: ${isTenant ? '#52797f' : '#4f46e5'}; color: #ffffff; padding: 14px 28px; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 8px;">Reset Password</a>
+            ${primaryButton}
           </div>
 
           <p style="color: #718096; font-size: 14px; line-height: 1.6; margin: 0 0 16px 0;">

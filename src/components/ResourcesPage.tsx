@@ -1571,11 +1571,14 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 </p>
             </div>
 
-            {/* Back to Top Button */}
+            {/* Back to Top Button — floats above the viewport (the containing-
+                block trap that scrolled it with the content was fixed in
+                index.css on 2026-09-14). Mobile: sits above the bottom nav
+                (h-14 + safe-area), desktop: classic bottom-right corner. */}
             {showBackToTop && (
                 <button
                     onClick={scrollToTop}
-                    className="fixed bottom-6 right-6 z-30 w-12 h-12 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                    className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] right-4 md:bottom-6 md:right-6 z-30 w-12 h-12 rounded-full bg-slate-900 text-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
                     aria-label="Back to top"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>

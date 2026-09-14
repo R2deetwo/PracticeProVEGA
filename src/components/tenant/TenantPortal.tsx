@@ -2609,7 +2609,7 @@ const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; portalS
         <div
           ref={chatScrollRef}
           onScroll={handleChatScroll}
-          className="relative flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1.5 bg-slate-50 dark:bg-zinc-900 custom-scrollbar"
+          className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 py-3 space-y-1.5 bg-slate-50 dark:bg-zinc-900 custom-scrollbar"
         >
           {/* Jump to latest — surfaces whenever the resident scrolls up */}
           {!chatAtBottom && visibleChatMessages.length > 0 && (

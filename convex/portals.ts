@@ -4432,9 +4432,17 @@ export const sendPortalMessage = mutation({
       const existing = await ctx.db.get(args.conversationId as any);
       if (!existing) throw new Error("Conversation not found");
       conversation = existing;
+      // 2026-09-14 (identity-loss guard): `??` only skips undefined/null — an
+      // EMPTY STRING overwrites. A tenant client whose user record has
+      // name "" used to wipe participantName here, and the thread header
+      // flipped to "Unknown" mid-conversation. Only non-empty values patch.
       await ctx.db.patch(existing._id, {
-        participantName: effectiveParticipantName ?? (existing as any).participantName,
-        participantEmail: effectiveParticipantEmail ?? (existing as any).participantEmail,
+        participantName: (typeof effectiveParticipantName === "string" && effectiveParticipantName.trim())
+          ? effectiveParticipantName
+          : (existing as any).participantName,
+        participantEmail: (typeof effectiveParticipantEmail === "string" && effectiveParticipantEmail.trim())
+          ? effectiveParticipantEmail
+          : (existing as any).participantEmail,
         updatedAt: now,
       } as any);
     } else {
@@ -4672,8 +4680,39 @@ export const getPortalConversationsByFirm = query({
       .query("portal_conversations")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
       .take(500);
+    // 2026-09-14 (identity-loss repair): conversations whose participantName
+    // was wiped (legacy empty-string patch path) resolve it from the
+    // participant's user record — in-memory, so the inbox list and thread
+    // headers show the resident's name again without a backfill.
+    const broken = conversations.filter(
+      (c: any) => !(typeof (c as any).participantName === "string" && (c as any).participantName!.trim())
+    );
+    if (broken.length === 0) {
+      return conversations.sort((a: any, b: any) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+    }
+    const nameById = new Map<string, string>();
+    for (const c of broken as any[]) {
+      const pid = c.participantId ? String(c.participantId) : null;
+      if (!pid || nameById.has(pid)) continue;
+      try {
+        const u: any = await ctx.db
+          .query("users")
+          .withIndex("by_custom_id", (q: any) => q.eq("id", pid))
+          .first();
+        if (u?.name) { nameById.set(pid, String(u.name)); continue; }
+      } catch { /* try _id shape next */ }
+      try {
+        const u2: any = await ctx.db.get(pid as any);
+        if (u2?.name) nameById.set(pid, String(u2.name));
+      } catch { /* unresolved */ }
+    }
+    const healed = (conversations as any[]).map((c: any) => {
+      if (typeof c.participantName === "string" && c.participantName.trim()) return c;
+      const name = c.participantId ? nameById.get(String(c.participantId)) : undefined;
+      return name ? { ...c, participantName: name } : c;
+    });
     // Sort by lastMessageAt descending
-    return conversations.sort((a: any, b: any) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+    return healed.sort((a: any, b: any) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
   },
 });
 
@@ -4701,7 +4740,42 @@ export const getConversationMessages = query({
       .query("portal_messages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
       .take(500);
-    return messages.sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0));
+    // 2026-09-14 (identity-loss repair): rows saved without senderName
+    // (older send paths / empty-string client fields) resolve their display
+    // name from the conversation's participant record so threads never
+    // render "Unknown sender" mid-conversation. In-memory only.
+    const conversation: any = await ctx.db.get(args.conversationId as any);
+    const participantName = conversation?.participantName;
+    const needsLookup = messages.some(
+      (m: any) => !(typeof m.senderName === "string" && m.senderName.trim())
+    );
+    if (!needsLookup) return messages.sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0));
+    const nameById = new Map<string, string>();
+    for (const m of messages as any[]) {
+      const sid = m?.senderId ? String(m.senderId) : null;
+      if (!sid || nameById.has(sid)) continue;
+      try {
+        const u: any = await ctx.db
+          .query("users")
+          .withIndex("by_custom_id", (q: any) => q.eq("id", sid))
+          .first();
+        if (u?.name) { nameById.set(sid, String(u.name)); continue; }
+      } catch { /* try _id shape next */ }
+      try {
+        const u2: any = await ctx.db.get(sid as any);
+        if (u2?.name) nameById.set(sid, String(u2.name));
+      } catch { /* unresolved */ }
+    }
+    const enriched = (messages as any[]).map((m: any) => {
+      if (typeof m.senderName === "string" && m.senderName.trim()) return m;
+      const viaUser = m?.senderId ? nameById.get(String(m.senderId)) : undefined;
+      const viaParticipant = String(m.senderRole || "").toLowerCase() === "admin"
+        ? undefined
+        : (participantName || undefined);
+      const name = viaUser || viaParticipant;
+      return name ? { ...m, senderName: name } : m;
+    });
+    return enriched.sort((a: any, b: any) => (a.createdAt || 0) - (b.createdAt || 0));
   },
 });
 

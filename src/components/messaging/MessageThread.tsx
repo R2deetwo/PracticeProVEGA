@@ -602,7 +602,11 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
     }
 
     return (
-        <div className={`relative flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth ${className}`}
+        // 2026-09-14 (horizontal-scroll fix): overflow-y-auto alone leaves
+        // overflow-x computing to `auto` (CSS: one non-visible axis forces
+        // the other off `visible`) — a long URL or wide attachment made the
+        // whole conversation pannable LEFT/RIGHT on mobile. Clamp x.
+        <div className={`relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 custom-scrollbar scroll-smooth ${className}`}
             ref={scrollRef} onScroll={handleScroll}>
             {body}
 
