@@ -8,6 +8,10 @@ download/
 upload/
 tool-results/
 
+# Local test/audit artifacts (Playwright screenshots, modal smoke runs).
+# Untracked 2026-09-14 — they were committed despite never being referenced.
+audit-results/
+
 # ─── Android signing keys ──────────────────────────────────────────────────
 # release.keystore must NEVER be committed (Play Store signing, secrets-based,
 # passwords via env vars — never hardcoded in source).

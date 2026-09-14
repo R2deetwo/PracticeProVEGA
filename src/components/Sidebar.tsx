@@ -313,7 +313,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 )}
             </div>
 
-            {/* Getting Started Checklist — Phase 2 widget from SETUP_WIZARD_DESIGN.md.
+            {/* Getting Started Checklist — Phase 2 widget from docs/archive/specs/SETUP_WIZARD_DESIGN.md.
                 Persistent, dismissible, auto-completes items when actions are done.
                 Only shown for non-portal users (Admins and Lawyers) and only when
                 the sidebar is expanded — when retracted, the icon-only mode doesn't

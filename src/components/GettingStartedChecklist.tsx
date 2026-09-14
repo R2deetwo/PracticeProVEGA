@@ -13,7 +13,7 @@ import { ChevronUp as ChevronUpIcon } from 'lucide-react';
  * can complete it in any order. Auto-completes when the action is done
  * (detected via the getGettingStartedChecklist Convex query).
  *
- * Design reference: /home/z/my-project/download/SETUP_WIZARD_DESIGN.md
+ * Design reference: docs/archive/specs/SETUP_WIZARD_DESIGN.md
  * (Phase 2: Getting Started Checklist).
  *
  * The component is dismissible — once dismissed (or once ALL items are
