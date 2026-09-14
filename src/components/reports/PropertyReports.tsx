@@ -71,6 +71,7 @@ const PropertyReports: React.FC = () => {
             const collectedYTD = (coreState.ledgerEntries || []).filter(e => {
                 if (e.propertyId !== p.id && e.unitId !== p.id) return false;
                 if (e.status !== 'cleared') return false;
+                if (e.recordStatus === 'voided' || e.recordStatus === 'test') return false;
                 if (!e.timestamp) return false;
                 const payYear = new Date(e.timestamp).getFullYear();
                 return payYear === currentYear;

@@ -2,10 +2,11 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Invoice, InvoiceStatus, ModalType, AppState } from '../types';
 import { CheckCircleIcon, MailIcon, RevertIcon, BillingIcon, PlusIcon, ExclamationTriangleIcon } from '../constants';
-import { Clock, AlertCircle, CheckCircle, FileText } from 'lucide-react';
+import { Clock, AlertCircle, CheckCircle, FileText, Ban, Undo2 } from 'lucide-react';
 import Tooltip from './Tooltip';
 // SIMPLIFY FIX: StatCard import removed with the duplicate KPI row.
 import { formatNaira } from '../utils/formatting';
+import { isActiveFinancialRecord } from '../utils/financialLifecycle';
 import NairaSymbol from './NairaSymbol';
 import { useHighlight } from '../hooks/useHighlight';
 import { useUI } from '../contexts/UIContext';
@@ -40,8 +41,64 @@ const getStatusBadgeClass = (status: InvoiceStatus) => {
         case InvoiceStatus.Unpaid: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
         case InvoiceStatus.Overdue: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
         case InvoiceStatus.Reversed: return 'bg-dim-100 text-dim-500 dark:bg-dim-700 dark:text-dim-400 line-through';
+        case InvoiceStatus.Void: return 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 line-through';
         default: return 'bg-dim-100 text-dim-800 dark:bg-dim-700 dark:text-dim-300';
     }
+};
+
+// ── Void / Reinstate Invoice Modal (accounting-integrity round) ──────────
+// The audited retirement path: a reason is REQUIRED and becomes part of the
+// financial_audit_log. Replaces deletion as the way to retire a booked
+// invoice — the record stays for forensics, excluded from all totals.
+const VoidInvoiceModal: React.FC<{
+    invoice: Invoice;
+    mode: 'void' | 'reinstate';
+    onClose: () => void;
+    onConfirm: (id: string, reason: string) => void;
+}> = ({ invoice, mode, onClose, onConfirm }) => {
+    const [reason, setReason] = useState('');
+    const [error, setError] = useState('');
+    const isVoid = mode === 'void';
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                    {isVoid ? <><Ban className="w-5 h-5 text-rose-500" /> Void invoice {invoice.invoiceNumber}?</> : <><Undo2 className="w-5 h-5 text-emerald-500" /> Reinstate invoice {invoice.invoiceNumber}?</>}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
+                    {isVoid
+                        ? 'Voiding keeps the invoice in the books for the audit trail but excludes it from every total (collected, outstanding, counts). This is the accounting-correct way to retire a booked invoice — nothing is deleted.'
+                        : 'Restores the invoice to the status it had before it was voided. Both the void and this reinstatement stay in the audit trail.'}
+                </p>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-300 mb-1.5">
+                    Reason <span className="text-rose-500">(required — part of the audit trail)</span>
+                </label>
+                <textarea
+                    autoFocus
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => { setReason(e.target.value); if (error) setError(''); }}
+                    placeholder={isVoid ? 'e.g. Issued to the wrong client in error' : 'e.g. Client paid after all — verified against bank statement'}
+                    className="w-full border border-slate-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                />
+                {error && <p className="text-xs text-rose-500 mt-1.5">{error}</p>}
+                <div className="flex gap-3 mt-5">
+                    <button onClick={onClose} className="flex-1 py-2.5 bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-300 dark:hover:bg-zinc-600">Cancel</button>
+                    <button
+                        onClick={() => {
+                            const clean = reason.trim();
+                            if (clean.length < 3) { setError('A reason is required — this is the audit trail.'); return; }
+                            onConfirm(invoice.id, clean);
+                            onClose();
+                        }}
+                        className={`flex-1 py-2.5 text-white rounded-lg text-sm font-bold ${isVoid ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                    >
+                        {isVoid ? 'Void Invoice' : 'Reinstate Invoice'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 const InvoiceRow: React.FC<{
@@ -50,18 +107,25 @@ const InvoiceRow: React.FC<{
     onSendReminder: (id: string) => void,
     onMarkAsPaid: (id: string) => void,
     onRevertPayment: (id: string) => void,
-}> = React.memo(({ invoice, onViewDetails, onSendReminder, onMarkAsPaid, onRevertPayment }) => {
+    onVoidInvoice: (invoice: Invoice) => void,
+}> = React.memo(({ invoice, onViewDetails, onSendReminder, onMarkAsPaid, onRevertPayment, onVoidInvoice }) => {
     // Safety check: ensure lineItems exists before reducing
     const total = (invoice.lineItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
+    const isVoidedRecord = invoice.recordStatus === 'voided' || invoice.status === InvoiceStatus.Void;
 
     return (
         <tr
             data-item-id={invoice.id}
             onClick={() => onViewDetails(invoice.id)}
-            className="relative overflow-hidden hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer group"
+            className={`relative overflow-hidden hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer group ${isVoidedRecord ? 'opacity-60' : ''}`}
         >
             <td className="px-6 py-4 whitespace-nowrap">
                 <div className="text-sm font-medium text-slate-900 dark:text-white">{invoice.invoiceNumber}</div>
+                {invoice.voidReason && (
+                    <div className="text-xs text-rose-500 dark:text-rose-400 mt-0.5 max-w-48 truncate" title={`Voided by ${invoice.voidedByEmail || 'unknown'}${invoice.voidedAt ? ' on ' + new Date(invoice.voidedAt).toLocaleDateString('en-GB') : ''}: "${invoice.voidReason}"`}>
+                        {invoice.voidReason}
+                    </div>
+                )}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-dim-300">{invoice.client?.name || 'Unknown Client'}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-dim-300">{new Date(invoice.issueDate).toLocaleDateString('en-GB')}</td>
@@ -72,13 +136,21 @@ const InvoiceRow: React.FC<{
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">
-                    {invoice.status === InvoiceStatus.Unpaid || invoice.status === InvoiceStatus.Overdue ? (
+                    {isVoidedRecord ? (
+                        <Tooltip text="Voided — kept for the audit trail"><span className="p-2"><Ban className="w-4 h-4 text-rose-400" /></span></Tooltip>
+                    ) : invoice.status === InvoiceStatus.Unpaid || invoice.status === InvoiceStatus.Overdue ? (
                         <>
                             <Tooltip text="Send Reminder"><button onClick={(e) => { e.stopPropagation(); onSendReminder(invoice.id); }} className="p-2 rounded-full hover:bg-blue-100 dark:hover:bg-zinc-600"><MailIcon className="w-4 h-4 text-blue-600" /></button></Tooltip>
                             <Tooltip text="Mark as Paid"><button onClick={(e) => { e.stopPropagation(); onMarkAsPaid(invoice.id); }} className="p-2 rounded-full hover:bg-green-100 dark:hover:bg-zinc-600"><CheckCircleIcon className="w-4 h-4 text-green-600" /></button></Tooltip>
+                            <Tooltip text="Void (audited) — retires the invoice, keeps the record"><button onClick={(e) => { e.stopPropagation(); onVoidInvoice(invoice); }} className="p-2 rounded-full hover:bg-rose-100 dark:hover:bg-zinc-600"><Ban className="w-4 h-4 text-rose-500" /></button></Tooltip>
                         </>
                     ) : invoice.status === InvoiceStatus.Paid ? (
-                        <Tooltip text="Revert Payment"><button onClick={(e) => { e.stopPropagation(); onRevertPayment(invoice.id); }} className="p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-zinc-600"><RevertIcon className="w-4 h-4 text-yellow-600" /></button></Tooltip>
+                        <>
+                            <Tooltip text="Revert Payment"><button onClick={(e) => { e.stopPropagation(); onRevertPayment(invoice.id); }} className="p-2 rounded-full hover:bg-yellow-100 dark:hover:bg-zinc-600"><RevertIcon className="w-4 h-4 text-yellow-600" /></button></Tooltip>
+                            <Tooltip text="Void (audited) — retires the invoice, keeps the record"><button onClick={(e) => { e.stopPropagation(); onVoidInvoice(invoice); }} className="p-2 rounded-full hover:bg-rose-100 dark:hover:bg-zinc-600"><Ban className="w-4 h-4 text-rose-500" /></button></Tooltip>
+                        </>
+                    ) : invoice.status === InvoiceStatus.Sent || invoice.status === InvoiceStatus.Reversed ? (
+                        <Tooltip text="Void (audited) — retires the invoice, keeps the record"><button onClick={(e) => { e.stopPropagation(); onVoidInvoice(invoice); }} className="p-2 rounded-full hover:bg-rose-100 dark:hover:bg-zinc-600"><Ban className="w-4 h-4 text-rose-500" /></button></Tooltip>
                     ) : null}
                 </div>
             </td>
@@ -89,19 +161,24 @@ const InvoiceRow: React.FC<{
 const InvoiceMobileCard: React.FC<{
     invoice: Invoice,
     onViewDetails: (id: string) => void,
-}> = React.memo(({ invoice, onViewDetails }) => {
+    onVoidInvoice?: (invoice: Invoice) => void,
+}> = React.memo(({ invoice, onViewDetails, onVoidInvoice }) => {
     const total = (invoice.lineItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
+    const isVoidedRecord = invoice.recordStatus === 'voided' || invoice.status === InvoiceStatus.Void;
 
     return (
         <div
             data-item-id={invoice.id}
             onClick={() => onViewDetails(invoice.id)}
-            className="bg-white dark:bg-zinc-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 mb-3 cursor-pointer active:bg-slate-50 dark:active:bg-zinc-700"
+            className={`bg-white dark:bg-zinc-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-700 mb-3 cursor-pointer active:bg-slate-50 dark:active:bg-zinc-700 ${isVoidedRecord ? 'opacity-60' : ''}`}
         >
             <div className="flex justify-between items-start mb-2">
                 <div>
                     <p className="font-bold text-slate-900 dark:text-white">{invoice.client?.name || 'Unknown'}</p>
                     <p className="text-xs text-slate-500 dark:text-zinc-400">{invoice.invoiceNumber}</p>
+                    {invoice.voidReason && (
+                        <p className="text-xs text-rose-500 dark:text-rose-400 mt-0.5" title={`Voided by ${invoice.voidedByEmail || 'unknown'}: "${invoice.voidReason}"`}>Voided — {invoice.voidReason}</p>
+                    )}
                 </div>
                 <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusBadgeClass(invoice.status)}`}>{invoice.status}</span>
             </div>
@@ -109,7 +186,18 @@ const InvoiceMobileCard: React.FC<{
                 <div className="text-xs text-slate-500 dark:text-zinc-400">
                     <p>Due: {new Date(invoice.dueDate).toLocaleDateString('en-GB')}</p>
                 </div>
-                <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(total)}</p>
+                <div className="flex items-center gap-2">
+                    {!isVoidedRecord && onVoidInvoice && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onVoidInvoice(invoice); }}
+                            title="Void (audited) — retires the invoice, keeps the record"
+                            className="p-2 rounded-full hover:bg-rose-100 dark:hover:bg-zinc-600"
+                        >
+                            <Ban className="w-4 h-4 text-rose-500" />
+                        </button>
+                    )}
+                    <p className="text-lg font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(total)}</p>
+                </div>
             </div>
         </div>
     );
@@ -117,7 +205,7 @@ const InvoiceMobileCard: React.FC<{
 
 
 // Sub-component for the main invoice list logic
-const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, closeModal, openConfirmationModal }) => {
+const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleVoidInvoice, closeModal, openConfirmationModal }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useHighlight(containerRef, 'billing');
     const [filter, setFilter] = useState('');
@@ -207,6 +295,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                                                 onSendReminder={handleSendInvoiceReminder}
                                                 onMarkAsPaid={onMarkAsPaid}
                                                 onRevertPayment={onRevert}
+                                                onVoidInvoice={handleVoidInvoice}
                                             />
                                         ))}
                                     </tbody>
@@ -221,6 +310,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                                     key={invoice.id}
                                     invoice={invoice}
                                     onViewDetails={onViewDetails}
+                                    onVoidInvoice={handleVoidInvoice}
                                 />
                             ))}
                         </div>
@@ -244,10 +334,15 @@ export const BillingView: React.FC = () => {
     const { financeState } = useFinanceState();
     const { currentUser } = useAuth();
     const { openModal, navigateTo, closeModal, addToast, currentHistoryEntry } = useUI();
-    const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment } = useDataActions();
+    const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleVoidInvoice: confirmVoidInvoice, handleReinstateInvoice: confirmReinstateInvoice } = useDataActions();
     const features = useFeatures();
     const { isProperty, isUnified, product } = useProduct();
     const { coreState } = useCoreState();
+
+    // Void/Reinstate modal state (accounting-integrity round): the row action
+    // opens the reason prompt; confirm dispatches to the audited lifecycle
+    // mutation (convex/financialIntegrity), never to a raw status flip.
+    const [voidModal, setVoidModal] = useState<{ invoice: Invoice; mode: 'void' | 'reinstate' } | null>(null);
 
     // ─── Product scope toggle (Legal / Properties / Combined) ───────
     type ProductScope = 'legal' | 'property' | 'combined';
@@ -301,9 +396,12 @@ export const BillingView: React.FC = () => {
     }, [tabs, activeTab]);
 
     // KPI strip — unified metrics across legal + property
+    // FINANCIAL LIFECYCLE (accounting-integrity round): voided and
+    // test-marked records are annotations, not money — they never enter a
+    // total. Same predicate as the server queries (equivalence-tested).
     const kpiData = useMemo(() => {
-        const invoices = financeState.invoices || [];
-        const ledgerEntries = (coreState as any).ledgerEntries || [];
+        const invoices = (financeState.invoices || []).filter(i => isActiveFinancialRecord(i.recordStatus));
+        const ledgerEntries = ((coreState as any).ledgerEntries || []).filter((e: any) => isActiveFinancialRecord(e.recordStatus));
         const serviceCharges = (coreState as any).serviceCharges || [];
 
         // Legal-side KPIs (invoices)
@@ -461,6 +559,7 @@ export const BillingView: React.FC = () => {
                         handleUpdateInvoiceStatus={handleUpdateInvoiceStatus}
                         handleSendInvoiceReminder={handleSendInvoiceReminder}
                         handleRevertPayment={handleRevertPayment}
+                        handleVoidInvoice={(inv: Invoice) => setVoidModal({ invoice: inv, mode: inv.recordStatus === 'voided' || inv.status === InvoiceStatus.Void ? 'reinstate' : 'void' })}
                         closeModal={closeModal}
                         openConfirmationModal={openModal}
                     />
@@ -513,6 +612,20 @@ export const BillingView: React.FC = () => {
                     <div className="max-w-3xl mx-auto">
                         <TrustAccountTab />
                     </div>
+                )}
+
+                {/* Audited void / reinstate (accounting-integrity round) — the
+                    reason entered here becomes part of the financial audit log. */}
+                {voidModal && (
+                    <VoidInvoiceModal
+                        invoice={voidModal.invoice}
+                        mode={voidModal.mode}
+                        onClose={() => setVoidModal(null)}
+                        onConfirm={(id, reason) => {
+                            if (voidModal.mode === 'void') confirmVoidInvoice(id, reason);
+                            else confirmReinstateInvoice(id, reason);
+                        }}
+                    />
                 )}
             </div>
         </div>

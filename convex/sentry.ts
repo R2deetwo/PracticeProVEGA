@@ -89,10 +89,29 @@ export const addLedgerEntry = mutation({
     description: v.optional(v.string()),
     period: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    // IDEMPOTENCY (accounting-integrity round, 2026-09-14): the offline
+    // queue replays this mutation on reconnect with the SAME args — with
+    // no key, one flaky connection DUPLICATED revenue entries (one of the
+    // "records I don't remember" origins). A client-generated key makes
+    // the replay a no-op. Legacy callers omitting the key keep working.
+    idempotencyKey: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
     const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+
+    // Dedupe on the idempotency key BEFORE any write (same contract as
+    // settleUnitPeriods / markChargeAsPaid).
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("ledger_entries")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", args.idempotencyKey!))
+        .first();
+      if (existing) {
+        return existing._id;
+      }
+    }
+
     const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
     const timestamp = Date.now();
     const txHash = makeTxHash(auth.firmId, args.unitId, args.amount, timestamp, args.type);
@@ -252,9 +271,16 @@ export const getCashFlowSummary = query({
       .withIndex("by_firm", q => q.eq("firmId", firmId))
       .take(2000);
 
-    const cleared = entries.filter(e => e.status === "cleared");
-    const defaulted = entries.filter(e => e.status === "defaulted");
-    const pending = entries.filter(e => e.status === "pending");
+    // FINANCIAL LIFECYCLE (accounting-integrity round): voided and
+    // test-marked records are EXCLUDED from every money total — they are
+    // excluded from revenue, risk and transaction counts alike, because
+    // neither a reversal annotation nor test noise is money. The records
+    // remain in the table and the audit log for forensics.
+    const activeEntries = entries.filter(e => e.recordStatus !== "voided" && e.recordStatus !== "test");
+
+    const cleared = activeEntries.filter(e => e.status === "cleared");
+    const defaulted = activeEntries.filter(e => e.status === "defaulted");
+    const pending = activeEntries.filter(e => e.status === "pending");
 
     const totalIncome = cleared.reduce((s, e) => s + e.amount, 0);
     const revenueAtRisk = defaulted.reduce((s, e) => s + e.amount, 0) + pending.reduce((s, e) => s + e.amount, 0);
@@ -268,7 +294,7 @@ export const getCashFlowSummary = query({
       monthlyData[key] = { income: 0, risk: 0 };
     }
 
-    for (const e of entries) {
+    for (const e of activeEntries) {
       const d = new Date(e.timestamp);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       if (monthlyData[key]) {
@@ -277,7 +303,7 @@ export const getCashFlowSummary = query({
       }
     }
 
-    return { totalIncome, revenueAtRisk, totalTransactions: entries.length, monthlyData };
+    return { totalIncome, revenueAtRisk, totalTransactions: activeEntries.length, monthlyData };
   },
 });
 

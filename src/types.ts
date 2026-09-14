@@ -12,6 +12,22 @@ export enum TaskPriority { High = 'High', Medium = 'Medium', Low = 'Low' }
 export enum MatterStatus { Active = 'Active', Closed = 'Closed', Archived = 'Archived' }
 export enum MatterType { CivilLitigation = 'Civil Litigation', CriminalDefense = 'Criminal Defense', CorporateCommercial = 'Corporate & Commercial', RealEstate = 'Real Estate', FamilyLaw = 'Family Law', IntellectualProperty = 'Intellectual Property', Immigration = 'Immigration', EmploymentLabor = 'Employment & Labor', Tax = 'Tax Law', MaritimeAdmiralty = 'Maritime & Admiralty', OilGas = 'Oil & Gas', Other = 'Other' }
 export enum InvoiceStatus { Draft = 'Draft', Sent = 'Sent', Paid = 'Paid', Overdue = 'Overdue', Unpaid = 'Unpaid', Reversed = 'Reversed', Void = 'Void' }
+
+// Financial record lifecycle fields (accounting-integrity round) — present
+// on invoices and ledger rows that have been voided or test-quarantined.
+// The fields travel WITH the row so the UI can badge it and filter totals
+// without a second query; the lifecycle itself is only writable through
+// convex/financialIntegrity.ts (audited, reason required).
+export interface FinancialLifecycleFields {
+  recordStatus?: 'voided' | 'test';
+  voidedAt?: number;
+  voidedByEmail?: string;
+  voidReason?: string;
+  /** Id of the financial_audit_log row for the LAST lifecycle action. */
+  auditId?: string;
+  /** Invoice-only: status before void, for a faithful reinstate. */
+  priorStatus?: string;
+}
 // Fix: Enum member name cannot contain spaces; changed 'Fixed Fee' to 'FixedFee'
 export enum BillingModel { Hourly = 'Hourly', FixedFee = 'Fixed Fee', Retainer = 'Retainer', Contingency = 'Contingency', Percentage = 'Percentage' }
 
@@ -371,7 +387,7 @@ export interface CalendarEvent {
     createdAt?: string;
 }
 export interface InvoiceLineItem { id: string; description: string; hours: number; rate: number; total: number; timeEntryId?: string; expenseId?: string; }
-export interface Invoice { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; provider?: 'manual' | 'paystack'; providerReference?: string; paymentMethod?: string; }
+export interface Invoice extends FinancialLifecycleFields { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; provider?: 'manual' | 'paystack'; providerReference?: string; paymentMethod?: string; }
 export interface TimeEntry { id: string; firmId: string; matterId: string; user_id: string; date: string; duration: number; rate: number; description: string; billable: boolean; billedInInvoiceId?: string | null; }
 export interface Expense { id: string; firmId: string; matterId: string; date: string; amount: number; description: string; isBillable: boolean; billedInInvoiceId?: string | null; taxDeductibility?: { isDeductible: boolean; reason: string; }; }
 export interface NoteNotebook { id: string; firmId?: string; userId?: string; name: string; color: string; scope: NoteScope; isCore?: boolean; matterId?: string; }
@@ -606,6 +622,10 @@ export interface DataActionsContextType {
     handleDeleteExpense: (id: string, desc: string) => void;
     handleSendInvoiceReminder: (id: string) => void;
     handleRevertPayment: (id: string) => void;
+    /** Audited invoice retirement (accounting-integrity round) — reason becomes part of the financial audit log. */
+    handleVoidInvoice: (id: string, reason: string) => void;
+    /** Audited restoration of a voided invoice to its prior status. */
+    handleReinstateInvoice: (id: string, reason: string) => void;
     handleGenerateInvoice: (matter: Matter, items: InvoiceLineItem[], details: any, timeIds: string[], expenseIds: string[], payment: BankAccount, tax: any) => void;
     handleUpdateInvoiceStatus: (id: string, status: InvoiceStatus) => void;
     handleAddAttorneyNote: (matterId: string, note: AttorneyNote) => void;
@@ -749,6 +769,13 @@ export interface LedgerEntry {
   txHash: string;
   description?: string;
   period?: string;
+  // ── Financial record lifecycle (accounting-integrity round, 2026-09-14) ──
+  // 'voided' = reversal annotation (kept for forensics, excluded from totals);
+  // 'test'   = test-data quarantine (same exclusion); absent = active money.
+  recordStatus?: 'voided' | 'test';
+  voidedAt?: number;
+  voidedByEmail?: string;
+  voidReason?: string;
 }
 
 export interface ServiceCharge {

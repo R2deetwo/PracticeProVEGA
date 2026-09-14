@@ -13,7 +13,7 @@ import { api } from '../../convex/_generated/api';
  * Hook for managing financial operations: Invoices, Ledgers, and Service Charges.
  */
 export const useFinance = (appState: AppState, actions: any) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
     const { isAtrium } = useProduct();
     const convex = useConvex();
@@ -88,11 +88,62 @@ export const useFinance = (appState: AppState, actions: any) => {
 
     /**
      * Revert a paid invoice (create credit note / mark as Reversed).
+     * NOTE (accounting-integrity round): this generic-path edit is now
+     * snapshotted into the append-only financial_audit_log by the
+     * updateItem fence — the old silent status flip no longer exists.
      */
     const handleRevertPayment = useCallback(async (id: string) => {
         await actions.updateItem('invoices', { id, status: InvoiceStatus.Reversed, paidDate: undefined }, 'Invoice');
         addToast('Invoice payment reverted.', { type: 'info' });
     }, [actions, addToast]);
+
+    /**
+     * VOID an invoice through the audited financial lifecycle
+     * (convex/financialIntegrity.voidInvoice) — the accounting-correct
+     * retirement: the record stays in the books with its WHO/WHEN/WHY
+     * (reason is mandatory) and drops out of every total. This replaces
+     * deletion as the way to retire a booked invoice.
+     */
+    const handleVoidInvoice = useCallback(async (id: string, reason: string) => {
+        const clean = reason.trim();
+        if (clean.length < 3) {
+            addToast('A reason is required to void an invoice — it becomes part of the audit trail.', { type: 'warning' });
+            return;
+        }
+        try {
+            await convex.mutation(api.financialIntegrity.voidInvoice, {
+                invoiceId: id,
+                reason: clean,
+                userEmail: currentUser?.email,
+                sessionToken: (bearerToken ?? undefined),
+            });
+            addToast('Invoice voided — kept in the books for the audit trail, excluded from all totals.', { type: 'success', duration: 6000 });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to void the invoice. Nothing was changed.', { type: 'error', duration: 7000 });
+        }
+    }, [convex, currentUser, bearerToken, addToast]);
+
+    /**
+     * Reinstate a voided invoice (audited, restores the pre-void status).
+     */
+    const handleReinstateInvoice = useCallback(async (id: string, reason: string) => {
+        const clean = reason.trim();
+        if (clean.length < 3) {
+            addToast('A reason is required to reinstate an invoice — it becomes part of the audit trail.', { type: 'warning' });
+            return;
+        }
+        try {
+            await convex.mutation(api.financialIntegrity.reinstateInvoice, {
+                invoiceId: id,
+                reason: clean,
+                userEmail: currentUser?.email,
+                sessionToken: (bearerToken ?? undefined),
+            });
+            addToast('Invoice reinstated to its prior status.', { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to reinstate the invoice. Nothing was changed.', { type: 'error', duration: 7000 });
+        }
+    }, [convex, currentUser, bearerToken, addToast]);
 
     /**
      * Send a payment reminder for an invoice.
@@ -146,6 +197,8 @@ export const useFinance = (appState: AppState, actions: any) => {
         handleGenerateInvoice,
         handleUpdateInvoiceStatus,
         handleRevertPayment,
+        handleVoidInvoice,
+        handleReinstateInvoice,
         handleSendInvoiceReminder,
         handleDeleteInvoice,
     };

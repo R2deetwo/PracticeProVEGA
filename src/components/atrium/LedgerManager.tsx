@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -7,7 +7,8 @@ import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useUI } from '../../contexts/UIContext';
 import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../../types';
 import { formatNaira, formatLargeNumber, formatNairaWhole } from '../../utils/formatting';
-import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles } from 'lucide-react';
+import { isActiveFinancialRecord, makeLedgerIdempotencyKey } from '../../utils/financialLifecycle';
+import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles, MoreVertical, ShieldCheck, Eye, EyeOff, Undo2, FlaskConical, Ban, FileSearch } from 'lucide-react';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const HashIcon = ({ className = "w-4 h-4" }) => (
@@ -72,6 +73,16 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
     if (!form.unitId || !form.amount) return;
     setLoading(true);
     try {
+      // IDEMPOTENCY (accounting-integrity round): one key per SUBMIT, shared
+      // by the online call and the offline queue replay, so a flaky
+      // connection can never book the same payment twice.
+      const idempotencyKey = makeLedgerIdempotencyKey({
+        firmId,
+        unitId: form.unitId,
+        amount: parseFloat(form.amount),
+        type: form.type,
+        nonce: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      });
       // OFFLINE PATH — manual ledger entries are typically done by an
       // agent or accountant who may be in the field. Queue when offline.
       if (!isOnline) {
@@ -86,6 +97,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
             channel: form.channel,
             description: form.description,
             paymentRef: form.paymentRef,
+            idempotencyKey,
             userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
           },
           label: `${form.type} ledger entry — ${formatNairaWhole(form.amount)}`,
@@ -94,7 +106,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
         onClose();
         return;
       }
-      await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+      await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef, idempotencyKey, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
       onClose();
     } finally { setLoading(false); }
   };
@@ -204,6 +216,180 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
   );
 };
 
+// ── Lifecycle Action Modal (void / test / reinstate) ─────────────────────
+type LifecycleAction = 'void' | 'test' | 'reinstate' | 'unmark';
+
+const LIFECYCLE_COPY: Record<LifecycleAction, { title: string; body: string; confirm: string; tone: string; placeholder: string }> = {
+  void: {
+    title: 'Void this ledger entry?',
+    body: 'Voiding is a reversal ANNOTATION, not a deletion: the record stays in the books for the audit trail, but drops out of every total (income, risk, tenant outstanding). This is the accounting-correct way to retire a booked entry that was recorded in error.',
+    confirm: 'Void Entry',
+    tone: 'bg-rose-600 hover:bg-rose-500',
+    placeholder: 'e.g. Duplicate of TX-… booked twice by a flaky connection',
+  },
+  test: {
+    title: 'Mark this entry as test data?',
+    body: 'Test-quarantined records stay visible for forensic completeness but are excluded from every revenue and risk figure. Use this for payments recorded while testing the app — the "records I don\'t remember" problem.',
+    confirm: 'Mark as Test',
+    tone: 'bg-violet-600 hover:bg-violet-500',
+    placeholder: 'e.g. Recorded while testing the payment flow on my own account',
+  },
+  reinstate: {
+    title: 'Reinstate this voided entry?',
+    body: 'Restores the entry to the books with its original status. Both the void and this reinstatement remain in the audit trail — the history shows both directions, which is exactly what an auditor wants to see.',
+    confirm: 'Reinstate Entry',
+    tone: 'bg-emerald-600 hover:bg-emerald-500',
+    placeholder: 'e.g. Voided in error — payment verified against bank statement',
+  },
+  unmark: {
+    title: 'Return this test entry to the books?',
+    body: 'Removes the test-data quarantine: the entry counts toward revenue and risk again. The mark and this unmark both stay in the audit trail.',
+    confirm: 'Return to Active',
+    tone: 'bg-emerald-600 hover:bg-emerald-500',
+    placeholder: 'e.g. This was a real payment, mistakenly quarantined',
+  },
+};
+
+const LifecycleActionModal: React.FC<{
+  entry: LedgerEntry;
+  action: LifecycleAction;
+  onClose: () => void;
+  onDone: (msg: string) => void;
+}> = ({ entry, action, onClose, onDone }) => {
+  const { currentUser, bearerToken } = useAuth();
+  const [reason, setReason] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const voidEntry = useMutation(api.financialIntegrity.voidLedgerEntry);
+  const reinstateEntry = useMutation(api.financialIntegrity.reinstateLedgerEntry);
+  const markTest = useMutation(api.financialIntegrity.markLedgerEntryAsTest);
+  const unmarkTest = useMutation(api.financialIntegrity.unmarkLedgerEntryAsTest);
+
+  const copy = LIFECYCLE_COPY[action];
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = reason.trim();
+    if (clean.length < 3) { setError('A reason is required — this is the audit trail.'); return; }
+    setLoading(true); setError('');
+    try {
+      const base = { entryId: String((entry as any)._id ?? (entry as any).id), reason: clean, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) };
+      if (action === 'void') await voidEntry(base);
+      else if (action === 'reinstate') await reinstateEntry(base);
+      else if (action === 'test') await markTest(base);
+      else await unmarkTest(base);
+      onDone(`${copy.confirm} succeeded — recorded in the audit trail.`);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'The action failed. Nothing was changed.');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+          <h3 className="font-bold text-white text-lg">{copy.title}</h3>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">×</button>
+        </div>
+        <form onSubmit={submit} className="p-5 space-y-4">
+          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
+            <span className="truncate">{TYPE_LABELS[entry.type]} · {formatNairaWhole(entry.amount)}</span>
+            <span className="font-mono text-3xs text-slate-600 ml-2">{entry.txHash?.slice(0, 14)}</span>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">{copy.body}</p>
+          <div>
+            <label className="block text-xs text-slate-400 mb-1.5 font-semibold">Reason <span className="text-rose-400">(required — becomes part of the audit trail)</span></label>
+            <textarea
+              value={reason}
+              onChange={e => { setReason(e.target.value); if (error) setError(''); }}
+              rows={3}
+              autoFocus
+              placeholder={copy.placeholder}
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500 resize-none"
+            />
+            {error && <p className="text-xs text-rose-400 mt-1.5">{error}</p>}
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="submit" disabled={loading} className={`flex-1 py-2.5 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50 ${copy.tone}`}>
+              {loading ? 'Working…' : copy.confirm}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// ── Audit Trail Modal ────────────────────────────────────────────────────
+const ACTION_STYLES: Record<string, string> = {
+  void: 'bg-rose-900/40 text-rose-400 border-rose-800',
+  reinstate: 'bg-emerald-900/40 text-emerald-400 border-emerald-800',
+  mark_test: 'bg-violet-900/40 text-violet-400 border-violet-800',
+  unmark_test: 'bg-emerald-900/40 text-emerald-400 border-emerald-800',
+  edit: 'bg-sky-900/40 text-sky-400 border-sky-800',
+  delete: 'bg-rose-900/40 text-rose-400 border-rose-800',
+};
+
+const AuditTrailModal: React.FC<{
+  firmId: string;
+  scope?: { tableName?: string; recordId?: string; label?: string };
+  onClose: () => void;
+}> = ({ firmId, scope, onClose }) => {
+  const { currentUser, bearerToken } = useAuth();
+  const rows = useQuery(
+    api.financialIntegrity.getFinancialAuditLog,
+    firmId ? {
+      firmId,
+      limit: 150,
+      ...(scope?.tableName ? { tableName: scope.tableName } : {}),
+      ...(scope?.recordId ? { recordId: scope.recordId } : {}),
+      userEmail: currentUser?.email,
+      sessionToken: (bearerToken ?? undefined),
+    } : 'skip'
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+          <div>
+            <h3 className="font-bold text-white text-lg flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-400" /> Financial Audit Trail</h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {scope?.label ? <>Scope: <span className="text-slate-400">{scope.label}</span> · </> : null}
+              Append-only — every void, edit and test-mark, with its reason
+            </p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">×</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-2">
+          {!rows ? (
+            [...Array(5)].map((_, i) => <div key={i} className="h-16 bg-slate-800 rounded-lg animate-pulse" />)
+          ) : rows.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-slate-600">
+              <ShieldCheck className="w-8 h-8 mb-2" />
+              <p className="text-sm">No lifecycle actions recorded yet</p>
+              <p className="text-xs mt-1">Voids, edits, test-marks and reinstatements will appear here</p>
+            </div>
+          ) : rows.map(r => (
+            <div key={r.id} className="bg-slate-800/50 border border-slate-800 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full border ${ACTION_STYLES[r.action] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>{r.action.replace('_', ' ')}</span>
+                <span className="text-2xs text-slate-500 font-mono">{r.tableName} · {String(r.recordId).slice(0, 18)}</span>
+                <span className="text-2xs text-slate-600 ml-auto">{new Date(r.createdAt).toLocaleString('en-NG')}</span>
+              </div>
+              <p className="text-xs text-slate-300 mt-1.5 leading-relaxed"><span className="text-slate-500">Reason:</span> {r.reason}</p>
+              <p className="text-3xs text-slate-600 mt-1">by {r.actorEmail || 'system'}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── Cash Flow Bar Chart ───────────────────────────────────────────────────
 const CashFlowChart: React.FC<{ data: Record<string, { income: number; risk: number }> }> = ({ data }) => {
   const entries = Object.entries(data);
@@ -225,16 +411,23 @@ const CashFlowChart: React.FC<{ data: Record<string, { income: number; risk: num
 
 // ── Main Component ────────────────────────────────────────────────────────
 const LedgerManager: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
+  const { addToast } = useUI();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
   const entries = coreState.ledgerEntries || [];
-  
+
+  // FINANCIAL LIFECYCLE (accounting-integrity round): the client mirror of
+  // the server's getCashFlowSummary semantics — voided and test-marked
+  // records are annotations, not money, and never enter a total. The
+  // predicate is the same one the server queries use (mirrored in
+  // src/utils/financialLifecycle.ts, equivalence-locked by unit test).
   const cashFlow = useMemo(() => {
-    const cleared = entries.filter(e => e.status === "cleared");
-    const defaulted = entries.filter(e => e.status === "defaulted");
-    const pending = entries.filter(e => e.status === "pending");
+    const activeEntries = entries.filter(e => isActiveFinancialRecord(e.recordStatus));
+    const cleared = activeEntries.filter(e => e.status === "cleared");
+    const defaulted = activeEntries.filter(e => e.status === "defaulted");
+    const pending = activeEntries.filter(e => e.status === "pending");
 
     const totalIncome = cleared.reduce((s, e) => s + e.amount, 0);
     const revenueAtRisk = defaulted.reduce((s, e) => s + e.amount, 0) + pending.reduce((s, e) => s + e.amount, 0);
@@ -247,7 +440,7 @@ const LedgerManager: React.FC = () => {
       monthlyData[key] = { income: 0, risk: 0 };
     }
 
-    for (const e of entries) {
+    for (const e of activeEntries) {
       const d = new Date(e.timestamp);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       if (monthlyData[key]) {
@@ -256,13 +449,30 @@ const LedgerManager: React.FC = () => {
       }
     }
 
-    return { totalIncome, revenueAtRisk, totalTransactions: entries.length, monthlyData };
+    return { totalIncome, revenueAtRisk, totalTransactions: activeEntries.length, monthlyData };
   }, [entries]);
 
   const [filterType, setFilterType] = useState<LedgerEntryType | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<LedgerEntryStatus | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [search, setSearch] = useState('');
+  // Lifecycle UI state: voided/test rows are hidden from the working view by
+  // default (they don't count) but one toggle away for forensic transparency.
+  const [showLifecycleRecords, setShowLifecycleRecords] = useState(false);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [lifecycleModal, setLifecycleModal] = useState<{ entry: LedgerEntry; action: LifecycleAction } | null>(null);
+  const [auditScope, setAuditScope] = useState<{ tableName?: string; recordId?: string; label?: string } | null | undefined>(undefined);
+
+  // Close the row kebab menu on any outside click / scroll.
+  useEffect(() => {
+    if (!menuFor) return;
+    const close = () => setMenuFor(null);
+    window.addEventListener('click', close);
+    window.addEventListener('scroll', close, true);
+    return () => { window.removeEventListener('click', close); window.removeEventListener('scroll', close, true); };
+  }, [menuFor]);
+
+  const hiddenCount = useMemo(() => entries.filter(e => !isActiveFinancialRecord(e.recordStatus)).length, [entries]);
 
   const { unitById } = usePropertyGroups(coreState.properties || []);
 
@@ -290,6 +500,10 @@ const LedgerManager: React.FC = () => {
   const filtered = useMemo(() => {
     const propMap = new Map((coreState.properties || []).map(p => [p.id, p.address.toLowerCase()]));
     return entries.filter(e => {
+      // Lifecycle-hidden records (voided/test) stay out of the working view
+      // unless explicitly toggled in — they don't count, but they remain
+      // inspectable for forensics.
+      if (!showLifecycleRecords && !isActiveFinancialRecord(e.recordStatus)) return false;
       if (filterType !== 'all' && e.type !== filterType) return false;
       if (filterStatus !== 'all' && e.status !== filterStatus) return false;
       if (search) {
@@ -304,7 +518,7 @@ const LedgerManager: React.FC = () => {
       }
       return true;
     });
-  }, [entries, filterType, filterStatus, search, coreState.properties]);
+  }, [entries, filterType, filterStatus, search, coreState.properties, showLifecycleRecords]);
 
   const generateReceipt = (entry: LedgerEntry) => {
     // Record Rent Payment — calls the Atrium ledger directly from the cog menu
@@ -346,12 +560,21 @@ const LedgerManager: React.FC = () => {
       {/* Header */}
       <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Financial Ledger</h2>
+          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Financial Ledger</h2>
           <p className="text-xs text-slate-500 mt-0.5">Immutable append-only financial truth</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-emerald-500/20 sm:w-auto w-full">
-          <PlusIcon /> Record Entry
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAuditScope(null)}
+            title="Financial audit trail — every void, edit and test-mark with its reason"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-lg transition-colors border border-slate-700"
+          >
+            <ShieldCheck className="w-4 h-4 text-emerald-400" /> Audit Trail
+          </button>
+          <button onClick={() => setShowAddModal(true)} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg shadow-emerald-500/20 sm:w-auto w-full">
+            <PlusIcon /> Record Entry
+          </button>
+        </div>
       </div>
 
       {/* KPI Row */}
@@ -401,6 +624,19 @@ const LedgerManager: React.FC = () => {
             {s === 'all' ? 'All Status' : s}
           </button>
         ))}
+        {hiddenCount > 0 && (
+          <>
+            <div className="h-4 w-px bg-slate-800" />
+            <button
+              onClick={() => setShowLifecycleRecords(v => !v)}
+              title="Voided and test-quarantined records are excluded from all totals. They stay in the books for the audit trail."
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${showLifecycleRecords ? 'bg-violet-900/50 text-violet-300 border border-violet-800' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+            >
+              {showLifecycleRecords ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              {showLifecycleRecords ? 'Hide' : 'Show'} voided/test ({hiddenCount})
+            </button>
+          </>
+        )}
         <span className="ml-auto text-xs text-slate-600">{filtered.length} entries</span>
       </div>
 
@@ -418,22 +654,39 @@ const LedgerManager: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {filtered.map(entry => (
-              <div key={entry._id} className="group relative bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3.5 transition-all">
+            {filtered.map(entry => {
+              const nonActive = !isActiveFinancialRecord(entry.recordStatus);
+              const isVoided = entry.recordStatus === 'voided';
+              const isTest = entry.recordStatus === 'test';
+              const lifecycleTip = isVoided
+                ? `Voided ${entry.voidedAt ? new Date(entry.voidedAt).toLocaleDateString('en-NG') : ''} by ${entry.voidedByEmail || 'unknown'} — "${entry.voidReason || 'no reason recorded'}"`
+                : isTest ? 'Test-quarantined record — excluded from all totals' : '';
+              return (
+              <div key={entry._id} className={`group relative bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3.5 transition-all ${nonActive ? 'opacity-50 hover:opacity-80 border-dashed' : ''}`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Type dot */}
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${nonActive ? 'bg-slate-600' : entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
                     
                     {/* Meta */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <p className="text-sm font-bold text-white truncate">
+                        <p className={`text-sm font-bold truncate ${nonActive ? 'text-slate-400 line-through decoration-slate-600' : 'text-white'}`}>
                           {getUnitLabel(entry.unitId)} — {entry.description || TYPE_LABELS[entry.type]}
                         </p>
                         <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${TYPE_COLORS[entry.type]}`}>
                           {TYPE_LABELS[entry.type]}
                         </span>
+                        {isVoided && (
+                          <span title={lifecycleTip} className="flex items-center gap-1 text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-rose-900/40 text-rose-400 border border-rose-800">
+                            <Ban className="w-2.5 h-2.5" /> Voided
+                          </span>
+                        )}
+                        {isTest && (
+                          <span title={lifecycleTip} className="flex items-center gap-1 text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-violet-900/40 text-violet-400 border border-violet-800">
+                            <FlaskConical className="w-2.5 h-2.5" /> Test
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-2xs text-slate-500">{formatTs(entry.timestamp)}</p>
@@ -446,23 +699,91 @@ const LedgerManager: React.FC = () => {
                       <span className={`text-3xs font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[entry.status]}`}>
                         {entry.status}
                       </span>
-                      <span className={`font-black text-base tabular-nums ${entry.status === 'cleared' ? 'text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-400' : 'text-amber-400'}`}>
+                      <span className={`font-black text-base tabular-nums ${nonActive ? 'text-slate-500 line-through decoration-slate-700' : entry.status === 'cleared' ? 'text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-400' : 'text-amber-400'}`}>
                         ₦{entry.amount.toLocaleString('en-NG')}
                       </span>
                     </div>
                     
-                    <button onClick={() => generateReceipt(entry)} aria-label="Generate Receipt" title="Generate Receipt" className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-700 rounded-lg transition-all">
-                      <ReceiptIcon className="w-5 h-5 sm:w-4 sm:h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => generateReceipt(entry)} aria-label="Generate Receipt" title="Generate Receipt" className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-700 rounded-lg transition-all">
+                        <ReceiptIcon className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </button>
+                      {/* Lifecycle kebab — void / test-mark / reinstate, each
+                          audited with a mandatory reason */}
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === String(entry._id) ? null : String(entry._id)); }}
+                          aria-label="Record actions"
+                          title="Void, mark as test, or view audit history"
+                          className={`p-2 rounded-lg transition-all ${menuFor === String(entry._id) ? 'text-white bg-slate-700' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
+                        >
+                          <MoreVertical className="w-5 h-5 sm:w-4 sm:h-4" />
+                        </button>
+                        {menuFor === String(entry._id) && (
+                          <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-full mt-1 z-30 w-52 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl py-1 text-sm">
+                            <button
+                              onClick={() => { setMenuFor(null); setAuditScope({ tableName: 'ledger_entries', recordId: String((entry as any)._id ?? (entry as any).id), label: `${TYPE_LABELS[entry.type]} · ${formatNairaWhole(entry.amount)}` }); }}
+                              className="w-full text-left px-3 py-2 hover:bg-slate-700 text-slate-300 flex items-center gap-2"
+                            >
+                              <FileSearch className="w-3.5 h-3.5 text-sky-400" /> Audit history
+                            </button>
+                            {!nonActive && (
+                              <>
+                                <button
+                                  onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'void' }); }}
+                                  className="w-full text-left px-3 py-2 hover:bg-slate-700 text-rose-400 flex items-center gap-2"
+                                >
+                                  <Ban className="w-3.5 h-3.5" /> Void entry…
+                                </button>
+                                <button
+                                  onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'test' }); }}
+                                  className="w-full text-left px-3 py-2 hover:bg-slate-700 text-violet-400 flex items-center gap-2"
+                                >
+                                  <FlaskConical className="w-3.5 h-3.5" /> Mark as test data…
+                                </button>
+                              </>
+                            )}
+                            {isVoided && (
+                              <button
+                                onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'reinstate' }); }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-700 text-emerald-400 flex items-center gap-2"
+                              >
+                                <Undo2 className="w-3.5 h-3.5" /> Reinstate entry…
+                              </button>
+                            )}
+                            {isTest && (
+                              <button
+                                onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'unmark' }); }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-700 text-emerald-400 flex items-center gap-2"
+                              >
+                                <Undo2 className="w-3.5 h-3.5" /> Return to active…
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
       {showAddModal && <AddEntryModal firmId={firmId} onClose={() => setShowAddModal(false)} />}
+      {lifecycleModal && (
+        <LifecycleActionModal
+          entry={lifecycleModal.entry}
+          action={lifecycleModal.action}
+          onClose={() => setLifecycleModal(null)}
+          onDone={(msg) => addToast(msg, { type: 'success' })}
+        />
+      )}
+      {auditScope !== undefined && (
+        <AuditTrailModal firmId={firmId} scope={auditScope ?? undefined} onClose={() => setAuditScope(undefined)} />
+      )}
     </div>
   );
 };

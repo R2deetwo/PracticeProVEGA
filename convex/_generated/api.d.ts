@@ -28,6 +28,7 @@ import type * as dunning from "../dunning.js";
 import type * as embeddings from "../embeddings.js";
 import type * as estateCommunity from "../estateCommunity.js";
 import type * as feedback from "../feedback.js";
+import type * as financialIntegrity from "../financialIntegrity.js";
 import type * as founderMetrics from "../founderMetrics.js";
 import type * as founderNotifications from "../founderNotifications.js";
 import type * as http from "../http.js";
@@ -95,6 +96,7 @@ declare const fullApi: ApiFromModules<{
   embeddings: typeof embeddings;
   estateCommunity: typeof estateCommunity;
   feedback: typeof feedback;
+  financialIntegrity: typeof financialIntegrity;
   founderMetrics: typeof founderMetrics;
   founderNotifications: typeof founderNotifications;
   http: typeof http;

@@ -565,8 +565,11 @@ export const BroadcastBanner: React.FC = () => {
         const ledgerEntries = (coreState as any)?.ledgerEntries || [];
         const allProperties = (coreState as any)?.properties || [];
         const allUnits = allProperties.flatMap((p: any) => p.units || []);
+        // FINANCIAL LIFECYCLE: voided/test records are not money — an alert
+        // built on test noise is a false alarm eroding trust.
         const overdueEntries = ledgerEntries.filter((e: any) =>
-            e.status === 'pending' || e.status === 'defaulted'
+            (e.status === 'pending' || e.status === 'defaulted') &&
+            e.recordStatus !== 'voided' && e.recordStatus !== 'test'
         );
         const overdueCount = overdueEntries.length;
 

@@ -462,11 +462,19 @@ const PropertyDetailViewContent: React.FC = () => {
 
     const allPropertyLedgerEntries = useMemo(() => {
         return (coreState.ledgerEntries || [])
-            .filter(e => e.propertyId === property?.id || e.unitId === property?.id);
+            .filter(e => (e.propertyId === property?.id || e.unitId === property?.id));
     }, [coreState.ledgerEntries, property?.id]);
 
+    // FINANCIAL LIFECYCLE (accounting-integrity round): the property's
+    // money figures (total collected, management fee, recent activity)
+    // exclude voided/test records — they are annotations, not money. The
+    // raw list above stays unfiltered so nothing else silently changes.
+    const activePropertyLedgerEntries = useMemo(() => {
+        return allPropertyLedgerEntries.filter(e => e.recordStatus !== 'voided' && e.recordStatus !== 'test');
+    }, [allPropertyLedgerEntries]);
+
     const propertyLedgerEntries = useMemo(() => {
-        return [...allPropertyLedgerEntries]
+        return [...activePropertyLedgerEntries]
             .sort((a, b) => b.timestamp - a.timestamp)
             .slice(0, 3);
     }, [allPropertyLedgerEntries]);
@@ -2383,14 +2391,14 @@ const PropertyDetailViewContent: React.FC = () => {
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                             <StatCard
                                 title={isSale ? "Target Sale Value" : "Collected YTD"}
-                                value={<><NairaSymbol />{formatNaira(isSale ? (property.saleDetails?.targetPrice || property.value || 0) : (allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0))}</>}
+                                value={<><NairaSymbol />{formatNaira(isSale ? (property.saleDetails?.targetPrice || property.value || 0) : (activePropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0))}</>}
                                 icon={<Receipt />}
                                 colorClass="bg-green-600"
                             />
                             {property.ownershipType !== 'owned' && !isSale && (
                                 <StatCard
                                     title="Management Fees Earned"
-                                    value={<><NairaSymbol />{formatNaira((allPropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * (property.managementFeePercentage || 0) / 100)}</>}
+                                    value={<><NairaSymbol />{formatNaira((activePropertyLedgerEntries.filter(r => r && r.status === 'cleared').reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * (property.managementFeePercentage || 0) / 100)}</>}
                                     icon={<Receipt />}
                                     colorClass="bg-blue-600"
                                 />

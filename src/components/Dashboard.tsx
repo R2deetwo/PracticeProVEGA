@@ -177,10 +177,14 @@ const Dashboard: React.FC = () => {
     // Atrium (property) stats
     const safeProperties = properties || [];
     const propertyCount = safeProperties.length;
-    /** Pending/defaulted rent from ledger — not collected revenue */
+    /** Pending/defaulted rent from ledger — not collected revenue.
+     *  FINANCIAL LIFECYCLE (accounting-integrity round): voided and
+     *  test-marked records are excluded — an outstanding-rent figure that
+     *  includes test noise is exactly the "records I don't remember"
+     *  confusion this round exists to end. */
     const outstandingRentLedger = safeProperties.reduce((total, p) => {
         const rentDue = (coreState.ledgerEntries || [])
-            .filter(rp => (rp.propertyId === p.id || rp.unitId === p.id) && (rp.status === 'pending' || rp.status === 'defaulted'))
+            .filter(rp => (rp.propertyId === p.id || rp.unitId === p.id) && (rp.status === 'pending' || rp.status === 'defaulted') && rp.recordStatus !== 'voided' && rp.recordStatus !== 'test')
             .reduce((sum, rp) => sum + (rp.amount || 0), 0);
         return total + rentDue;
     }, 0);

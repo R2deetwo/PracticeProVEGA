@@ -4092,7 +4092,16 @@ export const getTenantLedger = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(2000);
 
-    return allLedger.filter(e => e.tenantId && possibleTenantIds.has(e.tenantId));
+    // FINANCIAL LIFECYCLE (accounting-integrity round): voided and
+    // test-marked entries never count toward what a resident owes — the
+    // tenant's outstanding balance must not include the firm's reversal
+    // annotations or its test noise.
+    return allLedger.filter(e =>
+      e.tenantId &&
+      possibleTenantIds.has(e.tenantId) &&
+      e.recordStatus !== "voided" &&
+      e.recordStatus !== "test"
+    );
   },
 });
 

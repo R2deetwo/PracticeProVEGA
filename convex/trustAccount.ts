@@ -291,16 +291,44 @@ export const deleteTrustTransaction = mutation({
     sessionToken: v.optional(v.string()),
     firmId: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    // ACCOUNTING-INTEGRITY ROUND (2026-09-14): a reason is now REQUIRED and
+    // the full before-state is snapshotted into financial_audit_log before
+    // anything is removed. Trust deletions rewrite every later running
+    // balance — the audit snapshot is the only surviving proof of what the
+    // books said before. (A full contra-entry void flow for trust is the
+    // follow-up; until then: never delete without a recorded why.)
+    reason: v.string(),
   },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
     const firmId = auth.firmId;
+
+    const reason = String(args.reason || "").trim();
+    if (reason.length < 3) {
+      throw new Error("A reason is required to delete a trust transaction — this is the audit trail.");
+    }
 
     // Verify the transaction belongs to this firm before deleting
     const tx = await ctx.db.get(args.transactionId);
     if (!tx || tx.firmId !== firmId) {
       throw new Error("Transaction not found or does not belong to your firm.");
     }
+
+    // Forensic snapshot FIRST — the row's full before-state survives in the
+    // append-only financial audit log even after the delete below.
+    const beforeSnapshot = { ...tx, _id: String(tx._id) };
+    await ctx.db.insert("financial_audit_log", {
+      firmId,
+      tableName: "trust_transactions",
+      recordId: String(args.transactionId),
+      action: "delete",
+      actorEmail: args.userEmail ?? undefined,
+      actorUserId: String((auth as any).user?._id ?? ""),
+      reason,
+      beforeState: beforeSnapshot,
+      metadata: { via: "trustAccount.deleteTrustTransaction", note: "Running balances were recomputed after this deletion" },
+      createdAt: Date.now(),
+    });
 
     // Delete the transaction
     await ctx.db.delete(args.transactionId);

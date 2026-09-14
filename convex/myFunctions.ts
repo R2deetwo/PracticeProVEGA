@@ -38,6 +38,28 @@ import { computeDunningAction, DunningAction } from "./dunning";
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
 import { withCronReporting } from "./observability";
 
+// ─── FINANCIAL TABLES (accounting-integrity round, 2026-09-14) ───────────────
+// Tables whose rows ARE money (movement, obligation, or payment state).
+// Design contract:
+//   - NEVER hard-deleted via the generic deleteItem/forceDeleteItem (the
+//     ledger only grows — corrections are voids, not erasures).
+//   - Every generic-path EDIT is snapshotted into financial_audit_log.
+//   - The lifecycle fields are writable ONLY by convex/financialIntegrity.ts.
+// Draft invoices are the one delete exception: an unissued draft has never
+// entered the books, so discarding it is not an accounting event.
+const FINANCIAL_TABLES = new Set([
+  "ledger_entries",
+  "invoices",
+  "trust_transactions",
+  "wallet_transactions",
+  "payment_proofs",
+  "subscriptionRequests",
+  "subscriptionAddons",
+  "refundRequests",
+  "paystackEvents",
+  "financial_audit_log",
+]);
+
 // --- PRESENCE ---
 
 export const sendHeartbeat = mutation({
@@ -735,6 +757,13 @@ export const getFirmMetadata = query({
           dueDate: i.dueDate,
           client: i.client,
           matter: i.matter,
+          // Financial lifecycle (accounting-integrity round) — lets the UI
+          // badge voided/test invoices and exclude them from KPI totals
+          // without a second query.
+          recordStatus: i.recordStatus,
+          voidedAt: i.voidedAt,
+          voidedByEmail: i.voidedByEmail,
+          voidReason: i.voidReason,
         }))),
 
       // Ledger Entries - essential fields
@@ -751,6 +780,14 @@ export const getFirmMetadata = query({
           type: e.type,
           status: e.status,
           timestamp: e.timestamp,
+          // Financial lifecycle (accounting-integrity round) — voided/test
+          // rows are still delivered (forensic transparency: the Ledger UI
+          // can show them dimmed with their reason) but every money total
+          // on the client filters them out (see LedgerManager cashFlow).
+          recordStatus: e.recordStatus,
+          voidedAt: e.voidedAt,
+          voidedByEmail: e.voidedByEmail,
+          voidReason: e.voidReason,
         }))),
 
       // Service Charges - essential fields
@@ -4334,6 +4371,26 @@ export const updateItem = mutation({
   handler: async (ctx, args) => {
     const { table, id, data } = args;
 
+    // ─── FINANCIAL TABLE FENCE (accounting-integrity round, 2026-09-14) ──
+    // Booked money rows may be EDITED through this generic path (invoice
+    // status transitions like Sent→Paid are legitimate app flows) but NEVER
+    // silently: every patch is snapshotted into the append-only
+    // financial_audit_log. The lifecycle fields (recordStatus / voided* /
+    // auditId / priorStatus) are STRIPPED — only the dedicated
+    // financialIntegrity mutations may change them, so no un-voiding
+    // without a reason + audit trail can ever sneak through here.
+    const FINANCIAL_LIFECYCLE_FIELDS = new Set([
+      'recordStatus', 'voidedAt', 'voidedByEmail', 'voidReason', 'auditId', 'priorStatus',
+    ]);
+    const isFinancialTable = FINANCIAL_TABLES.has(table);
+    if (isFinancialTable) {
+      for (const key of Object.keys(data || {})) {
+        if (FINANCIAL_LIFECYCLE_FIELDS.has(key)) {
+          delete data[key];
+        }
+      }
+    }
+
     // ─── SECURITY GATE (CRO Audit Track A — A2) ───────────────────────────
     // For `firms` table writes, require Admin role and reject any client-
     // supplied attempt to change billing/tier fields. Those mutations must
@@ -4412,6 +4469,46 @@ export const updateItem = mutation({
     }
 
     patchData.updatedAt = new Date().toISOString();
+
+    // FINANCIAL TABLE FENCE, part 2: snapshot before + after into the
+    // append-only audit log. The before-state is the forensic evidence;
+    // the after-state makes the diff readable without a second query.
+    if (isFinancialTable) {
+      try {
+        let before: any = null;
+        try { before = await ctx.db.get(docId); } catch { before = null; }
+        const beforeSnapshot = before ? { ...before, _id: String(before._id) } : null;
+        await ctx.db.patch(docId, patchData);
+        let after: any = null;
+        try { after = await ctx.db.get(docId); } catch { after = null; }
+        const afterSnapshot = after ? { ...after, _id: String(after._id) } : null;
+        const authUser = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+        await ctx.db.insert("financial_audit_log", {
+          firmId,
+          tableName: table,
+          recordId: id,
+          action: "edit",
+          actorEmail: args.userEmail ?? authUser.user?.email ?? undefined,
+          actorUserId: String(authUser.user?._id ?? "") || undefined,
+          reason: "Field edit via generic update path (audited)",
+          beforeState: beforeSnapshot,
+          afterState: afterSnapshot,
+          metadata: { via: "updateItem", changedFields: Object.keys(patchData) },
+          createdAt: Date.now(),
+        });
+        return;
+      } catch (e: any) {
+        // The audit write must never break the edit itself… but a FAILED
+        // patch must not be silently treated as success either. If the
+        // patch failed, rethrow; if only the audit insert failed, the
+        // patch already happened — log loudly and return.
+        if (String(e?.message || "").includes("financial_audit_log")) {
+          console.error("[updateItem] financial audit-log write FAILED after patch:", e?.message);
+          return;
+        }
+        throw e;
+      }
+    }
 
     await ctx.db.patch(docId, patchData);
   },
@@ -5039,6 +5136,39 @@ export const deleteItem = mutation({
     const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { table, id } = args;
 
+    // ─── FINANCIAL TABLE FENCE (accounting-integrity round, 2026-09-14) ──
+    // Booked money rows are NEVER hard-deleted — deletion would falsify
+    // the ledger and destroy forensic evidence. Corrections go through
+    // the audited lifecycle mutations (void / mark-test) in
+    // convex/financialIntegrity.ts, which keep the row and exclude it
+    // from aggregates instead. Draft invoices are the sole exception: an
+    // unissued draft never entered the books.
+    if (FINANCIAL_TABLES.has(table)) {
+      const isDraftInvoice = table === "invoices";
+      if (isDraftInvoice) {
+        let draft: any = null;
+        try { draft = await ctx.db.get(id as any); } catch { draft = null; }
+        if (!draft) {
+          try {
+            draft = await ctx.db.query("invoices").withIndex("by_custom_id", (q: any) => q.eq("id", id)).first();
+          } catch { draft = null; }
+        }
+        if (draft && draft.status !== "Draft") {
+          throw new Error(
+            "Booked invoices cannot be deleted — that would falsify the financial ledger. " +
+            "Void it instead (Billing → invoice menu → Void): the record stays for the audit " +
+            "trail and drops out of every total."
+          );
+        }
+      } else {
+        throw new Error(
+          `Records in '${table}' are part of the financial ledger and cannot be deleted — ` +
+          `that would falsify the books and destroy the audit trail. Void the record instead ` +
+          `(with a reason): it stays visible for forensics but is excluded from every total.`
+        );
+      }
+    }
+
     // ─── USERS ARE SPECIAL (Phase 3, data integrity) ───────────────────────
     // Never a raw hard-delete: route to the transactional removal core that
     // unassigns tasks, cleans presence + notifications, preserves the user
@@ -5480,6 +5610,20 @@ export const forceDeleteItem = mutation({
       throw new Error("Unauthenticated: userEmail required. Anonymous deletes are no longer permitted.");
     }
 
+    // ─── FINANCIAL TABLE FENCE (accounting-integrity round, 2026-09-14) ──
+    // forceDeleteItem takes a bare id and hunts it across tables, so the
+    // fence checks the LOADED row's shape: financial signatures (txHash /
+    // invoiceNumber / balanceAfter / previousBalance) mean the row is
+    // money and must not be hard-deleted. Draft invoices excepted.
+    const looksFinancial = (row: any) =>
+      !!row && (
+        typeof row.txHash === "string" ||
+        typeof row.invoiceNumber === "string" ||
+        typeof row.balanceAfter === "number" ||
+        typeof row.previousBalance === "number" ||
+        typeof row.eventId === "string"
+      );
+
     // Strategy A: Direct delete by internal ID with firm check.
     try {
       const existing = await ctx.db.get(id as any) as any;
@@ -5487,11 +5631,18 @@ export const forceDeleteItem = mutation({
         if (!existing.firmId || existing.firmId !== firmId) {
           throw new Error("Unauthorized. This record belongs to another organization.");
         }
+        if (looksFinancial(existing) && existing.status !== "Draft") {
+          throw new Error(
+            "This is a booked financial record — it cannot be force-deleted (that would falsify the ledger). " +
+            "Void it instead with a reason: the record stays for the audit trail and drops out of every total."
+          );
+        }
         await ctx.db.delete(id as any);
         return { success: true, method: "internal_id" };
       }
     } catch (e: any) {
       if (e.message?.includes("Unauthorized")) throw e;
+      if (e.message?.includes("financial record")) throw e;
     }
 
     // Strategy B: UUID search across primary tables.
@@ -5514,11 +5665,20 @@ export const forceDeleteItem = mutation({
           if (!item.firmId || item.firmId !== firmId) {
             throw new Error("Unauthorized. This record belongs to another organization.");
           }
+          // FINANCIAL TABLE FENCE: the scan list includes invoices — skip
+          // anything that isn't an unissued Draft (see fence note above).
+          if (table === "invoices" && item.status !== "Draft") {
+            throw new Error(
+              "Booked invoices cannot be force-deleted — void the invoice instead so the " +
+              "audit trail keeps the record."
+            );
+          }
           await ctx.db.delete(item._id);
           return { success: true, method: "UUID_INDEXED", table };
         }
       } catch (e: any) {
         if (e.message?.includes("Unauthorized")) throw e;
+        if (e.message?.includes("force-deleted")) throw e;
         continue;
       }
     }

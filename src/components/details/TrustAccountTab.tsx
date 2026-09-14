@@ -42,6 +42,66 @@ const ArrowRightIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
+// ─── Trust Delete Reason Modal (accounting-integrity round) ────────────────
+// Trust deletions rewrite every later running balance — international
+// bookkeeping norms (and the backend, as of the accounting-integrity round)
+// require a recorded WHY plus a before-state snapshot in the financial
+// audit log. This modal captures the reason; the bare confirm-tap delete
+// is gone.
+const TrustDeleteReasonModal: React.FC<{
+    tx: any;
+    onClose: () => void;
+    onConfirm: (reason: string) => Promise<void>;
+}> = ({ tx, onClose, onConfirm }) => {
+    const [reason, setReason] = useState('');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={busy ? undefined : onClose}>
+            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Delete trust transaction?</h3>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
+                    Deleting a trust transaction recalculates every later running balance. The full before-state is
+                    preserved in the financial audit log, and the reason below becomes part of that permanent record.
+                </p>
+                <div className="bg-slate-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-zinc-300 mb-4 flex items-center justify-between">
+                    <span className="capitalize">{tx.type} · {tx.clientName || 'General'}</span>
+                    <span className="font-bold">{tx.type === 'deposit' ? '+' : '−'}<NairaSymbol className="text-3xs" />{formatNaira(tx.amount)}</span>
+                </div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-300 mb-1.5">
+                    Reason <span className="text-rose-500">(required — part of the audit trail)</span>
+                </label>
+                <textarea
+                    autoFocus
+                    rows={3}
+                    value={reason}
+                    onChange={(e) => { setReason(e.target.value); if (error) setError(''); }}
+                    placeholder="e.g. Deposit recorded against the wrong matter — re-entered correctly"
+                    className="w-full border border-slate-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                />
+                {error && <p className="text-xs text-rose-500 mt-1.5">{error}</p>}
+                <div className="flex gap-3 mt-5">
+                    <button onClick={onClose} disabled={busy} className="flex-1 py-2.5 bg-slate-200 dark:bg-zinc-700 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-300 dark:hover:bg-zinc-600 disabled:opacity-50">Cancel</button>
+                    <button
+                        disabled={busy}
+                        onClick={async () => {
+                            const clean = reason.trim();
+                            if (clean.length < 3) { setError('A reason is required — this is the audit trail.'); return; }
+                            setBusy(true);
+                            await onConfirm(clean);
+                            setBusy(false);
+                        }}
+                        className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+                    >
+                        {busy ? 'Deleting…' : 'Delete Transaction'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const TrustAccountTab: React.FC = () => {
     const { currentUser, bearerToken } = useAuth();
     const { coreState } = useCoreState();
@@ -52,6 +112,11 @@ const TrustAccountTab: React.FC = () => {
 
     const [showDepositForm, setShowDepositForm] = useState(false);
     const [showWithdrawalForm, setShowWithdrawalForm] = useState(false);
+    // ACCOUNTING-INTEGRITY ROUND: trust deletions rewrite every later
+    // running balance, so the backend now requires a REASON and snapshots
+    // the full before-state into the financial audit log. This modal
+    // captures that reason (never a bare confirm-tap).
+    const [deleteReasonFor, setDeleteReasonFor] = useState<any | null>(null);
 
     // ─── Queries ────────────────────────────────────────────────────────
     // R16 strict identity: every guarded Convex call needs the bearer
@@ -288,21 +353,7 @@ const TrustAccountTab: React.FC = () => {
                                     )}
                                 </div>
                                 <button
-                                    onClick={async () => {
-                                        const ok = await confirm({
-                                            title: 'Delete Transaction',
-                                            message: 'Delete this transaction? Running balances will be recalculated.',
-                                            confirmLabel: 'Delete',
-                                            danger: true,
-                                        });
-                                        if (!ok) return;
-                                        try {
-                                            await deleteTransaction({ transactionId: tx._id, firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                                            addToast('Transaction deleted.', { type: 'success' });
-                                        } catch (err: any) {
-                                            addToast(err.message || 'Failed to delete.', { type: 'error' });
-                                        }
-                                    }}
+                                    onClick={() => setDeleteReasonFor(tx)}
                                     className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
                                 >
                                     <TrashIcon className="w-3.5 h-3.5" />
@@ -325,6 +376,25 @@ const TrustAccountTab: React.FC = () => {
             </div>
         </div>
         {ConfirmDialog}
+
+        {/* ACCOUNTING-INTEGRITY ROUND: reason capture for trust deletions.
+            The backend refuses to delete without it (min 3 chars) and
+            snapshots the before-state into the financial audit log. */}
+        {deleteReasonFor && (
+            <TrustDeleteReasonModal
+                tx={deleteReasonFor}
+                onClose={() => setDeleteReasonFor(null)}
+                onConfirm={async (reason) => {
+                    try {
+                        await deleteTransaction({ transactionId: deleteReasonFor._id, reason, firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+                        addToast('Transaction deleted — recorded in the financial audit log.', { type: 'success' });
+                        setDeleteReasonFor(null);
+                    } catch (err: any) {
+                        addToast(err.message || 'Failed to delete.', { type: 'error', duration: 7000 });
+                    }
+                }}
+            />
+        )}
         </>
     );
 };

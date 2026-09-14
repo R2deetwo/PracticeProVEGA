@@ -485,7 +485,19 @@ export default defineSchema({
     provider: v.optional(v.string()),              // 'manual' | 'paystack' (defaults to 'manual')
     providerReference: v.optional(v.string()),     // Paystack transaction reference
     paymentMethod: v.optional(v.string()),         // 'card' | 'bank' | 'ussd' | 'bank_transfer' | 'manual'
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]),
+    // ─── FINANCIAL RECORD LIFECYCLE (2026-09-14) ────────────────────
+    // Same lifecycle cluster as ledger_entries: void with reason + audit
+    // trail, test-data quarantine, aggregate exclusion. The UI already
+    // reserves a 'Void' status; these fields carry the WHO/WHEN/WHY the
+    // old status-flip reversal path (payments.manualRevertPayment) never
+    // recorded.
+    recordStatus: v.optional(v.string()),   // 'voided' | 'test' (absent = active)
+    voidedAt: v.optional(v.number()),
+    voidedByEmail: v.optional(v.string()),
+    voidReason: v.optional(v.string()),
+    auditId: v.optional(v.string()),
+    priorStatus: v.optional(v.string()),    // status before void — enables a faithful reinstate
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]).index("by_record_status", ["recordStatus"]),
 
   events: defineTable({
     firmId: nullableString,
@@ -1204,13 +1216,53 @@ export default defineSchema({
     // markChargeAsPaid doesn't double-count revenue. Deduped via
     // by_idempotency index before any write.
     idempotencyKey: v.optional(v.string()),
+    // ─── FINANCIAL RECORD LIFECYCLE (2026-09-14, accounting-integrity
+    //     round) ─────────────────────────────────────────────────────
+    // International bookkeeping norm: booked financial records are never
+    // deleted or silently edited — corrections happen via VOID (with a
+    // reason + audit trail) and test noise is quarantined as TEST, both
+    // excluded from every aggregate. Absent/"active" = business as usual
+    // (existing rows need no migration).
+    recordStatus: v.optional(v.string()),   // 'voided' | 'test' (absent = active)
+    voidedAt: v.optional(v.number()),
+    voidedByEmail: v.optional(v.string()),
+    voidReason: v.optional(v.string()),
+    auditId: v.optional(v.string()),        // financial_audit_log row id for the LAST lifecycle action
   })
     .index("by_firm", ["firmId"])
     .index("by_unit", ["unitId"])
     .index("by_status", ["status"])
     .index("by_timestamp", ["timestamp"])
     .index("by_firm_unit", ["firmId", "unitId"])
-    .index("by_idempotency", ["idempotencyKey"]),
+    .index("by_idempotency", ["idempotencyKey"])
+    .index("by_record_status", ["recordStatus"]),
+
+  // ─── Financial Audit Log (2026-09-14, accounting-integrity round) ─────────
+  // APPEND-ONLY by convention and ENFORCED: the generic updateItem/deleteItem
+  // mutations refuse to touch this table (see myFunctions.ts FINANCIAL_TABLES
+  // fence), and no mutation in the codebase ever patches or deletes a row.
+  //
+  // WHY: every financial lifecycle action (void, reinstate, mark-test,
+  // audited edit, audited delete) must leave an immutable who/when/why with
+  // the BEFORE-state snapshot — the forensic trail international
+  // bookkeeping standards expect. The pre-existing audit_logs table was
+  // consent-scoped; money gets its own, hard-fenced ledger.
+  financial_audit_log: defineTable({
+    firmId: v.string(),
+    tableName: v.string(),          // 'ledger_entries' | 'invoices' | 'trust_transactions' | …
+    recordId: v.string(),           // target row id (Convex id or custom id)
+    action: v.string(),             // 'void' | 'reinstate' | 'mark_test' | 'unmark_test' | 'edit' | 'delete'
+    actorEmail: v.optional(v.string()),
+    actorUserId: v.optional(v.string()),
+    reason: v.string(),             // REQUIRED — no unexplained financial mutations
+    beforeState: v.optional(v.any()), // full JSON snapshot of the row pre-change
+    afterState: v.optional(v.any()),  // snapshot post-change (void/edit)
+    metadata: v.optional(v.any()),    // e.g. { source: 'ledger_manager', bulkCount }
+    createdAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_table_record", ["tableName", "recordId"])
+    .index("by_firm_created", ["firmId", "createdAt"]),
 
   service_charges: defineTable({
     firmId: v.string(),
