@@ -86,7 +86,7 @@ export const UserAssignment: React.FC<UserAssignmentProps> = ({ allUsers, assign
                                         type="checkbox"
                                         checked={assignedUserIds.has(user.id)}
                                         onChange={() => onToggle(user.id)}
-                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
+                                        className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                                     />
                                     <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.name)}`}>{getInitials(user.name)}</div>
                                     <div className="flex flex-col">

@@ -65,7 +65,7 @@ const config: Config = {
                                 '5': 'hsl(var(--chart-5))'
                         },
                         // ─── THEME-AWARE NEUTRAL COLORS (Aug 2026 fix) ────────
-                        // Maps Tailwind's slate/zinc/gray/white/black to the CSS
+                        // Maps Tailwind's slate/zinc/dim/white/black to the CSS
                         // variables defined in index.css. Without this mapping,
                         // bg-white, bg-slate-50, dark:bg-zinc-800, text-slate-900
                         // etc. generate hardcoded hex values from Tailwind's default
@@ -100,18 +100,26 @@ const config: Config = {
                                 900: 'rgb(var(--color-zinc-900) / <alpha-value>)',
                                 950: 'rgb(var(--color-zinc-950) / <alpha-value>)',
                         },
-                        gray: {
-                                50:  'rgb(var(--color-gray-50) / <alpha-value>)',
-                                100: 'rgb(var(--color-gray-100) / <alpha-value>)',
-                                200: 'rgb(var(--color-gray-200) / <alpha-value>)',
-                                300: 'rgb(var(--color-gray-300) / <alpha-value>)',
-                                400: 'rgb(var(--color-gray-400) / <alpha-value>)',
-                                500: 'rgb(var(--color-gray-500) / <alpha-value>)',
-                                600: 'rgb(var(--color-gray-600) / <alpha-value>)',
-                                700: 'rgb(var(--color-gray-700) / <alpha-value>)',
-                                800: 'rgb(var(--color-gray-800) / <alpha-value>)',
-                                900: 'rgb(var(--color-gray-900) / <alpha-value>)',
-                                950: 'rgb(var(--color-gray-950) / <alpha-value>)',
+                        // ─── DIM SCALE (P4 batch 2) ────────────────────────────
+                        // The theme-INVERTED neutral ramp (formerly the `gray` key).
+                        // Every dark theme remaps these vars so dim-N AUTO-FLIPS:
+                        // low shades become dark surfaces, high shades light text.
+                        // Use for unpaired light classes and dark: variants that
+                        // rely on the flip; converges into the batch-7 dark role
+                        // layer. The `gray` name is deleted — re-adding it is a
+                        // CI failure (scripts/check-design-tokens.mjs).
+                        dim: {
+                                50:  'rgb(var(--color-dim-50) / <alpha-value>)',
+                                100: 'rgb(var(--color-dim-100) / <alpha-value>)',
+                                200: 'rgb(var(--color-dim-200) / <alpha-value>)',
+                                300: 'rgb(var(--color-dim-300) / <alpha-value>)',
+                                400: 'rgb(var(--color-dim-400) / <alpha-value>)',
+                                500: 'rgb(var(--color-dim-500) / <alpha-value>)',
+                                600: 'rgb(var(--color-dim-600) / <alpha-value>)',
+                                700: 'rgb(var(--color-dim-700) / <alpha-value>)',
+                                800: 'rgb(var(--color-dim-800) / <alpha-value>)',
+                                900: 'rgb(var(--color-dim-900) / <alpha-value>)',
+                                950: 'rgb(var(--color-dim-950) / <alpha-value>)',
                         },
                         white: 'rgb(var(--color-white) / <alpha-value>)',
                         black: 'rgb(var(--color-black) / <alpha-value>)',

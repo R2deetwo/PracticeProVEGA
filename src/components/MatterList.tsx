@@ -159,7 +159,7 @@ const MatterCardItem: React.FC<{
                         type="checkbox"
                         checked={!!isSelected}
                         onChange={() => {}}
-                        className="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded border-dim-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                     />
                 </div>
                 <div className="flex-1 min-w-0">

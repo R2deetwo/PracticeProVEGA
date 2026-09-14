@@ -57,14 +57,14 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
                             type="checkbox"
                             checked={assigned.has(user.id)}
                             onChange={() => handleToggle(user.id)}
-                            className="h-5 w-5 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
+                            className="h-5 w-5 rounded border-slate-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                         />
                         <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.name)}`}>
                            {getInitials(user.name)}
                         </div>
                         <div>
-                            <span className="text-sm font-semibold text-gray-900 dark:text-gray-200">{user.name}</span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                            <span className="text-sm font-semibold text-slate-900 dark:text-dim-200">{user.name}</span>
+                            <span className="text-xs text-slate-500 dark:text-dim-400 ml-2">
                                 {user.role === UserRole.Lawyer ? (isProperty ? 'Manager' : 'Lawyer') : (isProperty ? 'Staff' : 'Paralegal')}
                             </span>
                         </div>
@@ -72,7 +72,7 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
                 ))}
             </div>
             <div className="mt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
+                <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-slate-200 dark:bg-dim-600 rounded-lg font-semibold">Cancel</button>
                 <button type="submit" className="px-6 py-2 text-sm bg-primary-600 text-white rounded-lg font-semibold">Save</button>
             </div>
         </form>

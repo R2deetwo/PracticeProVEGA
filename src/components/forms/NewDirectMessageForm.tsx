@@ -135,7 +135,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
         }
     };
 
-    const commonInputClass = "text-gray-900 dark:text-gray-300 w-full bg-gray-50 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500";
+    const commonInputClass = "text-slate-900 dark:text-dim-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md shadow-sm p-2 focus:ring-primary-500 focus:border-primary-500";
 
     return (
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -169,7 +169,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
             {mode === 'direct' && (
                 <div className="space-y-3 animate-fade-in">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">To:</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">To:</label>
                         <select
                             value={recipientId}
                             onChange={e => setRecipientId(e.target.value)}
@@ -197,7 +197,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
 
                     {!existingChatId && (
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Message</label>
+                            <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Message</label>
                             <textarea
                                 rows={3}
                                 value={message}
@@ -214,9 +214,9 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
             {mode === 'group' && (
                 <div className="space-y-3 animate-fade-in">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Group Name</label>
+                        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Group Name</label>
                         <div className="relative">
-                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">#</span>
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">#</span>
                             <input autoComplete="off" data-lpignore="true" 
                                 type="text"
                                 value={groupName}
@@ -230,15 +230,15 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Members</label>
-                        <div className="max-h-40 overflow-y-auto border border-gray-200 dark:border-zinc-700 rounded-md p-2 space-y-1 custom-scrollbar">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Select Members</label>
+                        <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-zinc-700 rounded-md p-2 space-y-1 custom-scrollbar">
                             {availableUsers.map(user => (
                                 <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700/50">
                                     <input autoComplete="off" data-lpignore="true" 
                                         type="checkbox"
                                         checked={selectedUsers.has(user.id)}
                                         onChange={() => handleToggleUser(user.id)}
-                                        className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
+                                        className="h-4 w-4 rounded border-slate-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                                     />
                                     <div className={`h-6 w-6 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-2xs ${getUserColor(user.id)}`}>
                                         {getInitials(user.name)}
@@ -250,12 +250,12 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">
                             Link to Matter (Optional)
                         </label>
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                <ShieldCheckIcon className="w-4 h-4 text-gray-400" />
+                                <ShieldCheckIcon className="w-4 h-4 text-slate-400" />
                             </div>
                             <select
                                 value={linkedMatterId}
@@ -268,7 +268,7 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                                 ))}
                             </select>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">Linking a matter helps organize conversations.</p>
+                        <p className="text-xs text-slate-500 mt-1">Linking a matter helps organize conversations.</p>
                     </div>
                 </div>
             )}

@@ -300,12 +300,12 @@ const SnoozeButton: React.FC<{ bannerId: string }> = ({ bannerId }) => {
             {isOpen && createPortal(
                 <div
                     id="banner-snooze-dropdown"
-                    className="fixed z-[9999] w-40 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg animate-fade-in"
+                    className="fixed z-[9999] w-40 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg animate-fade-in"
                     style={{ top: pos.top, left: pos.left }}
                 >
-                    <button onClick={() => handleSnooze(1)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">Snooze 1 Day</button>
-                    <button onClick={() => handleSnooze(7)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600">Snooze 1 Week</button>
-                    <button onClick={() => handleSnooze(30)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-b-md border-t border-gray-100 dark:border-gray-600">Dismiss Until Next Cycle</button>
+                    <button onClick={() => handleSnooze(1)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600 rounded-t-md">Snooze 1 Day</button>
+                    <button onClick={() => handleSnooze(7)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600">Snooze 1 Week</button>
+                    <button onClick={() => handleSnooze(30)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600 rounded-b-md border-t border-slate-100 dark:border-dim-600">Dismiss Until Next Cycle</button>
                 </div>,
                 document.body
             )}

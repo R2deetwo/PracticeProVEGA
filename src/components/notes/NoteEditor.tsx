@@ -610,7 +610,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
 
     return (
         <div className="flex-grow flex flex-col min-w-0 h-full">
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 space-y-2">
+            <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-dim-700 flex-shrink-0 space-y-2">
                 {showBackButton && (
                     <button onClick={onBack} className="flex md:hidden items-center text-sm font-semibold text-slate-600 dark:text-zinc-300 hover:text-primary-600 mb-2">
                         <BackIcon /> Back
@@ -642,10 +642,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             onChange={(e) => {
                                 if (editor) debouncedSave(editor.getHTML());
                             }}
-                            className="text-3xl font-bold bg-transparent focus:outline-none w-full text-gray-900 dark:text-white"
+                            className="text-3xl font-bold bg-transparent focus:outline-none w-full text-slate-900 dark:text-white"
                             placeholder="Untitled Page"
                         />
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        <div className="text-xs text-slate-500 dark:text-dim-400 mt-2">
                             Last updated: {timeAgo(page.updatedAt)}
                             <button onClick={() => onCopy(page.id)} className="ml-4 font-semibold text-primary-600 hover:underline">Copy</button>
                             <button onClick={() => onDelete(page.id)} className="ml-4 font-semibold text-red-500 hover:underline">Delete</button>
@@ -863,7 +863,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             )}
 
             {/* Footer — word count + markdown export */}
-            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-4 py-1.5 flex items-center justify-between text-2xs text-slate-400 dark:text-zinc-500">
+            <div className="flex-shrink-0 border-t border-slate-200 dark:border-dim-700 px-4 py-1.5 flex items-center justify-between text-2xs text-slate-400 dark:text-zinc-500">
                 <span>
                     {(() => {
                         const text = editor?.getText() || '';

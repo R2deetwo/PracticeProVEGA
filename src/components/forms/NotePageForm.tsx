@@ -48,12 +48,12 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
     return (
         <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Page Title</label>
+                <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Page Title</label>
                 <input autoComplete="off" data-lpignore="true" 
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full p-2 border border-gray-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white"
+                    className="w-full p-2 border border-slate-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-white"
                     placeholder="Enter page title..."
                     autoFocus
                     required
@@ -63,7 +63,7 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-zinc-400 hover:bg-gray-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
                 >
                     Cancel
                 </button>

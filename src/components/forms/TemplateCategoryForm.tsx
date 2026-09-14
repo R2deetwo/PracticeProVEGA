@@ -47,7 +47,7 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category Name</label>
+        <label htmlFor="categoryName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Category Name</label>
         <input autoComplete="off" data-lpignore="true"  type="text" id="categoryName" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Letters" className={commonInputClass} required />
       </div>
 
@@ -64,7 +64,7 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
             )}
         </div>
         <div className="space-x-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
             <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Category'}</button>
         </div>
       </div>

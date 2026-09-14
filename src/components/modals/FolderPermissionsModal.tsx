@@ -33,23 +33,23 @@ const FolderPermissionsModal: React.FC<FolderPermissionsModalProps> = ({ folder,
  return (
   <form onSubmit={handleSubmit} className="space-y-4">
     <div>
-      <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Grant Access to:</label>
-      <div className="space-y-2 p-3 border border-gray-200 dark:border-zinc-700 rounded-md">
+      <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Grant Access to:</label>
+      <div className="space-y-2 p-3 border border-slate-200 dark:border-zinc-700 rounded-md">
       {allRoles.map(role => (
         <label key={role} className="flex items-center space-x-3 cursor-pointer">
           <input autoComplete="off" data-lpignore="true" 
             type="checkbox"
             checked={selectedRoles.has(role)}
             onChange={() => handleToggle(role)}
-            className="h-4 w-4 rounded border-gray-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
+            className="h-4 w-4 rounded border-slate-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
           />
-          <span className="text-sm text-gray-900 dark:text-white">{role}</span>
+          <span className="text-sm text-slate-900 dark:text-white">{role}</span>
         </label>
       ))}
       </div>
     </div>
     
-    <p className="text-xs text-gray-500">
+    <p className="text-xs text-dim-500">
       If no roles are selected, this folder and its contents will be visible only to Admins. 
       Permissions apply to all sub-folders unless they have their own specific settings.
     </p>

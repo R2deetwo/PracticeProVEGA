@@ -137,7 +137,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
 
  return (
   <div className="space-y-4">
-   <p className="text-gray-600 dark:text-zinc-400">
+   <p className="text-slate-600 dark:text-zinc-400">
     Please sign the document "<strong>{document.title}</strong>".
    </p>
 
@@ -146,7 +146,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
     <button onClick={() => setActiveTab('draw')} className={`w-1/2 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'draw' ? 'bg-white dark:bg-zinc-900 shadow' : ''}`}>Draw Signature</button>
    </div>
 
-   <div className="relative border border-gray-300 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 min-h-[12rem]">
+   <div className="relative border border-slate-300 dark:border-zinc-700 rounded-lg bg-slate-50 dark:bg-zinc-900 min-h-[12rem]">
     {activeTab === 'type' ? (
      <div className="p-4 flex flex-col items-center justify-center h-48">
       <input autoComplete="off" data-lpignore="true" 
@@ -165,12 +165,12 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
     )}
    </div>
 
-   <p className="text-xs text-gray-500">
+   <p className="text-xs text-dim-500">
     By clicking 'Apply Signature', you confirm that you have read and agree to be legally bound by the terms of this document.
    </p>
 
    <div className="pt-4 flex justify-end space-x-2">
-    <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 transition-colors">
+    <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-dim-800 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 transition-colors">
      Cancel
     </button>
     <button

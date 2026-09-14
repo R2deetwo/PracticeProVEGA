@@ -300,7 +300,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
 
     <form onSubmit={handleSubmit} className="space-y-4">
      <div>
-      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+      <label htmlFor="email" className="block text-sm font-medium text-dim-700 mb-1">Email Address</label>
       <input
        type="email"
        id="email"
@@ -323,7 +323,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
         <p className="text-primary-700 mt-2">We've sent a 6-digit code to <strong>{email}</strong>.</p>
        </div>
        <div>
-        <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700 mb-1">Verification Code</label>
+        <label htmlFor="mfaCode" className="block text-sm font-medium text-dim-700 mb-1">Verification Code</label>
         <input
          type="text"
          id="mfaCode"
@@ -348,7 +348,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
      ) : isRecovering ? (
       <>
        <div>
-        <label htmlFor="recoveryCode" className="block text-sm font-medium text-gray-700 mb-1">Recovery Code</label>
+        <label htmlFor="recoveryCode" className="block text-sm font-medium text-dim-700 mb-1">Recovery Code</label>
         <input
          type="text"
          id="recoveryCode"
@@ -363,7 +363,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
 
        {/* #2 — Show/hide toggle on new password + #6 — Strength meter */}
        <div>
-        <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+        <label htmlFor="new_password" className="block text-sm font-medium text-dim-700 mb-1">New Password</label>
         <div className="relative">
          <input
           type={showNewPassword ? 'text' : 'password'}
@@ -378,7 +378,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
          <button
           type="button"
           onClick={() => setShowNewPassword(p => !p)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-dim-400 hover:text-dim-600 focus:outline-none"
           aria-label={showNewPassword ? "Hide password" : "Show password"}
           disabled={isLoading}
          >
@@ -425,7 +425,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
      ) : (
       <>
        <div>
-        <label htmlFor="password_login" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+        <label htmlFor="password_login" className="block text-sm font-medium text-dim-700 mb-1">Password</label>
         <div className="relative">
          <input
           type={showPassword ? 'text' : 'password'}
@@ -440,7 +440,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
          <button
           type="button"
           onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 focus:outline-none"
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-dim-400 hover:text-dim-600 focus:outline-none"
           aria-label={showPassword ? "Hide password" : "Show password"}
           disabled={isLoading}
          >
@@ -454,7 +454,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
         <label className="flex items-center gap-2 text-slate-600 cursor-pointer select-none">
          <input
           type="checkbox"
-          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          className="rounded border-dim-300 text-primary-600 focus:ring-primary-500"
           disabled={isLoading}
           checked={rememberMe}
           onChange={e => setRememberMe(e.target.checked)}
@@ -556,7 +556,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
 
     {/* #5 — Sign Up link */}
     {!forClient && !isLoading && !requiresMfa && !requiresInitialPassword && !isRecovering && (
-     <p className="text-center text-sm text-gray-600 ">
+     <p className="text-center text-sm text-dim-600 ">
       Don't have an account?{' '}
       <button onClick={onSwitchToSignup} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
        Sign up for free
@@ -565,7 +565,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     )}
 
     {(requiresMfa || requiresInitialPassword) && (
-     <p className="text-center text-sm text-gray-500 mt-6">
+     <p className="text-center text-sm text-dim-500 mt-6">
       Need help?{' '}
       <button type="button" onClick={() => { setRequiresMfa(false); setRequiresInitialPassword(false); setMCode(''); setCodeHint(null); }} className="font-bold text-primary-600 hover:underline hover:text-primary-700 transition-colors">
        Use a different account

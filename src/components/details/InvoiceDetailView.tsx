@@ -222,21 +222,21 @@ const InvoiceDetailViewContent: React.FC = () => {
                                     <p className="text-xs whitespace-pre-line" style={{ color: 'inherit', opacity: 0.9 }}>{firmDetails.address}</p>
                                 </div>
                             </div>
-                            <div className="py-6 border-b border-gray-200"></div>
+                            <div className="py-6 border-b border-dim-200"></div>
                         </header>
 
                         <div className="flex justify-between mb-12">
                             <div className="max-w-[50%]">
-                                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Billed To</p>
-                                <p className="font-bold text-gray-900 text-lg truncate">{client?.name}</p>
-                                {client?.address && <p className="text-sm text-gray-600 whitespace-pre-line mt-1">{client.address}</p>}
+                                <p className="text-xs font-bold text-dim-500 uppercase tracking-wider mb-2">Billed To</p>
+                                <p className="font-bold text-dim-900 text-lg truncate">{client?.name}</p>
+                                {client?.address && <p className="text-sm text-dim-600 whitespace-pre-line mt-1">{client.address}</p>}
                             </div>
                             <div className="text-right">
-                                <h1 className="text-4xl font-bold text-gray-900 mb-2">INVOICE</h1>
+                                <h1 className="text-4xl font-bold text-dim-900 mb-2">INVOICE</h1>
                                 <div className="text-sm">
-                                    <p><span className="font-semibold text-gray-600">Invoice #:</span> {invoice.invoiceNumber}</p>
-                                    <p><span className="font-semibold text-gray-600">Date:</span> {new Date(invoice.issueDate).toLocaleDateString('en-GB', dateOptions)}</p>
-                                    <p><span className="font-semibold text-gray-600">Due Date:</span> {new Date(invoice.dueDate).toLocaleDateString('en-GB', dateOptions)}</p>
+                                    <p><span className="font-semibold text-dim-600">Invoice #:</span> {invoice.invoiceNumber}</p>
+                                    <p><span className="font-semibold text-dim-600">Date:</span> {new Date(invoice.issueDate).toLocaleDateString('en-GB', dateOptions)}</p>
+                                    <p><span className="font-semibold text-dim-600">Due Date:</span> {new Date(invoice.dueDate).toLocaleDateString('en-GB', dateOptions)}</p>
                                 </div>
                             </div>
                         </div>
@@ -250,7 +250,7 @@ const InvoiceDetailViewContent: React.FC = () => {
                                     <th className="py-2 px-3 text-right text-sm font-bold uppercase w-1/6">Amount</th>
                                 </tr>
                             </thead>
-                            <tbody className="text-sm text-gray-700">
+                            <tbody className="text-sm text-dim-700">
                                 {(invoice.lineItems || []).map((item: any, idx: number) => (
                                     <tr key={item.id} className={idx % 2 === 0 ? 'bg-white dark:bg-zinc-900' : 'bg-slate-50 dark:bg-zinc-800/50'}>
                                         <td className="py-3 px-3 border-b border-slate-100 whitespace-pre-wrap break-words">{item.description}</td>
@@ -265,16 +265,16 @@ const InvoiceDetailViewContent: React.FC = () => {
                         <div className="flex justify-end">
                             <div className="w-1/2">
                                 <div className="flex justify-between py-2 text-sm">
-                                    <span className="font-medium text-gray-600">Subtotal</span>
+                                    <span className="font-medium text-dim-600">Subtotal</span>
                                     <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(subTotal)}</span>
                                 </div>
                                 {taxAmount > 0 && (
-                                    <div className="flex justify-between py-2 text-sm border-b border-gray-200">
-                                        <span className="font-medium text-gray-600">VAT (7.5%)</span>
+                                    <div className="flex justify-between py-2 text-sm border-b border-dim-200">
+                                        <span className="font-medium text-dim-600">VAT (7.5%)</span>
                                         <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(taxAmount)}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between py-3 text-xl font-bold text-gray-900 mt-2">
+                                <div className="flex justify-between py-3 text-xl font-bold text-dim-900 mt-2">
                                     <span>Total</span>
                                     <span className="whitespace-nowrap text-right" title={`₦${formatNaira(totalAmount)}`}><NairaSymbol />{formatNaira(totalAmount)}</span>
                                 </div>
@@ -282,24 +282,24 @@ const InvoiceDetailViewContent: React.FC = () => {
                         </div>
 
                         <div className="mt-auto pt-12">
-                            <h4 className="font-bold text-gray-800 text-sm uppercase tracking-wider mb-2">Payment Details</h4>
-                            <div className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-slate-200 text-sm text-gray-700">
+                            <h4 className="font-bold text-dim-800 text-sm uppercase tracking-wider mb-2">Payment Details</h4>
+                            <div className="bg-slate-50 dark:bg-zinc-800/50 p-4 rounded-lg border border-slate-200 text-sm text-dim-700">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <span className="block text-xs text-gray-500">Bank Name</span>
+                                        <span className="block text-xs text-dim-500">Bank Name</span>
                                         <span className="font-semibold">{invoice.paymentDetails?.bankName || 'N/A'}</span>
                                     </div>
                                     <div>
-                                        <span className="block text-xs text-gray-500">Account Number</span>
+                                        <span className="block text-xs text-dim-500">Account Number</span>
                                         <span className="font-semibold">{invoice.paymentDetails?.accountNumber || 'N/A'}</span>
                                     </div>
                                     <div className="col-span-2">
-                                        <span className="block text-xs text-gray-500">Account Name</span>
+                                        <span className="block text-xs text-dim-500">Account Name</span>
                                         <span className="font-semibold">{invoice.paymentDetails?.accountName || firmDetails.name}</span>
                                     </div>
                                 </div>
                             </div>
-                            <p className="text-center text-xs text-gray-400 mt-8">Thank you for your business.</p>
+                            <p className="text-center text-xs text-dim-400 mt-8">Thank you for your business.</p>
                         </div>
 
                     </div>

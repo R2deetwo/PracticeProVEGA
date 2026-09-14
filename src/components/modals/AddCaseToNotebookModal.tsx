@@ -74,7 +74,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
 
       {activeTab === 'existing' ? (
         <div className="animate-fade-in">
-          <label htmlFor="notebook-select" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
+          <label htmlFor="notebook-select" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
             Select Notebook
           </label>
           <select
@@ -96,7 +96,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
       ) : (
         <div className="space-y-4 animate-fade-in">
           <div>
-            <label htmlFor="new-notebook-name" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
+            <label htmlFor="new-notebook-name" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
               Notebook Name
             </label>
             <input autoComplete="off" data-lpignore="true" 
@@ -111,7 +111,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
             />
           </div>
           <div>
-            <label htmlFor="link-matter" className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">
+            <label htmlFor="link-matter" className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
               Link to Matter (Optional)
             </label>
             <select
@@ -130,7 +130,7 @@ const AddCaseToNotebookModal: React.FC<AddCaseToNotebookModalProps> = ({ caseDat
       )}
 
       <div className="pt-4 flex justify-end space-x-2 border-t border-slate-200 dark:border-zinc-700 mt-4">
-        <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 transition-colors">
+        <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-dim-800 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 transition-colors">
           Cancel
         </button>
         <button type="submit" disabled={activeTab === 'existing' && !selectedNotebookId} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold disabled:opacity-50 hover:bg-primary-700 transition-colors shadow-sm">

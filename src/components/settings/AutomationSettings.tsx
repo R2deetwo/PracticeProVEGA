@@ -107,10 +107,10 @@ const RECIPES: Recipe[] = [
 ];
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, headerColor?: string }> = ({ title, children, id, className, headerColor }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-slate-200 dark:border-dim-700 rounded-lg shadow-md ${className || ''}`}>
         {headerColor && <div className={`absolute top-0 left-0 right-0 h-1.5 ${headerColor}`}></div>}
         <div className="p-6 relative z-10">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
         </div>
     </div>

@@ -43,7 +43,7 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
               const isCurrent = index === visualStageIndex;
               const isLoading = updatingStage === stage;
 
-              let colorClass = 'bg-gray-200 dark:bg-gray-700';
+              let colorClass = 'bg-slate-200 dark:bg-dim-700';
               if (isCompleted) colorClass = 'bg-green-500';
               if (isCurrent) colorClass = 'bg-primary-500 shadow-md ring-2 ring-primary-500/20 dark:ring-primary-400/10'; // Slimmed active ring
               if (isLoading) colorClass = 'bg-primary-600 ring-2 ring-primary-500/20'; // Loading state styling
@@ -70,14 +70,14 @@ const MatterStageTracker: React.FC<MatterStageTrackerProps> = ({ currentStage, s
                     </div>
 
                     {/* Label */}
-                    <p title={stage} className={`text-3xs font-bold transition-colors duration-300 w-full text-center px-1 leading-tight line-clamp-1 h-3 ${isCurrent || isCompleted || isLoading ? 'text-primary-600 dark:text-primary-300 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover/stage:text-gray-600 dark:group-hover/stage:text-gray-300'}`}>
+                    <p title={stage} className={`text-3xs font-bold transition-colors duration-300 w-full text-center px-1 leading-tight line-clamp-1 h-3 ${isCurrent || isCompleted || isLoading ? 'text-primary-600 dark:text-primary-300 dark:text-primary-400' : 'text-dim-400 dark:text-dim-500 group-hover/stage:text-dim-600 dark:group-hover/stage:text-dim-300'}`}>
                       {stage}
                     </p>
                   </div>
 
                   {/* Connector Line */}
                   {index < stages.length - 1 && (
-                    <div className="flex-1 min-w-[1.5rem] h-[1px] mx-0 relative overflow-visible bg-gray-200 dark:bg-zinc-700 z-0 mt-[15px]">
+                    <div className="flex-1 min-w-[1.5rem] h-[1px] mx-0 relative overflow-visible bg-slate-200 dark:bg-zinc-700 z-0 mt-[15px]">
                       {/* mt-15px aligns line exactly with center of h-8 container/w-7 circle */}
                       <div className={`absolute top-0 left-0 h-full bg-green-500 transition-all duration-500 ease-in-out`} style={{ width: isCompleted ? '100%' : '0%' }}></div>
                     </div>

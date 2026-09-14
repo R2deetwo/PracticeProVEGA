@@ -263,7 +263,7 @@ const HelpView: React.FC = () => {
                     </button>
                 </div>
 
-                <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-gray-200 dark:border-zinc-800 p-6 sm:p-8">
+                <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-800 p-6 sm:p-8">
                     <Accordion>
                         <AccordionItem
                             id="getting-started"
@@ -273,12 +273,12 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is PracticePro?</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">What is PracticePro?</h4>
                                     <p>{isProperty ? 'PracticePro is a Property Management System designed to help property agencies and real estate professionals' : 'PracticePro is a Legal Practice Management System designed to help law firms'} manage matters, documents, tasks, billing, and team collaboration — all in one place.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Three Products in One Platform</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Three Products in One Platform</h4>
                                     <p className="mb-2 text-sm">PracticePro supports three product configurations:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
                                         <li><strong>Atrium</strong> — Property management only (properties, residents, rent, maintenance)</li>
@@ -289,7 +289,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Modules & How They Connect</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Modules & How They Connect</h4>
                                     <ul className="list-disc pl-5 space-y-1 marker:text-primary-500">
                                         <li><strong>Dashboard:</strong> Quick view of active {isProperty ? 'properties' : 'matters'}, your tasks, upcoming deadlines, and recent activity.</li>
                                         <li><strong>{isProperty ? 'Properties' : 'Matters'}:</strong> Central hub for {isProperty ? 'property details' : 'case details'}. Track progress, view documents, tasks, notes, and endorsements.</li>
@@ -436,12 +436,12 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">What is DraftPro?</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">What is DraftPro?</h4>
                                     <p>DraftPro is PracticePro's built-in {isProperty ? 'document editor' : 'legal document editor'} with AI-powered drafting assistance. Create professional {isProperty ? 'documents' : 'legal documents'} without leaving the app — then save to a {isProperty ? 'property' : 'matter'}, print, or copy to your preferred word processor.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Key Features</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Key Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers with the MS Word-style ribbon toolbar</li>
                                         <li><strong>AI Drafting:</strong> Use {assistantName} to generate entire documents from a prompt — text streams live onto the page</li>
@@ -465,7 +465,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Keyboard Shortcuts</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Keyboard Shortcuts</h4>
                                     <div className="grid sm:grid-cols-2 gap-2 text-sm">
                                         <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+S</kbd> Save</div>
                                         <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+Enter</kbd> Page Break</div>
@@ -478,7 +478,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">How to Use</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Use</h4>
                                     <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
                                         <li>Click <strong>DraftPro</strong> in the Documents page to open the editor.</li>
                                         <li>Choose a template or start from scratch.</li>
@@ -490,8 +490,8 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
+                                    <p className="text-sm text-slate-600 dark:text-dim-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
                                 </div>
                             </div>
                         </AccordionItem>
@@ -504,7 +504,7 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Unified Messaging</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Unified Messaging</h4>
                                     <p className="text-sm mb-2">The Messages page is your unified inbox for all communications:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Conversations:</strong> Two-way chat threads with {hasLegalFeatures ? 'clients' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'residents' : ''} via the portal</li>
@@ -516,7 +516,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">New Message (Bulk Messaging)</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">New Message (Bulk Messaging)</h4>
                                     <p className="text-sm mb-2">The New Message button opens one composer for every message you send:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         {hasLegalFeatures && <li><strong>Clients tab:</strong> Send to legal clients (hidden for pure property firms)</li>}
@@ -529,7 +529,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Role Filter</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Role Filter</h4>
                                     <p className="text-sm">The conversation list has role filter pills that adapt to your product:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         {hasLegalFeatures && <li><strong>Vega/Komplete:</strong> All + Clients (no Residents pill for pure legal firms)</li>}
@@ -548,7 +548,7 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Firm Settings</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Firm Settings</h4>
                                     <p className="text-sm">Access via <strong>Settings</strong> in the sidebar. Key sections:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
                                         <li><strong>Profile:</strong> Your personal preferences and defaults</li>
@@ -562,7 +562,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Inviting Team Members</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Inviting Team Members</h4>
                                     <ol className="list-decimal pl-5 space-y-1 text-sm">
                                         <li>Go to Settings → scroll to the Users section</li>
                                         <li>Click "Add User" — enter their name and email</li>
@@ -573,12 +573,12 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Letterhead Designer</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Letterhead Designer</h4>
                                     <p className="text-sm">Design your firm's letterhead in Settings → Firm Details → Letterhead. Add your logo, firm name, and address. The letterhead appears on every page when printing from DraftPro.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">AI API Key</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">AI API Key</h4>
                                     <p className="text-sm">To use AI features (drafting, analysis, voice dictation), configure your Gemini API key in Settings → Firm Details → AI Settings. You can get a free key from Google AI Studio. The key is stored securely and used for all AI operations across the app.</p>
                                 </div>
                             </div>
@@ -600,12 +600,12 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Research Notebooks</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Research Notebooks</h4>
                                     <p className="text-sm">Organize your research into notebooks. Each notebook can contain sources (documents, web pages, case law), analysis, and AI-generated insights.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Key Features</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Key Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Chronology Builder:</strong> Automatically generate a timeline of events from your documents</li>
                                         {!isProperty && <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format)</li>}
@@ -633,7 +633,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">How to Use</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Use</h4>
                                     <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
                                         <li>Navigate to <strong>Documents</strong> and select any document.</li>
                                         <li>Click the <strong>ALDIA Analysis</strong> tab in the document detail view.</li>
@@ -643,7 +643,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Analysis Features</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Analysis Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Risk Analysis:</strong> {isProperty ? 'Commercial, compliance, and operational risk scores' : 'Legal, commercial, compliance, and operational risk scores'} (1-10)</li>
                                         <li><strong>Metadata Extraction:</strong> {isProperty ? 'Parties, dates, and key terms' : 'Parties, dates, governing law, jurisdiction'}</li>
@@ -654,7 +654,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Save {isProperty ? 'Stakeholder' : 'Opposing Counsel'}</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Save {isProperty ? 'Stakeholder' : 'Opposing Counsel'}</h4>
                                     <p>When ALDIA detects {isProperty ? 'stakeholder' : 'opposing counsel'} contact information in a document, you'll see a <strong>"Save to Contacts"</strong> button. Click it to automatically create a contact with the extracted details.</p>
                                 </div>
                             </div>
@@ -668,12 +668,12 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Overview</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Overview</h4>
                                     <p>Track the status of court processes throughout their lifecycle from preparation to proof of service.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Document Status Pipeline</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Document Status Pipeline</h4>
                                     <ul className="space-y-2">
                                         <li className="p-3 border-l-4 border-slate-400 bg-slate-50 dark:bg-slate-800 rounded-r">
                                             <strong>1. Preparation:</strong> Document is being drafted and prepared
@@ -691,7 +691,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">How to Track</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Track</h4>
                                     <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
                                         <li>Mark a document as a <strong>Court Process</strong> when creating/editing it (toggle in the document form).</li>
                                         <li>Navigate to the document detail view and select the <strong>Litigation Pipeline</strong> tab.</li>
@@ -701,7 +701,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Filing Deadlines</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Filing Deadlines</h4>
                                     <p className="text-sm">When you mark a document as a court process, the app automatically calculates filing deadlines based on the court's procedural rules. These appear in your Calendar and on the Dashboard.</p>
                                 </div>
                             </div>
@@ -715,12 +715,12 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Managing Properties</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Managing Properties</h4>
                                     <p>Track properties owned by clients or linked to matters including rental properties, disputed land, and properties for sale. Each property has units (individual apartments/office spaces) that can be leased to residents.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Property Tracking Features</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Property Tracking Features</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Rent Payment History:</strong> Track rent payments, due dates, and overdue amounts per unit</li>
                                         <li><strong>Maintenance Records:</strong> Log and track property maintenance issues with status tracking</li>
@@ -732,7 +732,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div className="space-y-1">
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Property Automations</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Property Automations</h4>
                                     <p className="mb-2 text-sm">Set up automatic notifications in <strong>Settings → Automation</strong> or via the Revenue Monitor:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li>Rent due reminders (7 days before)</li>
@@ -744,7 +744,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Document Linking</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Document Linking</h4>
                                     <p className="text-sm">When creating a new document, you can link it to both a matter (legal case) AND a property. For Komplete firms, both dropdowns appear. For pure Atrium firms, only the Property dropdown appears.</p>
                                 </div>
                             </div>
@@ -829,13 +829,13 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Self-Service Portals</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Self-Service Portals</h4>
                                     <p className="text-sm">PracticePro includes self-service portals for your {hasLegalFeatures ? 'clients' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'residents' : ''} to access information and interact with your {isProperty ? 'agency' : 'firm'} without needing to call or email.</p>
                                 </div>
 
                                 {hasLegalFeatures && (
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Client Portal</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Client Portal</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Case Tracking:</strong> Clients can view the status of their matters</li>
                                         <li><strong>Document Access:</strong> View documents shared with them by the firm</li>
@@ -848,7 +848,7 @@ const HelpView: React.FC = () => {
 
                                 {hasPropertyFeatures && (
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Resident Portal</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Resident Portal</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Rent Status:</strong> View rent balance, payment history, and due dates</li>
                                         <li><strong>Maintenance Requests:</strong> Submit and track maintenance tickets</li>
@@ -860,7 +860,7 @@ const HelpView: React.FC = () => {
                                 )}
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Inviting Portal Users</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Inviting Portal Users</h4>
                                     <ol className="list-decimal pl-5 space-y-1 text-sm">
                                         <li>Go to Settings → Portal Access</li>
                                         <li>Choose {hasLegalFeatures && hasPropertyFeatures ? 'Client Portal or Resident Portal' : hasLegalFeatures ? 'Client Portal' : 'Resident Portal'}</li>
@@ -880,12 +880,12 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Trust Ledger</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Trust Ledger</h4>
                                     <p className="text-sm">Track client funds held in trust with a dedicated trust accounting ledger. Available as a tab within the Matter detail view (Financials section).</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Trust Transactions</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Trust Transactions</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Deposits:</strong> Record client money received into the trust account</li>
                                         <li><strong>Withdrawals:</strong> Record disbursements from trust (e.g., paying counsel fees)</li>
@@ -895,7 +895,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Enabling Trust Accounting</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Enabling Trust Accounting</h4>
                                     <p className="text-sm">Trust accounting can be toggled on/off in Settings → Firm Details. When enabled, a Trust tab appears in each matter's Financials section.</p>
                                 </div>
                             </div>
@@ -913,12 +913,12 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Procedural Intelligence</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Procedural Intelligence</h4>
                                     <p>The Matter Intake Wizard is powered by a procedural intelligence engine. Entering a specific Court Jurisdiction and Legal Action combination dynamically checks statutory rules and provides hints.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Granular Party Representation</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Granular Party Representation</h4>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Specific Clients:</strong> When checking into a matter with multiple Claimants or Defendants, you can granularly select which specific parties your firm represents via the checkboxes.</li>
                                         <li><strong>Representative Capacity:</strong> Mark parties as suing or defending in a representative capacity (e.g. as liquidator or executor).</li>
@@ -926,12 +926,12 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{assistantName} Hints & Checklists</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">{assistantName} Hints & Checklists</h4>
                                     <p className="text-sm">During intake, {assistantName} will offer inline hints (e.g., verifying if the selected court is proper given the territory, or warning about required pre-action notices for certain parties).</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Jurisdiction Configuration</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Jurisdiction Configuration</h4>
                                     <p className="text-sm">The procedural rules engine is designed to be jurisdiction-adaptive. While it currently ships with rules for Nigerian courts, the system can be adapted to other jurisdictions by updating the procedural rules configuration. This ensures the app works across different legal systems without code changes.</p>
                                 </div>
                             </div>
@@ -946,7 +946,7 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Engine Modes</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Engine Modes</h4>
                                     <p className="text-sm mb-3">{assistantName} has four operating modes. Click the mode badge in the chat header to cycle through them:</p>
                                     <ul className="space-y-2 text-sm">
                                         <li className="p-2 border-l-4 border-emerald-400 bg-emerald-50 dark:bg-emerald-900/10 rounded-r"><strong>Auto (green):</strong> {assistantName} automatically chooses the best mode for each query. Best for general use.</li>
@@ -958,7 +958,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Dynamic Reasoning States</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Dynamic Reasoning States</h4>
                                     <p className="text-sm">In Research mode, the static "Thinking…" indicator is replaced with real-time status messages that cycle every few seconds:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
                                         <li>Researching… analyzing your query in depth</li>
@@ -970,7 +970,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Live Web Querying</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Live Web Querying</h4>
                                     <p className="text-sm mb-2">Paste any URL into the {assistantName} chat and the AI will:</p>
                                     <ol className="list-decimal pl-5 space-y-1 text-sm">
                                         <li>Fetch the web page content server-side</li>
@@ -982,7 +982,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Citations & Jurisdiction Guardrails</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Citations & Jurisdiction Guardrails</h4>
                                     <p className="text-sm mb-2">Research mode enforces strict rules:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm">
                                         <li><strong>Jurisdiction Detection:</strong> Identifies the governing jurisdiction before answering. For cross-border matters, explicitly states which jurisdiction's frameworks are being applied.</li>
@@ -993,7 +993,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Citation Formatting</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Citation Formatting</h4>
                                     <p className="text-sm">Citations can be formatted in multiple styles:</p>
                                     <ul className="list-disc pl-5 space-y-1 text-sm mt-1">
                                         <li><strong>Nigerian Supreme Court</strong> — default for Nigerian practice</li>
@@ -1015,7 +1015,7 @@ const HelpView: React.FC = () => {
                         >
                             <div className="space-y-6">
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Two-Factor Authentication (2FA)</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Two-Factor Authentication (2FA)</h4>
                                     <p className="text-sm mb-2">Enable 2FA in Settings → Security for an extra verification step during login. When enabled, a warning message appears with recovery instructions.</p>
                                     <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30 rounded-lg">
                                         <p className="text-xs text-amber-700 dark:text-amber-300">
@@ -1025,7 +1025,7 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Admin: Disabling 2FA for Users</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Admin: Disabling 2FA for Users</h4>
                                     <ol className="list-decimal pl-5 space-y-1 text-sm">
                                         <li>Go to Settings → Account Recovery</li>
                                         <li>Search for the user by email</li>
@@ -1036,12 +1036,12 @@ const HelpView: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Biometric Login (Mobile App)</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Biometric Login (Mobile App)</h4>
                                     <p className="text-sm">On the Android APK, enable biometric authentication (fingerprint or Face ID) in Settings → Security. This provides a convenient backup if 2FA is enabled — you can use biometrics to log in even with 2FA on.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg text-gray-800 dark:text-white mb-2">Content Protection</h4>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Content Protection</h4>
                                     <p className="text-sm">The app uses FLAG_SECURE on Android to prevent screenshots at the OS level — same technology used by banking apps. WebView debugging is disabled in production builds.</p>
                                 </div>
                             </div>

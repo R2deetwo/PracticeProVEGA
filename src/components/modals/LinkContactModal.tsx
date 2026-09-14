@@ -60,7 +60,7 @@ const LinkContactModal: React.FC<LinkContactModalProps> = ({ matter, allContacts
               type="checkbox"
               checked={selectedIds.has(contact.id)}
               onChange={() => handleToggle(contact.id)}
-              className="h-4 w-4 rounded border-gray-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
+              className="h-4 w-4 rounded border-slate-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
             />
             <div>
               <p className="font-semibold">{contact.name}</p>

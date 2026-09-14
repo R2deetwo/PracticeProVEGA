@@ -44,7 +44,7 @@ const BusinessIntelligenceReports: React.FC<BusinessIntelligenceReportsProps> = 
 
     return (
         <div>
-            <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
+            <div className="mb-6 border-b border-slate-200 dark:border-zinc-700">
                 <nav className="-mb-px flex space-x-6 overflow-x-auto">
                     {availableTabs.map(tab => (
                          <button

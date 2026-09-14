@@ -439,7 +439,7 @@ export const PriorityIcon: React.FC<{ priority?: 'High' | 'Medium' | 'Low' }> = 
         case 'Low':
             return <PriorityLowIcon className="w-4 h-4 text-blue-500" />;
         default:
-            return <PriorityMediumIcon className="w-4 h-4 text-gray-400" />;
+            return <PriorityMediumIcon className="w-4 h-4 text-dim-400" />;
     }
 };
 

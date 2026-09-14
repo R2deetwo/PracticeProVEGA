@@ -165,9 +165,9 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<GlobeIcon className="w-3.5 h-3.5" />} text="Enter a public URL with text-based content. The AI will extract key legal indices and context for your notebook." />
           <div>
-            <label className="block text-sm font-bold text-gray-700 dark:text-zinc-300 mb-1">Website URL</label>
+            <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1">Website URL</label>
             <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-dim-400">
                 <GlobeIcon className="w-5 h-5" />
               </div>
               <input autoComplete="off" data-lpignore="true" 
@@ -182,7 +182,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Source Name (Optional)</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Source Name (Optional)</label>
             <input autoComplete="off" data-lpignore="true" type="text" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} placeholder="e.g., TechCrunch Article" />
           </div>
         </div>
@@ -192,7 +192,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<UploadIcon className="w-3.5 h-3.5" />} text="PDF and Text files only. Ensure documents are clearly legible for optimal AI extraction. Limit of 20 sources per notebook." />
           <div
-            className="border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors cursor-pointer group"
+            className="border-2 border-dashed border-slate-300 dark:border-zinc-700 rounded-lg p-8 text-center hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors cursor-pointer group"
             onClick={() => fileInputRef.current?.click()}
           >
             <input autoComplete="off" data-lpignore="true" type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".pdf,.txt" multiple />
@@ -226,11 +226,11 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         <div className="space-y-4 animate-fade-in">
           <Guidance icon={<ClipboardListIcon className="w-3.5 h-3.5" />} text="Paste emails, case notes, or transcripts. The AI can analyze large text blocks (up to 50k characters)." />
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Source Name</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Source Name</label>
             <input autoComplete="off" data-lpignore="true" type="text" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} placeholder="e.g., Copied Email Content" required />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-zinc-300 mb-1">Content</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">Content</label>
             <textarea
               value={textContent}
               onChange={e => setTextContent(e.target.value)}

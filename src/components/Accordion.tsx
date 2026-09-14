@@ -30,19 +30,19 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({ title, children, d
   };
 
   return (
-    <div id={id} className="border-b border-gray-200 dark:border-gray-700 scroll-mt-24">
+    <div id={id} className="border-b border-slate-200 dark:border-dim-700 scroll-mt-24">
       <button
         onClick={handleToggle}
         className="w-full flex justify-between items-center text-left py-4 px-2 group"
         aria-expanded={isOpen}
       >
-        <span className={`font-semibold text-lg transition-colors ${isOpen ? 'text-primary-600 dark:text-primary-400' : 'text-gray-800 dark:text-gray-200 group-hover:text-primary-600'}`}>{title}</span>
-        <span className={`text-gray-400 group-hover:text-primary-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+        <span className={`font-semibold text-lg transition-colors ${isOpen ? 'text-primary-600 dark:text-primary-400' : 'text-dim-800 dark:text-dim-200 group-hover:text-primary-600'}`}>{title}</span>
+        <span className={`text-dim-400 group-hover:text-primary-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
             <ChevronDownIcon />
         </span>
       </button>
       <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="p-4 pt-0 text-gray-600 dark:text-gray-300 prose prose-sm dark:prose-invert max-w-none">
+        <div className="p-4 pt-0 text-slate-600 dark:text-dim-300 prose prose-sm dark:prose-invert max-w-none">
           {children}
         </div>
       </div>
@@ -56,7 +56,7 @@ interface AccordionProps {
 }
 
 const Accordion: React.FC<AccordionProps> = ({ children, className }) => {
-    return <div className={`border-t border-gray-200 dark:border-gray-700 ${className || ''}`}>{children}</div>
+    return <div className={`border-t border-slate-200 dark:border-dim-700 ${className || ''}`}>{children}</div>
 }
 
 export default Accordion;

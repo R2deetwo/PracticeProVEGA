@@ -12,10 +12,10 @@ import { DownloadIcon, TrashIcon, SearchIcon, ShieldCheckIcon, ComputerDesktopIc
 import { useProduct } from '../../contexts/ProductContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; className?: string; onTitleClick?: () => void }> = ({ title, children, className, onTitleClick }) => (
-    <div className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
+    <div className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-slate-200 dark:border-dim-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3
-                className={`text-xl font-bold text-gray-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
+                className={`text-xl font-bold text-slate-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
                 onClick={onTitleClick}
             >
                 {title}

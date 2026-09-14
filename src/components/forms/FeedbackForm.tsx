@@ -192,7 +192,7 @@ const FeedbackForm: React.FC = () => {
                                 type="text"
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
-                                className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-slate-900 dark:text-white transition-all"
+                                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-slate-900 dark:text-white transition-all"
                                 placeholder={`E.g., Issue with billing page`}
                                 required={ticketType !== 'General Feedback'}
                                 autoFocus
@@ -209,7 +209,7 @@ const FeedbackForm: React.FC = () => {
                             value={feedback}
                             onChange={e => setFeedback(e.target.value)}
                             rows={5}
-                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-slate-900 dark:text-white transition-all resize-none custom-scrollbar"
+                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg shadow-sm px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-slate-900 dark:text-white transition-all resize-none custom-scrollbar"
                             placeholder={`Describe your ${ticketType.toLowerCase()}...`}
                             required
                         />

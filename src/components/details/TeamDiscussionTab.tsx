@@ -51,7 +51,7 @@ const EndorsementTimelineItem: React.FC<{
             {/* Avatar */}
             <div className={`
                 relative z-10 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs shadow-sm ring-4 ring-slate-50 dark:ring-zinc-900 flex-shrink-0
-                ${author ? getUserColor(author.name) : 'bg-gray-500'}
+                ${author ? getUserColor(author.name) : 'bg-dim-500'}
             `}>
                 {author ? getInitials(author.name) : 'S'}
             </div>

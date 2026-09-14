@@ -223,7 +223,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                             <ShieldCheckIcon className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Two-Factor Authentication (2FA)</h3>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Two-Factor Authentication (2FA)</h3>
                             <p className="text-sm text-slate-500 dark:text-zinc-400">
                                 Strengthen your account security with an extra verification step during login.
                             </p>
@@ -236,7 +236,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                             checked={!!currentUser?.isMfaEnabled}
                             onChange={(e) => handleToggleMfa(e.target.checked)}
                         />
-                        <div className="w-11 h-6 bg-gray-200 dark:bg-zinc-800 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
+                        <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-800 peer-focus:outline-none rounded-full peer dark:bg-dim-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-dim-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-dim-600 peer-checked:bg-indigo-600"></div>
                     </label>
                 </div>
                 {currentUser?.isMfaEnabled && (
@@ -308,7 +308,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = (props) => {
                             <ShieldCheckIcon className="w-6 h-6 text-slate-700 dark:text-slate-200" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Audit Logs</h3>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Audit Logs</h3>
                             <p className="text-xs text-slate-500 dark:text-zinc-400">Track user activity and system events.</p>
                         </div>
                     </div>
@@ -374,7 +374,7 @@ const ContentProtectionSection: React.FC = () => {
                         </svg>
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Content Protection</h3>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Content Protection</h3>
                         <p className="text-sm text-slate-500 dark:text-zinc-400">
                             Prevents screenshots and screen recording on mobile. Blocks copy-paste of sensitive content.
                         </p>
@@ -382,7 +382,7 @@ const ContentProtectionSection: React.FC = () => {
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" checked={enabled} onChange={(e) => toggle(e.target.checked)} />
-                    <div className="w-11 h-6 bg-gray-200 dark:bg-zinc-800 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-teal-600"></div>
+                    <div className="w-11 h-6 bg-slate-200 dark:bg-zinc-800 peer-focus:outline-none rounded-full peer dark:bg-dim-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:bg-zinc-900 after:border-dim-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-dim-600 peer-checked:bg-teal-600"></div>
                 </label>
             </div>
         </div>
@@ -442,7 +442,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
                         </svg>
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Biometric Unlock</h3>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Biometric Unlock</h3>
                         <p className="text-sm text-slate-500 dark:text-zinc-400">
                             Available on the mobile app (APK). Install the app on your phone to enable fingerprint / Face ID login.
                         </p>
@@ -463,7 +463,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
                         </svg>
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Biometric Unlock</h3>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Biometric Unlock</h3>
                         <p className="text-sm text-slate-500 dark:text-zinc-400">
                             Your device doesn't support biometric authentication, or it hasn't been set up in your phone's settings.
                         </p>
@@ -484,7 +484,7 @@ const BiometricSection: React.FC<{ currentUser: any }> = ({ currentUser }) => {
                         </svg>
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Biometric Unlock</h3>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Biometric Unlock</h3>
                         <p className="text-sm text-slate-500 dark:text-zinc-400">
                             Use fingerprint or Face ID to log in without typing your password.
                         </p>

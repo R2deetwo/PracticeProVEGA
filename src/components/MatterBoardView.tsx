@@ -35,7 +35,7 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
     const progressPercent = totalStages > 1 ? (currentStageIndex / (totalStages - 1)) * 100 : 100;
 
     // Determine visual urgency based on deadline if it exists, otherwise default border
-    const urgencyBorderClass = matter.nextDeadline ? getDueDateBorderColor(matter.nextDeadline.date) : 'border-gray-200 dark:border-gray-700';
+    const urgencyBorderClass = matter.nextDeadline ? getDueDateBorderColor(matter.nextDeadline.date) : 'border-slate-200 dark:border-dim-700';
 
     return (
         <Draggable draggableId={matter.id} index={index}>
@@ -49,7 +49,7 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
                 >
                     <div className="flex justify-between items-start mb-1">
                         <Tooltip text={matter.title} checkForTruncation>
-                            <p className="font-bold text-sm text-gray-800 dark:text-white truncate pr-2">{matter.title}</p>
+                            <p className="font-bold text-sm text-slate-800 dark:text-white truncate pr-2">{matter.title}</p>
                         </Tooltip>
                         <div className="flex items-center gap-1.5 flex-shrink-0">
                             <InlineMatterReview matter={matter} />
@@ -62,14 +62,14 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
                     </div>
 
                     <Tooltip text={client?.name || `Unknown ${terminology.client}`} checkForTruncation>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate mb-2">{client?.name || `Unknown ${terminology.client}`}</p>
+                        <p className="text-xs font-medium text-slate-500 dark:text-dim-400 truncate mb-2">{client?.name || `Unknown ${terminology.client}`}</p>
                     </Tooltip>
 
                     {matter.nextDeadline ? (
-                        <div className="mb-2 text-xs bg-slate-50 dark:bg-zinc-700/50 p-1.5 rounded border border-gray-100 dark:border-gray-700">
-                            <span className="font-semibold text-2xs uppercase text-gray-400 block">Next Deadline</span>
+                        <div className="mb-2 text-xs bg-slate-50 dark:bg-zinc-700/50 p-1.5 rounded border border-slate-100 dark:border-dim-700">
+                            <span className="font-semibold text-2xs uppercase text-dim-400 block">Next Deadline</span>
                             <div className="flex justify-between items-center mt-0.5">
-                                <span className="truncate max-w-[120px] text-gray-700 dark:text-gray-300" title={matter.nextDeadline.title}>{matter.nextDeadline.title}</span>
+                                <span className="truncate max-w-[120px] text-slate-700 dark:text-dim-300" title={matter.nextDeadline.title}>{matter.nextDeadline.title}</span>
                                 <span className={`font-bold ${getDueDateColor(matter.nextDeadline.date)}`}>{formatDueDate(matter.nextDeadline.date)}</span>
                             </div>
                         </div>
@@ -77,8 +77,8 @@ const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: Wo
                         <div className="mb-2 h-1"></div> // Spacer
                     )}
 
-                    <div className="mt-2 pt-2 border-t border-gray-100 dark:border-slate-700">
-                        <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-1">
+                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                        <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1">
                             <div className="bg-primary-500 h-1 rounded-full" style={{ width: `${progressPercent}%` }}></div>
                         </div>
                     </div>
@@ -97,10 +97,10 @@ const MatterColumn: React.FC<{
 }> = ({ stage, matters, workflow, contacts, onViewDetails }) => {
     return (
         <div className="flex flex-col w-80 flex-shrink-0 bg-slate-100 dark:bg-zinc-800 rounded-lg p-2">
-            <div className="p-3 mb-2 border-b-2 border-gray-300 dark:border-slate-700">
-                <h4 className="font-bold text-lg text-gray-800 dark:text-white flex justify-between items-center">
+            <div className="p-3 mb-2 border-b-2 border-slate-300 dark:border-slate-700">
+                <h4 className="font-bold text-lg text-slate-800 dark:text-white flex justify-between items-center">
                     {stage}
-                    <span className="text-sm font-semibold bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-slate-300 rounded-full px-2 py-0.5">{matters.length}</span>
+                    <span className="text-sm font-semibold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full px-2 py-0.5">{matters.length}</span>
                 </h4>
             </div>
             <Droppable droppableId={stage}>

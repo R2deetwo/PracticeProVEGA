@@ -214,7 +214,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
                             onChange={e => setMessage(e.target.value)}
                             rows={5}
                             placeholder="Type your message..."
-                            className="w-full bg-gray-50 dark:bg-zinc-800 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
+                            className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg shadow-sm p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all resize-none"
                         />
                     </div>
                 </div>

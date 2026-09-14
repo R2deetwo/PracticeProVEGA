@@ -37,12 +37,12 @@ const StageCard: React.FC<{
                 <div
                     ref={provided.innerRef}
                     {...provided.draggableProps}
-                    className={`flex items-center p-3 mb-2 rounded-lg shadow-sm border-l-4 transition-all ${snapshot.isDragging ? 'bg-primary-100 dark:bg-primary-900/50 border-primary-500' : 'bg-white dark:bg-gray-700/50 border-gray-300 dark:border-gray-600'}`}
+                    className={`flex items-center p-3 mb-2 rounded-lg shadow-sm border-l-4 transition-all ${snapshot.isDragging ? 'bg-primary-100 dark:bg-primary-900/50 border-primary-500' : 'bg-white dark:bg-dim-700/50 border-dim-300 dark:border-dim-600'}`}
                 >
-                    <div {...provided.dragHandleProps} className="p-2 cursor-grab text-gray-400 hover:text-gray-600">
+                    <div {...provided.dragHandleProps} className="p-2 cursor-grab text-dim-400 hover:text-dim-600">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
                     </div>
-                    <span className="font-bold text-gray-500 dark:text-gray-400 mr-3">{index + 1}.</span>
+                    <span className="font-bold text-slate-500 dark:text-dim-400 mr-3">{index + 1}.</span>
                     {isEditing ? (
                         <input autoComplete="off" data-lpignore="true" 
                             type="text"
@@ -54,9 +54,9 @@ const StageCard: React.FC<{
                             autoFocus
                         />
                     ) : (
-                        <p onClick={() => setIsEditing(true)} className="flex-grow cursor-pointer p-1 text-gray-800 dark:text-gray-200">{stage}</p>
+                        <p onClick={() => setIsEditing(true)} className="flex-grow cursor-pointer p-1 text-slate-800 dark:text-dim-200">{stage}</p>
                     )}
-                    <button onClick={() => onDelete(index)} className="p-1 rounded-full text-gray-400 hover:bg-red-100 hover:text-red-600">
+                    <button onClick={() => onDelete(index)} className="p-1 rounded-full text-dim-400 hover:bg-red-100 hover:text-red-600">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                     </button>
                 </div>
@@ -174,11 +174,11 @@ const WorkflowBuilderView: React.FC<WorkflowBuilderViewProps> = ({ workflows, on
     return (
         <div className="flex flex-col md:flex-row gap-6 h-auto md:h-[35rem]">
             {/* Workflow List */}
-            <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700 pr-4 mb-4 md:mb-0 flex flex-col max-h-64 md:max-h-full">
+            <div className="md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 dark:border-dim-700 pr-4 mb-4 md:mb-0 flex flex-col max-h-64 md:max-h-full">
                 <ul className="overflow-y-auto space-y-1 flex-grow">
                     {workflows.map(wf => (
                         <li key={wf.id}>
-                            <button onClick={() => handleWorkflowSelection(wf.id)} className={`w-full text-left p-2 rounded-md font-semibold text-sm transition-colors ${selectedWorkflowId === wf.id ? 'bg-primary-600 text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-300'}`}>
+                            <button onClick={() => handleWorkflowSelection(wf.id)} className={`w-full text-left p-2 rounded-md font-semibold text-sm transition-colors ${selectedWorkflowId === wf.id ? 'bg-primary-600 text-white' : 'hover:bg-dim-100 dark:hover:bg-dim-700 text-dim-800 dark:text-dim-300'}`}>
                                 {wf.type}
                             </button>
                         </li>
@@ -190,13 +190,13 @@ const WorkflowBuilderView: React.FC<WorkflowBuilderViewProps> = ({ workflows, on
                 {selectedWorkflow ? (
                     <>
                         <div className="pb-2 flex-shrink-0">
-                            <h3 className="text-lg font-bold text-gray-900 dark:text-white">Editing Workflow: <span className="text-primary-600 dark:text-primary-400">{selectedWorkflow.type}</span></h3>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Editing Workflow: <span className="text-primary-600 dark:text-primary-400">{selectedWorkflow.type}</span></h3>
                         </div>
-                        <div className="border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+                        <div className="border-b border-slate-200 dark:border-dim-700 flex-shrink-0">
                             <nav className="-mb-px flex space-x-4 overflow-x-auto">
-                                <button onClick={() => setActiveTabName('Default')} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTabName === 'Default' ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>Default</button>
+                                <button onClick={() => setActiveTabName('Default')} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTabName === 'Default' ? 'border-primary-500 text-primary-600' : 'border-transparent text-dim-500 hover:text-dim-700'}`}>Default</button>
                                 {Object.keys(selectedWorkflow.subCategories || {}).map(sub => (
-                                    <button key={sub} onClick={() => setActiveTabName(sub)} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTabName === sub ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>{sub}</button>
+                                    <button key={sub} onClick={() => setActiveTabName(sub)} className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTabName === sub ? 'border-primary-500 text-primary-600' : 'border-transparent text-dim-500 hover:text-dim-700'}`}>{sub}</button>
                                 ))}
                                 <button onClick={() => openModal('editWorkflow', selectedWorkflow.id, { isNewSub: true })} className="py-2 px-1 text-sm font-medium text-primary-600 hover:text-primary-800">+ Add Sub-category</button>
                             </nav>
@@ -214,13 +214,13 @@ const WorkflowBuilderView: React.FC<WorkflowBuilderViewProps> = ({ workflows, on
                                     )}
                                 </Droppable>
                             </DragDropContext>
-                            <button onClick={handleAddStage} className="mt-4 w-full p-2 text-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:border-primary-500 hover:text-primary-600">
+                            <button onClick={handleAddStage} className="mt-4 w-full p-2 text-center border-2 border-dashed border-slate-300 dark:border-dim-600 rounded-lg text-slate-500 dark:text-dim-400 hover:bg-slate-50 dark:hover:bg-dim-700/50 hover:border-primary-500 hover:text-primary-600">
                                 + Add Stage
                             </button>
                         </div>
                     </>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-center text-gray-500">Select a workflow to edit</div>
+                    <div className="flex items-center justify-center h-full text-center text-dim-500">Select a workflow to edit</div>
                 )}
             </div>
         </div>

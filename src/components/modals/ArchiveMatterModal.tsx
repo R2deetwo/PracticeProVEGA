@@ -15,7 +15,7 @@ const ArchiveMatterModal: React.FC<ArchiveMatterModalProps> = ({ matter, onConfi
 
  return (
   <form onSubmit={handleSubmit} className="space-y-4">
-    <p className="text-gray-600 dark:text-zinc-400">
+    <p className="text-slate-600 dark:text-zinc-400">
       Are you sure you want to archive the matter "<strong>{matter.title}</strong>"?
     </p>
     <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800">

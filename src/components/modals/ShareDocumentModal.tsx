@@ -110,7 +110,7 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
                 type="checkbox"
                 checked={selectedUserIds.has(user.id)}
                 readOnly
-                className="rounded border-gray-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500 pointer-events-none"
+                className="rounded border-slate-300 dark:border-zinc-700 text-primary-600 dark:text-primary-300 focus:ring-primary-500 pointer-events-none"
               />
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${getUserColor(user.name)}`}>
                 {getInitials(user.name)}

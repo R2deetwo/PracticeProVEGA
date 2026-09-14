@@ -362,7 +362,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                                     <div className="flex justify-between items-center">
                                         <div>
                                             <p className="font-bold text-sm text-slate-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{matter.title}</p>
-                                            <p className="text-xs text-slate-500 dark:text-gray-400 mt-1">{matter.suitNumber || 'No Suit Number'}</p>
+                                            <p className="text-xs text-slate-500 dark:text-dim-400 mt-1">{matter.suitNumber || 'No Suit Number'}</p>
                                         </div>
                                         <span className={`px-2.5 py-1 text-2xs font-bold uppercase tracking-wide rounded-full ${matter.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-slate-200 text-slate-600'}`}>
                                             {matter.status}

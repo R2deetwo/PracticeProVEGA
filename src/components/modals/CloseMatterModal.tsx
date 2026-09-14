@@ -24,7 +24,7 @@ const CloseMatterModal: React.FC<CloseMatterModalProps> = ({ matter, unbilledTim
 
  return (
   <form onSubmit={handleSubmit} className="space-y-4">
-    <p className="text-gray-600 dark:text-zinc-400">
+    <p className="text-slate-600 dark:text-zinc-400">
       You are about to close the matter "<strong>{matter.title}</strong>". This action will change its status to 'Closed' and it will no longer appear in the main active matters list.
     </p>
     {hasUnbilledItems && (

@@ -139,35 +139,35 @@ const ReceiptDetailViewContent: React.FC = () => {
                   <p className="text-xs whitespace-pre-line" style={{ color: 'inherit', opacity: 0.9 }}>{firmDetails.address}</p>
                 </div>
               </div>
-              <div className="py-6 border-b border-gray-200"></div>
+              <div className="py-6 border-b border-dim-200"></div>
             </header>
 
             <div className="flex justify-between mb-12">
               <div className="max-w-[50%]">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Received From</p>
-                <p className="font-bold text-gray-900 text-lg truncate">{client?.name}</p>
-                {(client as any)?.address && <p className="text-sm text-gray-600 whitespace-pre-line mt-1">{(client as any).address}</p>}
+                <p className="text-xs font-bold text-dim-500 uppercase tracking-wider mb-2">Received From</p>
+                <p className="font-bold text-dim-900 text-lg truncate">{client?.name}</p>
+                {(client as any)?.address && <p className="text-sm text-dim-600 whitespace-pre-line mt-1">{(client as any).address}</p>}
               </div>
               <div className="text-right">
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">RECEIPT</h1>
-                <p className="text-sm text-gray-500">For Invoice: <span className="font-semibold text-gray-900">{invoice.invoiceNumber}</span></p>
+                <h1 className="text-4xl font-bold text-dim-900 mb-2">RECEIPT</h1>
+                <p className="text-sm text-dim-500">For Invoice: <span className="font-semibold text-dim-900">{invoice.invoiceNumber}</span></p>
               </div>
             </div>
 
             <div className="mb-8">
               <table className="min-w-full text-sm">
                 <tbody>
-                  <tr className="border-y border-gray-100">
-                    <td className="py-4 font-semibold text-gray-500 w-1/3">Payment Date</td>
-                    <td className="py-4 text-left font-medium text-gray-900">{formattedPaidDate}</td>
+                  <tr className="border-y border-dim-100">
+                    <td className="py-4 font-semibold text-dim-500 w-1/3">Payment Date</td>
+                    <td className="py-4 text-left font-medium text-dim-900">{formattedPaidDate}</td>
                   </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 font-semibold text-gray-500">Original Invoice Date</td>
-                    <td className="py-4 text-left font-medium text-gray-900">{formattedIssueDate}</td>
+                  <tr className="border-b border-dim-100">
+                    <td className="py-4 font-semibold text-dim-500">Original Invoice Date</td>
+                    <td className="py-4 text-left font-medium text-dim-900">{formattedIssueDate}</td>
                   </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 font-semibold text-gray-500">For Matter</td>
-                    <td className="py-4 text-left font-medium text-gray-900">{invoice.matter?.title || 'N/A'}</td>
+                  <tr className="border-b border-dim-100">
+                    <td className="py-4 font-semibold text-dim-500">For Matter</td>
+                    <td className="py-4 text-left font-medium text-dim-900">{invoice.matter?.title || 'N/A'}</td>
                   </tr>
                 </tbody>
               </table>
@@ -180,8 +180,8 @@ const ReceiptDetailViewContent: React.FC = () => {
 
             <div className="mt-auto pt-12">
               <div className="text-center">
-                <hr className="border-gray-100 mb-8 w-1/2 mx-auto" />
-                <p className="text-sm text-gray-400 italic">
+                <hr className="border-dim-100 mb-8 w-1/2 mx-auto" />
+                <p className="text-sm text-dim-400 italic">
                   Thank you for your payment. This receipt confirms that the balance for invoice {invoice.invoiceNumber} has been paid in full.
                 </p>
               </div>

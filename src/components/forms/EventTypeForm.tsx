@@ -62,19 +62,19 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label htmlFor="eventTypeName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Event Type Name</label>
+        <label htmlFor="eventTypeName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Event Type Name</label>
         <input autoComplete="off" data-lpignore="true"  type="text" id="eventTypeName" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Deposition" className={commonInputClass} required />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color</label>
-        <div className="flex flex-wrap gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Color</label>
+        <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-dim-700 rounded-lg">
             {PALETTE_COLORS.map(c => (
                 <button
                     type="button"
                     key={c}
                     onClick={() => setColor(c)}
-                    className={`w-8 h-8 rounded-full transition-all duration-150 ${getEventTypeBadgeClass(c, 'bg')} ${color === c ? 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-gray-800' : ''}`}
+                    className={`w-8 h-8 rounded-full transition-all duration-150 ${getEventTypeBadgeClass(c, 'bg')} ${color === c ? 'ring-2 ring-offset-2 ring-primary-500 dark:ring-offset-dim-800' : ''}`}
                     aria-label={`Select ${c} color`}
                 />
             ))}
@@ -94,7 +94,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
           )}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
             <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Event Type'}</button>
         </div>
       </div>

@@ -98,7 +98,7 @@ const TaskRow: React.FC<{
                 if (target.closest('button') || target.closest('input') || target.closest('.interactive-cell')) return;
                 onViewDetails(task.id, {});
             }}
-            className={`cursor-pointer relative overflow-visible transition-colors border-b border-gray-100 dark:border-zinc-800 last:border-0
+            className={`cursor-pointer relative overflow-visible transition-colors border-b border-slate-100 dark:border-zinc-800 last:border-0
                 ${isKeyboardSelected ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-inset ring-primary-300 dark:ring-primary-700 z-10' : (isSelected ? 'bg-blue-50 dark:bg-zinc-800' : 'hover:bg-surface dark:hover:bg-zinc-800/50')}
             `}
         >
@@ -108,20 +108,20 @@ const TaskRow: React.FC<{
                         type="checkbox"
                         checked={isSelected}
                         onChange={(e) => { e.stopPropagation(); onToggleSelection(task.id); }}
-                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        className="h-4 w-4 rounded border-dim-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                     />
                 </div>
             </td>
             <td className="px-6 py-4 cursor-pointer group" onClick={() => onViewDetails(task.id, {})}>
-                <div className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors">{task.title}</div>
-                {task.description && <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[300px] mt-0.5">{task.description}</div>}
+                <div className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-primary-600 transition-colors">{task.title}</div>
+                {task.description && <div className="text-xs text-slate-500 dark:text-dim-400 truncate max-w-[300px] mt-0.5">{task.description}</div>}
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300 cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-dim-300 cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
                 {matter ? (
                     <span className="px-2 py-1 bg-surface-2 dark:bg-zinc-700 rounded text-xs font-medium truncate max-w-[150px] inline-block" title={matter.title}>
                         {matter.title}
                     </span>
-                ) : <span className="text-gray-400 italic text-xs">No matter</span>}
+                ) : <span className="text-dim-400 italic text-xs">No matter</span>}
             </td>
             {appMode === 'multi' && (
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -135,7 +135,7 @@ const TaskRow: React.FC<{
                                 </Tooltip>
                             ))}
                         </div>
-                    ) : <div className="flex justify-center items-center w-full"><span className="text-xs text-gray-400">—</span></div>}
+                    ) : <div className="flex justify-center items-center w-full"><span className="text-xs text-dim-400">—</span></div>}
                 </td>
             )}
             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
@@ -427,14 +427,14 @@ const TaskCard: React.FC<{
                         checked={isSelected}
                         onChange={(e) => { e.stopPropagation(); onToggleSelection(task.id); }}
                         onClick={(e) => e.stopPropagation()}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer flex-shrink-0"
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-semibold ${task.status === 'done' ? 'text-subtle dark:text-zinc-500 line-through' : 'text-gray-900 dark:text-white'}`}>
+                        <div className={`text-sm font-semibold ${task.status === 'done' ? 'text-subtle dark:text-zinc-500 line-through' : 'text-dim-900 dark:text-white'}`}>
                             {task.title}
                         </div>
                         {task.description && (
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{task.description}</div>
+                            <div className="text-xs text-slate-500 dark:text-dim-400 mt-0.5 line-clamp-2">{task.description}</div>
                         )}
                     </div>
                 </div>
@@ -509,7 +509,7 @@ const TaskCard: React.FC<{
                                         </Tooltip>
                                     ))}
                                 </div>
-                            ) : <span className="text-3xs text-gray-400">Unassigned</span>
+                            ) : <span className="text-3xs text-dim-400">Unassigned</span>
                         )}
 
                         {/* Quick action buttons — visible (no opacity hover trick on touch) */}
@@ -844,7 +844,7 @@ const TaskList: React.FC<TaskListProps> = ({
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="checkbox"
                                             ref={selectAllCheckboxRef}
-                                            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                            className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                                             onChange={(e) => onToggleSelection(e.target.checked ? `__ALL_SELECT__:${sortedTasks.map(t => t.id).join(',')}` : '__ALL_CLEAR__')}
                                             checked={sortedTasks.length > 0 && selectedTasks.size === sortedTasks.length}
                                         />

@@ -39,8 +39,8 @@ const getStatusBadgeClass = (status: InvoiceStatus) => {
         case InvoiceStatus.Paid: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
         case InvoiceStatus.Unpaid: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
         case InvoiceStatus.Overdue: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-        case InvoiceStatus.Reversed: return 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400 line-through';
-        default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+        case InvoiceStatus.Reversed: return 'bg-dim-100 text-dim-500 dark:bg-dim-700 dark:text-dim-400 line-through';
+        default: return 'bg-dim-100 text-dim-800 dark:bg-dim-700 dark:text-dim-300';
     }
 };
 
@@ -61,12 +61,12 @@ const InvoiceRow: React.FC<{
             className="relative overflow-hidden hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer group"
         >
             <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">{invoice.invoiceNumber}</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-white">{invoice.invoiceNumber}</div>
             </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{invoice.client?.name || 'Unknown Client'}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Date(invoice.issueDate).toLocaleDateString('en-GB')}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300">{new Date(invoice.dueDate).toLocaleDateString('en-GB')}</td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white"><NairaSymbol />{formatNaira(total)}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-dim-300">{invoice.client?.name || 'Unknown Client'}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-dim-300">{new Date(invoice.issueDate).toLocaleDateString('en-GB')}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-dim-300">{new Date(invoice.dueDate).toLocaleDateString('en-GB')}</td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(total)}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm">
                 <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(invoice.status)}`}>{invoice.status}</span>
             </td>
@@ -176,7 +176,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                     placeholder={`Search by invoice #, client, or ${isProperty ? 'property' : 'matter'}...`}
                     value={filter}
                     onChange={e => setFilter(e.target.value)}
-                    className="w-full md:w-1/3 px-4 py-2 bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-zinc-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                    className="w-full md:w-1/3 px-4 py-2 bg-white dark:bg-zinc-700 text-slate-900 dark:text-dim-300 border border-slate-300 dark:border-zinc-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
             </div>
 
@@ -186,19 +186,19 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                         {/* Desktop Table */}
                         <div className="hidden md:block rounded-lg bg-white dark:bg-zinc-800 shadow-md border border-slate-200 dark:border-zinc-700 overflow-hidden">
                             <div className="overflow-x-auto table-wrapper">
-                                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                <table className="min-w-full divide-y divide-slate-200 dark:divide-dim-700">
                                     <thead className="bg-slate-50 dark:bg-slate-700/50">
                                         <tr>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Invoice #</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Client</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Issue Date</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Due Date</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-dim-300 uppercase tracking-wider">Invoice #</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-dim-300 uppercase tracking-wider">Client</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-dim-300 uppercase tracking-wider">Issue Date</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-dim-300 uppercase tracking-wider">Due Date</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-dim-300 uppercase tracking-wider">Amount</th>
+                                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-dim-300 uppercase tracking-wider">Status</th>
                                             <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                    <tbody className="divide-y divide-slate-200 dark:divide-dim-700">
                                         {filteredInvoices.map(invoice => (
                                             <InvoiceRow
                                                 key={invoice.id}
@@ -420,7 +420,7 @@ export const BillingView: React.FC = () => {
                 </div>
 
                 {/* Tab Bar — matches the Analytics page pattern */}
-                <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
+                <div className="mb-6 border-b border-slate-200 dark:border-zinc-700">
                     <nav className="-mb-px flex space-x-6 overflow-x-auto">
                         {tabs.map((tab) => (
                             <button

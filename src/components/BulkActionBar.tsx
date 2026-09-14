@@ -29,7 +29,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
     <div className="fixed bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 w-full max-w-2xl z-[1100] p-4 pb-safe">
         <div className="bg-white dark:bg-slate-800 rounded-lg shadow-2xl p-3 flex items-center justify-between animate-fade-in-up border border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
-                <span className="text-sm font-semibold text-gray-800 dark:text-white whitespace-nowrap px-2">{selectedCount} selected</span>
+                <span className="text-sm font-semibold text-slate-800 dark:text-white whitespace-nowrap px-2">{selectedCount} selected</span>
                 
                 <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
                 
@@ -48,12 +48,12 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
                         Update Status
                     </button>
                     {isStatusOpen && (
-                        <div className="absolute bottom-full mb-2 left-0 w-40 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-md shadow-lg z-50">
+                        <div className="absolute bottom-full mb-2 left-0 w-40 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md shadow-lg z-50">
                             {TaskStatusValues.map(status => (
                                 <button
                                     key={status}
                                     onClick={() => handleStatusUpdate(status)}
-                                    className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-600 first:rounded-t-md last:rounded-b-md"
+                                    className="block w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-600 first:rounded-t-md last:rounded-b-md"
                                 >
                                     {status.replace('_', ' ')}
                                 </button>
@@ -62,7 +62,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
                     )}
                 </div>
             </div>
-            <button onClick={onClearSelection} className="text-sm font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 ml-4 px-2">
+            <button onClick={onClearSelection} className="text-sm font-semibold text-dim-500 hover:text-slate-800 dark:hover:text-dim-300 ml-4 px-2">
                 Clear
             </button>
         </div>

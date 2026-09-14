@@ -145,69 +145,69 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     return (
         <form onSubmit={handleSubmit} className="space-y-2 sm:space-y-3">
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Matter</label>
-                <p className="p-2 bg-gray-100 dark:bg-gray-700 rounded-md text-gray-900 dark:text-white">{matter.title}</p>
+                <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Matter</label>
+                <p className="p-2 bg-slate-100 dark:bg-dim-700 rounded-md text-slate-900 dark:text-white">{matter.title}</p>
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unbilled Items</label>
-                <div className="space-y-2 sm:space-y-3 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-gray-200 dark:border-gray-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-2">Unbilled Items</label>
+                <div className="space-y-2 sm:space-y-3 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-slate-200 dark:border-dim-700">
                     {fixedFeeItem && (
                         <>
-                            <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Fixed Fee</div>
-                            <div className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={isFixedFeeSelected} onChange={() => setIsFixedFeeSelected(p => !p)} className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
-                                <div className="flex-grow text-sm text-gray-800 dark:text-gray-200">{fixedFeeItem.description}</div>
-                                <div className="text-sm font-semibold w-24 text-right text-gray-900 dark:text-gray-100"><NairaSymbol />{formatNaira(fixedFeeItem.amount)}</div>
+                            <div className="text-xs font-bold uppercase text-slate-500 dark:text-dim-400">Fixed Fee</div>
+                            <div className="flex items-center gap-2 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-dim-700/50">
+                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={isFixedFeeSelected} onChange={() => setIsFixedFeeSelected(p => !p)} className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
+                                <div className="flex-grow text-sm text-slate-800 dark:text-dim-200">{fixedFeeItem.description}</div>
+                                <div className="text-sm font-semibold w-24 text-right text-slate-900 dark:text-dim-100"><NairaSymbol />{formatNaira(fixedFeeItem.amount)}</div>
                             </div>
                         </>
                     )}
                     {unbilledTimeEntries.length > 0 && (
-                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">Professional Fees</div>
+                        <div className="text-xs font-bold uppercase text-slate-500 dark:text-dim-400 pt-2 border-t border-slate-200 dark:border-dim-700">Professional Fees</div>
                     )}
                     {unbilledTimeEntries.map(entry => (
-                        <div key={entry.id} className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={selectedTimeEntryIds.has(entry.id)} onChange={() => handleToggleSelection(entry.id, 'time')} className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
-                            <div className="flex-grow text-sm text-gray-800 dark:text-gray-200">{entry.description}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">{entry.duration}h</div>
-                            <div className="text-sm font-semibold w-24 text-right text-gray-900 dark:text-gray-100"><NairaSymbol />{formatNaira(entry.duration * entry.rate)}</div>
+                        <div key={entry.id} className="flex items-center gap-2 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-dim-700/50">
+                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={selectedTimeEntryIds.has(entry.id)} onChange={() => handleToggleSelection(entry.id, 'time')} className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
+                            <div className="flex-grow text-sm text-slate-800 dark:text-dim-200">{entry.description}</div>
+                            <div className="text-xs text-slate-500 dark:text-dim-400">{entry.duration}h</div>
+                            <div className="text-sm font-semibold w-24 text-right text-slate-900 dark:text-dim-100"><NairaSymbol />{formatNaira(entry.duration * entry.rate)}</div>
                         </div>
                     ))}
                     {unbilledExpenses.length > 0 && (
-                        <div className="text-xs font-bold uppercase text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">Disbursements</div>
+                        <div className="text-xs font-bold uppercase text-slate-500 dark:text-dim-400 pt-2 border-t border-slate-200 dark:border-dim-700">Disbursements</div>
                     )}
                     {unbilledExpenses.map(expense => (
-                        <div key={expense.id} className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
-                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={selectedExpenseIds.has(expense.id)} onChange={() => handleToggleSelection(expense.id, 'expense')} className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
-                            <div className="flex-grow text-sm text-gray-800 dark:text-gray-200">{expense.description}</div>
-                            <div className="text-sm font-semibold w-24 text-right text-gray-900 dark:text-gray-100"><NairaSymbol />{formatNaira(expense.amount)}</div>
+                        <div key={expense.id} className="flex items-center gap-2 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-dim-700/50">
+                            <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={selectedExpenseIds.has(expense.id)} onChange={() => handleToggleSelection(expense.id, 'expense')} className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
+                            <div className="flex-grow text-sm text-slate-800 dark:text-dim-200">{expense.description}</div>
+                            <div className="text-sm font-semibold w-24 text-right text-slate-900 dark:text-dim-100"><NairaSymbol />{formatNaira(expense.amount)}</div>
                         </div>
                     ))}
-                    {(unbilledTimeEntries.length === 0 && unbilledExpenses.length === 0 && !fixedFeeItem) && <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">No unbilled items for this matter.</p>}
+                    {(unbilledTimeEntries.length === 0 && unbilledExpenses.length === 0 && !fixedFeeItem) && <p className="text-sm text-slate-500 dark:text-dim-400 text-center py-4">No unbilled items for this matter.</p>}
                 </div>
             </div>
 
-            <div className="flex flex-col items-end space-y-1 pt-2 border-t border-gray-200 dark:border-zinc-700">
+            <div className="flex flex-col items-end space-y-1 pt-2 border-t border-slate-200 dark:border-zinc-700">
                 <div className="flex justify-between w-full max-w-xs text-sm">
-                    <span className="text-gray-600 dark:text-zinc-400">Subtotal:</span>
+                    <span className="text-slate-600 dark:text-zinc-400">Subtotal:</span>
                     <span className="font-semibold"><NairaSymbol />{formatNaira(subTotal)}</span>
                 </div>
                 <div className="flex justify-between w-full max-w-xs items-center">
-                    <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-zinc-400 cursor-pointer">
-                        <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={applyVat} onChange={e => setApplyVat(e.target.checked)} className="rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
+                    <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-zinc-400 cursor-pointer">
+                        <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={applyVat} onChange={e => setApplyVat(e.target.checked)} className="rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
                         Apply VAT ({vatPercentage}%)
                     </label>
                     <span className="font-semibold"><NairaSymbol />{formatNaira(taxAmount)}</span>
                 </div>
-                <div className="flex justify-between w-full max-w-xs text-lg font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400 mt-2 border-t border-gray-200 dark:border-zinc-700 pt-2">
+                <div className="flex justify-between w-full max-w-xs text-lg font-bold text-primary-600 dark:text-primary-300 dark:text-primary-400 mt-2 border-t border-slate-200 dark:border-zinc-700 pt-2">
                     <span>Total:</span>
                     <span><NairaSymbol />{formatNaira(totalAmount)}</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 border-t pt-4 border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 border-t pt-4 border-slate-200 dark:border-dim-700">
                 <div>
-                    <label htmlFor="paymentAccount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Account</label>
+                    <label htmlFor="paymentAccount" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Payment Account</label>
                     <select id="paymentAccount" value={paymentAccountId} onChange={e => setPaymentAccountId(e.target.value)} className={commonInputClass} required>
                         {bankAccounts.map(acc => (
                             <option key={acc.id} value={acc.id}>
@@ -217,21 +217,21 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="invNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Invoice Number</label>
+                    <label htmlFor="invNumber" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Invoice Number</label>
                     <input autoComplete="off" data-lpignore="true"  type="text" id="invNumber" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className={commonInputClass} required />
                 </div>
                 <div>
-                    <label htmlFor="invIssueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Issue Date</label>
+                    <label htmlFor="invIssueDate" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Issue Date</label>
                     <input autoComplete="off" data-lpignore="true"  type="date" id="invIssueDate" value={issueDate} onChange={e => setIssueDate(e.target.value)} className={commonInputClass} required />
                 </div>
                 <div>
-                    <label htmlFor="invDueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
+                    <label htmlFor="invDueDate" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Due Date</label>
                     <input autoComplete="off" data-lpignore="true"  type="date" id="invDueDate" value={dueDate} onChange={e => setDueDate(e.target.value)} className={commonInputClass} required />
                 </div>
             </div>
 
             <div className="pt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Generate Invoice</button>
             </div>
         </form>

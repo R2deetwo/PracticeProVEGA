@@ -1,6 +1,6 @@
 # Design Tokens — Inventory, Semantic Layer & Migration Plan
 
-**Status:** Token set defined ✅ · Batch 1 (Task components) migrated ✅ · Batches 2–N planned
+**Status:** Token set defined ✅ · Batch 1 (Task components) ✅ · Batch 2 (gray scale eliminated → `dim` + slate convergence) ✅ · Batches 3–N planned
 **Source of truth:** `src/index.css` (variables) · `tailwind.config.ts` (utility mapping)
 **Migration rule:** a component migrates from a scale class to a role token **only when the token aliases the exact same CSS variable** — the refactor is zero-visual-change *by construction* (same variable, same value, under every theme).
 
@@ -35,18 +35,18 @@
 
 ### 1c. Neutral scales (Tailwind-mapped, theme-overridable)
 
-All three scales are mapped in `tailwind.config.ts` to `rgb(var(--color-*) / <alpha-value>)`, so **every `slate-*`/`zinc-*`/`gray-*` class is already variable-backed and theme-aware**:
+All scales are mapped in `tailwind.config.ts` to `rgb(var(--color-*) / <alpha-value>)`, so **every `slate-*`/`zinc-*`/`dim-*` class is variable-backed and theme-aware**:
 
 | Scale | Occurrences (src/components) | Role in the app |
 |-------|------------------------------|-----------------|
 | `slate-*` | 8,655 | **Light-mode workhorse** — text/borders/surfaces |
 | `zinc-*` | 6,351 | **Dark-mode workhorse** — explicit `dark:` variants (5,798 `dark:`-prefixed neutral classes) |
-| `gray-*` | 752 | **Orphan scale** — inconsistent third hue, to be eliminated (batches 2–3) |
+| `dim-*` | 373 | **Theme-inverted neutral ramp** (formerly `gray-*`, renamed batch 2) — auto-flips in every dark/colored theme; converges into the batch-7 dark role layer |
 | `white`/`black` | — | Var-backed (`.dark` flips both) |
 
 Top shades: `zinc-700` (1,703) · `zinc-800` (1,433) · `slate-200` (1,432) · `slate-400` (1,330) · `slate-500` (1,292) · `slate-100` (1,049).
 
-**Consistency verdict:** the app is *not* internally consistent today — the same semantic role (e.g. "muted text") is rendered as `slate-400`, `slate-500`, `gray-400`, `gray-500` or `zinc-400` depending on the file. The theme layer is consistent (all three scales are var-backed; `.dark` flips `white`/`black`/`gray` and pins `zinc`/`slate`), so the drift is hue-level, not theme-level.
+**Consistency verdict:** the same semantic role (e.g. "muted text") can still render as `slate-400`, `slate-500` or `dim-400` depending on the file — that drift is what batches 3–7 retire as each area moves to role tokens. The theme layer is consistent (`.dark` flips `white`/`black`/`dim` and pins `zinc`/`slate`), so the drift is hue-level, not theme-level.
 
 ### 1d. Brand scale
 
@@ -83,6 +83,28 @@ Tailwind keys (`tailwind.config.ts`): `strong`, `body`, `subtle`, `hairline` (cl
 
 **Migration discipline:** a class is only swapped when the token aliases its exact variable. E.g. `text-slate-600` (no exact token yet) stays as-is until a decision is made about whether body text converges to 600 or 700 — that's a *visual* decision, not a refactor. Dark-mode classes (`dark:text-zinc-*`) are deliberately untouched in Batch 1; they get their own role layer (`--text-strong-dark` etc.) in a later batch after the light layer proves out.
 
+### 2b. Batch 2 — why "gray → slate everywhere" was impossible, and what shipped instead
+
+The batch plan's original line ("gray → slate, mechanical") assumed the two scales only differ by hue. **They do not.** Per-theme analysis of all 10 theme combinations (`scripts/compare_gray_slate.py`, `dark_gray_zinc_map.py`) found:
+
+- **Light (`:root`):** gray-N vs slate-N differ by ≤ 8/255 per channel — genuinely sub-perceptual.
+- **`.dark`:** `gray` is remapped to the inverted zinc ramp (auto-flips: low shades → dark surfaces, high shades → light text) while `slate` is *pinned* at light-theme values. An unpaired `text-gray-800` is light text on dark bg; the same element as `text-slate-800` would be **invisible**.
+- **Colored themes (midnight, oled, neon-cyber, …):** gray and slate get *independently authored* ramps — `dark:gray-N → dark:zinc-M` carries 15–51/255 deltas; there is no non-gray class that matches gray-N across all themes.
+
+So the only zero-visual-change elimination is a **rename**, not a remap:
+
+| Rule | Pattern | Target | Why it's exact |
+|------|---------|--------|----------------|
+| D | gray class under `dark:` | `dim-N` | same variable, renamed |
+| S | light gray + same-utility `dark:` partner **in the same string literal** | `slate-N` | dark covered by partner (`.dark .dark\:*` always outspecifies); light delta ≤ 8/255 |
+| X | everything else (auto-flip reliance, ternary branches, cross-literal pairing) | `dim-N` | same variable, renamed |
+
+- New Tailwind key **`dim`** maps `--color-dim-50…950` — the variables formerly named `--color-gray-*`, values untouched in all 9 theme blocks (verified: 99/99 var lines byte-identical).
+- The **`gray` key is deleted** from `tailwind.config.ts` — any future `gray-*` class silently generates no CSS, so the CI gate now **hard-fails on any gray-* occurrence**.
+- Rule S is restricted to a single string literal because a ternary can put mutually-exclusive branches on one line (`x ? 'bg-gray-100' : 'bg-white dark:bg-zinc-900'`) — line-level pairing would convert the light branch to slate and break its dark auto-flip.
+- Totals: 779 occurrences in 67 files → **406 slate + 373 dim**; built-CSS proof (`scripts/batch2_css_proof.py`): all 42 dim selectors declaration-identical to their gray predecessors, 0 gray selectors residual, 0 `var(--color-gray-*)` refs.
+- `dim` is a **transitional name**: those 373 usages rely on the theme auto-flip and converge into the batch-7 dark role layer (`--text-strong-dark` etc.).
+
 ---
 
 ## 3. Batch plan
@@ -90,7 +112,7 @@ Tailwind keys (`tailwind.config.ts`): `strong`, `body`, `subtle`, `hairline` (cl
 | Batch | Scope | Files (approx.) | Status |
 |-------|-------|-----------------|--------|
 | 1 | Task components: `TasksView`, `TaskList`, `TaskDetailModal`, `TasksWidget`, `UserTaskSummaryPanel` — 96 class swaps (incl. `hover:`/`focus:` variants); `divide-slate-*` and non-exact shades deliberately held | 5 | ✅ done (this round) |
-| 2 | Orphan `gray-*` elimination → `slate-*` (app-wide, mechanical; ~sub-perceptual hue shift, flagged separately) | ~40 | planned |
+| 2 | Orphan `gray-*` elimination — **executed as a rename + split**, see §2b: 406 paired classes → `slate-*` (light-side convergence, dark covered by existing `dark:` partners); 373 auto-flip/dark-variant classes → new `dim-*` key mapped to the SAME variables (renamed `--color-dim-*`); `gray` Tailwind key deleted | 67 | ✅ done |
 | 3 | Financial components (`BillingView`, `BillingMonitorView`, `reports/FinancialReports`, invoice/receipt details) | ~15 | planned |
 | 4 | Messaging components (`MessagesView`, `messaging/*`, `aloa/*`) | ~20 | planned |
 | 5 | Settings & modals (`settings/*`, `modals/*`) | ~55 | planned |
@@ -98,8 +120,8 @@ Tailwind keys (`tailwind.config.ts`): `strong`, `body`, `subtle`, `hairline` (cl
 | 7 | Dark-mode role layer (`--text-strong-dark` etc.) + `dark:` pair consolidation | — | planned, needs design |
 | 8 | Landing page: converge on `--color-ink/paper/sage` brand tokens where they already match | 1 | planned |
 
-## 4. Enforcement decision (recorded)
+## 4. Enforcement decision (recorded, updated batch 2)
 
-**Feasible now, adopted as a soft gate:** `scripts/check-design-tokens.mjs` (run in CI via `tests.yml`) counts neutral-scale usage in `src/` against a committed baseline (`scripts/.token-baseline.json`). It **fails the build when `gray-*` usage grows** (the scale we are eliminating) and **warns** when `slate-*`/`zinc-*` grow in already-migrated files. Rationale: a hard ban on all three scales is premature until the semantic layer covers dark-mode roles (batch 7); a `gray-*` growth ban is actionable today because every new `gray-*` is a defect by definition under the consolidation rule.
+**Hard gate — gray zero-tolerance:** `scripts/check-design-tokens.mjs` (CI via `tests.yml`) counts neutral-scale usage in `src/` against a committed baseline (`scripts/.token-baseline.json`). Since batch 2 the `gray` Tailwind key **no longer exists** — any `gray-*` class generates no CSS at all, so the gate **fails on any gray-* occurrence** (was: growth-only ban). It **warns** when `slate-*`/`zinc-*` grow in already-migrated files. Rationale: a hard ban on all scales is premature until the semantic layer covers dark-mode roles (batch 7).
 
 **Revisit trigger:** flip `slate-*`/`zinc-*` growth to *fail* (per-file allowlist for unmigrated areas) after batches 2–6 land.

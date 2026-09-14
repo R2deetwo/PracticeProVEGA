@@ -99,9 +99,9 @@ const RpcGuidanceTip: React.FC<RpcGuidanceTipProps> = ({ id, children }) => {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-6 6v3.586l-1.707 1.707A1 1 0 003 15h14a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" /></svg>
                 </button>
                  {isSnoozeOpen && (
-                    <div className={`absolute right-0 w-28 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg z-50 ${popoverPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
-                        <button onClick={(e) => handleSnooze(e, 1)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-600">For 1 Day</button>
-                        <button onClick={(e) => handleSnooze(e, 7)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-600">For 1 Week</button>
+                    <div className={`absolute right-0 w-28 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg z-50 ${popoverPosition === 'top' ? 'bottom-full mb-1' : 'top-full mt-1'}`}>
+                        <button onClick={(e) => handleSnooze(e, 1)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-dim-600">For 1 Day</button>
+                        <button onClick={(e) => handleSnooze(e, 7)} className="block w-full text-left px-3 py-1.5 text-sm hover:bg-slate-100 dark:hover:bg-dim-600">For 1 Week</button>
                     </div>
                 )}
                 <button

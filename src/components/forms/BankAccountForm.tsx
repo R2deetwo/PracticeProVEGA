@@ -54,15 +54,15 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label htmlFor="accountName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Name (Optional)</label>
+        <label htmlFor="accountName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Account Name (Optional)</label>
         <input autoComplete="off" data-lpignore="true"  type="text" id="accountName" value={accountName} onChange={e => setAccountName(e.target.value)} className={commonInputClass} />
       </div>
       <div>
-        <label htmlFor="bankName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bank Name</label>
+        <label htmlFor="bankName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Bank Name</label>
         <input autoComplete="off" data-lpignore="true"  type="text" id="bankName" value={bankName} onChange={e => setBankName(e.target.value)} className={commonInputClass} required />
       </div>
       <div>
-        <label htmlFor="accountNumber" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Number</label>
+        <label htmlFor="accountNumber" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Account Number</label>
         <input autoComplete="off" data-lpignore="true"  type="text" id="accountNumber" value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className={commonInputClass} required pattern="\d{10}" title="Please enter a 10-digit account number"/>
       </div>
       {isEditing && !accountToEdit.isDefault && (
@@ -73,7 +73,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
       <div className="pt-4 flex justify-between items-center">
         <div>{isEditing && <button type="button" onClick={() => onDelete(accountToEdit.id)} className="px-4 py-2 bg-red-100 text-red-700 dark:text-red-400 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80 transition-colors">Delete</button>}</div>
         <div className="space-x-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
             <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Add Account'}</button>
         </div>
       </div>

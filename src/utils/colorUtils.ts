@@ -11,7 +11,7 @@ export const getEventTypeColorClass = (color: string) => {
         case 'purple': return 'bg-purple-500';
         case 'pink': return 'bg-pink-500';
         case 'indigo': return 'bg-indigo-500';
-        default: return 'bg-gray-500';
+        default: return 'bg-dim-500';
     }
 };
 
@@ -26,7 +26,7 @@ export const getBorderColorClass = (color: string) => {
         pink: 'border-pink-400',
         indigo: 'border-indigo-400',
     };
-    return colorMap[color] || 'border-gray-400';
+    return colorMap[color] || 'border-dim-400';
 };
 
 
@@ -43,7 +43,7 @@ export const getEventTypeBadgeClass = (color: string, type: 'badge' | 'bg-opacit
                 case 'purple': return 'bg-purple-100 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 border-l-purple-500';
                 case 'pink': return 'bg-pink-100 dark:bg-pink-900/40 text-pink-900 dark:text-pink-100 border-l-pink-500';
                 case 'indigo': return 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-900 dark:text-indigo-100 border-l-indigo-500';
-                default: return 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-l-gray-500';
+                default: return 'bg-slate-100 dark:bg-dim-800 text-slate-900 dark:text-dim-100 border-l-dim-500';
             }
         case 'bg-opacity-20':
             switch (color) {
@@ -55,7 +55,7 @@ export const getEventTypeBadgeClass = (color: string, type: 'badge' | 'bg-opacit
                 case 'purple': return 'bg-purple-500/20 dark:bg-purple-500/30';
                 case 'pink': return 'bg-pink-500/20 dark:bg-pink-500/30';
                 case 'indigo': return 'bg-indigo-500/20 dark:bg-indigo-500/30';
-                default: return 'bg-gray-500/20 dark:bg-gray-500/30';
+                default: return 'bg-slate-500/20 dark:bg-dim-500/30';
             }
         case 'bg':
             switch (color) {
@@ -67,7 +67,7 @@ export const getEventTypeBadgeClass = (color: string, type: 'badge' | 'bg-opacit
                 case 'purple': return 'bg-purple-500';
                 case 'pink': return 'bg-pink-500';
                 case 'indigo': return 'bg-indigo-500';
-                default: return 'bg-gray-500';
+                default: return 'bg-dim-500';
             }
         default: // badge
             switch (color) {
@@ -79,7 +79,7 @@ export const getEventTypeBadgeClass = (color: string, type: 'badge' | 'bg-opacit
                 case 'purple': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
                 case 'pink': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
                 case 'indigo': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
-                default: return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+                default: return 'bg-slate-100 text-slate-800 dark:bg-dim-700 dark:text-dim-300';
             }
     }
 };
@@ -117,7 +117,7 @@ export const formatDueDate = (dueDateString: string | null): string => {
 
 export const getDueDateColor = (dueDateString: string | null | undefined): string => {
     if (!dueDateString) {
-        return 'text-gray-500 dark:text-gray-400';
+        return 'text-slate-500 dark:text-dim-400';
     }
     const dueDate = new Date(dueDateString);
     if (isNaN(dueDate.getTime())) {
@@ -134,13 +134,13 @@ export const getDueDateColor = (dueDateString: string | null | undefined): strin
     } else if (diffDays <= 3) { // Due soon
         return 'text-yellow-600 dark:text-yellow-500 font-semibold';
     } else { // Due later
-        return 'text-gray-500 dark:text-gray-400';
+        return 'text-slate-500 dark:text-dim-400';
     }
 }
 
 export const getDueDateBorderColor = (dueDateString: string | null | undefined): string => {
     if (!dueDateString) {
-        return 'border-gray-300 dark:border-slate-600';
+        return 'border-slate-300 dark:border-slate-600';
     }
     const dueDate = new Date(dueDateString);
     if (isNaN(dueDate.getTime())) {
@@ -157,7 +157,7 @@ export const getDueDateBorderColor = (dueDateString: string | null | undefined):
     } else if (diffDays <= 3) { // Due soon
         return 'border-yellow-500';
     } else { // Due later
-        return 'border-gray-300 dark:border-slate-600';
+        return 'border-slate-300 dark:border-slate-600';
     }
 };
 

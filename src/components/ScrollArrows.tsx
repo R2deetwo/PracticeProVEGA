@@ -54,7 +54,7 @@ const ScrollArrows: React.FC<ScrollArrowsProps> = ({ children, className = 'item
             {canScrollLeft && (
                 <button
                     onClick={() => scroll('left')}
-                    className="absolute left-0 z-20 p-1 bg-white/90 dark:bg-zinc-800/90 text-slate-600 dark:text-slate-300 rounded-full shadow-md border border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 mt-2"
+                    className="absolute left-0 z-20 p-1 bg-white/90 dark:bg-zinc-800/90 text-slate-600 dark:text-slate-300 rounded-full shadow-md border border-slate-200 dark:border-dim-700 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 mt-2"
                     aria-label="Scroll left"
                 >
                     <ChevronLeftIcon />
@@ -68,7 +68,7 @@ const ScrollArrows: React.FC<ScrollArrowsProps> = ({ children, className = 'item
             {canScrollRight && (
                 <button
                     onClick={() => scroll('right')}
-                    className="absolute right-0 z-20 p-1 bg-white/90 dark:bg-zinc-800/90 text-slate-600 dark:text-slate-300 rounded-full shadow-md border border-gray-200 dark:border-gray-700 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 mt-2"
+                    className="absolute right-0 z-20 p-1 bg-white/90 dark:bg-zinc-800/90 text-slate-600 dark:text-slate-300 rounded-full shadow-md border border-slate-200 dark:border-dim-700 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 mt-2"
                     aria-label="Scroll right"
                 >
                     <ChevronRightIcon className="w-5 h-5" />

@@ -28,7 +28,7 @@ const MIGRATED_FILES = [
   'src/components/UserTaskSummaryPanel.tsx',
 ];
 
-const CLASS_RE = /\b(?:slate|gray|zinc)-\d{2,3}\b/g;
+const CLASS_RE = /\b(?:slate|gray|zinc|dim)-\d{2,3}\b/g;
 
 /** Recursively collect .tsx/.ts files under a directory. */
 function walk(dir, acc = []) {
@@ -42,7 +42,7 @@ function walk(dir, acc = []) {
 }
 
 function scan() {
-  const counts = { gray: 0, slate: 0, zinc: 0 };
+  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0 };
   const perFile = {};
   for (const f of walk(SRC)) {
     const rel = relative(ROOT, f);
@@ -62,7 +62,7 @@ const { counts, perFile } = scan();
 
 if (UPDATE) {
   writeFileSync(BASELINE_PATH, JSON.stringify({ counts, perFile }, null, 2) + '\n');
-  console.log(`Baseline updated: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} (${Object.keys(perFile).length} files)`);
+  console.log(`Baseline updated: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} (${Object.keys(perFile).length} files)`);
   process.exit(0);
 }
 
@@ -76,14 +76,16 @@ try {
 
 let exitCode = 0;
 
-// ── HARD GATE: gray growth ────────────────────────────────────────────────
-if (counts.gray > baseline.counts.gray) {
-  console.error(`::error::gray-* usage GREW from ${baseline.counts.gray} to ${counts.gray}. gray is the orphan scale being eliminated (docs/design/TOKENS.md batch 2) — use slate-*, zinc-* (dark: variants), or a semantic token instead.`);
+// ── HARD GATE: gray zero-tolerance ───────────────────────────────────────
+// Batch 2 eliminated the gray scale (renamed to `dim`, mapped to the same
+// --color-dim-* variables). Any gray-* occurrence is now a defect: the
+// `gray` Tailwind key no longer exists, so such a class silently generates
+// NO CSS at all.
+if (counts.gray > 0) {
+  console.error(`::error::gray-* usage found (${counts.gray} occurrences). The gray scale was eliminated in P4 batch 2 — its Tailwind key is deleted, so these classes generate no CSS. Use slate-* (light), zinc-* (dark: variants), dim-* (theme-auto-flip), or a semantic token.`);
   exitCode = 1;
-} else if (counts.gray < baseline.counts.gray) {
-  console.log(`✓ gray-* shrank: ${baseline.counts.gray} → ${counts.gray} (migration progressing — commit an updated baseline)`);
 } else {
-  console.log(`✓ gray-* stable at ${counts.gray}`);
+  console.log('✓ gray-* at zero (scale eliminated, batch 2)');
 }
 
 // ── SOFT GATE: growth in migrated files ──────────────────────────────────
@@ -95,5 +97,5 @@ for (const f of MIGRATED_FILES) {
   }
 }
 
-console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray growth`);
+console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
 process.exit(exitCode);

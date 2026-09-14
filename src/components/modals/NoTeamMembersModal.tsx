@@ -15,7 +15,7 @@ const NoTeamMembersModal: React.FC<NoTeamMembersModalProps> = ({ onNavigate, onC
  return (
   <div className="space-y-4 text-center">
    <h3 className="text-xl font-bold text-slate-900 dark:text-white">Add Your Team</h3>
-   <p className="text-gray-600 dark:text-zinc-400">
+   <p className="text-slate-600 dark:text-zinc-400">
     You are the only user in your firm. To assign this matter to someone else, you first need to invite them to join your PracticePro workspace.
    </p>
    <div className="pt-4 flex justify-center space-x-2">

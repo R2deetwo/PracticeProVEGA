@@ -111,11 +111,11 @@ const ProTip: React.FC<ProTipProps> = ({ id, children }) => {
                 {isSnoozeOpen && createPortal(
                     <div
                         id="snooze-portal-dropdown"
-                        className="fixed z-[9999] w-28 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg animate-fade-in"
+                        className="fixed z-[9999] w-28 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg animate-fade-in"
                         style={{ top: snoozePos.top, left: snoozePos.left }}
                     >
-                        <button onClick={(e) => handleSnooze(e, 1)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-t-md">For 1 Day</button>
-                        <button onClick={(e) => handleSnooze(e, 7)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-b-md">For 1 Week</button>
+                        <button onClick={(e) => handleSnooze(e, 1)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600 rounded-t-md">For 1 Day</button>
+                        <button onClick={(e) => handleSnooze(e, 7)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600 rounded-b-md">For 1 Week</button>
                     </div>,
                     document.body
                 )}

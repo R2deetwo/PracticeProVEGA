@@ -6,9 +6,9 @@ import Tooltip from '../Tooltip';
 import { useUI } from '../../contexts/UIContext';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-slate-200 dark:border-dim-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{title}</h3>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
         </div>
     </div>
@@ -30,10 +30,10 @@ interface CategoriesSettingsProps {
 const CategoryList: React.FC<{ items: any[], onEdit: (id: string) => void, onDelete: (id: string) => void, renderItem: (item: any) => React.ReactNode, canDelete?: (item: any) => boolean }> = ({ items, onEdit, onDelete, renderItem, canDelete }) => (
     <ul className="space-y-2">
         {items.map(item => (
-            <li key={item.id} className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50 group">
+            <li key={item.id} className="flex items-center justify-between p-2 rounded-md hover:bg-slate-50 dark:hover:bg-dim-700/50 group">
                 {renderItem(item)}
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => onEdit(item.id)} className="text-gray-500 hover:text-primary-600 p-1 rounded-full"><EditIcon className="w-4 h-4" /></button>
+                    <button onClick={() => onEdit(item.id)} className="text-dim-500 hover:text-primary-600 p-1 rounded-full"><EditIcon className="w-4 h-4" /></button>
                     {(!canDelete || canDelete(item)) && <button onClick={() => onDelete(item.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full"><TrashIcon className="w-4 h-4" /></button>}
                 </div>
             </li>
@@ -49,12 +49,12 @@ const DocumentCategoryList: React.FC<{ categories: DocumentCategory[], parentId:
         <ul className="space-y-1" style={{ marginLeft: parentId ? '1.5rem' : 0 }}>
             {children.map(cat => (
                 <li key={cat.id} className="group">
-                    <div className="flex items-center justify-between p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <span>{cat.name} {cat.isCore && <span className="text-xs text-gray-400">(Core)</span>}</span>
+                    <div className="flex items-center justify-between p-2 rounded-md hover:bg-slate-50 dark:hover:bg-dim-700/50">
+                        <span>{cat.name} {cat.isCore && <span className="text-xs text-dim-400">(Core)</span>}</span>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {!cat.isCore && <button onClick={() => onAddSub(cat.id)} className="text-gray-500 hover:text-primary-600 text-xs font-semibold">Add Sub</button>}
-                            <Tooltip text="Permissions"><button onClick={() => onPermissions(cat.id)} className="text-gray-500 hover:text-primary-600 p-1 rounded-full"><LockClosedIcon className="w-4 h-4" /></button></Tooltip>
-                            {!cat.isCore && <button onClick={() => onEdit(cat.id)} className="text-gray-500 hover:text-primary-600 p-1 rounded-full"><EditIcon className="w-4 h-4" /></button>}
+                            {!cat.isCore && <button onClick={() => onAddSub(cat.id)} className="text-dim-500 hover:text-primary-600 text-xs font-semibold">Add Sub</button>}
+                            <Tooltip text="Permissions"><button onClick={() => onPermissions(cat.id)} className="text-dim-500 hover:text-primary-600 p-1 rounded-full"><LockClosedIcon className="w-4 h-4" /></button></Tooltip>
+                            {!cat.isCore && <button onClick={() => onEdit(cat.id)} className="text-dim-500 hover:text-primary-600 p-1 rounded-full"><EditIcon className="w-4 h-4" /></button>}
                             {!cat.isCore && <button onClick={() => onDelete(cat.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full"><TrashIcon className="w-4 h-4" /></button>}
                         </div>
                     </div>
@@ -125,7 +125,7 @@ const CategoriesSettings: React.FC<CategoriesSettingsProps> = (props) => {
 
     return (
         <div>
-            <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
+            <div className="mb-6 border-b border-slate-200 dark:border-zinc-700">
                 <nav className="-mb-px flex space-x-6 overflow-x-auto">
                     {(['events', 'contacts', 'documents'] as CategorySubTab[]).map(tab => (
                         <button

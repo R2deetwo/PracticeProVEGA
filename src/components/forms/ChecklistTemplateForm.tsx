@@ -72,17 +72,17 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
 
     // inputClassic is now imported at top level
   const commonInputClass = "text-sm " + inputClassic;
-  const itemInputClass = "text-sm text-gray-900 dark:text-gray-300 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md p-1 focus:ring-primary-500 focus:border-primary-500";
+  const itemInputClass = "text-sm text-slate-900 dark:text-dim-300 w-full bg-white dark:bg-dim-800 border border-slate-300 dark:border-dim-600 rounded-md p-1 focus:ring-primary-500 focus:border-primary-500";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Template Name</label>
+        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Template Name</label>
         <input autoComplete="off" data-lpignore="true"  type="text" value={name} onChange={e => setName(e.target.value)} className={commonInputClass} required />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Checklist Items</label>
-        <div className="space-y-2 p-2 border rounded-md border-gray-200 dark:border-gray-700 max-h-48 overflow-y-auto">
+        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Checklist Items</label>
+        <div className="space-y-2 p-2 border rounded-md border-slate-200 dark:border-dim-700 max-h-48 overflow-y-auto">
           {items.map((item, index) => (
             <div key={item.id} className="flex items-center gap-2">
               <input autoComplete="off" data-lpignore="true"  type="text" value={item.text} onChange={e => handleItemChange(index, e.target.value)} className={itemInputClass} placeholder="Enter checklist item..." />
@@ -93,11 +93,11 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
         <button type="button" onClick={addItem} className="text-sm font-semibold text-primary-600 dark:text-primary-300 hover:underline mt-2">Add Item</button>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Relevant Matter Types (Optional)</label>
-        <div className="flex flex-wrap gap-2 p-2 border rounded-md border-gray-200 dark:border-gray-700">
+        <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Relevant Matter Types (Optional)</label>
+        <div className="flex flex-wrap gap-2 p-2 border rounded-md border-slate-200 dark:border-dim-700">
           {matterTypes.map(type => (
             <label key={type} className="flex items-center gap-2 text-sm p-1 cursor-pointer">
-              <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={relevantMatterTypes.has(type)} onChange={() => handleMatterTypeToggle(type)} className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
+              <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={relevantMatterTypes.has(type)} onChange={() => handleMatterTypeToggle(type)} className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
               {type}
             </label>
           ))}
@@ -122,7 +122,7 @@ const ChecklistTemplateForm: React.FC<ChecklistTemplateFormProps> = ({ templateT
           </button>
         )}</div>
         <div className="space-x-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-zinc-700 dark:hover:bg-gray-500 transition-colors">Cancel</button>
+          <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
           <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Template'}</button>
         </div>
       </div>

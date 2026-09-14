@@ -17,10 +17,10 @@ import { useProduct } from '../../contexts/ProductContext';
 import EstateCommunitySettings from './EstateCommunitySettings';
 
 export const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string, onTitleClick?: () => void }> = ({ title, children, id, className, onTitleClick }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-lg shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-900 dark:bg-[#1f2937] border border-slate-200 dark:border-dim-700 rounded-lg shadow-md p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3
-                className={`text-xl font-bold text-gray-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
+                className={`text-xl font-bold text-slate-900 dark:text-white mb-4 ${onTitleClick ? 'cursor-pointer select-none active:text-primary-500' : ''}`}
                 onClick={onTitleClick}
             >
                 {title}
@@ -287,11 +287,11 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             <SettingsCard title={isProperty ? "Portfolio Profile" : "Firm Profile"} onTitleClick={handleTitleClick} id="firm-details">
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex gap-4">
-                        <div className="w-20 h-20 bg-gray-100 dark:bg-zinc-700 rounded-lg border border-gray-200 dark:border-gray-600 flex items-center justify-center overflow-hidden">
+                        <div className="w-20 h-20 bg-slate-100 dark:bg-zinc-700 rounded-lg border border-slate-200 dark:border-dim-600 flex items-center justify-center overflow-hidden">
                             {firmDetails && firmDetails.logoUrl ? (
                                 <img src={firmDetails.logoUrl} alt="Firm Logo" className="w-full h-full object-contain" />
                             ) : (
-                                <span className="text-xs text-gray-400 text-center px-1">No Logo</span>
+                                <span className="text-xs text-dim-400 text-center px-1">No Logo</span>
                             )}
                         </div>
                         <div>

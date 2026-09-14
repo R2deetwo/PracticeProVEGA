@@ -169,9 +169,9 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
                                         <li ref={provided.innerRef} {...provided.draggableProps} className="group/item">
                                             <div
                                                 onClick={() => onSelect(currentLevel, itemId)}
-                                                className={`flex items-center gap-1 p-2 rounded-md cursor-pointer transition-colors ${isPathActive ? `bg-primary-100 dark:bg-primary-900/40 ${colorClass}` : `hover:bg-gray-100 dark:hover:bg-gray-700/50`}`}
+                                                className={`flex items-center gap-1 p-2 rounded-md cursor-pointer transition-colors ${isPathActive ? `bg-primary-100 dark:bg-primary-900/40 ${colorClass}` : `hover:bg-slate-100 dark:hover:bg-dim-700/50`}`}
                                             >
-                                                <div {...provided.dragHandleProps} className={`cursor-grab text-gray-400 ${isDraggableList && !isSystemNote ? 'opacity-0 group-hover/item:opacity-100' : 'opacity-0 cursor-default'}`}><DragHandleIcon className="w-4 h-4"/></div>
+                                                <div {...provided.dragHandleProps} className={`cursor-grab text-dim-400 ${isDraggableList && !isSystemNote ? 'opacity-0 group-hover/item:opacity-100' : 'opacity-0 cursor-default'}`}><DragHandleIcon className="w-4 h-4"/></div>
                                                 <div className="w-5 flex-shrink-0 flex items-center justify-center">
                                                     {(childrenToRender.length > 0) && (
                                                         <button onClick={(e) => { e.stopPropagation(); handleExpandToggle(item.id); }} className="p-1 -m-1">
@@ -212,7 +212,7 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
     };
 
     const renderAddButton = () => {
-        const buttonClasses = "text-sm font-semibold text-primary-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed";
+        const buttonClasses = "text-sm font-semibold text-primary-600 hover:underline disabled:text-dim-400 disabled:no-underline disabled:cursor-not-allowed";
 
         if (level === 0 && onAddNotebook) { 
             return <button onClick={onAddNotebook} className={buttonClasses}>+ Notebook</button>;
@@ -245,14 +245,14 @@ export const NoteColumn: React.FC<NoteColumnProps> = React.memo((props) => {
     };
     
     return (
-        <div className="w-full flex flex-col h-full border-r border-gray-200 dark:border-gray-700">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-800/50">
+        <div className="w-full flex flex-col h-full border-r border-slate-200 dark:border-dim-700">
+            <div className="p-4 border-b border-slate-200 dark:border-dim-700 flex-shrink-0 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-800/50">
                 {onBack && showBackButton && (
                     <button onClick={onBack} className="p-2 -ml-2 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-700">
                         <BackIcon />
                     </button>
                 )}
-                <h3 className="font-bold text-gray-800 dark:text-white truncate flex-grow text-sm uppercase tracking-wide">{title}</h3>
+                <h3 className="font-bold text-slate-800 dark:text-white truncate flex-grow text-sm uppercase tracking-wide">{title}</h3>
                 {renderAddButton()}
             </div>
             <div className="flex-grow overflow-y-auto custom-scrollbar">

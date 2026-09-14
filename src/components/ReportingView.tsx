@@ -195,8 +195,8 @@ const ReportGenerator: React.FC = () => {
             <h3 className="text-xl font-bold mb-4">Generate Report</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <div>
-                    <label htmlFor="reportType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Report Type</label>
-                    <select id="reportType" value={reportType} onChange={e => setReportType(e.target.value as ReportType)} className="w-full p-2 bg-gray-50 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md">
+                    <label htmlFor="reportType" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Report Type</label>
+                    <select id="reportType" value={reportType} onChange={e => setReportType(e.target.value as ReportType)} className="w-full p-2 bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md">
                         <optgroup label="Financial">
                             <option value="profit_loss">Profit & Loss</option>
                             <option value="ar_aging">A/R Aging</option>
@@ -209,8 +209,8 @@ const ReportGenerator: React.FC = () => {
                     </select>
                 </div>
                 <div>
-                    <label htmlFor="dateRange" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date Range</label>
-                    <select id="dateRange" value={dateRange} onChange={e => setDateRange(e.target.value as ReportDateRangeOption)} className="w-full p-2 bg-gray-50 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md" disabled={reportType === 'matter_status' || reportType === 'ar_aging'}>
+                    <label htmlFor="dateRange" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Date Range</label>
+                    <select id="dateRange" value={dateRange} onChange={e => setDateRange(e.target.value as ReportDateRangeOption)} className="w-full p-2 bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md" disabled={reportType === 'matter_status' || reportType === 'ar_aging'}>
                         <option value="last_30">Last 30 Days</option>
                         <option value="last_90">Last 90 Days</option>
                         <option value="this_year">This Year</option>
@@ -219,8 +219,8 @@ const ReportGenerator: React.FC = () => {
                 </div>
                 {reportType === 'timesheet' && appMode === AppMode.Multi && (
                     <div>
-                        <label htmlFor="userSelect" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">User</label>
-                        <select id="userSelect" value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)} className="w-full p-2 bg-gray-50 dark:bg-zinc-700 border border-gray-300 dark:border-zinc-600 rounded-md">
+                        <label htmlFor="userSelect" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">User</label>
+                        <select id="userSelect" value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md">
                             {activeUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                         </select>
                     </div>
@@ -301,7 +301,7 @@ const ReportingView: React.FC = () => {
 
                 {activeMainTab === 'dashboard' && (
                     <div>
-                        <div className="mb-6 border-b border-gray-200 dark:border-zinc-700">
+                        <div className="mb-6 border-b border-slate-200 dark:border-zinc-700">
                             <nav className="-mb-px flex space-x-6 overflow-x-auto items-center">
                                 {(['financial', 'bi'] as DashboardTab[]).map(tab => {
                                     const label = { bi: 'Business Intelligence', financial: 'Financial' }[tab];

@@ -55,9 +55,9 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
     return (
         <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-                <label htmlFor="channelName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Channel Name</label>
+                <label htmlFor="channelName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Channel Name</label>
                 <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">#</span>
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-dim-400">#</span>
                     <input autoComplete="off" data-lpignore="true" 
                         type="text"
                         id="channelName"
@@ -70,15 +70,15 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
                 </div>
             </div>
             <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Add Members</label>
-                <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2 space-y-2">
+                <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Add Members</label>
+                <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-dim-700 rounded-md p-2 space-y-2">
                     {users.filter(u => u.id !== currentUser?.id && u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel).map(user => (
-                        <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                        <label key={user.id} className="flex items-center space-x-3 cursor-pointer p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-dim-700/50">
                             <input autoComplete="off" data-lpignore="true" 
                                 type="checkbox"
                                 checked={selectedUsers.has(user.id)}
                                 onChange={() => handleToggleUser(user.id)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
+                                className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500"
                             />
                             <div className={`h-7 w-7 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-xs ${getUserColor(user.id)}`}>
                                 {getInitials(user.name)}
@@ -89,7 +89,7 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
                 </div>
             </div>
             <div className="pt-4 flex justify-end space-x-2">
-                <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg font-semibold">Cancel</button>
+                <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 rounded-lg font-semibold">Cancel</button>
                 <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold">Create Channel</button>
             </div>
         </form>

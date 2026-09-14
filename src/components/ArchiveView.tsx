@@ -168,12 +168,12 @@ const ArchiveView: React.FC = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by name, type, matter..."
-                className="w-full sm:w-2/3 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                className="w-full sm:w-2/3 px-4 py-2 bg-white dark:bg-dim-700 text-slate-900 dark:text-dim-300 border border-slate-300 dark:border-dim-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
             />
              <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full sm:w-1/3 px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
+                className="w-full sm:w-1/3 px-4 py-2 bg-white dark:bg-dim-700 text-slate-900 dark:text-dim-300 border border-slate-300 dark:border-dim-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
              >
                 <option value="all">All Time</option>
                 <option value="7">Last 7 Days</option>
@@ -183,11 +183,11 @@ const ArchiveView: React.FC = () => {
         </div>
         <div className="space-y-6">
             {groupedArchive.sortedGroups.map(({ matterTitle, items }) => (
-                <div key={matterTitle} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 px-6 py-3 border-b border-gray-200 dark:border-gray-700">{matterTitle}</h3>
+                <div key={matterTitle} className="bg-white dark:bg-dim-800 rounded-lg shadow-md overflow-hidden">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-dim-700/50 px-6 py-3 border-b border-slate-200 dark:border-dim-700">{matterTitle}</h3>
                     <div className="overflow-x-auto">
                         <table className="min-w-full">
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody className="divide-y divide-slate-200 dark:divide-dim-700">
                                 {items.map(item => <ArchiveRow key={item.id} item={item} onRestore={onRestore} onPermanentDelete={onPermanentDelete} openModal={openModal} />)}
                             </tbody>
                         </table>
@@ -195,11 +195,11 @@ const ArchiveView: React.FC = () => {
                 </div>
             ))}
              {groupedArchive.noMatterItems.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-                     <h3 className="text-lg font-bold text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-700/50 px-6 py-3 border-b border-gray-200 dark:border-gray-700">Unassociated Items</h3>
+                <div className="bg-white dark:bg-dim-800 rounded-lg shadow-md overflow-hidden">
+                     <h3 className="text-lg font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-dim-700/50 px-6 py-3 border-b border-slate-200 dark:border-dim-700">Unassociated Items</h3>
                     <div className="overflow-x-auto">
                         <table className="min-w-full">
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <tbody className="divide-y divide-slate-200 dark:divide-dim-700">
                                 {groupedArchive.noMatterItems.map(item => <ArchiveRow key={item.id} item={item} onRestore={onRestore} onPermanentDelete={onPermanentDelete} openModal={openModal} />)}
                             </tbody>
                         </table>
@@ -209,10 +209,10 @@ const ArchiveView: React.FC = () => {
         </div>
         </>
       ) : (
-        <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <ArchiveIcon className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">The Archive is Empty</h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">When you archive matters, contacts, or other items, they will appear here.</p>
+        <div className="text-center py-16 bg-white dark:bg-dim-800 rounded-lg shadow-md">
+          <ArchiveIcon className="mx-auto h-12 w-12 text-dim-400" />
+          <h3 className="mt-2 text-lg font-medium text-slate-900 dark:text-white">The Archive is Empty</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-dim-400">When you archive matters, contacts, or other items, they will appear here.</p>
         </div>
       )}
             </div>
@@ -228,13 +228,13 @@ interface ArchiveRowProps {
 }
 
 const ArchiveRow: React.FC<ArchiveRowProps> = ({ item, onRestore, onPermanentDelete, openModal }) => (
-    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-transform duration-200 hover:-translate-y-px">
+    <tr className="hover:bg-slate-50 dark:hover:bg-dim-700/50 transition-transform duration-200 hover:-translate-y-px">
         <td className="px-6 py-4 whitespace-nowrap">
-            <p className="text-sm font-medium text-gray-900 dark:text-white">{item.itemName}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400">{item.itemType}</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">{item.itemName}</p>
+            <p className="text-xs text-slate-500 dark:text-dim-400">{item.itemType}</p>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{item.archiverName}</td>
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300">{new Date(item.archivedAt).toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-dim-300">{item.archiverName}</td>
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-dim-300">{new Date(item.archivedAt).toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-4">
             <button onClick={() => onRestore(item)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-semibold">Restore</button>
             <button onClick={() => openModal('deleteConfirmation', item.id, {

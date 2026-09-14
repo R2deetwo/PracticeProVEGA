@@ -279,8 +279,8 @@ export const DockedModal: React.FC = () => {
         } else {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
-              <p className="text-gray-500 mb-4">Property not found for rent collection.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
+              <p className="text-dim-500 mb-4">Property not found for rent collection.</p>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -322,8 +322,8 @@ export const DockedModal: React.FC = () => {
         } else {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
-              <p className="text-gray-500 mb-4">Select a matter to log time against.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
+              <p className="text-dim-500 mb-4">Select a matter to log time against.</p>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -345,8 +345,8 @@ export const DockedModal: React.FC = () => {
         } else {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
-              <p className="text-gray-500 mb-4">Select a matter to record an expense.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
+              <p className="text-dim-500 mb-4">Select a matter to record an expense.</p>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -489,8 +489,8 @@ export const DockedModal: React.FC = () => {
         } else {
           content = (
             <div className="text-center p-10 flex flex-col items-center justify-center h-full">
-              <p className="text-gray-500 mb-4">Event not found.</p>
-              <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
+              <p className="text-slate-500 mb-4">Event not found.</p>
+              <button onClick={() => closeModal()} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
             </div>
           );
         }
@@ -633,8 +633,8 @@ export const DockedModal: React.FC = () => {
       default:
         content = (
           <div className="text-center p-10 flex flex-col items-center justify-center h-full">
-             <p className="text-gray-500 mb-4">This form type ({dockedModalType}) is not yet supported in the docked panel.</p>
-             <button onClick={() => closeModal()} className="px-4 py-2 bg-gray-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
+             <p className="text-slate-500 mb-4">This form type ({dockedModalType}) is not yet supported in the docked panel.</p>
+             <button onClick={() => closeModal()} className="px-4 py-2 bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg">Close</button>
           </div>
         );
     }

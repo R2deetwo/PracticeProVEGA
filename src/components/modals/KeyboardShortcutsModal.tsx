@@ -8,15 +8,15 @@ interface ShortcutItemProps {
 }
 
 const ShortcutItem: React.FC<ShortcutItemProps> = ({ keys, description }) => (
- <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-zinc-800 last:border-0">
-  <span className="text-sm text-gray-700 dark:text-zinc-300">{description}</span>
+ <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-zinc-800 last:border-0">
+  <span className="text-sm text-slate-700 dark:text-zinc-300">{description}</span>
   <div className="flex gap-1">
    {keys.map((key, index) => (
     <React.Fragment key={index}>
-     <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-md">
+     <kbd className="px-2 py-1 text-xs font-semibold text-dim-800 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-md">
       {key}
      </kbd>
-     {index < keys.length - 1 && <span className="text-xs text-gray-400 self-center">+</span>}
+     {index < keys.length - 1 && <span className="text-xs text-dim-400 self-center">+</span>}
     </React.Fragment>
    ))}
   </div>
@@ -56,8 +56,8 @@ const KeyboardShortcutsModal: React.FC = () => {
   <div className="space-y-6">
    {categories.map((category, index) => (
     <div key={index}>
-     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{category.title}</h3>
-     <div className="bg-gray-50 dark:bg-zinc-800 rounded-lg p-3 border border-gray-200 dark:border-zinc-700">
+     <h3 className="text-xs font-bold text-dim-400 uppercase tracking-wider mb-2">{category.title}</h3>
+     <div className="bg-slate-50 dark:bg-zinc-800 rounded-lg p-3 border border-slate-200 dark:border-zinc-700">
       {category.shortcuts.map((shortcut, sIndex) => (
        <ShortcutItem key={sIndex} {...shortcut} />
       ))}

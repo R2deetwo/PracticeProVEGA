@@ -155,7 +155,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                 <div className={`flex-grow flex relative ${noBox ? '' : 'bg-white dark:bg-zinc-800 md:rounded-lg md:shadow-md md:border border-black/5 dark:border-white/5'} overflow-hidden`}>
                     
                     {/* Column 1: Notebooks */}
-                    <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-gray-200 dark:border-gray-700 ${isMobileCol1 ? 'block' : 'hidden md:block'}`}>
+                    <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-slate-200 dark:border-dim-700 ${isMobileCol1 ? 'block' : 'hidden md:block'}`}>
                         <NoteColumn 
                             title="Practice Notes" 
                             level={0} 
@@ -177,7 +177,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
 
                     {/* Column 2: Context (Matters or Top-Level Pages) */}
                     {selectedNotebook && (
-                        <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-gray-200 dark:border-gray-700 ${isMobileCol2 ? 'block' : 'hidden md:block'}`}>
+                        <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-slate-200 dark:border-dim-700 ${isMobileCol2 ? 'block' : 'hidden md:block'}`}>
                              {isMatterNotebook ? (
                                 <NoteColumn 
                                     key={`matters-list`}
@@ -224,7 +224,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                     {/* Column 3 & 4 Wrapper */}
                     <div className={`flex-1 min-w-0 h-full md:flex ${isMobileCol3 || isMobileCol4 ? 'block' : 'hidden md:flex'}`}>
                         {isMatterNotebook && selectedMatter ? (
-                             <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-gray-200 dark:border-gray-700 ${isMobileCol3 ? 'block' : 'hidden md:block'}`}>
+                             <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-slate-200 dark:border-dim-700 ${isMobileCol3 ? 'block' : 'hidden md:block'}`}>
                                 <NoteColumn 
                                     key={`matter-pages-${selectedMatter.id}`}
                                     title={`Notes for ${selectedMatter.title}`} 
@@ -267,7 +267,7 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
 
                         {/* Column 4: Editor (Only for Matter Notebook when page selected) */}
                         {isMatterNotebook && selectedMatter && (
-                            <div className={`flex-1 h-full md:border-l border-gray-200 dark:border-gray-700 ${isMobileCol4 ? 'block' : 'hidden md:block'}`}>
+                            <div className={`flex-1 h-full md:border-l border-slate-200 dark:border-dim-700 ${isMobileCol4 ? 'block' : 'hidden md:block'}`}>
                                 {pageForEditor ? (
                                      <NoteEditor
                                         key={`editor-${pageForEditor.id}`}
