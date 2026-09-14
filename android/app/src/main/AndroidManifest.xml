@@ -11,6 +11,21 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/AppTheme">
 
+        <!-- ─── FCM notification defaults (2026-09-14 round 2) ───────────
+             Without these meta-data entries, any FCM 'notification' payload
+             that fails to resolve its icon field falls back to Android's
+             generic white-circle-with-'i' badge — the "badge shows a
+             circle with an 'i' rather than my iconography" complaint.
+             ic_notification is an alpha-only drawable (res/drawable) that
+             the system can tint; ic_launcher is a mipmap and is NOT a valid
+             small-icon resource for FCM. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"

@@ -2108,6 +2108,30 @@ export const verifyCode = mutation({
         newUserName: user.name || '',
         product: user.product || 'legal',
       });
+
+      // ─── 2026-09-14 round 2: NEW-REGISTRATION FCM PUSH to founders ──
+      // Founder's explicit requirement: "i want to be able to receive
+      // notifications in the founder app ... it allows me to keep a closer
+      // eye on new registrations". Previously a signup ONLY emailed the
+      // founder — the Founder APK stayed silent and the signup only
+      // surfaced via the read-time getFounderAlerts aggregation when the
+      // founder happened to open the app. Now: in-app row + categorized
+      // FCM push on the signups channel, instantly, on every new verified
+      // user. (notifyFounders routes new_signup → practicepro-signups.)
+      try {
+        const productName = user.product === 'property' ? 'Atrium'
+          : user.product === 'unified' ? 'Komplete'
+          : user.product === 'admin' ? 'Founder'
+          : 'Vega';
+        await notifyFounders(ctx, {
+          title: `New ${productName} Registration`,
+          message: `${user.name || user.email || args.email} just joined ${productName}.`,
+          type: "new_signup",
+          link: { view: "organizations", id: null, context: { userEmail: user.email || args.email } },
+        });
+      } catch (notifErr: any) {
+        console.warn("[verifyCode] Founder signup push failed:", notifErr?.message);
+      }
     } else {
       await ctx.db.patch(user._id, { isVerified: true, verificationCode: null });
     }
@@ -2723,6 +2747,25 @@ export const createFirm = mutation({
         color: et.color,
         isSystem: true,
       } as any);
+    }
+
+    // ─── 2026-09-14 round 2: NEW-ORGANIZATION FCM PUSH to founders ──
+    // Mirrors the new-signup push in verifyCode: the founder wants to
+    // "keep a closer eye on new registrations". A new firm/org is the
+    // highest-signal registration event — before this, it only appeared
+    // in the read-time getFounderAlerts aggregation.
+    try {
+      const productName = args.product === 'property' ? 'Atrium'
+        : args.product === 'unified' ? 'Komplete'
+        : 'Vega';
+      await notifyFounders(ctx, {
+        title: `New Organization: ${args.name}`,
+        message: `${args.user_name || args.user_email} created "${args.name}" on ${productName} (${args.subscriptionPlan}${args.trial ? ", trial" : ""}).`,
+        type: "new_org",
+        link: { view: "organizations", id: String(firmId), context: { firmId: String(firmId) } },
+      });
+    } catch (notifErr: any) {
+      console.warn("[createFirm] Founder org push failed:", notifErr?.message);
     }
 
     return firmId;

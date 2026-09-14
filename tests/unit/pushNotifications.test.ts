@@ -275,9 +275,21 @@ describe("channelForType — smart categorization routing (2026-09-14)", () => {
     }
   });
 
-  it("routes tasks, deadlines and portal requests to the tasks channel", () => {
-    for (const type of ["task", "task_assignment", "deadline", "overdue", "portal_maintenance_ticket", "portal_service_request"]) {
+  it("routes support-thread feedback types to the messages channel (round 2)", () => {
+    for (const type of ["feedback_user_reply", "feedback_reply", "feedback_new", "feedback_issue", "feedback_auto_reply"]) {
+      expect(channelForType(type)).toBe("practicepro-messages");
+    }
+  });
+
+  it("routes tasks, deadlines, portal requests and maintenance status to the tasks channel", () => {
+    for (const type of ["task", "task_assignment", "deadline", "overdue", "portal_maintenance_ticket", "portal_service_request", "maintenance_status"]) {
       expect(channelForType(type)).toBe("practicepro-tasks");
+    }
+  });
+
+  it("routes growth events (founder watchlist) to the signups channel (round 2)", () => {
+    for (const type of ["new_signup", "signup", "new_org", "new_firm", "sales_lead", "addon_request", "subscription", "subscription_payment", "trial_started"]) {
+      expect(channelForType(type)).toBe("practicepro-signups");
     }
   });
 

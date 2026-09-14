@@ -15,7 +15,16 @@
  * Any mutation that needs to notify the founder calls ONE function:
  *   await notifyFounders(ctx, { title, message, type, link })
  *
- * The context IS the orchestration — no complex state machine needed.
+ * 2026-09-14 round 2 — two silent-failure defects fixed:
+ *   a) userId form: in-app rows and token lookups now use
+ *      String(founder._id) consistently. The old code wrote the raw Id
+ *      OBJECT into the `notifications` row while dispatchPushToUsers
+ *      looked tokens up by the STRING form — the two representations
+ *      could disagree, so rows landed without pushes and vice versa.
+ *   b) Dispatch now routes through internal.pushNotifications.dispatchPushToUsers
+ *      (channel auto-derivation from type, per-thread tag grouping,
+ *      dead-token pruning) instead of a bespoke token query + sendFcmPush
+ *      that skipped categorization entirely.
  */
 
 import { MutationCtx } from "./_generated/server";
@@ -24,12 +33,16 @@ import { internal } from "./_generated/api";
 export interface FounderNotificationPayload {
   title: string;
   message: string;
-  type: string; // 'sales_lead' | 'addon_request' | 'feedback_reply' | 'feedback_user_reply' | etc.
+  type: string; // 'sales_lead' | 'addon_request' | 'new_signup' | 'feedback_user_reply' | etc.
   link?: {
     view: string;
     id: string | null;
     context: Record<string, any>;
   };
+  /** Optional Android channel override; auto-derived from type otherwise. */
+  channelId?: string;
+  /** Optional per-thread tray grouping key (Android replaces the row). */
+  tag?: string;
 }
 
 /**
@@ -57,11 +70,14 @@ export async function notifyFounders(
   let notified = 0;
   let pushed = 0;
 
+  const founderIds = founders.map((f: any) => String(f._id));
+
   for (const founder of founders) {
-    // 2. Create in-app notification
+    // 2. Create in-app notification (STRING userId — matches how
+    //    registerPushToken stores it and how every reader looks it up)
     await ctx.db.insert("notifications", {
       firmId: "system",
-      userId: founder._id,
+      userId: String(founder._id),
       title: payload.title,
       message: payload.message,
       type: payload.type,
@@ -70,30 +86,32 @@ export async function notifyFounders(
       isRead: false,
     } as any);
     notified++;
+  }
 
-    // 3. Fire FCM push to founder's registered devices
+  // 3. Fire FCM push to founder devices via the shared dispatcher.
+  //    Fire-and-forget: a push failure must never fail the caller's
+  //    transaction (the in-app rows above are already committed).
+  if (founderIds.length > 0) {
     try {
-      const tokens = await ctx.db
-        .query("user_push_tokens")
-        .filter((q: any) => q.eq(q.field("userId"), String(founder._id)))
-        .filter((q: any) => q.eq(q.field("isActive"), true))
-        .take(10);
-
-      if (tokens.length > 0) {
-        ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-          tokens: tokens.map((t: any) => t.token),
+      await (ctx as any).runMutation(
+        internal.pushNotifications.dispatchPushToUsers,
+        {
+          userIds: founderIds,
           title: payload.title,
           body: payload.message,
           data: {
             type: payload.type,
             view: payload.link?.view || "notifications",
+            ...(payload.link?.id ? { id: String(payload.link.id) } : {}),
             ...(payload.link?.context || {}),
           },
-        });
-        pushed += tokens.length;
-      }
-    } catch (pushErr) {
-      console.warn("[notifyFounders] Push failed:", pushErr);
+          ...(payload.channelId ? { channelId: payload.channelId } : {}),
+          ...(payload.tag ? { tag: payload.tag } : {}),
+        }
+      );
+      pushed = founderIds.length;
+    } catch (pushErr: any) {
+      console.warn("[notifyFounders] Push failed:", pushErr?.message || pushErr);
     }
   }
 

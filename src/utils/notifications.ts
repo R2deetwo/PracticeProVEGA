@@ -77,13 +77,14 @@ export function isPushRegistered(): boolean {
 }
 
 /**
- * ensureNotificationChannels — Creates the three Android notification
+ * ensureNotificationChannels — Creates the four Android notification
  * channels WITHOUT requesting permission first (channel creation is always
  * allowed; only DISPLAYING notifications needs permission on Android 13+).
  *
  * This must run before FCM registration: background FCM pushes target the
- * 'practicepro-general' channel, and Android 8+ SILENTLY DROPS any
- * notification posted to a channel that doesn't exist yet.
+ * channel ids the server derives (practicepro-messages / -tasks / -signups
+ * / -general), and Android 8+ SILENTLY DROPS any notification posted to a
+ * channel that doesn't exist yet.
  *
  * Idempotent: re-creating an existing channel is a no-op.
  */
@@ -104,6 +105,20 @@ export async function ensureNotificationChannels(): Promise<void> {
             id: 'practicepro-tasks',
             name: 'Tasks & Deadlines',
             description: 'Task assignments, deadline reminders, and overdue alerts',
+            importance: 4, // HIGH — sound + heads-up + vibration
+            visibility: 1,
+            sound: isSoundEnabled() ? 'notification.wav' : undefined,
+            vibration: true,
+        });
+
+        // Round 2 (2026-09-14): the founder's growth watchlist — new
+        // registrations, new organizations, sales leads, subscriptions.
+        // Its own channel so it can be tuned separately from messages
+        // ("carefully categorized", per the founder's requirement).
+        await LocalNotifications.createChannel({
+            id: 'practicepro-signups',
+            name: 'Signups & Growth',
+            description: 'New registrations, organizations, leads, and subscription events',
             importance: 4, // HIGH — sound + heads-up + vibration
             visibility: 1,
             sound: isSoundEnabled() ? 'notification.wav' : undefined,
@@ -209,18 +224,28 @@ export async function registerForNotifications(): Promise<boolean> {
  * Mirrors channelForType() in convex/pushNotificationsNode.ts — keep in sync.
  * (2026-09-14: chat_message / portal_* types added; task_assignment moved to
  * the TASKS channel where it belongs — it was previously miscategorized onto
- * the messages channel.)
+ * the messages channel. Round 2: growth events (signups/leads/subscriptions)
+ * and support-thread feedback_* types added.)
  */
 function getChannelForType(type?: string): string {
+    // Growth events (founder watchlist)
+    if (
+        type === 'new_signup' || type === 'signup' || type === 'new_org' ||
+        type === 'new_firm' || type === 'sales_lead' || type === 'addon_request' ||
+        type === 'subscription' || type === 'subscription_payment' ||
+        type === 'trial_started'
+    ) return 'practicepro-signups';
     if (
         type === 'message' || type === 'chat_message' || type === 'portal_reply' ||
         type === 'portal_message' || type === 'portal_new_message' ||
-        type === 'incoming_message'
+        type === 'incoming_message' || type === 'feedback_user_reply' ||
+        type === 'feedback_reply' || type === 'feedback_new' ||
+        type === 'feedback_issue' || type === 'feedback_auto_reply'
     ) return 'practicepro-messages';
     if (
         type === 'task' || type === 'task_assignment' || type === 'deadline' ||
         type === 'overdue' || type === 'portal_maintenance_ticket' ||
-        type === 'portal_service_request'
+        type === 'portal_service_request' || type === 'maintenance_status'
     ) return 'practicepro-tasks';
     return 'practicepro-general';
 }

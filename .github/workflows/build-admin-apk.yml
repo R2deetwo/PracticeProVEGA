@@ -15,6 +15,14 @@ on:
       # Firebase config changes MUST rebuild the founder APK — the
       # google-services Gradle plugin reads this file at build time.
       - 'android/app/google-services.json'
+      # Native notification assets (2026-09-14 round 2): the small icon
+      # (res/drawable/ic_notification.xml), channel sound
+      # (res/raw/notification.wav), colors, and the FCM default-icon
+      # meta-data in the manifest are all baked into the APK — without
+      # these paths the founder build would keep shipping the broken
+      # white-circle 'i' badge icon.
+      - 'android/app/src/main/AndroidManifest.xml'
+      - 'android/app/src/main/res/**'
       # The push-registration hook is bundled into the APK — changes to it
       # (e.g. the sessionToken race fix) need a rebuild to reach devices.
       - 'src/hooks/usePushNotifications.ts'

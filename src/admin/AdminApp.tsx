@@ -118,14 +118,31 @@ const FounderApp: React.FC = () => {
     // 'pp:navigate' is broadcast by usePushNotifications when a messaging
     // push is tapped. The founder app has no 'messaging' view (its
     // founder↔user conversations live under 'feedback'), so chat/portal
-    // push taps route there. Mostly defensive: firm chat pushes target
-    // firm members, not founders — the founder's pushes (feedback, leads,
-    // broadcasts) arrive via founderNotifications.
+    // push taps route there.
+    //
+    // ROUND 2 (2026-09-14): the founder's push surface grew — new
+    // registrations ('new_signup'/'new_org' → organizations), sales leads
+    // ('sales' view), subscription/add-on requests ('subscriptions'), and
+    // issue reports ('feedback'). Map every view the server can emit onto
+    // the founder app's actual views so tapping a push ALWAYS lands
+    // somewhere useful instead of silently doing nothing.
     React.useEffect(() => {
         const handler = (e: Event) => {
             const detail = (e as CustomEvent).detail || {};
-            if (detail.view === 'messaging') {
-                setActiveView('feedback');
+            const view = String(detail.view || '');
+            const VIEW_MAP: Record<string, AdminView> = {
+                messaging: 'feedback',
+                feedback: 'feedback',
+                organizations: 'organizations',
+                subscriptions: 'subscriptions',
+                sales: 'sales',
+                signals: 'signals',
+                notifications: 'notifications',
+                dashboard: 'dashboard',
+            };
+            const target = VIEW_MAP[view];
+            if (target) {
+                setActiveView(target);
             }
         };
         window.addEventListener('pp:navigate', handler);

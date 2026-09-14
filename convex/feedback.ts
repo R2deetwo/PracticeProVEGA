@@ -106,6 +106,59 @@ export const submitFeedback = mutation({
       isRead: false,
     } as any);
 
+    // ─── Notify the FOUNDERS: new support thread / issue submitted ────
+    // (2026-09-14, round 2) Founder's explicit requirement: "keep a closer
+    // eye on ... any issues that users may have". Previously the thread sat
+    // unseen until the founder happened to open the Feedback Inbox. Write
+    // the in-app row AND dispatch a real FCM push (categorized: bugs/
+    // maintenance/technical issues land on the TASKS channel; everything
+    // else on MESSAGES — matching how the founder triages them).
+    try {
+      const founders = await ctx.db
+        .query("users")
+        .filter((q: any) => q.eq(q.field("role"), "Founder"))
+        .collect();
+      const issueLike = /bug|maintenance|technical/.test(feedbackType);
+      const notifType = issueLike ? "feedback_issue" : "feedback_new";
+      const senderLabel = args.userName || args.userEmail || "A user";
+      const preview = args.message.length > 90
+        ? `${args.message.slice(0, 89).trimEnd()}…`
+        : args.message;
+      for (const founder of founders) {
+        await ctx.db.insert("notifications", {
+          firmId: 'system',
+          userId: String(founder._id),
+          title: issueLike ? "New Issue Reported" : "New Support Message",
+          message: `${senderLabel}: "${preview}"`,
+          type: notifType,
+          link: {
+            view: 'feedback',
+            id: feedbackId.toString(),
+            context: { feedbackId: feedbackId.toString() },
+          },
+          timestamp: Date.now(),
+          isRead: false,
+        } as any);
+      }
+      if (founders.length > 0) {
+        await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+          userIds: founders.map((f: any) => String(f._id)),
+          title: issueLike ? `${senderLabel} reported an issue` : `${senderLabel} · Support`,
+          body: preview,
+          data: {
+            type: notifType,
+            view: "feedback",
+            feedbackId: feedbackId.toString(),
+            senderName: senderLabel,
+          },
+          channelId: issueLike ? "practicepro-tasks" : "practicepro-messages",
+          tag: `feedback:${feedbackId.toString()}`,
+        });
+      }
+    } catch (e: any) {
+      console.warn("[submitFeedback] Founder notification failed:", e?.message);
+    }
+
     return feedbackId;
   },
 });
@@ -453,6 +506,39 @@ export const adminReplyToFeedback = mutation({
       isRead: false,
     } as any);
 
+    // ─── REAL FCM PUSH to the user (2026-09-14, round 2) ─────────────
+    // Same root cause as userReplyToFeedback above: the user's device was
+    // never pushed — the reply only "fell into" their notification shade
+    // when they next opened the app (the Header watcher firing a LOCAL
+    // notification for the in-app row just created above). Push the REAL
+    // reply so it arrives instantly, lock-screen readable, one tray row per
+    // thread. Fire-and-forget: a push failure must never fail the reply.
+    try {
+      const replyCount = replies.filter((r: any) => !(r as any).isUserReply).length;
+      const replyPreview = args.message.length > 90
+        ? `${args.message.slice(0, 89).trimEnd()}…`
+        : args.message;
+      await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+        userIds: [String(feedback.userId)],
+        title: "PracticePro Support",
+        body: replyPreview,
+        data: {
+          type: "feedback_reply",
+          view: "messaging",
+          feedbackId: args.feedbackId.toString(),
+          initialTab: "inbox",
+          selectedInboxId: "system-inbox",
+          selectedFeedbackId: args.feedbackId.toString(),
+          systemInbox: true,
+        },
+        channelId: "practicepro-messages",
+        tag: `feedback:${args.feedbackId.toString()}`,
+        notificationCount: Math.max(1, replyCount),
+      });
+    } catch (e: any) {
+      console.warn("[adminReplyToFeedback] Push dispatch failed:", e?.message);
+    }
+
     // ─── Send Brevo email to the user (OPTIONAL) ────────────────────
     // Only sends if sendEmail is explicitly true AND the user has an
     // email on file. Default is in-app only (sendEmail = false/undefined).
@@ -589,10 +675,11 @@ export const userReplyToFeedback = mutation({
       .query("users")
       .filter((q: any) => q.eq(q.field("role"), "Founder"))
       .collect();
+    const preview = `${args.message.slice(0, 90)}${args.message.length > 90 ? "…" : ""}`;
     for (const founder of founders) {
       await ctx.db.insert("notifications", {
         firmId: 'system',
-        userId: founder._id,
+        userId: String(founder._id),
         title: "User Reply",
         message: `${feedback.userName || feedback.userEmail || 'A user'} replied to their support thread: "${args.message.slice(0, 80)}${args.message.length > 80 ? '...' : ''}"`,
         type: "feedback_user_reply",
@@ -606,6 +693,37 @@ export const userReplyToFeedback = mutation({
         timestamp: Date.now(),
         isRead: false,
       } as any);
+    }
+
+    // ─── REAL FCM PUSH to founders (2026-09-14, round 2) ───────────────
+    // THE "SLOW SUPPORT MESSAGE" ROOT CAUSE: this mutation used to stop at
+    // the in-app notification row above. The founder only learned about the
+    // reply the next time they opened the Founder APK — the message "took
+    // quite a while to arrive". Dispatch a real FCM push to every founder
+    // with a registered device (fire-and-forget; a push failure must never
+    // fail the reply). One tray row per thread (tag), reply count as the
+    // badge, the actual reply text as the lock-screen preview.
+    if (founders.length > 0) {
+      try {
+        const replyCount = ((feedback as any).replies || []).length + 1; // includes this one
+        const senderLabel = feedback.userName || feedback.userEmail || 'A user';
+        await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+          userIds: founders.map((f: any) => String(f._id)),
+          title: `${senderLabel} · Support`,
+          body: preview,
+          data: {
+            type: "feedback_user_reply",
+            view: "feedback",
+            feedbackId: args.feedbackId.toString(),
+            senderName: senderLabel,
+          },
+          channelId: "practicepro-messages",
+          tag: `feedback:${args.feedbackId.toString()}`,
+          notificationCount: replyCount,
+        });
+      } catch (e: any) {
+        console.warn("[userReplyToFeedback] Push dispatch failed:", e?.message);
+      }
     }
 
     return { success: true };

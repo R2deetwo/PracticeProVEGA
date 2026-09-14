@@ -1,0 +1,140 @@
+name: Inspect Push State
+
+# 2026-09-14 round 2 — DIAGNOSTIC (read-only): the founder reported "no
+# push notifications on the founder app" and user-app messages only
+# appearing after opening the app. The code-level root causes were fixed
+# (feedback threads never dispatched FCM; signups only emailed; icons
+# unresolvable) — this workflow verifies the RUNTIME half of the pipeline:
+# do device tokens actually exist, for which users, in which id form?
+#
+# Uses the R17 drill pattern: `npx convex run --prod --inline-query` with
+# CONVEX_DEPLOY_KEY. All output is masked (emails truncated to 2 chars +
+# domain; userIds shown as first-4/last-2 chars + length; tokens shown as
+# length only) — safe for CI logs.
+#
+# Run on demand (workflow_dispatch) after deploying push changes or after
+# a user installs a new APK build, then read the job log / artifact.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Read push-relevant state (production, read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Dump masked push state
+        run: |
+          npx convex run --prod --inline-query '
+            const now = Date.now();
+            const mask = (e) => {
+              if (!e) return null;
+              const parts = String(e).split("@");
+              const d = parts.length > 1 ? parts[1] : "?";
+              return String(parts[0]).slice(0, 2) + "***@" + d;
+            };
+            const idShape = (id) => {
+              if (id === null || id === undefined) return null;
+              const s = String(id);
+              return s.slice(0, 4) + ".." + s.slice(-2) + " len=" + s.length;
+            };
+
+            const users = await ctx.db.query("users").take(2000);
+            const tokens = await ctx.db.query("user_push_tokens").collect();
+
+            // 1. Token inventory: who has devices registered, in which form
+            const tokenOut = tokens.map(t => ({
+              userIdShape: idShape(t.userId),
+              firmIdShape: t.firmId ? idShape(t.firmId) : null,
+              isActive: !!t.isActive,
+              deviceType: t.deviceType,
+              deviceName: (t.deviceName || "").slice(0, 24),
+              tokenLen: (t.token || "").length,
+              createdAtAgoH: Math.round((now - (t.createdAt || 0)) / 3600000),
+              updatedAtAgoH: Math.round((now - (t.updatedAt || 0)) / 3600000),
+            }));
+
+            // 2. Founder users and whether their (string) id has tokens
+            const tokenByUser = new Map();
+            for (const t of tokens) {
+              if (t.isActive) tokenByUser.set(String(t.userId), (tokenByUser.get(String(t.userId)) || 0) + 1);
+            }
+            const founderOut = users
+              .filter(u => u.role === "Founder")
+              .map(u => ({
+                email: mask(u.email || u.tokenIdentifier),
+                userIdShape: idShape(u._id),
+                activeTokenCount: tokenByUser.get(String(u._id)) || 0,
+              }));
+
+            // 3. Admin-role users (portal notifyFirmAdmins targets)
+            const adminOut = users
+              .filter(u => ["Admin", "Lawyer", "Paralegal"].includes(u.role))
+              .slice(0, 30)
+              .map(u => ({
+                email: mask(u.email || u.tokenIdentifier),
+                role: u.role,
+                activeTokenCount: tokenByUser.get(String(u._id)) || 0,
+              }));
+
+            // 4. Recent chat conversations — verify memberIds are Convex-id
+            //    strings (the form registerPushToken stores); a mismatch
+            //    here silently kills dispatchPushToUsers lookups.
+            const convs = await ctx.db.query("chatConversations").order("desc").take(8);
+            const convOut = convs.map(c => ({
+              type: c.type,
+              memberCount: (c.memberIds || []).length,
+              memberShapes: (c.memberIds || []).slice(0, 4).map(idShape),
+              updatedAgoH: Math.round((now - (c.updatedAt ? Date.parse(c.updatedAt) || 0 : c._creationTime)) / 3600000),
+            }));
+
+            // 5. Recent notifications — which types are flowing, for whom
+            const notes = await ctx.db.query("notifications").order("desc").take(25);
+            const noteOut = notes.map(n => ({
+              type: n.type,
+              userIdShape: idShape(n.userId),
+              title: String(n.title || "").slice(0, 40),
+              createdAgoH: Math.round((now - (n.timestamp || n.createdAt || 0)) / 3600000),
+            }));
+
+            // 6. Env: FCM configured?
+            const fcmConfigured = !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+            return {
+              totalUsers: users.length,
+              totalTokens: tokens.length,
+              activeTokens: tokens.filter(t => t.isActive).length,
+              fcmConfigured,
+              tokenOut: tokenOut.slice(0, 30),
+              founderOut,
+              adminOut: adminOut.slice(0, 15),
+              convOut,
+              noteOut,
+            };
+          ' 2>&1 | tee inspect-push.log
+          echo "::notice::Push state dump written to inspect-push.log (artifact)"
+
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@v4
+        with:
+          name: push-state-inspect
+          path: inspect-push.log
+          retention-days: 7

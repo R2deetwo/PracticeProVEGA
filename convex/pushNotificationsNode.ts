@@ -122,27 +122,42 @@ export function stringifyData(data: any): Record<string, string> {
 }
 
 // ─── Smart categorization (2026-09-14 round) ─────────────────────────────────
-// The client creates THREE Android notification channels (see
+// The client creates FOUR Android notification channels (see
 // src/utils/notifications.ts ensureNotificationChannels) so users can tune
 // sound/vibration per category in system settings:
-//   practicepro-messages (MAX)  — chat/portal messages, heads-up + sound
-//   practicepro-tasks    (HIGH) — task assignments, deadlines, overdue
+//   practicepro-messages (MAX)  — chat/portal/support messages, heads-up + sound
+//   practicepro-tasks    (HIGH) — task assignments, deadlines, request status
+//   practicepro-signups  (HIGH) — NEW (round 2): growth events — registrations,
+//                                 new orgs, sales leads, subscriptions. The
+//                                 founder's watchlist gets its own channel so
+//                                 it can be tuned separately from messages.
 //   practicepro-general  (DEFAULT) — everything else
 // The server must ROUTE each push to the right channel — before this round
 // every push landed on practicepro-general, so messages buzzed like chores.
 // Mirrors getChannelForType() client-side; kept in sync deliberately.
 export function channelForType(type?: string): string {
+  // ── Growth events (founder watchlist): registrations, leads, revenue ──
+  if (
+    type === "new_signup" || type === "signup" || type === "new_org" ||
+    type === "new_firm" || type === "sales_lead" || type === "addon_request" ||
+    type === "subscription" || type === "subscription_payment" ||
+    type === "trial_started"
+  ) {
+    return "practicepro-signups";
+  }
   if (
     type === "chat_message" || type === "message" || type === "portal_reply" ||
     type === "portal_message" || type === "portal_new_message" ||
-    type === "incoming_message"
+    type === "incoming_message" || type === "feedback_user_reply" ||
+    type === "feedback_reply" || type === "feedback_new" ||
+    type === "feedback_issue" || type === "feedback_auto_reply"
   ) {
     return "practicepro-messages";
   }
   if (
     type === "task" || type === "task_assignment" || type === "deadline" ||
     type === "overdue" || type === "portal_maintenance_ticket" ||
-    type === "portal_service_request"
+    type === "portal_service_request" || type === "maintenance_status"
   ) {
     return "practicepro-tasks";
   }
@@ -273,7 +288,16 @@ async function dispatchFcm(
                 // (the 2026-09-14 live test-push failure — 3/3 tokens 400).
                 channelId,
                 sound: "default",
-                icon: "ic_launcher",
+                // Icon: MUST be a drawable resource name. The previous
+                // ic_launcher is a MIPMAP (adaptive launcher art) — the FCM
+                // drawable lookup failed and Android silently fell back to
+                // the generic white-circle-with-'i' badge (the exact "badge
+                // shows a circle with an 'i'" complaint). ic_notification is
+                // a real alpha-only drawable shipped in res/drawable and
+                // wired as the FCM default via AndroidManifest meta-data.
+                icon: "ic_notification",
+                // Brand-green accent for the badge/expanded notification.
+                color: "#10B981",
                 defaultVibrateTimings: true,
                 // Tag: Android replaces the tray row carrying the same tag —
                 // per-conversation tags collapse N messages into ONE row.

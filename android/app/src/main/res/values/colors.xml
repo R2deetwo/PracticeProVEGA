@@ -22,4 +22,7 @@
     <color name="colorPrimary">#10b981</color>
     <color name="colorPrimaryDark">#047857</color>
     <color name="colorAccent">#10b981</color>
+    <!-- Notification accent — referenced by the FCM default_notification_color
+         meta-data in AndroidManifest.xml (2026-09-14 round 2). Brand emerald. -->
+    <color name="notification_accent">#10b981</color>
 </resources>

@@ -329,6 +329,40 @@ export const updateMaintenanceTicketStatus = mutation({
             console.warn('[updateMaintenanceTicketStatus] Email to resident failed:', emailErr?.message);
           }
         }
+
+        // ─── 2026-09-14 round 2: REAL FCM PUSH to the resident ─────────
+        // "improve messages that are maintenance ... in terms of the app
+        // users and their residents": the resident only learned about a
+        // status change via email or by opening the app. Push the update
+        // to their device instantly — tasks channel (it's their request's
+        // status), one tray row per ticket thread, status + resolution as
+        // the lock-screen preview. Fire-and-forget: a push failure must
+        // never fail the status update.
+        try {
+          const tenantId = ticket.tenantId
+            || (conv ? (conv.participantId ? String(conv.participantId) : null) : null);
+          if (tenantId) {
+            const statusLabel = String(updates.status).replace(/_/g, " ");
+            const pushBody = updates.resolution
+              ? `Status: ${statusLabel}. ${updates.resolution}`
+              : `Your maintenance request is now ${statusLabel}.`;
+            await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+              userIds: [String(tenantId)],
+              title: `Maintenance Update: ${ticket.subject}`.slice(0, 60),
+              body: pushBody,
+              data: {
+                type: "portal_maintenance_ticket",
+                view: "messaging",
+                conversationId: String(ticket.conversationId || ""),
+                initialTab: "inbox",
+              },
+              channelId: "practicepro-tasks",
+              tag: ticket.conversationId ? `conversation:${String(ticket.conversationId)}` : undefined,
+            });
+          }
+        } catch (pushErr: any) {
+          console.warn('[updateMaintenanceTicketStatus] Push to resident failed:', pushErr?.message);
+        }
       }
     }
   },
@@ -1096,6 +1130,36 @@ export const updateClientServiceRequestStatus = mutation({
             unreadByParticipant: (conv.unreadByParticipant || 0) + 1,
             updatedAt: now,
           });
+        }
+
+        // ─── 2026-09-14 round 2: REAL FCM PUSH to the client ───────────
+        // Same gap as maintenance tickets: the client only learned about a
+        // status change in-app. Push it instantly (tasks channel, one tray
+        // row per thread). Fire-and-forget.
+        try {
+          const clientId = req.clientId
+            || (conv ? (conv.participantId ? String(conv.participantId) : null) : null);
+          if (clientId) {
+            const statusLabel = String(updates.status).replace(/_/g, " ");
+            const pushBody = updates.resolution
+              ? `Status: ${statusLabel}. ${updates.resolution}`
+              : `Your service request is now ${statusLabel}.`;
+            await ctx.runMutation(internal.pushNotifications.dispatchPushToUsers, {
+              userIds: [String(clientId)],
+              title: `Request Update: ${req.subject}`.slice(0, 60),
+              body: pushBody,
+              data: {
+                type: "portal_service_request",
+                view: "messaging",
+                conversationId: String(req.conversationId || ""),
+                initialTab: "inbox",
+              },
+              channelId: "practicepro-tasks",
+              tag: req.conversationId ? `conversation:${String(req.conversationId)}` : undefined,
+            });
+          }
+        } catch (pushErr: any) {
+          console.warn('[updateClientServiceRequestStatus] Push to client failed:', pushErr?.message);
         }
       }
     }

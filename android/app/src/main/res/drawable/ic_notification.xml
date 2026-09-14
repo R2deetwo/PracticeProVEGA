@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ic_notification — small status-bar icon for ALL PracticePro notifications.
+
+  WHY THIS FILE EXISTS (2026-09-14 round 2): every push and local
+  notification previously referenced icons that could NOT be resolved —
+  FCM sent icon:"ic_launcher" (a MIPMAP — the FCM field only resolves
+  res/drawable* resources), and @capacitor/local-notifications received
+  smallIcon:"ic_notification" which simply did not exist. Android then
+  silently fell back to the generic white-circle-with-'i' badge — the
+  exact "notification badge shows a circle with an 'i' instead of my
+  iconography" complaint.
+
+  REQUIREMENTS for a notification small icon (Android):
+  - MUST be an alpha-only / single-color (white) drawable — the system
+    tints it. Multi-color or photographic assets render as a grey blob.
+  - Referenced WITHOUT the resource-type prefix: FCM "ic_notification",
+    Capacitor smallIcon "ic_notification".
+  - Also wired as the FCM DEFAULT icon via AndroidManifest meta-data:
+    com.google.firebase.messaging.default_notification_icon — that covers
+    notification payloads that omit an explicit icon.
+
+  Glyph: a solid bell (universal "notification" symbol) on a rounded
+  squircle — matches the PracticePro brand mark at status-bar size.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <!-- Bell body -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2C10.9,2 10,2.9 10,4V4.29C7.12,5.14 5,7.82 5,11V17L3,19V20H21V19L19,17V11C19,7.82 16.88,5.14 14,4.29V4C14,2.9 13.1,2 12,2ZM12,6C14.21,6 16,7.79 16,10V17H8V10C8,7.79 9.79,6 12,6Z" />
+    <!-- Bell clapper -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.5,21C9.5,22.1 10.4,23 11.5,23H12.5C13.6,23 14.5,22.1 14.5,21H9.5Z" />
+</vector>

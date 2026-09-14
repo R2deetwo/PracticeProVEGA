@@ -133,25 +133,46 @@ export function usePushNotifications(userId?: string, firmId?: string, sessionTo
               return;
             }
 
-            // Messaging pushes (chat_message / portal_reply / message):
-            // deep-link into the exact conversation. The hook has no router
-            // access, so it broadcasts a window event; App/AdminApp listen
-            // and call their navigateTo. Payload mirrors the in-app
-            // notification link shape (view + context) the bell uses.
-            if (data?.view === 'messaging' || data?.type === 'chat_message' || data?.type === 'portal_reply') {
+            // Deep-link navigation. Round 2 (2026-09-14): the server now
+            // emits many view targets (messaging, feedback, organizations,
+            // subscriptions, sales, ...). Broadcast for ANY payload that
+            // carries a view — App/AdminApp each map the views they own
+            // (previously only chat_message/portal_reply payloads routed,
+            // so tapping a signup/lead/issue push did nothing).
+            if (data?.view && typeof data.view === 'string') {
+              const isMessagingPush =
+                data.view === 'messaging' ||
+                data?.type === 'chat_message' ||
+                data?.type === 'portal_reply' ||
+                data?.type === 'feedback_reply';
               const conversationId = data.conversationId || data.id || null;
+              // Messaging context: prefer the server's own deep-link fields
+              // (support threads send selectedInboxId 'system-inbox' +
+              // selectedFeedbackId) and only synthesize conversation
+              // selection for plain chat/portal pushes.
+              const messagingContext: Record<string, any> = {
+                initialTab: data.initialTab || 'inbox',
+              };
+              if (data.systemInbox) messagingContext.systemInbox = true;
+              if (data.selectedFeedbackId) messagingContext.selectedFeedbackId = String(data.selectedFeedbackId);
+              if (data.selectedInboxId) {
+                messagingContext.selectedInboxId = String(data.selectedInboxId);
+              } else if (conversationId) {
+                messagingContext.selectedInboxId = String(conversationId);
+                messagingContext.activeConversationId = String(conversationId);
+                messagingContext.selectedInboxType = data.type === 'portal_reply' ? 'client_tenant' : 'team';
+              } else if (data.feedbackId) {
+                // support-thread push without a system-inbox marker
+                messagingContext.selectedInboxId = 'system-inbox';
+                messagingContext.selectedFeedbackId = String(data.feedbackId);
+              }
               window.dispatchEvent(new CustomEvent('pp:navigate', {
                 detail: {
-                  view: 'messaging',
-                  id: conversationId || undefined,
-                  context: {
-                    initialTab: data.initialTab || 'inbox',
-                    ...(conversationId ? {
-                      activeConversationId: String(conversationId),
-                      selectedInboxId: String(conversationId),
-                      selectedInboxType: data.type === 'portal_reply' ? 'client_tenant' : 'team',
-                    } : {}),
-                  },
+                  view: data.view,
+                  id: conversationId || data.feedbackId || undefined,
+                  ...(isMessagingPush
+                    ? { context: messagingContext }
+                    : { context: { ...(data as any) } }),
                 },
               }));
             }

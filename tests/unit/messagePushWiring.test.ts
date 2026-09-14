@@ -157,6 +157,72 @@ describe('push wiring — server side (source contract)', () => {
         expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
         expect(block).toContain('participantId');
     });
+
+    // ─── Round 2 (2026-09-14): the "slow support message" root causes ────
+    // The founder↔user support thread (user_feedback) never dispatched FCM
+    // in EITHER direction — replies only surfaced when the recipient next
+    // opened the app. These guard the new dispatches.
+
+    it('userReplyToFeedback dispatches a real FCM push to founders (user → founder)', () => {
+        const block = fnBlock(read('convex/feedback.ts'), 'export const userReplyToFeedback = mutation');
+        expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
+        expect(block).toContain('founders.map');
+        // One tray row per thread + categorized channel.
+        expect(block).toContain('tag: `feedback:');
+        expect(block).toContain('practicepro-messages');
+        // A push failure must never fail the reply.
+        expect(block).toMatch(/Push dispatch failed/);
+    });
+
+    it('adminReplyToFeedback dispatches a real FCM push to the thread owner (founder → user)', () => {
+        const block = fnBlock(read('convex/feedback.ts'), 'export const adminReplyToFeedback = mutation');
+        expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
+        expect(block).toContain('feedback.userId');
+        expect(block).toContain('tag: `feedback:');
+        expect(block).toMatch(/Push dispatch failed/);
+    });
+
+    it('submitFeedback notifies founders of new threads/issues with a categorized push', () => {
+        const block = fnBlock(read('convex/feedback.ts'), 'export const submitFeedback = mutation');
+        expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
+        expect(block).toMatch(/Founder notification failed/);
+        // Issue-like reports land on the tasks channel, everything else on messages.
+        expect(block).toContain('practicepro-tasks');
+        expect(block).toContain('practicepro-messages');
+    });
+
+    it('verifyCode pushes new registrations to founders (the "closer eye on signups" requirement)', () => {
+        const block = fnBlock(read('convex/myFunctions.ts'), 'export const verifyCode = mutation');
+        expect(block).toContain('notifyFounders');
+        expect(block).toContain('new_signup');
+    });
+
+    it('createFirm pushes new organizations to founders', () => {
+        const block = fnBlock(read('convex/myFunctions.ts'), 'export const createFirm = mutation');
+        expect(block).toContain('notifyFounders');
+        expect(block).toContain('new_org');
+    });
+
+    it('notifyFounders routes through dispatchPushToUsers with string userIds', () => {
+        const src = read('convex/founderNotifications.ts');
+        expect(src).toContain('String(founder._id)');
+        expect(src).toContain('internal.pushNotifications.dispatchPushToUsers');
+        // The bespoke token query (which skipped categorization/pruning) must be gone.
+        expect(stripComments(src)).not.toContain('user_push_tokens');
+    });
+
+    it('updateMaintenanceTicketStatus pushes status changes to the resident', () => {
+        const block = fnBlock(read('convex/portals.ts'), 'export const updateMaintenanceTicketStatus = mutation');
+        expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
+        expect(block).toMatch(/Push to resident failed/);
+        expect(block).toContain('practicepro-tasks');
+    });
+
+    it('updateClientServiceRequestStatus pushes status changes to the client', () => {
+        const block = fnBlock(read('convex/portals.ts'), 'export const updateClientServiceRequestStatus = mutation');
+        expect(block).toContain('internal.pushNotifications.dispatchPushToUsers');
+        expect(block).toMatch(/Push to client failed/);
+    });
 });
 
 describe('push wiring — client side (source contract)', () => {

@@ -10,7 +10,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
 const ConnectionStatus: React.FC = () => {
-  const { currentUser, refreshUser } = useAuth();
+  const { currentUser, refreshUser, bearerToken } = useAuth();
   const { matterState } = useMatterState();
   const { coreState, isDataLoaded } = useCoreState();
   const { addToast, isOnline: deviceOnline } = useUI();
@@ -66,6 +66,13 @@ const ConnectionStatus: React.FC = () => {
     }
   }, [showDiagnostics]);
 
+  // RETRY-SCAN FIX (2026-09-14, round 2): diagnoseConnectivity /
+  // repairAccountConnection / deleteFirm all enforce the R16 strict bearer
+  // session server-side (resolveCaller throws "Unauthenticated" without a
+  // valid sessionToken). The calls below previously passed ONLY the email —
+  // every scan threw, scanResult stayed null, and the modal forever showed
+  // the "Retry Scan" button (the user's "it keeps saying retry scan"
+  // complaint). Pass the bearer from AuthContext like every other mutation.
   const runScan = async () => {
     if (!currentUser?.email) {
       window.location.reload();
@@ -74,10 +81,15 @@ const ConnectionStatus: React.FC = () => {
     setIsScanning(true);
     setScanResult(null);
     try {
-      const result = await diagnoseMutation({ email: currentUser.email });
+      const result = await diagnoseMutation({
+        email: currentUser.email,
+        sessionToken: bearerToken ?? undefined,
+        userEmail: currentUser.email,
+      });
       setScanResult(result);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Scan failed", e);
+      addToast("Scan failed: " + (e?.message || "please try again."), { type: 'error' });
     } finally {
       setIsScanning(false);
     }
@@ -87,7 +99,12 @@ const ConnectionStatus: React.FC = () => {
     if (!currentUser?.email) return;
     setIsScanning(true);
     try {
-      await repairMutation({ email: currentUser.email, targetFirmId: firmId });
+      await repairMutation({
+        email: currentUser.email,
+        targetFirmId: firmId,
+        sessionToken: bearerToken ?? undefined,
+        userEmail: currentUser.email,
+      });
       await refreshUser();
       setTimeout(() => {
         setShowDiagnostics(false);
@@ -104,7 +121,12 @@ const ConnectionStatus: React.FC = () => {
 
     setIsDeleting(true);
     try {
-      await deleteFirmMutation({ firmId: firmToDelete.id, confirmed: true });
+      await deleteFirmMutation({
+        firmId: firmToDelete.id,
+        confirmed: true,
+        sessionToken: bearerToken ?? undefined,
+        userEmail: currentUser.email,
+      });
       setFirmToDelete(null);
       setDeleteConfirmation("");
       // Re-scan to update list
