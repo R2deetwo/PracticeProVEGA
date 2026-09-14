@@ -4034,3 +4034,24 @@ Stage Summary:
 - USER VERIFICATION STILL REQUIRED before this can be called done (the standing rule): after the next APK builds install, (1) as a firm user submit + withdraw a refund request from Settings → Billing & Plans; (2) as the founder check the Refunds view (More menu) — badge, eligibility label, approve → Paystack manual refund → mark processed with the reference; (3) confirm the webhook auto-complete path if Paystack sends refund.processed.
 - Follow-up queue unchanged: TenantPortal manual tab test → DraftProEditor split; token batches 2–8; gray-scale elimination; worklog.md deletion once the split is confirmed; rotate the GitHub PAT (pasted in chat again last round).
 ---
+
+---
+Task ID: 3 (P4 token batch 2 — gray scale elimination)
+Date: 2026-09-14
+Task: Execute token batch 2 from docs/design/TOKENS.md §3: eliminate the orphan gray-* scale app-wide with zero visual change, then harden the CI gate.
+
+Work Log:
+- Synced the stale sandbox clone to origin/main (ef24d195, v1.0.615/build-998); local tree was a Sep-2 state — backed up as branch backup-stale-sep2, hard reset, npm ci.
+- DISPROVED the batch plan's original "gray → slate, mechanical" assumption with per-theme variable analysis (scripts saved to /home/z/my-project/scripts/): gray is the ONLY scale that auto-flips (inverted ramp) in .dark and all 5 dark-capable colored themes, while slate stays pinned/differently-ramped. A naive swap renders unpaired text invisible in dark themes; dark:gray-N has no zinc-M equivalent within 15–51/255 deltas across themes.
+- Shipped the rename-based elimination instead: new Tailwind key `dim` mapped to the SAME variables (renamed --color-gray-* → --color-dim-*, 99/99 theme-block lines byte-identical). 779 occurrences in 67 files → 406 slate (light gray with same-utility dark: partner in the SAME string literal — partner covers dark, light delta ≤ 8/255) + 373 dim (dark-variant gray, auto-flip-reliant, ternary branches — exact everywhere). The `gray` key is DELETED from tailwind.config.ts.
+- Rewriter (scripts/batch2_migrate_gray.py) handles variant chains (group-hover/stage:, hover:, focus:), side utilities (border-l-), ring-offset, alpha modifiers (/20), and restricts slate conversion to single string literals so ternary branches can never be mispaired.
+- index.css: renamed all --color-dim vars, updated the two `.dark form .text-gray-400/500` symptom-patch selectors to .text-dim-*, updated 4 comments. tailwind.config.ts: dim block + comment updates.
+- Gate hardened: check-design-tokens.mjs now counts dim and HARD-FAILS on any gray-* occurrence (the deleted key means such classes silently generate no CSS). Baseline regenerated: gray=0 slate=9826 zinc=7125 dim=373.
+- PROOF (scripts/batch2_css_proof.py) on the production build: 0 gray selectors residual; all 42 dim selectors declaration-identical to their gray predecessors (modulo the var rename); 99/99 --color-dim var values identical; 0 residual var(--color-gray-*) references. Admin build clean.
+- Gates: tsc 126 = exact baseline; vitest 789/789; design-token gate green.
+- Committed eb7bd8d1 (72 files, +636/−588). PUSH BLOCKED: remote-URL PAT ghp_bWu… returns 401 (sandbox-wipe pattern, 5th documented occurrence); waiting on a fresh PAT to push + deploy.
+
+Stage Summary:
+- The gray scale no longer exists as a name anywhere in src/; what remains is the honestly-named `dim` ramp (theme-inverted neutrals, 373 usages) slated for the batch-7 dark role layer, plus 406 light-mode classes converged onto slate.
+- TOKENS.md rewritten: §1c updated, new §2b records why the mechanical plan was impossible and the rename rationale; §3 batch 2 marked done; §4 gate semantics updated to zero-tolerance.
+- Next in the user's directive: the code-audit workstreams (Chunk A foundation primitives first), token batches 3–8 after.
