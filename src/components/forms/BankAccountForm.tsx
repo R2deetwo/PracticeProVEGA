@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BankAccount } from '../../types';
-import { CurrencyDollarIcon, InfoIcon, XIcon, SaveIcon, ShieldCheckIcon } from '../../constants';
-import { Landmark as BankIcon, CreditCard as CreditCardIcon } from 'lucide-react';
-import { inputClassic } from '../../utils/formStyles';
+import { Button, Input } from '../ui';
 import { useUI } from '../../contexts/UIContext';
 
 interface BankAccountFormProps {
@@ -14,6 +12,23 @@ interface BankAccountFormProps {
   onClose: () => void;
 }
 
+/**
+ * PILOT ADOPTION of the shared ui/ primitives (ADR-0004, Chunk A).
+ *
+ * What changed vs. the hand-rolled version (all flagged, nothing silent):
+ * - <Input> wires label -> htmlFor -> aria-describedby automatically and
+ *   renders the same inputClassic variant this form already used.
+ * - The submit button matched the dominant measured pattern verbatim
+ *   ("px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold
+ *   hover:bg-primary-700 transition-colors shadow-sm") — zero visual
+ *   change; a focus-visible ring appears only on keyboard focus.
+ * - Cancel normalized to the standard secondary (was bg-slate-200 with a
+ *   duplicated dark:hover class — the 1-shade drift this layer retires).
+ * - Delete maps to the new danger-soft variant (7x exact pattern
+ *   elsewhere in the codebase; was the same string verbatim).
+ * - Field labels normalize dark:text-dim-300 -> dark:text-zinc-300 (the
+ *   codebase-standard label color; this file was the drifted one).
+ */
 const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddAccount, onUpdateAccount, onSetDefault, onDelete, onClose }) => {
   const { addToast } = useUI();
   const [accountName, setAccountName] = useState('');
@@ -49,32 +64,52 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
     onClose();
   };
 
-    const commonInputClass = inputClassic;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
-        <label htmlFor="accountName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Account Name (Optional)</label>
-        <input autoComplete="off" data-lpignore="true"  type="text" id="accountName" value={accountName} onChange={e => setAccountName(e.target.value)} className={commonInputClass} />
-      </div>
-      <div>
-        <label htmlFor="bankName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Bank Name</label>
-        <input autoComplete="off" data-lpignore="true"  type="text" id="bankName" value={bankName} onChange={e => setBankName(e.target.value)} className={commonInputClass} required />
-      </div>
-      <div>
-        <label htmlFor="accountNumber" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Account Number</label>
-        <input autoComplete="off" data-lpignore="true"  type="text" id="accountNumber" value={accountNumber} onChange={e => setAccountNumber(e.target.value)} className={commonInputClass} required pattern="\d{10}" title="Please enter a 10-digit account number"/>
-      </div>
+      <Input
+        label="Account Name (Optional)"
+        id="accountName"
+        styleVariant="classic"
+        autoComplete="off"
+        data-lpignore="true"
+        type="text"
+        value={accountName}
+        onChange={e => setAccountName(e.target.value)}
+      />
+      <Input
+        label="Bank Name"
+        id="bankName"
+        styleVariant="classic"
+        autoComplete="off"
+        data-lpignore="true"
+        type="text"
+        value={bankName}
+        onChange={e => setBankName(e.target.value)}
+        required
+      />
+      <Input
+        label="Account Number"
+        id="accountNumber"
+        styleVariant="classic"
+        autoComplete="off"
+        data-lpignore="true"
+        type="text"
+        value={accountNumber}
+        onChange={e => setAccountNumber(e.target.value)}
+        required
+        pattern="\d{10}"
+        title="Please enter a 10-digit account number"
+      />
       {isEditing && !accountToEdit.isDefault && (
         <div>
           <button type="button" onClick={() => onSetDefault(accountToEdit.id)} className="w-full text-sm font-semibold text-primary-600 dark:text-primary-300 hover:underline">Set as Default Account</button>
         </div>
       )}
       <div className="pt-4 flex justify-between items-center">
-        <div>{isEditing && <button type="button" onClick={() => onDelete(accountToEdit.id)} className="px-4 py-2 bg-red-100 text-red-700 dark:text-red-400 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80 transition-colors">Delete</button>}</div>
+        <div>{isEditing && <Button variant="danger-soft" onClick={() => onDelete(accountToEdit.id)}>Delete</Button>}</div>
         <div className="space-x-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Add Account'}</button>
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button type="submit">{isEditing ? 'Save Changes' : 'Add Account'}</Button>
         </div>
       </div>
     </form>

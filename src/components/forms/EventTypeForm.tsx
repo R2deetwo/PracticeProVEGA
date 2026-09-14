@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CustomEventType } from '../../types';
 import { PALETTE_COLORS } from '../../constants';
-import { inputClassic } from '../../utils/formStyles';
 import { getEventTypeBadgeClass } from '../../utils/colorUtils';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
+import { Button, Input } from '../ui';
 
 interface EventTypeFormProps {
   onAddEventType?: (newEventType: Omit<CustomEventType, 'id'>) => void;
@@ -14,12 +14,20 @@ interface EventTypeFormProps {
   eventTypeToEdit?: CustomEventType;
 }
 
+/**
+ * Chunk-A primitive adoption (second pilot, ADR-0004). Same flagged
+ * normalizations as BankAccountForm: Cancel -> standard secondary (was
+ * bg-slate-200 with a duplicated dark:hover), Delete -> danger-soft
+ * (verbatim pattern match), labels dark:text-dim-300 -> zinc-300.
+ * The color swatch buttons stay hand-rolled — they are color chips, not
+ * action buttons (no Button variant should be).
+ */
 const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateEventType, onDelete, onClose, eventTypeToEdit }) => {
-  const { coreState, isDataLoaded } = useCoreState();
+  const { coreState } = useCoreState();
   const { addToast } = useUI();
     const [name, setName] = useState('');
   const [color, setColor] = useState(PALETTE_COLORS[0]);
-  
+
   const isEditing = !!eventTypeToEdit;
 
   useEffect(() => {
@@ -35,7 +43,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
       addToast("Please provide a name for the event type.", { type: 'error' });
       return;
     }
-    
+
     if (isEditing && onUpdateEventType && eventTypeToEdit) {
       /* Added firmId to satisfy CustomEventType interface */
       const eventTypeData: CustomEventType = {
@@ -57,14 +65,20 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
     onClose();
   };
 
-    const commonInputClass = inputClassic;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div>
-        <label htmlFor="eventTypeName" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Event Type Name</label>
-        <input autoComplete="off" data-lpignore="true"  type="text" id="eventTypeName" value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Deposition" className={commonInputClass} required />
-      </div>
+      <Input
+        label="Event Type Name"
+        id="eventTypeName"
+        styleVariant="classic"
+        autoComplete="off"
+        data-lpignore="true"
+        type="text"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="e.g., Deposition"
+        required
+      />
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Color</label>
@@ -84,18 +98,14 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
       <div className="pt-4 flex flex-col-reverse sm:flex-row sm:justify-between sm:items-center gap-2">
         <div className="w-full sm:w-auto">
           {isEditing && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              className="w-full sm:w-auto px-4 py-2 bg-red-100 text-red-700 dark:text-red-400 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80 transition-colors"
-            >
+            <Button variant="danger-soft" onClick={onDelete} className="w-full sm:w-auto">
               Delete
-            </button>
+            </Button>
           )}
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button type="button" onClick={onClose} className="w-full sm:w-auto px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-            <button type="submit" className="w-full sm:w-auto px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Event Type'}</button>
+            <Button variant="secondary" onClick={onClose} className="w-full sm:w-auto">Cancel</Button>
+            <Button type="submit" className="w-full sm:w-auto">{isEditing ? 'Save Changes' : 'Create Event Type'}</Button>
         </div>
       </div>
     </form>
