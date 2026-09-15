@@ -4080,3 +4080,26 @@ Stage Summary:
 - BLOCKED ON USER (either unblocks everything):
   (a) paste a fresh GitHub PAT → I push 44492b74, CI builds the APK, I dispatch "Deploy to Production (promote)" and verify live; OR
   (b) no-code path: run the promote manually — GitHub → Actions → "Deploy to Production (promote)" → Run workflow (sha blank) — this alone clears the Scheduled Messages error today; the APK fix still needs a push.
+
+---
+Task ID: 46
+Agent: Main agent (Super Z)
+Task: User supplied a fresh GitHub PAT (2026-09-15) — execute the unblock plan from Task 45: push 44492b74, dispatch the production promote, verify the Scheduled Messages fix live, confirm the APK build is repaired.
+
+Work Log:
+- PAT validated via API (login R2deetwo, scopes repo+workflow, push access confirmed). Token kept out of all files: one-shot push/fetch URLs + curl headers only; never written to .git/config, scripts, or logs.
+- Pushed 4d3762ca..692bf7bc to origin/main (44492b74 APK fix + 692bf7bc Task-45 worklog). Push auto-triggered 5 runs on 692bf7bc: Tests, Deploy to Staging, Build Android APK, Build Admin APK (+ the dispatched promote).
+- Dispatched "Deploy to Production (promote)" (run 34932735927, blank sha = latest main). Completed SUCCESS in ~5 min: quality gate (convex tsc 0 errors, root tsc under baseline, identity audit, vitest) → Convex prod deploy → Vercel prod → live verification → Cloudflare mirror.
+- BEFORE/AFTER probe of the user's exact error (POST gregarious-malamute-537.convex.cloud/api/query automationEngine:getUpcomingAutomation):
+  BEFORE: "Could not find public function for 'automationEngine:getUpcomingAutomation'"
+  AFTER: "ArgumentValidationError: Object is missing the required field 'firmId'" — the function now EXISTS and validates args (anonymous probe omits firmId by design; the live client passes firmId+sessionToken). P0 #1 CLEARED.
+- APK TRACK REPAIRED: Build Android APK run succeeded → release build-1001 "PracticePro v1.0.618" (12 MB APK) published — first green build since build-998 (v1.0.615); the 44492b74 fix (app-level firebase-messaging 25.0.1 + setAllowGeneratedReplies swap) held. Admin APK build-102 green too. Bot bumped main to 3d9db9fc.
+- Verified all three production surfaces serve the promoted commit 692bf7bc: Vercel (healthy, sha match), Cloudflare mirror (healthy, sha match), Convex (live query success).
+- Synced sandbox 692bf7bc → 3d9db9fc (ff-only).
+
+Stage Summary:
+- The entire user queue is now FULLY live on all surfaces (web + Android + backend): scheduled-tab resilience (7e7a8ac5), task status flip-up (7e7a8ac5), WhatsApp-grade notifications (7e7a8ac5), financial-integrity round (3734ca0b), celebration suppression/AI-key sync (c93d661c), APK build repair (44492b74).
+- Version-skew debt cleared: production Convex promoted from e702cbdc (Sep 14) to 692bf7bc — 7 previously-undeployed modules (automationEngine, financialIntegrity, refunds, pushReplyAuth, emailBranding, queryMetrics, aiAudit) now live.
+- Mobile users can update to v1.0.618 to pick up everything since v1.0.615.
+- SECURITY: the fresh PAT was used transiently only. User should revoke it (GitHub → Settings → Developer settings → Personal access tokens) now that the work is done.
+- No follow-up fixes remain from the 2026-09-15 triage; next candidates are the Task-45 note items (firm-facing blueprint re-open link, automations recipes, template seeding, state-specific library variants).
