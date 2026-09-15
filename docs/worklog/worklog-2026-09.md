@@ -4055,3 +4055,28 @@ Stage Summary:
 - The gray scale no longer exists as a name anywhere in src/; what remains is the honestly-named `dim` ramp (theme-inverted neutrals, 373 usages) slated for the batch-7 dark role layer, plus 406 light-mode classes converged onto slate.
 - TOKENS.md rewritten: §1c updated, new §2b records why the mechanical plan was impossible and the rename rationale; §3 batch 2 marked done; §4 gate semantics updated to zero-tolerance.
 - Next in the user's directive: the code-audit workstreams (Chunk A foundation primitives first), token batches 3–8 after.
+
+---
+Task ID: 45
+Agent: Main agent (Super Z)
+Task: User report 2026-09-15 — Scheduled Messages error card ("Could not find public function for 'automationEngine:getUpcomingAutomation'") + full queue triage (P0 scheduled-tab, P0 task-status flip-up, P1 notifications, P1 financials)
+
+Work Log:
+- Synced sandbox (177→0 commits stale; local tree had sandbox-reset deletions — worklog.md salvaged first, hard reset to origin/main 4d3762ca = v1.0.617).
+- CONFIRMED THE LIVE ROOT CAUSE BY DIRECT PROBE: POST gregarious-malamute-537.convex.cloud/api/query {automationEngine:getUpcomingAutomation} → the identical error the user pasted. The production backend simply was never promoted past e702cbdc (last promote run, 2026-09-14 05:04 UTC).
+- Version-skew map (e702cbdc → HEAD): 29 convex files, ~7,600 lines undeployed, incl. 7 whole modules: automationEngine (getUpcomingAutomation landed in 904146d1 — AFTER the last promote), financialIntegrity, refunds, pushReplyAuth, emailBranding, queryMetrics, aiAudit. The web frontend (Vercel auto-deploy, 4d3762ca) calls all of them.
+- User's screenshot = the SectionErrorBoundary degrade card from 7e7a8ac5 (resilience works; the page survives, one section errors). All three queued fixes (scheduled-tab resilience, task-status flip-up, WhatsApp-grade notifications) are already LIVE on web; financial-integrity round live too. The ONLY missing piece for the reported error = the production Convex promote.
+- APK TRACK STALLED: build-998 (v1.0.615, Sep 14 08:02) is the last release. Runs 999/1000 (3734ca0b, c93d661c) FAILED at the Gradle step. No [skip ci] involved — the 14:10–15:41 commits were batch-pushed, so only one run each.
+- APK FAILURE ROOT CAUSES (both proven by javac --release 21 compile against the REAL artifacts — androidx.core 1.17.0 / firebase-messaging 25.0.1 / play-services-basement 18.7.1 / API-35 framework jar; verification script: /home/z/my-project/scripts/verify-apk-fix.sh):
+  1. Gradle classpath: PracticeProMessagingService/PushReplyReceiver (APP module) import com.google.firebase.messaging.* — but @capacitor/push-notifications declares it `implementation` (not visible to consumers) → "package com.google.firebase.messaging does not exist". Test without the jar reproduces the CI error exactly.
+  2. Nonexistent method: NotificationCompat.Action.Builder.setAllowSystemGeneratedContextualActions(false) — that method lives on NotificationCompat.Builder; the Action-level equivalent is setAllowGeneratedReplies(false) (verified via javap against core 1.17.0).
+- FIX COMMITTED LOCALLY (44492b74, 3 files): app-level firebase-messaging 25.0.1 dependency (+ firebaseMessagingVersion in variables.gradle, matching the plugin's resolved version = zero resolution change) + the Action.Builder method swap. With both, the three push files COMPILE CLEAN against the real classpath.
+- Also verified locally: npx vite build ✓ (22.9s), npx cap sync android ✓ (both APK-workflow pre-gradle steps reproduce clean).
+- PUSH BLOCKED: the only stored PAT (remote-URL embedded, 40 chars) returns 401 Bad credentials — API probe + push both fail. No other credential exists locally (~/.git-credentials absent, no CONVEX_DEPLOY_KEY in the sandbox, .env not present). Cannot push the fix, cannot dispatch the promote workflow, cannot deploy Convex directly.
+
+Stage Summary:
+- The reported Scheduled Messages error is 100% diagnosed: production Convex is ~5 days / 7 modules behind; ONE promote run fixes it. Everything else in the user's queue (task flip-up, notifications, financial round) is already coded, tested (CI green on c93d661c: Tests ✓ Staging ✓), and live on web.
+- The broken APK build (blocking all mobile users from every fix since v1.0.615) is root-caused twice-over and fixed in local commit 44492b74 — reproducible-proof included.
+- BLOCKED ON USER (either unblocks everything):
+  (a) paste a fresh GitHub PAT → I push 44492b74, CI builds the APK, I dispatch "Deploy to Production (promote)" and verify live; OR
+  (b) no-code path: run the promote manually — GitHub → Actions → "Deploy to Production (promote)" → Run workflow (sha blank) — this alone clears the Scheduled Messages error today; the APK fix still needs a push.
