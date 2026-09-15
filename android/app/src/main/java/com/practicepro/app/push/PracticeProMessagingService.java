@@ -230,7 +230,11 @@ public class PracticeProMessagingService extends FirebaseMessagingService {
                 NotificationCompat.Action replyAction = new NotificationCompat.Action.Builder(
                         0, "Reply", replyPendingIntent)
                         .addRemoteInput(remoteInput)
-                        .setAllowSystemGeneratedContextualActions(false)
+                        // Action.Builder has no setAllowSystemGeneratedContextualActions —
+                        // that lives on NotificationCompat.Builder. The Action-level
+                        // equivalent (suppress system-generated smart replies for this
+                        // RemoteInput) is setAllowGeneratedReplies(false).
+                        .setAllowGeneratedReplies(false)
                         .build();
                 builder.addAction(replyAction);
             }
