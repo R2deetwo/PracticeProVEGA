@@ -4161,3 +4161,16 @@ Stage Summary:
 - A firm that picks "Civil Litigation" in Lagos now gets, in one apply: matter types with sub-categories/stages, contact types, document folders, event types, checklists, 3 state-correct starter templates (incl. the Lagos-only Pre-Action Protocol letter) grouped under template categories — additive, idempotent, previewable.
 - Signup is now a pure account-creation step (name/email/password/terms); practice identity is captured in the wizard where it belongs.
 - SECURITY NOTE (standing): the PAT the user pasted on 2026-09-15 is embedded in the sandbox clone's remote URL — revoke after this round ships (GitHub → Settings → Developer settings → Personal access tokens).
+
+---
+Task ID: 49 (addendum)
+Agent: Main agent (Super Z)
+Task: Push status for the Task-49 commit.
+
+Work Log:
+- PUSH BLOCKED: the PAT embedded in the sandbox clone's remote URL now returns 401 on every authenticated call (probed /user and authed /repos — both 401; anonymous repo access 200 because the repo is public). The user evidently revoked it as repeatedly advised — correct move.
+- Commit 162271a2 (Task 45/5 #3-5 + signup-UX fix, 11 files, +1872/-79) is READY locally with all gates green (convex tsc 0; root tsc 126 = baseline; vitest 883/883; identity audit PASS; design-token gray=0; vite build clean).
+- Fallback artifact for the user: /home/z/my-project/download/0001-feat-blueprint-template-seeding-state-specific-varia.patch (git am-able).
+
+Stage Summary:
+- BLOCKED ON USER (either unblocks): (a) paste a fresh GitHub PAT → push 162271a2, CI runs Tests/Staging/APK, then dispatch the production promote on demand; OR (b) apply the patch file locally on their own machine (git am 0001-*.patch) and push from there.
