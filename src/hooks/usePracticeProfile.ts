@@ -37,6 +37,14 @@ import {
   type AtriumFocusOverlay,
 } from "../config/atriumProfileLibrary";
 import type { AtriumProfile } from "../config/practiceProfileLibrary";
+// DOCUMENT-TEMPLATE SEEDING (Backlog #3 + #4): curated starter templates
+// keyed by the same area/portfolio keys, rendered state-aware (captions,
+// procedural rules) for the firm's primary state. Seeded through the same
+// additive/idempotent contracts as everything else.
+import {
+  getLegalDocumentTemplates,
+  getAtriumDocumentTemplates,
+} from "../config/documentTemplateLibrary";
 
 // ---------------------------------------------------------------------------
 // Plan types
@@ -49,7 +57,9 @@ export interface PlanItem {
     | "documentCategories"
     | "eventTypes"
     | "workflows"
-    | "checklistTemplates";
+    | "checklistTemplates"
+    | "documentTemplateCategories"
+    | "documentTemplates";
   /** display label */
   label: string;
   /** payload ready for addItem (firmId injected by the hook) */
@@ -74,6 +84,7 @@ export interface ApplyPlan {
     documentCategories: number;
     eventTypes: number;
     checklists: number;
+    documentTemplates: number;
   };
 }
 
@@ -97,6 +108,12 @@ export interface UsePracticeProfileDeps {
     subCategories?: Record<string, unknown>;
   }[];
   checklistTemplates: { id?: string; name: string }[];
+  /** Existing document templates (idempotency by name) — Backlog #3. */
+  documentTemplates: { id?: string; _id?: string; name: string }[];
+  /** Existing document-template categories (ensured before templates). */
+  documentTemplateCategories: { id?: string; _id?: string; name: string }[];
+  /** Firm's primary state key — renders state-aware template content (#4). */
+  stateKey?: string;
   firmId: string;
   /** addItem(table, data, label?) from CoreActions */
   addItem: (table: string, data: Record<string, unknown>, label?: string) => Promise<unknown>;
@@ -155,7 +172,13 @@ export function buildLegalPlan(
     | "eventTypes"
     | "workflows"
     | "checklistTemplates"
-  >,
+  > &
+    Pick<
+      UsePracticeProfileDeps,
+      | "documentTemplates"
+      | "documentTemplateCategories"
+      | "stateKey"
+    >,
 ): { items: PlanItem[]; workflowMerges: ApplyPlan["workflowMerges"]; automations: string[]; counts: ApplyPlan["counts"] } {
   const {
     contactCategories,
@@ -163,6 +186,9 @@ export function buildLegalPlan(
     eventTypes,
     workflows,
     checklistTemplates,
+    documentTemplates,
+    documentTemplateCategories,
+    stateKey,
   } = deps;
 
   const items: PlanItem[] = [];
@@ -310,6 +336,15 @@ export function buildLegalPlan(
     }
   }
 
+  // --- document templates (Backlog #3 + #4) ---------------------------
+  const templateCount = appendTemplateItems(
+    getLegalDocumentTemplates(
+      profiles.map((p) => p.key),
+      stateKey,
+    ),
+    { items, documentTemplates, documentTemplateCategories },
+  );
+
   return {
     items,
     workflowMerges,
@@ -321,8 +356,79 @@ export function buildLegalPlan(
       documentCategories: docCount,
       eventTypes: eventCount,
       checklists: checklistCount,
+      documentTemplates: templateCount,
     },
   };
+}
+
+/**
+ * Shared template-seeding helper (exported for tests): ensures each
+ * template's CATEGORY row exists (idempotent by name), then appends the
+ * template item itself (idempotent by name). Category `categoryId` is
+ * resolved at APPLY time from `categoryName` (existing rows first, then
+ * rows created earlier in the same apply run).
+ */
+export function appendTemplateItems(
+  templates: {
+    name: string;
+    description: string;
+    categoryName: string;
+    content: string;
+    placeholders: string[];
+  }[],
+  deps: {
+    items: PlanItem[];
+    documentTemplates: { id?: string; name: string }[];
+    documentTemplateCategories: { id?: string; name: string }[];
+  },
+): number {
+  const existingTemplates = new Set(
+    deps.documentTemplates.map((t) => norm(t.name)),
+  );
+  const existingTemplateCats = new Set(
+    deps.documentTemplateCategories.map((c) => norm(c.name)),
+  );
+  // Categories referenced by the templates — ensure-once per name, both
+  // against the firm's existing rows AND rows already in this plan.
+  const plannedCats = new Set(
+    deps.items
+      .filter((i) => i.table === "documentTemplateCategories")
+      .map((i) => norm(i.label)),
+  );
+  const requiredCats = unique(
+    templates.map((t) => t.categoryName),
+    (n) => norm(n),
+  );
+  for (const catName of requiredCats) {
+    const k = norm(catName);
+    if (existingTemplateCats.has(k) || plannedCats.has(k)) continue;
+    plannedCats.add(k);
+    deps.items.push({
+      table: "documentTemplateCategories",
+      label: catName,
+      duplicate: false,
+      data: { name: catName },
+    });
+  }
+
+  let templateCount = 0;
+  for (const t of templates) {
+    const dup = existingTemplates.has(norm(t.name));
+    if (!dup) templateCount++;
+    deps.items.push({
+      table: "documentTemplates",
+      label: t.name,
+      duplicate: dup,
+      data: {
+        name: t.name,
+        description: t.description,
+        content: t.content,
+        placeholders: t.placeholders,
+        categoryName: t.categoryName,
+      },
+    });
+  }
+  return templateCount;
 }
 
 /** Atrium variant — same engine, property payload. (exported for tests) */
@@ -336,13 +442,22 @@ export function buildAtriumPlan(
     | "eventTypes"
     | "workflows"
     | "checklistTemplates"
-  >,
+  > &
+    Pick<
+      UsePracticeProfileDeps,
+      | "documentTemplates"
+      | "documentTemplateCategories"
+      | "stateKey"
+    >,
 ): { items: PlanItem[]; workflowMerges: ApplyPlan["workflowMerges"]; automations: string[]; counts: ApplyPlan["counts"] } {
   const {
     contactCategories,
     documentCategories,
     eventTypes,
     checklistTemplates,
+    documentTemplates,
+    documentTemplateCategories,
+    stateKey,
   } = deps;
 
   const items: PlanItem[] = [];
@@ -409,6 +524,15 @@ export function buildAtriumPlan(
     });
   }
 
+  // --- document templates (Backlog #3 + #4) ---------------------------
+  const templateCount = appendTemplateItems(
+    getAtriumDocumentTemplates(
+      profiles.map((p) => p.key),
+      stateKey,
+    ),
+    { items, documentTemplates, documentTemplateCategories },
+  );
+
   return {
     items,
     workflowMerges: [],
@@ -423,6 +547,7 @@ export function buildAtriumPlan(
       documentCategories: docCount,
       eventTypes: eventCount,
       checklists: checklistCount,
+      documentTemplates: templateCount,
     },
   };
 }
@@ -474,6 +599,7 @@ export function mergePlans(a: ApplyPlan, b: ApplyPlan): ApplyPlan {
       documentCategories: recalc("documentCategories"),
       eventTypes: recalc("eventTypes"),
       checklists: recalc("checklistTemplates"),
+      documentTemplates: recalc("documentTemplates"),
     },
   };
 }
@@ -491,13 +617,17 @@ export interface ApplyProgress {
   completed: boolean;
 }
 
-/** Stage order + display labels for the apply progress UI (round 9). */
+/** Stage order + display labels for the apply progress UI (round 9).
+ * Template categories run BEFORE templates so applyPlan can capture the
+ * newly-created category ids and stamp them onto the template rows. */
 export const APPLY_STAGES: { table: PlanItem["table"]; label: string }[] = [
   { table: "workflows", label: "Matter types & workflows" },
   { table: "contactCategories", label: "Contact types" },
   { table: "documentCategories", label: "Document folders" },
   { table: "eventTypes", label: "Event types" },
   { table: "checklistTemplates", label: "Checklists" },
+  { table: "documentTemplateCategories", label: "Template categories" },
+  { table: "documentTemplates", label: "Document templates" },
 ];
 
 export function usePracticeProfile(deps: UsePracticeProfileDeps) {
@@ -562,6 +692,18 @@ export function usePracticeProfile(deps: UsePracticeProfileDeps) {
         const skipped = plan.items.length - writeable.length;
         result.skipped += skipped;
 
+        // TEMPLATE CATEGORY-ID RESOLUTION: templates reference their
+        // category by NAME (plan data is pure + previewable). At write
+        // time we resolve categoryId from (a) the firm's existing
+        // categories, then (b) categories created earlier in THIS apply
+        // run — addItem returns the created row, so its id is captured
+        // here. This lets the TemplatesSettings grouped list render the
+        // seeded templates under their categories immediately.
+        const categoryIdByName = new Map<string, string>();
+        for (const c of deps.documentTemplateCategories || []) {
+          if (c.id) categoryIdByName.set(norm(c.name), c.id);
+        }
+
         for (const stage of byStage) {
           let done = 0;
           emit({
@@ -573,8 +715,27 @@ export function usePracticeProfile(deps: UsePracticeProfileDeps) {
           });
           for (const item of stage.items) {
             try {
-              await deps.addItem(item.table, { ...item.data, firmId });
+              const created = (await deps.addItem(item.table, {
+                ...item.data,
+                firmId,
+                // Stamp the resolved category id onto template rows.
+                ...(item.table === "documentTemplates" &&
+                typeof item.data.categoryName === "string"
+                  ? {
+                      categoryId:
+                        categoryIdByName.get(norm(item.data.categoryName)) ||
+                        undefined,
+                    }
+                  : {}),
+              })) as { id?: string } | undefined;
               result.created++;
+              if (
+                item.table === "documentTemplateCategories" &&
+                created?.id &&
+                typeof item.data.name === "string"
+              ) {
+                categoryIdByName.set(norm(item.data.name), created.id);
+              }
             } catch (err) {
               result.errors.push(`${item.label}: ${(err as Error).message}`);
             }

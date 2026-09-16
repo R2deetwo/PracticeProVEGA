@@ -53,6 +53,11 @@ export interface PracticeProfileSetupProps {
     subCategories?: Record<string, unknown>;
   }[];
   checklistTemplates: { id?: string; name: string }[];
+  /** Existing document templates + categories (Backlog #3 seeding). */
+  documentTemplates?: { id?: string; _id?: string; name: string }[];
+  documentTemplateCategories?: { id?: string; _id?: string; name: string }[];
+  /** Firm's primary state key — renders state-aware template content (#4). */
+  stateKey?: string;
   addItem: (table: string, data: Record<string, unknown>, label?: string) => Promise<unknown>;
   updateItem: (table: string, data: Record<string, unknown>) => Promise<unknown>;
 }
@@ -98,6 +103,9 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
     eventTypes: props.eventTypes,
     workflows: props.workflows,
     checklistTemplates: props.checklistTemplates,
+    documentTemplates: props.documentTemplates || [],
+    documentTemplateCategories: props.documentTemplateCategories || [],
+    stateKey: props.stateKey,
     firmId,
     addItem: props.addItem,
     updateItem: props.updateItem,
@@ -271,7 +279,8 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
           <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-md mx-auto leading-relaxed">
             Pick the areas you actually work in. We will set up matching matter
             types with sub-categories and stages, contact types, document
-            folders, event types and starter checklists — you can edit
+            folders, event types, starter checklists and starter document
+            templates (tailored to your state's rules) — you can edit
             everything afterwards.
           </p>
         </header>
@@ -377,6 +386,7 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
       { title: "Document Folders", table: "documentCategories", hint: "Filing categories for your documents" },
       { title: "Event Types", table: "eventTypes", hint: "Calendar categories with colours" },
       { title: "Checklists", table: "checklistTemplates", hint: "Procedure checklists attached to matter types" },
+      { title: "Document Templates", table: "documentTemplates", hint: "Starter drafts with fill-in placeholders, tailored to your state's rules" },
     ];
     return (
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
@@ -390,13 +400,14 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
           </p>
         </header>
 
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 p-4 bg-primary-50/60 dark:bg-primary-900/10 rounded-2xl border border-primary-100 dark:border-primary-900/40">
+        <div className="grid grid-cols-3 sm:grid-cols-7 gap-2 p-4 bg-primary-50/60 dark:bg-primary-900/10 rounded-2xl border border-primary-100 dark:border-primary-900/40">
           {renderCount("Contact types", plan?.counts.contactTypes || 0)}
           {renderCount("Matter types", plan?.counts.matterTypes || 0)}
           {renderCount("Sub-categories", plan?.counts.subCategories || 0)}
           {renderCount("Doc folders", plan?.counts.documentCategories || 0)}
           {renderCount("Event types", plan?.counts.eventTypes || 0)}
           {renderCount("Checklists", plan?.counts.checklists || 0)}
+          {renderCount("Templates", plan?.counts.documentTemplates || 0)}
         </div>
 
         {hook.running ? (
@@ -533,6 +544,7 @@ export const PracticeProfileSetup: React.FC<PracticeProfileSetupProps> = (props)
           <li>Open Settings → Firm Configuration → Workflows to fine-tune stages.</li>
           <li>Checklists live under Firm Configuration → Checklists.</li>
           <li>Contact and document folders are under Categories & Types.</li>
+          <li>Starter document templates are under Templates — open one and fill the bracketed placeholders.</li>
         </ul>
       </div>
       <button

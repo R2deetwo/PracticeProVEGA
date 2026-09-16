@@ -12,6 +12,14 @@ import { api } from "../../../convex/_generated/api";
 import { useUI } from '../../contexts/UIContext';
 import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
 import { NIGERIAN_STATES, PORTFOLIO_TYPE_OPTIONS, ATRIUM_FOCUS_OPTIONS } from '../../utils/jurisdictionConfig';
+// PROFESSIONAL IDENTITY (user feedback 2026-09-16): the "How should you
+// appear in correspondence?" card (professional title + legal form) moved
+// here from the signup form — this is the stage where the user describes
+// their workspace (firm name), so their role and the firm's legal form
+// belong right under it. Parked via savePendingIdentity at wizard
+// completion; App.tsx applies it one-shot to the firm + user profile on
+// the first app load (reflected in the header, emails and receipts).
+import { PROFESSIONAL_TITLES, LEGAL_ENTITY_TYPES, savePendingIdentity } from '../../utils/professionalIdentity';
 import { FirmSpecialty } from '../../types';
 // PRACTICE-PROFILE ENGINE — pre-populates the firm's configuration (matter
 // types with sub-categories & stages, contact types, document folders,
@@ -235,6 +243,13 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const [focusAreas, setFocusAreas] = useState<string[]>([]);
   const [unitsUnderManagement, setUnitsUnderManagement] = useState<string>('');
 
+  // Professional identity (optional) — collected on Step 1 next to the firm
+  // name, parked + applied on wizard completion. See import note above.
+  const [professionalTitle, setProfessionalTitle] = useState('');
+  const [titleCustom, setTitleCustom] = useState('');
+  const [legalEntityType, setLegalEntityType] = useState('');
+  const [legalEntityCustom, setLegalEntityCustom] = useState('');
+
   const toggleInArray = (arr: string[], setArr: (v: string[]) => void, value: string, max = 12) => {
     if (arr.includes(value)) setArr(arr.filter(v => v !== value));
     else if (arr.length < max) setArr([...arr, value]);
@@ -383,6 +398,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
     eventTypes: (appState as any).eventTypes || [],
     workflows: (appState as any).workflows || [],
     checklistTemplates: (appState as any).checklistTemplates || [],
+    documentTemplates: (appState as any).documentTemplates || [],
+    documentTemplateCategories: (appState as any).documentTemplateCategories || [],
+    // Primary state from Step 3 — renders state-aware template content
+    // (court captions, procedural rules) for the firm's jurisdiction.
+    stateKey: primaryState,
     firmId: lookupFirmId,
     addItem: addItem as any,
     updateItem: updateItem as any,
@@ -463,7 +483,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
       if (applied) {
         const c = blueprintPlan.counts;
         addToast?.(
-          `Workspace pre-configured: ${c.matterTypes} matter types (${c.subCategories} sub-categories), ${c.contactTypes} contact types, ${c.documentCategories} document folders, ${c.checklists} checklists.`,
+          `Workspace pre-configured: ${c.matterTypes} matter types (${c.subCategories} sub-categories), ${c.contactTypes} contact types, ${c.documentCategories} document folders, ${c.checklists} checklists, ${c.documentTemplates} document templates.`,
           { type: 'success', duration: 8000 },
         );
       }
@@ -564,6 +584,17 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
       // Non-blocking — user can always configure channels later.
       console.warn('[OnboardingWizard] failed to persist communication channels:', e);
     } finally {
+      // PROFESSIONAL IDENTITY (Step 1): park the optional role + legal form
+      // so the first app load stamps them onto the firm + user profile —
+      // reflected in the app header, emails and receipts. Parked AFTER the
+      // firm-settings save so a mid-air failure retries on the next load
+      // (App.tsx's applier is idempotent and clears the slot on success).
+      savePendingIdentity({
+        professionalTitle,
+        ...(professionalTitle === 'Other' ? { titleCustom } : {}),
+        legalEntityType,
+        ...(legalEntityType === 'Other' ? { legalEntityCustom } : {}),
+      });
       setIsSavingFinal(false);
       onComplete();
     }
@@ -646,6 +677,61 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                       : 'e.g. Adeyemi & Co.'
                     } value={firmName} onChange={e => setFirmName(e.target.value)} className="w-full p-4 border border-slate-100  rounded-2xl bg-white  focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none text-slate-900  placeholder:text-slate-300" autoFocus />
                   </div>
+
+                  {/* Professional identity — optional, collected here (next to
+                      the firm name) instead of at signup. Applied to the firm
+                      (legal form) + user profile (title) on first app load. */}
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                    <p className="text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">
+                      How should you appear in correspondence? <span className="font-normal normal-case">(optional)</span>
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="ob-title" className="block text-2xs font-semibold text-slate-500 mb-1">Your role</label>
+                        <select
+                          id="ob-title"
+                          value={professionalTitle}
+                          onChange={e => setProfessionalTitle(e.target.value)}
+                          className="w-full min-h-[44px] text-sm text-slate-900 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none"
+                        >
+                          <option value="">Select a role…</option>
+                          {PROFESSIONAL_TITLES.map(t => <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>)}
+                        </select>
+                        {professionalTitle === 'Other' && (
+                          <input
+                            type="text"
+                            value={titleCustom}
+                            onChange={e => setTitleCustom(e.target.value)}
+                            placeholder="e.g. Head of Estate Operations"
+                            className="w-full mt-2 min-h-[44px] text-sm text-slate-900 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none"
+                          />
+                        )}
+                      </div>
+                      <div>
+                        <label htmlFor="ob-entity" className="block text-2xs font-semibold text-slate-500 mb-1">Your organization's legal form</label>
+                        <select
+                          id="ob-entity"
+                          value={legalEntityType}
+                          onChange={e => setLegalEntityType(e.target.value)}
+                          className="w-full min-h-[44px] text-sm text-slate-900 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none"
+                        >
+                          <option value="">Select a legal form…</option>
+                          {LEGAL_ENTITY_TYPES.map(t => <option key={t} value={t}>{t === 'Other' ? 'Other (e.g. The Estate of X)' : t}</option>)}
+                        </select>
+                        {legalEntityType === 'Other' && (
+                          <input
+                            type="text"
+                            value={legalEntityCustom}
+                            onChange={e => setLegalEntityCustom(e.target.value)}
+                            placeholder="e.g. The Estate of Chief A. N. Other"
+                            className="w-full mt-2 min-h-[44px] text-sm text-slate-900 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-2xs text-slate-400 ml-1">Used in your app header, emails and receipts — “{legalEntityType && legalEntityType !== 'Other' ? `${firmName.trim() || 'Atrium Estates'} Ltd` : firmName.trim() || 'Atrium Estates'} · {professionalTitle && professionalTitle !== 'Other' ? professionalTitle : 'your title'}”.</p>
+                  </div>
+
                   <button onClick={() => { setStep(2); setShowAllPlans(false); }} disabled={!firmName.trim()} className="w-full py-4 bg-primary-600 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl shadow-primary-600/20 hover:bg-primary-700 hover:-translate-y-0.5 transition-all mt-4 active:scale-95 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none">Next: Confirm Plan</button>
                 </div>
               ) : (
@@ -1429,6 +1515,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     {blueprintPlan.counts.checklists > 0 && (
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-2xs font-bold rounded-full border border-amber-100">
                         {blueprintPlan.counts.checklists} checklists
+                      </span>
+                    )}
+                    {blueprintPlan.counts.documentTemplates > 0 && (
+                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 text-2xs font-bold rounded-full border border-rose-100">
+                        {blueprintPlan.counts.documentTemplates} document templates
                       </span>
                     )}
                   </div>

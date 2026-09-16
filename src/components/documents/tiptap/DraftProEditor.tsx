@@ -1033,6 +1033,37 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             // If we have citations from ALOA research mode, prepend the
             // source list to the prompt so the AI can cite them inline.
             let draftingPromptWithContext = activeDraftPrompt;
+
+            // ─── PRACTICE-BLUEPRINT SUB-CATEGORY FEED (Backlog #5) ──────
+            // When the draft is linked to a matter whose sub-category exists
+            // in the firm's workflow blueprint, feed the firm's OWN curated
+            // stages + kickoff processes for that track into the prompt. The
+            // AI then drafts in step with the firm's procedural roadmap
+            // (e.g. a "Debt Recovery (Undefended List)" matter gets an
+            // affidavit-in-support draft that matches the firm's
+            // Demand Letter → Writ → Judgment track) instead of guessing a
+            // generic procedure. Purely additive context; never overrides
+            // explicit user instructions in the prompt.
+            try {
+                const linkedMatter = appState.matters?.find((m: any) => m.id === linkedMatterId);
+                if (linkedMatter?.subCategory && linkedMatter?.type) {
+                    const wf = (appState as any).workflows?.find(
+                        (w: any) => String(w.type || '').trim().toLowerCase() === String(linkedMatter.type || '').trim().toLowerCase()
+                    );
+                    const sub = wf?.subCategories?.[linkedMatter.subCategory];
+                    const stages: string[] = Array.isArray(sub?.stages) ? sub.stages : [];
+                    const processes: string[] = Array.isArray(sub?.suggestions?.processes) ? sub.suggestions.processes : [];
+                    if (wf && (stages.length > 0 || processes.length > 0)) {
+                        const stageLine = stages.length > 0 ? `\n   Procedural track (the firm's stages for this matter type): ${stages.join(' → ')}.` : '';
+                        const processLine = processes.length > 0 ? `\n   Standard documents/processes for this track: ${processes.join('; ')}.` : '';
+                        draftingPromptWithContext = `You are drafting for the matter "${linkedMatter.title}" (type: ${linkedMatter.type}), which the firm runs on its "${linkedMatter.subCategory}" track.${stageLine}${processLine}
+   Align the draft with this track — produce the document expected at the matter's current stage ("${linkedMatter.stage || stages[0] || 'Intake'}") and reference the track's standard processes where relevant. If the user's instructions below conflict with this context, the user's instructions win.
+
+${draftingPromptWithContext}`;
+                    }
+                }
+            } catch { /* blueprint context is best-effort — never block drafting */ }
+
             const allCitations = citationRegistry.getAll();
             if (allCitations.length > 0) {
                 const sourceList = citationRegistry.renderReferenceList('nigerian');

@@ -214,6 +214,29 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                                 </ul>
                             </div>
                         ) : null)}
+                        {/* Resilience: templates whose categoryId no longer matches
+                            any category (deleted category, or a seeded template whose
+                            category row failed to write) would otherwise be invisible.
+                            Show them in an explicit Uncategorized bucket instead. */}
+                        {(() => {
+                            const catIds = new Set((props.documentTemplateCategories || []).map(c => c?.id).filter(Boolean));
+                            const orphans = (props.documentTemplates || []).filter(t => t && (!t.categoryId || !catIds.has(t.categoryId)));
+                            if (orphans.length === 0) return null;
+                            return (
+                                <div className="mb-6 last:mb-0">
+                                    <div className="flex justify-between items-center mb-2 pb-1 border-b border-slate-100 dark:border-zinc-700">
+                                        <h4 className="font-bold text-slate-500 dark:text-zinc-400">Uncategorized</h4>
+                                    </div>
+                                    <ul className="space-y-1">
+                                        {orphans.map(t => (
+                                            <li key={t.id} onClick={() => openModal('editTemplate', t.id)} className="p-2 px-3 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-700/50 cursor-pointer text-sm font-medium text-slate-600 dark:text-zinc-300">
+                                                {t.name}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            );
+                        })()}
                     </SettingsCard>
                 );
         }
@@ -420,6 +443,9 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                                 eventTypes={(appState as any).eventTypes || []}
                                 workflows={workflows}
                                 checklistTemplates={(appState as any).checklistTemplates || []}
+                                documentTemplates={(appState as any).documentTemplates || []}
+                                documentTemplateCategories={(appState as any).documentTemplateCategories || []}
+                                stateKey={(coreState.firmDetails as any)?.defaultStateOfPractice}
                                 addItem={addItem as any}
                                 updateItem={updateItem as any}
                                 onApplied={async ({ areas, portfolioTypes, focusAreas, result }) => {

@@ -342,6 +342,11 @@ describe('practice blueprint: additive + idempotent merge engine', () => {
         eventTypes: [],
         workflows: [],
         checklistTemplates: [],
+        // Backlog #3 template-seeding deps (required by buildLegalPlan /
+        // buildAtriumPlan since documentTemplateSeeding shipped).
+        documentTemplates: [],
+        documentTemplateCategories: [],
+        stateKey: undefined as string | undefined,
     };
 
     it('a fresh workspace plans ONLY additions (no duplicate flags)', () => {
@@ -367,6 +372,8 @@ describe('practice blueprint: additive + idempotent merge engine', () => {
             eventTypes: first.items.filter((i: any) => i.table === 'eventTypes').map((i: any) => ({ id: 'x', name: i.label, color: 'blue' })),
             workflows: first.items.filter((i: any) => i.table === 'workflows').map((i: any) => ({ id: 'w1', type: i.data.type, subCategories: i.data.subCategories })),
             checklistTemplates: first.items.filter((i: any) => i.table === 'checklistTemplates').map((i: any) => ({ id: 'x', name: i.label })),
+            documentTemplates: first.items.filter((i: any) => i.table === 'documentTemplates').map((i: any) => ({ id: 'x', name: i.label })),
+            documentTemplateCategories: first.items.filter((i: any) => i.table === 'documentTemplateCategories').map((i: any) => ({ id: 'x', name: i.label })),
         };
         const second = profile.buildLegalPlan(getProfilesForAreas(['Corporate & Commercial']), afterDeps);
         expect(second.items.every((i: any) => i.duplicate)).toBe(true);
