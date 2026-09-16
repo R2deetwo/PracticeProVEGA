@@ -111,6 +111,92 @@ const AgentRow: React.FC<{ icon: React.ReactNode; name: string; desc: string; tr
     </div>
 );
 
+// ─── BUILD LEGAL INDEX BUTTON (Task 51 — Rules & Forms engine) ────────────
+// One-time (per corpus update) indexing of the shared Nigerian legal
+// knowledge base: provisions of rules of court, statutes and court/registry
+// forms. Same client-side embedding pattern as SeedBrainButton — the user's
+// Gemini key embeds, Convex stores. When the founder publishes new corpus
+// content (seedLegalKnowledge), pending rows show up here for re-indexing.
+const BuildLegalIndexButton: React.FC<{
+    addToast: (msg: string, opts?: any) => void;
+    convex: any;
+}> = ({ addToast, convex }) => {
+    const { bearerToken } = useAuth();
+    const { currentUser } = useAuth() as any;
+    const [status, setStatus] = React.useState<'idle' | 'running' | 'done' | 'error'>('idle');
+    const [progress, setProgress] = React.useState<{ done: number; total: number } | null>(null);
+
+    const indexStatus = useQuery(api.legalKnowledge.getIndexStatus, {}) as { pendingProvisions: number; pendingForms: number; ready: boolean } | undefined;
+    const pending = (indexStatus?.pendingProvisions ?? 0) + (indexStatus?.pendingForms ?? 0);
+
+    const handleBuild = async () => {
+        setStatus('running');
+        setProgress({ done: 0, total: pending });
+        try {
+            const { generateEmbedding } = await import('../../utils/aiUtils');
+            let done = 0;
+            let total = pending;
+            // Batch loop: fetch pending rows, embed, write back, repeat until
+            // the corpus is fully indexed (guards against mid-run publishes).
+            for (let round = 0; round < 50; round++) {
+                const batch: any = await convex.query(api.legalKnowledge.getPendingLegalIndex, {
+                    sessionToken: (bearerToken ?? undefined) || undefined,
+                    userEmail: currentUser?.email,
+                    limit: 100,
+                });
+                const rows = [...batch.provisions, ...batch.forms];
+                if (rows.length === 0) break;
+                total = Math.max(total, done + rows.length);
+                const payload: { table: 'instrument_provisions' | 'court_forms'; id: string; embedding: number[] }[] = [];
+                for (const row of rows) {
+                    try {
+                        const embedding = await generateEmbedding(row.text);
+                        payload.push({ table: row.table, id: row._id, embedding });
+                    } catch { /* skip row, retried next round */ }
+                    done++;
+                    setProgress({ done, total });
+                }
+                if (payload.length > 0) {
+                    await convex.mutation(api.legalKnowledge.writeLegalEmbeddings, {
+                        sessionToken: (bearerToken ?? undefined) || undefined,
+                        userEmail: currentUser?.email,
+                        rows: payload,
+                    });
+                }
+            }
+            addToast(`Legal index built: ${done} provisions & forms embedded.`, { type: 'success' });
+            setStatus('done');
+        } catch (e: any) {
+            console.error('[LegalIndex] Build failed:', e);
+            addToast('Legal index build failed: ' + e.message, { type: 'error' });
+            setStatus('error');
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400">
+                <ScalesIcon className="w-3.5 h-3.5" />
+                {indexStatus === undefined ? 'Checking index…' : indexStatus.ready
+                    ? 'Index current — all provisions & forms embedded.'
+                    : `${pending} entr${pending === 1 ? 'y' : 'ies'} awaiting indexing.`}
+            </div>
+            <button
+                onClick={handleBuild}
+                disabled={status === 'running' || pending === 0}
+                className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm ${status === 'idle' || status === 'error' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' :
+                    status === 'running' ? 'bg-indigo-400 text-white cursor-wait' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}
+            >
+                {status === 'running'
+                    ? `Indexing… ${progress ? `${progress.done}/${progress.total}` : ''}`
+                    : status === 'done' ? 'Legal Index Built ✓'
+                        : pending === 0 ? 'Legal Index Current'
+                            : 'Build Legal Index (Rules & Forms)'}
+            </button>
+        </div>
+    );
+};
+
 const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirmDetails, currentUser }) => {
     const { addToast } = useUI();
     const { isProperty } = useProduct();
@@ -410,6 +496,13 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                         <div className="mt-3 p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-700/40 text-2xs text-indigo-700 dark:text-indigo-300 leading-relaxed">
                             <span className="font-bold">Note:</span> Memory (vector embeddings) is stored in your firm's database, tied to your <code className="font-mono bg-indigo-100 dark:bg-indigo-800/40 px-1 rounded">firmId</code>. You can rotate your Gemini key at any time without losing indexed memories.
                         </div>
+                    </SettingsCard>
+
+                    <SettingsCard title="Legal Knowledge — Rules & Forms Index" id="legal-knowledge-index">
+                        <p className="text-xs text-slate-600 dark:text-zinc-400 mb-3">
+                            {`${getAssistantName(false)}'s shared Nigerian legal knowledge base: rules of court (Lagos, FHC, appellate, NICN), statutes (CFRN, CAMA, Evidence Act, Tenancy Law, Sheriffs Act), practice guides and court/registry forms — retrieved with citations and verification status when you ask procedural questions. Founders seed updates; this button embeds new corpus entries for search.`}
+                        </p>
+                        <BuildLegalIndexButton addToast={addToast} convex={convex} />
                     </SettingsCard>
 
                     <SettingsCard title="Active AI Agents" id="agent-config">

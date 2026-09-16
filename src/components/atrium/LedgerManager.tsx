@@ -8,7 +8,8 @@ import { useUI } from '../../contexts/UIContext';
 import { LedgerEntry, LedgerEntryStatus, LedgerEntryType } from '../../types';
 import { formatNaira, formatLargeNumber, formatNairaWhole } from '../../utils/formatting';
 import { isActiveFinancialRecord, makeLedgerIdempotencyKey } from '../../utils/financialLifecycle';
-import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles, MoreVertical, ShieldCheck, Eye, EyeOff, Undo2, FlaskConical, Ban, FileSearch } from 'lucide-react';
+import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles, MoreVertical, ShieldCheck, Eye, EyeOff, Undo2, FlaskConical, Ban, FileSearch, Tag } from 'lucide-react';
+import { chargeTypeLabel, chargeTypeOptions, ChargeTypeOption } from '../../utils/chargeTypeUtils';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const HashIcon = ({ className = "w-4 h-4" }) => (
@@ -39,17 +40,22 @@ const PlusIcon = ({ className = "w-4 h-4" }) => (
 );
 
 // ── Helpers ───────────────────────────────────────────────────────────────
-const TYPE_LABELS: Record<LedgerEntryType, string> = {
+// Task 51: with registry-extensible charge types, custom keys (e.g.
+// "diesel_levy") resolve through chargeTypeLabel's prettifier, so archived
+// and custom types always render a sensible label.
+const TYPE_LABELS: Record<string, string> = {
   rent: 'Rent', service_charge: 'Service Charge', penalty: 'Penalty', deposit: 'Deposit',
 };
+const typeLabel = (t: string) => TYPE_LABELS[t] ?? chargeTypeLabel(t);
 const STATUS_STYLES: Record<LedgerEntryStatus, string> = {
   cleared: 'bg-emerald-900/40 text-emerald-400 border-emerald-800',
   pending: 'bg-amber-900/40 text-amber-400 border-amber-800',
   defaulted: 'bg-rose-900/40 text-rose-400 border-rose-800',
 };
-const TYPE_COLORS: Record<LedgerEntryType, string> = {
+const TYPE_COLORS: Record<string, string> = {
   rent: 'text-emerald-400', service_charge: 'text-sky-400', penalty: 'text-rose-400', deposit: 'text-violet-400',
 };
+const typeColor = (t: string) => TYPE_COLORS[t] ?? 'text-amber-400';
 
 function formatTs(ts: number) {
   return new Date(ts).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -67,6 +73,12 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const units = useUnitDropdownOptions(coreState.properties || []);
+
+  // Task 51 — registry-driven type options: system types + the firm's custom
+  // ledger charge types (Settings → Charge Types). Falls back to system-only
+  // while the registry loads, so the form never blocks.
+  const chargeTypeRegistry = useQuery(api.chargeTypes.getChargeTypes, { firmId, kind: 'ledger', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined }) as ChargeTypeOption[] | undefined;
+  const registryOptions = chargeTypeOptions('ledger', chargeTypeRegistry);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,12 +123,18 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
     } finally { setLoading(false); }
   };
 
-  const TYPE_OPTIONS: { value: LedgerEntryType; label: string; icon: React.ReactNode }[] = [
-    { value: 'rent', label: 'Rent', icon: <Home className="w-5 h-5" /> },
-    { value: 'service_charge', label: 'Service Charge', icon: <Zap className="w-5 h-5" /> },
-    { value: 'deposit', label: 'Deposit', icon: <Lock className="w-5 h-5" /> },
-    { value: 'penalty', label: 'Penalty', icon: <AlertTriangle className="w-5 h-5" /> },
-  ];
+  const SYSTEM_ICONS: Record<string, React.ReactNode> = {
+    rent: <Home className="w-5 h-5" />,
+    service_charge: <Zap className="w-5 h-5" />,
+    deposit: <Lock className="w-5 h-5" />,
+    penalty: <AlertTriangle className="w-5 h-5" />,
+    management_fee: <Tag className="w-5 h-5" />,
+  };
+  const TYPE_OPTIONS: { value: string; label: string; icon: React.ReactNode }[] = registryOptions.map((opt) => ({
+    value: opt.key,
+    label: opt.label,
+    icon: SYSTEM_ICONS[opt.key] ?? <Tag className="w-5 h-5" />,
+  }));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -141,7 +159,7 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
           {/* Type pills */}
           <div>
             <label className="block text-xs text-slate-400 mb-1.5 font-semibold">What type of payment?</label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-2 flex-wrap">
               {TYPE_OPTIONS.map(opt => (
                 <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, type: opt.value }))}
                   className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-2xs font-bold transition-all ${
@@ -295,7 +313,7 @@ const LifecycleActionModal: React.FC<{
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
           <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
-            <span className="truncate">{TYPE_LABELS[entry.type]} · {formatNairaWhole(entry.amount)}</span>
+            <span className="truncate">{typeLabel(entry.type)} · {formatNairaWhole(entry.amount)}</span>
             <span className="font-mono text-3xs text-slate-600 ml-2">{entry.txHash?.slice(0, 14)}</span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">{copy.body}</p>
@@ -542,7 +560,7 @@ const LedgerManager: React.FC = () => {
       <div class="hash">TX: ${esc(entry.txHash)}</div>
       <table>
         <tr><td>Date</td><td>${formatTs(entry.timestamp)}</td></tr>
-        <tr><td>Type</td><td>${TYPE_LABELS[entry.type]}</td></tr>
+        <tr><td>Type</td><td>${typeLabel(entry.type)}</td></tr>
         <tr><td>Status</td><td>${entry.status.toUpperCase()}</td></tr>
         <tr><td>Channel</td><td>${entry.channel || 'N/A'}</td></tr>
         ${entry.paymentRef ? `<tr><td>Ref</td><td>${esc(entry.paymentRef)}</td></tr>` : ''}
@@ -615,7 +633,7 @@ const LedgerManager: React.FC = () => {
         />
         {(['all', 'rent', 'service_charge', 'penalty', 'deposit'] as const).map(t => (
           <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterType === t ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
-            {t === 'all' ? 'All Types' : TYPE_LABELS[t]}
+            {t === 'all' ? 'All Types' : typeLabel(t)}
           </button>
         ))}
         <div className="h-4 w-px bg-slate-800" />
@@ -672,10 +690,10 @@ const LedgerManager: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <p className={`text-sm font-bold truncate ${nonActive ? 'text-slate-400 line-through decoration-slate-600' : 'text-white'}`}>
-                          {getUnitLabel(entry.unitId)} — {entry.description || TYPE_LABELS[entry.type]}
+                          {getUnitLabel(entry.unitId)} — {entry.description || typeLabel(entry.type)}
                         </p>
-                        <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${TYPE_COLORS[entry.type]}`}>
-                          {TYPE_LABELS[entry.type]}
+                        <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${typeColor(entry.type)}`}>
+                          {typeLabel(entry.type)}
                         </span>
                         {isVoided && (
                           <span title={lifecycleTip} className="flex items-center gap-1 text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-rose-900/40 text-rose-400 border border-rose-800">
@@ -722,7 +740,7 @@ const LedgerManager: React.FC = () => {
                         {menuFor === String(entry._id) && (
                           <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-full mt-1 z-30 w-52 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl py-1 text-sm">
                             <button
-                              onClick={() => { setMenuFor(null); setAuditScope({ tableName: 'ledger_entries', recordId: String((entry as any)._id ?? (entry as any).id), label: `${TYPE_LABELS[entry.type]} · ${formatNairaWhole(entry.amount)}` }); }}
+                              onClick={() => { setMenuFor(null); setAuditScope({ tableName: 'ledger_entries', recordId: String((entry as any)._id ?? (entry as any).id), label: `${typeLabel(entry.type)} · ${formatNairaWhole(entry.amount)}` }); }}
                               className="w-full text-left px-3 py-2 hover:bg-slate-700 text-slate-300 flex items-center gap-2"
                             >
                               <FileSearch className="w-3.5 h-3.5 text-sky-400" /> Audit history

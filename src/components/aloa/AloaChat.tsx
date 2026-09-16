@@ -1432,6 +1432,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             aloaXLibrary: loadAloaXLibrary(),
             isFirmSearchEnabled,
             searchBrain: undefined as ((query: string) => Promise<string>) | undefined,
+            // Task 51 — Rules & Forms engine retrieval (curated Nigerian
+            // legal knowledge: provisions + court forms with citations).
+            searchLegalRepo: undefined as ((query: string) => Promise<string>) | undefined,
             injectedContext,
             conversationMemoryContext: conversationMemory ?? null,
             proactiveInsights: proactiveInsights?.map(i => ({
@@ -1507,6 +1510,42 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         });
                     };
                     capturedAiContext.isFirmSearchEnabled = true;
+
+                    // ── RULES & FORMS ENGINE (Task 51) ──
+                    // Legal-procedural questions (rules of court, forms, filing,
+                    // jurisdiction, limitation, enforcement, CAC practice) pull
+                    // grounded entries — with instrument citations, verification
+                    // status and as-at dates — from the curated Nigerian legal
+                    // knowledge base. Works in both products: tenancy-law and
+                    // recovery questions arise in Atrium too.
+                    const wantsLegalLookup = /\b(rule|rules|order|form|forms|court|courts|file|filing|procedure|jurisdiction|limitation|service|appeal|costs?|fees?|affidavit|writ|summons|motion|pleading|pleadings|CAC|registry|probate|garnishee|tenancy\s+law|evidence|CAMA|constitution|incorporat\w*|annual\s+return|governor'?s?\s+consent|notice\s+to\s+quit|enforce\w*|judgment|injunction)\b/i.test(content);
+                    capturedAiContext.searchLegalRepo = async (query: string): Promise<string> => {
+                        if (!wantsLegalLookup) return "";
+                        try {
+                            setAloaStatus('Checking rules & forms…');
+                            const { generateEmbedding } = await import('../../utils/aiUtils');
+                            const queryEmbedding = await generateEmbedding(query);
+                            const results: any[] = await convex.action(api.legalKnowledge.searchKnowledge, {
+                                queryEmbedding,
+                                sessionToken: (bearerToken ?? undefined) || undefined,
+                                userEmail: currentUser?.email,
+                                limit: 6,
+                            });
+                            if (!results || results.length === 0) return "";
+                            return results.map((r: any) => {
+                                const unverified = r.verificationStatus === 'needs_founder_review'
+                                    ? ' [pending founder verification]' : '';
+                                if (r.kind === 'provision') {
+                                    const version = r.instrumentVersion ? ` (${r.instrumentVersion})` : '';
+                                    return `[${r.instrumentTitle}${version} — ${r.ref}: ${r.heading}]${unverified}\n${r.text}`;
+                                }
+                                return `[${r.institutionKey}${r.instrumentTitle ? `, per ${r.instrumentTitle}` : ''} — ${r.formNumber ? r.formNumber + ': ' : ''}${r.title}]${unverified}\n${r.purpose ?? ''}${r.fee ? `\nFee: ${r.fee}` : ''}`;
+                            }).join('\n\n');
+                        } catch (e) {
+                            console.warn('[LegalRepo] Search skipped:', e);
+                            return "";
+                        }
+                    };
 
                     // Determine the effective model (needed for auto web search below)
                     const effectiveModel = preferredModel === 'auto' ? 'flash' : preferredModel;

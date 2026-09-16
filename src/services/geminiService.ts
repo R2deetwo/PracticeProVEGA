@@ -273,6 +273,9 @@ export const sendMessage = async (
         aloaXLibrary?: any[];
         isFirmSearchEnabled?: boolean;
         searchBrain?: (query: string) => Promise<string>;
+        // Task 51 — Rules & Forms engine retrieval (curated Nigerian legal
+        // knowledge base: provisions + court forms with citations + as-at).
+        searchLegalRepo?: (query: string) => Promise<string>;
         injectedContext?: AriaChatContext | null;
         conversationMemoryContext?: string | null;
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
@@ -297,6 +300,21 @@ export const sendMessage = async (
         }
     }
 
+    // --- RULES & FORMS ENGINE (Task 51): curated Nigerian legal knowledge ---
+    // Runs independently of firm memory — the corpus is shared platform
+    // knowledge (rules of court, forms, statutes), not firm-scoped data.
+    let legalKnowledgeContext: string | undefined;
+    if (context.searchLegalRepo) {
+        try {
+            const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content;
+            if (typeof lastUserMsg === 'string') {
+                legalKnowledgeContext = await context.searchLegalRepo(lastUserMsg);
+            }
+        } catch (e) {
+            console.warn('[LegalRepo] Search skipped:', e);
+        }
+    }
+
     const systemInstruction = getSystemInstruction(
         appState,
         currentUser,
@@ -308,7 +326,8 @@ export const sendMessage = async (
         new Date().toISOString(),
         context.injectedContext,
         context.conversationMemoryContext,
-        context.proactiveInsights
+        context.proactiveInsights,
+        legalKnowledgeContext
     ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
     // Inject research-mode protocol if applicable
@@ -561,6 +580,8 @@ export const streamMessage = async (
         aloaXLibrary?: any[];
         isFirmSearchEnabled?: boolean;
         searchBrain?: (query: string) => Promise<string>;
+        // Task 51 — Rules & Forms engine retrieval (same contract as sendMessage).
+        searchLegalRepo?: (query: string) => Promise<string>;
         injectedContext?: AriaChatContext | null;
         conversationMemoryContext?: string | null;
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
@@ -584,6 +605,19 @@ export const streamMessage = async (
         }
     }
 
+    // --- RULES & FORMS ENGINE (Task 51) — same contract as sendMessage ---
+    let legalKnowledgeContext: string | undefined;
+    if (context.searchLegalRepo) {
+        try {
+            const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content;
+            if (typeof lastUserMsg === 'string') {
+                legalKnowledgeContext = await context.searchLegalRepo(lastUserMsg);
+            }
+        } catch (e) {
+            console.warn('[LegalRepo] Search skipped:', e);
+        }
+    }
+
     const systemInstruction = getSystemInstruction(
         appState,
         currentUser,
@@ -595,7 +629,8 @@ export const streamMessage = async (
         new Date().toISOString(),
         context.injectedContext,
         context.conversationMemoryContext,
-        context.proactiveInsights
+        context.proactiveInsights,
+        legalKnowledgeContext
     ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
     // Inject research-mode protocol (same as sendMessage)

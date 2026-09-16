@@ -38,6 +38,7 @@ import { ComposeModalPrefill } from './ComposeModal';
 import { ServiceCharge, ServiceChargeCategory } from '../../types';
 import { formatLargeNumber } from '../../utils/formatting';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
+import { chargeTypeOptions, ChargeTypeOption } from '../../utils/chargeTypeUtils';
 
 // ── Icons ─────────────────────────────────────────────────────────────────
 const AlertIcon = ({ className = "w-4 h-4" }) => (
@@ -78,9 +79,12 @@ const FilterIcon = ({ className = "w-4 h-4" }) => (
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const CYCLE_MS = { Monthly: 30 * 86400000, Quarterly: 90 * 86400000, Annually: 365 * 86400000 };
-const CAT_ICONS: Record<ServiceChargeCategory, string> = {
+// Task 51: registry-extensible categories — custom types (e.g. "Waste
+// Management") get a neutral tag icon instead of rendering undefined.
+const CAT_ICONS: Record<string, string> = {
   Diesel: '⛽', Security: '🛡️', Cleaning: '🧹', Water: '💧', Other: '🔧',
 };
+const catIcon = (c: string) => CAT_ICONS[c] ?? '🏷️';
 const PENALTY_RATE = 0.05; // 5%
 
 // ── Lease-bridge helpers (round 5) ─────────────────────────────────────────
@@ -161,6 +165,7 @@ export interface AddChargePrefill {
 
 const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: AddChargePrefill }> = ({ firmId, onClose, prefill }) => {
   const upsert = useMutation(api.sentry.upsertServiceCharge);
+  const createChargeType = useMutation(api.chargeTypes.createChargeType);
   const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const [form, setForm] = useState({
@@ -172,6 +177,29 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
     nextDueDays: '0',
   });
   const [loading, setLoading] = useState(false);
+  const [showNewType, setShowNewType] = useState(false);
+  const [newTypeLabel, setNewTypeLabel] = useState('');
+  const [newTypeError, setNewTypeError] = useState('');
+
+  // Task 51 — registry-driven categories: the 5 system categories plus any
+  // custom service-charge types the firm has added (Settings → Charge Types).
+  const chargeTypeRegistry = useQuery(api.chargeTypes.getChargeTypes, { firmId, kind: 'service', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined }) as ChargeTypeOption[] | undefined;
+  const categoryOptions = chargeTypeOptions('service', chargeTypeRegistry);
+
+  const handleCreateType = async () => {
+    const label = newTypeLabel.trim();
+    if (label.length < 2) { setNewTypeError('Enter a name (2+ characters).'); return; }
+    try {
+      setNewTypeError('');
+      await createChargeType({ firmId, label, kind: 'service', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
+      const key = label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      setForm(f => ({ ...f, category: key }));
+      setNewTypeLabel('');
+      setShowNewType(false);
+    } catch (e: any) {
+      setNewTypeError(e?.message || 'Could not create the charge type.');
+    }
+  };
 
   const units = useUnitDropdownOptions(coreState.properties || []);
   const { unitById } = usePropertyGroups(coreState.properties || []);
@@ -205,9 +233,31 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Category</label>
-              <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as ServiceChargeCategory }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
-                {(['Diesel', 'Security', 'Cleaning', 'Water', 'Other'] as const).map(c => <option key={c}>{c}</option>)}
-              </select>
+              <div className="flex gap-2">
+                <select value={form.category} onChange={e => {
+                  const val = e.target.value;
+                  if (val === '__new__') { setShowNewType(true); return; }
+                  setForm(f => ({ ...f, category: val as ServiceChargeCategory }));
+                }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+                  {categoryOptions.map(c => <option key={c.key} value={c.key}>{c.label}{c.isSystem ? '' : ' ★'}</option>)}
+                  <option value="__new__">＋ New charge type…</option>
+                </select>
+              </div>
+              {showNewType && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    autoFocus
+                    value={newTypeLabel}
+                    onChange={e => setNewTypeLabel(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateType(); } }}
+                    placeholder="e.g. Waste Management"
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button type="button" onClick={handleCreateType} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">Add</button>
+                  <button type="button" onClick={() => { setShowNewType(false); setNewTypeError(''); }} className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold rounded-lg">Cancel</button>
+                </div>
+              )}
+              {newTypeError && <p className="text-2xs text-rose-400 mt-1">{newTypeError}</p>}
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Cycle</label>
@@ -308,7 +358,7 @@ const ChargeRow: React.FC<{
       
       <div className="flex items-center gap-3 flex-1 min-w-0">
         {/* Category icon */}
-        <span className="text-xl flex-shrink-0 w-8 text-center">{charge.isMinimumVend ? '⚡' : CAT_ICONS[charge.category]}</span>
+        <span className="text-xl flex-shrink-0 w-8 text-center">{charge.isMinimumVend ? '⚡' : catIcon(charge.category)}</span>
         {/* Unit info */}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-white truncate">{unitLabel}</p>

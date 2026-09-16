@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
 import { createUnitResolver, canonicalTenantId } from "./unitLookup";
 import { withCronReporting } from "./observability";
+import { assertValidChargeType } from "./chargeTypes";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED. Firm-scoped reads (by_firm index)
@@ -82,7 +83,10 @@ export const addLedgerEntry = mutation({
     unitId: v.string(),
     tenantId: v.optional(v.string()),
     amount: v.number(),
-    type: v.union(v.literal("rent"), v.literal("service_charge"), v.literal("penalty"), v.literal("deposit"), v.literal("management_fee")),
+    // EXTENSIBLE CHARGES (Task 51): free string validated against the firm's
+    // charge_types registry — the 5 system types plus any custom types the
+    // firm has added under Settings → Charge Types.
+    type: v.string(),
     status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
     paymentRef: v.optional(v.string()),
     channel: v.optional(v.string()),
@@ -99,6 +103,10 @@ export const addLedgerEntry = mutation({
   handler: async (ctx, args) => {
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
     const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+
+    // EXTENSIBLE CHARGES (Task 51): reject unknown types BEFORE any write —
+    // system types pass, custom types must be active registry entries.
+    await assertValidChargeType(ctx, auth.firmId, "ledger", args.type);
 
     // Dedupe on the idempotency key BEFORE any write (same contract as
     // settleUnitPeriods / markChargeAsPaid).
@@ -315,7 +323,9 @@ export const upsertServiceCharge = mutation({
     sessionToken: v.optional(v.string()),
     unitId: v.string(),
     tenantId: v.optional(v.string()),
-    category: v.union(v.literal("Diesel"), v.literal("Security"), v.literal("Cleaning"), v.literal("Water"), v.literal("Other")),
+    // EXTENSIBLE CHARGES (Task 51): registry-validated category — the 5 system
+    // categories plus any custom service-charge types the firm has added.
+    category: v.string(),
     amount: v.number(),
     cycle: v.union(v.literal("Monthly"), v.literal("Quarterly"), v.literal("Annually")),
     nextDueDate: v.number(),
@@ -325,6 +335,10 @@ export const upsertServiceCharge = mutation({
   handler: async (ctx, args) => {
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
     const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+
+    // EXTENSIBLE CHARGES (Task 51): reject unknown categories BEFORE any write.
+    await assertValidChargeType(ctx, auth.firmId, "service", args.category);
+
     const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
 
     // ROUND 6: auto-populate tenantId from the unit's tenant record when the

@@ -700,9 +700,13 @@ export type EventStatus = 'Active' | 'Cancelled';
 // ATRIUM REVENUE MONITOR TYPES
 // =====================================================================
 
-export type LedgerEntryType = 'rent' | 'service_charge' | 'penalty' | 'deposit';
+// EXTENSIBLE CHARGES (Task 51): charge types are now registry-extensible.
+// The four/five pre-existing values remain as SYSTEM types (always valid);
+// firms add custom types under Settings → Charge Types, validated server-side
+// by convex/chargeTypes.ts. Label rendering: src/utils/chargeTypeUtils.ts.
+export type LedgerEntryType = string;
 export type LedgerEntryStatus = 'pending' | 'cleared' | 'defaulted';
-export type ServiceChargeCategory = 'Diesel' | 'Security' | 'Cleaning' | 'Water' | 'Other';
+export type ServiceChargeCategory = string;
 export type ServiceChargeCycle = 'Monthly' | 'Quarterly' | 'Annually';
 export type LeadPipelineStage = 'Inquiry' | 'Vetted' | 'Lease_Generated' | 'Closed';
 export type AutomationMessageType = 'rent_reminder' | 'late_notice' | 'payment_receipt' | 'service_charge_alert' | 'access_restriction' | 'penalty_notice' | 'lease_renewal' | 'welcome_note' | 'promotion' | 'vendor_update' | 'general_announcement' | 'maintenance_update' | 'custom';

@@ -1198,13 +1198,138 @@ export default defineSchema({
   .index("by_moduleKey", ["moduleKey"])
   .index("by_firmId_moduleKey", ["firmId", "moduleKey"]),
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LEGAL KNOWLEDGE ENGINE — rules & forms of Nigerian legal institutions.
+  // Hierarchy: institutions → instruments (versioned rules sets / form
+  // schedules) → instrument_provisions (rule-level content, embedded for
+  // retrieval) / court_forms (form-level content, embedded for retrieval).
+  // instrument_changes is the amendment-tracking log ("know when rules and
+  // forms change") — entries land pending_review and are confirmed by a
+  // Founder, then surfaced to licensed firms.
+  // ─────────────────────────────────────────────────────────────────────────────
+  institutions: defineTable({
+    key: v.string(),                    // "lagos_judiciary", "fhc", "cac"
+    name: v.string(),                   // "Lagos State Judiciary"
+    type: v.string(),                   // court | tribunal | registry | regulator
+    level: v.string(),                  // federal | state | fct
+    jurisdictionKey: v.optional(v.string()), // matches JURISDICTION_REGISTRY keys
+    divisions: v.array(v.string()),
+    website: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    // deep: provisions + forms seeded; instruments: rules cited, content
+    // pending; listed: institution known, instruments pending.
+    coverageTier: v.string(),
+  })
+  .index("by_key", ["key"])
+  .index("by_jurisdiction", ["jurisdictionKey"])
+  .index("by_type", ["type"]),
+
+  instruments: defineTable({
+    key: v.string(),                    // "lagos_hc_cpr_2019"
+    institutionKey: v.string(),
+    title: v.string(),
+    kind: v.string(),                   // rules | practice_direction | forms_schedule | statute | guide
+    year: v.optional(v.number()),
+    versionLabel: v.optional(v.string()),
+    status: v.string(),                 // in_force | repealed | superseded | monitor
+    effectiveDate: v.optional(v.string()),
+    supersedes: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    // as-at stamp: last time a Founder confirmed this instrument's text is current.
+    lastVerifiedAt: v.optional(v.string()),
+    // coverage counters, maintained by the seed + index builder (for the
+    // coverage manifest without per-instrument table scans).
+    provisionCount: v.optional(v.number()),
+    formCount: v.optional(v.number()),
+  })
+  .index("by_key", ["key"])
+  .index("by_institution", ["institutionKey"])
+  .index("by_status", ["status"]),
+
+  instrument_provisions: defineTable({
+    instrumentKey: v.string(),
+    ref: v.string(),                    // "Order 3", "s. 251 CFRN", "Practice Guide: …"
+    heading: v.string(),
+    textType: v.string(),               // verbatim | summary | practice_note
+    text: v.string(),
+    tags: v.array(v.string()),
+    jurisdictionKey: v.optional(v.string()),
+    // founder_reviewed = a Founder confirmed the content against the source;
+    // needs_review = AI-authored summary pending verification.
+    verificationStatus: v.optional(v.string()),
+    // set to false at seed, flipped true by the client-side index builder —
+    // lets the builder find un-indexed rows and the manifest report index status.
+    embedded: v.optional(v.boolean()),
+    embedding: v.optional(v.array(v.number())),
+  })
+  .index("by_instrument", ["instrumentKey"])
+  .index("by_jurisdiction", ["jurisdictionKey"])
+  .index("by_embedded", ["embedded"])
+  .vectorIndex("by_embedding", {
+    vectorField: "embedding",
+    dimensions: 768,
+    filterFields: ["instrumentKey", "jurisdictionKey"],
+  }),
+
+  court_forms: defineTable({
+    institutionKey: v.string(),
+    instrumentKey: v.optional(v.string()),
+    formNumber: v.string(),             // "Form 1", "CAC 1.1" ("" when pending verification)
+    title: v.string(),
+    purpose: v.optional(v.string()),
+    fee: v.optional(v.string()),        // descriptive filing fee, as-at stamped
+    statutoryRef: v.optional(v.string()),
+    contentMarkdown: v.optional(v.string()),
+    fields: v.array(v.string()),
+    versionLabel: v.optional(v.string()),
+    effectiveDate: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    verificationStatus: v.optional(v.string()),
+    tags: v.array(v.string()),
+    jurisdictionKey: v.optional(v.string()),
+    // same index-builder contract as instrument_provisions.embedded
+    embedded: v.optional(v.boolean()),
+    embedding: v.optional(v.array(v.number())),
+  })
+  .index("by_institution", ["institutionKey"])
+  .index("by_instrument", ["instrumentKey"])
+  .index("by_jurisdiction", ["jurisdictionKey"])
+  .index("by_embedded", ["embedded"])
+  .vectorIndex("by_embedding", {
+    vectorField: "embedding",
+    dimensions: 768,
+    filterFields: ["institutionKey", "jurisdictionKey"],
+  }),
+
+  instrument_changes: defineTable({
+    instrumentKey: v.string(),
+    changeType: v.string(),             // amendment | new_edition | fee_change | practice_direction | form_revision
+    summary: v.string(),
+    detail: v.optional(v.string()),
+    effectiveDate: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
+    confidence: v.string(),             // verified | monitoring | reported
+    status: v.string(),                 // pending_review | confirmed | dismissed
+    detectedAt: v.number(),
+    reviewedBy: v.optional(v.string()),
+    reviewedAt: v.optional(v.number()),
+  })
+  .index("by_instrument", ["instrumentKey"])
+  .index("by_status", ["status"])
+  .index("by_detected", ["detectedAt"]),
+
   ledger_entries: defineTable({
     firmId: v.string(),
     propertyId: v.optional(v.string()),
     unitId: v.string(),
     tenantId: v.optional(v.string()),
     amount: v.number(),
-    type: v.union(v.literal("rent"), v.literal("service_charge"), v.literal("penalty"), v.literal("deposit"), v.literal("management_fee")),
+    // EXTENSIBLE CHARGES (Task 51): widened from a 5-value union to a free
+    // string validated at write time against the firm's charge_types registry
+    // (system types always valid; custom types must be active registry
+    // entries). Existing rows keep their literal values — a pure widening.
+    type: v.string(),
     status: v.union(v.literal("pending"), v.literal("cleared"), v.literal("defaulted")),
     timestamp: v.number(),
     paymentRef: v.optional(v.string()),
@@ -1268,7 +1393,10 @@ export default defineSchema({
     firmId: v.string(),
     unitId: v.string(),
     tenantId: v.optional(v.string()),
-    category: v.union(v.literal("Diesel"), v.literal("Security"), v.literal("Cleaning"), v.literal("Water"), v.literal("Other")),
+    // EXTENSIBLE CHARGES (Task 51): same registry-validated widening as
+    // ledger_entries.type — "Diesel"/"Security"/"Cleaning"/"Water"/"Other"
+    // remain valid system categories; firms may define their own.
+    category: v.string(),
     amount: v.number(),
     cycle: v.union(v.literal("Monthly"), v.literal("Quarterly"), v.literal("Annually")),
     nextDueDate: v.number(), 
@@ -1309,6 +1437,32 @@ export default defineSchema({
     .index("by_status", ["serviceChargeStatus"])
     .index("by_firm_status", ["firmId", "serviceChargeStatus"])
     .index("by_reminders_paused", ["remindersPaused"]),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CHARGE TYPE REGISTRY (Task 51) — firm-scoped, extensible charge types so
+  // users can add new charges (diesel levy, waste management, insurance…) and
+  // track them exactly like the pre-existing system types. System types are
+  // seeded lazily on first read; `kind` separates ledger entry types from
+  // service-charge categories so one registry serves both charge surfaces.
+  // ─────────────────────────────────────────────────────────────────────────────
+  charge_types: defineTable({
+    firmId: v.string(),
+    key: v.string(),                  // slug: "diesel_levy" (unique per firm)
+    label: v.string(),                // "Diesel Levy"
+    kind: v.string(),                 // ledger | service
+    category: v.string(),             // billing | statutory | utility | service | penalty | deposit | other
+    defaultCycle: v.optional(v.string()),   // Monthly | Quarterly | Annually | One-off
+    defaultAmount: v.optional(v.number()),
+    isSystem: v.boolean(),
+    participatesInDunning: v.boolean(),     // reminder ladders / arrears chasing
+    refundable: v.boolean(),                // deposit-like
+    status: v.string(),                     // active | archived
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_kind", ["firmId", "kind"])
+    .index("by_firm_key", ["firmId", "key"]),
 
   leads_pipeline: defineTable({
     firmId: v.string(),

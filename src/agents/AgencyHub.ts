@@ -16,7 +16,10 @@ export const getSystemInstruction = (
     currentTime?: string,
     injectedContext?: AriaChatContext | null,
     conversationMemoryContext?: string | null,
-    proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null
+    proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null,
+    // Task 51 — Rules & Forms engine retrieval (provisions + court forms
+    // retrieved from the curated Nigerian legal knowledge base).
+    legalKnowledgeContext?: string
 ): string => {
     // Determine the active agent mode early to avoid hoisting issues
     const isAtriumMode = currentUser.product === 'property' || 
@@ -42,6 +45,24 @@ export const getSystemInstruction = (
         ${semanticContext}
 
         Use these snippets to provide accurate, grounded answers. If the information is not here, say so.
+        `;
+    }
+
+    // Task 51 — Rules & Forms engine: provisions + forms retrieved from the
+    // curated Nigerian legal knowledge base (institutions → instruments →
+    // provisions/forms), with verification status and as-at metadata.
+    let legalAuthorityPrompt = "";
+    if (legalKnowledgeContext) {
+        legalAuthorityPrompt = `
+        **NIGERIAN LEGAL AUTHORITY RETRIEVAL (RULES & FORMS ENGINE):**
+        The following provisions and court/registry forms were retrieved from ${isAtriumMode ? "ARIA" : "ALOA"}'s curated Nigerian legal knowledge base for the current query:
+
+        ${legalKnowledgeContext}
+
+        Grounding rules:
+        - Treat these as AUTHORITATIVE anchors: cite the instrument title and the rule/section/form reference EXACTLY as given, including the edition or year when provided.
+        - Items marked "pending founder verification" must be flagged to the user as unverified before reliance.
+        - If what the question needs is NOT among these entries, say plainly what the coverage does not include (e.g., which state's rules are not yet in the library) — NEVER invent rule numbers, form numbers, fees or citations.
         `;
     }
 
@@ -270,6 +291,7 @@ Proactively mention these if they relate to the user's current query or context.
     ${demoGuide}
     ${conversationMemoryBlock}
     ${firmRAGPrompt}
+    ${legalAuthorityPrompt}
     ${localDocsPrompt}
     ${libraryPrompt}
     ${dashboardContext}
