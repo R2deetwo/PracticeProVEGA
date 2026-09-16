@@ -556,6 +556,7 @@ const HelpView: React.FC = () => {
                                         <li><strong>Subscription:</strong> Plan management and billing</li>
                                         <li><strong>Security:</strong> Two-factor authentication, session management</li>
                                         <li><strong>Templates:</strong> Document templates and clause library</li>
+                                        <li><strong>{hasLegalFeatures ? 'Practice' : 'Portfolio'} Blueprint{hasLegalFeatures && hasPropertyFeatures ? ' & Portfolio Blueprint' : ''}:</strong> Re-run anytime from <strong>Settings → Help</strong> — pre-configures matter workflows, categories, event types and checklists for the {hasLegalFeatures ? 'practice areas' : 'property types'}{hasLegalFeatures && hasPropertyFeatures ? ' or portfolio types' : ''} you select</li>
                                         <li><strong>Portal Access:</strong> {hasLegalFeatures ? 'Client Portal' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'Resident Portal' : ''} invites and settings</li>
                                         <li><strong>Agents:</strong> AI agent configuration</li>
                                     </ul>

@@ -397,8 +397,9 @@ const SidebarContents: React.FC<{
 // HelpSettings component (which had zero imports anywhere).
 const HelpOnboardingPanel: React.FC = () => {
     const { resetTour } = useOnboarding();
-    const { addToast, navigateTo } = useUI();
+    const { addToast, navigateTo, setSettingsTargetId } = useUI();
     const { currentUser, bearerToken } = useAuth();
+    const { isLegal, isProperty } = useProduct();
     // SERVER-SIDE CHECKLIST DISMISSAL (2026-09-14): the dismissal now also
     // lives on the firm record (firms.checklistDismissedAt) so it survives
     // update refreshes, APK reinstalls and new devices. Restoring the
@@ -409,6 +410,20 @@ const HelpOnboardingPanel: React.FC = () => {
     const handleRestartTour = () => {
         resetTour();
         addToast("App tour has been reset and will restart now.", { type: 'success' });
+    };
+
+    // BLUEPRINT RE-ENTRY (Task 47): the Practice/Portfolio Blueprint was
+    // previously reachable only from the first-run wizard or the checklist's
+    // incomplete item — a firm that later expands into a new practice area
+    // had no discoverable way back. This row is that way.
+    const handleReopenBlueprint = () => {
+        // Reset the deep-link guard first: if the same target was already
+        // processed this session (e.g. via the checklist CTA), the target
+        // effect would no-op on the identical settingsTargetId.
+        setSettingsTargetId(null);
+        setTimeout(() => {
+            navigateTo('settings', null, { settingsTargetId: 'practice-blueprint' });
+        }, 50);
     };
 
     const handleResetChecklist = () => {
@@ -460,6 +475,16 @@ const HelpOnboardingPanel: React.FC = () => {
                     </div>
                     <button onClick={handleResetChecklist} className="flex-shrink-0 px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg transition-colors">
                         Restore
+                    </button>
+                </div>
+                <div className="border-t border-slate-100 dark:border-zinc-700" />
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 dark:text-zinc-200">{isProperty && !isLegal ? 'Re-run Portfolio Blueprint' : 'Re-run Practice Blueprint'}</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">Add or change the {isProperty && !isLegal ? 'property types you manage' : 'practice areas you cover'} — pre-configures workflows, categories and checklists. Existing data is kept.</p>
+                    </div>
+                    <button onClick={handleReopenBlueprint} className="flex-shrink-0 px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-lg transition-colors">
+                        Open
                     </button>
                 </div>
                 <div className="border-t border-slate-100 dark:border-zinc-700" />
