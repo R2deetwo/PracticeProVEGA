@@ -28,6 +28,10 @@ import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./code
 import { pickUserRecord, stripAuthFields, userLookupArgs } from "./userResolution";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { requireStaffCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
+// Task 48: Automation Studio rule-execution engine (event-driven triggers
+// are dispatched from createItem/updateItem below; time-based triggers
+// run in the ruleEngineSweep cron — convex/automationRules.ts).
+import { dispatchRulesForEvent } from "./automationRules";
 import { notifyFounders } from "./founderNotifications";
 import { roundMoney, sanitizeMoney } from "./moneyUtils";
 // R12: subscription dunning + grace + soft downgrade — pure decision logic
@@ -3523,6 +3527,82 @@ export const createItem = mutation({
       updatedAt: new Date().toISOString(),
     };
     const id = await ctx.db.insert(table as any, dataWithTimestamp);
+
+    // ─── AUTOMATION RULE ENGINE HOOKS (Task 48, 2026-09-16) ────────────
+    // Event-driven triggers for Automation Studio rules (Settings → Firm
+    // Configuration → Automations). Runs in the SAME transaction but every
+    // failure is caught: an engine error can NEVER fail the user's save.
+    // Idempotency is the engine's contract — a ledger row per rule+entity
+    // means re-creating/re-saving never double-fires a rule.
+    if (table === "matters" || table === "leads" || table === "events" || table === "documents") {
+      try {
+        const entityId = String((dataWithTimestamp as any).id || id);
+        if (table === "matters") {
+          await dispatchRulesForEvent(ctx, {
+            firmId: effectiveFirmId,
+            event: {
+              triggerType: "matter_created",
+              value: "any",
+              entityId,
+              matter: {
+                id: entityId,
+                title: (dataWithTimestamp as any).title || null,
+                type: (dataWithTimestamp as any).type || null,
+                stage: (dataWithTimestamp as any).stage || null,
+                clientId: (dataWithTimestamp as any).clientId || null,
+                assignedUsers: Array.isArray((dataWithTimestamp as any).assignedUsers)
+                  ? (dataWithTimestamp as any).assignedUsers
+                  : [],
+              },
+            },
+          });
+        } else if (table === "leads") {
+          await dispatchRulesForEvent(ctx, {
+            firmId: effectiveFirmId,
+            event: {
+              triggerType: "lead_created",
+              value: "any",
+              entityId,
+              lead: {
+                name: (dataWithTimestamp as any).name || null,
+                email: (dataWithTimestamp as any).email || null,
+              },
+            },
+          });
+        } else if (table === "events") {
+          await dispatchRulesForEvent(ctx, {
+            firmId: effectiveFirmId,
+            event: {
+              triggerType: "event_created",
+              value: (dataWithTimestamp as any).type || "any",
+              entityId,
+              event: {
+                title: (dataWithTimestamp as any).title || null,
+                type: (dataWithTimestamp as any).type || null,
+                matterId: (dataWithTimestamp as any).matterId || null,
+              },
+            },
+          });
+        } else if (table === "documents") {
+          await dispatchRulesForEvent(ctx, {
+            firmId: effectiveFirmId,
+            event: {
+              triggerType: "document_uploaded",
+              value: (dataWithTimestamp as any).source || "internal",
+              entityId,
+              document: {
+                title: (dataWithTimestamp as any).title || null,
+                source: (dataWithTimestamp as any).source || null,
+                matterId: (dataWithTimestamp as any).matterId || null,
+                uploadedBy: (dataWithTimestamp as any).uploadedBy || null,
+              },
+            },
+          });
+        }
+      } catch (ruleErr: any) {
+        console.warn("[createItem] automation-rule dispatch failed (non-blocking):", ruleErr?.message);
+      }
+    }
     return id;
   },
 });
@@ -4429,6 +4509,19 @@ export const updateItem = mutation({
     const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { docId } = await resolveRecordForUpdate(ctx, table, id, firmId);
 
+    // ─── AUTOMATION RULE ENGINE (Task 48): capture the PRE-patch stage ──
+    // Needed to detect an actual matter_stage_change after the patch.
+    // `undefined` = not a stage-bearing matter update (hook stays quiet).
+    let priorMatterStage: string | null | undefined = undefined;
+    if (table === "matters" && typeof (data as any).stage === "string") {
+      try {
+        const existingDoc: any = await ctx.db.get(docId);
+        priorMatterStage = existingDoc?.stage ?? null;
+      } catch {
+        priorMatterStage = null;
+      }
+    }
+
     // Strip Convex-managed internal fields that cannot be patched
     const { _id, _creationTime, ...rest } = data;
 
@@ -4511,6 +4604,47 @@ export const updateItem = mutation({
     }
 
     await ctx.db.patch(docId, patchData);
+
+    // ─── AUTOMATION RULE ENGINE HOOK (Task 48): matter_stage_change ─────
+    // Fires when a matter's stage actually CHANGED in this write. Wrapped
+    // in try/catch — a rule failure can never fail the stage save itself.
+    // The engine's ledger guarantees one dispatch per rule per matter per
+    // stage event (re-saving the same stage is a no-op here, and even a
+    // back-and-forth flip only fires the rule once per matter, forever).
+    if (
+      table === "matters" &&
+      priorMatterStage !== undefined &&
+      typeof patchData.stage === "string"
+    ) {
+      const newStage = String(patchData.stage).trim();
+      const oldStage = String(priorMatterStage ?? "").trim();
+      if (newStage && oldStage && newStage !== oldStage) {
+        try {
+          const matterDoc: any = await ctx.db.get(docId);
+          const entityId = String(matterDoc?.id || docId);
+          await dispatchRulesForEvent(ctx, {
+            firmId,
+            event: {
+              triggerType: "matter_stage_change",
+              value: newStage,
+              entityId,
+              matter: {
+                id: entityId,
+                title: matterDoc?.title || null,
+                type: matterDoc?.type || null,
+                stage: newStage,
+                clientId: matterDoc?.clientId || null,
+                assignedUsers: Array.isArray(matterDoc?.assignedUsers)
+                  ? matterDoc.assignedUsers
+                  : [],
+              },
+            },
+          });
+        } catch (ruleErr: any) {
+          console.warn("[updateItem] automation-rule dispatch failed (non-blocking):", ruleErr?.message);
+        }
+      }
+    }
   },
 });
 

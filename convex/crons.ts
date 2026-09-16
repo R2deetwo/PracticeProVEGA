@@ -72,6 +72,23 @@ crons.daily(
   {}
 );
 
+// ─── AUTOMATION STUDIO RULE SWEEP (Task 48, 2026-09-16) ────────────────────
+// Daily at 6:45 UTC (7:45 AM WAT) — a quarter-hour AFTER the Atrium engine
+// (6:30) so the two engines never write in the same instant. Executes the
+// TIME-BASED rule triggers firms configure in Settings → Firm Configuration
+// → Automations: invoice_overdue (fires once per invoice, never daily
+// spam — the dispatch ledger guarantees it), task_overdue (once per task,
+// priority-matched), and client_onboarding_incomplete (matters ≥24h old
+// with no tasks/documents/events). Event-driven triggers (matter_created,
+// matter_stage_change, lead_created, event_created, document_uploaded) do
+// NOT run here — they fire inline from createItem/updateItem.
+crons.daily(
+  "ruleEngineSweep",
+  { hourUTC: 6, minuteUTC: 45 },
+  internal.automationRules.runRuleEngineSweep,
+  {}
+);
+
 // Monthly Service Charge Reset: 1st of every month at 00:30 UTC (1:30 AM WAT)
 // Resets all monthly service charges back to UNPAID, clears partial payment tracking,
 // and auto-creates minimum vend charges for properties that have the toggle enabled.

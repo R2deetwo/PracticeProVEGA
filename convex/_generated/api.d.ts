@@ -14,6 +14,7 @@ import type * as analytics from "../analytics.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
 import type * as automationEngine from "../automationEngine.js";
+import type * as automationRules from "../automationRules.js";
 import type * as emailBranding from "../emailBranding.js";
 import type * as backups from "../backups.js";
 import type * as brainIngestion from "../brainIngestion.js";
@@ -82,6 +83,7 @@ declare const fullApi: ApiFromModules<{
   authHelpers: typeof authHelpers;
   authUtils: typeof authUtils;
   automationEngine: typeof automationEngine;
+  automationRules: typeof automationRules;
   emailBranding: typeof emailBranding;
   backups: typeof backups;
   brainIngestion: typeof brainIngestion;

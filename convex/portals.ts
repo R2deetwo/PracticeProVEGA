@@ -6,6 +6,9 @@ import { requireFirmUser } from "./authHelpers";
 import { requireStaffCaller, requirePortalCaller, resolveCaller, assertSameFirm } from "./callerAuth";
 import { withCronReporting } from "./observability";
 import { buildAutomatedEmailHtml } from "./emailBranding";
+// Task 48: Automation Studio rule engine — participant-sent portal
+// attachments fire the document_uploaded trigger (see sendPortalMessage).
+import { dispatchRulesForEvent } from "./automationRules";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED. Unbounded `.collect()` calls were
@@ -4697,7 +4700,7 @@ export const sendPortalMessage = mutation({
         for (let i = 0; i < args.attachments.length; i++) {
           const storageId = args.attachments[i];
           const fileName = args.attachmentNames?.[i] || 'attachment';
-          await ctx.db.insert("documents", {
+          const docId = await ctx.db.insert("documents", {
             firmId: args.firmId,
             title: fileName,
             matterId,
@@ -4708,6 +4711,30 @@ export const sendPortalMessage = mutation({
             createdAt: now as any,
             updatedAt: now as any,
           });
+          // ─── AUTOMATION RULE ENGINE (Task 48): document_uploaded ──────
+          // A PARTICIPANT-sent attachment IS a client document upload —
+          // that is exactly what the "New Document Review" recipe
+          // (triggerValue 'client_portal') means. Non-blocking by contract.
+          if (!isAdminMessage) {
+            try {
+              await dispatchRulesForEvent(ctx, {
+                firmId: args.firmId,
+                event: {
+                  triggerType: "document_uploaded",
+                  value: "client_portal",
+                  entityId: String(docId),
+                  document: {
+                    title: fileName,
+                    source: "client_portal",
+                    matterId: String(matterId),
+                    uploadedBy: args.senderId,
+                  },
+                },
+              });
+            } catch (ruleErr: any) {
+              console.warn("[sendPortalMessage] automation-rule dispatch failed (non-blocking):", ruleErr?.message);
+            }
+          }
         }
       }
     }

@@ -142,8 +142,11 @@ function unique<T>(arr: T[], key: (t: T) => string): T[] {
 // ---------------------------------------------------------------------------
 // Plan builder
 // ---------------------------------------------------------------------------
+// (exported for unit tests — same pattern as convex/automationEngine's
+// "pure policy helpers (exported for unit tests)". Pure data-in/data-out
+// over the existing-collections snapshot; no React state involved.)
 
-function buildLegalPlan(
+export function buildLegalPlan(
   profiles: PracticeProfile[],
   deps: Pick<
     UsePracticeProfileDeps,
@@ -322,8 +325,8 @@ function buildLegalPlan(
   };
 }
 
-/** Atrium variant — same engine, property payload. */
-function buildAtriumPlan(
+/** Atrium variant — same engine, property payload. (exported for tests) */
+export function buildAtriumPlan(
   profiles: AtriumProfile[],
   overlays: AtriumFocusOverlay[],
   deps: Pick<
