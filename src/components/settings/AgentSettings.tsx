@@ -197,6 +197,45 @@ const BuildLegalIndexButton: React.FC<{
     );
 };
 
+// ─── PUBLISH LEGAL CORPUS BUTTON (founder-only) ──────────────────────────
+// Publishes/refreshes the curated corpus (institutions, instruments,
+// provisions, forms) into the shared Convex knowledge tables. Idempotent:
+// re-running refreshes bibliographic fields but never clobbers founder
+// verifications or existing embeddings. After publishing, "Build Legal
+// Index" embeds whatever is new.
+const PublishLegalCorpusButton: React.FC<{
+    addToast: (msg: string, opts?: any) => void;
+    convex: any;
+}> = ({ addToast, convex }) => {
+    const { bearerToken } = useAuth();
+    const [status, setStatus] = React.useState<'idle' | 'running' | 'done' | 'error'>('idle');
+
+    const handlePublish = async () => {
+        setStatus('running');
+        try {
+            const result: any = await convex.mutation(api.seedLegalKnowledge.seedAll, {
+                sessionToken: (bearerToken ?? undefined) || undefined,
+            });
+            addToast(result?.message || 'Legal corpus published.', { type: 'success' });
+            setStatus('done');
+        } catch (e: any) {
+            console.error('[LegalCorpus] Publish failed:', e);
+            addToast('Corpus publish failed: ' + e.message, { type: 'error' });
+            setStatus('error');
+        }
+    };
+
+    return (
+        <button
+            onClick={handlePublish}
+            disabled={status === 'running'}
+            className={`w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-sm transition-colors shadow-sm ${status === 'idle' || status === 'error' ? 'bg-slate-700 hover:bg-slate-600 text-white' : status === 'running' ? 'bg-slate-500 text-white cursor-wait' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}
+        >
+            {status === 'running' ? 'Publishing…' : status === 'done' ? 'Corpus Published ✓' : 'Publish Legal Corpus (Founder)'}
+        </button>
+    );
+};
+
 const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirmDetails, currentUser }) => {
     const { addToast } = useUI();
     const { isProperty } = useProduct();
@@ -503,6 +542,14 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                             {`${getAssistantName(false)}'s shared Nigerian legal knowledge base: rules of court (Lagos, FHC, appellate, NICN), statutes (CFRN, CAMA, Evidence Act, Tenancy Law, Sheriffs Act), practice guides and court/registry forms — retrieved with citations and verification status when you ask procedural questions. Founders seed updates; this button embeds new corpus entries for search.`}
                         </p>
                         <BuildLegalIndexButton addToast={addToast} convex={convex} />
+                        {currentUser?.role === 'Founder' && (
+                            <div className="mt-3">
+                                <p className="text-2xs text-slate-500 dark:text-zinc-500 mb-1.5">
+                                    Founder tools — publish corpus updates (idempotent; never clobbers verifications or embeddings), then re-index:
+                                </p>
+                                <PublishLegalCorpusButton addToast={addToast} convex={convex} />
+                            </div>
+                        )}
                     </SettingsCard>
 
                     <SettingsCard title="Active AI Agents" id="agent-config">
