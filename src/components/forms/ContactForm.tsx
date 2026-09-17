@@ -242,9 +242,27 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
     const labelClass = "block text-xs font-semibold text-slate-500 dark:text-zinc-400 mb-1.5 ml-0.5";
     const gridClass = isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2";
 
+    // 2026-09-17 (repeat complaint fix — "the footer panel doesn't reach the
+    // bottom of the modal"): restructured to the same pattern MatterForm uses
+    // after its own footer fix (docs/worklog 2026-08 Task 9):
+    //   - form: flex flex-col h-full — fills the modal/drawer body exactly
+    //   - fields: flex-1 min-h-0 overflow-y-auto — the ONLY scroll container
+    //   - footer: flex-shrink-0 sibling — always pinned to the bottom edge
+    // The old layout was `flex flex-col gap-3 -m-2` + `sticky bottom-0`
+    // footer + a pb-20 dead zone. The -m-2 only cancelled 8px of the modal
+    // body's 12/20/24px padding (so the footer floated inset with gaps
+    // below it — the objects the user kept seeing under Cancel/Create
+    // Contact), and in the ALOA docked drawer (whose body has NO padding)
+    // it pulled the form 8px outside the scroll box, clipping every edge.
+    // Context-aware via isCompact: DockedModal (isCompact) body is unpadded
+    // → the form supplies its own px/pt; ModalLayer's ModalShell body is
+    // padded px-3 py-3 sm:px-6 sm:py-5 → exact negative margins cancel it.
+    const bodyPadClass = isCompact ? 'px-4 sm:px-5 pt-4' : '-mt-3 sm:-mt-5';
+    const footerPadClass = isCompact ? 'px-4 sm:px-5 pt-4' : '-mx-3 -mb-3 sm:-mx-6 sm:-mb-5 px-3 pt-3 sm:px-6 sm:pt-4';
+
     return (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4 -m-2">
-            <div className="space-y-2 sm:space-y-3 pb-20">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 pb-4 ${bodyPadClass}`}>
                 {/* Entity definition header */}
                 <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">
                     <div className="flex items-center gap-3 sm:gap-4 mb-2 px-1">
@@ -524,7 +542,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
                 </div>
             </div>
 
-            <div className="sticky bottom-0 left-0 right-0 pt-4 sm:pt-8 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 z-20">
+            <div className={`flex-shrink-0 z-20 pb-safe-extra bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.1)] flex flex-wrap-reverse sm:justify-end gap-2 sm:gap-3 ${footerPadClass}`}>
                 <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 sm:flex-none px-6 sm:px-10 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-xs font-semibold rounded-lg sm:rounded-2xl hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all flex items-center justify-center gap-2 disabled:opacity-55">
                     <XIcon className="w-4 h-4" /> Cancel
                 </button>

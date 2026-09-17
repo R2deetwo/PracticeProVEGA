@@ -6108,27 +6108,37 @@ export const sendWelcomeEmail = internalAction({
     // at https://practicepro.ng/help/... — a domain that was never registered
     // (NXDOMAIN), so every "Get Started" button in the welcome email was a
     // dead link. They now point at the live web app (same origin as the
-    // password-reset emails' appDomain) and deep-link to the matching Help
-    // Center section (/help/<sectionId>), which the app router resolves to
-    // HelpView with that section pre-opened and scrolled into view.
+    // password-reset emails' appDomain).
+    //
+    // 2026-09-17 (round 3 — action deep links): buttons that promise an
+    // ACTION now link straight into the app with that flow open:
+    //   /matters?action=new_matter       → Matters view + New Matter modal
+    //   /properties?action=new_property  → Properties view + New Property modal
+    // (see src/utils/emailActions.ts + the MainContent effect in App.tsx;
+    // unauthenticated clickers get the action parked and delivered after
+    // login). Conceptual steps ("Meet ALOA", "Draft with DraftPro",
+    // "Manage tenants & rent") still deep-link to the matching Help Center
+    // section (/help/<sectionId>), which the app router resolves to HelpView
+    // with that section pre-opened and scrolled into view.
     const appDomain = "https://practice-pro-vega.vercel.app";
 
-    // Product-specific getting started guides — URLs map 1:1 to HelpView
-    // section IDs (see src/components/HelpView.tsx `sections` array).
+    // Product-specific getting started guides — help URLs map 1:1 to
+    // HelpView section IDs (see src/components/HelpView.tsx `sections`
+    // array); action URLs map via src/utils/emailActions.ts.
     const gettingStartedLinks: Record<string, { label: string; url: string }[]> = {
       legal: [
-        { label: 'Create your first Matter', url: `${appDomain}/help/getting-started` },
+        { label: 'Create your first Matter', url: `${appDomain}/matters?action=new_matter` },
         { label: 'Meet ALOA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
         { label: 'Draft documents with DraftPro', url: `${appDomain}/help/draftpro-editor` },
       ],
       property: [
-        { label: 'Add your first Property', url: `${appDomain}/help/property-management` },
+        { label: 'Add your first Property', url: `${appDomain}/properties?action=new_property` },
         { label: 'Meet ARIA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
         { label: 'Manage tenants & rent', url: `${appDomain}/help/revenue-engine` },
       ],
       unified: [
-        { label: 'Create your first Matter', url: `${appDomain}/help/getting-started` },
-        { label: 'Add your first Property', url: `${appDomain}/help/property-management` },
+        { label: 'Create your first Matter', url: `${appDomain}/matters?action=new_matter` },
+        { label: 'Add your first Property', url: `${appDomain}/properties?action=new_property` },
         { label: 'Meet ALOA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
         { label: 'Draft documents with DraftPro', url: `${appDomain}/help/draftpro-editor` },
       ],

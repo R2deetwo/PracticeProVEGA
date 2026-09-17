@@ -76,14 +76,16 @@ export const CONSIDERATION_FREQUENCIES = [
 export const STATUS_STYLES: Record<string, string> = {
   pending: 'bg-amber-100 text-amber-800',
   active: 'bg-emerald-100 text-emerald-800',
-  expired: 'bg-gray-100 text-gray-600',
-  terminated: 'bg-gray-200 text-gray-700',
+  // Design-token gate: gray-* was eliminated in P4 batch 2 (its Tailwind key
+  // is deleted — the classes generated no CSS). slate for light, zinc for dark.
+  expired: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+  terminated: 'bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-300',
   disputed: 'bg-red-100 text-red-700',
   redeemed: 'bg-blue-100 text-blue-700',
 };
 
 export const CONSENT_STYLES: Record<string, string> = {
-  not_required: 'bg-gray-100 text-gray-600',
+  not_required: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
   not_applied: 'bg-amber-100 text-amber-800',
   applied: 'bg-blue-100 text-blue-700',
   approved: 'bg-emerald-100 text-emerald-800',

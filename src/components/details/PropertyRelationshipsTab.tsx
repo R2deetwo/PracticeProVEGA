@@ -406,7 +406,7 @@ export const PropertyRelationshipsTab: React.FC<Props> = ({ propertyConvexId, un
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-slate-900 dark:text-white">{rel.typeLabel}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wide ${STATUS_STYLES[rel.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`px-2 py-0.5 rounded-full text-2xs font-bold uppercase tracking-wide ${STATUS_STYLES[rel.status] ?? 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400'}`}>
                         {rel.status}
                       </span>
                       <span className={`px-2 py-0.5 rounded-full text-2xs font-bold ${CONSENT_STYLES[rel.consentStatus] ?? ''}`}>

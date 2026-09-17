@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { View, ModalType, AppState, Task, Document, User, NotePage, HistoryEntry, Invoice, UserRole, Theme, TaskStatus, ClientMessage, Contact, Lead, AppMode, SubscriptionPlan } from '../types';
 import { readPendingIdentity, clearPendingIdentity } from '../utils/professionalIdentity';
+import { resolveEmailAction, isSafePendingRedirectPath } from '../utils/emailActions';
 import { useMatterState } from '../contexts/MatterContext';
 import { useFinanceState } from '../contexts/FinanceContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
@@ -206,6 +207,39 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     useEffect(() => {
         setLocalPreviewDoc(null);
     }, [view]);
+
+    // ─── Email action deep links ──────────────────────────────────────────
+    // Welcome-email step buttons that promise an ACTION ("Add your first
+    // Property", "Create your first Matter") now link to
+    // /properties?action=new_property (resp. /matters?action=new_matter)
+    // instead of a Help Center article. When an authenticated, onboarded
+    // user lands with ?action=..., route to the target view and open the
+    // matching creation modal. The param is stripped from the URL first so
+    // a refresh/re-render can't re-trigger it, and a ref guard makes it
+    // fire at most once per mount. Unauthenticated clickers never reach
+    // here — the redirect effect parks the URL and delivers it post-login
+    // (same handoff as the emailed /help links), at which point MainContent
+    // mounts with the param still on the URL and this effect fires.
+    const emailActionFiredRef = useRef(false);
+    useEffect(() => {
+        if (emailActionFiredRef.current) return;
+        // The app shell must be fully ready: user exists, firm created
+        // (post-onboarding), and core data loaded (the creation modals
+        // need contact/matter data for their pickers).
+        if (!currentUser?.firmId || !isDataLoaded) return;
+        const action = new URLSearchParams(window.location.search).get('action');
+        const target = resolveEmailAction(action);
+        if (!target) return;
+        emailActionFiredRef.current = true;
+        // Strip the param BEFORE navigating so the clean path lands in
+        // history (react-router's navigate below pushes pathname only, but
+        // replaceState guarantees it even if navigateTo no-ops below).
+        window.history.replaceState({}, '', window.location.pathname);
+        if (view !== (target.view as View)) navigateTo(target.view as View);
+        // Open immediately — React 18 batches this with the navigation
+        // state update, so the view and its modal render in one pass.
+        openModal(target.modal as ModalType);
+    }, [currentUser?.firmId, isDataLoaded, view, navigateTo, openModal]);
 
     const renderView = () => {
         // Portal users (Client/Tenant) load data from dedicated portal queries — they
@@ -892,28 +926,32 @@ export const App: React.FC = () => {
                 navigate('/portal/client/login' + window.location.search, { replace: true });
                 return;
             }
-            // EMAILED HELP-CENTER LINKS (/help, /help/<section>): unauthenticated
-            // visitors are bounced to the landing page below, but remember where
-            // they were headed so the post-login redirect effect can land them on
-            // the intended Help Center section after sign-in. Scoped to /help
-            // paths only — never portal, auth, or arbitrary external paths.
-            if (location.pathname === '/help' || location.pathname.startsWith('/help/')) {
+            // EMAILED HELP-CENTER LINKS (/help, /help/<section>) and EMAIL
+            // ACTION LINKS (/properties?action=new_property, /matters?action=
+            // new_matter): unauthenticated visitors are bounced to the landing
+            // page below, but remember where they were headed so the
+            // post-login redirect effect can land them there after sign-in.
+            // The action URLs are validated against an EXACT allowlist
+            // (isSafePendingRedirectPath) — never portal, auth, or arbitrary
+            // paths — so a crafted link can't plant a redirect target.
+            const pendingPath = location.pathname + (location.search || '');
+            if (isSafePendingRedirectPath(pendingPath)) {
                 try {
-                    sessionStorage.setItem('practicepro_pending_redirect', location.pathname);
+                    sessionStorage.setItem('practicepro_pending_redirect', pendingPath);
                 } catch {}
             }
             navigate('/', { replace: true });
         }
-    }, [isLoadingSession, currentUser, location.pathname, navigate]);
+    }, [isLoadingSession, currentUser, location.pathname, location.search, navigate]);
 
     // POST-LOGIN REDIRECT: completes the handoff saved above. When an
-    // unauthenticated visitor clicked an emailed Help Center deep link
-    // (/help/<section>), signed in from the landing page, and the session
-    // is now live, send them to the section they originally asked for
-    // instead of stranding them on the dashboard. sessionStorage (not
+    // unauthenticated visitor clicked an emailed deep link (/help/<section>
+    // or /properties?action=new_property), signed in from the landing page,
+    // and the session is now live, send them where they originally asked to
+    // go instead of stranding them on the dashboard. sessionStorage (not
     // localStorage) so the intent dies with the tab if they never log in.
-    // Cleared on use, and only honored for /help paths — nothing else can
-    // plant a redirect target.
+    // Cleared on use, and only honored via the same allowlist that guards
+    // the parking above — nothing else can plant a redirect target.
     useEffect(() => {
         if (!currentUser || isLoadingSession) return;
         let pending: string | null = null;
@@ -924,7 +962,7 @@ export const App: React.FC = () => {
         try {
             sessionStorage.removeItem('practicepro_pending_redirect');
         } catch {}
-        if (pending === '/help' || pending.startsWith('/help/')) {
+        if (isSafePendingRedirectPath(pending)) {
             navigate(pending, { replace: true });
         }
         // Run only when auth state flips (login/logout), not on every path change.
