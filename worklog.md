@@ -11773,3 +11773,41 @@ Stage Summary:
 - Push: production FCM credentials verified live; message-send push dispatch is deployed; the Founder APK's last blocker is the one Firebase console step (register com.practicepro.admin) which is now spelled out on-screen in the diagnostics panel; token registration race fixed for user APKs.
 - Founder lockout: full self-serve recovery including the forgot-the-email path.
 - BLOCKER (environment): the GitHub PAT embedded in the local remote is dead (401 Bad credentials) — push blocked. All work is committed locally and validated; deploying requires the user to rotate the repo token.
+
+---
+Task ID: 58
+Agent: Super Z (main)
+Task: Property description destroyed by Enter key mid-creation, and no editable property description in edit mode (user report 2026-09-17). Requirement: property description (building-level) and unit description must stay fully independent — related but never auto-derived from each other.
+
+Work Log:
+- ENVIRONMENT RECONCILIATION: this sandbox was a stale snapshot (local main 70 commits behind origin, 614 files deleted + permission churn from a restore). Restored the tree, fast-forwarded to 606c6ea6 (v1.0.627, build-1010) which already contains Tasks 45-57 pushed from the other environment — including 887a294a (Task 57 service-charge unlock). The external /home/z/my-project/worklog.md carrying Tasks 45-57 is gone with that environment; repo worklog jumps 44 → 58 by design.
+- ROOT CAUSE 1 (data loss): buildPropertyRecord derived every unit row's description as `unitDescription || unitName || ${description} (${unitName})` — a fresh unit (empty unitDescription) saved description = "Unit 1", silently discarding the manager's typed property description. The typed text only ever survived wrapped as "text (Unit 1)".
+- ROOT CAUSE 2 (the Enter flip): the form is a single <form> with a submit button; Enter in ANY text input triggers implicit submission → handleSubmit → rent validation failure path flips openSections to rental and the view jumps to the unit panel mid-typing.
+- FIX (propertyPayload.ts): pd.description = propertyData.description ?? '' — building-level only, never derived from unit fields; unit notes live in rentalDetails.unitDescription (unchanged, independent).
+- FIX (legacy healing): deriveBuildingDescription(raw, unitName) strips the old "(Unit N)" suffixes and bare unit-name noise ("Unit 1" → empty) so the edit form surfaces the manager's original text or a clean field; applied at form init.
+- FIX (Enter guard): form-level onKeyDown preventDefault when Enter fires inside an INPUT (textareas keep newlines, buttons/selects native) — an accidental keypress can no longer submit or flip this 2,000-line form. Save = the Save button only.
+- All four new-unit literal objects (initial, autoAddUnit, numberOfUnits sync, inline Add Unit) now carry serviceChargeMonthsInAdvance: 0.
+
+Stage Summary:
+- Property description is now exactly what the manager types, on every save, for every sibling unit row; the edit form shows it (healed) under Address & Category; Enter mid-typing is inert.
+
+---
+Task ID: 59
+Agent: Super Z (main)
+Task: User directive 2026-09-17 — deep dive into how the Lease & Rent Configuration should actually work as property MANAGEMENT product, then fix everything the 5.2-era form got wrong: service charge added to legal fee and caution deposit as a "Total Tenancy Package"; a manual "Total Service Charge Due" sitting in property/unit edit with no purpose; service charge mixed with legal/agency/caution; the phrase "tenancy package" itself. Estates that demand months of service charge upfront should have that enforced, not a free-form total.
+
+Work Log:
+- DOMAIN MODEL mapped against every reader before touching the form: resolveServiceCharge (priority chain, serviceChargeAmount first), resolveCadence in leaseTimeline (monthly rate for Monthly cadence, per-cycle total for longer), ServiceChargeBars, OnboardUnitLedgerModal (monthlyRate = serviceCharge), automation engine, messageFinancials, portals. rentalDetails is v.any() in Convex — new field needs no migration.
+- SERVICE CHARGE: one input — the amount per billing cycle ("Service Charge Amount" + "Billed How Often") — replacing the contradictory "Monthly Service Charge" + manual "Total Service Charge Due" pair. Legacy monthly rate derived via monthlyServiceChargeRate(perCycle, freq) on every edit (updateUnit) and normalized on load via loadServiceChargeCycle (monthly cadence: rate wins; longer cadences: per-cycle total wins — mirroring resolveCadence reader semantics exactly). Ripple sync carries the whole SC trio together.
+- ADVANCE REQUIREMENT (the real "total due"): new rentalDetails.serviceChargeMonthsInAdvance (0-24, clamped in normalizeUnitRental) — "Months Payable in Advance" with computed upfront ("Residents pay ₦X upfront at move-in — covers N months"). 0 = pay as billed. This is the enforcement hook the user described; portal/application-side enforcement is the natural follow-up.
+- CATEGORY CARDS with plain-language explanations: Service Charge (amber, "Recurring" badge — estate services: diesel, water, security, cleaning) / Move-in Fees (sky, "One-time" — legal = tenancy agreement drafting & vetting, agency = letting & sourcing commission) / Caution Deposit (emerald, "Refundable" — held against damage beyond fair wear and tear, resident's money not income).
+- "TOTAL TENANCY PACKAGE" deleted everywhere in the form. Replaced by an itemised Move-in Cost Summary: per-category rows (recurring keep their own periodicity: rent "per annum", SC "every N months"; one-time: legal, agency, SC advance; refundable: caution) — deliberately NO lump-sum total. N/A toggles, % of-rent hints, payment status, outstanding balance and Settle Historical Ledger all preserved inside their proper cards.
+- SERVICE-OFF INTEGRATION: when the property's Core Services toggle has service charge off, the SC card shows guidance instead of inputs (data round-trips untouched).
+- Management Only mode: rent row hidden from the summary (rentCollecting false); recurring SC and move-in items still listed.
+- Tests: +18 (tests/unit/leaseConfigRedesign.test.ts) — description verbatim/empty/independence, legacy healing matrix, Enter-guard source pin, SC cycle math (load rule parity + rate derivation + clamps), banned-phrase and banned-sum source pins, category-card copy pins. Full suite 993/993. Gates: convex tsc 0; root tsc 126 = baseline; design tokens gray=0; vite build clean (21s).
+- Committed 2f4bfa14, pushed to origin/main. CI (Tests / Deploy to Staging / Build Android APK) dispatched on the commit.
+
+Stage Summary:
+- The Lease & Rent Configuration now reads like a property manager's ledger: recurring charges (rent, service charge) keep their own periodicity, one-time professional fees (legal, agency) and the refundable caution deposit stand in their own labelled cards, the estate's service-charge advance is an explicit enforced input, and nothing is ever summed into a meaningless package figure.
+- Follow-up candidates: enforce serviceChargeMonthsInAdvance in the tenant application/onboarding flow; surface the itemised move-in breakdown in ComposeModal's new-resident financials (messageFinancials already scopes move-in fees to new residents only — Task 16).
+- User action outstanding: rotate the GitHub PAT (pasted in chat on 2026-09-17 and used for this push — the stored remote token was dead).
