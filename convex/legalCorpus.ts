@@ -239,6 +239,17 @@ export const FEDERAL_INSTRUMENTS: CorpusInstrument[] = [
     summary: "Framework for enforcement of judgments — writs of execution (fieri facias, elegit, possession), garnishee proceedings, judgment-debtor summonses, and leave requirements for enforcing judgments outside the issuing jurisdiction.",
     sourceUrl: "https://www.nigeria-law.org",
   },
+  {
+    key: "lua_1978",
+    institutionKey: "supreme_court",
+    title: "Land Use Act (Cap L5, LFN 2004)",
+    kind: "statute",
+    year: 1978,
+    versionLabel: "As codified in the Laws of the Federation 2004",
+    status: "in_force",
+    summary:
+      "Foundational land legislation (entrenched by s.44 CFRN): all land in each state is vested in the Governor, held in trust for the people. Statutory and customary rights of occupancy (ss.5-6), Governor's consent required for any alienation (s.22), revocation for overriding public interest with compensation (ss.28-29), and deemed grants for land already in occupation (ss.34, 36). Every conveyance, mortgage, sublease or assignment in Nigeria runs through this Act — confirm each state's implementing registry and consent procedure.",
+  },
 ];
 
 // Lagos-specific instruments (deep jurisdiction)
@@ -262,6 +273,26 @@ export const LAGOS_INSTRUMENTS: CorpusInstrument[] = [
     year: 2011,
     status: "in_force",
     summary: "Lagos tenancy regime — notice-to-quit periods by tenancy period, recovery of premises through the court, prohibition of self-help ejection, and rent payment rules.",
+    jurisdictionKey: "Lagos",
+  },
+  {
+    key: "lagos_land_registration_law",
+    institutionKey: "lagos_judiciary",
+    title: "Land Registration Law of Lagos State",
+    kind: "statute",
+    status: "in_force",
+    summary:
+      "Registers instruments affecting land in Lagos (deeds of assignment, mortgages, leases) at the Lagos State Lands Registry, alongside the Governor's consent regime. Confirm the current compilation and registry e-filing procedures before lodging. (Frequently cited as the 2015 edition — verify against the Registry.)",
+    jurisdictionKey: "Lagos",
+  },
+  {
+    key: "lagos_administration_estates_law",
+    institutionKey: "lagos_judiciary",
+    title: "Administration of Estates Law of Lagos State",
+    kind: "statute",
+    status: "in_force",
+    summary:
+      "Grants of probate and letters of administration at the Lagos Probate Registry, estate administration duties, and intestacy distribution. Confirm the current revision (commonly cited as the Laws of Lagos State 2004 compilation) before filing.",
     jurisdictionKey: "Lagos",
   },
 ];
@@ -561,6 +592,106 @@ export const PROVISIONS: CorpusProvision[] = [
     tags: ["employment", "NICN", "wrongful termination", "labour"],
     verificationStatus: "needs_founder_review",
   },
+
+  // ── Land Use Act 1978 (state-by-state expansion round, 2026-09-17.2) ──────
+  {
+    instrumentKey: "lua_1978",
+    ref: "s. 1",
+    heading: "Vesting of all land in each State's Governor",
+    textType: "summary",
+    text: "Section 1 vests all land comprised in the territory of each state in the Governor of that state, to be held in trust for the use and common benefit of all Nigerians. This radical-title construct is why every Nigerian land transaction traces to a right of occupancy granted or deemed granted under the Act — there is no allodial private title. Section 2 vests management powers in the Governor, exercised through the state's Land Use and Allocation Committee.",
+    tags: ["land use act", "vesting", "governor", "radical title", "trust"],
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "lua_1978",
+    ref: "s. 22",
+    heading: "Governor's consent to alienation of a right of occupancy",
+    textType: "summary",
+    text: "It shall not be lawful for the holder of a right of occupancy to alienate that right or any part thereof by assignment, mortgage, transfer of possession, sublease or otherwise howsoever without the consent of the Governor first had and obtained. This is the operative provision behind every consent application, deed of assignment, legal mortgage and long sublease in Nigeria; transactions concluded without consent face invalidity risk, and in practice the consent fee and registration process (at the state lands registry) drive conveyancing timelines.",
+    tags: ["land use act", "governor's consent", "alienation", "assignment", "mortgage", "sublease"],
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "lua_1978",
+    ref: "ss. 28-29",
+    heading: "Revocation for overriding public interest and compensation",
+    textType: "summary",
+    text: "A right of occupancy may be revoked by the Governor only for overriding public interest (s.28) — including alienation by an undocumented transferee, breach of covenant, or requirement of the land for public purposes. Section 29 entitles the holder to compensation for the value of unexhausted improvements at the date of revocation, assessed per the prescribed formula. Revocations outside these grounds are challengeable, and compensation claims are a recurring flashpoint in Nigerian land litigation.",
+    tags: ["land use act", "revocation", "compensation", "public purpose", "improvements"],
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "lua_1978",
+    ref: "ss. 34 & 36",
+    heading: "Deemed grants — land already in occupation before 1978",
+    textType: "summary",
+    text: "Sections 34 (urban areas) and 36 (non-urban areas) deem persons who were in possession/occupancy of developed land when the Act commenced to hold a statutory (or, outside urban areas, customary) right of occupancy — without a fresh grant. These deemed grants are the root of title for vast tranches of Nigerian property, and proving continuous occupation as at the commencement date remains central to many title disputes.",
+    tags: ["land use act", "deemed grant", "s.34", "s.36", "root of title", "occupation"],
+    verificationStatus: "needs_founder_review",
+  },
+
+  // ── FCT High Court (CP) Rules 2018 (deep set — mirrors the Lagos model) ───
+  {
+    instrumentKey: "fct_hc_rules",
+    ref: "Practice Guide — Commencement",
+    heading: "Commencing a civil claim in the FCT High Court",
+    textType: "practice_note",
+    text: "Civil claims in the High Court of the Federal Capital Territory are commenced by writ of summons (disputed-fact claims) or originating summons (questions of law or document interpretation), filed at the appropriate judicial division. The 2018 Rules follow the modern front-loading architecture: originating processes are accompanied by the claimant's witness statements and copies of documents to be relied on at trial, together with a list of witnesses and a list of witnesses to be subpoenaed. Confirm the current order numbers and filing fees at the registry before filing.",
+    tags: ["fct", "abuja", "commencement", "writ of summons", "originating summons", "front-loading"],
+    jurisdictionKey: "FCT",
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "fct_hc_rules",
+    ref: "Practice Guide — Undefended List",
+    heading: "Undefended list procedure in the FCT High Court",
+    textType: "practice_note",
+    text: "Liquidated money demands may be placed on the undefended list at the claimant's request. The defendant must file a notice of intention to defend accompanied by an affidavit setting out a defence on the merits within the time limited by the rules; if no notice is filed, or the affidavit discloses no real defence, the court enters judgment for the claimant without trial — making this the standard route for straightforward debt recovery in the FCT. Where a triable defence appears, the action is transferred to the general cause list.",
+    tags: ["fct", "abuja", "undefended list", "debt recovery", "liquidated demand"],
+    jurisdictionKey: "FCT",
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "fct_hc_rules",
+    ref: "Practice Guide — Case Management",
+    heading: "Pre-trial conference and case management in the FCT",
+    textType: "practice_note",
+    text: "After pleadings close, the court conducts a pre-trial conference before a judge, dealing with joinder of parties, amendment of pleadings, admission of documents, settlement prospects and the trial timetable. The 2018 Rules expect counsel to engage with the case-management process actively; the court may strike out or dismiss actions for want of diligent prosecution where conferences are persistently missed. Realistic trial windows and agreed documentary admissions at the conference materially shorten trials.",
+    tags: ["fct", "abuja", "pre-trial conference", "case management", "pleadings"],
+    jurisdictionKey: "FCT",
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "fct_hc_rules",
+    ref: "Practice Guide — Interlocutory Applications",
+    heading: "Interlocutory applications in the FCT High Court",
+    textType: "practice_note",
+    text: "Applications before trial (injunctions, stay of proceedings, dismissal for want of prosecution, amendments) are brought by motion on notice supported by affidavit and a written address, with the respondent filing a counter-affidavit and address in reply. Notice of preliminary objection and applications for summary judgment follow the same motion practice. Courts sanction late or undisclosed responses, and written addresses are mandatory — oral argument is at the court's discretion.",
+    tags: ["fct", "abuja", "interlocutory", "motion on notice", "injunction", "written address"],
+    jurisdictionKey: "FCT",
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "fct_hc_rules",
+    ref: "Practice Guide — Service",
+    heading: "Service of originating processes in the FCT",
+    textType: "practice_note",
+    text: "Originating processes are served personally by a bailiff or registered process server; where personal service cannot be achieved after diligent attempts, the court may order substituted service (by advertisement, electronic means, or leaving the process at the defendant's last known address). Proper proof of service is jurisdictional — steps taken without valid service are liable to be set aside, so retain affidavits of service and process-server fees from the outset.",
+    tags: ["fct", "abuja", "service", "substituted service", "bailiff", "proof of service"],
+    jurisdictionKey: "FCT",
+    verificationStatus: "needs_founder_review",
+  },
+  {
+    instrumentKey: "fct_hc_rules",
+    ref: "Practice Guide — Enforcement",
+    heading: "Enforcing FCT High Court judgments",
+    textType: "practice_note",
+    text: "FCT judgments are enforced through the Sheriffs and Civil Process Act: writs of fieri facias against goods, writs of possession for land recovery, garnishee proceedings attaching bank balances and other debts owed to the judgment debtor, and judgment-debtor summonses compelling attendance for questioning about assets. Writs to be executed outside the FCT require leave — for federal-court judgments, the consent of the Attorney-General of the Federation before issuance. Garnishee remains the fastest route to actual recovery in most commercial cases.",
+    tags: ["fct", "abuja", "enforcement", "fieri facias", "garnishee", "writ of possession"],
+    jurisdictionKey: "FCT",
+    verificationStatus: "needs_founder_review",
+  },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -785,4 +916,376 @@ export const REGISTRY_INSTITUTIONS: CorpusInstitution[] = [
   },
 ];
 
-export const CORPUS_VERSION = "2026-09-17.1";
+export const CORPUS_VERSION = "2026-09-17.2";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE-BY-STATE EXPANSION (2026-09-17.2)
+//
+// Task 52 direction: "expand the legal corpus state-by-state". Every one of
+// the 37 jurisdictions now gets a full instrument FAMILY, not just a lone
+// rules citation:
+//
+//   all 37       High Court Law (enabling statute)
+//   all 37       Magistrates' Courts Law / Act (lower civil/criminal tier)
+//   north 19 +   Area/District Courts Law (customary-tier; naming varies —
+//   FCT (fed.)   District Courts in parts of the north-west)
+//   12 sharia    Sharia Court of Appeal Law + Procedure Rules
+//   11 + FCT     Customary Court of Appeal Law/Act
+//   south 17     Customary Courts Law
+//   FCT          Recovery of Premises Act (federal act, FCT application)
+//
+// Plus generated per-state High Court FORMS (writ, originating summons,
+// notice of intention to defend, witness statement, motion on notice) and
+// lower-court forms, and two generated practice anchors per state
+// (commencement; undefended-list debt recovery). FCT gets a hand-written
+// deep provision set above; Lagos keeps its hand-written set.
+//
+// HONESTY: exact instrument titles, revision years and form numbers vary by
+// state and change over time. Generated entries carry the corpus-wide
+// verification contract (needs_founder_review) — the founder's change-log
+// review flow (Task 51) is the correction mechanism, not silent invention.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface StateCourtProfile {
+  key: string; // matches STATE_JUDICIARIES.key
+  region: "north" | "south" | "fct";
+  /** Northern customary-tier lower court label (naming genuinely varies). */
+  areaCourtLabel?: "District Courts" | "Area Courts";
+  hasShariaAppeal: boolean;
+  hasCustomaryAppeal: boolean;
+  /** Pre-action protocol requirement in the current High Court rules. */
+  preActionProtocol: boolean;
+}
+
+const NORTHERN_STATES = [
+  "Adamawa", "Bauchi", "Benue", "Borno", "Gombe", "Jigawa", "Kaduna", "Kano",
+  "Katsina", "Kebbi", "Kogi", "Kwara", "Nasarawa", "Niger", "Plateau",
+  "Sokoto", "Taraba", "Yobe", "Zamfara",
+];
+const SHARIA_APPEAL_STATES = [
+  "Bauchi", "Borno", "Gombe", "Jigawa", "Kaduna", "Kano", "Katsina", "Kebbi",
+  "Niger", "Sokoto", "Yobe", "Zamfara",
+];
+// States commonly cited as styling their customary tier "District Courts"
+// (others in the north use "Area Courts"). Verification-flagged either way.
+const DISTRICT_COURT_STATES = ["Jigawa", "Kaduna", "Kano", "Katsina", "Sokoto"];
+const CUSTOMARY_APPEAL_STATES = [
+  "Abia", "Anambra", "Delta", "Ebonyi", "Edo", "Enugu", "Imo", "Ondo",
+  "Osun", "Oyo", "Rivers",
+];
+
+export const STATE_COURT_PROFILES: StateCourtProfile[] = STATE_JUDICIARIES.map((s) => {
+  const isFct = s.key === "FCT";
+  const region: StateCourtProfile["region"] = isFct
+    ? "fct"
+    : NORTHERN_STATES.includes(s.key)
+      ? "north"
+      : "south";
+  return {
+    key: s.key,
+    region,
+    areaCourtLabel:
+      region === "north"
+        ? DISTRICT_COURT_STATES.includes(s.key)
+          ? "District Courts"
+          : "Area Courts"
+        : undefined,
+    hasShariaAppeal: SHARIA_APPEAL_STATES.includes(s.key),
+    hasCustomaryAppeal: isFct || CUSTOMARY_APPEAL_STATES.includes(s.key),
+    preActionProtocol: s.key === "Lagos",
+  };
+});
+
+function stateSlug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+}
+
+function profileFor(key: string): StateCourtProfile {
+  const p = STATE_COURT_PROFILES.find((x) => x.key === key);
+  if (!p) throw new Error(`No court profile for ${key}`);
+  return p;
+}
+
+// ── Generated per-state instruments ─────────────────────────────────────────
+
+function buildStateExtraInstruments(): CorpusInstrument[] {
+  const out: CorpusInstrument[] = [];
+  for (const s of STATE_JUDICIARIES) {
+    const slug = stateSlug(s.key);
+    const inst = `${slug}_judiciary`;
+    const p = profileFor(s.key);
+    const isFct = s.key === "FCT";
+
+    // 1. High Court enabling law
+    out.push({
+      key: `${slug}_hc_law`,
+      institutionKey: inst,
+      title: isFct
+        ? "High Court of the Federal Capital Territory Act"
+        : `High Court Law of ${s.name}`,
+      kind: "statute",
+      status: "in_force",
+      summary: isFct
+        ? `Establishes and empowers the FCT High Court (constitutionally anchored in s.249 CFRN 1999); practice and procedure are governed by the ${s.rules}. Confirm the current compilation before citing section numbers.`
+        : `Enabling statute for the ${s.name} High Court (s.272 CFRN 1999 grants State High Courts unlimited subject-matter jurisdiction); practice and procedure are governed by the ${s.rules}. Titles and revisions vary by state — confirm the current compilation of the ${s.name} High Court Law.`,
+      jurisdictionKey: s.key,
+    });
+
+    // 2. Magistrates' Courts law (lower civil/criminal tier everywhere)
+    out.push({
+      key: isFct ? `${slug}_magistrates_act` : `${slug}_magistrates_law`,
+      institutionKey: inst,
+      title: isFct
+        ? "Magistrates' Courts Act (as applicable in the FCT)"
+        : `Magistrates' Courts Law of ${s.name}`,
+      kind: "statute",
+      status: "in_force",
+      summary: isFct
+        ? "Federal act establishing the FCT Magistrates' Courts — the FCT's lower civil and criminal tier. Handles smaller money claims, minor criminal matters and summary offences; appeals lie to the FCT High Court. Confirm monetary jurisdiction limits before filing."
+        : `Establishes ${s.name}'s Magistrates' Courts — the lower civil and criminal tier. Handles smaller money claims (state-specific monetary limits), minor offences and summary matters; appeals lie to the High Court. Exact title and revision vary by state ("Magistrate Courts Law" in some compilations) — confirm the current version and jurisdiction limits.`,
+      jurisdictionKey: s.key,
+    });
+
+    // 3. Northern customary-tier courts (Area/District Courts)
+    if (p.region === "north") {
+      out.push({
+        key: p.areaCourtLabel === "District Courts" ? `${slug}_district_courts_law` : `${slug}_area_courts_law`,
+        institutionKey: inst,
+        title: `${p.areaCourtLabel} Law of ${s.name}`,
+        kind: "statute",
+        status: "in_force",
+        summary: `Customary-tier lower courts of ${s.name} (${p.areaCourtLabel}) applying customary law in civil matters — landlord-tenant and family disputes at lower values, inheritance and minor land matters within the state's limits. Appeals lie to the High Court (and customary-law questions may route onward to a Sharia/Customary Court of Appeal where one exists). Naming varies between Area and District Courts across northern states — confirm ${s.name}'s current statute title.`,
+        jurisdictionKey: s.key,
+      });
+    }
+
+    // 4. FCT customary tier + recovery of premises (federal acts)
+    if (isFct) {
+      out.push({
+        key: `${slug}_area_courts_act`,
+        institutionKey: inst,
+        title: "Area Courts Act (as applicable in the FCT)",
+        kind: "statute",
+        status: "in_force",
+        summary:
+          "Federal act establishing the FCT Area Courts — the customary-tier courts of the Federal Capital Territory applying customary law to civil disputes within their limits, with appeals to the FCT Customary Court of Appeal on customary-law questions.",
+        jurisdictionKey: s.key,
+      });
+      out.push({
+        key: `${slug}_recovery_of_premises_act`,
+        institutionKey: inst,
+        title: "Recovery of Premises Act (as applicable in the FCT)",
+        kind: "statute",
+        status: "in_force",
+        summary:
+          "The federal Recovery of Premises Act governs landlord-tenant recovery of premises in the FCT: statutory notices to quit by tenancy type, court-ordered recovery, and the prohibition of self-help ejection. Most states have their own recovery-of-premises or tenancy legislation — this instrument is the FCT's version.",
+        jurisdictionKey: s.key,
+      });
+    }
+
+    // 5. Sharia Court of Appeal (12 northern states)
+    if (p.hasShariaAppeal) {
+      out.push({
+        key: `${slug}_sharia_appeal_law`,
+        institutionKey: inst,
+        title: `Sharia Court of Appeal Law of ${s.name}`,
+        kind: "statute",
+        status: "in_force",
+        summary: `Establishes the ${s.name} Sharia Court of Appeal — appellate jurisdiction over civil proceedings involving questions of Islamic personal law (marriage, family, guardianship, inheritance/wasiyya, and waqf) decided by ${p.areaCourtLabel} and other lower courts. Constitutional anchor: ss.275-279 CFRN 1999. Confirm the state's current law and any procedure rules issued under it.`,
+        jurisdictionKey: s.key,
+      });
+      out.push({
+        key: `${slug}_sharia_appeal_rules`,
+        institutionKey: inst,
+        title: `Sharia Court of Appeal (Procedure) Rules of ${s.name}`,
+        kind: "rules",
+        status: "in_force",
+        summary: `Appellate procedure before the ${s.name} Sharia Court of Appeal — entry and processing of appeals from ${p.areaCourtLabel}, records, briefs and hearing practice on Islamic-law questions. Editions vary by state and amendments are not always widely published — verify the current rules with the ${s.name} judiciary before filing.`,
+        jurisdictionKey: s.key,
+      });
+    }
+
+    // 6. Customary Court of Appeal (11 southern states + FCT)
+    if (p.hasCustomaryAppeal && !isFct) {
+      out.push({
+        key: `${slug}_customary_appeal_law`,
+        institutionKey: inst,
+        title: `Customary Court of Appeal Law of ${s.name}`,
+        kind: "statute",
+        status: "in_force",
+        summary: `Establishes the ${s.name} Customary Court of Appeal — appellate jurisdiction over civil proceedings involving questions of customary law decided by the state's customary-tier courts (constitutional anchor: ss.280-284 CFRN 1999). Confirm operational status and the current law in ${s.name}.`,
+        jurisdictionKey: s.key,
+      });
+    }
+    if (isFct) {
+      out.push({
+        key: `${slug}_customary_appeal_act`,
+        institutionKey: inst,
+        title: "Customary Court of Appeal of the Federal Capital Territory Act",
+        kind: "statute",
+        status: "in_force",
+        summary:
+          "Establishes the FCT Customary Court of Appeal (constitutional anchor: ss.266-269 CFRN 1999) — appeals from FCT Area Courts on questions of customary law. Confirm the current compilation and any procedure rules before filing.",
+        jurisdictionKey: s.key,
+      });
+    }
+
+    // 7. Southern customary tier (Customary Courts)
+    if (p.region === "south") {
+      out.push({
+        key: `${slug}_customary_courts_law`,
+        institutionKey: inst,
+        title: `Customary Courts Law of ${s.name}`,
+        kind: "statute",
+        status: "in_force",
+        summary: `Establishes ${s.name}'s Customary Courts — the customary-tier lower courts applying customary law to civil disputes (family, inheritance, lower-value land and landlord-tenant matters) within state-set limits. Some states grade these courts and some restrict their jurisdiction in urban areas; appeals lie to the High Court and, where established, the Customary Court of Appeal. Confirm the current version and limits in ${s.name}.`,
+        jurisdictionKey: s.key,
+      });
+    }
+  }
+  return out;
+}
+
+export const STATE_EXTRA_INSTRUMENTS: CorpusInstrument[] = buildStateExtraInstruments();
+
+// ── Generated per-state forms ───────────────────────────────────────────────
+
+function buildStateForms(): CorpusForm[] {
+  const out: CorpusForm[] = [];
+  for (const s of STATE_JUDICIARIES) {
+    const slug = stateSlug(s.key);
+    const inst = `${slug}_judiciary`;
+    const p = profileFor(s.key);
+    const slugTag = s.key.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const confirmNo = `Form numbering varies by state — confirm the current form number in the ${s.rules} schedule before filing.`;
+
+    // High Court forms. Lagos already has its hand-written set in FORMS —
+    // generated rows would collide (same institution + title + formNumber).
+    if (s.key !== "Lagos") {
+      const hc: CorpusForm[] = [
+        {
+          institutionKey: inst,
+          instrumentKey: `${slug}_hc_rules`,
+          formNumber: "",
+          title: "Writ of Summons",
+          purpose: `Originates a civil claim by writ in the ${s.name} High Court for disputed-fact matters. ${confirmNo}`,
+          fields: ["Court caption", "Suit number", "Parties", "Indorsement of claim", "Counsel details"],
+          tags: ["writ", "commencement", slugTag],
+          jurisdictionKey: s.key,
+          verificationStatus: "needs_founder_review",
+        },
+        {
+          institutionKey: inst,
+          instrumentKey: `${slug}_hc_rules`,
+          formNumber: "",
+          title: "Originating Summons",
+          purpose: `Commences ${s.name} High Court proceedings on questions of law or document interpretation (originating summons), supported by affidavit. ${confirmNo}`,
+          fields: ["Court caption", "Questions for determination", "Supporting affidavit", "Exhibits"],
+          tags: ["originating summons", "commencement", slugTag],
+          jurisdictionKey: s.key,
+          verificationStatus: "needs_founder_review",
+        },
+        {
+          institutionKey: inst,
+          instrumentKey: `${slug}_hc_rules`,
+          formNumber: "",
+          title: "Notice of Intention to Defend (Undefended List)",
+          purpose: `Undefended-list response in the ${s.name} High Court: the defendant's notice plus affidavit disclosing a defence on the merits to a liquidated money demand; judgment may be entered without trial where none is disclosed. ${confirmNo}`,
+          fields: ["Defendant details", "Affidavit facts", "Grounds of defence"],
+          tags: ["undefended list", "defence", "debt", slugTag],
+          jurisdictionKey: s.key,
+          verificationStatus: "needs_founder_review",
+        },
+        {
+          institutionKey: inst,
+          instrumentKey: `${slug}_hc_rules`,
+          formNumber: "",
+          title: "Witness Statement on Oath",
+          purpose: `Sworn testimony of a witness in ${s.name} High Court proceedings — front-loaded with pleadings in modern (Lagos-model) rules, adopted at trial. ${confirmNo}`,
+          fields: ["Deponent identity", "Facts within knowledge", "Exhibits referenced", "Statement of truth/oath"],
+          tags: ["evidence", "witness statement", slugTag],
+          jurisdictionKey: s.key,
+          verificationStatus: "needs_founder_review",
+        },
+        {
+          institutionKey: inst,
+          instrumentKey: `${slug}_hc_rules`,
+          formNumber: "",
+          title: "Motion on Notice",
+          purpose: `Interlocutory application in the ${s.name} High Court supported by affidavit and written address. ${confirmNo}`,
+          fields: ["Reliefs sought", "Grounds", "Supporting affidavit", "Written address"],
+          tags: ["motion", "interlocutory", slugTag],
+          jurisdictionKey: s.key,
+          verificationStatus: "needs_founder_review",
+        },
+      ];
+      out.push(...hc);
+    }
+
+    // Lower-court forms (every state, including Lagos).
+    const lowerLabel = p.region === "north" ? p.areaCourtLabel : "Magistrates' Court";
+    out.push({
+      institutionKey: inst,
+      instrumentKey: isFctLower(p) ? `${slug}_magistrates_act` : p.region === "north" ? (p.areaCourtLabel === "District Courts" ? `${slug}_district_courts_law` : `${slug}_area_courts_law`) : `${slug}_magistrates_law`,
+      formNumber: "",
+      title: `Claim Summons (${lowerLabel})`,
+      purpose: `Originates a money or lower-tier civil claim in the ${lowerLabel} of ${s.name}, within the court's monetary limits. Confirm the claim form title and limits for ${s.name}.`,
+      fields: ["Parties", "Particulars of claim", "Amount/relief sought", "Evidence summary"],
+      tags: ["lower court", "claim", "small claims", slugTag],
+      jurisdictionKey: s.key,
+      verificationStatus: "needs_founder_review",
+    });
+    out.push({
+      institutionKey: inst,
+      formNumber: "",
+      title: `Notice of Intention to Defend (${lowerLabel})`,
+      purpose: `Defendant's response in the ${lowerLabel} of ${s.name}, stating grounds of defence to a lower-court claim. Confirm the notice period for ${s.name}.`,
+      fields: ["Defendant details", "Grounds of defence", "Supporting facts"],
+      tags: ["lower court", "defence", slugTag],
+      jurisdictionKey: s.key,
+      verificationStatus: "needs_founder_review",
+    });
+  }
+  return out;
+}
+
+function isFctLower(p: StateCourtProfile): boolean {
+  return p.region === "fct";
+}
+
+export const STATE_FORMS: CorpusForm[] = buildStateForms();
+
+// ── Generated per-state practice anchors (2 per state, FCT excluded — it
+//    has the hand-written deep set above) ───────────────────────────────────
+
+function buildStateProvisions(): CorpusProvision[] {
+  const out: CorpusProvision[] = [];
+  for (const s of STATE_JUDICIARIES) {
+    if (s.key === "FCT") continue; // hand-written deep set covers FCT
+    const slug = stateSlug(s.key);
+    const slugTag = s.key.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    out.push({
+      instrumentKey: `${slug}_hc_rules`,
+      ref: "Practice Guide — Commencement",
+      heading: `Commencing a civil claim in the ${s.name} High Court`,
+      textType: "practice_note",
+      text: `Civil claims in the High Court of ${s.name} are commenced by writ of summons (disputed facts) or originating summons (questions of law or document interpretation) under the ${s.rules}. Modern rules editions across the federation follow the Lagos front-loading model — originating processes accompanied by witness statements on oath, exhibits and lists of witnesses — but adoption varies by state: confirm whether the current ${s.name} rules require front-loaded witness statements before filing. The court's originating-process fees and division rules are set by the ${s.name} judiciary's practice directions.`,
+      tags: [slugTag, "commencement", "writ of summons", "originating summons", "front-loading", "high court"],
+      jurisdictionKey: s.key,
+      verificationStatus: "needs_founder_review",
+    });
+    out.push({
+      instrumentKey: `${slug}_hc_rules`,
+      ref: "Practice Guide — Undefended List",
+      heading: `Undefended list and debt recovery in the ${s.name} High Court`,
+      textType: "practice_note",
+      text: `The undefended list is the standard fast-track for liquidated money demands in the ${s.name} High Court: on the claimant's application the claim is entered on the undefended list, and the defendant must file a notice of intention to defend with an affidavit disclosing a defence on the merits within the time limited by the ${s.rules}. Without that filing — or where the affidavit discloses no real defence — judgment is entered without trial. Where a triable issue appears, the suit is transferred to the general cause list. Pair the procedure with post-judgment garnishee under the Sheriffs and Civil Process Act for actual recovery.`,
+      tags: [slugTag, "undefended list", "debt recovery", "liquidated demand", "high court"],
+      jurisdictionKey: s.key,
+      verificationStatus: "needs_founder_review",
+    });
+  }
+  return out;
+}
+
+export const STATE_PROVISIONS: CorpusProvision[] = buildStateProvisions();

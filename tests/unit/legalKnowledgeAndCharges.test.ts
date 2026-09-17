@@ -32,10 +32,14 @@ import {
   FEDERAL_INSTITUTIONS,
   REGISTRY_INSTITUTIONS,
   STATE_JUDICIARIES,
+  STATE_COURT_PROFILES,
   FEDERAL_INSTRUMENTS,
   LAGOS_INSTRUMENTS,
+  STATE_EXTRA_INSTRUMENTS,
   PROVISIONS,
+  STATE_PROVISIONS,
   FORMS,
+  STATE_FORMS,
 } from '../../convex/legalCorpus';
 import { SYSTEM_LEDGER_TYPES, SYSTEM_SERVICE_CATEGORIES } from '../../convex/chargeTypes';
 import {
@@ -65,12 +69,15 @@ describe('Legal corpus integrity (Task 51)', () => {
     ...FEDERAL_INSTRUMENTS.map((i) => i.key),
     ...LAGOS_INSTRUMENTS.map((i) => i.key),
     ...stateInstrumentKeys,
+    ...STATE_EXTRA_INSTRUMENTS.map((i) => i.key),
   ]);
   const allInstitutionKeys = new Set([
     ...FEDERAL_INSTITUTIONS.map((i) => i.key),
     ...REGISTRY_INSTITUTIONS.map((i) => i.key),
     ...stateInstitutionKeys,
   ]);
+  const allProvisions = [...PROVISIONS, ...STATE_PROVISIONS];
+  const allForms = [...FORMS, ...STATE_FORMS];
 
   it('covers all 37 state/FCT judiciaries with unique keys and citations', () => {
     expect(STATE_JUDICIARIES.length).toBe(37);
@@ -84,8 +91,8 @@ describe('Legal corpus integrity (Task 51)', () => {
   });
 
   it('seeds every provision against an instrument that exists', () => {
-    expect(PROVISIONS.length).toBeGreaterThanOrEqual(25);
-    for (const p of PROVISIONS) {
+    expect(allProvisions.length).toBeGreaterThanOrEqual(100);
+    for (const p of allProvisions) {
       expect(allInstrumentKeys.has(p.instrumentKey), `unknown instrument ${p.instrumentKey}`).toBe(true);
       expect(p.ref.trim().length).toBeGreaterThan(0);
       expect(p.heading.trim().length).toBeGreaterThan(0);
@@ -95,8 +102,8 @@ describe('Legal corpus integrity (Task 51)', () => {
   });
 
   it('seeds every form against an institution that exists', () => {
-    expect(FORMS.length).toBeGreaterThanOrEqual(15);
-    for (const f of FORMS) {
+    expect(allForms.length).toBeGreaterThanOrEqual(250);
+    for (const f of allForms) {
       expect(allInstitutionKeys.has(f.institutionKey), `unknown institution ${f.institutionKey}`).toBe(true);
       expect(f.title.trim().length).toBeGreaterThan(0);
       expect(f.fields.length).toBeGreaterThan(0);
@@ -105,12 +112,12 @@ describe('Legal corpus integrity (Task 51)', () => {
   });
 
   it('flags corpus honesty: provisions default to needs_founder_review', () => {
-    for (const p of PROVISIONS) {
+    for (const p of allProvisions) {
       expect(['founder_reviewed', 'needs_founder_review', undefined]).toContain(p.verificationStatus);
     }
     // The honesty contract: unless explicitly marked reviewed, seeded
     // practice content must be flagged for verification.
-    const flagged = PROVISIONS.filter((p) => p.verificationStatus === 'needs_founder_review');
+    const flagged = allProvisions.filter((p) => p.verificationStatus === 'needs_founder_review');
     expect(flagged.length).toBeGreaterThan(0);
   });
 
@@ -133,6 +140,92 @@ describe('Legal corpus integrity (Task 51)', () => {
     ]) {
       expect(allInstrumentKeys.has(key), `missing core instrument ${key}`).toBe(true);
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PART 1B — STATE-BY-STATE EXPANSION (Task 52)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('State-by-state corpus expansion (Task 52)', () => {
+  const slug = (k: string) => k.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+  it('profiles all 37 jurisdictions with the right regional split', () => {
+    expect(STATE_COURT_PROFILES.length).toBe(37);
+    const byRegion = {
+      north: STATE_COURT_PROFILES.filter((p) => p.region === 'north').length,
+      south: STATE_COURT_PROFILES.filter((p) => p.region === 'south').length,
+      fct: STATE_COURT_PROFILES.filter((p) => p.region === 'fct').length,
+    };
+    expect(byRegion).toEqual({ north: 19, south: 17, fct: 1 });
+    // Every northern profile carries a customary-tier label
+    for (const p of STATE_COURT_PROFILES.filter((x) => x.region === 'north')) {
+      expect(['Area Courts', 'District Courts']).toContain(p.areaCourtLabel);
+    }
+  });
+
+  it('has exactly the 12 Sharia-Court-of-Appeal states (all northern)', () => {
+    const sharia = STATE_COURT_PROFILES.filter((p) => p.hasShariaAppeal);
+    expect(sharia.length).toBe(12);
+    for (const p of sharia) {
+      expect(p.region).toBe('north');
+      expect(STATE_EXTRA_INSTRUMENTS.find((i) => i.key === `${slug(p.key)}_sharia_appeal_law`), `${p.key} sharia law`).toBeTruthy();
+      expect(STATE_EXTRA_INSTRUMENTS.find((i) => i.key === `${slug(p.key)}_sharia_appeal_rules`), `${p.key} sharia rules`).toBeTruthy();
+    }
+  });
+
+  it('gives every jurisdiction a full instrument family (min 4 instruments)', () => {
+    const perState = new Map<string, number>();
+    for (const i of STATE_EXTRA_INSTRUMENTS) {
+      const stateKey = i.jurisdictionKey!;
+      perState.set(stateKey, (perState.get(stateKey) || 0) + 1);
+    }
+    for (const s of STATE_JUDICIARIES) {
+      // hc_law + magistrates + one customary tier (area/district north,
+      // customary south; FCT gets area act) = 3 generated + derived hc_rules
+      expect(perState.get(s.key) ?? 0, `${s.key} instrument family`).toBeGreaterThanOrEqual(3);
+      // derived + generated together
+      expect((perState.get(s.key) ?? 0) + 1).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  it('gives every jurisdiction High Court forms and lower-court forms (min 6)', () => {
+    const perState = new Map<string, number>();
+    for (const f of [...FORMS, ...STATE_FORMS]) {
+      if (!f.jurisdictionKey) continue;
+      perState.set(f.jurisdictionKey, (perState.get(f.jurisdictionKey) || 0) + 1);
+    }
+    for (const s of STATE_JUDICIARIES) {
+      const n = perState.get(s.key) ?? 0;
+      expect(n, `${s.key} forms`).toBeGreaterThanOrEqual(6);
+    }
+  });
+
+  it('gives every jurisdiction at least 2 practice anchors (FCT deeper)', () => {
+    const perState = new Map<string, number>();
+    for (const p of [...PROVISIONS, ...STATE_PROVISIONS]) {
+      if (!p.jurisdictionKey) continue;
+      perState.set(p.jurisdictionKey, (perState.get(p.jurisdictionKey) || 0) + 1);
+    }
+    for (const s of STATE_JUDICIARIES) {
+      expect(perState.get(s.key) ?? 0, `${s.key} provisions`).toBeGreaterThanOrEqual(2);
+    }
+    expect(perState.get('FCT') ?? 0).toBeGreaterThanOrEqual(6); // hand-written deep set
+    expect(perState.get('Lagos') ?? 0).toBeGreaterThanOrEqual(5); // hand-written core
+  });
+
+  it('generates no duplicate instrument keys and unique state-scoped titles', () => {
+    const keys = STATE_EXTRA_INSTRUMENTS.map((i) => i.key);
+    expect(new Set(keys).size).toBe(keys.length);
+    const titles = STATE_EXTRA_INSTRUMENTS.map((i) => i.title);
+    expect(new Set(titles).size).toBe(titles.length); // "…of Kano State" etc. unique
+  });
+
+  it('anchors the Land Use Act (foundational property legislation)', () => {
+    expect(FEDERAL_INSTRUMENTS.find((i) => i.key === 'lua_1978')).toBeTruthy();
+    const luaProvisions = PROVISIONS.filter((p) => p.instrumentKey === 'lua_1978');
+    expect(luaProvisions.length).toBeGreaterThanOrEqual(4); // ss.1, 22, 28-29, 34/36
+    expect(luaProvisions.some((p) => p.ref.includes('22'))).toBe(true);
   });
 });
 

@@ -5,7 +5,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon, TrashIcon } from '../../constants';
 import { formatNaira, formatNairaCompact, formatNairaFull, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown, Share2 } from 'lucide-react';
+import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown, Share2, Link2 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
@@ -20,6 +20,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import StatCard from '../StatCard';
 import Tooltip from '../Tooltip';
 import PropertyTrackingView from './PropertyTrackingView';
+import { PropertyRelationshipsTab } from './PropertyRelationshipsTab';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
@@ -45,7 +46,7 @@ const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: st
     </div>
 );
 
-type PropertyTab = 'summary' | 'units' | 'notices' | 'financials' | 'tracking';
+type PropertyTab = 'summary' | 'units' | 'notices' | 'financials' | 'relationships' | 'tracking';
 
 // ─── Eviction Tracker Types & Helpers ───
 interface EvictionTracker {
@@ -162,7 +163,7 @@ const PropertyDetailViewContent: React.FC = () => {
         const ctx = currentHistoryEntry?.context as any;
         if (ctx?.tab) {
             const tab = ctx.tab as PropertyTab;
-            if (['summary', 'units', 'notices', 'financials', 'tracking'].includes(tab)) {
+            if (['summary', 'units', 'notices', 'financials', 'relationships', 'tracking'].includes(tab)) {
                 setActiveTab(tab);
             }
         }
@@ -972,6 +973,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'units', label: <><Home className="w-4 h-4 inline mr-1" /> Units</> }] : []),
                             { id: 'notices' as PropertyTab, label: <><Megaphone className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Notice </span>Board</> },
                             ...((isLeased || hasMultipleUnits) ? [{ id: 'financials' as PropertyTab, label: <><Wallet className="w-4 h-4 inline mr-1" /> Finance</> }] : []),
+                            { id: 'relationships' as PropertyTab, label: <><Link2 className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Use&nbsp;</span>Relationships</> },
                             { id: 'tracking', label: <><Radio className="w-4 h-4 inline mr-1" /> <span className="hidden sm:inline">Activity &amp; </span>Tracking</> },
                         ] as { id: PropertyTab; label: React.ReactNode }[]).map(tab => (
                             <button
@@ -2350,6 +2352,19 @@ const PropertyDetailViewContent: React.FC = () => {
                       3. Bottom: Financial Overview (invoices, ledger, documents)
                     The user said: "DO NOT CONSOLIDATE UNRELATED THINGS" — these
                     are all financial, so the consolidation is appropriate. */}
+
+                {/* TASK 52 — property use-relationship ontology: tenancies,
+                    subleases, licenses, easements, mortgages, customary
+                    interests, co-ownership, assignments (Governor's consent
+                    tracking) + firm-defined custom types. Keys on the root
+                    property's Convex _id (resolved server-side; the tab
+                    accepts either id form). */}
+                {activeTab === 'relationships' && (
+                    <PropertyRelationshipsTab
+                        propertyConvexId={String((property as any)?._id ?? property?.id ?? propertyId ?? '')}
+                        units={(allUnits || []) as any}
+                    />
+                )}
 
                 {activeTab === 'tracking' && (
                     <PropertyTrackingView 

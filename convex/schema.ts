@@ -1464,6 +1464,68 @@ export default defineSchema({
     .index("by_firm_kind", ["firmId", "kind"])
     .index("by_firm_key", ["firmId", "key"]),
 
+  // ─── PROPERTY USE-RELATIONSHIP ONTOLOGY (Task 52, mirrors charge_types) ──
+  // Firm-scoped, extensible registry of property-use relationship kinds.
+  // The 16 SYSTEM types (convex/propertyRelationships.ts) cover the Nigerian
+  // land-law ontology (tenancy, sublease, license, easement, mortgages,
+  // customary tenancy/pledge, caretaker, co-ownership, sale-pending,
+  // assignment, trust, management agency); firms add custom kinds through
+  // the SAME machinery and they flow through tracking, consent and ledger
+  // linkage identically. Mirrored in src/utils/relationshipTypes.ts.
+  relationship_types: defineTable({
+    firmId: v.string(),
+    key: v.string(),                  // slug: "church_lease" (unique per firm)
+    label: v.string(),                // "Church Lease (Sunday use)"
+    legalNature: v.optional(v.string()),    // estate_in_land | license | servitude | security_interest | co_ownership | transactional | management
+    grantorRole: v.optional(v.string()),    // "Landlord"
+    granteeRole: v.optional(v.string()),    // "Tenant"
+    requiresGovernorConsent: v.optional(v.boolean()), // LUA s.22 alienation flag
+    drivesRentLedger: v.optional(v.boolean()),        // rent/renewal tracking applies
+    lawBasis: v.optional(v.string()),       // short note on the legal basis
+    status: v.string(),                     // active | archived
+    createdBy: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_key", ["firmId", "key"]),
+
+  // Concrete property-use relationships tracked like tenancies: parties,
+  // lifecycle, consideration, Governor's consent (LUA s.22) and document
+  // links. Existing tenancies/units are NOT migrated — they import
+  // on demand (importTenanciesAsRelationships) so firms opt in.
+  property_relationships: defineTable({
+    firmId: v.string(),
+    propertyId: v.string(),
+    unitId: v.optional(v.string()),          // optional unit scoping
+    typeKey: v.string(),                     // registry-validated relationship kind
+    status: v.string(),                      // pending | active | expired | terminated | disputed | redeemed
+    grantorContactId: v.optional(v.string()), // owner-side party (contact link)
+    granteeContactId: v.optional(v.string()), // right-holder/occupier-side party
+    grantorName: v.optional(v.string()),     // free text when not a contact
+    granteeName: v.optional(v.string()),
+    startDate: v.optional(v.string()),       // ISO
+    endDate: v.optional(v.string()),         // ISO; end of term / redemption date
+    considerationAmount: v.optional(v.number()), // rent, license fee, loan amount
+    considerationFrequency: v.optional(v.string()), // one_off | monthly | quarterly | bi_annually | annually
+    drivesRentLedger: v.optional(v.boolean()),     // default inherited from the type
+    consentStatus: v.optional(v.string()),   // not_required | not_applied | applied | approved | rejected
+    consentReference: v.optional(v.string()), // consent application/file number
+    documentId: v.optional(v.string()),      // deed / agreement in documents
+    matterId: v.optional(v.string()),        // linked matter
+    notes: v.optional(v.string()),
+    source: v.optional(v.string()),          // manual | imported_tenancy | imported_unit
+    _lastModifiedBy: v.optional(v.string()),
+    _version: v.optional(v.number()),
+    createdAt: v.optional(v.string()),
+    updatedAt: v.optional(v.string()),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_property", ["propertyId"])
+    .index("by_firm_status", ["firmId", "status"])
+    .index("by_firm_type", ["firmId", "typeKey"])
+    .index("by_contact", ["grantorContactId"])
+    .index("by_grantee_contact", ["granteeContactId"]),
+
   leads_pipeline: defineTable({
     firmId: v.string(),
     unitId: v.string(),

@@ -5,10 +5,14 @@ import {
   FEDERAL_INSTITUTIONS,
   REGISTRY_INSTITUTIONS,
   STATE_JUDICIARIES,
+  STATE_COURT_PROFILES,
   FEDERAL_INSTRUMENTS,
   LAGOS_INSTRUMENTS,
+  STATE_EXTRA_INSTRUMENTS,
   PROVISIONS,
+  STATE_PROVISIONS,
   FORMS,
+  STATE_FORMS,
   CORPUS_VERSION,
 } from "./legalCorpus";
 
@@ -19,13 +23,20 @@ import {
  * Invocation (R16 strict identity — bearer session required):
  *   npx convex run seedLegalKnowledge:seedAll '{"sessionToken":"<token>"}'
  *
- * What it seeds (idempotent upserts keyed by natural keys):
- *   - 44 institutions (5 federal courts/registries + 2 Lagos registries + 37 state/FCT judiciaries)
- *   - 46 instruments (9 federal + 2 Lagos + 37 state/FCT High Court rules, derived from
- *     the same citations the drafting engine already uses)
- *   - 27 provisions / practice anchors (Lagos HC, FHC, CFRN, CAMA, Evidence Act,
- *     Tenancy Law, Sheriffs Act, NICN)
- *   - 18 court & registry forms
+ * What it seeds (idempotent upserts keyed by natural keys) — expanded
+ * state-by-state in 2026-09-17.2:
+ *   - 44 institutions (5 federal courts/registries + 2 Lagos registries + 37
+ *     state/FCT judiciaries, with tier-aware notes: Sharia / Customary Courts
+ *     of Appeal, Area/District vs Customary Courts)
+ *   - ~235 instruments: 10 federal + 4 Lagos + 37 High Court rules + the full
+ *     per-state family (High Court Law, Magistrates' Courts Law, Area/District
+ *     Courts Law (north), Sharia Court of Appeal Law + Rules (12), Customary
+ *     Court of Appeal Law (11 + FCT), Customary Courts Law (south 17),
+ *     FCT federal acts + Recovery of Premises Act)
+ *   - ~110 provisions / practice anchors: federal + Lagos + FCT deep sets,
+ *     Land Use Act anchors, and 2 generated practice anchors per state
+ *   - ~280 court & registry forms: federal/Lagos hand-written + 5 High Court
+ *     forms per state + 2 lower-court forms per state
  *   - instruments carry provisionCount/formCount so the coverage manifest needs
  *     no table scans.
  *
@@ -49,6 +60,19 @@ export const seedAll = mutation({
     const report = { institutions: 0, instruments: 0, provisions: 0, forms: 0, updated: 0 };
 
     // ── 1. Institutions ─────────────────────────────────────────────────────
+    // Tier-aware institution notes from the state court profiles, so the
+    // coverage manifest can answer "does Kano have a Sharia Court of
+    // Appeal?" without extra lookups.
+    const tierNotes = (s: (typeof STATE_JUDICIARIES)[number]): string => {
+      const p = STATE_COURT_PROFILES.find((x) => x.key === s.key)!;
+      const tiers = ["High Court", "Magistrates' Courts"];
+      if (p.region === "north") tiers.push(p.areaCourtLabel ?? "Area Courts");
+      else tiers.push("Customary Courts");
+      if (p.hasShariaAppeal) tiers.push("Sharia Court of Appeal");
+      if (p.hasCustomaryAppeal) tiers.push("Customary Court of Appeal");
+      return `${tiers.join(", ")} in ${s.name}. High Court procedure governed by the ${s.rules}. Instrument family (enabling laws, lower-court laws, appellate-tier laws) seeded and verification-flagged — see the instruments list for this judiciary.`;
+    };
+
     const allInstitutions = [
       ...FEDERAL_INSTITUTIONS,
       ...REGISTRY_INSTITUTIONS,
@@ -60,8 +84,11 @@ export const seedAll = mutation({
         level: s.key === "FCT" ? ("fct" as const) : ("state" as const),
         jurisdictionKey: s.key,
         divisions: [`${s.capital} Judicial Division`],
-        notes: `State High Court, Magistrate Courts and customary courts in ${s.name}. High Court procedure governed by the ${s.rules}.`,
-        coverageTier: s.key === "Lagos" ? ("deep" as const) : ("instruments" as const),
+        notes: tierNotes(s),
+        coverageTier:
+          s.key === "Lagos" || s.key === "FCT"
+            ? ("deep" as const)
+            : ("instruments" as const),
       })),
     ];
 
@@ -89,11 +116,16 @@ export const seedAll = mutation({
       kind: "rules" as const,
       year: s.year,
       status: "in_force" as const,
-      summary: `High Court civil procedure for ${s.name}: originating processes, service, pleadings, trial and enforcement. Provision-level content is being expanded — the rules citation is already used by the drafting engine for ${s.name} captions.`,
+      summary: `High Court civil procedure for ${s.name}: originating processes, service, pleadings, trial and enforcement. The instrument family for ${s.name} (enabling law, lower-court and appellate-tier laws, standard forms) is seeded alongside; the rules citation is also used by the drafting engine for ${s.name} captions.`,
       jurisdictionKey: s.key,
     }));
 
-    const allInstruments = [...FEDERAL_INSTRUMENTS, ...LAGOS_INSTRUMENTS, ...stateInstruments];
+    const allInstruments = [
+      ...FEDERAL_INSTRUMENTS,
+      ...LAGOS_INSTRUMENTS,
+      ...stateInstruments,
+      ...STATE_EXTRA_INSTRUMENTS,
+    ];
 
     for (const ins of allInstruments) {
       const existing = await ctx.db
@@ -113,7 +145,7 @@ export const seedAll = mutation({
 
     // ── 3. Provisions / practice anchors ────────────────────────────────────
     const provisionCounts: Record<string, number> = {};
-    for (const p of PROVISIONS) {
+    for (const p of [...PROVISIONS, ...STATE_PROVISIONS]) {
       const existing = await ctx.db
         .query("instrument_provisions")
         .withIndex("by_instrument", (q) => q.eq("instrumentKey", p.instrumentKey))
@@ -139,7 +171,7 @@ export const seedAll = mutation({
 
     // ── 4. Forms ────────────────────────────────────────────────────────────
     const formCounts: Record<string, number> = {};
-    for (const f of FORMS) {
+    for (const f of [...FORMS, ...STATE_FORMS]) {
       const existing = await ctx.db
         .query("court_forms")
         .withIndex("by_institution", (q) => q.eq("institutionKey", f.institutionKey))
