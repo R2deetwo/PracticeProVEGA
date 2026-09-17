@@ -95,8 +95,11 @@ export const DashboardTab: React.FC<{
     ...(isManagementOnly ? [] : [
       { icon: <NairaSymbol className="w-5 h-5 inline" />, label: 'Pay Rent', tab: 'payments' as TabId, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' },
     ]),
-    // Core services — each gated by its own Active/Inactive toggle
-    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger' as TabId, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400', disabled: false, tooltip: undefined },
+    // Core services — each gated by its own Active/Inactive toggle.
+    // Service Charge follows the same rule as every other service (user
+    // request 2026-09-17: all things can be turned off) — when the manager
+    // deactivates it for the property, residents see it grayed out.
+    { icon: <ReceiptIcon className="w-5 h-5" />, label: 'Service Charge', tab: 'ledger' as TabId, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400', disabled: !coreServices.serviceCharge, tooltip: !coreServices.serviceCharge ? 'This service is not applicable for your property.' : undefined },
     { icon: <BoltIcon className="w-5 h-5" />, label: 'Electricity', tab: 'ledger' as TabId, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400', disabled: !coreServices.electricity, tooltip: !coreServices.electricity ? 'This service is not applicable for your property.' : undefined },
     { icon: <WifiIcon className="w-5 h-5" />, label: 'Internet', tab: 'ledger' as TabId, color: 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400', disabled: !coreServices.internet, tooltip: !coreServices.internet ? 'This service is not applicable for your property.' : undefined },
     // Waste Management — new core service
