@@ -397,7 +397,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
             case 'messaging': return <ViewWrapper><MessagesView /></ViewWrapper>;
             case 'notes': return <ViewWrapper><NotesView /></ViewWrapper>;
-            case 'help': return <ViewWrapper><HelpView /></ViewWrapper>;
+            // /help/<sectionId> deep links (welcome-email "Get Started"
+            // buttons): selectedId carries the section from the URL path.
+            case 'help': return <ViewWrapper><HelpView initialSection={selectedId} /></ViewWrapper>;
             case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
 
             // FIX: editor was the ONLY view rendered without ViewWrapper's
@@ -890,9 +892,43 @@ export const App: React.FC = () => {
                 navigate('/portal/client/login' + window.location.search, { replace: true });
                 return;
             }
+            // EMAILED HELP-CENTER LINKS (/help, /help/<section>): unauthenticated
+            // visitors are bounced to the landing page below, but remember where
+            // they were headed so the post-login redirect effect can land them on
+            // the intended Help Center section after sign-in. Scoped to /help
+            // paths only — never portal, auth, or arbitrary external paths.
+            if (location.pathname === '/help' || location.pathname.startsWith('/help/')) {
+                try {
+                    sessionStorage.setItem('practicepro_pending_redirect', location.pathname);
+                } catch {}
+            }
             navigate('/', { replace: true });
         }
     }, [isLoadingSession, currentUser, location.pathname, navigate]);
+
+    // POST-LOGIN REDIRECT: completes the handoff saved above. When an
+    // unauthenticated visitor clicked an emailed Help Center deep link
+    // (/help/<section>), signed in from the landing page, and the session
+    // is now live, send them to the section they originally asked for
+    // instead of stranding them on the dashboard. sessionStorage (not
+    // localStorage) so the intent dies with the tab if they never log in.
+    // Cleared on use, and only honored for /help paths — nothing else can
+    // plant a redirect target.
+    useEffect(() => {
+        if (!currentUser || isLoadingSession) return;
+        let pending: string | null = null;
+        try {
+            pending = sessionStorage.getItem('practicepro_pending_redirect');
+        } catch {}
+        if (!pending) return;
+        try {
+            sessionStorage.removeItem('practicepro_pending_redirect');
+        } catch {}
+        if (pending === '/help' || pending.startsWith('/help/')) {
+            navigate(pending, { replace: true });
+        }
+        // Run only when auth state flips (login/logout), not on every path change.
+    }, [currentUser, isLoadingSession, navigate]);
 
     // Handle revoked portal accounts: when the backend confirms the user's account
     // has been revoked (isVerified=false + role=Pending), clear their session and

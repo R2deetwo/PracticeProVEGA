@@ -7,11 +7,19 @@ import { useUI } from '../contexts/UIContext';
 import { useProduct } from '../contexts/ProductContext';
 import { getAssistantName, getAssistantFullName } from '../utils/assistantIdentity';
 
-const HelpView: React.FC = () => {
+interface HelpViewProps {
+    /** Section ID deep-linked from the URL path (/help/<sectionId>). Set by
+     *  App.tsx from the router's selectedId — used by emailed Help Center
+     *  links (welcome email "Get Started" buttons) and any external link
+     *  that targets a specific Help Center section. */
+    initialSection?: string | null;
+}
+
+const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const { currentHistoryEntry, navigateTo } = useUI();
     const [searchQuery, setSearchQuery] = useState('');
     const [isAskingAloa, setIsAskingAloa] = useState(false);
-    const [activeSection, setActiveSection] = useState<string | null>(currentHistoryEntry.context?.activeSection || 'getting-started');
+    const [activeSection, setActiveSection] = useState<string | null>(initialSection || currentHistoryEntry.context?.activeSection || 'getting-started');
     const { togglePanel } = useAloa();
     const { isProperty, hasPropertyFeatures, hasLegalFeatures, isUnified } = useProduct();
     const assistantName = getAssistantName(isProperty);
@@ -29,6 +37,23 @@ const HelpView: React.FC = () => {
             }, 100);
         }
     }, [currentHistoryEntry.context?.activeSection]);
+
+    // URL DEEP LINK (/help/<sectionId>): open + scroll to the linked section.
+    // Fires on mount (emailed link opened while logged in) and when the path
+    // changes while HelpView is already mounted (e.g. switching between two
+    // emailed section links). Unknown IDs are ignored — /help/nonsense just
+    // shows the default 'getting-started' accordion instead of breaking.
+    React.useEffect(() => {
+        if (!initialSection) return;
+        setActiveSection(initialSection);
+        const t = window.setTimeout(() => {
+            const element = document.getElementById(initialSection);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 150);
+        return () => window.clearTimeout(t);
+    }, [initialSection]);
 
     const handleCardClick = (sectionId: string) => {
         setActiveSection(sectionId);

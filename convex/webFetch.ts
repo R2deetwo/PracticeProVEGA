@@ -48,7 +48,7 @@ export const fetchUrlContent = action({
       const response = await fetch(url, {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; PracticePro/1.0; +https://practicepro.ng/bot)",
+            "Mozilla/5.0 (compatible; PracticePro/1.0; +https://practice-pro-vega.vercel.app/bot)",
           Accept: "text/html,application/xhtml+xml,application/xml,text/plain",
           "Accept-Language": "en-US,en;q=0.9",
         },

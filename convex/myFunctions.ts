@@ -6081,23 +6081,33 @@ export const sendWelcomeEmail = internalAction({
     const brand = getProductBranding(args.product);
     const userName = args.name || 'there';
 
-    // Product-specific getting started guides
+    // 2026-09-17 (dead-link fix): the getting-started links previously pointed
+    // at https://practicepro.ng/help/... — a domain that was never registered
+    // (NXDOMAIN), so every "Get Started" button in the welcome email was a
+    // dead link. They now point at the live web app (same origin as the
+    // password-reset emails' appDomain) and deep-link to the matching Help
+    // Center section (/help/<sectionId>), which the app router resolves to
+    // HelpView with that section pre-opened and scrolled into view.
+    const appDomain = "https://practice-pro-vega.vercel.app";
+
+    // Product-specific getting started guides — URLs map 1:1 to HelpView
+    // section IDs (see src/components/HelpView.tsx `sections` array).
     const gettingStartedLinks: Record<string, { label: string; url: string }[]> = {
       legal: [
-        { label: 'Create your first Matter', url: 'https://practicepro.ng/help/matters' },
-        { label: 'Meet ALOA — your AI assistant', url: 'https://practicepro.ng/help/aloa' },
-        { label: 'Draft documents with DraftPro', url: 'https://practicepro.ng/help/draftpro' },
+        { label: 'Create your first Matter', url: `${appDomain}/help/getting-started` },
+        { label: 'Meet ALOA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
+        { label: 'Draft documents with DraftPro', url: `${appDomain}/help/draftpro-editor` },
       ],
       property: [
-        { label: 'Add your first Property', url: 'https://practicepro.ng/help/properties' },
-        { label: 'Meet ARIA — your AI assistant', url: 'https://practicepro.ng/help/aria' },
-        { label: 'Manage tenants & rent', url: 'https://practicepro.ng/help/tenants' },
+        { label: 'Add your first Property', url: `${appDomain}/help/property-management` },
+        { label: 'Meet ARIA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
+        { label: 'Manage tenants & rent', url: `${appDomain}/help/revenue-engine` },
       ],
       unified: [
-        { label: 'Create your first Matter', url: 'https://practicepro.ng/help/matters' },
-        { label: 'Add your first Property', url: 'https://practicepro.ng/help/properties' },
-        { label: 'Meet ALOA — your AI assistant', url: 'https://practicepro.ng/help/aloa' },
-        { label: 'Draft documents with DraftPro', url: 'https://practicepro.ng/help/draftpro' },
+        { label: 'Create your first Matter', url: `${appDomain}/help/getting-started` },
+        { label: 'Add your first Property', url: `${appDomain}/help/property-management` },
+        { label: 'Meet ALOA — your AI assistant', url: `${appDomain}/help/aloa-tips` },
+        { label: 'Draft documents with DraftPro', url: `${appDomain}/help/draftpro-editor` },
       ],
     };
 
@@ -6116,7 +6126,7 @@ export const sendWelcomeEmail = internalAction({
       <div style="background:${BRAND_GREEN_LIGHT};border-radius:10px;padding:20px;margin-bottom:32px;">
         <p style="color:${BRAND_GREEN_DARK};font-size:15px;font-weight:600;margin:0 0 8px 0;">Learning Resources</p>
         <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">
-          Visit our <a href="https://practicepro.ng/help" style="color:${BRAND_GREEN};text-decoration:none;font-weight:600;">Help Center</a> for tutorials, video guides, and best practices. You can also access help anytime from within the app by clicking the "?" icon.
+          Visit our <a href="${appDomain}/help" style="color:${BRAND_GREEN};text-decoration:none;font-weight:600;">Help Center</a> for tutorials, video guides, and best practices. You can also access help anytime from within the app by clicking the "?" icon.
         </p>
       </div>
       <p style="color:#4a5568;font-size:14px;line-height:1.6;margin:0;">
