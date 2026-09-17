@@ -11,6 +11,10 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { useUI } from '../../contexts/UIContext';
 import { getTiersForProduct, DISPLAY_TIER_IDS, ProductMode, TierId, TierDef, formatTierPrice, isKomplete } from '../../constants/tiers';
+// TASK 54: normalize the stored product before it reaches createFirm — a
+// corrupted value ("[object Object]" from the click-event leak) made Convex's
+// v.union validator THROW and broke onboarding entirely for affected users.
+import { normalizeSignupProduct } from '../../utils/signupProduct';
 import { NIGERIAN_STATES, PORTFOLIO_TYPE_OPTIONS, ATRIUM_FOCUS_OPTIONS } from '../../utils/jurisdictionConfig';
 // PROFESSIONAL IDENTITY (user feedback 2026-09-16): the "How should you
 // appear in correspondence?" card (professional title + legal form) moved
@@ -165,8 +169,11 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
 
   // Use the product the user selected during signup
-  // This is stored on the user record by the backend
-  const userProduct = (currentUser as any)?.product as ProductMode | undefined;
+  // This is stored on the user record by the backend.
+  // TASK 54: normalize — only a KNOWN product id is usable. Legacy records
+  // from the click-event leak stored "[object Object]", which previously
+  // flowed straight into createFirm and crashed its Convex validator.
+  const userProduct = normalizeSignupProduct((currentUser as any)?.product) as ProductMode | null;
 
   // ── WIZARD-IN-PROGRESS FLAG ────────────────────────────────────────────
   // PROBLEM: App.tsx mounts this wizard only while `!currentUser.firmId`.
@@ -196,6 +203,8 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   });
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [firmName, setFirmName] = useState('');
+  // TASK 54: userProduct is null when absent/corrupted — the 'legal' fallback
+  // here predates the incident and only fires for records with NO product.
   const [product, setProduct] = useState<ProductMode>(userProduct || 'legal');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
   const [selectedTierId, setSelectedTierId] = useState<TierId>('Pro');

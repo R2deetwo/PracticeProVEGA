@@ -17,6 +17,8 @@ import {
     type TierId,
     type TierDef,
 } from '../constants/tiers';
+// TASK 54: click-event-safe product normalization for the signup funnel.
+import { normalizeSignupProduct } from '../utils/signupProduct';
 import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 
 // ─── SHARED PRIMITIVE COMPONENTS ────────────────────────────────────────────
@@ -296,7 +298,10 @@ const NavBar: React.FC<{
                 >
                     Log In
                 </button>
-                <PrimaryButton onClick={onSignup} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-lg">
+                {/* TASK 54: invoke with NO arguments — passing the handler
+                    directly leaked the click event into openSignup's
+                    productOverride (see comment at openSignup). */}
+                <PrimaryButton onClick={() => onSignup()} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-lg">
                     Start Free Trial
                 </PrimaryButton>
 
@@ -706,7 +711,9 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                             screens. md+ shows the hero CTA since there's no
                             sticky bar on desktop. */}
                         <div className="hidden md:flex gap-4 justify-center lg:justify-start items-center mb-8">
-                            <PrimaryButton onClick={onSignup} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
+                            {/* TASK 54: no-arg invocation — never leak the click
+                                event into the product override. */}
+                            <PrimaryButton onClick={() => onSignup()} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
                                 Get Started
                             </PrimaryButton>
                         </div>
@@ -2124,8 +2131,10 @@ const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => vo
                     {copy.body}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                    {/* TASK 54: no-arg invocation — never leak the click event
+                        into the product override. */}
                     <button
-                        onClick={onSignup}
+                        onClick={() => onSignup()}
                         className="bg-white text-primary-600 px-8 py-4 rounded-md font-semibold hover:bg-white/90 hover:scale-[1.02] transition-all shadow-lg"
                     >
                         Start Free Trial
@@ -2159,8 +2168,10 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
         >
             Talk to Sales
         </button>
+        {/* TASK 54: no-arg invocation — never leak the click event into the
+            product override. */}
         <button
-            onClick={onSignup}
+            onClick={() => onSignup()}
             className="flex-[1.5] py-3 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 active:bg-primary-800 transition-colors"
         >
             Start Free Trial
@@ -2362,9 +2373,26 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     // The fix: explicitly pass `null` (not `undefined`) when no product is
     // chosen, AND add a `forceProductSelection: true` flag that Signup.tsx
     // reads to guarantee the product_selection step is shown.
-    const openSignup = (productOverride?: ProductMode) => {
-        // Priority: explicit override > current activeProduct (if chosen) > null
-        const product = productOverride || (productChosen ? activeProduct : null);
+    // TASK 54 (2026-09-17 live incident): openSignup used to be wired directly
+    // as `onClick={openSignup}` on the "Start Free Trial" buttons — React
+    // passes the click event as the first argument, so the SyntheticEvent
+    // object became `productOverride`. An event is TRUTHY, so it sailed past
+    // the `productOverride ||` fallback, was passed to the signup modal as
+    // `selectedProduct` (skipping the "Choose Your Solution" step — users
+    // landed on the form and had to hit "← Back"), and on submit reached the
+    // backend as the string "[object Object]", which every `|| 'legal'`
+    // default downstream branded as Vega. A user signing up from the Atrium
+    // page was told they had signed up for Vega.
+    //
+    // Fix: ONLY accept known product ids. Anything else (events, objects,
+    // garbage) is treated as "no override". The call sites are also fixed to
+    // `() => onSignup()`, but this guard makes openSignup safe to wire
+    // directly to onClick forever.
+    const openSignup = (productOverride?: ProductMode | unknown) => {
+        // Normalize: null for anything that isn't a known product id.
+        const override = normalizeSignupProduct(productOverride);
+        // Priority: explicit valid override > current activeProduct (if chosen) > none
+        const product = override || (productChosen ? normalizeSignupProduct(activeProduct) : null);
         openModal('signup', null, {
             selectedProduct: product,
             forceProductSelection: !product, // true when no product chosen

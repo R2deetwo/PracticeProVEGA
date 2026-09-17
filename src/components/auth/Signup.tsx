@@ -11,6 +11,17 @@ import { AppMode, SubscriptionPlan } from '../../types';
 // R13: the signup form's ToS + Privacy checkboxes are a REAL legal consent —
 // record them so the app never re-prompts the same acceptance.
 import { markTermsAccepted, TERMS_VERSION } from '../TermsAcceptance';
+// TASK 54: click-event-safe product normalization. A React SyntheticEvent
+// once leaked into modalContext.selectedProduct (truthy object) — it skipped
+// this modal's product_selection step and reached the backend as the string
+// "[object Object]", branding the account Vega regardless of what the user
+// chose. Every product value now passes through normalizeSignupProduct.
+import {
+ normalizeSignupProduct,
+ isInternalProduct,
+ PRODUCT_DISPLAY_NAMES,
+ PRODUCT_ACCENT_COLORS,
+} from '../../utils/signupProduct';
 
 interface SignupProps {
  onSwitchToLogin: () => void;
@@ -82,16 +93,16 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
   }
 
   // Handle direct product selection from Landing Page
-  if (modalContext?.selectedProduct) {
-   const mappedProduct =
-    modalContext.selectedProduct === 'vega' ? 'legal' :
-    modalContext.selectedProduct === 'atrium' ? 'property' :
-    modalContext.selectedProduct;
-   setSelectedProduct(mappedProduct as any);
+  // TASK 54: normalize BEFORE branching — only a KNOWN product id counts as
+  // a selection. Events, objects, and unknown strings fall through to the
+  // product_selection step instead of silently skipping it.
+  const contextProduct = normalizeSignupProduct(modalContext?.selectedProduct);
+  if (contextProduct) {
+   setSelectedProduct(contextProduct);
    // TASK 18: Also store in the ref — this is the bulletproof path.
    // Even if modalContext becomes null later (React re-renders,
    // context cleared, etc.), the ref preserves the product.
-   productRef.current = mappedProduct as 'legal' | 'property' | 'unified';
+   productRef.current = contextProduct;
    setStep('form');
   } else {
    // BUG FIX (Task 14): When NO product is selected, ALWAYS reset to
@@ -149,10 +160,14 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
    // becomes null or selectedProduct state gets reset, the ref
    // preserves the correct product. This is the BULLETPROOF fix for
    // the "vega email from atrium signup" bug.
-   const productToSend = productRef.current;
+   // TASK 54: normalize on the way out too — the backend must ONLY ever
+   // receive 'legal' | 'property' | 'unified'. A truthy-but-invalid value
+   // (the "[object Object]" incident) is treated as no selection.
+   const productToSend = normalizeSignupProduct(productRef.current);
 
-   // FIX: Guard against null product — don't let signup proceed without a product
-   if (!productToSend) {
+   // FIX: Guard against null/invalid product — don't let signup proceed
+   // without a KNOWN product.
+   if (!productToSend || !isInternalProduct(productToSend)) {
     addToast("Please select a product (Vega, Atrium, or Komplete) to continue.", { type: 'error' });
     setStep('product_selection');
     setIsLoading(false);
@@ -517,6 +532,34 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <button onClick={() => setStep('product_selection')} className="text-xs font-bold text-slate-400 hover:text-slate-600">← Back</button>
     </div>
     <div className="text-center mb-6">
+     {/* TASK 54 — product clarity chip: the user must SEE which product
+         workspace they are creating BEFORE they type anything. This is the
+         "where am I going?" answer — a user who intended Atrium but landed
+         here with Vega now has an explicit, colored confirmation in front
+         of them (plus a one-tap way back to the chooser). Migration users
+         skip the chip (their product is resolved after verification). */}
+     {selectedProduct && (
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-200 bg-slate-50 mb-3">
+       <span
+        className="w-2.5 h-2.5 rounded-full"
+        style={{ backgroundColor: PRODUCT_ACCENT_COLORS[selectedProduct] }}
+        aria-hidden="true"
+       />
+       <span className="text-xs font-bold text-slate-700">
+        PracticePro {PRODUCT_DISPLAY_NAMES[selectedProduct]}
+       </span>
+       <span className="text-3xs font-semibold uppercase tracking-wider text-slate-400">
+        {selectedProduct === 'legal' ? 'Legal' : selectedProduct === 'property' ? 'Property' : 'Legal + Property'}
+       </span>
+       <button
+        type="button"
+        onClick={() => setStep('product_selection')}
+        className="text-2xs font-bold text-primary-600 hover:text-primary-700 hover:underline ml-1"
+       >
+        Change
+       </button>
+      </div>
+     )}
      <p className="text-sm text-slate-500">
       {isMigrationUser
        ? 'Create your new account and we\'ll restore your previous workspace.'

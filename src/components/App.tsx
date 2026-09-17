@@ -1420,7 +1420,12 @@ export const App: React.FC = () => {
             // LandingPage again, making the page's primary conversion CTAs
             // no-ops. Now they open the signup / lead-capture modals, and the
             // product toggle actually switches content.
-            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup')} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} />;
+            // TASK 54: the Resources page has its OWN product toggle (Vega /
+            // Atrium) and its CTA copy promises that product's trial ("Start
+            // your 30-day free trial of PracticePro Atrium today"). The trial
+            // CTA now carries that product into the signup modal so the copy
+            // and the actual signup match.
+            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} />;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
@@ -1497,10 +1502,15 @@ export const App: React.FC = () => {
             // no product is passed — the landing page shows its default state and
             // the "Get Started Free" button opens the signup with the product
             // selection step (no product pre-selected).
+            // TASK 54: /komplet no longer maps to 'vega' — that silently showed a
+            // user who explicitly wanted Komplete the VEGA marketing page, and its
+            // "Start Free Trial" then created a Vega signup. There is no
+            // Komplete-specific landing page yet; the honest behavior is the hub
+            // (product-neutral) where "Start Free Trial" opens the chooser with
+            // the Komplete option present.
             const urlProduct: 'vega' | 'atrium' | undefined =
                 location.pathname === '/vega' ? 'vega' :
-                location.pathname === '/atrium' ? 'atrium' :
-                location.pathname === '/komplet' ? 'vega' : undefined; // komplet maps to vega for landing purposes
+                location.pathname === '/atrium' ? 'atrium' : undefined;
             return <LandingPage initialProduct={urlProduct} />;
         }
 

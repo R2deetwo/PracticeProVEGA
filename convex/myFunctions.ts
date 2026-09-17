@@ -1523,17 +1523,37 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
     // FIX: Don't default to 'legal' (Vega) when no product is passed.
     // Pass undefined through to sendVerificationEmail so the email subject
     // says "PracticePro — Your Verification Code" instead of "PracticePro Vega".
-    let selectedProduct: 'legal' | 'property' | 'unified' | undefined = args.product as any;
+    //
+    // TASK 54 (2026-09-17 live incident): normalize args.product SERVER-SIDE
+    // too. The landing page's openSignup used to receive the React click
+    // event as its product argument; the client sanitizer String()ed it to
+    // "[object Object]", which was stored verbatim on users.product (the
+    // field is a loose nullableString with no enum guard). Every downstream
+    // `user.product || 'legal'` default then branded the account Vega —
+    // users who chose Atrium were welcomed to Vega, and the corrupted value
+    // later crashed createFirm's v.union validator during onboarding.
+    // Only exact, known product spellings are accepted now; anything else
+    // (objects stringified to "[object Object]", typos, unknown ids) is
+    // treated as "no product provided".
+    const rawProduct = typeof args.product === 'string' ? args.product.toLowerCase().trim() : undefined;
+    let selectedProduct: 'legal' | 'property' | 'unified' | undefined =
+      rawProduct === 'vega' || rawProduct === 'legal' ? 'legal' :
+      rawProduct === 'atrium' || rawProduct === 'property' ? 'property' :
+      rawProduct === 'unified' || rawProduct === 'komplete' ? 'unified' :
+      undefined;
 
     // BUG FIX (Task 16): When no product is passed (e.g. resendConfirmation),
     // use the EXISTING user's product instead of defaulting to 'legal' (Vega).
     // This was the root cause of "vega email heading from an atrium signup" —
     // the user signed up from Atrium (product='property'), but when resending
     // the verification code, the backend defaulted to Vega branding.
-    if (!args.product) {
+    // TASK 54: only reuse the stored product if it is itself VALID — a
+    // previously corrupted record ("[object Object]") must not propagate.
+    if (!selectedProduct) {
       const existingUserForProduct: any = await ctx.runQuery(api.myFunctions.getUser, { tokenIdentifier: args.email.toLowerCase().trim() });
-      if (existingUserForProduct?.product) {
-        selectedProduct = existingUserForProduct.product as 'legal' | 'property' | 'unified';
+      const existingProduct = existingUserForProduct?.product;
+      if (existingProduct === 'legal' || existingProduct === 'property' || existingProduct === 'unified') {
+        selectedProduct = existingProduct;
       }
     }
 
@@ -1566,7 +1586,10 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
       }
 
       // Resume incomplete registration — patch code, product, and password if provided
-      const patchFields: Record<string, any> = { verificationCode: code, product: selectedProduct };
+      // TASK 54: only write the product when we actually resolved a VALID one —
+      // never overwrite (or stringify-undefined) the stored product on resends.
+      const patchFields: Record<string, any> = { verificationCode: code };
+      if (selectedProduct) patchFields.product = selectedProduct;
       if (hashedPassword) patchFields.password = hashedPassword;
       await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
         userId: existingUser._id,
