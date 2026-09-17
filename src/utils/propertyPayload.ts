@@ -31,6 +31,8 @@ export interface UnitRentalInput {
   isAgencyNA?: boolean;
   cautionDeposit?: number;
   isCautionNA?: boolean;
+  /** Months of service charge payable in advance at move-in (0 = pay as billed). */
+  serviceChargeMonthsInAdvance?: number;
   status: Property['status'];
   _id?: string;
   /** Per-period SC tracking (used by OnboardUnitLedgerModal + ServiceChargeBars) */
@@ -60,6 +62,7 @@ export function normalizeUnitRental(unit: UnitRentalInput): UnitRentalInput {
   return {
     ...unit,
     tenantName,
+    serviceChargeMonthsInAdvance: Math.max(0, Math.min(24, Math.round(Number(unit.serviceChargeMonthsInAdvance) || 0))),
     leaseStart: cleanDate(unit.leaseStart) ?? '',
     leaseEnd: cleanDate(unit.leaseEnd) ?? '',
     nextRentReview: cleanDate(unit.nextRentReview) ?? '',
@@ -96,12 +99,14 @@ export function buildPropertyRecord(
 
   if (unit._id) (pd as Property & { _id?: string })._id = unit._id;
 
-  // Use unit-level description if provided, otherwise fall back to property-level + unitName
-  const unitDesc = normalized.unitDescription?.trim();
-  pd.description =
-    unitDesc ||
-    normalized.unitName ||
-    (propertyData.description ? `${propertyData.description} (${normalized.unitName})` : normalized.unitName);
+  // BUILDING-LEVEL DESCRIPTION ONLY (Task 58). The unit row's description
+  // is exactly what the manager typed for the property — NEVER derived from
+  // unit fields. The old chain (`unitDescription || unitName ||
+  // `${description} (${unitName})`) overwrote the typed property description
+  // with "Unit 1" on every save of a fresh unit, which is precisely the
+  // reported data-loss bug. Unit-level notes live in
+  // rentalDetails.unitDescription and stay fully independent.
+  pd.description = propertyData.description ?? '';
 
   pd.rentalDetails = {
     ...normalized,
@@ -111,6 +116,80 @@ export function buildPropertyRecord(
   };
 
   return pd;
+}
+
+/**
+ * Recover the building-level description from a legacy unit row (Task 58).
+ * Old saves wrote `${description} (Unit 2)` — or just `Unit 2` — into each
+ * unit row's description. Strip the mangled forms so the edit form shows
+ * the manager's original text (or empty when the row only ever carried
+ * unit-name noise).
+ */
+export function deriveBuildingDescription(
+  rawDescription: string | undefined | null,
+  unitName?: string
+): string {
+  let desc = (rawDescription || '').trim();
+  if (!desc) return '';
+  // Strip a trailing "(Unit X)" suffix the legacy writer appended.
+  const suffix = desc.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (suffix) {
+    const inner = suffix[2].trim();
+    const looksLikeUnitTag =
+      (!!unitName && inner.toLowerCase() === unitName.toLowerCase()) ||
+      /^unit\b/i.test(inner);
+    if (looksLikeUnitTag) desc = suffix[1].trim();
+  }
+  // A "description" that is nothing but the unit label is mangled data —
+  // the real description was never persisted. Surface empty so the manager
+  // retypes it rather than shipping "Unit 1" as a building description.
+  if (!desc) return '';
+  if (/^unit\s*\d*$/i.test(desc)) return '';
+  if (unitName && desc.toLowerCase() === unitName.toLowerCase()) return '';
+  return desc;
+}
+
+// ─── Service-charge cycle math (Task 59) ────────────────────────────────────
+// The form captures ONE figure — the amount per billing cycle — in
+// `serviceChargeAmount`. The legacy monthly rate (`serviceCharge`) is
+// DERIVED from it so every existing reader (billing timeline via
+// resolveCadence, ServiceChargeMonitor, portals, message financials,
+// OnboardUnitLedgerModal) keeps working unchanged.
+
+/** Months in one service-charge billing cycle for a frequency label. */
+export function scCycleMonths(freq?: string): 1 | 3 | 6 | 12 {
+  switch ((freq || '').trim()) {
+    case 'Quarterly': return 3;
+    case 'Bi-Annually': return 6;
+    case 'Annually': return 12;
+    default: return 1;
+  }
+}
+
+/**
+ * The per-cycle amount the form should load for a unit's service charge.
+ * Mirrors the readers' semantics (resolveCadence):
+ *   monthly cadence  → the monthly rate (serviceCharge) wins, else the total
+ *   longer cadences  → the per-cycle total (serviceChargeAmount) wins, else the rate
+ */
+export function loadServiceChargeCycle(rental?: {
+  serviceCharge?: number | string;
+  serviceChargeAmount?: number | string;
+  serviceChargeFrequency?: string;
+} | null): number {
+  const r = (rental || {}) as Record<string, unknown>;
+  const rate = Number(r.serviceCharge) || 0;
+  const total = Number(r.serviceChargeAmount) || 0;
+  return scCycleMonths(r.serviceChargeFrequency as string | undefined) === 1
+    ? (rate > 0 ? rate : total)
+    : (total > 0 ? total : rate);
+}
+
+/** Monthly rate implied by a per-cycle amount + frequency (2dp). */
+export function monthlyServiceChargeRate(perCycle: number, freq?: string): number {
+  const months = scCycleMonths(freq);
+  const amt = Number(perCycle) || 0;
+  return Math.round((amt / months) * 100) / 100;
 }
 
 export function propertyExistsInDb(

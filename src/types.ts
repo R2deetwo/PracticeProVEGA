@@ -327,6 +327,8 @@ export interface Property {
         outstandingServiceChargeBalance?: number;
         /** Billing frequency for service charge (defaults to rentFrequency if unset). */
         serviceChargeFrequency?: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
+        /** Months of service charge required in advance at move-in (0 = pay as billed). */
+        serviceChargeMonthsInAdvance?: number;
         legalFee?: number;
         agencyFee?: number;
         cautionDeposit?: number;

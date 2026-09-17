@@ -18,6 +18,10 @@ import {
     buildPropertyRecord,
     propertyExistsInDb,
     composeTenantName,
+    deriveBuildingDescription,
+    loadServiceChargeCycle,
+    monthlyServiceChargeRate,
+    scCycleMonths,
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -127,7 +131,12 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [address, setAddress] = useState(propertyToEdit?.address || '');
     const [category, setCategory] = useState<Property['category']>(propertyToEdit?.category || PropertyCategory.Tenanted);
     const [propertyType, setPropertyType] = useState<Property['propertyType']>(propertyToEdit?.propertyType || 'Residential');
-    const [description, setDescription] = useState(propertyToEdit?.description || '');
+    // Task 58: heal the legacy mangled description (old saves wrote
+    // "Unit 1" or "Complex (Unit 1)" into each unit row) so the manager
+    // sees their original building-level text — or a clean empty field.
+    const [description, setDescription] = useState(
+        () => deriveBuildingDescription(propertyToEdit?.description, propertyToEdit?.rentalDetails?.unitName)
+    );
     const [status, setStatus] = useState<Property['status']>(propertyToEdit?.status || PropertyStatus.Occupied);
     const [ownershipType, setOwnershipType] = useState<Property['ownershipType']>(propertyToEdit?.ownershipType || 'managed');
     const [rentCollectionMode, setRentCollectionMode] = useState<Property['rentCollectionMode']>(propertyToEdit?.rentCollectionMode || 'Full (Collect Rent)');
@@ -198,6 +207,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     // amount so the naira input shows what the user meant.
                     if (lf === 0 && legalPct > 0 && rent > 0) lf = Math.round(rent * (legalPct / 100));
                     if (af === 0 && agencyPct > 0 && rent > 0) af = Math.round(rent * (agencyPct / 100));
+                    // Task 59: normalize the service charge to ONE figure —
+                    // the per-cycle amount (serviceChargeAmount) — with the
+                    // legacy monthly rate (serviceCharge) derived from it.
+                    const scCycle = loadServiceChargeCycle(rd);
                     return {
                         ...rd,
                         id: p.id,
@@ -209,6 +222,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         // is unit-specific and must remain independent.
                         unitName: rd.unitName || "Unit",
                         unitDescription: (rd as any).unitDescription || '',
+                        serviceChargeAmount: scCycle,
+                        serviceCharge: monthlyServiceChargeRate(scCycle, (rd as any).serviceChargeFrequency),
                         legalFee: lf,
                         legalFeePercentage: legalPct,
                         agencyFee: af,
@@ -225,6 +240,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
                 const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
                 // Amount-first healing (see the multi-unit branch above).
+                const scCycleSingle = loadServiceChargeCycle(rd);
                 if (lf === 0 && legalPct > 0 && rent > 0) lf = Math.round(rent * (legalPct / 100));
                 if (af === 0 && agencyPct > 0 && rent > 0) af = Math.round(rent * (agencyPct / 100));
                 return [{ 
@@ -232,6 +248,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     id: propertyToEdit.id, 
                     status: propertyToEdit.status, 
                     _id: (propertyToEdit as any)._id,
+                    serviceChargeAmount: scCycleSingle,
+                    serviceCharge: monthlyServiceChargeRate(scCycleSingle, rd.serviceChargeFrequency),
                     legalFee: lf,
                     legalFeePercentage: legalPct,
                     agencyFee: af,
@@ -269,6 +287,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             isAgencyNA: false,
             cautionDeposit: 0,
             isCautionNA: false,
+            serviceChargeMonthsInAdvance: 0,
             status: 'Occupied' as PropertyStatus
         }];
     });
@@ -320,6 +339,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             isAgencyNA: false,
             cautionDeposit: 0,
             isCautionNA: false,
+            serviceChargeMonthsInAdvance: 0,
             status: 'Vacant' as PropertyStatus,
         };
         setUnitsData(prev => [...prev, newUnit]);
@@ -413,6 +433,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         isAgencyNA: false,
                         cautionDeposit: 0,
                         isCautionNA: false,
+                        serviceChargeMonthsInAdvance: 0,
                         status: 'Occupied' as PropertyStatus
                     });
                 }
@@ -476,6 +497,18 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             if (field === 'isAgencyNA') {
                 if (value) { newUnits[index].agencyFee = 0; newUnits[index].agencyFeePercentage = 0; }
             }
+
+            // SERVICE CHARGE per-cycle model (Task 59): the form captures ONE
+            // figure — the amount per billing cycle — in serviceChargeAmount.
+            // The legacy monthly rate (serviceCharge) is derived from it so
+            // every existing reader (billing timeline, monitors, portals,
+            // message financials) keeps working without changes.
+            if (field === 'serviceChargeAmount') {
+                newUnits[index].serviceCharge = monthlyServiceChargeRate(Number(value) || 0, newUnits[index].serviceChargeFrequency);
+            }
+            if (field === 'serviceChargeFrequency') {
+                newUnits[index].serviceCharge = monthlyServiceChargeRate(Number(newUnits[index].serviceChargeAmount) || 0, String(value));
+            }
             
             // Auto-calculate Lease End Date
             if (field === 'leaseStart' || field === 'rentFrequency' || field === 'tenancyPeriod') {
@@ -512,6 +545,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const generalFields = [
                     'rentAmount', 'rentFrequency', 'leaseStart', 'leaseEnd', 'nextRentReview', 'isPeriodicReviewEnabled',
                     'legalFeePercentage', 'agencyFeePercentage', 'legalFee', 'agencyFee', 'serviceCharge', 'serviceChargeAmount', 'serviceChargeStatus', 'outstandingServiceChargeBalance', 'cautionDeposit',
+                    'serviceChargeFrequency', 'serviceChargeMonthsInAdvance',
                     'isLegalNA', 'isAgencyNA', 'isCautionNA',
                     'unitDescription'
                 ];
@@ -533,6 +567,11 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     agencyFee: newUnits[index].agencyFee,
                                     agencyFeePercentage: newUnits[index].agencyFeePercentage,
                                     isAgencyNA: newUnits[index].isAgencyNA
+                                } : {}),
+                                ...(field === 'serviceChargeAmount' || field === 'serviceChargeFrequency' ? {
+                                    serviceCharge: newUnits[index].serviceCharge,
+                                    serviceChargeAmount: newUnits[index].serviceChargeAmount,
+                                    serviceChargeFrequency: newUnits[index].serviceChargeFrequency
                                 } : {})
                             };
                         }
@@ -545,13 +584,29 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     };
 
     const activeUnit = unitsData[activeUnitIndex];
-    const totalPayable = activeUnit ? (
-        (Number(activeUnit.rentAmount) || 0) +
-        (Number(activeUnit.serviceCharge) || 0) +
-        (activeUnit.isCautionNA ? 0 : (Number(activeUnit.cautionDeposit) || 0)) +
-        (activeUnit.isLegalNA ? 0 : (Number(activeUnit.legalFee) || 0)) +
-        (activeUnit.isAgencyNA ? 0 : (Number(activeUnit.agencyFee) || 0))
-    ) : 0;
+    // Task 59: itemised move-in figures. The old single lump-sum "package"
+    // total (rent + service charge + one-time fees + refundable deposit)
+    // mixed categories that must never be added together; these
+    // values feed the itemised Move-in Cost Summary instead.
+    const scCycleAmount = Number(activeUnit?.serviceChargeAmount) || 0;
+    const scMonthly = monthlyServiceChargeRate(scCycleAmount, activeUnit?.serviceChargeFrequency);
+    const scAdvanceMonths = Math.max(0, Math.min(24, Math.round(Number(activeUnit?.serviceChargeMonthsInAdvance) || 0)));
+    const scAdvanceAmount = Math.round(scMonthly * scAdvanceMonths);
+    const rentAmount = Number(activeUnit?.rentAmount) || 0;
+    const rentCollecting = rentCollectionMode !== 'Management Only (No Rent)';
+    const legalFeeAmt = activeUnit?.isLegalNA ? 0 : (Number(activeUnit?.legalFee) || 0);
+    const agencyFeeAmt = activeUnit?.isAgencyNA ? 0 : (Number(activeUnit?.agencyFee) || 0);
+    const cautionAmt = activeUnit?.isCautionNA ? 0 : (Number(activeUnit?.cautionDeposit) || 0);
+    const scActive = coreServices.serviceCharge;
+    const rentFreqLabel = activeUnit?.rentFrequency === 'Monthly' ? 'per month'
+        : activeUnit?.rentFrequency === 'Quarterly' ? 'per quarter'
+        : activeUnit?.rentFrequency === 'Bi-Annually' ? 'every 6 months'
+        : 'per annum';
+    const anyChargeConfigured =
+        (rentCollecting && rentAmount > 0) ||
+        (scActive && scCycleAmount > 0) ||
+        legalFeeAmt > 0 || agencyFeeAmt > 0 || cautionAmt > 0 ||
+        (scActive && scAdvanceMonths > 0 && scMonthly > 0);
 
 
 
@@ -1091,7 +1146,23 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     }, [activeUnitId, autoExpandRental]);
 
     return (
-        <form onSubmit={handleSubmit} onChange={() => { formTouched.current = true; }} className="flex flex-col gap-4 relative">
+        <form
+            onSubmit={handleSubmit}
+            onChange={() => { formTouched.current = true; }}
+            onKeyDown={(e) => {
+                // TASK-58 ENTER GUARD: this form is far too long for implicit
+                // submission — an accidental Enter mid-typing used to fire
+                // handleSubmit, flipping the view to the rental section and
+                // saving half-finished data. Enter inside a text input now
+                // does nothing; textareas keep their newline behaviour and
+                // buttons/selects keep their native keys. Saving = the button.
+                if (e.key === 'Enter') {
+                    const t = e.target as HTMLElement | null;
+                    if (t && t.tagName === 'INPUT') e.preventDefault();
+                }
+            }}
+            className="flex flex-col gap-4 relative"
+        >
             <div className="space-y-2 sm:space-y-3 pb-6">
                 <AccordionSection id="primary" isOpen={openSections.primary} onToggle={toggleSection} title="Address & Category" subtitle="Primary Details" icon={<OfficeBuildingIcon className="w-3.5 h-3.5" />} iconBg="bg-primary-600">
                     <div className="space-y-2 sm:space-y-3">
@@ -1520,6 +1591,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         isAgencyNA: false,
                                         cautionDeposit: 0,
                                         isCautionNA: false,
+                                        serviceChargeMonthsInAdvance: 0,
                                         status: 'Vacant' as PropertyStatus,
                                     };
                                     setUnitsData(prev => [...prev, newUnit]);
@@ -1622,136 +1694,236 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                <div className="space-y-2 group">
-                                    <label className={labelClass}>Monthly Service Charge</label>
-                                    <div className="relative rounded-lg shadow-xs">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
-                                        <input autoComplete="off" data-lpignore="true" 
-                                            type="text"
-                                            value={formatNumberWithCommas(unitsData[activeUnitIndex].serviceCharge || 0)}
-                                            onChange={e => updateUnit(activeUnitIndex, 'serviceCharge', parseFormattedNumber(e.target.value))}
-                                            className={`${commonInputClass} pl-8`}
-                                            placeholder="0.00"
-                                        />
+                            {/* ── SERVICE CHARGE (recurring estate charge) ─────────────
+                                Task 59 rework. The old pairing — a monthly-rate
+                                field next to a manual per-period total — made
+                                the manager do the estate's arithmetic with two
+                                ambiguous figures side by side. Now ONE amount is
+                                captured per billing cycle (Amount + "Billed how
+                                often"), and the monthly rate is derived for every
+                                downstream reader (billing timeline, monitors,
+                                portals, message financials). Estates that demand
+                                service charge months in advance now say so
+                                explicitly instead of hiding it in a "total due". */}
+                            <div className="rounded-xl border border-amber-200/80 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/10 p-3 sm:p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-2xs font-black text-amber-800 dark:text-amber-500 uppercase tracking-widest leading-none">Service Charge</p>
+                                        <p className="text-3xs text-slate-500 dark:text-zinc-400 mt-1 max-w-md leading-relaxed">Recurring estate charge for shared services — diesel, water, security, cleaning, maintenance. Billed separately from rent.</p>
                                     </div>
+                                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-3xs font-black uppercase tracking-widest">Recurring</span>
                                 </div>
-                                <div className="space-y-2 group">
-                                    <label className={labelClass}>Total Service Charge Due</label>
-                                    <div className="relative rounded-lg shadow-xs">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
-                                        <input
-                                            autoComplete="off"
-                                            data-lpignore="true"
-                                            type="text"
-                                            value={formatNumberWithCommas(activeUnit.serviceChargeAmount || 0)}
-                                            onChange={e => updateUnit(activeUnitIndex, 'serviceChargeAmount', parseFormattedNumber(e.target.value))}
-                                            className={`${commonInputClass} pl-8`}
-                                            placeholder="0.00"
-                                        />
+
+                                {coreServices.serviceCharge ? (
+                                    <>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                            <div className="space-y-2 group">
+                                                <label className={labelClass}>Service Charge Amount (<NairaSymbol />)</label>
+                                                <div className="relative rounded-lg shadow-xs">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                                    <input autoComplete="off" data-lpignore="true"
+                                                        type="text"
+                                                        value={formatNumberWithCommas(activeUnit.serviceChargeAmount || 0)}
+                                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeAmount', parseFormattedNumber(e.target.value))}
+                                                        className={`${commonInputClass} pl-8`}
+                                                        placeholder="0.00"
+                                                    />
+                                                </div>
+                                                <p className="text-3xs text-slate-400 pl-1">The amount on each bill (not a grand total)</p>
+                                            </div>
+                                            <div className="space-y-2 group">
+                                                <label className={labelClass}>Billed How Often</label>
+                                                <select
+                                                    value={activeUnit.serviceChargeFrequency || 'Monthly'}
+                                                    onChange={e => updateUnit(activeUnitIndex, 'serviceChargeFrequency', e.target.value as 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly')}
+                                                    className={commonInputClass}
+                                                >
+                                                    <option value="Monthly">Monthly</option>
+                                                    <option value="Quarterly">Quarterly (every 3 months)</option>
+                                                    <option value="Bi-Annually">Bi-Annually (every 6 months)</option>
+                                                    <option value="Annually">Annually</option>
+                                                </select>
+                                                {Number(activeUnit.serviceChargeAmount) > 0 ? (
+                                                    <p className="text-3xs text-slate-400 pl-1">
+                                                        Each bill: ₦{Number(activeUnit.serviceChargeAmount).toLocaleString('en-NG')} every {scCycleMonths(activeUnit.serviceChargeFrequency) === 1 ? 'month' : `${scCycleMonths(activeUnit.serviceChargeFrequency)} months`} — that is ₦{monthlyServiceChargeRate(Number(activeUnit.serviceChargeAmount) || 0, activeUnit.serviceChargeFrequency).toLocaleString('en-NG')} per month.
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-3xs text-slate-400 pl-1">How often a bill is raised (default: Monthly)</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                            <div className="space-y-2 group">
+                                                <label className={labelClass}>Payment Status</label>
+                                                <select
+                                                    value={activeUnit.serviceChargeStatus || 'UNPAID'}
+                                                    onChange={e => updateUnit(activeUnitIndex, 'serviceChargeStatus', e.target.value as 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID')}
+                                                    className={commonInputClass}
+                                                >
+                                                    <option value="UNPAID">Unpaid</option>
+                                                    <option value="PARTIALLY_PAID">Partially Paid</option>
+                                                    <option value="PAID_FULLY">Paid Fully</option>
+                                                </select>
+                                            </div>
+                                            {activeUnit.serviceChargeStatus === 'PARTIALLY_PAID' && (
+                                                <div className="space-y-2 group animate-fade-in">
+                                                    <label className={labelClass}>Outstanding Balance</label>
+                                                    <div className="relative rounded-lg shadow-xs">
+                                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                                        <input autoComplete="off" data-lpignore="true"
+                                                            type="text"
+                                                            value={formatNumberWithCommas(activeUnit.outstandingServiceChargeBalance || 0)}
+                                                            onChange={e => updateUnit(activeUnitIndex, 'outstandingServiceChargeBalance', parseFormattedNumber(e.target.value))}
+                                                            className={`${commonInputClass} pl-8`}
+                                                            placeholder="0.00"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 items-end">
+                                            <div className="space-y-2 group">
+                                                <label className={labelClass}>Months Payable in Advance</label>
+                                                <input autoComplete="off" data-lpignore="true"
+                                                    type="number"
+                                                    min={0}
+                                                    max={24}
+                                                    step={1}
+                                                    value={String(activeUnit.serviceChargeMonthsInAdvance ?? 0)}
+                                                    onChange={e => updateUnit(activeUnitIndex, 'serviceChargeMonthsInAdvance', Math.max(0, Math.min(24, Math.round(parseFormattedNumber(e.target.value) || 0))))}
+                                                    className={commonInputClass}
+                                                    placeholder="0"
+                                                />
+                                                {scAdvanceMonths > 0 && scMonthly > 0 ? (
+                                                    <p className="text-3xs text-amber-600 dark:text-amber-400 pl-1 font-semibold">Residents pay ₦{scAdvanceAmount.toLocaleString('en-NG')} upfront at move-in — covers {scAdvanceMonths} month{scAdvanceMonths === 1 ? '' : 's'} of service charge.</p>
+                                                ) : (
+                                                    <p className="text-3xs text-slate-400 pl-1">0 = pay each cycle as it falls due. Some estates demand months upfront (e.g. 6) — set it here so it is enforced at move-in.</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* ── Settle Historical Ledger ──────────────────────
+                                            Quick-settle button for onboarding existing tenants. Opens
+                                            the OnboardUnitLedgerModal where the user can bulk-mark all
+                                            historical billing periods as Paid On Time / Paid Late /
+                                            Outstanding, plus add advance pre-paid periods. */}
+                                        {activeUnit.leaseStart && (Number(activeUnit.serviceChargeAmount) > 0 || Number(activeUnit.serviceCharge) > 0) && (
+                                            <div className="flex flex-wrap gap-2 pt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setLedgerChargeType('SC'); setLedgerModalOpen(true); }}
+                                                    className="px-3 py-1.5 text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg border border-emerald-200 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors flex items-center gap-1.5"
+                                                >
+                                                    <CheckCircleIcon className="w-3 h-3" />
+                                                    Settle SC Historical Ledger
+                                                </button>
+                                                {minimumVendEnabled && Number(minimumVendAmount) > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setLedgerChargeType('MV'); setLedgerModalOpen(true); }}
+                                                        className="px-3 py-1.5 text-2xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-800/40 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1.5"
+                                                    >
+                                                        <CheckCircleIcon className="w-3 h-3" />
+                                                        Settle MV Historical Ledger
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="flex items-start gap-3 p-3 bg-white/60 dark:bg-zinc-800/40 rounded-lg border border-dashed border-amber-300 dark:border-amber-900/40">
+                                        <InfoIcon className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                                        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+                                            Service charge is <span className="font-bold">turned off</span> for this property under Core Services (Address &amp; Category). Any figures already saved are kept but not billed. Turn it back on there to configure this unit's charge.
+                                        </p>
                                     </div>
-                                    <p className="text-3xs text-slate-400 pl-1">For the current billing period</p>
-                                </div>
+                                )}
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                <div className="space-y-2 group">
-                                    <label className={labelClass}>Service Charge Status</label>
-                                    <select
-                                        value={activeUnit.serviceChargeStatus || 'UNPAID'}
-                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeStatus', e.target.value as 'PAID_FULLY' | 'PARTIALLY_PAID' | 'UNPAID')}
-                                        className={commonInputClass}
-                                    >
-                                        <option value="UNPAID">Unpaid</option>
-                                        <option value="PARTIALLY_PAID">Partially Paid</option>
-                                        <option value="PAID_FULLY">Paid Fully</option>
-                                    </select>
+                            {/* ── MOVE-IN FEES (one-time, non-refundable) ───────────────
+                                Professional fees charged once at lease commencement.
+                                Deliberately separated from recurring charges and from
+                                the refundable caution deposit — three different kinds
+                                of money, three different cards. */}
+                            <div className="rounded-xl border border-sky-200/80 dark:border-sky-900/40 bg-sky-50/40 dark:bg-sky-950/10 p-3 sm:p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-2xs font-black text-sky-800 dark:text-sky-500 uppercase tracking-widest leading-none">Move-in Fees</p>
+                                        <p className="text-3xs text-slate-500 dark:text-zinc-400 mt-1 max-w-md leading-relaxed">One-time professional fees charged when a new resident signs. Not part of the unit's running costs.</p>
+                                    </div>
+                                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 text-3xs font-black uppercase tracking-widest">One-time</span>
                                 </div>
-                                <div className="space-y-2 group">
-                                    <label className={labelClass}>Service Charge Frequency</label>
-                                    <select
-                                        value={activeUnit.serviceChargeFrequency || 'Monthly'}
-                                        onChange={e => updateUnit(activeUnitIndex, 'serviceChargeFrequency', e.target.value as 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly')}
-                                        className={commonInputClass}
-                                    >
-                                        <option value="Monthly">Monthly</option>
-                                        <option value="Quarterly">Quarterly</option>
-                                        <option value="Bi-Annually">Bi-Annually</option>
-                                        <option value="Annually">Annually</option>
-                                    </select>
-                                    <p className="text-3xs text-slate-400 pl-1">How often the billing timeline bills this charge (default: Monthly)</p>
-                                </div>
-                            {activeUnit.serviceChargeStatus === 'PARTIALLY_PAID' && (
-                                <div className="space-y-2 group animate-fade-in">
-                                        <label className={labelClass}>Outstanding Balance</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                                    <div className="space-y-2 group">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className={labelClass}>Legal Fee (<NairaSymbol />)</label>
+                                            <label className="flex items-center gap-1.5 cursor-pointer group/na">
+                                                <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
+                                                <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
+                                            </label>
+                                        </div>
+                                        {/* Amount-first input — users think in naira, not
+                                            percentages. The derived % of rent is a hint. */}
                                         <div className="relative rounded-lg shadow-xs">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
                                             <input autoComplete="off" data-lpignore="true"
                                                 type="text"
-                                                value={formatNumberWithCommas(activeUnit.outstandingServiceChargeBalance || 0)}
-                                                onChange={e => updateUnit(activeUnitIndex, 'outstandingServiceChargeBalance', parseFormattedNumber(e.target.value))}
-                                                className={`${commonInputClass} pl-8`}
+                                                disabled={unitsData[activeUnitIndex].isLegalNA}
+                                                value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].legalFee || 0)}
+                                                onChange={e => updateUnit(activeUnitIndex, 'legalFee', parseFormattedNumber(e.target.value))}
+                                                className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pl-8 pr-20`}
                                                 placeholder="0.00"
                                             />
+                                            {!unitsData[activeUnitIndex].isLegalNA && (unitsData[activeUnitIndex].legalFee || 0) > 0 && (unitsData[activeUnitIndex].rentAmount || 0) > 0 && (
+                                                <div className="absolute right-3 top-2.5 text-2xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
+                                                    {Math.round(((unitsData[activeUnitIndex].legalFee || 0) / (unitsData[activeUnitIndex].rentAmount || 1)) * 100)}% of rent
+                                                </div>
+                                            )}
                                         </div>
+                                        <p className="text-3xs text-slate-400 pl-1">Tenancy agreement drafting &amp; vetting</p>
                                     </div>
-                            )}
-                            <div className="space-y-2 group">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className={labelClass}>Legal Fee (<NairaSymbol />)</label>
-                                        <label className="flex items-center gap-1.5 cursor-pointer group/na">
-                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isLegalNA} onChange={e => updateUnit(activeUnitIndex, 'isLegalNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
-                                        </label>
-                                    </div>
-                                    {/* Round-4 SIMPLIFY: amount-first input — users think in naira,
-                                        not percentages. The derived % of rent is shown as a hint.
-                                        (Was: a % input with the naira amount crammed in the corner.) */}
-                                    <div className="relative rounded-lg shadow-xs">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
-                                        <input autoComplete="off" data-lpignore="true" 
-                                            type="text"
-                                            disabled={unitsData[activeUnitIndex].isLegalNA}
-                                            value={unitsData[activeUnitIndex].isLegalNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].legalFee || 0)}
-                                            onChange={e => updateUnit(activeUnitIndex, 'legalFee', parseFormattedNumber(e.target.value))}
-                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isLegalNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pl-8 pr-20`}
-                                            placeholder="0.00"
-                                        />
-                                        {!unitsData[activeUnitIndex].isLegalNA && (unitsData[activeUnitIndex].legalFee || 0) > 0 && (unitsData[activeUnitIndex].rentAmount || 0) > 0 && (
-                                            <div className="absolute right-3 top-2.5 text-2xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
-                                                {Math.round(((unitsData[activeUnitIndex].legalFee || 0) / (unitsData[activeUnitIndex].rentAmount || 1)) * 100)}% of rent
-                                            </div>
-                                        )}
+                                    <div className="space-y-2 group">
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className={labelClass}>Agency Fee (<NairaSymbol />)</label>
+                                            <label className="flex items-center gap-1.5 cursor-pointer group/na">
+                                                <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
+                                                <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
+                                            </label>
+                                        </div>
+                                        {/* Amount-first input (see Legal Fee note). */}
+                                        <div className="relative rounded-lg shadow-xs">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
+                                            <input autoComplete="off" data-lpignore="true"
+                                                type="text"
+                                                disabled={unitsData[activeUnitIndex].isAgencyNA}
+                                                value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].agencyFee || 0)}
+                                                onChange={e => updateUnit(activeUnitIndex, 'agencyFee', parseFormattedNumber(e.target.value))}
+                                                className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pl-8 pr-20`}
+                                                placeholder="0.00"
+                                            />
+                                            {!unitsData[activeUnitIndex].isAgencyNA && (unitsData[activeUnitIndex].agencyFee || 0) > 0 && (unitsData[activeUnitIndex].rentAmount || 0) > 0 && (
+                                                <div className="absolute right-3 top-2.5 text-2xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
+                                                    {Math.round(((unitsData[activeUnitIndex].agencyFee || 0) / (unitsData[activeUnitIndex].rentAmount || 1)) * 100)}% of rent
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-3xs text-slate-400 pl-1">Letting &amp; sourcing commission</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                                <div className="space-y-2 group">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <label className={labelClass}>Agency Fee (<NairaSymbol />)</label>
-                                        <label className="flex items-center gap-1.5 cursor-pointer group/na">
-                                            <input type="checkbox" checked={unitsData[activeUnitIndex].isAgencyNA} onChange={e => updateUnit(activeUnitIndex, 'isAgencyNA', e.target.checked)} className="rounded border-slate-200 text-primary-600 dark:text-primary-300 focus:ring-primary-500 w-3 h-3" />
-                                            <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
-                                        </label>
+                            {/* ── CAUTION DEPOSIT (refundable) ──────────────────────────
+                                The residents' own money held as security — never income,
+                                never a fee. Refunded at lease end less deductions. */}
+                            <div className="rounded-xl border border-emerald-200/80 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/10 p-3 sm:p-4 space-y-3">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-2xs font-black text-emerald-800 dark:text-emerald-500 uppercase tracking-widest leading-none">Caution Deposit</p>
+                                        <p className="text-3xs text-slate-500 dark:text-zinc-400 mt-1 max-w-md leading-relaxed">Held against damage beyond fair wear and tear. Refunded at lease end less any deductions — the resident's money, not income.</p>
                                     </div>
-                                    {/* Round-4 SIMPLIFY: amount-first input (see Legal Fee note). */}
-                                    <div className="relative rounded-lg shadow-xs">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
-                                        <input autoComplete="off" data-lpignore="true" 
-                                            type="text"
-                                            disabled={unitsData[activeUnitIndex].isAgencyNA}
-                                            value={unitsData[activeUnitIndex].isAgencyNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].agencyFee || 0)}
-                                            onChange={e => updateUnit(activeUnitIndex, 'agencyFee', parseFormattedNumber(e.target.value))}
-                                            className={`${commonInputClass} ${unitsData[activeUnitIndex].isAgencyNA ? 'bg-slate-50 dark:bg-zinc-800/50 text-slate-400 border-dashed opacity-70' : ''} pl-8 pr-20`}
-                                            placeholder="0.00"
-                                        />
-                                        {!unitsData[activeUnitIndex].isAgencyNA && (unitsData[activeUnitIndex].agencyFee || 0) > 0 && (unitsData[activeUnitIndex].rentAmount || 0) > 0 && (
-                                            <div className="absolute right-3 top-2.5 text-2xs font-bold text-slate-400 dark:text-zinc-500 pointer-events-none">
-                                                {Math.round(((unitsData[activeUnitIndex].agencyFee || 0) / (unitsData[activeUnitIndex].rentAmount || 1)) * 100)}% of rent
-                                            </div>
-                                        )}
-                                    </div>
+                                    <span className="flex-shrink-0 px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-3xs font-black uppercase tracking-widest">Refundable</span>
                                 </div>
                                 <div className="space-y-2 group">
                                     <div className="flex items-center justify-between mb-1">
@@ -1761,7 +1933,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                             <span className="text-2xs font-bold text-slate-400 group-hover/na:text-slate-600 uppercase tracking-tight">N/A</span>
                                         </label>
                                     </div>
-                                    <input autoComplete="off" data-lpignore="true" 
+                                    <input autoComplete="off" data-lpignore="true"
                                         type="text"
                                         disabled={unitsData[activeUnitIndex].isCautionNA}
                                         value={unitsData[activeUnitIndex].isCautionNA ? 'N/A' : formatNumberWithCommas(unitsData[activeUnitIndex].cautionDeposit || 0)}
@@ -1772,54 +1944,84 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                             </div>
 
-                            {/* ── Settle Historical Ledger ──────────────────────────────
-                                Quick-settle button for onboarding existing tenants. Opens
-                                the OnboardUnitLedgerModal where the user can bulk-mark all
-                                historical billing periods as Paid On Time / Paid Late /
-                                Outstanding, plus add advance pre-paid periods. */}
-                            {activeUnit.leaseStart && (Number(activeUnit.serviceChargeAmount) > 0 || Number(activeUnit.serviceCharge) > 0) && (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => { setLedgerChargeType('SC'); setLedgerModalOpen(true); }}
-                                        className="px-3 py-1.5 text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 rounded-lg border border-emerald-200 dark:border-emerald-800/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors flex items-center gap-1.5"
-                                    >
-                                        <CheckCircleIcon className="w-3 h-3" />
-                                        Settle SC Historical Ledger
-                                    </button>
-                                    {minimumVendEnabled && Number(minimumVendAmount) > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => { setLedgerChargeType('MV'); setLedgerModalOpen(true); }}
-                                            className="px-3 py-1.5 text-2xs font-bold bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg border border-blue-200 dark:border-blue-800/40 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center gap-1.5"
-                                        >
-                                            <CheckCircleIcon className="w-3 h-3" />
-                                            Settle MV Historical Ledger
-                                        </button>
-                                    )}
+                            {/* ── MOVE-IN COST SUMMARY (itemised) ────────────────────────
+                                Replaces the old lump-sum package card, which summed
+                                rent + service charge + one-time fees + a refundable
+                                deposit into one meaningless number (and labelled the lot
+                                "Per Month" / "Per Annum"). Charges are now listed by
+                                category; recurring items keep their own periodicity.
+                                Deliberately no lump-sum total. */}
+                            <div className="p-3 sm:p-4 bg-slate-50 dark:bg-zinc-800/50 rounded-xl border border-slate-200 dark:border-zinc-700/60 space-y-2.5">
+                                <div>
+                                    <p className="text-2xs font-black text-slate-600 dark:text-zinc-300 uppercase tracking-widest leading-none">Move-in Cost Summary</p>
+                                    <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-1">What a new resident pays when the lease starts, listed by category. Items are not added together — they are different kinds of money.</p>
                                 </div>
-                            )}
-
-                            {/* Total Tenancy Package Summary Card */}
-                            <div className="p-3 sm:p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-900/40 mt-4 shadow-sm">
-                                <div className="flex justify-between items-center">
-                                    <div>
-                                        <p className="text-2xs font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-widest leading-none mb-1">
-                                            Total Tenancy Package
-                                        </p>
-                                        <p className="text-2xs text-slate-500 dark:text-zinc-500">
-                                            Total payable by the tenant (Rent + Fees + Caution + Service)
-                                        </p>
+                                {anyChargeConfigured ? (
+                                    <div className="space-y-1.5">
+                                        {rentCollecting && rentAmount > 0 && (
+                                            <div className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-2 min-w-0">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />
+                                                    Rent
+                                                    <span className="text-3xs font-bold uppercase tracking-wider text-slate-400">recurring</span>
+                                                </span>
+                                                <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">₦{rentAmount.toLocaleString('en-NG')} <span className="text-3xs font-semibold text-slate-400">{rentFreqLabel}</span></span>
+                                            </div>
+                                        )}
+                                        {scActive && scCycleAmount > 0 && (
+                                            <div className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-2 min-w-0">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                                                    Service charge
+                                                    <span className="text-3xs font-bold uppercase tracking-wider text-slate-400">recurring</span>
+                                                </span>
+                                                <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">₦{scCycleAmount.toLocaleString('en-NG')} <span className="text-3xs font-semibold text-slate-400">every {scCycleMonths(activeUnit?.serviceChargeFrequency) === 1 ? 'month' : `${scCycleMonths(activeUnit?.serviceChargeFrequency)} months`}</span></span>
+                                            </div>
+                                        )}
+                                        {scActive && scAdvanceMonths > 0 && scAdvanceAmount > 0 && (
+                                            <div className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-2 min-w-0">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+                                                    Service charge advance ({scAdvanceMonths} month{scAdvanceMonths === 1 ? '' : 's'})
+                                                    <span className="text-3xs font-bold uppercase tracking-wider text-slate-400">one-time</span>
+                                                </span>
+                                                <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">₦{scAdvanceAmount.toLocaleString('en-NG')}</span>
+                                            </div>
+                                        )}
+                                        {legalFeeAmt > 0 && (
+                                            <div className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-2 min-w-0">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
+                                                    Legal fee
+                                                    <span className="text-3xs font-bold uppercase tracking-wider text-slate-400">one-time</span>
+                                                </span>
+                                                <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">₦{legalFeeAmt.toLocaleString('en-NG')}</span>
+                                            </div>
+                                        )}
+                                        {agencyFeeAmt > 0 && (
+                                            <div className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-2 min-w-0">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 flex-shrink-0" />
+                                                    Agency fee
+                                                    <span className="text-3xs font-bold uppercase tracking-wider text-slate-400">one-time</span>
+                                                </span>
+                                                <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">₦{agencyFeeAmt.toLocaleString('en-NG')}</span>
+                                            </div>
+                                        )}
+                                        {cautionAmt > 0 && (
+                                            <div className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-2 min-w-0">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                                                    Caution deposit
+                                                    <span className="text-3xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">refundable</span>
+                                                </span>
+                                                <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">₦{cautionAmt.toLocaleString('en-NG')}</span>
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-base font-black text-emerald-700 dark:text-emerald-300">
-                                            ₦{totalPayable.toLocaleString('en-NG')}
-                                        </p>
-                                        <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-tight">
-                                            {unitsData[activeUnitIndex]?.rentFrequency === 'Monthly' ? 'Per Month' : 'Per Annum'}
-                                        </p>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <p className="text-xs text-slate-400 dark:text-zinc-500 italic">No charges configured for this unit yet.</p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
