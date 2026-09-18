@@ -1,0 +1,1063 @@
+{
+  "generatedAt": "2026-09-18T13:08:06.720Z",
+  "totals": {
+    "button": 1748,
+    "input": 431,
+    "select": 146,
+    "textarea": 62
+  },
+  "total": 2387,
+  "files": {
+    "src/components/Accordion.tsx": {
+      "button": 1
+    },
+    "src/components/ApkUpdateBanner.tsx": {
+      "button": 2
+    },
+    "src/components/App.tsx": {
+      "button": 8
+    },
+    "src/components/ArchiveView.tsx": {
+      "button": 4,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/BacklinksPanel.tsx": {
+      "button": 2
+    },
+    "src/components/BillingMonitorView.tsx": {
+      "button": 10,
+      "input": 3
+    },
+    "src/components/BillingView.tsx": {
+      "button": 12,
+      "input": 1,
+      "textarea": 1
+    },
+    "src/components/BottomNav.tsx": {
+      "button": 3
+    },
+    "src/components/Breadcrumbs.tsx": {
+      "button": 1
+    },
+    "src/components/BroadcastBanner.tsx": {
+      "button": 9
+    },
+    "src/components/BulkActionBar.tsx": {
+      "button": 5
+    },
+    "src/components/CalendarView.tsx": {
+      "button": 13
+    },
+    "src/components/CommandPalette.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/CompleteSetupBanner.tsx": {
+      "button": 2
+    },
+    "src/components/ContactsView.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/ContextMenu.tsx": {
+      "button": 1
+    },
+    "src/components/ConvexErrorBoundary.tsx": {
+      "button": 6
+    },
+    "src/components/CookieConsent.tsx": {
+      "button": 2
+    },
+    "src/components/CookiePolicy.tsx": {
+      "button": 1
+    },
+    "src/components/DailyFocusView.tsx": {
+      "button": 2
+    },
+    "src/components/Dashboard.tsx": {
+      "button": 5
+    },
+    "src/components/DataProcessingAgreement.tsx": {
+      "button": 1
+    },
+    "src/components/DocumentList.tsx": {
+      "button": 26,
+      "input": 2
+    },
+    "src/components/DocumentPreview.tsx": {
+      "button": 3
+    },
+    "src/components/EmptyState.tsx": {
+      "button": 2
+    },
+    "src/components/ErrorBoundary.tsx": {
+      "button": 1
+    },
+    "src/components/FeedbackButton.tsx": {
+      "button": 1
+    },
+    "src/components/FloatingTestControls.tsx": {
+      "button": 6
+    },
+    "src/components/FounderDashboard.tsx": {
+      "button": 7
+    },
+    "src/components/FullScreenSearch.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/GettingStartedChecklist.tsx": {
+      "button": 4
+    },
+    "src/components/GlobalErrorBoundary.tsx": {
+      "button": 4
+    },
+    "src/components/Header.tsx": {
+      "button": 28
+    },
+    "src/components/HelpView.tsx": {
+      "button": 7,
+      "input": 1
+    },
+    "src/components/InlineMatterReview.tsx": {
+      "button": 9,
+      "input": 1
+    },
+    "src/components/LandingPage.tsx": {
+      "button": 49,
+      "input": 1
+    },
+    "src/components/LinkAutocomplete.tsx": {
+      "button": 1
+    },
+    "src/components/LocalDocumentManager.tsx": {
+      "button": 10,
+      "input": 1
+    },
+    "src/components/LockScreen.tsx": {
+      "button": 3,
+      "input": 2
+    },
+    "src/components/MatterList.tsx": {
+      "button": 9,
+      "input": 2,
+      "select": 2
+    },
+    "src/components/MessagesView.tsx": {
+      "button": 30,
+      "input": 4,
+      "select": 2,
+      "textarea": 2
+    },
+    "src/components/MiniCalendar.tsx": {
+      "button": 9
+    },
+    "src/components/NotFoundView.tsx": {
+      "button": 2
+    },
+    "src/components/NotificationCenter.tsx": {
+      "button": 3
+    },
+    "src/components/OnboardingTour.tsx": {
+      "button": 4
+    },
+    "src/components/PortalTermsOfUse.tsx": {
+      "button": 1
+    },
+    "src/components/PracticeProfileSetup.tsx": {
+      "button": 6
+    },
+    "src/components/PriorityPopover.tsx": {
+      "button": 1
+    },
+    "src/components/PrivacyPolicy.tsx": {
+      "button": 1
+    },
+    "src/components/ProTip.tsx": {
+      "button": 4
+    },
+    "src/components/PropertyManagerView.tsx": {
+      "button": 6,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/ReportingView.tsx": {
+      "button": 7,
+      "select": 3
+    },
+    "src/components/ResearchView.tsx": {
+      "button": 10
+    },
+    "src/components/ResourcesPage.tsx": {
+      "button": 17
+    },
+    "src/components/RpcGuidanceTip.tsx": {
+      "button": 4
+    },
+    "src/components/ScrollArrows.tsx": {
+      "button": 2
+    },
+    "src/components/SecurityAccessView.tsx": {
+      "button": 1
+    },
+    "src/components/Sidebar.tsx": {
+      "button": 4
+    },
+    "src/components/StatCard.tsx": {
+      "button": 1
+    },
+    "src/components/TaskList.tsx": {
+      "button": 13,
+      "input": 3
+    },
+    "src/components/TasksView.tsx": {
+      "button": 6,
+      "input": 2
+    },
+    "src/components/TermsAcceptance.tsx": {
+      "button": 6
+    },
+    "src/components/TermsOfService.tsx": {
+      "button": 1
+    },
+    "src/components/TimelineView.tsx": {
+      "button": 1,
+      "input": 1
+    },
+    "src/components/Toast.tsx": {
+      "button": 2
+    },
+    "src/components/ToastRefreshNotification.tsx": {
+      "button": 2
+    },
+    "src/components/TrialNudgeBanner.tsx": {
+      "button": 2
+    },
+    "src/components/UsagePolicy.tsx": {
+      "button": 1
+    },
+    "src/components/UserTaskSummaryPanel.tsx": {
+      "button": 1
+    },
+    "src/components/VersionRefreshBanner.tsx": {
+      "button": 2
+    },
+    "src/components/ViewHeader.tsx": {
+      "button": 1
+    },
+    "src/components/WhatsNew.tsx": {
+      "button": 3
+    },
+    "src/components/WorkflowBuilderView.tsx": {
+      "button": 6,
+      "input": 1
+    },
+    "src/components/aloa/ActionCard.tsx": {
+      "button": 3
+    },
+    "src/components/aloa/AloaChat.tsx": {
+      "button": 35,
+      "input": 1
+    },
+    "src/components/aloa/AloaFAB.tsx": {
+      "button": 1
+    },
+    "src/components/aloa/ConversationList.tsx": {
+      "button": 1
+    },
+    "src/components/aloa/DynamicChatForm.tsx": {
+      "button": 3,
+      "input": 4,
+      "select": 1
+    },
+    "src/components/aloa/JurisdictionCard.tsx": {
+      "button": 5,
+      "select": 3
+    },
+    "src/components/aloa/NoteDetails.tsx": {
+      "button": 2
+    },
+    "src/components/aloa/PIIShieldBadge.tsx": {
+      "button": 2
+    },
+    "src/components/aloa/TrustSignals.tsx": {
+      "button": 1
+    },
+    "src/components/atrium/AtriumPublicApplicationForm.tsx": {
+      "button": 1,
+      "input": 3,
+      "textarea": 1
+    },
+    "src/components/atrium/AutomationCenter.tsx": {
+      "button": 12,
+      "input": 3,
+      "textarea": 3
+    },
+    "src/components/atrium/ComposeModal.tsx": {
+      "button": 21,
+      "input": 8,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/atrium/LedgerManager.tsx": {
+      "button": 22,
+      "input": 4,
+      "select": 2,
+      "textarea": 1
+    },
+    "src/components/atrium/PaymentProofsScreen.tsx": {
+      "button": 2
+    },
+    "src/components/atrium/PaymentProofsTab.tsx": {
+      "button": 5,
+      "textarea": 1
+    },
+    "src/components/atrium/ServiceChargeMonitor.tsx": {
+      "button": 19,
+      "input": 5,
+      "select": 3
+    },
+    "src/components/atrium/VacancyPipeline.tsx": {
+      "button": 6,
+      "input": 5,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/auth/ConnectionStatus.tsx": {
+      "button": 8,
+      "input": 1
+    },
+    "src/components/auth/Login.tsx": {
+      "button": 12,
+      "input": 6
+    },
+    "src/components/auth/ResetPasswordView.tsx": {
+      "button": 2,
+      "input": 2
+    },
+    "src/components/auth/Signup.tsx": {
+      "button": 18,
+      "input": 7,
+      "textarea": 1
+    },
+    "src/components/client/ClientBillingTab.tsx": {
+      "button": 3
+    },
+    "src/components/client/ClientDashboard.tsx": {
+      "button": 32,
+      "input": 3,
+      "select": 2,
+      "textarea": 3
+    },
+    "src/components/client/ClientDocumentsTab.tsx": {
+      "button": 4,
+      "input": 1
+    },
+    "src/components/client/ClientMatterDetailView.tsx": {
+      "button": 5,
+      "input": 2
+    },
+    "src/components/dashboard/FocusMatterWidget.tsx": {
+      "button": 4
+    },
+    "src/components/dashboard/RecentPropertiesWidget.tsx": {
+      "button": 4
+    },
+    "src/components/dashboard/StatsWidget.tsx": {
+      "button": 2
+    },
+    "src/components/dashboard/TasksWidget.tsx": {
+      "button": 5
+    },
+    "src/components/details/BillingSummaryWidget.tsx": {
+      "button": 9
+    },
+    "src/components/details/ContactDetailView.tsx": {
+      "button": 15
+    },
+    "src/components/details/DocumentDetailView.tsx": {
+      "button": 9
+    },
+    "src/components/details/DocumentsTab.tsx": {
+      "button": 12,
+      "input": 1
+    },
+    "src/components/details/EventDetailModal.tsx": {
+      "button": 5
+    },
+    "src/components/details/FilingDeadlineNotice.tsx": {
+      "button": 2
+    },
+    "src/components/details/InvoiceDetailView.tsx": {
+      "button": 9
+    },
+    "src/components/details/MatterBrief.tsx": {
+      "button": 1
+    },
+    "src/components/details/MatterDetailView.tsx": {
+      "button": 12
+    },
+    "src/components/details/MatterProcessTracking.tsx": {
+      "button": 8,
+      "input": 3,
+      "select": 1
+    },
+    "src/components/details/MatterReviewReminderPanel.tsx": {
+      "button": 6,
+      "input": 2
+    },
+    "src/components/details/ProceduralComplianceReport.tsx": {
+      "button": 2
+    },
+    "src/components/details/ProcessActionCenter.tsx": {
+      "button": 4
+    },
+    "src/components/details/PropertyDetailView.tsx": {
+      "button": 44,
+      "input": 3,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/details/PropertyRelationshipsTab.tsx": {
+      "button": 3,
+      "input": 6,
+      "select": 6,
+      "textarea": 1
+    },
+    "src/components/details/PropertyTrackingView.tsx": {
+      "button": 11,
+      "input": 9,
+      "select": 4,
+      "textarea": 2
+    },
+    "src/components/details/ReceiptDetailView.tsx": {
+      "button": 5
+    },
+    "src/components/details/ServiceChargeBars.tsx": {
+      "button": 10,
+      "input": 1
+    },
+    "src/components/details/StatutoryTaskTimeline.tsx": {
+      "button": 3
+    },
+    "src/components/details/TasksAndEventsTab.tsx": {
+      "button": 10
+    },
+    "src/components/details/TeamDiscussionTab.tsx": {
+      "button": 7,
+      "textarea": 2
+    },
+    "src/components/details/TrustAccountTab.tsx": {
+      "button": 7,
+      "input": 4,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/documents/DocumentPreviewModal.tsx": {
+      "button": 1
+    },
+    "src/components/documents/HeaderDesigner.tsx": {
+      "button": 8,
+      "input": 8,
+      "textarea": 1
+    },
+    "src/components/documents/HtmlPagePreview.tsx": {
+      "button": 16
+    },
+    "src/components/documents/PdfViewer.tsx": {
+      "button": 15
+    },
+    "src/components/documents/WordProcessor.tsx": {
+      "textarea": 1
+    },
+    "src/components/documents/tiptap/DraftProEditor.tsx": {
+      "button": 41,
+      "input": 13,
+      "select": 3,
+      "textarea": 1
+    },
+    "src/components/documents/tiptap/GenerationOverlay.tsx": {
+      "button": 1
+    },
+    "src/components/documents/tiptap/PrintPreviewDrawer.tsx": {
+      "button": 3
+    },
+    "src/components/documents/tiptap/extensions/LegalPartiesGroup.tsx": {
+      "input": 1
+    },
+    "src/components/forms/AssignUsersForm.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/forms/BankAccountForm.tsx": {
+      "button": 1
+    },
+    "src/components/forms/ChecklistTemplateForm.tsx": {
+      "button": 5,
+      "input": 3
+    },
+    "src/components/forms/ContactCategoryForm.tsx": {
+      "button": 3,
+      "input": 1
+    },
+    "src/components/forms/ContactForm.tsx": {
+      "button": 11,
+      "input": 12,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/forms/DocumentCategoryForm.tsx": {
+      "button": 3,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/forms/DocumentForm.tsx": {
+      "button": 7,
+      "input": 2,
+      "select": 3,
+      "textarea": 1
+    },
+    "src/components/forms/EventForm.tsx": {
+      "button": 5,
+      "input": 7,
+      "select": 5,
+      "textarea": 1
+    },
+    "src/components/forms/EventTypeForm.tsx": {
+      "button": 1
+    },
+    "src/components/forms/ExpenseForm.tsx": {
+      "button": 4,
+      "input": 3,
+      "textarea": 1
+    },
+    "src/components/forms/ExternalCounselInviteForm.tsx": {
+      "button": 3,
+      "input": 4,
+      "select": 2
+    },
+    "src/components/forms/FeedbackForm.tsx": {
+      "button": 2,
+      "input": 3,
+      "textarea": 2
+    },
+    "src/components/forms/FirmDetailsForm.tsx": {
+      "button": 4,
+      "input": 5,
+      "select": 2,
+      "textarea": 1
+    },
+    "src/components/forms/InvoiceForm.tsx": {
+      "button": 4,
+      "input": 8,
+      "select": 3
+    },
+    "src/components/forms/InvoiceGeneratorForm.tsx": {
+      "button": 2,
+      "input": 7,
+      "select": 1
+    },
+    "src/components/forms/LinkMatterToContactForm.tsx": {
+      "button": 2,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/forms/MatterForm.tsx": {
+      "button": 20,
+      "input": 17,
+      "select": 7
+    },
+    "src/components/forms/NewChannelForm.tsx": {
+      "button": 2,
+      "input": 2
+    },
+    "src/components/forms/NewDirectMessageForm.tsx": {
+      "button": 5,
+      "input": 2,
+      "select": 2,
+      "textarea": 1
+    },
+    "src/components/forms/NewResearchNotebookForm.tsx": {
+      "button": 3,
+      "input": 2,
+      "select": 1
+    },
+    "src/components/forms/NotePageForm.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/forms/NotebookForm.tsx": {
+      "button": 5,
+      "input": 1
+    },
+    "src/components/forms/PropertyForm.tsx": {
+      "button": 14,
+      "input": 35,
+      "select": 10,
+      "textarea": 1
+    },
+    "src/components/forms/RequestFinancialDocumentForm.tsx": {
+      "button": 2,
+      "select": 1
+    },
+    "src/components/forms/SaveToNoteForm.tsx": {
+      "button": 15,
+      "input": 2,
+      "select": 3,
+      "textarea": 1
+    },
+    "src/components/forms/SmartMatterModal.tsx": {
+      "button": 9,
+      "input": 33,
+      "select": 11,
+      "textarea": 2
+    },
+    "src/components/forms/StageChecklistForm.tsx": {
+      "button": 6,
+      "input": 4,
+      "select": 1
+    },
+    "src/components/forms/TaskForm.tsx": {
+      "button": 7,
+      "input": 2,
+      "select": 3,
+      "textarea": 1
+    },
+    "src/components/forms/TemplateCategoryForm.tsx": {
+      "button": 3,
+      "input": 1
+    },
+    "src/components/forms/TemplateForm.tsx": {
+      "button": 4,
+      "input": 1,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/forms/TimeEntryForm.tsx": {
+      "button": 3,
+      "input": 3,
+      "textarea": 1
+    },
+    "src/components/forms/UserAssignment.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/forms/UserForm.tsx": {
+      "button": 4,
+      "input": 4,
+      "select": 1
+    },
+    "src/components/forms/WorkflowForm.tsx": {
+      "button": 5,
+      "input": 3
+    },
+    "src/components/indexer/AloaXView.tsx": {
+      "button": 26,
+      "input": 3,
+      "textarea": 3
+    },
+    "src/components/layout/SplitMasterDetail.tsx": {
+      "button": 1
+    },
+    "src/components/marketing/ContactSalesDrawer.tsx": {
+      "button": 3,
+      "input": 4,
+      "textarea": 1
+    },
+    "src/components/messaging/AutomationWorkflows.tsx": {
+      "button": 12,
+      "input": 1,
+      "select": 1,
+      "textarea": 1
+    },
+    "src/components/messaging/MessageThread.tsx": {
+      "button": 5
+    },
+    "src/components/messaging/NoticeBoardTab.tsx": {
+      "button": 7,
+      "input": 2,
+      "select": 2,
+      "textarea": 1
+    },
+    "src/components/messaging/OutboxTab.tsx": {
+      "button": 11
+    },
+    "src/components/messaging/ScheduledTab.tsx": {
+      "button": 19,
+      "input": 2,
+      "select": 3,
+      "textarea": 1
+    },
+    "src/components/modals/AIConsentModal.tsx": {
+      "button": 2
+    },
+    "src/components/modals/AddCaseToNotebookModal.tsx": {
+      "button": 4,
+      "input": 1,
+      "select": 2
+    },
+    "src/components/modals/AddResearchSourceModal.tsx": {
+      "button": 4,
+      "input": 4,
+      "textarea": 1
+    },
+    "src/components/modals/AloaHelpModal.tsx": {
+      "button": 1
+    },
+    "src/components/modals/ArchiveMatterModal.tsx": {
+      "button": 2
+    },
+    "src/components/modals/BatchUploadModal.tsx": {
+      "button": 4
+    },
+    "src/components/modals/BulkEditPropertyModal.tsx": {
+      "button": 2,
+      "select": 2
+    },
+    "src/components/modals/CloseMatterModal.tsx": {
+      "button": 2,
+      "textarea": 1
+    },
+    "src/components/modals/CollectRentModal.tsx": {
+      "button": 4,
+      "input": 4,
+      "select": 1
+    },
+    "src/components/modals/ComposeEmailModal.tsx": {
+      "button": 10,
+      "input": 4,
+      "textarea": 1
+    },
+    "src/components/modals/DeleteConfirmationModal.tsx": {
+      "button": 5,
+      "input": 2
+    },
+    "src/components/modals/DemoUpsellModal.tsx": {
+      "button": 3
+    },
+    "src/components/modals/DockedModal.tsx": {
+      "button": 6
+    },
+    "src/components/modals/DocumentComparisonModal.tsx": {
+      "button": 1
+    },
+    "src/components/modals/FolderPermissionsModal.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/modals/GoogleDrivePickerModal.tsx": {
+      "button": 1,
+      "input": 1
+    },
+    "src/components/modals/JoinFirmModal.tsx": {
+      "button": 4,
+      "input": 1
+    },
+    "src/components/modals/KeyboardShortcutsModal.tsx": {
+      "button": 1
+    },
+    "src/components/modals/LeadCaptureModal.tsx": {
+      "button": 5,
+      "input": 1
+    },
+    "src/components/modals/LinkContactModal.tsx": {
+      "button": 2,
+      "input": 2
+    },
+    "src/components/modals/MatterIngestionWizard.tsx": {
+      "button": 3,
+      "input": 1
+    },
+    "src/components/modals/MergeContactModal.tsx": {
+      "button": 3,
+      "input": 1
+    },
+    "src/components/modals/Modal.tsx": {
+      "button": 1
+    },
+    "src/components/modals/NoTeamMembersModal.tsx": {
+      "button": 2
+    },
+    "src/components/modals/OnboardUnitLedgerModal.tsx": {
+      "button": 8
+    },
+    "src/components/modals/OnboardingWizard.tsx": {
+      "button": 35,
+      "input": 7,
+      "select": 3
+    },
+    "src/components/modals/PaymentGatewayModal.tsx": {
+      "button": 8,
+      "input": 1
+    },
+    "src/components/modals/PropertyOwnerPicker.tsx": {
+      "button": 3
+    },
+    "src/components/modals/QuickLookModal.tsx": {
+      "button": 2
+    },
+    "src/components/modals/ReceiptModal.tsx": {
+      "button": 3
+    },
+    "src/components/modals/SendPostActivationEmailModal.tsx": {
+      "button": 2,
+      "textarea": 1
+    },
+    "src/components/modals/ShareDocumentModal.tsx": {
+      "button": 2,
+      "input": 1,
+      "textarea": 1
+    },
+    "src/components/modals/SignDocumentModal.tsx": {
+      "button": 5,
+      "input": 1
+    },
+    "src/components/modals/SoftGateModal.tsx": {
+      "button": 5
+    },
+    "src/components/modals/TaskDetailModal.tsx": {
+      "button": 5
+    },
+    "src/components/modals/TeamMessageModal.tsx": {
+      "button": 4,
+      "input": 1,
+      "textarea": 1
+    },
+    "src/components/modals/UpgradeModal.tsx": {
+      "button": 2
+    },
+    "src/components/modals/WorkspaceSetupModal.tsx": {
+      "button": 5,
+      "input": 1
+    },
+    "src/components/notes/NoteColumn.tsx": {
+      "button": 8,
+      "input": 1
+    },
+    "src/components/notes/NoteEditor.tsx": {
+      "button": 18,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/portal/ClientPortalLogin.tsx": {
+      "button": 9,
+      "input": 7
+    },
+    "src/components/portal/GatekeeperInterface.tsx": {
+      "button": 4,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/portal/PortalFontSizeControl.tsx": {
+      "button": 3
+    },
+    "src/components/portal/ServiceTypePicker.tsx": {
+      "button": 4
+    },
+    "src/components/portal/SetupPassword.tsx": {
+      "button": 10,
+      "input": 5
+    },
+    "src/components/portal/TenantPortalLogin.tsx": {
+      "button": 9,
+      "input": 7
+    },
+    "src/components/portal/VisitorPortal.tsx": {
+      "button": 6,
+      "input": 3,
+      "select": 1
+    },
+    "src/components/reports/BusinessIntelligenceReports.tsx": {
+      "button": 1
+    },
+    "src/components/reports/CaseManagementReports.tsx": {
+      "button": 3,
+      "select": 1
+    },
+    "src/components/reports/TaxDisclaimer.tsx": {
+      "button": 1
+    },
+    "src/components/research/LawReportsView.tsx": {
+      "button": 4,
+      "input": 7
+    },
+    "src/components/research/ResearchChat.tsx": {
+      "button": 2
+    },
+    "src/components/research/ResearchNotebookColumn.tsx": {
+      "button": 3
+    },
+    "src/components/research/ResearchSourceColumn.tsx": {
+      "button": 6,
+      "input": 1
+    },
+    "src/components/research/ResearchSourcePanel.tsx": {
+      "button": 2,
+      "input": 1
+    },
+    "src/components/research/ResearchStudio.tsx": {
+      "button": 11
+    },
+    "src/components/research/StrategyStudioPanel.tsx": {
+      "button": 3
+    },
+    "src/components/sentry/ExpandablePropertyGroup.tsx": {
+      "button": 4
+    },
+    "src/components/settings/AccountRecoverySettings.tsx": {
+      "button": 3,
+      "input": 1
+    },
+    "src/components/settings/AgentSettings.tsx": {
+      "button": 7,
+      "input": 2
+    },
+    "src/components/settings/AutomationSettings.tsx": {
+      "button": 6,
+      "input": 4,
+      "select": 6,
+      "textarea": 2
+    },
+    "src/components/settings/CategoriesSettings.tsx": {
+      "button": 10
+    },
+    "src/components/settings/ChangelogSettings.tsx": {
+      "button": 2
+    },
+    "src/components/settings/DataManagementSettings.tsx": {
+      "button": 12,
+      "input": 2,
+      "select": 1
+    },
+    "src/components/settings/DisplaySettings.tsx": {
+      "button": 3,
+      "select": 2
+    },
+    "src/components/settings/EstateCommunitySettings.tsx": {
+      "button": 1
+    },
+    "src/components/settings/FirmSettings.tsx": {
+      "button": 16,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/settings/IntegrationSettings.tsx": {
+      "button": 9,
+      "input": 2,
+      "select": 3
+    },
+    "src/components/settings/LegalIntelligenceHub.tsx": {
+      "button": 10,
+      "input": 1,
+      "select": 2
+    },
+    "src/components/settings/NotificationSettings.tsx": {
+      "button": 3
+    },
+    "src/components/settings/PortalAccessSettings.tsx": {
+      "button": 23,
+      "input": 3,
+      "select": 4
+    },
+    "src/components/settings/ProfileSettings.tsx": {
+      "button": 5,
+      "input": 5,
+      "select": 3
+    },
+    "src/components/settings/SecuritySettings.tsx": {
+      "button": 5,
+      "input": 3,
+      "select": 2
+    },
+    "src/components/settings/ServiceRequestTypesConfig.tsx": {
+      "button": 10,
+      "input": 6,
+      "select": 4
+    },
+    "src/components/settings/SettingsView.tsx": {
+      "button": 10
+    },
+    "src/components/settings/SubscriptionSettings.tsx": {
+      "button": 34,
+      "textarea": 1
+    },
+    "src/components/settings/TemplatesSettings.tsx": {
+      "button": 22
+    },
+    "src/components/tenant/EstateCommunityResidentView.tsx": {
+      "button": 3,
+      "input": 1,
+      "select": 1
+    },
+    "src/components/tenant/TenantPortal/DashboardTab.tsx": {
+      "button": 11,
+      "input": 1
+    },
+    "src/components/tenant/TenantPortal/DocumentsTab.tsx": {
+      "button": 11
+    },
+    "src/components/tenant/TenantPortal/HelpAndSupportTab.tsx": {
+      "button": 8
+    },
+    "src/components/tenant/TenantPortal/LedgerTab.tsx": {
+      "button": 1,
+      "input": 1
+    },
+    "src/components/tenant/TenantPortal/MaintenanceTab.tsx": {
+      "button": 5,
+      "input": 2,
+      "textarea": 2
+    },
+    "src/components/tenant/TenantPortal/MessagesTab.tsx": {
+      "button": 8,
+      "input": 1,
+      "textarea": 2
+    },
+    "src/components/tenant/TenantPortal/PaymentsTab.tsx": {
+      "button": 8,
+      "input": 5
+    },
+    "src/components/tenant/TenantPortal/PortalHeader.tsx": {
+      "button": 3
+    },
+    "src/components/tenant/TenantPortal/PortalNav.tsx": {
+      "button": 5
+    },
+    "src/components/tenant/TenantPortal/PortalStates.tsx": {
+      "button": 3
+    },
+    "src/components/tenant/TenantPortal/ReceiptsTab.tsx": {
+      "button": 1
+    },
+    "src/components/tenant/TenantPortal/VisitorDisabledState.tsx": {
+      "button": 1
+    },
+    "src/components/tenant/TenantPortal/shared.tsx": {
+      "button": 1
+    },
+    "src/components/toolkit/Accordion.tsx": {
+      "button": 1
+    },
+    "src/components/toolkit/AutoExpandingChatInput.tsx": {
+      "button": 6,
+      "textarea": 1
+    },
+    "src/components/toolkit/Button.tsx": {
+      "button": 1
+    },
+    "src/components/toolkit/ChatMessageBubble.tsx": {
+      "button": 6,
+      "textarea": 1
+    },
+    "src/components/toolkit/Input.tsx": {
+      "input": 1
+    },
+    "src/components/toolkit/PresenceAvatars.tsx": {
+      "button": 1
+    },
+    "src/components/toolkit/Select.tsx": {
+      "select": 1
+    }
+  }
+}
