@@ -14,6 +14,7 @@ import { translateError } from '../../utils/errorTranslator';
 import { getGeminiApiKey } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { resolveFinancials, parseMoneyInput } from '../../utils/messageFinancials';
+import { buildMoveInBreakdown, MoveInBreakdownRow } from '../../utils/propertyPayload';
 import { sendWhatsAppWithTemplateFallback, isWhatsAppWindowError, summarizeError, resolveTemplateFor, FirmTemplateMapping, CHAKRA_WHATSAPP_BILLING_URL } from '../../utils/deliveryErrors';
 import { buildEmailHtml } from '../../utils/emailTemplate';
 import { MSG_TYPE_LABELS, getMsgTypeLabel, MSG_TYPE_FINANCE, getTypeFinance } from '../../utils/messageTypes';
@@ -108,9 +109,16 @@ interface SelectableRecipient {
   propertyAddress?: string;
   propertyId?: string;
   serviceCharge?: number;
+  /** Raw per-cycle service-charge figure (UnitOption.serviceChargeAmount). */
+  serviceChargeAmount?: number;
   legalFee?: number;
   agencyFee?: number;
   cautionDeposit?: number;
+  /** Cadence + advance-policy inputs for the itemised move-in breakdown
+   *  (Task 59 follow-up) — carried from UnitOption for NEW residents. */
+  rentFrequency?: string;
+  serviceChargeFrequency?: string;
+  serviceChargeMonthsInAdvance?: number;
   /** Existing resident (tenancy commenced) — move-in fees excluded from
    *  demands unless typed manually. Set from UnitOption.isExistingTenant. */
   isExistingTenant?: boolean;
@@ -242,9 +250,13 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
       propertyAddress: u.address,
       propertyId: u.propertyId,  // ← needed for portal messaging thread resolution
       serviceCharge: u.serviceCharge,
+      serviceChargeAmount: u.serviceChargeAmount,
       legalFee: u.legalFee,
       agencyFee: u.agencyFee,
       cautionDeposit: u.cautionDeposit,
+      rentFrequency: u.rentFrequency,
+      serviceChargeFrequency: u.serviceChargeFrequency,
+      serviceChargeMonthsInAdvance: u.serviceChargeMonthsInAdvance,
       isExistingTenant: u.isExistingTenant,
     })),
     [flatUnits]
@@ -337,6 +349,35 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   );
 
   const isMultiRecipient = selectedRecipients.length > 1;
+
+  // ── Itemised move-in breakdown (Task 59 follow-up) ───────────────────
+  // A NEW resident (tenancy not yet commenced) sees the full move-in cost
+  // picture from their own unit record — same categories and periodicity as
+  // the Lease & Rent Configuration's Move-in Cost Summary. Informational
+  // only: the fields below still pre-fill from these figures and the demand
+  // totals exactly what the message type sums (the preview states it).
+  const newResidentBreakdown = useMemo(() => {
+    const r = selectedRecipients[0];
+    if (
+      selectedRecipients.length !== 1 ||
+      r?.recipientType !== 'tenant' ||
+      (r as any).isExistingTenant !== false
+    ) return null;
+    const { rows, hasAny } = buildMoveInBreakdown({
+      rentAmount: r.rentAmount,
+      rentFrequency: r.rentFrequency,
+      // Same pair the Lease & Rent Configuration loads: per-cycle figure +
+      // monthly rate, resolved by loadServiceChargeCycle's cadence rule.
+      serviceCharge: r.serviceCharge,
+      serviceChargeAmount: r.serviceChargeAmount,
+      serviceChargeFrequency: r.serviceChargeFrequency,
+      serviceChargeMonthsInAdvance: r.serviceChargeMonthsInAdvance,
+      legalFee: r.legalFee,
+      agencyFee: r.agencyFee,
+      cautionDeposit: r.cautionDeposit,
+    });
+    return hasAny ? rows : null;
+  }, [selectedRecipients]);
 
   // Get the "primary" recipient for template building (first selected, or "General")
   const primaryRecipient = selectedRecipients[0];
@@ -1369,6 +1410,45 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                       tenancy has commenced. The demand totals rent{showFinanceField('serviceCharge') ? ' + service charge' : ''} only.
                       Type a figure above only if you are deliberately demanding an unpaid move-in fee.
                     </p>
+                  )}
+                  {/* ── Itemised move-in breakdown — NEW resident (Task 59
+                      follow-up). Same categories and periodicity as the
+                      Lease & Rent Configuration's Move-in Cost Summary:
+                      recurring charges keep their own cycle, one-time fees
+                      and the refundable deposit stand apart, and the
+                      service-charge advance is its own line. Deliberately
+                      no lump-sum total — these are different kinds of money. */}
+                  {newResidentBreakdown && (
+                    <div className="mb-3 p-2.5 rounded-lg bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700/60">
+                      <p className="text-3xs font-black uppercase tracking-widest text-slate-500 dark:text-zinc-400 leading-none mb-1.5">
+                        Move-in breakdown — {effectiveTenantName || 'new resident'}
+                      </p>
+                      <div className="space-y-1">
+                        {newResidentBreakdown.map((row: MoveInBreakdownRow) => (
+                          <div key={row.key} className="flex items-center justify-between gap-3 text-xs">
+                            <span className="text-slate-600 dark:text-zinc-300 flex items-center gap-1.5 min-w-0">
+                              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                row.key === 'rent' ? 'bg-primary-500'
+                                  : row.key === 'serviceCharge' || row.key === 'scAdvance' ? 'bg-amber-500'
+                                  : row.key === 'cautionDeposit' ? 'bg-emerald-500'
+                                  : 'bg-sky-500'
+                              }`} />
+                              {row.label}
+                              <span className={`text-3xs font-bold uppercase tracking-wider ${
+                                row.kind === 'refundable' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'
+                              }`}>{row.kind}</span>
+                            </span>
+                            <span className="font-bold text-slate-700 dark:text-zinc-200 whitespace-nowrap">
+                              ₦{row.amount.toLocaleString('en-NG')}
+                              {row.period && <span className="text-3xs font-semibold text-slate-400"> {row.period}</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-3xs text-slate-400 dark:text-zinc-500 mt-1.5 leading-relaxed">
+                        From this resident&apos;s unit record — items are not added together. Fields below pre-fill from these figures; the demand totals only what the message type sums.
+                      </p>
+                    </div>
                   )}
                   {/* Auto-fill provenance — tells the user the figures came
                       from the resident's own record (and can be edited). */}

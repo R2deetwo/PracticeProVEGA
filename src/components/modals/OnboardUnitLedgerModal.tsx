@@ -25,7 +25,7 @@ import { Property, ServiceChargePeriod } from '../../types';
 import { formatNairaCompact, formatDateShort } from '../../utils/formatting';
 import { XIcon, CheckCircleIcon, PlusIcon, DownloadIcon } from '../../constants';
 import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
-import { buildTimeline, resolveCadence, type TimelinePeriod } from '../../utils/leaseTimeline';
+import { buildTimeline, resolveCadence, deriveAdvanceRequirementRows, type TimelinePeriod } from '../../utils/leaseTimeline';
 // ─── Period computation: SHARED ENGINE (see src/utils/leaseTimeline.ts) ────
 
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -82,15 +82,44 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
     // marks land on the right month of the new monthly grid). Unpaid periods
     // map to this modal's 'outstanding' editing state; the engine re-derives
     // due/overdue on read.
+    //
+    // ADVANCE REQUIREMENT (Task 59 follow-up): when the unit's Lease & Rent
+    // Configuration demands months of service charge up front
+    // (serviceChargeMonthsInAdvance > 0), the uncollected months materialise
+    // here as "due at move-in" rows — the manager settles them month-by-month
+    // (mark Advance as each is collected) instead of remembering the estate's
+    // policy by heart. Settled advance rows count as covered; only the gap is
+    // re-derived, so reopening never duplicates collected months. Uncollected
+    // rows are dropped by buildTimeline on read — they never surface as
+    // phantom overdue in running balances.
+    const scAdvanceMonths = chargeType === 'SC'
+        ? Math.max(0, Math.min(24, Math.round(Number(rental?.serviceChargeMonthsInAdvance) || 0)))
+        : 0;
     const initialPeriods = useMemo(() => {
         const timeline: TimelinePeriod[] = buildTimeline({
             leaseStart, leaseEnd, cadence: effCadence, stored: storedPeriods,
         });
-        return timeline.map(p => ({
+        const base = timeline.map(p => ({
             ...p,
             status: (p.status === 'due' || p.status === 'overdue' ? 'outstanding' : p.status),
         })) as unknown as ServiceChargePeriod[];
-    }, [leaseStart, leaseEnd, effCadence, storedPeriods]);
+        if (scAdvanceMonths <= 0) return base;
+        const { rows } = deriveAdvanceRequirementRows({
+            monthsInAdvance: scAdvanceMonths,
+            leaseStart,
+            cadence: { months: effCadence.months, perPeriodAmount: effCadence.perPeriodAmount },
+            periods: base,
+        });
+        return [...base, ...(rows as unknown as ServiceChargePeriod[])];
+    }, [leaseStart, leaseEnd, effCadence, storedPeriods, scAdvanceMonths]);
+    // Requirement progress for the header note — required vs already settled.
+    const advanceRequirement = useMemo(() => deriveAdvanceRequirementRows({
+        monthsInAdvance: scAdvanceMonths,
+        leaseStart,
+        cadence: { months: effCadence.months, perPeriodAmount: effCadence.perPeriodAmount },
+        periods: initialPeriods,
+    }), [scAdvanceMonths, leaseStart, effCadence, initialPeriods]);
+    const scAdvanceUpfront = Math.round(advanceRequirement.required * effCadence.perPeriodAmount);
 
     const [periods, setPeriods] = useState<ServiceChargePeriod[]>(initialPeriods);
 
@@ -173,6 +202,8 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
     const historicalCount = periods.filter(p => !p.isAdvance && p.status !== 'advance_paid').length;
     const advanceCount = periods.filter(p => p.isAdvance || p.status === 'advance_paid').length;
     const settledCount = periods.filter(p => p.status === 'paid' || p.status === 'late' || p.status === 'advance_paid').length;
+    // Uncollected advance-requirement months (isAdvance + still outstanding).
+    const advanceDueCount = periods.filter(p => p.isAdvance && p.status === 'outstanding').length;
 
     return createPortal(
         <div className="fixed inset-0 z-[4600] flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -199,6 +230,17 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                             {historicalCount} historical · {advanceCount} advance · {settledCount} settled
                         </p>
+                        {/* Advance requirement (Task 59 follow-up) — the estate's
+                            months-upfront policy, enforced at onboarding: the
+                            note states the policy, the live progress, and what
+                            to do (mark Advance as each month is collected). */}
+                        {scAdvanceMonths > 0 && effCadence.perPeriodAmount > 0 && (
+                            <p className={`text-2xs leading-relaxed mt-1 ${advanceDueCount > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                <span className="font-bold">Advance requirement:</span> this unit requires {advanceRequirement.required} month{advanceRequirement.required === 1 ? '' : 's'} of service charge at move-in
+                                {' '}(≈{formatNairaCompact(scAdvanceUpfront)} upfront). {advanceRequirement.covered} of {advanceRequirement.required} collected
+                                {advanceDueCount > 0 ? ` — ${advanceDueCount} due at move-in below. Mark Advance as each month is collected.` : ' — requirement met.'}
+                            </p>
+                        )}
                     </div>
                     <button
                         onClick={onClose}
@@ -261,6 +303,11 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
                                         <div className="min-w-0">
                                             <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">
                                                 {getMonthYear(period.dueDate)}
+                                                {period.isAdvance && period.status === 'outstanding' && (
+                                                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-3xs font-black uppercase tracking-wider whitespace-nowrap" title="Required by this unit's advance policy — collect at move-in">
+                                                        Due at move-in
+                                                    </span>
+                                                )}
                                             </p>
                                             <p className="text-2xs text-slate-400">
                                                 {formatNairaCompact(period.amount)}

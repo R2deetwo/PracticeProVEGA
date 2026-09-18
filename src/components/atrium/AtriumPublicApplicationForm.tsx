@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { Building2 as BuildingOfficeIcon, User as UserIcon, DollarSign as CurrencyDollarIcon, FileText as DocumentTextIcon, CheckCircle as CheckCircleIcon } from 'lucide-react';
+import { Building2 as BuildingOfficeIcon, User as UserIcon, DollarSign as CurrencyDollarIcon, FileText as DocumentTextIcon, CheckCircle as CheckCircleIcon, Receipt as ReceiptIcon } from 'lucide-react';
+import { buildMoveInBreakdown, MoveInBreakdownRow, rentCycleLabel } from '../../utils/propertyPayload';
 
 /**
  * Public facing component for prospective tenants to apply for vacant units.
@@ -34,6 +35,50 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
 
     // Fetch the property to get its firmId (required for the lead pipeline)
     const property = useQuery(api.myFunctions.getPropertyById, { propertyId });
+
+    // ── Move-in cost disclosure (Task 59 follow-up: application-side
+    // enforcement) ────────────────────────────────────────────────────
+    // The Lease & Rent Configuration sets what a new resident pays — rent
+    // per cycle, service charge per cycle (+ months payable in advance),
+    // one-time legal/agency fees and the refundable caution deposit. The
+    // applicant sees exactly the same itemised categories the manager
+    // configured — before they apply, not at offer stage. No lump-sum
+    // total: recurring, one-time and refundable money is never added
+    // together (Task 59 policy).
+    const disclosure = useMemo(() => {
+        const p = property as any;
+        if (!p) return null;
+        const units: any[] = Array.isArray(p.units) ? p.units : [];
+        // Which unit is this application about? The share link carries
+        // ?unit=<name> from the unit card's Share button; a single-unit
+        // property is unambiguous; otherwise prefer VACANT units for the
+        // range summary (occupied units' figures are not the applicant's).
+        let target: any = null;
+        if (unitHint) {
+            const hint = unitHint.trim().toLowerCase();
+            target = units.find(u => String(u.unitName || u.id || '').toLowerCase() === hint) || null;
+        } else if (units.length === 1) {
+            target = units[0];
+        }
+        const opts = {
+            scActive: p.coreServices?.serviceCharge !== false,
+            rentCollecting: p.rentCollectionMode !== 'Management Only (No Rent)',
+        };
+        if (target) {
+            const { rows, hasAny } = buildMoveInBreakdown(target, opts);
+            return { kind: 'itemised' as const, rows, hasAny, unitName: String(target.unitName || '') };
+        }
+        // Multi-unit, no hint — honest range across vacant units only.
+        const vacant = units.filter(u => !u.tenantName || String(u.status || '').toLowerCase() === 'vacant');
+        const rents = (vacant.length > 0 ? vacant : units)
+            .map(u => Number(u.rentAmount) || 0)
+            .filter(n => n > 0);
+        if (rents.length === 0) return { kind: 'none' as const };
+        const min = Math.min(...rents);
+        const max = Math.max(...rents);
+        const freq = rentCycleLabel((vacant.length > 0 ? vacant : units).find(u => (Number(u.rentAmount) || 0) === min)?.rentFrequency);
+        return { kind: 'range' as const, min, max, single: min === max, freq };
+    }, [property, unitHint]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -95,6 +140,59 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                     <p className="text-sm text-slate-500">Applying for: <span className="font-semibold text-slate-700 dark:text-slate-300">{propertyName}{unitHint ? ` — Unit ${unitHint}` : ''}</span></p>
                 </div>
             </div>
+
+            {/* ── Move-in Costs (Task 59 follow-up) ─────────────────────────
+                The same itemised categories the property manager configured
+                in Lease & Rent Configuration: recurring rent + service charge
+                keep their own cycle, months of service charge payable in
+                advance are their own line, legal/agency are one-time and the
+                caution deposit is refundable. No lump-sum total by design. */}
+            {disclosure?.kind === 'itemised' && disclosure.hasAny && (
+                <div className="mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                    <p className="flex items-center gap-1.5 text-2xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest leading-none mb-1">
+                        <ReceiptIcon className="w-3.5 h-3.5" />
+                        Move-in Costs{disclosure.unitName ? ` — Unit ${disclosure.unitName}` : ''}
+                    </p>
+                    <p className="text-3xs text-slate-400 dark:text-slate-500 mb-2.5">What this unit costs when your lease starts, listed by category.</p>
+                    <div className="space-y-1.5">
+                        {disclosure.rows.map((row: MoveInBreakdownRow) => (
+                            <div key={row.key} className="flex items-center justify-between gap-3 text-sm">
+                                <span className="text-slate-600 dark:text-slate-300 flex items-center gap-1.5 min-w-0">
+                                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                        row.key === 'rent' ? 'bg-indigo-500'
+                                          : row.key === 'serviceCharge' || row.key === 'scAdvance' ? 'bg-amber-500'
+                                          : row.key === 'cautionDeposit' ? 'bg-emerald-500'
+                                          : 'bg-sky-500'
+                                    }`} />
+                                    {row.label}
+                                    <span className={`text-3xs font-bold uppercase tracking-wider ${row.kind === 'refundable' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>{row.kind}</span>
+                                </span>
+                                <span className="font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                                    ₦{row.amount.toLocaleString('en-NG')}
+                                    {row.period && <span className="text-3xs font-semibold text-slate-400"> {row.period}</span>}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-3xs text-slate-400 dark:text-slate-500 mt-2.5 leading-relaxed">
+                        Figures from the property manager&apos;s current configuration — the manager confirms final amounts with your offer. Items are not added together.
+                    </p>
+                </div>
+            )}
+            {disclosure?.kind === 'range' && (
+                <div className="mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
+                    <p className="flex items-center gap-1.5 text-2xs font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest leading-none mb-1">
+                        <ReceiptIcon className="w-3.5 h-3.5" />
+                        Rent at this property
+                    </p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                        {disclosure.single
+                            ? <>All available units: <span className="font-bold text-slate-800 dark:text-slate-200">₦{disclosure.min.toLocaleString('en-NG')}</span> <span className="text-slate-400">{disclosure.freq}</span></>
+                            : <>From <span className="font-bold text-slate-800 dark:text-slate-200">₦{disclosure.min.toLocaleString('en-NG')}</span> to <span className="font-bold text-slate-800 dark:text-slate-200">₦{disclosure.max.toLocaleString('en-NG')}</span> <span className="text-slate-400">{disclosure.freq}</span></>}
+                        <span className="block text-3xs text-slate-400 dark:text-slate-500 mt-1">Service charge and move-in fees are confirmed per unit during review.</span>
+                    </p>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div>

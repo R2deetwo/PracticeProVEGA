@@ -192,6 +192,119 @@ export function monthlyServiceChargeRate(perCycle: number, freq?: string): numbe
   return Math.round((amt / months) * 100) / 100;
 }
 
+// ─── Itemised move-in breakdown (Task 59 follow-ups) ────────────────────────
+// One shared renderer-input builder for every surface that shows a NEW
+// resident what move-in costs: the property form's Move-in Cost Summary
+// (Task 59), the ComposeModal's new-resident financial panel, and the
+// public tenancy application's cost disclosure. Same categories, same
+// periodicity semantics, same deliberate NO lump-sum total everywhere.
+
+export interface MoveInBreakdownRow {
+  key: 'rent' | 'serviceCharge' | 'scAdvance' | 'legalFee' | 'agencyFee' | 'cautionDeposit';
+  /** Human label, e.g. "Service charge advance (6 months)". */
+  label: string;
+  /** Amount in naira. Rows are never summed — different kinds of money. */
+  amount: number;
+  /** Category: recurring (keeps its own cycle), one-time, or refundable. */
+  kind: 'recurring' | 'one-time' | 'refundable';
+  /** Periodicity note for recurring rows, e.g. "per annum", "every 3 months". */
+  period?: string;
+}
+
+export interface MoveInBreakdownInput {
+  rentAmount?: number | string;
+  rentFrequency?: string;
+  serviceCharge?: number | string;
+  serviceChargeAmount?: number | string;
+  serviceChargeFrequency?: string;
+  serviceChargeMonthsInAdvance?: number | string;
+  legalFee?: number | string;
+  isLegalNA?: boolean;
+  agencyFee?: number | string;
+  isAgencyNA?: boolean;
+  cautionDeposit?: number | string;
+  isCautionNA?: boolean;
+}
+
+export interface MoveInBreakdownOptions {
+  /** Service charge is turned off for the property (Core Services). */
+  scActive?: boolean;
+  /** Management-Only property — rent row hidden, others still listed. */
+  rentCollecting?: boolean;
+}
+
+/** "per annum" / "per month" / "every 3 months" for a frequency label. */
+export function rentCycleLabel(freq?: string): string {
+  switch ((freq || '').trim()) {
+    case 'Monthly': return 'per month';
+    case 'Quarterly': return 'per quarter';
+    case 'Bi-Annually': return 'every 6 months';
+    default: return 'per annum';
+  }
+}
+
+/**
+ * Itemised move-in breakdown rows for a unit's rental details.
+ * Mirrors the PropertyForm's Move-in Cost Summary exactly (Task 59):
+ *   - rent + service charge keep their own periodicity;
+ *   - the service-charge advance is its own one-time row when
+ *     serviceChargeMonthsInAdvance > 0;
+ *   - legal / agency are one-time; caution deposit is refundable;
+ *   - rows with no configured figure are omitted;
+ *   - NO total is produced, by design.
+ */
+export function buildMoveInBreakdown(
+  rental: MoveInBreakdownInput | null | undefined,
+  opts: MoveInBreakdownOptions = {}
+): { rows: MoveInBreakdownRow[]; hasAny: boolean } {
+  const r = (rental || {}) as MoveInBreakdownInput;
+  const scActive = opts.scActive !== false;
+  const rentCollecting = opts.rentCollecting !== false;
+
+  const rows: MoveInBreakdownRow[] = [];
+
+  const rentAmount = Number(r.rentAmount) || 0;
+  if (rentCollecting && rentAmount > 0) {
+    rows.push({
+      key: 'rent', label: 'Rent', amount: rentAmount, kind: 'recurring',
+      period: rentCycleLabel(r.rentFrequency),
+    });
+  }
+
+  const scCycle = loadServiceChargeCycle(r);
+  if (scActive && scCycle > 0) {
+    const cycleMonths = scCycleMonths(r.serviceChargeFrequency);
+    rows.push({
+      key: 'serviceCharge', label: 'Service charge', amount: scCycle, kind: 'recurring',
+      period: cycleMonths === 1 ? 'every month' : `every ${cycleMonths} months`,
+    });
+    const advanceMonths = Math.max(0, Math.min(24, Math.round(Number(r.serviceChargeMonthsInAdvance) || 0)));
+    if (advanceMonths > 0) {
+      const monthly = monthlyServiceChargeRate(scCycle, r.serviceChargeFrequency);
+      const upfront = Math.round(monthly * advanceMonths);
+      if (upfront > 0) {
+        rows.push({
+          key: 'scAdvance',
+          label: `Service charge advance (${advanceMonths} month${advanceMonths === 1 ? '' : 's'})`,
+          amount: upfront,
+          kind: 'one-time',
+        });
+      }
+    }
+  }
+
+  const legalFee = r.isLegalNA ? 0 : (Number(r.legalFee) || 0);
+  if (legalFee > 0) rows.push({ key: 'legalFee', label: 'Legal fee', amount: legalFee, kind: 'one-time' });
+
+  const agencyFee = r.isAgencyNA ? 0 : (Number(r.agencyFee) || 0);
+  if (agencyFee > 0) rows.push({ key: 'agencyFee', label: 'Agency fee', amount: agencyFee, kind: 'one-time' });
+
+  const cautionDeposit = r.isCautionNA ? 0 : (Number(r.cautionDeposit) || 0);
+  if (cautionDeposit > 0) rows.push({ key: 'cautionDeposit', label: 'Caution deposit', amount: cautionDeposit, kind: 'refundable' });
+
+  return { rows, hasAny: rows.length > 0 };
+}
+
 export function propertyExistsInDb(
   properties: Property[],
   unitId: string,

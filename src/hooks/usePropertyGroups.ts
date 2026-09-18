@@ -21,10 +21,22 @@ export interface UnitOption {
   tenantPhone?: string;
   tenantEmail?: string;
   rentAmount?: number;
+  /** Resolved service-charge figure (amount-first chain — see serviceCharge.ts). */
   serviceCharge?: number;
+  /** Raw per-cycle service-charge figure (serviceChargeAmount), when the
+   *  unit sets one — paired with serviceChargeFrequency for itemised
+   *  move-in breakdowns (Task 59 follow-ups). */
+  serviceChargeAmount?: number;
   legalFee?: number;
   agencyFee?: number;
   cautionDeposit?: number;
+  /** Rent billing frequency label (e.g. 'Annually') — for itemised
+   *  move-in breakdowns (Task 59 follow-ups). */
+  rentFrequency?: string;
+  /** Service-charge billing frequency label, when the unit sets one. */
+  serviceChargeFrequency?: string;
+  /** Months of service charge payable in advance at move-in (unit policy). */
+  serviceChargeMonthsInAdvance?: number;
   /** Lease commencement date (rentalDetails.leaseStart), if recorded. */
   leaseStart?: string;
   /** True when this unit's tenant has COMMENCED tenancy — either has a
@@ -180,9 +192,15 @@ export function usePropertyGroups(properties: Property[]): {
             // because its own 0 was falsy. Amount-first also matches what
             // scheduled WhatsApp sends use server-side.
             serviceCharge: resolveServiceChargeAmount({ unit, rental: unit.rentalDetails, defaultProperty: p }),
+            serviceChargeAmount: unit.serviceChargeAmount ?? (p as any).rentalDetails?.serviceChargeAmount,
             legalFee: unit.legalFee || (p as any).rentalDetails?.legalFee,
             agencyFee: unit.agencyFee || (p as any).rentalDetails?.agencyFee,
             cautionDeposit: unit.cautionDeposit || (p as any).rentalDetails?.cautionDeposit,
+            // Move-in breakdown inputs (Task 59 follow-ups) — unit-level
+            // cadence + advance policy for the itemised breakdown surfaces.
+            rentFrequency: unit.rentFrequency || (p as any).rentalDetails?.rentFrequency,
+            serviceChargeFrequency: unit.serviceChargeFrequency || (p as any).rentalDetails?.serviceChargeFrequency,
+            serviceChargeMonthsInAdvance: Math.max(0, Math.min(24, Math.round(Number(unit.serviceChargeMonthsInAdvance ?? (p as any).rentalDetails?.serviceChargeMonthsInAdvance) || 0))),
             leaseStart,
             isExistingTenant: hasCommencedTenancy(history, leaseStart),
           };
@@ -207,9 +225,14 @@ export function usePropertyGroups(properties: Property[]): {
           rentAmount: rental.rentAmount || (p as any).rentAmount,
           // Unified resolution (Item 2) — same chain as the embedded-unit branch.
           serviceCharge: resolveServiceChargeAmount({ unit: p, rental }),
+          serviceChargeAmount: rental.serviceChargeAmount ?? (p as any).serviceChargeAmount,
           legalFee: rental.legalFee,
           agencyFee: rental.agencyFee,
           cautionDeposit: rental.cautionDeposit,
+          // Move-in breakdown inputs (Task 59 follow-ups).
+          rentFrequency: rental.rentFrequency || (p as any).rentFrequency,
+          serviceChargeFrequency: rental.serviceChargeFrequency,
+          serviceChargeMonthsInAdvance: Math.max(0, Math.min(24, Math.round(Number(rental.serviceChargeMonthsInAdvance) || 0))),
           leaseStart: rental.leaseStart,
           isExistingTenant: hasCommencedTenancy((p as any).rentPaymentHistory, rental.leaseStart),
           _raw: p,

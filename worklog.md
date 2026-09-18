@@ -11811,3 +11811,89 @@ Stage Summary:
 - The Lease & Rent Configuration now reads like a property manager's ledger: recurring charges (rent, service charge) keep their own periodicity, one-time professional fees (legal, agency) and the refundable caution deposit stand in their own labelled cards, the estate's service-charge advance is an explicit enforced input, and nothing is ever summed into a meaningless package figure.
 - Follow-up candidates: enforce serviceChargeMonthsInAdvance in the tenant application/onboarding flow; surface the itemised move-in breakdown in ComposeModal's new-resident financials (messageFinancials already scopes move-in fees to new residents only — Task 16).
 - User action outstanding: rotate the GitHub PAT (pasted in chat on 2026-09-17 and used for this push — the stored remote token was dead).
+
+---
+Task ID: 60
+Agent: Super Z (main)
+Task: Session continuation after context exhaustion (user: "are you done? does
+not seem you have pushed to git"). Verify where the pipeline actually stopped,
+close it out, and implement the two Task-59 follow-ups (advance-months
+enforcement + itemised move-in breakdown).
+
+Work Log:
+- FORENSICS (this sandbox was a Sept-11 snapshot restored today): local main
+  sat 70 commits behind origin with permission-churn noise (714 mode-only
+  changes, 0 content diffs). Live fetch revealed origin/main is actually at
+  19b5e35c (v1.0.628, build-1012, 2026-09-17 15:11) — Tasks 45-59 WERE
+  pushed; the user's "not pushed" impression was wrong for code but right in
+  spirit: the last session never recorded the final pipeline verification.
+  Cleaned the tree (reset noise), fast-forwarded to 19b5e35c.
+- PIPELINE VERIFIED COMPLETE for 2f4bfa14/38d5aa98/19b5e35c via GitHub API:
+  Tests SUCCESS, Deploy to Staging SUCCESS, Build Android APK SUCCESS
+  (build-1012), Deploy to Production (promote) SUCCESS (15:12), Health
+  Watchdog SUCCESS on every run since (latest today 09:28). Live probe of
+  production entry bundle (index-B3fz2Kbe.js) contains the task-59 markers
+  (serviceChargeMonthsInAdvance ×2, "Months Payable in Advance",
+  "Move-in Cost Summary") — production genuinely serves the latest code.
+- GITHUB CREDENTIALS: the remote-URL PAT is DEAD (401 Bad credentials;
+  push dry-run fails "Invalid username or token"). The fresh PAT the user
+  pasted on 2026-09-17 lived only in the previous session's environment —
+  nothing recoverable in this sandbox. All pushes from here are blocked
+  until the user pastes a new PAT (again).
+- FOLLOW-UP A (serviceChargeMonthsInAdvance enforcement, portal/application
+  side) + FOLLOW-UP B (itemised move-in breakdown in ComposeModal) — both
+  implemented:
+  - New shared helper buildMoveInBreakdown (propertyPayload.ts): one row
+    builder for every move-in-cost surface — same categories/periodicity as
+    the Task-59 form summary (recurring rent + SC keep their own cycle, SC
+    advance = monthly rate × months as its own one-time line, legal/agency
+    one-time, caution refundable, N/A + zero figures omitted, Management-
+    Only hides rent, Core-Services-off hides SC rows, deliberately NO
+    lump-sum total). Plus rentCycleLabel helper.
+  - New deriveAdvanceRequirementRows + countSettledAdvanceRows
+    (leaseTimeline.ts): derives the UNCOLLECTED advance months as
+    "due at move-in" rows on the cadence grid; settled advance rows count
+    as covered so reopening never duplicates; rows are outstanding+isAdvance
+    and are dropped by buildTimeline on read — uncollected months never
+    surface as phantom overdue in running balances (verified by test).
+  - OnboardUnitLedgerModal (SC mode): requirement rows auto-materialise on
+    open; header note states the policy ("Advance requirement: this unit
+    requires N months … ≈₦X upfront. C of N collected") with live progress;
+    uncollected months carry a "Due at move-in" badge and the instruction
+    to mark Advance as each month is collected.
+  - ComposeModal: NEW residents (single tenant recipient, tenancy not
+    commenced) get an itemised "Move-in breakdown" panel in the Financial
+    Details section — same rows as the form, from the recipient's OWN unit
+    record (UnitOption extended: rentFrequency, serviceChargeFrequency,
+    serviceChargeAmount, serviceChargeMonthsInAdvance). Existing residents
+    keep the Task-16 rent-only note untouched. Informational only — the
+    demand still totals exactly what the message type sums.
+  - AtriumPublicApplicationForm (application side): applicants now see a
+    "Move-in Costs" disclosure BEFORE applying — itemised rows when the
+    share link names the unit (?unit=) or the property has a single unit;
+    an honest rent range across VACANT units for multi-unit no-hint links;
+    Core-Services + Management-Only gating respected.
+- Tests: +20 (tests/unit/moveInBreakdown.test.ts) — breakdown categories/
+  periodicity/advance math/clamps/gates/no-total, requirement derivation
+  (covered counting, gap-only, index continuation, no-op cases), the
+  phantom-overdue read-back guarantee, and source pins for all four
+  surfaces (ComposeModal new-resident gate + Task-16 note intact, onboarding
+  policy note + badge, public disclosure + range fallback, UnitOption
+  inputs). Full suite 1013/1013 (993 baseline + 20).
+- Gates: convex tsc 0 errors ✓; root tsc 128 = HEAD baseline, ZERO net-new
+  (CI gate ≤131) ✓; vite build clean (21.6s) ✓; design-token gray-* check:
+  no gray classes in the new UI ✓.
+- Committed locally. PUSH BLOCKED on the dead PAT — patch artifact
+  prepared for the user; a fresh PAT is required to push + let CI deploy.
+
+Stage Summary:
+- The Sept-17 work was already fully live (tests/staging/APK/production
+  all green, watchdog healthy) — the gap was verification record-keeping,
+  now closed.
+- The Task-59 advance policy is now enforced where it happens: the onboarding
+  ledger materialises uncollected months as due-at-move-in rows, applicants
+  see the full cost picture before they apply, and managers composing a new
+  resident's first demand see the same itemised breakdown.
+- STANDING BLOCKER: every stored GitHub credential is dead. User action
+  required: paste a fresh PAT (repo scope) to push this commit and restore
+  the deploy pipeline from this environment.

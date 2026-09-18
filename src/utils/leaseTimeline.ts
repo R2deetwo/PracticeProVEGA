@@ -313,6 +313,70 @@ export function buildTimeline(args: {
     return periods;
 }
 
+// ─── Advance requirement (Task 59 follow-up: enforcement at onboarding) ─────
+/**
+ * Derive the MISSING service-charge advance rows a unit's
+ * `serviceChargeMonthsInAdvance` policy requires at move-in.
+ *
+ * The requirement is CONFIG on the unit (set in Lease & Rent Configuration);
+ * the onboarding ledger enforces it by materialising the uncollected months
+ * as "due at move-in" rows (isAdvance + status 'outstanding') the manager
+ * settles month-by-month. Settled advance rows (advance_paid / paid / late
+ * with the advance flag) count as covered — only the gap is re-derived, so
+ * reopening the ledger never duplicates collected months.
+ *
+ * Rows land on the same cadence grid as manual advance periods (index =
+ * last existing + 1, dueDate stepped by cadence.months from leaseStart),
+ * and are EPHEMERAL at read time: buildTimeline drops unpaid future
+ * advance rows, so uncollected months never surface as phantom overdue in
+ * running balances — they live in the onboarding ledger until collected.
+ */
+export function deriveAdvanceRequirementRows(args: {
+    /** Unit policy: months of service charge payable in advance (clamped 0-24). */
+    monthsInAdvance?: number;
+    leaseStart?: string;
+    cadence: { months: number; perPeriodAmount: number };
+    /** Merged periods (buildTimeline output or the editing list). */
+    periods: Array<{ index?: number; status?: string; isAdvance?: boolean }>;
+    now?: Date;
+}): { rows: Array<{ index: number; dueDate: string; status: 'outstanding'; amount: number; isAdvance: true }>; required: number; covered: number } {
+    const required = Math.max(0, Math.min(24, Math.round(Number(args.monthsInAdvance) || 0)));
+    const empty = { rows: [] as Array<{ index: number; dueDate: string; status: 'outstanding'; amount: number; isAdvance: true }>, required, covered: 0 };
+    if (required <= 0 || !args.leaseStart || args.cadence.perPeriodAmount <= 0) {
+        return { ...empty, covered: countSettledAdvanceRows(args.periods) };
+    }
+    const start = new Date(args.leaseStart);
+    if (isNaN(start.getTime())) return { ...empty, covered: countSettledAdvanceRows(args.periods) };
+
+    const covered = countSettledAdvanceRows(args.periods);
+    const missing = Math.max(0, required - covered);
+    if (missing === 0) return { rows: [], required, covered };
+
+    const maxIndex = args.periods.reduce((m, p) => Math.max(m, Number(p?.index) || 0), 0);
+    const rows: Array<{ index: number; dueDate: string; status: 'outstanding'; amount: number; isAdvance: true }> = [];
+    for (let i = 0; i < missing; i++) {
+        const idx = maxIndex + 1 + i;
+        const due = new Date(start.getFullYear(), start.getMonth() + (idx - 1) * args.cadence.months, start.getDate());
+        rows.push({
+            index: idx,
+            dueDate: toDateISO(due),
+            status: 'outstanding',
+            amount: args.cadence.perPeriodAmount,
+            isAdvance: true,
+        });
+    }
+    return { rows, required, covered };
+}
+
+/** Advance rows that are settled (collected) — however they were marked. */
+export function countSettledAdvanceRows(
+    periods: Array<{ status?: string; isAdvance?: boolean }> | null | undefined
+): number {
+    return (periods || []).filter(p =>
+        p?.isAdvance === true && ['advance_paid', 'paid', 'late'].includes(String(p?.status))
+    ).length;
+}
+
 // ─── Rent timeline ──────────────────────────────────────────────────────────
 /**
  * Rent periods on the rent-frequency cadence, auto-settled from
