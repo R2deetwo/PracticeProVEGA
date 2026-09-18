@@ -12039,3 +12039,38 @@ Stage Summary:
   still need their dedicated queries cached); DraftPro export
   firmDetails guards; optimistic offline items in the portal lists.
 
+
+---
+Task ID: 63 (ALOA/ARIA send integrity)
+Agent: Main agent (Super Z)
+Task: User report — "typing in aloa, message just disappears and does not
+send; maybe broken by recent aloa/aria improvements."
+
+Work Log:
+- Audited recent Aloa commits (send path unchanged since 07-11; user's
+  recent improvements didn't touch it) and traced the full send path:
+  handleSend → optimistic UI → global AI queue → Convex saves.
+- Root-caused FOUR stacked defects (details in
+  docs/worklog/worklog-2026-09.md Task 63 entry):
+  1. Draft-restore race — programmatic '__new__'→id promotion wiped
+     in-progress typing (the literal symptom).
+  2. saveAloaMessage/deleteAloaConversation 500-row-capped ownership scan
+     → silent save failures past 500 conversations (client void'd them).
+  3. loadMessages remount wipe of in-flight optimistic messages.
+  4. Queue permanently stuck on abort-ignoring Convex mutations +
+     cancelAll corruption (double-execution, wrong shift, counter leak).
+- Fixed all four + surfaced save failures (debounced toast); 18 new
+  regression tests (aiRequestQueue +6, aloaSendIntegrity +12).
+- Gates: vitest 1071/1071, tsc 129 = baseline, lint 0 err + ratchet 2374,
+  both builds clean. Pushed a856da5c → CI green → promoted 04d798b3
+  (v1.0.635, build-1019) → live-verified both roots + APK + bundle
+  markers + Convex prod backend deployed. Deploy record pushed (22ba9fac).
+
+Stage Summary:
+- ALOA/ARIA send path hardened end-to-end and shipped to production.
+- Why it felt recent: Task 62 keeps users in-app on dead-ish networks
+  (previously session-wipe → login), and daily usage crossed the
+  500-conversation landmine — both turned latent bugs into daily failures.
+- Follow-ups if user still sees issues: capture the exact repro (new chat
+  vs existing, network state, panel open/close) + check browser console
+  for the new "[Aloa] Message could not be saved" warn line.
