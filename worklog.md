@@ -11962,3 +11962,22 @@ Stage Summary:
 - Next ranked targets: SubscriptionSettings (30 raw / 1,992L),
   PortalAccessSettings (25 / 1,614), TemplatesSettings (22 / 496),
   ServiceRequestTypesConfig (20 / 577), FirmSettings (18 / 628).
+
+---
+Task ID: 61 (addendum — deploy record)
+Agent: Main agent (Super Z)
+Task: Ship Task 61 through the pipeline.
+
+Work Log:
+- Pushed 63804e97..05c1f3c8 (5 commits, rebased over the build-1014 bot
+  bump) -> Tests SUCCESS (incl. the FIRST CI run of the UI-primitives
+  ratchet gate step), Staging SUCCESS, APK build-1015 SUCCESS (bot bumped
+  v1.0.631, commits 9eb47c87 + 44a0e280).
+- Production promote run 35350463718 (blank sha = 44a0e280): quality gate
+  SUCCESS (ratchet gate + 1024/1024 vitest incl. the 11 equivalence proofs),
+  Vercel + Convex SUCCESS, Cloudflare mirror SUCCESS.
+- Live: version.json sha 44a0e280, status healthy, apkVersion 1.0.631.
+
+Stage Summary:
+- Task 61 FULLY SHIPPED: enforcement live in CI, reference migration in
+  production, debt ratcheted at 2,374 and unable to grow.
