@@ -92,5 +92,8 @@ jobs:
       - name: Design-token gate (P4 — gray-* growth banned; docs/design/TOKENS.md)
         run: node scripts/check-design-tokens.mjs
 
+      - name: UI-primitives ratchet gate (ADR-0004 — raw form elements may not grow)
+        run: node scripts/check-ui-primitives.mjs
+
       - name: Run unit test suite
         run: npx vitest run

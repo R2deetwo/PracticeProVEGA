@@ -131,6 +131,9 @@ jobs:
           echo "Running: python3 scripts/audit-identity.py"
           python3 scripts/audit-identity.py
 
+      - name: UI-primitives ratchet gate (ADR-0004 — raw form elements may not grow)
+        run: node scripts/check-ui-primitives.mjs
+
       - name: Run unit test suite
         run: npx vitest run
 
