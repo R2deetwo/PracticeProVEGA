@@ -4344,3 +4344,29 @@ are not yet cached — they get a working shell + auth offline now; portal data
 caching is the natural next batch. DraftPro export paths still read
 `appState.firmDetails.id` unguarded (documented; export is not an offline
 promise this batch).
+
+## Task 62 — DEPLOY RECORD: offline-first APKs shipped as 85ee002e (v1.0.633, build-1017) (2026-09-18)
+
+- f68694c0 pushed to main; CI green across all four workflows: Tests ✓,
+  Deploy to Staging ✓, Build Android APK ✓, Build Admin APK ✓ (bot bumped
+  1.0.632 → 1.0.633, build-1017, commits 30dbb86e + 85ee002e).
+- Promoted to production via workflow_dispatch (run 35368370985 on 85ee002e):
+  full quality gate on pinned sha, Vercel prod + Cloudflare mirror.
+- **Live-verified per standing protocol (probe production directly, never
+  trust the deploy step):**
+  - Vercel `version.json` → sha 85ee002e, healthy, apkVersion 1.0.633 (10633);
+  - Cloudflare mirror `version.json` → identical sha/health (0.28s);
+  - both roots HTTP 200;
+  - APK asset live: build-1017 PracticePro-v1.0.633.apk, 14,858,385 bytes;
+  - offline-first code confirmed IN the production bundle
+    (`practicepro_cached_appstate` cache key, `isOfflineCache` auth flag,
+    offline banner copy "sync when you reconnect" ×3);
+  - offline shell purity: zero actual `fonts.googleapis.com` requests in
+    served HTML (remaining mentions are a CSP allowlist entry — no request
+    made — and the Task 62 change comment); fonts are @fontsource self-hosted.
+- Local gates re-run before push (fresh sandbox, nothing taken on faith):
+  lint 0 errors / ratchet 2374 held, vitest 1053/1053, vite build ✓,
+  admin build ✓.
+- Note: PAT was rotated (old token revoked → push auth failed once); remote
+  updated with the fresh token. Reminder stands: rotate again after pasting
+  any token in chat.
