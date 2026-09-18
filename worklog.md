@@ -11897,3 +11897,25 @@ Stage Summary:
 - STANDING BLOCKER: every stored GitHub credential is dead. User action
   required: paste a fresh PAT (repo scope) to push this commit and restore
   the deploy pipeline from this environment.
+
+## Task 60 (continued) — PAT restored: push + full pipeline + production promote ALL GREEN (2026-09-18)
+
+- User pasted a fresh PAT; remote re-credentialled and f1fd738c pushed
+  (19b5e35c..f1fd738c).
+- CI on f1fd738c: Tests SUCCESS, Deploy to Staging SUCCESS, Build Android
+  APK SUCCESS (bot bumped v1.0.629 / build-1013, commits 0d571906 +
+  d16243d5; local fast-forwarded).
+- Production promote run 35345462784 (blank sha = d16243d5): quality gate
+  SUCCESS, Vercel + Convex SUCCESS, Cloudflare mirror SUCCESS (first
+  all-green promote in a while — mirror token working again).
+- Live verification: version.json serves sha d16243d5, status healthy,
+  apkVersion 1.0.629 / 10629, apkUrl (build-1013) reachable; all four new
+  UI strings ("Due at move-in", "Move-in Cost Summary", "Months Payable in
+  Advance", "Advance requirement") confirmed in the live bundle
+  (index-D99WcU41.js).
+- STANDING BLOCKER RESOLVED. Pipeline fully self-maintained end-to-end:
+  push -> tests -> staging -> APK+version bump -> promote -> live verify.
+
+Stage Summary:
+- Task 60 fully shipped to production as d16243d5 (v1.0.629, build-1013).
+- No open work; watchdog will keep monitoring per its schedule.
