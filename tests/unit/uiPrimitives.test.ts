@@ -336,8 +336,9 @@ describe('Task 61 — Button class equivalence (ProfileSettings migration)', () 
     it('success CTA: variant=success + size=md + py-2.5 override superset of the hand-rolled string', () => {
         const composed = buildButtonClasses({ variant: 'success', size: 'md', className: 'w-full py-2.5' });
         assertSuperset(SUCCESS_ORIGINAL, composed, 'success');
-        // py-2.5 must be present to win over size md's py-2 (Tailwind scale
-        // order: .py-2 is emitted before .py-2\.5, so py-2.5 wins).
+        // py-2.5 must be present to win over size md's py-2: 'py-2' sorts
+        // before 'py-2.5' lexicographically, so py-2.5 is emitted later and
+        // wins (verified in the built CSS).
         expect(composed).toContain('py-2.5');
     });
 
@@ -345,15 +346,18 @@ describe('Task 61 — Button class equivalence (ProfileSettings migration)', () 
     const DARK_ORIGINAL =
         'w-full px-4 py-2 bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-all';
 
-    it('dark CTA: variant=dark + size=md + text-base override superset of the hand-rolled string', () => {
-        const composed = buildButtonClasses({ variant: 'dark', size: 'md', className: 'w-full text-base' });
-        assertSuperset(DARK_ORIGINAL, composed, 'dark');
-        // Original had NO text-size class and rendered at the inherited 16px
-        // (verified: no text-* ancestor between <main> and the button, and the
-        // html.font-size-sm/lg system applies !important scaling to buttons
-        // that overrides any class). text-base (16px) preserves that; it wins
-        // over size md's text-sm by stylesheet order (sm < base).
-        expect(composed).toContain('text-base');
+    it('dark CTA: variant=bare + verbatim classes (size overrides would lose lexicographically)', () => {
+        // The original button declares NO text-size class (renders at the
+        // inherited 16px). A text-base override on size md LOSES to text-sm
+        // because Tailwind v3 emits 'text-base' BEFORE 'text-sm' in
+        // lexicographic order — so the size system cannot express this button
+        // without a visual change. variant="bare" carries the VERBATIM string.
+        const composed = buildButtonClasses({ variant: 'bare', size: 'md', className: DARK_ORIGINAL });
+        assertSuperset(DARK_ORIGINAL, composed, 'dark-bare');
+        // The conflicting dark:bg-white / dark:bg-zinc-900 pair resolves to
+        // zinc-900 ("z" > "w") — the pre-existing dark-mode rendering, kept.
+        expect(composed).toContain('dark:bg-zinc-900');
+        expect(composed).toContain('dark:bg-white');
     });
 });
 

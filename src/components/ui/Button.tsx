@@ -32,7 +32,12 @@ import {
 export type ButtonVariant =
   | 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-soft' | 'outline'
   // Chunk B (Task 61) — measured multi-file patterns, see designTokens.ts:
-  | 'success' | 'dark' | 'tab' | 'tab-active' | 'segmented' | 'segmented-active';
+  | 'success' | 'dark' | 'tab' | 'tab-active' | 'segmented' | 'segmented-active'
+  // Escape hatch for one-off legacy looks (same contract as Input/Select
+  // 'bare'): no token styling; the caller supplies the complete class string
+  // via className and keeps Button's semantics (type default, focus ring,
+  // loading/disabled/aria). New code should NOT use 'bare'.
+  | 'bare';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'tab';
 
 export interface ButtonProps
@@ -68,6 +73,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
   'tab-active': BTN_TAB_ACTIVE,
   segmented: BTN_SEGMENTED,
   'segmented-active': BTN_SEGMENTED_ACTIVE,
+  bare: '',
 };
 
 // NOTE (Task 61): `transition-colors` moved OUT of BASE and INTO each variant
@@ -126,11 +132,17 @@ export interface ButtonClassOptions {
  * (tests/unit/uiPrimitives.test.ts) can assert that an adopted button's
  * class set is a SUPERSET of the original hand-rolled string, which is the
  * mechanical guarantee behind the zero-visual-change migration discipline
- * (ADR-0004). Tailwind conflict resolution (later-in-stylesheet wins) is
- * deterministic for the overrides used by migrations: numeric scale order
- * (py-2.5 > py-2, text-base > text-sm, bg-slate-100 > bg-slate-50,
- * dark:bg-zinc-800 > dark:bg-zinc-700, rounded-lg > rounded-md) plus
- * axis-specific over composite (pl-3/pr-10/py-2.5 > p-2).
+ * (ADR-0004).
+ *
+ * CONFLICT RESOLUTION (verified against the built CSS): Tailwind v3 emits
+ * utilities in LEXICOGRAPHIC class-name order, and the LAST emitted rule
+ * wins for same-specificity classes. Therefore an override passed via
+ * className only works if it sorts AFTER the class it replaces:
+ *   WINS:  py-2.5 > py-2, mb-3 > mb-1, dark:bg-zinc-800 > dark:bg-zinc-700
+ *   LOSES: text-base < text-sm, bg-slate-100 < bg-slate-50,
+ *          shadow-md < shadow-sm, rounded-lg < rounded-md
+ * When an override would lose, use variant='bare' with the verbatim
+ * original class string instead of fighting the order.
  */
 export function buildButtonClasses({
   variant = 'primary',

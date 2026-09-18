@@ -32,6 +32,12 @@ export const PAGE_CONTAINER_NARROW = 'max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-
 export const CARD_BASE = 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-sm';
 export const CARD_WIDGET = 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-sm';
 export const CARD_PAD = 'p-5';
+// Chunk B (Task 61) — the elevated card family (settings screens, detail
+// panels). MEASURED: 49 occurrences of "rounded-lg shadow-md" cards in 21
+// files. Kept as a FULL string (not CARD_BASE + shadow-md) because Tailwind
+// v3's lexicographic emission order puts shadow-md BEFORE shadow-sm — a
+// composed override would silently lose and flatten every adopted card.
+export const CARD_ELEVATED = 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md';
 
 // ─── Inputs ──────────────────────────────────────────────────────
 export const INPUT_BASE = 'w-full bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all';
@@ -63,9 +69,14 @@ export const BTN_OUTLINE = 'border border-slate-300 dark:border-zinc-600 text-sl
 //                    "Update Profile".
 //   dark           — "bg-slate-900 dark:bg-white dark:bg-zinc-900" inverse
 //                    CTA: 13 occurrences in 9 files. The conflicting dark:
-//                    classes are PRESERVED VERBATIM (dark:bg-white wins by
-//                    stylesheet order) so adopted screens render pixel-
-//                    identical; fix the conflict per-screen, not here.
+//                    classes are PRESERVED VERBATIM. Tailwind v3 emits
+//                    utilities in LEXICOGRAPHIC order, so dark:bg-zinc-900
+//                    ("z" > "w") wins over dark:bg-white — which means this
+//                    pattern renders dark:text-slate-900 on dark:bg-zinc-900
+//                    (near-invisible) in dark mode. That is a PRE-EXISTING
+//                    bug in every current usage, preserved here deliberately:
+//                    zero-visual-change migrations must not fix visuals.
+//                    Fix it per-screen in a deliberate follow-up.
 //   tab / tab-active — underline tab-bar buttons ("border-b-2 border-
 //                    primary-500" active state): 16 occurrences in 8 files.
 //                    Pair with Button size="tab" (pb-3 px-1 text-sm).

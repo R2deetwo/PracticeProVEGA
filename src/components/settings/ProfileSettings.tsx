@@ -1,17 +1,27 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { User, NotificationSettings, Theme, FontSize } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
-import { LockClosedIcon, ZapIcon, TrashIcon, UserCircleIcon, DesktopComputerIcon } from '../../constants';
+import { DesktopComputerIcon, UserCircleIcon } from '../../constants';
 import { useProduct } from '../../contexts/ProductContext';
 import { PROFESSIONAL_TITLES } from '../../utils/professionalIdentity';
 import FeedbackButton from '../FeedbackButton';
+// ui/ primitives (ADR-0004) — Task 61 reference migration. Every adopted
+// element is a zero-visual-change refactor; equivalence is proven by
+// tests/unit/uiPrimitives.test.ts (superset checks) — see
+// docs/worklog/worklog-2026-09.md "Task 61" for the migration recipe.
+import { Button, Input, Select, useToastFeedback } from '../ui';
+import { CARD_ELEVATED, BORDER_STANDARD } from '../../utils/designTokens';
 
+// SettingsCard — structural classes from designTokens. CARD_ELEVATED is the
+// measured elevated-card family (rounded-lg shadow-md, 49 occ / 21 files);
+// kept as a full token because a composed CARD_BASE + shadow-md override
+// would LOSE under Tailwind v3's lexicographic emission order
+// (shadow-md sorts before shadow-sm).
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
-    <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 ${className || ''}`}>
+    <div id={id} className={`relative overflow-hidden ${CARD_ELEVATED} p-6 ${className || ''}`}>
         <div className="relative z-10">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">{title}</h3>
             {children}
@@ -71,9 +81,10 @@ interface ProfileSettingsProps {
 }
 
 const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'general' | 'appearance' }> = ({ currentUser, onUpdateUser, theme, setTheme, initialSubTab }) => {
-    const { addToast, fontSize, setFontSize } = useUI();
+    const { fontSize, setFontSize } = useUI();
     const { updateCurrentUser } = useAuth();
     const { isLegal, isProperty } = useProduct();
+    const toast = useToastFeedback();
     const [userName, setUserName] = useState(currentUser.name);
     // PROFESSIONAL TITLE (user feedback 2026-09-12): "the person may
     // describe themselves in a limited number of ways and then other such
@@ -95,7 +106,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
             titleInput !== (currentUser.professionalTitle || '') ||
             titleCustomInput !== (currentUser.titleCustom || '');
         if (userName.trim() === currentUser.name && !titleChanged) {
-            addToast('No changes to save.', { type: 'info' });
+            toast.info('No changes to save.');
             return;
         }
         onUpdateUser({
@@ -103,12 +114,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
             professionalTitle: titleInput || undefined,
             ...(titleInput === 'Other' ? { titleCustom: titleCustomInput } : { titleCustom: undefined }),
         });
-        addToast('Profile updated successfully!', { type: 'success' });
+        toast.success('Profile updated successfully!');
     };
 
     const handleStandardsUpdate = () => {
         onUpdateUser({ professionalStandards: standards });
-        addToast('Professional standards updated successfully!', { type: 'success' });
+        toast.success('Professional standards updated successfully!');
     };
 
     const handleToggleNotification = (setting: keyof NotificationSettings) => {
@@ -127,108 +138,152 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
         updateCurrentUser({ enableLiveFlashes: newVal });
     };
 
-    const commonInputClass = "mt-1 text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md p-2";
-
     return (
         <div className="space-y-6">
-            <div className="flex gap-4 border-b border-slate-200 dark:border-zinc-700">
-                <button
+            <div className={`flex gap-4 border-b ${BORDER_STANDARD}`}>
+                <Button
                     onClick={() => setActiveSubTab('general')}
-                    className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeSubTab === 'general' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                    variant={activeSubTab === 'general' ? 'tab-active' : 'tab'}
+                    size="tab"
+                    icon={UserCircleIcon}
                 >
-                    <UserCircleIcon className="w-4 h-4" /> General
-                </button>
-                <button
+                    General
+                </Button>
+                <Button
                     onClick={() => setActiveSubTab('appearance')}
-                    className={`flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeSubTab === 'appearance' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300'}`}
+                    variant={activeSubTab === 'appearance' ? 'tab-active' : 'tab'}
+                    size="tab"
+                    icon={DesktopComputerIcon}
                 >
-                    <DesktopComputerIcon className="w-4 h-4" /> Appearance
-                </button>
+                    Appearance
+                </Button>
             </div>
 
             {activeSubTab === 'general' ? (
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <SettingsCard title="My Profile" id="my-profile">
                         <div className="space-y-4">
-                            <div>
-                                <label htmlFor="userName" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Name</label>
-                                <input autoComplete="off" data-lpignore="true"  type="text" id="userName" value={userName} onChange={(e) => setUserName(e.target.value)} className={commonInputClass} />
-                            </div>
+                            <Input
+                                styleVariant="settings"
+                                autoComplete="off"
+                                data-lpignore="true"
+                                type="text"
+                                id="userName"
+                                label="Name"
+                                value={userName}
+                                onChange={(e) => setUserName(e.target.value)}
+                            />
 
-                            <div>
-                                <label htmlFor="userEmail" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Email (Login ID)</label>
-                                <input autoComplete="off" data-lpignore="true"  type="email" id="userEmail" value={currentUser.email} readOnly disabled className={`${commonInputClass} cursor-not-allowed bg-slate-100 dark:bg-zinc-800`} />
-                                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Your email is used for logging in and cannot be changed.</p>
-                            </div>
+                            <Input
+                                styleVariant="settings"
+                                autoComplete="off"
+                                data-lpignore="true"
+                                type="email"
+                                id="userEmail"
+                                label="Email (Login ID)"
+                                value={currentUser.email}
+                                readOnly
+                                disabled
+                                inputClassName="cursor-not-allowed bg-slate-100 dark:bg-zinc-800"
+                                hint="Your email is used for logging in and cannot be changed."
+                            />
 
-                            {/* Professional title — how you appear in correspondence */}
-                            <div>
-                                <label htmlFor="professionalTitle" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Professional Title</label>
-                                <select
-                                    id="professionalTitle"
-                                    value={titleInput}
-                                    onChange={(e) => setTitleInput(e.target.value)}
-                                    className={commonInputClass}
-                                >
-                                    <option value="">Not specified</option>
-                                    {PROFESSIONAL_TITLES.map(t => (
-                                        <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>
-                                    ))}
-                                </select>
-                                {titleInput === 'Other' && (
-                                    <input autoComplete="off" data-lpignore="true" type="text" value={titleCustomInput} onChange={(e) => setTitleCustomInput(e.target.value)} placeholder="e.g. Head of Estate Operations" className={commonInputClass} />
-                                )}
-                                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Appears in your email signatures and on receipts you issue.</p>
-                            </div>
+                            {/* Professional title — how you appear in correspondence.
+                                NOTE: the hint stays a sibling AFTER the conditional
+                                custom-title input (original order — putting it on the
+                                Select would move it above that input when "Other"
+                                is chosen, a visual change). */}
+                            <Select
+                                styleVariant="settings"
+                                id="professionalTitle"
+                                label="Professional Title"
+                                value={titleInput}
+                                onChange={(e) => setTitleInput(e.target.value)}
+                            >
+                                <option value="">Not specified</option>
+                                {PROFESSIONAL_TITLES.map(t => (
+                                    <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>
+                                ))}
+                            </Select>
+                            {titleInput === 'Other' && (
+                                <Input
+                                    styleVariant="settings"
+                                    autoComplete="off"
+                                    data-lpignore="true"
+                                    type="text"
+                                    value={titleCustomInput}
+                                    onChange={(e) => setTitleCustomInput(e.target.value)}
+                                    placeholder="e.g. Head of Estate Operations"
+                                />
+                            )}
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Appears in your email signatures and on receipts you issue.</p>
                             {/* Profile update button — explicit primary styling.
                                 Was: bg-slate-900 dark:bg-white dark:bg-zinc-900 (conflicting
                                 dark classes made it invisible in dark mode — dark bg + dark text).
-                                Now: bg-emerald-600 hover:bg-emerald-500 text-white (always
-                                green, always white text, visible in both light and dark mode). */}
-                            <button onClick={handleProfileUpdate} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors shadow-md">
+                                Now: emerald CTA (Button variant="success", always green,
+                                always white text, visible in both light and dark mode).
+                                py-2.5 override keeps the original 40px height (wins over
+                                size md's py-2 by Tailwind scale order). */}
+                            <Button variant="success" size="md" className="w-full py-2.5" onClick={handleProfileUpdate}>
                                 Update Profile
-                            </button>
+                            </Button>
                         </div>
                     </SettingsCard>
 
                     {isLegal && (currentUser.role === 'Lawyer' || currentUser.role === 'Admin') && (
                         <SettingsCard title="Professional Standards" id="professional-standards">
                             <div className="space-y-4">
-                                <div>
-                                    <label htmlFor="practicingFee" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Last Practicing Fee Paid (Year)</label>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="number"
-                                        id="practicingFee"
-                                        value={standards.lastPracticingFeePaidYear}
-                                        onChange={(e) => setStandards(s => ({ ...s, lastPracticingFeePaidYear: parseInt(e.target.value, 10) || new Date().getFullYear() - 1 }))}
-                                        className={commonInputClass}
-                                    />
-                                </div>
-                                <div>
-                                    <label htmlFor="nbaStampStatus" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">NBA Stamp Status</label>
-                                    <select
-                                        id="nbaStampStatus"
-                                        value={standards.nbaStampStatus}
-                                        onChange={(e) => setStandards(s => ({ ...s, nbaStampStatus: e.target.value as 'Approved' | 'Pending' }))}
-                                        className={commonInputClass}
-                                    >
-                                        <option>Pending</option>
-                                        <option>Approved</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label htmlFor="cpdHours" className="block text-sm font-medium text-slate-700 dark:text-zinc-300">Completed CPD Hours (Current Year)</label>
-                                    <input autoComplete="off" data-lpignore="true" 
-                                        type="number"
-                                        id="cpdHours"
-                                        value={standards.completedCpdHours}
-                                        onChange={(e) => setStandards(s => ({ ...s, completedCpdHours: parseInt(e.target.value, 10) || 0 }))}
-                                        className={commonInputClass}
-                                    />
-                                </div>
-                                <button onClick={handleStandardsUpdate} className="w-full px-4 py-2 bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-all">
+                                <Input
+                                    styleVariant="settings"
+                                    autoComplete="off"
+                                    data-lpignore="true"
+                                    type="number"
+                                    id="practicingFee"
+                                    label="Last Practicing Fee Paid (Year)"
+                                    value={standards.lastPracticingFeePaidYear}
+                                    onChange={(e) => setStandards(s => ({ ...s, lastPracticingFeePaidYear: parseInt(e.target.value, 10) || new Date().getFullYear() - 1 }))}
+                                />
+                                <Select
+                                    styleVariant="settings"
+                                    id="nbaStampStatus"
+                                    label="NBA Stamp Status"
+                                    value={standards.nbaStampStatus}
+                                    onChange={(e) => setStandards(s => ({ ...s, nbaStampStatus: e.target.value as 'Approved' | 'Pending' }))}
+                                >
+                                    <option>Pending</option>
+                                    <option>Approved</option>
+                                </Select>
+                                <Input
+                                    styleVariant="settings"
+                                    autoComplete="off"
+                                    data-lpignore="true"
+                                    type="number"
+                                    id="cpdHours"
+                                    label="Completed CPD Hours (Current Year)"
+                                    value={standards.completedCpdHours}
+                                    onChange={(e) => setStandards(s => ({ ...s, completedCpdHours: parseInt(e.target.value, 10) || 0 }))}
+                                />
+                                {/* Dark inverse CTA — variant="bare" with the VERBATIM
+                                    original class string. Why bare: the original declares
+                                    no text-size (renders at the inherited 16px), and a
+                                    text-base override on size md LOSES to text-sm under
+                                    Tailwind v3's lexicographic emission order — so the
+                                    primitive's size system cannot express this button
+                                    without a visual change. bare keeps pixel-exact classes
+                                    and adds only semantics (type default, focus ring,
+                                    disabled/loading handling). The conflicting dark:bg-white
+                                    / dark:bg-zinc-900 pair is preserved verbatim — it
+                                    renders zinc-900 ("z" > "w") with near-invisible
+                                    dark:text-slate-900 text in dark mode; that is a
+                                    PRE-EXISTING bug, not one introduced here. Fix it in a
+                                    deliberate follow-up, not in a zero-change refactor. */}
+                                <Button
+                                    variant="bare"
+                                    className="w-full px-4 py-2 bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-all"
+                                    onClick={handleStandardsUpdate}
+                                >
                                     Update Standards
-                                </button>
+                                </Button>
                             </div>
                         </SettingsCard>
                     )}
@@ -258,11 +313,18 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                         <div id="theme-preference" />
                         <div className="space-y-6">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-3">Theme System Preference</label>
-                                <select
+                                {/* One-off legacy select style (Tailwind-UI form select,
+                                    1 occurrence in the codebase) — kept verbatim via
+                                    styleVariant="bare" + selectClassName; the primitive
+                                    still provides id/label/aria wiring. mb-3 preserves the
+                                    original 12px label gap (wins over the default mb-1). */}
+                                <Select
+                                    styleVariant="bare"
+                                    label="Theme System Preference"
+                                    labelClassName="mb-3"
                                     value={theme}
                                     onChange={(e) => setTheme(e.target.value as Theme)}
-                                    className="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 cursor-pointer shadow-sm"
+                                    selectClassName="block w-full pl-3 pr-10 py-2.5 text-base border-slate-300 dark:border-zinc-700 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-lg bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 cursor-pointer shadow-sm"
                                 >
                                     <optgroup label="System">
                                         <option value="system">System Auto-Match</option>
@@ -282,24 +344,26 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                         <option value="midnight-emerald">Midnight Royal (Green Tint)</option>
                                         <option value="army-dark">Army Green (Midnight variant)</option>
                                     </optgroup>
-                                </select>
+                                </Select>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">Font Size</label>
                                 <div className="flex p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-x-auto custom-scrollbar">
                                     {(['sm', 'md', 'lg'] as FontSize[]).map(size => (
-                                        <button
+                                        <Button
                                             key={size}
                                             onClick={() => setFontSize(size)}
-                                            className={`w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-md text-sm font-bold transition-all capitalize flex items-center justify-center gap-2 ${fontSize === size ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'}`}
+                                            variant={fontSize === size ? 'segmented-active' : 'segmented'}
+                                            size="md"
+                                            className="w-full flex-shrink-0 flex-1 min-w-[100px] text-center"
                                         >
                                             <span className="font-serif font-bold tracking-tight opacity-70">Aa</span>
                                             {size === 'sm' ? 'Small' : size === 'md' ? 'Medium' : 'Large'}
-                                        </button>
+                                        </Button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+                            <div className={`pt-4 border-t ${BORDER_STANDARD}`}>
                                 <Toggle
                                     label="Live Update Flashes"
                                     description="Visually flash interface elements when data updates in real-time."

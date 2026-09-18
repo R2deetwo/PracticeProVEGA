@@ -4174,3 +4174,102 @@ Work Log:
 
 Stage Summary:
 - BLOCKED ON USER (either unblocks): (a) paste a fresh GitHub PAT → push 162271a2, CI runs Tests/Staging/APK, then dispatch the production promote on demand; OR (b) apply the patch file locally on their own machine (git am 0001-*.patch) and push from there.
+
+---
+Task ID: 61 (ui-primitives adoption: enforcement + reference migration + CI ratchet)
+Agent: Main agent (Super Z)
+Task: Convert the UI-primitives scaffolding (ADR-0004, Chunk A) from ignored
+advisory into enforced, adopted infrastructure — three commits: (1) lint
+repair + raw-element ratchet gate, (2) ProfileSettings reference migration
+with primitive extensions, (3) CI wiring.
+
+Work Log:
+- DISCOVERED npm run lint was BROKEN on main: eslint.config.mjs extended
+  eslint-config-next, which requires the `next` package — absent in this Vite
+  app. Every lint run crashed at config load; NO rule (incl. the rounded-xl
+  gate) ever ran. Rebuilt the config on typescript-eslint with the same
+  effective surface; rounded-xl demoted to warn (42 pre-existing occurrences
+  were invisible while lint crashed; fixing them is a visual change, out of
+  scope). Added eslint/typescript-eslint/eslint-plugin-react-hooks as
+  explicit devDeps (they were transitive deps of the removed dead package).
+- scripts/check-ui-primitives.mjs: counts raw <button>/<input>/<select>/
+  <textarea> under src/components (excl. ui/), warns per file + summary, and
+  FAILS only when the total grows vs scripts/.ui-primitives-baseline.json
+  (ratchet). Wired into `npm run lint` (eslint && gate).
+- CRITICAL DISCOVERY for all future migrations: Tailwind v3 emits utilities
+  in LEXICOGRAPHIC class-name order (last emitted wins for same-specificity
+  classes). Therefore className overrides only work when the override class
+  sorts AFTER the class it replaces: py-2.5>py-2 ✓, mb-3>mb-1 ✓,
+  dark:bg-zinc-800>dark:bg-zinc-700 ✓ — but text-base<text-sm ✗,
+  bg-slate-100<bg-slate-50 ✗, shadow-md<shadow-sm ✗, rounded-lg<rounded-md ✗.
+  Verified empirically against the built CSS. Rule: when an override would
+  lose, use variant="bare"/styleVariant="bare" with the VERBATIM original
+  class string (semantics from the primitive, pixels from the legacy string).
+- Primitive extensions (each backed by a MEASURED multi-file pattern):
+  BTN_SUCCESS (emerald CTA 16/10), BTN_DARK (inverse CTA 13/9 — carries its
+  verbatim dark:bg-white/dark:bg-zinc-900 conflict, which renders zinc-900
+  with near-invisible dark:text-slate-900: a PRE-EXISTING dark-mode bug,
+  preserved deliberately; fix per-screen later), BTN_TAB/BTN_TAB_ACTIVE
+  (underline sub-tabs 16/8), BTN_SEGMENTED/SEGMENTED_ACTIVE, size="tab",
+  inputSettings formStyle (flat settings input 5/3), CARD_ELEVATED (rounded-lg
+  shadow-md cards 49/21), Button/Input/Select "bare" escape hatches,
+  labelClassName. transition-colors moved from Button BASE into variant tokens
+  (no-op for Chunk A; needed so transition-all variants animate exactly).
+- REFERENCE MIGRATION: settings/ProfileSettings.tsx (319 lines) — the recipe
+  screen. 13 raw elements -> 0 (5 buttons incl. tab bar + segmented font
+  picker + 2 CTAs; 5 inputs; 3 selects), 3 addToast -> useToastFeedback
+  (first adopter), SettingsCard -> CARD_ELEVATED, tab-bar/divider ->
+  BORDER_STANDARD, labels -> primitive label wiring (htmlFor + ids preserved
+  verbatim). Ratchet: 2,387 -> 2,374 (-13), baseline tightened in the same
+  commit.
+- Zero-visual-change proof (no live backend in this environment for
+  screenshot diffing): (a) tests/unit/uiPrimitives.test.ts asserts every
+  migrated element shape's composed class set is a SUPERSET of the original
+  hand-rolled string; (b) built-CSS audit confirms every override conflict
+  resolves in the original's favor; (c) documented intentional additions are
+  keyboard-only (focus-visible ring) and aria wiring — ADR-0004 sanctioned.
+  Also preserved verbatim: the email input's dead bg-slate-100 class (shadowed
+  by bg-slate-50 in the original too) and the hint paragraph's position after
+  the conditional custom-title input.
+- GATES after every commit: vitest 1024/1024 (1013 + 11 new), root tsc 128 =
+  baseline (0 net-new), npm run lint green, vite build clean, ratchet held.
+
+### The migration recipe (replicate per screen)
+1. `rg -c '<button|<input|<select|<textarea' <file>` — inventory the raw
+   elements; screenshot/record every state (light+dark, active tab, filled,
+   error, disabled) if a running env is available.
+2. For each element, find its style FAMILY (exact class string) and measure
+   frequency: `rg -c '<exact classes>' src --glob '*.tsx'`. 3+ files = extend
+   formTokens/designTokens with the family; 1-2 files = use "bare" + verbatim
+   string.
+3. Check every className override against the LEXICOGRAPHIC rule above; any
+   override that loses -> bare variant with verbatim classes.
+4. Buttons: map to variant+size; tabs -> variant tab/tab-active + size="tab";
+   CTAs -> success/dark/primary as measured; type="submit" only where the
+   original declared it.
+5. Inputs/Selects: styleVariant from formStyles (settings screens mostly
+   "settings"); keep explicit ids verbatim (deep links/e2e); labels become
+   the primitive's label prop (mb-1 = the old label+input mt-1 4px gap);
+   keep hint/sibling <p> ORDER verbatim when conditional siblings exist.
+6. addToast(...) -> const toast = useToastFeedback(); toast.success/error/
+   info(...) — message text unchanged.
+7. Structure: swap exact-match class runs for designTokens constants
+   (CARD_ELEVATED/BORDER_STANDARD/...); only where the token IS the measured
+   string (zero-change discipline beats token coverage).
+8. Empty states -> EmptyState; dates/currency -> utils/formatting.ts
+   (formatNaira*) — ProfileSettings had none of either; apply when present.
+9. Add superset-equivalence cases to tests/unit/uiPrimitives.test.ts for any
+   NEW element shape; run vitest + tsc + lint + build.
+10. `node scripts/check-ui-primitives.mjs --update-baseline`, commit screen +
+    baseline together with the count delta in the message.
+
+Stage Summary:
+- The adoption rule is now ENFORCED: raw-element debt (2,374 across 272
+  files) can never grow on main (CI ratchet), and new code warnings surface
+  in every `npm run lint` run.
+- ProfileSettings is the reference: 13 raw elements -> 0, first useToastFeedback
+  adopter, and the recipe + the Tailwind lexicographic-order rule are
+  documented for every future migration (human or AI).
+- Next targets ranked (raw-element count / lines): SubscriptionSettings
+  (30/1992), PortalAccessSettings (25/1614), TemplatesSettings (22/496),
+  ServiceRequestTypesConfig (20/577), FirmSettings (18/628).

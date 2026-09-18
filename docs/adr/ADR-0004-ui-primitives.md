@@ -33,3 +33,26 @@ The repo carries a dead shadcn config block (undefined HSL vars, zero usages —
 - Screen-reader label association and error announcement come for free with `Input`/`Select`.
 - `designTokens.ts` graduates from dead code to the canonical vocabulary consumed by the primitive layer.
 - The 44px touch-target rule (a11y audit 7.3) remains opt-in per button until a per-screen decision, because the dominant measured patterns are 36px tall — defaulting it on would resize every adopted button.
+
+## Addendum (2026-09-18, Task 61): the adoption rule is now enforced
+
+The original adoption rule was advisory only — 2 files adopted the primitives
+while the codebase accumulated ~2,400 raw form elements. As of Task 61:
+
+- **Ratchet gate** (`scripts/check-ui-primitives.mjs`, wired into
+  `npm run lint` and every CI quality gate): raw `<button>/<input>/<select>/
+  <textarea>` counts under `src/components/` may never GROW vs. the committed
+  baseline (`scripts/.ui-primitives-baseline.json`). Existing debt warns;
+  growth fails CI. Baseline tightens with every migrated screen.
+- **Chunk B variants** extend the measured-pattern vocabulary: `success`
+  (emerald CTA), `dark` (inverse CTA), `tab`/`tab-active` (underline tabs) +
+  `size="tab"`, `segmented`/`segmented-active`, `bare` (verbatim-class escape
+  hatch on Button/Input/Select), `inputSettings` formStyle, `CARD_ELEVATED`,
+  `labelClassName`. Every constant mirrors a measured multi-file pattern.
+- **Conflict-resolution rule for migrations** (verified against built CSS):
+  Tailwind v3 emits utilities in lexicographic class-name order; a className
+  override only wins if it sorts after the class it replaces (py-2.5>py-2 ✓,
+  text-base<text-sm ✗). Losing overrides must use `bare` + verbatim classes.
+- **First reference migration**: `settings/ProfileSettings.tsx` (13 raw
+  elements → 0) — the replicable recipe lives in
+  `docs/worklog/worklog-2026-09.md`, Task 61.

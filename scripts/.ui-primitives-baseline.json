@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-09-18T13:08:06.720Z",
+  "generatedAt": "2026-09-18T13:16:40.858Z",
   "totals": {
-    "button": 1748,
-    "input": 431,
-    "select": 146,
+    "button": 1743,
+    "input": 426,
+    "select": 143,
     "textarea": 62
   },
-  "total": 2387,
+  "total": 2374,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -959,11 +959,6 @@
       "button": 23,
       "input": 3,
       "select": 4
-    },
-    "src/components/settings/ProfileSettings.tsx": {
-      "button": 5,
-      "input": 5,
-      "select": 3
     },
     "src/components/settings/SecuritySettings.tsx": {
       "button": 5,
