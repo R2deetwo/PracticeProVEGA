@@ -7,6 +7,7 @@ import { setSentryUser, clearSentryUser } from '../utils/sentry';
 import { identifyUser, resetUser as resetAnalyticsUser } from '../utils/analytics';
 import { removeAllBeforeUnloadGuards } from '../utils/tabNavigation';
 import { setInMemoryApiKey } from '../utils/aiUtils';
+import { bootGraceMs, buildOfflineFallbackUser, readCachedUserRecord } from '../utils/offlineBoot';
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
@@ -420,6 +421,28 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         }
     }, [serverApiKey, sessionToken]);
 
+    // ─── TASK 62: BOOT GRACE — offline engagement for "connected but dead" networks ───
+    // navigator.onLine only reflects network INTERFACES, not reachability. On
+    // an exhausted data plan or in a dead cell zone the Android WebView still
+    // reports "online" while every Convex query hangs forever. Previously
+    // that state ran the full 20s → retry → 15s safety chain below, WIPED the
+    // session, and bounced the user to the login screen — the reported
+    // "APKs do not open without internet". Now: if the server hasn't produced
+    // user data within the boot grace AND we hold a cached user for this
+    // session, engage offline mode (cached user + cached appState) and KEEP
+    // the session intact. When connectivity returns, the real queries land
+    // and seamlessly replace the cached views; if the bearer turns out to be
+    // dead, the R17 validation retires it cleanly at that point.
+    const [offlineCacheEngaged, setOfflineCacheEngaged] = React.useState(false);
+
+    // A new session (login/logout/impersonation) resets the engagement.
+    React.useEffect(() => {
+        setOfflineCacheEngaged(false);
+    }, [sessionToken]);
+
+    // (The grace timer itself lives next to the safety-timeout state below,
+    // because it consults hasTimedOut.)
+
     const currentUser: User | null = React.useMemo(() => {
         // DEMO MODE BYPASS — development builds only
         if (import.meta.env.DEV && sessionToken === 'demo@practicepro.ng') {
@@ -446,41 +469,27 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             // ─── OFFLINE FALLBACK ─────────────────────────────────────────
             // If the Convex query hasn't returned data (undefined), it could be
             // because we're offline. If we have a cached user in localStorage,
-            // use that so the app doesn't show a blank screen. The cached user
-            // is read-only — mutations will fail offline, but at least the user
-            // can VIEW their matters, properties, tasks, etc.
+            // use that so the app doesn't show a blank screen.
             //
-            // SECURITY: The cached role is NOT trusted for admin access. If a
-            // user was demoted from Admin → Lawyer server-side (or had their
-            // account revoked entirely), the cached copy would still say Admin.
-            // To prevent privilege escalation through a stale cache, we demote
-            // Admin/Founder → Lawyer in the offline fallback. The user can
-            // still VIEW their matters (read-only since mutations fail offline
-            // anyway), but they cannot access admin settings, the founder
-            // dashboard, or perform destructive admin actions while offline.
-            // When they reconnect, the real server-side role takes effect.
-            if (sessionToken && typeof navigator !== 'undefined' && !navigator.onLine) {
-                try {
-                    const cached = localStorage.getItem('practicepro_cached_user');
-                    if (cached) {
-                        const parsed = JSON.parse(cached);
-                        if (parsed && parsed.token === sessionToken && parsed.user) {
-                            const cachedUser = { ...parsed.user };
-                            // Strip admin privileges from the offline cache.
-                            // Admins become Lawyers (or stay as their existing
-                            // non-admin role if they were e.g. a Paralegal).
-                            // Founders also become Lawyers — founder dashboard
-                            // is never available offline.
-                            if (cachedUser.role === 'Admin' || cachedUser.role === 'Founder') {
-                                cachedUser.role = 'Lawyer';
-                            }
-                            // Mark as offline-cache so the UI can show a
-                            // "read-only offline mode" indicator if desired.
-                            (cachedUser as any).isOfflineCache = true;
-                            return cachedUser;
-                        }
-                    }
-                } catch {}
+            // TASK 62: this fallback now ALSO engages when the boot grace
+            // elapsed without server data (offlineCacheEngaged). The old
+            // condition (`!navigator.onLine` only) never fired on
+            // "connected but dead" networks — exhausted data plans, dead
+            // cell zones — where the WebView still reports online while every
+            // query hangs. That ran the full 20s → retry → 15s chain, WIPED
+            // the session, and bounced the user to the login screen (the
+            // "APK does not open without internet" report).
+            //
+            // SECURITY (unchanged): the cached role is NOT trusted for admin
+            // access. buildOfflineFallbackUser demotes Admin/Founder → Lawyer
+            // and flags the object isOfflineCache; the server re-asserts the
+            // real role the moment connectivity returns, and the R17 session
+            // validation still retires dead bearers on reconnect.
+            if (sessionToken && (offlineCacheEngaged || (typeof navigator !== 'undefined' && !navigator.onLine))) {
+                const cachedUser = buildOfflineFallbackUser(sessionToken);
+                if (cachedUser) {
+                    return cachedUser;
+                }
             }
             return null;
         }
@@ -549,7 +558,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         } catch {}
 
         return combined;
-    }, [userData, sessionToken, localUserOverrides, impersonationRoleOverride, originalSessionToken]);
+    }, [userData, sessionToken, localUserOverrides, impersonationRoleOverride, originalSessionToken, offlineCacheEngaged]);
 
     // Persist portal type to BOTH sessionStorage and localStorage so we can
     // redirect correctly on refresh/logout. localStorage ensures the portal type
@@ -1247,8 +1256,50 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // Strategy: First timeout triggers a silent retry; second timeout falls back to landing.
     const [retryCount, setRetryCount] = React.useState(0);
     const [hasTimedOut, setHasTimedOut] = React.useState(false);
+
+    // ─── TASK 62: the boot-grace timer itself ─────────────────────────────
+    // (Lives here — after the hasTimedOut declaration — because it consults
+    // and sets that state.) If the server hasn't produced user data within
+    // the boot grace AND we hold a cached user for this session, engage the
+    // offline cache and KEEP the session. This is the path that makes the
+    // APKs open on "connected but dead" networks (exhausted data plans, dead
+    // cell zones) where navigator.onLine still reports true.
+    React.useEffect(() => {
+        if (!sessionToken || sessionToken === 'demo@practicepro.ng') return;
+        if (offlineCacheEngaged || hasTimedOut) return;
+        if (userData !== undefined) return; // server answered (even a null verdict)
+        // True offline is already covered instantly by the !navigator.onLine
+        // paths — the grace only matters for the fake-online case.
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        const timer = setTimeout(() => {
+            if (readCachedUserRecord(sessionToken)) {
+                console.warn('[Auth] Boot grace elapsed with no server data — engaging offline cache (session preserved).');
+                setOfflineCacheEngaged(true);
+                // Stops the splash hold and the retry toggles below WITHOUT
+                // wiping the session — the decisive difference from the old
+                // safety-timeout outcome on dead networks.
+                setHasTimedOut(true);
+            }
+            // No cached user → this device has never completed a session
+            // online; the existing 20s/15s safety valve stays in charge.
+        }, bootGraceMs());
+        return () => clearTimeout(timer);
+    }, [sessionToken, userData, offlineCacheEngaged, hasTimedOut]);
+
     React.useEffect(() => {
         const validationPending = shouldValidateSession && sessionValidation === undefined;
+        // TASK 62: while the offline cache is engaged (hasTimedOut set via the
+        // boot grace WITH a cached user), never toggle the session token and
+        // never wipe the session — the app is serving cached data and Convex
+        // heals the queries when connectivity returns. If real data HAS
+        // arrived, re-arm the safety valve for the rest of the session.
+        if (hasTimedOut) {
+            if (userData && !validationPending) {
+                setHasTimedOut(false);
+                setRetryCount(0);
+            }
+            return;
+        }
         if (sessionToken && sessionToken !== 'demo@practicepro.ng' && (!userData || validationPending)) {
             // Increase to 20s for first attempt; 15s for retries
             const timeoutMs = retryCount === 0 ? 20000 : 15000;
@@ -1284,7 +1335,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             setHasTimedOut(false);
             setRetryCount(0);
         }
-    }, [sessionToken, userData, retryCount, sessionValidation, shouldValidateSession]);
+    }, [sessionToken, userData, retryCount, sessionValidation, shouldValidateSession, hasTimedOut]);
 
     // Calculate final loading state
     // We are loading if:
@@ -1293,12 +1344,11 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     //
     // OFFLINE FIX: If we're offline AND have a cached user, don't keep loading —
     // the currentUser memo will return the cached user, so we should stop loading.
+    // TASK 62: same check via the shared offlineBoot helper (token-match
+    // validation lives in one place now).
     const hasOfflineCache = (() => {
         if (!sessionToken || typeof navigator === 'undefined' || navigator.onLine) return false;
-        try {
-            const cached = localStorage.getItem('practicepro_cached_user');
-            return cached && JSON.parse(cached)?.token === sessionToken;
-        } catch { return false; }
+        return !!readCachedUserRecord(sessionToken);
     })();
 
     // Hold the splash while the session validity gate is pending: the shell

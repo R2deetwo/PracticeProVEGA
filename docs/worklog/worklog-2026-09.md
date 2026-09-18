@@ -4273,3 +4273,74 @@ Stage Summary:
 - Next targets ranked (raw-element count / lines): SubscriptionSettings
   (30/1992), PortalAccessSettings (25/1614), TemplatesSettings (22/496),
   ServiceRequestTypesConfig (20/577), FirmSettings (18/628).
+
+## Task 62 — OFFLINE-FIRST APKs: open to last-known data on dead networks, queued writes, self-hosted shell (2026-09-18)
+
+**User report:** "the apks do not open without internet. they should open to the
+previous known data... like OneNote — use the app and take notes even when
+there is no data, and synchronize when back online."
+
+**Root cause (why the existing offline mode didn't save us):** every offline
+fallback keyed on `navigator.onLine`, which reflects network INTERFACES, not
+reachability. On an exhausted data plan or in a dead cell zone (the daily
+reality of Nigerian mobile) the WebView still reports "online" while every
+Convex query hangs forever. In that state AuthContext ran its full
+20s → retry → 15s safety chain, **wiped the session**, and bounced the user to
+the login screen — ~35s of splash then a login page they couldn't use.
+Indistinguishable from "the app does not open".
+
+**The fix (4 layers, all pinned by tests/unit/offlineBoot.test.ts — 29 tests):**
+
+1. **BOOT GRACE (new `src/utils/offlineBoot.ts` + AuthContext):** if the
+   server produces no user data within 8s (native) / 14s (web) AND a cached
+   user exists for this session, engage the offline cache and KEEP the
+   session (the safety-timeout effect now stands down while engaged and only
+   re-arms when real data arrives; the wipe path remains only for
+   never-used-online devices). Privilege demotion preserved: cached
+   Admin/Founder render as Lawyer until the server re-asserts the real role.
+2. **CACHED DATA (DataProvider):** when auth serves the offline cache
+   (`currentUser.isOfflineCache`), appState hydrates from
+   `practicepro_cached_appstate` — merged over `EMPTY_APP_STATE` so a partial
+   cache (mid-load write, older app version) can never leave collections
+   `undefined` (that exact crash took the shell to the error boundary in
+   E2E testing: `.filter` of undefined).
+3. **OFFLINE WRITES (DataProvider + useOfflineQueue):** generic CRUD —
+   `addItem`/`updateItem`/`deleteItem`, which is also how NOTES and notebooks
+   save (`addItem('noteNotebooks'/'notePages')`) — queues to the existing
+   offline mutation queue when effectively offline, keeps the optimistic UI
+   visible, and writes through to the cache (debounced 300ms) so offline
+   edits survive a cold restart. `createItem` preserves the client UUID as
+   the document id, so the Phase B merge dedupes after replay — no duplicate
+   cards. Plus two queue-integrity fixes found during adoption: a
+   module-level single-flight lock (multiple mounted hook instances used to
+   be able to double-execute the same queue — a data-integrity bug in a
+   trust-accounting app) and merge-back write (items queued DURING a replay
+   were silently dropped by the blind overwrite).
+4. **OFFLINE SHELL PURITY (index.html/admin.html/index.css):** fonts are now
+   self-hosted via @fontsource (was: fonts.googleapis.com — every offline
+   boot fell back to system fonts); the dead DOMPurify CDN script is removed
+   (npm dompurify is the real code path); Quill snow CSS is self-hosted at
+   /vendor/ (legacy document content parity). Both APKs now boot with ZERO
+   network resources. Also null-guarded three render-path crashes found in
+   E2E (`firmDetails.subscriptionPlan` in useFeatures/Sidebar/
+   FloatingTestControls).
+
+**Global offline banner** rides the unified banner system (UIContext): shows
+when offline or serving the cache ("showing saved data... will sync when you
+reconnect"), auto-dismisses on recovery.
+
+**E2E proof (headless Chrome, dead Convex URL, seeded caches):** app boots on
+a fake-online network to the full VEGA shell — sidebar, dashboard, cached
+firm + user, "ACTIVE MATTERS: 1", offline banner visible, Admin correctly
+demoted to LAWYER, zero error boundary, session preserved. Console:
+"[Auth] Boot grace elapsed with no server data — engaging offline cache
+(session preserved)."
+
+**Gates:** vitest 1053/1053 (+29), tsc 128 = baseline (0 net-new), lint +
+raw-element ratchet 2374 held, vite build ✓, admin build ✓.
+
+**Known scope notes:** portal users' dedicated queries (tenant ledger etc.)
+are not yet cached — they get a working shell + auth offline now; portal data
+caching is the natural next batch. DraftPro export paths still read
+`appState.firmDetails.id` unguarded (documented; export is not an offline
+promise this batch).

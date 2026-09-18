@@ -55,14 +55,12 @@
   <meta name="twitter:image:alt" content="PracticePro — Vega for law firms, Atrium for property managers" />
   <meta name="robots" content="index, follow" />
   <meta name="author" content="PracticePro" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://api.paystack.co">
   <link rel="preconnect" href="https://*.convex.cloud">
   <link rel="preconnect" href="https://firebasestorage.googleapis.com">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
+  <!-- Fonts are SELF-HOSTED via @fontsource packages imported in src/index.css
+       (Task 62). Previously loaded from fonts.googleapis.com, which left the
+       APKs falling back to system fonts whenever there was no network. -->
 
   <!-- JSON-LD Structured Data — SoftwareApplication schema for SEO -->
   <script type="application/ld+json">
@@ -195,7 +193,10 @@
 
   <!-- Tailwind CSS (Script for Dev/Preview) -->
   <!-- Tailwind CSS (Script for Dev/Preview) -->
-  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <!-- Quill snow CSS — self-hosted (Task 62) so legacy Quill-authored document
+       content renders identically offline. The editor itself is TipTap; this
+       stylesheet only styles legacy .ql-* content classes. -->
+  <link href="/vendor/quill.snow-1.3.6.css" rel="stylesheet">
 
   <style>
     html,
@@ -300,8 +301,10 @@
 
 
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.1/purify.min.js"></script>
-  <!-- Fuse.js removed from CDN — now imported as npm package in components -->
+  <!-- DOMPurify + Fuse.js CDN scripts removed (Task 62): both are npm
+       dependencies bundled by Vite (src/utils/sanitization.ts imports
+       'dompurify'). The CDN tags were dead weight that blocked first paint
+       on flaky networks and did nothing offline. -->
 
 </head>
 

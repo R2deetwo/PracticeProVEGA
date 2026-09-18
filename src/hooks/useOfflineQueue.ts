@@ -161,6 +161,13 @@ function makeId(): string {
     return `offline_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+// TASK 62: module-level single-flight lock. Multiple instances of this hook
+// are mounted at once (DataProvider is always mounted + screen-level
+// adopters), and each used to run its own replay loop — two concurrent
+// replays read the same queue and DOUBLE-EXECUTED every queued mutation.
+// In a trust-accounting app that is a data-integrity bug, not a nuisance.
+let globalReplayLock = false;
+
 export function useOfflineQueue() {
     const { isOnline, addToast } = useUI();
     // R16 strict identity: queued mutations may replay long after they were
@@ -254,15 +261,20 @@ export function useOfflineQueue() {
 
     const replayQueue = useCallback(async () => {
         if (isReplaying.current) return;
+        if (globalReplayLock) return; // another instance is mid-replay
         if (typeof navigator === 'undefined' || !navigator.onLine) return;
 
         const queue = readQueue();
         if (queue.length === 0) return;
 
         isReplaying.current = true;
+        globalReplayLock = true;
         let successCount = 0;
         let droppedCount = 0;
         const remaining: QueuedMutation[] = [];
+        try {
+        // (try/finally: an unexpected exception mid-replay must never wedge
+        // the global lock — that would silently stop all future syncs.)
 
         for (const item of queue) {
             const mutationFn = mutationsRef.current[item.mutationName];
@@ -296,7 +308,15 @@ export function useOfflineQueue() {
             }
         }
 
-        writeQueue(remaining);
+        // TASK 62: merge-back instead of blind overwrite. While this replay
+        // was running, the user may have queued NEW items (writeQueue appends
+        // to localStorage). Overwriting with `remaining` alone would silently
+        // delete those. Keep: (a) items we never attempted, (b) items we
+        // attempted but that failed with retryable network errors.
+        const stored = readQueue();
+        const attemptedIds = new Set(queue.map(q => q.id));
+        const remainingIds = new Set(remaining.map(r => r.id));
+        writeQueue(stored.filter(item => !attemptedIds.has(item.id) || remainingIds.has(item.id)));
 
         if (successCount > 0 && droppedCount === 0) {
             addToast(
@@ -310,7 +330,10 @@ export function useOfflineQueue() {
             );
         }
 
-        isReplaying.current = false;
+        } finally {
+            isReplaying.current = false;
+            globalReplayLock = false;
+        }
     }, [addToast, bearerToken]);
 
     // Replay on 'online' event (with 2s grace period for Convex reconnect)

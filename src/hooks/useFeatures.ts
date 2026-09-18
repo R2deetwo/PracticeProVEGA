@@ -22,7 +22,10 @@ export const useFeatures = () => {
     // for portal users (Client/Tenant) whose firm data may not be loaded yet.
     // This prevents portal users from seeing "Portal Unavailable" when
     // DataProvider hasn't loaded firmDetails for them.
-    const billingPlan = appState.firmDetails.subscriptionPlan
+    // TASK 62: optional-chain — firmDetails is undefined while booting from
+    // the offline cache before hydration (and for portal users pre-load).
+    // This line used to crash the entire app to the error boundary offline.
+    const billingPlan = appState.firmDetails?.subscriptionPlan
         || (currentUser?.role === 'Client' || currentUser?.role === 'Tenant'
             ? SubscriptionPlan.Komplete  // Portal users: assume full access until firm data loads
             : SubscriptionPlan.Core);
@@ -30,7 +33,7 @@ export const useFeatures = () => {
     // For entitlements: use trialPlan if on active trial, else billingPlan.
     const plan = isOnTrial ? (trialPlan as any) : billingPlan;
 
-    const product = appState.firmDetails.product
+    const product = appState.firmDetails?.product
         || currentUser?.product
         || 'unified';
 

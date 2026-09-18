@@ -8,6 +8,8 @@ import { AppState, EMPTY_APP_STATE } from '../types';
 import { ExtendedDataActions, DataActionsContext, DataStateContext } from './DataContext';
 import { v4 as uuidv4 } from 'uuid';
 import { ATRIUM_DEMO_APP_STATE, VEGA_DEMO_APP_STATE } from '../utils/demoData';
+import { readCachedAppState, writeAppStateCache } from '../utils/offlineBoot';
+import { useOfflineQueue } from '../hooks/useOfflineQueue';
 
 // Domain Hooks
 import { useMatters } from '../hooks/useMatters';
@@ -25,7 +27,7 @@ import { useCommunications } from '../hooks/useCommunications';
  */
 export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
     const { currentUser, updateCurrentUser, bearerToken } = useAuth();
-    const { addToast } = useUI();
+    const { addToast, isOnline } = useUI();
     const convex = useConvex();
 
     // 1. Core State & Sync Logic
@@ -33,6 +35,36 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const appStateRef = React.useRef(appState);
     React.useEffect(() => { appStateRef.current = appState; }, [appState]);
     const [isDataLoaded, setIsDataLoaded] = React.useState(false);
+
+    // ─── TASK 62: OFFLINE WRITE PATH ────────────────────────────────────
+    // The generic CRUD actions below (addItem/updateItem/deleteItem — also
+    // how notes and notebooks save) become offline-capable: when the device
+    // is offline (or the auth layer is serving the offline cache on a
+    // "connected but dead" network), the mutation is queued to the existing
+    // offline queue instead of fired at a dead socket, the optimistic UI
+    // stays visible, and the change is written through to the offline
+    // appState cache so it survives a cold restart while still offline.
+    const { queueMutation } = useOfflineQueue();
+    const isServingOfflineCache = (currentUser as any)?.isOfflineCache === true;
+    // Ref so the memoized base actions always read the CURRENT signal at
+    // call time (a plain const would be frozen into the memo closure).
+    const effectivelyOfflineRef = React.useRef(false);
+    React.useEffect(() => {
+        effectivelyOfflineRef.current = !isOnline || (currentUser as any)?.isOfflineCache === true;
+    }, [isOnline, currentUser]);
+
+    // TASK 62 — write-through: while effectively offline, every appState
+    // change (optimistic creates/updates/deletes, including notes) is
+    // persisted to the offline cache so a cold restart while still offline
+    // shows the user's latest local edits. Debounced 300ms — offline edits
+    // are human-speed, not machine-speed.
+    React.useEffect(() => {
+        if (!effectivelyOfflineRef.current || !currentUser?.firmId) return;
+        const t = setTimeout(() => {
+            writeAppStateCache(appStateRef.current, currentUser.firmId);
+        }, 300);
+        return () => clearTimeout(t);
+    }, [appState, currentUser?.firmId]);
 
     // Convex Mutations
     const createItemMutation = useMutation(api.myFunctions.createItem);
@@ -80,6 +112,21 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             const tempId = data.id || uuidv4();
             const optimisticItem = { ...data, id: tempId };
             setAppState(prev => ({ ...prev, [table]: [...(prev[table as keyof AppState] as any[]), optimisticItem] }));
+
+            // TASK 62 — offline write path: queue the mutation, keep the
+            // optimistic item visible, and write it through to the offline
+            // cache. createItem preserves the client UUID as the document
+            // id, so the Phase B merge dedupes correctly after the queue
+            // replays — no duplicate cards, no lost notes.
+            if (effectivelyOfflineRef.current) {
+                queueMutation({
+                    mutationName: 'createItem',
+                    args: { table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email },
+                    label: itemName || table,
+                });
+                addToast(`Saved offline — ${itemName || 'item'} will sync when you reconnect.`, { type: 'info' });
+                return { ...data, id: tempId };
+            }
 
             try {
                 const rawId = await createItemMutation({ table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
@@ -145,6 +192,18 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                     return merged;
                 })
             }));
+
+            // TASK 62 — offline write path (see addItem note above).
+            if (effectivelyOfflineRef.current) {
+                queueMutation({
+                    mutationName: 'updateItem',
+                    args: { table, id: mutationId, data: item, userEmail: currentUser?.email },
+                    label: itemName || table,
+                });
+                addToast(`Saved offline — ${itemName || 'item'} will sync when you reconnect.`, { type: 'info' });
+                return;
+            }
+
             try {
                 await updateItemMutation({ table, id: mutationId, data: item, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             } catch (e: any) {
@@ -183,6 +242,18 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 ...prev,
                 [table]: (prev[tableKey] as any[]).filter((i: any) => i.id !== id && i._id !== id)
             }));
+
+            // TASK 62 — offline write path (see addItem note above).
+            if (effectivelyOfflineRef.current) {
+                queueMutation({
+                    mutationName: 'deleteItem',
+                    args: { table, id, userEmail: currentUser?.email },
+                    label: itemName || table,
+                });
+                addToast(`${itemName || 'Item'} removed — deletion will sync when you reconnect.`, { type: 'info' });
+                return;
+            }
+
             try {
                 await deleteItemMutation({ table, id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
             } catch (e: any) {
@@ -708,21 +779,26 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
         // ─── OFFLINE FALLBACK ─────────────────────────────────────────────
         // If we're offline AND have cached app data, load it immediately so
-        // the user can view their matters, properties, tasks, etc. in
-        // read-only mode instead of seeing a blank/loading screen.
-        if (typeof navigator !== 'undefined' && !navigator.onLine && !isDataLoaded && currentUser) {
-            try {
-                const cached = localStorage.getItem('practicepro_cached_appstate');
-                if (cached) {
-                    const parsed = JSON.parse(cached);
-                    if (parsed && parsed.firmId === currentUser.firmId) {
-                        setAppState(parsed.state);
-                        setIsDataLoaded(true);
-                        setIsFullyLoaded(true);
-                        return;
-                    }
-                }
-            } catch {}
+        // the user can view their matters, properties, tasks, etc. instead
+        // of seeing a blank/loading screen.
+        // TASK 62: now ALSO engages when the auth layer is serving the
+        // offline cache (isOfflineCache) — the "connected but dead" network
+        // case where navigator.onLine still reports true but no query will
+        // ever land.
+        if (((typeof navigator !== 'undefined' && !navigator.onLine) || isServingOfflineCache) && !isDataLoaded && currentUser) {
+            const cachedAppState = readCachedAppState(currentUser.firmId);
+            if (cachedAppState) {
+                // TASK 62: merge over EMPTY_APP_STATE — a partial cache (written
+                // mid-load, or from an older app version) must never leave
+                // collections as `undefined`; every AppState array falls back
+                // to the empty default so list rendering can't crash the
+                // shell offline. JSON round-trips never contain undefined
+                // values, so cached keys always win the spread.
+                setAppState({ ...EMPTY_APP_STATE, ...cachedAppState.state });
+                setIsDataLoaded(true);
+                setIsFullyLoaded(true);
+                return;
+            }
         }
 
         // Phase A: metadata arrives — unlock UI immediately

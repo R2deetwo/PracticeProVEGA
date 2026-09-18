@@ -164,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
         messages: chatNotificationCount + (hasPropertyFeatures ? inboundUnread + portalUnread : 0),
     };
 
-    const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;
+    const currentPlan = coreState.firmDetails?.subscriptionPlan || SubscriptionPlan.Core; // Task 62: firmDetails can be undefined booting from the offline cache
     const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
     const features = useFeatures();
     // Allow all users to access the firm switcher to find their other offices or switch back to original offices 

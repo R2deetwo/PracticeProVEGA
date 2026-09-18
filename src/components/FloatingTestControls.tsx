@@ -85,7 +85,7 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
     const [isSimulatingData, setIsSimulatingData] = useState(false);
     const [isSimulatingFinance, setIsSimulatingFinance] = useState(false);
     
-    const currentPlan = coreState.firmDetails.subscriptionPlan || SubscriptionPlan.Core;
+    const currentPlan = coreState.firmDetails?.subscriptionPlan || SubscriptionPlan.Core; // Task 62: firmDetails can be undefined booting from the offline cache
     const currentRole = currentUser?.role || UserRole.Admin;
 
     const pendingInvites = coreState.externalCounselInvites.filter(i => i.status === 'pending');

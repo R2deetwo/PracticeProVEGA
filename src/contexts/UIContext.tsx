@@ -315,6 +315,34 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         setBanners(prev => prev.filter(b => b.id !== id));
     }, []);
 
+    // ── TASK 62: global offline banner ─────────────────────────────────
+    // Surfaces the offline state on every surface via the unified banner
+    // system. Two triggers: (a) the device reports no network (classic
+    // offline), or (b) the auth layer is serving the offline cache — the
+    // "connected but dead" network case (see utils/offlineBoot.ts). The
+    // banner auto-dismisses when connectivity (and real data) returns. If
+    // the user dismisses it manually, it stays dismissed until the state
+    // cycles — the ref tracks lifecycle, not the banner's presence.
+    const offlineBannerShownRef = React.useRef(false);
+    React.useEffect(() => {
+        const servingOfflineCache = (currentUser as any)?.isOfflineCache === true;
+        const shouldShow = !isOnline || servingOfflineCache;
+        if (shouldShow && !offlineBannerShownRef.current) {
+            offlineBannerShownRef.current = true;
+            setBanners(prev => prev.some(b => b.type === 'offline') ? prev : [...prev, {
+                type: 'offline',
+                id: `banner_offline_${Date.now()}`,
+                message: servingOfflineCache
+                    ? "You're offline — showing saved data. New changes are kept on this device and will sync when you reconnect."
+                    : "You're offline. Changes you make now will sync when you reconnect.",
+                dismissible: true,
+            } as Banner]);
+        } else if (!shouldShow && offlineBannerShownRef.current) {
+            offlineBannerShownRef.current = false;
+            setBanners(prev => prev.filter(b => b.type !== 'offline'));
+        }
+    }, [isOnline, currentUser]);
+
     // ── User switch guard: reset history when user changes ───────────────
     const prevUserIdRef = React.useRef<string | null | undefined>(currentUser?.id);
     React.useEffect(() => {

@@ -11981,3 +11981,61 @@ Work Log:
 Stage Summary:
 - Task 61 FULLY SHIPPED: enforcement live in CI, reference migration in
   production, debt ratcheted at 2,374 and unable to grow.
+
+---
+Task ID: 62 (offline-first APKs)
+Agent: Main agent (Super Z)
+Task: User report 2026-09-18 — "the apks do not open without internet; they
+should open to the previous known data and feel like OneNote: usable + notes
+offline, sync on reconnect (APKs only)."
+
+Work Log:
+- Environment recovery: sandbox was a stale snapshot (local main 285 commits
+  behind origin after fetch; dirty tree). Backed up the stale tree to branch
+  backup-stale-tree-20260918, hard-synced main to 2cc80193 (v1.0.632,
+  build-1016, verified live + healthy).
+- ROOT CAUSE: all offline fallbacks keyed on navigator.onLine, which stays
+  TRUE on "connected but dead" networks (exhausted data plans, dead cell
+  zones). That state ran AuthContext's 20s → retry → 15s chain, WIPED the
+  session, and bounced to login — "the APK does not open".
+- Layer 1 — BOOT GRACE (new src/utils/offlineBoot.ts + AuthContext): 8s
+  native / 14s web grace; if no server data and a cached user exists, engage
+  offline cache and KEEP the session (safety-timeout stands down while
+  engaged, re-arms on real data; wipe path only for never-used-online
+  devices). Admin/Founder demoted to Lawyer in the fallback (security
+  preserved).
+- Layer 2 — CACHED DATA (DataProvider): appState hydrates from
+  practicepro_cached_appstate when auth serves the offline cache; merged over
+  EMPTY_APP_STATE so partial caches can never leave collections undefined
+  (that crash took the shell to the error boundary in E2E).
+- Layer 3 — OFFLINE WRITES (DataProvider + useOfflineQueue): generic CRUD
+  (addItem/updateItem/deleteItem — also the notes/notebook save path) queues
+  offline with optimistic UI + write-through cache (300ms debounce).
+  Queue-integrity fixes: module-level single-flight lock (concurrent
+  replays could double-execute queued mutations — trust-accounting risk)
+  + merge-back write (items queued during a replay were dropped).
+- Layer 4 — SHELL PURITY: fonts self-hosted via @fontsource (was Google CDN);
+  dead DOMPurify CDN script removed; Quill snow CSS self-hosted at /vendor/;
+  both index.html and admin.html now load ZERO remote resources. Null-guarded
+  three firmDetails.subscriptionPlan render-path crashes
+  (useFeatures/Sidebar/FloatingTestControls).
+- Offline banner via the unified banner system (UIContext) — shows offline /
+  serving-cache state, auto-dismisses on recovery.
+- E2E PROOF (headless Chrome, dead Convex deployment URL, seeded caches,
+  fake-online): app boots to the full VEGA shell — sidebar + dashboard,
+  cached firm/user, ACTIVE MATTERS: 1, offline banner, Admin demoted to
+  LAWYER, no error boundary, session preserved. Screenshot:
+  offline-boot-proof.png.
+- Gates: vitest 1053/1053 (+29 new tests/unit/offlineBoot.test.ts), tsc 128
+  = baseline (0 net-new), lint + raw-element ratchet 2374 held, vite build ✓,
+  admin build ✓.
+
+Stage Summary:
+- Both APKs (main + founder) now open offline to last-known data on ALL
+  offline shapes (true-offline AND connected-but-dead), keep the session,
+  queue generic CRUD + notes for sync, show a clear offline banner, and boot
+  with zero network resources.
+- Next batch candidates: portal-user data caching (tenant/client dashboards
+  still need their dedicated queries cached); DraftPro export
+  firmDetails guards; optimistic offline items in the portal lists.
+

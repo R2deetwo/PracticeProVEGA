@@ -1,4 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+/* SELF-HOSTED FONTS (Task 62) — the app (and both APKs) must render
+   pixel-identical with ZERO network. Previously the three families below
+   were fetched from a remote font CDN, which meant every offline boot fell
+   back to system fonts. Same families, same weights, now bundled. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/space-grotesk/400.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/dancing-script/700.css';
 
 @tailwind base;
 @tailwind components;
