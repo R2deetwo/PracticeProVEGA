@@ -6401,12 +6401,15 @@ export const saveAloaMessage = mutation({
       firmId,
     });
     // Verify the conversation belongs to the caller's firm before writing.
-    const conversation = await ctx.db
-      .query("aloaConversations")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
-      .take(500)
-      .then((rows: any[]) => rows.find((r: any) => String(r._id) === String(conversationId)));
-    if (!conversation) {
+    // Task 63 fix: this previously ran a 500-row-capped by_firm index scan
+    // plus a client-side find — silently failing ("Conversation not found in
+    // your firm") for any conversation outside the first 500 rows once a
+    // firm accumulates more. Since the client voids this mutation's promise,
+    // a throw here meant messages vanished on the next reload with NO error
+    // anywhere. O(1) document get + firm equality instead (the same pattern
+    // markAloaActionCompleted already uses).
+    const conversation = await ctx.db.get(conversationId as any) as { firmId?: string | null } | null;
+    if (!conversation || String(conversation.firmId) !== String(caller.firmId)) {
       throw new Error("Conversation not found in your firm.");
     }
     const msgId = await ctx.db.insert("aloaMessages", {
@@ -6433,12 +6436,10 @@ export const deleteAloaConversation = mutation({
   handler: async (ctx, args) => {
     // Round 8 auth retrofit: the caller must belong to the conversation's firm.
     const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
-    const conversation = await ctx.db
-      .query("aloaConversations")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", caller.firmId as any))
-      .take(500)
-      .then((rows: any[]) => rows.find((r: any) => String(r._id) === String(args.conversationId)));
-    if (!conversation) {
+    // Task 63 fix: same capped-index-scan landmine as saveAloaMessage —
+    // delete failed for conversations beyond the first 500 rows. O(1) get.
+    const conversation = await ctx.db.get(args.conversationId as any) as { firmId?: string | null } | null;
+    if (!conversation || String(conversation.firmId) !== String(caller.firmId)) {
       throw new Error("Conversation not found in your firm.");
     }
     // Delete messages first

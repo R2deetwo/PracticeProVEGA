@@ -4370,3 +4370,62 @@ promise this batch).
 - Note: PAT was rotated (old token revoked → push auth failed once); remote
   updated with the fresh token. Reminder stands: rotate again after pasting
   any token in chat.
+
+## Task 63 — ALOA/ARIA "message disappears and does not send": root-cause chain fixed (2026-09-19)
+
+**User report:** "i am typing in alo and it is not working the message just
+disappears and does not seind... i made some improvements to aloa/aria
+recently and i wonder if it was then that it broke."
+
+**Diagnosis (four stacked defects — the recent Aloa work exposed/widened
+them, but the send path itself hadn't changed since July):**
+
+1. **DRAFT WIPE RACE (the literal symptom).** The draft-restore effect in
+   AloaChat fired on EVERY activeConversationId change. When the first
+   message of a new chat is sent, createConversationMutation resolves
+   seconds later (slow networks) and promotes '__new__' → real id — the
+   restore effect then replaced the text the user was ACTIVELY TYPING with
+   the new key's empty draft. Hitting Send tripped the `!content.trim()`
+   guard and silently did nothing. Fix: `draftTransition.ts` — the
+   programmatic promotion never restores; the autosave effect migrates
+   in-progress typing to the new key instead.
+2. **SILENT SAVE FAILURE (>500 conversations).** saveAloaMessage verified
+   conversation ownership via a 500-row-capped by_firm index scan +
+   client-side find. Past 500 conversations in a firm, EVERY save threw
+   "Conversation not found in your firm" — and the client fire-and-forget
+   `void`ed the promise, so messages silently never persisted and vanished
+   on the next history reload. (deleteAloaConversation had the same scan.)
+   Fix: O(1) `ctx.db.get` + firm equality (the markAloaActionCompleted
+   pattern). Also: all three void save sites now `.catch` → console warn +
+   a debounced error toast (30s) so a failed save can never be invisible.
+3. **REMOUNT HISTORY WIPE.** The loadMessages effect guarded optimistic UI
+   with a per-instance isGeneratingRef that resets on every panel
+   unmount/remount (close+reopen, editor-mode transitions). A remount
+   mid-flight refetched history, wiped the optimistic messages, and the AI
+   response then mapped over a list without its stream placeholder —
+   silently dropped. Fix: the guard now also checks the GLOBAL AI queue
+   (module singleton, survives remounts): busy queue ⇒ no reload.
+4. **STUCK SEND QUEUE.** Convex mutations ignore AbortSignals. On
+   connected-but-dead networks (the Task 62 boot-grace reality) one hung
+   createConversationMutation blocked the queue forever — every subsequent
+   message sat behind it. Fixes: processNext races execute against the
+   abort signal (queue always moves on; loser promise swallowed); the
+   awaited conversation creation in AloaChat is raced against the signal so
+   the execute body stops too; cancelAll no longer force-clears `processing`
+   (which caused parallel re-execution of the running task + wrong-task
+   shift) and now fires onError for discarded tasks (pendingQueueCount no
+   longer leaks); the finally shift is head-verified.
+
+**Why it felt "recent":** the Aloa send path last changed 07-11; the user's
+recent improvements (Task 51 legal search etc.) didn't touch it. What
+changed is reachability: Task 62 keeps users IN the app on dead-ish
+networks (previously: session wipe → login screen), and months of daily
+Aloa usage pushed the firm past the 500-conversation landmine. Both
+turned latent defects into daily-visible failures.
+
+**Gates:** vitest 1071/1071 (+18: aiRequestQueue 6, aloaSendIntegrity 12),
+tsc 129 = baseline (0 net-new), lint 0 errors + raw-element ratchet 2374
+held, vite build ✓, admin build ✓.
+
+**RPC Rule note:** aloaConversations/aloaMessages only — trust accounts,
+rent ledger and court-date logic untouched.

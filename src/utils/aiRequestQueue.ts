@@ -97,23 +97,35 @@ export class AIRequestQueue {
     /**
      * Cancel all pending tasks (not the one currently processing).
      * The current task is aborted via its AbortController.
+     *
+     * Task 63 fixes (the old version corrupted the queue two ways):
+     *   1. It force-set `processing = false` while the current task was
+     *      still executing. If that task's execute() ignored the abort
+     *      signal (Convex mutations do), the NEXT enqueue started
+     *      processNext() immediately — which re-executed queue[0] (the
+     *      still-running task!) in parallel, and the first completion's
+     *      finally then shift()-ed the WRONG task off the queue.
+     *   2. Tasks popped here never fired onSuccess/onError — callers'
+     *      pending counters (e.g. AloaChat's pendingQueueCount) leaked
+     *      upward forever. They now receive a deterministic cancel error.
+     * `processing` is left to processNext's finally block, which is the
+     * only place that manages it truthfully.
      */
     cancelAll(): void {
-        // Abort the currently-processing task if any
+        // Abort the currently-processing task if any (it stays at queue[0]
+        // until its own finally shifts it — see processNext).
         if (this.queue.length > 0) {
             const current = this.queue[0];
             clearTimeout(current.timeoutId);
             current.controller.abort();
         }
-        // Clear the rest
+        // Clear the rest with a deterministic error so their callbacks
+        // run and their enqueue promises settle (no leaks).
         while (this.queue.length > 1) {
             const task = this.queue.pop()!;
             clearTimeout(task.timeoutId);
+            task.onError(new Error('Request cancelled.'));
         }
-        // Defensive reset — ensures the processing flag is cleared
-        // even if the queue was empty (race condition where the task
-        // was already shifted but the finally block hasn't run yet)
-        this.processing = false;
     }
 
     private async processNext(): Promise<void> {
@@ -123,8 +135,24 @@ export class AIRequestQueue {
         this.processing = true;
         const task = this.queue[0];
 
+        // TASK 63 FIX: the timeout used to only abort the signal — if
+        // execute() ignored it (Convex mutations do), the `await` below
+        // never settled and the queue was blocked FOREVER: every subsequent
+        // message sat behind one hung request ("does not send"). Racing the
+        // abort guarantees the queue always moves on; the losing execute
+        // promise is swallowed so it can never surface as an unhandled
+        // rejection or fire callbacks a second time.
+        const settleRace = new Promise<never>((_, reject) => {
+            const abortErr = new DOMException('Aborted', 'AbortError');
+            if (task.controller.signal.aborted) { reject(abortErr); return; }
+            task.controller.signal.addEventListener('abort', () => reject(abortErr), { once: true });
+        });
+        settleRace.catch(() => { /* late abort after the race settled — swallow */ });
+        const execPromise = task.execute(task.controller.signal);
+        execPromise.catch(() => { /* race lost / late failure — handled via the race */ });
+
         try {
-            const result = await task.execute(task.controller.signal);
+            const result = await Promise.race([execPromise, settleRace]);
             clearTimeout(task.timeoutId);
             task.onSuccess(result);
         } catch (err: any) {
@@ -139,7 +167,12 @@ export class AIRequestQueue {
                 task.onError(err instanceof Error ? err : new Error(String(err)));
             }
         } finally {
-            this.queue.shift();
+            // Task 63: only shift if this task is STILL at the head — a
+            // cancelAll-era re-entry could have re-ordered the queue, and
+            // blindly shift()-ing would evict a task that is mid-flight.
+            if (this.queue[0] === task) {
+                this.queue.shift();
+            }
             this.processing = false;
             // Process the next task in the queue if any
             if (this.queue.length > 0) {

@@ -53,7 +53,27 @@ import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceA
 
 // URL detection regex — matches http(s):// URLs in user messages
 const URL_REGEX = /https?:\/\/[^\s<>"']{4,}/gi;
+
+// ─── TASK 63: message-save failure surfacing ──────────────────────────
+// saveMessageMutation calls were fire-and-forget (`void`) — when a save
+// failed (dead network, expired session, backend rejection) the message
+// silently never persisted and vanished on the next history reload, with
+// no error anywhere. Failures are now reported (console + debounced toast)
+// so a "sent" message can't disappear without a trace. Debounced: on a
+// dead network every save fails — one toast per 30s, not one per message.
+let lastSaveFailureToastAt = 0;
+const reportSaveFailure =
+    (addToast: (m: React.ReactNode, o?: { type?: 'info' | 'success' | 'error' | 'warning' }) => void) =>
+    (err: unknown) => {
+        console.warn('[Aloa] Message could not be saved to the server (it will be missing after a reload):', err);
+        const now = Date.now();
+        if (now - lastSaveFailureToastAt > 30_000) {
+            lastSaveFailureToastAt = now;
+            addToast('Message not saved — check your connection. It may be missing when you reload.', { type: 'error' });
+        }
+    };
 import { getGlobalAIQueue, validateAPIKey } from '../../utils/aiRequestQueue';
+import { draftKeyFor, shouldRestoreDraft } from './draftTransition';
 import PIIShieldBadge from './PIIShieldBadge';
 import Tooltip from '../Tooltip';
 import { getGeminiApiKey, AI_CONFIG } from '../../utils/aiUtils';
@@ -489,8 +509,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             setMessages([]);
             return;
         }
-        // Don't reload if we're actively generating (optimistic UI)
-        if (isGeneratingRef.current && messages.length > 0) return;
+        // Don't reload if we're actively generating (optimistic UI).
+        //
+        // TASK 63 FIX: the old guard only checked this INSTANCE's
+        // isGeneratingRef — which resets to false every time the panel
+        // unmounts/remounts (close+reopen, editor-mode transitions, auth
+        // re-render flickers). A remount during an in-flight AI request
+        // re-fetched server history and WIPED the optimistic messages; the
+        // response then mapped over a list that no longer contained the
+        // stream placeholder and was silently dropped ("message disappears
+        // and does not send"). The GLOBAL queue is a module-level singleton
+        // that survives remounts — if it's still working (or has queued
+        // tasks), the optimistic UI must be preserved.
+        const queueBusy = aiQueueRef.current.isProcessing || aiQueueRef.current.pendingCount > 0;
+        if ((isGeneratingRef.current || queueBusy) && messages.length > 0) return;
 
         let cancelled = false;
 
@@ -526,14 +558,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // When the user switches to a different conversation (or starts a new chat),
     // restore that conversation's saved draft. The previous draft was already
     // saved by the textInput autosave effect below.
+    //
+    // TASK 63 FIX: the '__new__' → real-id transition is NOT a user switch —
+    // it's the send flow's createConversationMutation resolving (seconds late
+    // on slow networks). Restoring on that transition wiped the text the user
+    // was actively typing ("message just disappears and does not send").
+    // The promotion is now skipped; the autosave effect migrates in-progress
+    // typing to the new key on the same render cycle. See draftTransition.ts.
+    const prevConvKeyRef = useRef<string | null>(null);
     useEffect(() => {
-        const key = activeConversationId || '__new__';
-        isRestoringDraftRef.current = true;
-        setTextInput(draftByConversationRef.current[key] || '');
-        // Clear pending attachments too — they belonged to the previous conv
-        setPendingAttachments([]);
-        // Release the guard on next tick so the autosave effect can run again
-        setTimeout(() => { isRestoringDraftRef.current = false; }, 0);
+        const key = draftKeyFor(activeConversationId);
+        if (shouldRestoreDraft(prevConvKeyRef.current, key)) {
+            isRestoringDraftRef.current = true;
+            setTextInput(draftByConversationRef.current[key] || '');
+            // Clear pending attachments too — they belonged to the previous conv
+            setPendingAttachments([]);
+            // Release the guard on next tick so the autosave effect can run again
+            setTimeout(() => { isRestoringDraftRef.current = false; }, 0);
+        }
+        prevConvKeyRef.current = key;
     }, [activeConversationId]);
 
     // ─── DRAFT AUTOSAVE (debounced) ───────────────────────────────────────
@@ -542,7 +585,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     // the empty string from the previous render cycle.
     useEffect(() => {
         if (isRestoringDraftRef.current) return;
-        const key = activeConversationId || '__new__';
+        const key = draftKeyFor(activeConversationId);
         // Only save non-empty drafts to avoid overwriting a saved draft with ''
         // when the input briefly flickers empty during a render.
         if (textInput || draftByConversationRef.current[key]) {
@@ -1309,7 +1352,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     setTextInput('');
                     // Clear the saved draft for this conversation so switching
                     // away and back doesn't restore a sent message
-                    draftByConversationRef.current[activeConversationId || '__new__'] = '';
+                    draftByConversationRef.current[draftKeyFor(activeConversationId)] = '';
                 }
                 return;
             }
@@ -1334,7 +1377,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             }]);
             if (!overrideContent) {
                 setTextInput('');
-                draftByConversationRef.current[activeConversationId || '__new__'] = '';
+                draftByConversationRef.current[draftKeyFor(activeConversationId)] = '';
             }
             return;
         }
@@ -1462,17 +1505,35 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 try {
                     const isDemo = currentUser?.email === 'demo@practicepro.ng';
 
+                    // TASK 63 FIX: Convex mutations don't observe AbortSignals.
+                    // On a connected-but-dead network (the Task 62 boot-grace
+                    // reality) `await createConversationMutation(...)` hung
+                    // FOREVER — the queue's 120s timeout aborted a signal
+                    // nobody listened to, and every subsequent message sat
+                    // behind a permanently stuck queue ("does not send").
+                    // Racing the signal lets the timeout actually unstick
+                    // the queue with a normal AbortError path.
+                    const abortRace = <T,>(p: Promise<T>): Promise<T> => new Promise<T>((resolve, reject) => {
+                        const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+                        if (signal.aborted) { onAbort(); return; }
+                        signal.addEventListener('abort', onAbort, { once: true });
+                        p.then(
+                            (v) => { signal.removeEventListener('abort', onAbort); resolve(v); },
+                            (e) => { signal.removeEventListener('abort', onAbort); reject(e); }
+                        );
+                    });
+
                     if (!isDemo) {
                         if (!currentConvId) {
                             const title = content.length > 30 ? content.substring(0, 30) + '...' : content;
-                            currentConvId = await createConversationMutation({
+                            currentConvId = await abortRace(createConversationMutation({
                                 firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 userId: currentUser?.id || '',
                                 title: title,
                                 // R16 strict identity: mutations require the bearer
                                 // session token — omitting it throws "Unauthenticated".
                                 sessionToken: (bearerToken ?? undefined) || undefined
-                            });
+                            }));
                             setActiveConversationId(currentConvId);
                             // Persist the new conversation ID immediately so
                             // it survives page reloads (the AloaProvider's
@@ -1484,13 +1545,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 });
                             } catch { /* ignore */ }
                         }
-                        void saveMessageMutation({
+                        saveMessageMutation({
                             conversationId: currentConvId!,
                             firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                             userId: currentUser?.id,
                             sessionToken: (bearerToken ?? undefined) || undefined,
                             message: newUserMsg
-                        });
+                        }).catch(reportSaveFailure(addToast));
                     }
 
                     const { brain } = await import('../../services/brainService');
@@ -1804,13 +1865,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     unverifiedCitationCount: trustUnverified.length,
                                 });
                                 if (!isDemo && currentConvId) {
-                                    void saveMessageMutation({
+                                    saveMessageMutation({
                                         conversationId: currentConvId,
                                         firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                         userId: currentUser?.id,
                                         sessionToken: (bearerToken ?? undefined) || undefined,
                                         message: modelMsg
-                                    });
+                                    }).catch(reportSaveFailure(addToast));
                                 }
                                 return modelMsg;
                             }
@@ -2000,13 +2061,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
 
                         if (!isDemo && currentConvId) {
-                            void saveMessageMutation({
+                            saveMessageMutation({
                                 conversationId: currentConvId,
                                 firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                                 userId: currentUser?.id,
                                 sessionToken: (bearerToken ?? undefined) || undefined,
                                 message: modelMsg
-                            });
+                            }).catch(reportSaveFailure(addToast));
                         }
                         return modelMsg;
                     } else {
