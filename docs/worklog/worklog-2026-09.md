@@ -4429,3 +4429,22 @@ held, vite build ✓, admin build ✓.
 
 **RPC Rule note:** aloaConversations/aloaMessages only — trust accounts,
 rent ledger and court-date logic untouched.
+
+## Task 63 — DEPLOY RECORD: ALOA/ARIA send fixes shipped as 04d798b3 (v1.0.635, build-1019) (2026-09-19)
+
+- a856da5c pushed; CI green (Tests ✓, Deploy to Staging ✓ incl. Convex
+  staging deploy of the myFunctions fix, Build Android APK ✓; Admin APK
+  correctly path-skipped — no admin files touched). Bot bumped
+  1.0.634 → 1.0.635 (commits 34723096 + 04d798b3, build-1019).
+- Promoted via workflow_dispatch (run 35376462656 on 04d798b3): quality
+  gate, Vercel prod + Cloudflare mirror + **Convex production backend**
+  (the saveAloaMessage/deleteAloaConversation O(1) fix is live server-side).
+- Live-verified: both roots serve 04d798b3 / v1.0.635 healthy; APK live
+  (14,859,077 bytes); Task 63 markers confirmed IN the production bundle
+  ("Message not saved" toast copy, "Request cancelled." settle error,
+  timeout message, '__new__' draft-transition key).
+- User test path: install build-1019 (or hard-refresh web), send an ALOA
+  message mid-conversation and immediately keep typing; type a second
+  message while the first is still responding; close/reopen the panel
+  mid-response; send on a dead-ish network (expect a visible timeout card
+  within 2 min, never a silent disappearance).
