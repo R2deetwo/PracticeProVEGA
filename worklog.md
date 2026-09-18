@@ -11919,3 +11919,46 @@ Stage Summary:
 Stage Summary:
 - Task 60 fully shipped to production as d16243d5 (v1.0.629, build-1013).
 - No open work; watchdog will keep monitoring per its schedule.
+
+---
+Task ID: 61 (ui-primitives adoption — enforce, migrate, gate)
+Agent: Main agent (Super Z)
+Task: Convert the ADR-0004 UI-primitives scaffolding into enforced, adopted
+infrastructure (external review brief): lint enforcement + one reference
+migration + CI ratchet, zero visual change.
+
+Work Log:
+- Found npm run lint BROKEN on main (eslint-config-next requires the absent
+  `next` package — dead scaffold). Rebuilt the config on typescript-eslint,
+  same effective rule surface; rounded-xl gate demoted to warn (42 hidden
+  pre-existing violations; fixing = visual change, out of scope).
+- scripts/check-ui-primitives.mjs: raw form-element ratchet (fail on growth
+  vs committed baseline; warn otherwise), wired into npm run lint, tests.yml
+  (every push) and the production promote quality gate.
+- KEY DISCOVERY: Tailwind v3 emits utilities in LEXICOGRAPHIC order —
+  className overrides only win when they sort AFTER the replaced class
+  (py-2.5>py-2 yes; text-base<text-sm no). Documented in Button.tsx + the
+  recipe; 'bare' variants carry verbatim legacy strings when overrides would
+  lose.
+- Chunk B primitive extensions, each a measured multi-file pattern:
+  BTN_SUCCESS/BTN_DARK/BTN_TAB(+_ACTIVE)/BTN_SEGMENTED(+_ACTIVE), size="tab",
+  inputSettings formStyle, CARD_ELEVATED, 'bare' escape hatches,
+  labelClassName; Button BASE transition-colors moved into variant tokens.
+- Reference migration: settings/ProfileSettings.tsx — 13 raw elements -> 0,
+  3 addToast -> useToastFeedback (first adopter), SettingsCard ->
+  CARD_ELEVATED, BORDER_STANDARD adoption; explicit ids preserved; recipe in
+  docs/worklog/worklog-2026-09.md Task 61 (+ ADR-0004 addendum).
+- Preserved-verbatim finds: BTN_DARK family's dark:bg-white/dark:bg-zinc-900
+  conflict renders near-invisible dark:text-slate-900 on zinc-900 in dark
+  mode (pre-existing bug, deliberate preservation — fix per-screen later);
+  email input's dead bg-slate-100 (was shadowed before, still is).
+- Gates after every commit: vitest 1024/1024 (+11 equivalence proofs), tsc
+  128 = baseline, lint green, build clean; ratchet 2,387 -> 2,374 (-13).
+
+Stage Summary:
+- Adoption rule ENFORCED: raw-element debt can never grow on main; every
+  push + every promote runs the ratchet; ProfileSettings is the replicable
+  reference; recipe + lexicographic-order rule documented for successors.
+- Next ranked targets: SubscriptionSettings (30 raw / 1,992L),
+  PortalAccessSettings (25 / 1,614), TemplatesSettings (22 / 496),
+  ServiceRequestTypesConfig (20 / 577), FirmSettings (18 / 628).
