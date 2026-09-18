@@ -252,3 +252,145 @@ describe('Token-gate tie-in (batch 2)', () => {
         expect(read(f)).not.toMatch(/\b(?:text|bg|border|ring|divide)-gray-\d+\b/);
     });
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * Task 61 (ui-primitives adoption) — zero-visual-change equivalence proofs.
+ *
+ * For every element shape the ProfileSettings reference migration adopts,
+ * the composed primitive class set must be a SUPERSET of the original
+ * hand-rolled class string. Classes the primitive intentionally adds
+ * (focus-visible ring, aria-driven, px-4 on a centered w-full button) do not
+ * change resting pixels; documented conflicts (py-2 vs py-2.5, text-sm vs
+ * text-base) resolve deterministically by Tailwind's stylesheet order
+ * (numeric scale: later wins), verified against the built CSS.
+ *
+ * One deliberate token replacement: `flex` (original) -> `inline-flex`
+ * (Button BASE). The tab bar / segmented parents are flex containers, and a
+ * flex item's inline-level display value is blockified per the CSS spec, so
+ * both render identically. The comparison excludes the display token.
+ * ═══════════════════════════════════════════════════════════════════════ */
+import { buildButtonClasses } from '../../src/components/ui/Button';
+import {
+    BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_DANGER, BTN_DANGER_SOFT, BTN_OUTLINE,
+} from '../../src/utils/designTokens';
+import { inputSettings } from '../../src/utils/formStyles';
+
+const DISPLAY_TOKENS = new Set(['flex', 'inline-flex']);
+
+/** Assert every original class token survives into the composed class set. */
+function assertSuperset(original: string, composed: string, label: string) {
+    const originalTokens = original.split(/\s+/).filter((t) => t && !DISPLAY_TOKENS.has(t));
+    const composedSet = new Set(composed.split(/\s+/));
+    const missing = originalTokens.filter((t) => !composedSet.has(t));
+    expect(missing, `${label}: classes lost in migration: ${missing.join(', ')}\n  original: ${original}\n  composed: ${composed}`).toEqual([]);
+}
+
+describe('Task 61 — Button class equivalence (ProfileSettings migration)', () => {
+    // ── Sub-tab buttons (General / Appearance) ──────────────────────────────
+    const TAB_ACTIVE_ORIGINAL =
+        'flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 border-primary-500 text-primary-600 dark:text-primary-400';
+    const TAB_INACTIVE_ORIGINAL =
+        'flex-shrink-0 pb-3 px-1 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300';
+
+    it('active tab: variant=tab-active + size=tab superset of the hand-rolled string', () => {
+        assertSuperset(TAB_ACTIVE_ORIGINAL, buildButtonClasses({ variant: 'tab-active', size: 'tab' }), 'tab-active');
+    });
+
+    it('inactive tab: variant=tab + size=tab superset of the hand-rolled string', () => {
+        assertSuperset(TAB_INACTIVE_ORIGINAL, buildButtonClasses({ variant: 'tab', size: 'tab' }), 'tab');
+    });
+
+    it('tab buttons keep the icon + label flex contract (items-center, gap-2)', () => {
+        const composed = buildButtonClasses({ variant: 'tab', size: 'tab' });
+        expect(composed).toContain('items-center');
+        expect(composed).toContain('gap-2');
+    });
+
+    // ── Font-size segmented control ─────────────────────────────────────────
+    const SEGMENTED_BASE =
+        'w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-md text-sm font-bold transition-all capitalize flex items-center justify-center gap-2';
+    const SEGMENTED_INACTIVE_ORIGINAL = `${SEGMENTED_BASE} text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200`;
+    const SEGMENTED_ACTIVE_ORIGINAL = `${SEGMENTED_BASE} bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white`;
+    const SEGMENTED_CLASS_DELTAS = 'w-full flex-shrink-0 flex-1 min-w-[100px] text-center';
+
+    it('inactive segment: variant=segmented + size=md superset of the hand-rolled string', () => {
+        assertSuperset(
+            SEGMENTED_INACTIVE_ORIGINAL,
+            buildButtonClasses({ variant: 'segmented', size: 'md', className: SEGMENTED_CLASS_DELTAS }),
+            'segmented'
+        );
+    });
+
+    it('active segment: variant=segmented-active + size=md superset of the hand-rolled string', () => {
+        assertSuperset(
+            SEGMENTED_ACTIVE_ORIGINAL,
+            buildButtonClasses({ variant: 'segmented-active', size: 'md', className: SEGMENTED_CLASS_DELTAS }),
+            'segmented-active'
+        );
+    });
+
+    // ── "Update Profile" emerald CTA ────────────────────────────────────────
+    const SUCCESS_ORIGINAL =
+        'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors shadow-md';
+
+    it('success CTA: variant=success + size=md + py-2.5 override superset of the hand-rolled string', () => {
+        const composed = buildButtonClasses({ variant: 'success', size: 'md', className: 'w-full py-2.5' });
+        assertSuperset(SUCCESS_ORIGINAL, composed, 'success');
+        // py-2.5 must be present to win over size md's py-2 (Tailwind scale
+        // order: .py-2 is emitted before .py-2\.5, so py-2.5 wins).
+        expect(composed).toContain('py-2.5');
+    });
+
+    // ── "Update Standards" dark CTA ─────────────────────────────────────────
+    const DARK_ORIGINAL =
+        'w-full px-4 py-2 bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-all';
+
+    it('dark CTA: variant=dark + size=md + text-base override superset of the hand-rolled string', () => {
+        const composed = buildButtonClasses({ variant: 'dark', size: 'md', className: 'w-full text-base' });
+        assertSuperset(DARK_ORIGINAL, composed, 'dark');
+        // Original had NO text-size class and rendered at the inherited 16px
+        // (verified: no text-* ancestor between <main> and the button, and the
+        // html.font-size-sm/lg system applies !important scaling to buttons
+        // that overrides any class). text-base (16px) preserves that; it wins
+        // over size md's text-sm by stylesheet order (sm < base).
+        expect(composed).toContain('text-base');
+    });
+});
+
+describe('Task 61 — Chunk A regression guards (BASE transition refactor)', () => {
+    it('every Chunk A variant token still carries transition-colors (BASE removal is a no-op for them)', () => {
+        for (const token of [BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_DANGER, BTN_DANGER_SOFT, BTN_OUTLINE]) {
+            expect(token).toContain('transition-colors');
+        }
+    });
+
+    it('composed primary button contains transition-colors exactly once (token, not duplicated by BASE)', () => {
+        const composed = buildButtonClasses({ variant: 'primary', size: 'md' }).split(/\s+/);
+        expect(composed.filter((c) => c === 'transition-colors')).toHaveLength(1);
+    });
+
+    it('Chunk B tokens exist and are wired (superset guard for the new variants)', () => {
+        const variants: Array<Parameters<typeof buildButtonClasses>[0]['variant']> =
+            ['success', 'dark', 'tab', 'tab-active', 'segmented', 'segmented-active'];
+        for (const v of variants) {
+            const composed = buildButtonClasses({ variant: v, size: v === 'tab' || v === 'tab-active' ? 'tab' : 'md' });
+            expect(composed.split(/\s+/).length).toBeGreaterThan(5);
+        }
+    });
+});
+
+describe('Task 61 — formStyles settings input family equivalence', () => {
+    it('inputSettings equals the measured settings-screen class string (mt-1 moved to the label gap)', () => {
+        // Original commonInputClass in ProfileSettings.tsx:
+        //   "mt-1 text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700
+        //    border border-slate-300 dark:border-zinc-600 rounded-md p-2"
+        // The 4px gap came from the input's mt-1 (label had no bottom margin).
+        // The ui/Input label provides mb-1 (4px) with no input margin — identical
+        // 4px gap, so inputSettings is the original minus mt-1.
+        const originalMinusMt1 =
+            'text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md p-2';
+        expect(inputSettings.split(/\s+/).sort().join(' ')).toBe(originalMinusMt1.split(/\s+/).sort().join(' '));
+        expect(inputSettings).not.toContain('shadow');
+        expect(inputSettings).not.toContain('focus:'); // flat look is the measured pattern
+    });
+});

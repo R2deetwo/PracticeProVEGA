@@ -1,5 +1,8 @@
 import React from 'react';
-import { BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_DANGER, BTN_DANGER_SOFT, BTN_OUTLINE } from '../../utils/designTokens';
+import {
+  BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_DANGER, BTN_DANGER_SOFT, BTN_OUTLINE,
+  BTN_SUCCESS, BTN_DARK, BTN_TAB, BTN_TAB_ACTIVE, BTN_SEGMENTED, BTN_SEGMENTED_ACTIVE,
+} from '../../utils/designTokens';
 
 /**
  * Button — the shared button primitive (design-system Chunk A).
@@ -26,8 +29,11 @@ import { BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_DANGER, BTN_DANGER_SOFT, BTN
  * change layout; screens targeting the Android APK should opt in.
  */
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-soft' | 'outline';
-export type ButtonSize = 'sm' | 'md' | 'lg';
+export type ButtonVariant =
+  | 'primary' | 'secondary' | 'ghost' | 'danger' | 'danger-soft' | 'outline'
+  // Chunk B (Task 61) — measured multi-file patterns, see designTokens.ts:
+  | 'success' | 'dark' | 'tab' | 'tab-active' | 'segmented' | 'segmented-active';
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'tab';
 
 export interface ButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
@@ -55,10 +61,23 @@ const VARIANTS: Record<ButtonVariant, string> = {
   danger: BTN_DANGER,
   'danger-soft': BTN_DANGER_SOFT,
   outline: BTN_OUTLINE,
+  // Chunk B (Task 61):
+  success: BTN_SUCCESS,
+  dark: BTN_DARK,
+  tab: BTN_TAB,
+  'tab-active': BTN_TAB_ACTIVE,
+  segmented: BTN_SEGMENTED,
+  'segmented-active': BTN_SEGMENTED_ACTIVE,
 };
 
+// NOTE (Task 61): `transition-colors` moved OUT of BASE and INTO each variant
+// token (every Chunk A token already carried it). Reason: Chunk B needs exact
+// control — BTN_DARK and BTN_SEGMENTED* are `transition-all` in the measured
+// codebase, and BASE forcing transition-colors would silently change their
+// hover animation (colors-only vs all-properties). Removing it from BASE is
+// a no-op for every existing variant.
 const BASE =
-  'inline-flex items-center justify-center gap-2 transition-colors ' +
+  'inline-flex items-center justify-center gap-2 ' +
   'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ' +
   'dark:focus-visible:ring-offset-zinc-900 disabled:opacity-50 disabled:pointer-events-none';
 
@@ -66,25 +85,74 @@ const TEXT_SIZES: Record<ButtonSize, string> = {
   sm: 'text-xs',
   md: 'text-sm',
   lg: 'text-base',
+  // Underline tab-bar buttons (settings sub-tabs) — measured pattern:
+  // pb-3 px-1 text-sm font-bold, border-b-2 carried by the tab variants.
+  tab: 'text-sm font-bold',
 };
 
 const PAD_SIZES: Record<ButtonSize, string> = {
   sm: 'px-3 py-1.5',
   md: 'px-4 py-2',
   lg: 'px-5 py-2.5',
+  tab: 'pb-3 px-1',
 };
 
 const ICON_ONLY_SIZES: Record<ButtonSize, string> = {
   sm: 'w-7 h-7',
   md: 'w-9 h-9',
   lg: 'w-11 h-11',
+  tab: 'w-9 h-9',
 };
 
 const SPINNER_SIZES: Record<ButtonSize, string> = {
   sm: 'w-3 h-3 border-[1.5px]',
   md: 'w-4 h-4 border-2',
   lg: 'w-5 h-5 border-2',
+  tab: 'w-4 h-4 border-2',
 };
+
+export interface ButtonClassOptions {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  iconOnly?: boolean;
+  fullWidth?: boolean;
+  minTouchTarget?: boolean;
+  activePress?: boolean;
+  className?: string;
+}
+
+/**
+ * Pure class composition for <Button> — exported so tests
+ * (tests/unit/uiPrimitives.test.ts) can assert that an adopted button's
+ * class set is a SUPERSET of the original hand-rolled string, which is the
+ * mechanical guarantee behind the zero-visual-change migration discipline
+ * (ADR-0004). Tailwind conflict resolution (later-in-stylesheet wins) is
+ * deterministic for the overrides used by migrations: numeric scale order
+ * (py-2.5 > py-2, text-base > text-sm, bg-slate-100 > bg-slate-50,
+ * dark:bg-zinc-800 > dark:bg-zinc-700, rounded-lg > rounded-md) plus
+ * axis-specific over composite (pl-3/pr-10/py-2.5 > p-2).
+ */
+export function buildButtonClasses({
+  variant = 'primary',
+  size = 'md',
+  iconOnly = false,
+  fullWidth = false,
+  minTouchTarget = false,
+  activePress = false,
+  className = '',
+}: ButtonClassOptions): string {
+  return [
+    BASE,
+    VARIANTS[variant],
+    iconOnly ? ICON_ONLY_SIZES[size] : `${PAD_SIZES[size]} ${TEXT_SIZES[size]}`,
+    fullWidth ? 'w-full' : '',
+    minTouchTarget ? 'touch-target' : '',
+    activePress ? 'active-press' : '',
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (
@@ -114,17 +182,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       );
     }
 
-    const classes = [
-      BASE,
-      VARIANTS[variant],
-      iconOnly ? ICON_ONLY_SIZES[size] : `${PAD_SIZES[size]} ${TEXT_SIZES[size]}`,
-      fullWidth ? 'w-full' : '',
-      minTouchTarget ? 'touch-target' : '',
-      activePress ? 'active-press' : '',
-      className,
-    ]
-      .filter(Boolean)
-      .join(' ');
+    const classes = buildButtonClasses({
+      variant, size, iconOnly, fullWidth, minTouchTarget, activePress, className,
+    });
 
     return (
       <button

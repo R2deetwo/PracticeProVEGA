@@ -52,6 +52,33 @@ export const BTN_DANGER = 'bg-rose-600 text-white rounded-lg font-semibold hover
 export const BTN_DANGER_SOFT = 'bg-red-100 text-red-700 dark:text-red-400 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80 transition-colors';
 export const BTN_OUTLINE = 'border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 rounded-lg font-semibold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors';
 
+// ─── Chunk B variants (Task 61, ui-primitives adoption) ────────────────────
+// Each mirrors a MEASURED multi-file pattern in the codebase (same discipline
+// as the original Chunk A set — see ADR-0004 §"Variant strings = measured
+// dominant patterns"), so the ProfileSettings reference migration and every
+// future one is a zero-visual-change refactor:
+//   success        — "bg-emerald-600 hover:bg-emerald-500" CTA family:
+//                    16 occurrences in 10 files (99 emerald-CTA buttons in 57
+//                    files overall). First adopter: settings/ProfileSettings
+//                    "Update Profile".
+//   dark           — "bg-slate-900 dark:bg-white dark:bg-zinc-900" inverse
+//                    CTA: 13 occurrences in 9 files. The conflicting dark:
+//                    classes are PRESERVED VERBATIM (dark:bg-white wins by
+//                    stylesheet order) so adopted screens render pixel-
+//                    identical; fix the conflict per-screen, not here.
+//   tab / tab-active — underline tab-bar buttons ("border-b-2 border-
+//                    primary-500" active state): 16 occurrences in 8 files.
+//                    Pair with Button size="tab" (pb-3 px-1 text-sm).
+//   segmented / segmented-active — segmented-control buttons (rounded-md
+//                    font-bold capitalize): first adopter ProfileSettings
+//                    font-size picker; pair with size="md".
+export const BTN_SUCCESS = 'bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-semibold shadow-md transition-colors';
+export const BTN_DARK = 'bg-slate-900 dark:bg-white dark:bg-zinc-900 text-white dark:text-slate-900 rounded-lg font-semibold hover:opacity-90 transition-all';
+export const BTN_TAB = 'border-b-2 border-transparent text-slate-500 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-300 font-bold flex-shrink-0 transition-colors';
+export const BTN_TAB_ACTIVE = 'border-b-2 border-primary-500 text-primary-600 dark:text-primary-400 font-bold flex-shrink-0 transition-colors';
+export const BTN_SEGMENTED = 'rounded-md font-bold capitalize transition-all text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200';
+export const BTN_SEGMENTED_ACTIVE = 'rounded-md font-bold capitalize transition-all bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white';
+
 // ─── Colors ──────────────────────────────────────────────────────
 export const TEXT_PRIMARY = 'text-slate-900 dark:text-white';
 export const TEXT_MUTED = 'text-slate-500 dark:text-zinc-400';

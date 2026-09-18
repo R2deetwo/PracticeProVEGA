@@ -12,9 +12,9 @@ import React, { useId } from 'react';
  * — this component intentionally does not fight that layer.
  */
 
-import { inputModern, inputClassic, inputLarge } from '../../utils/formStyles';
+import { inputModern, inputClassic, inputLarge, inputSettings } from '../../utils/formStyles';
 
-export type SelectStyle = 'modern' | 'classic' | 'large';
+export type SelectStyle = 'modern' | 'classic' | 'large' | 'settings' | 'bare';
 
 export interface SelectOption {
   value: string;
@@ -36,12 +36,25 @@ export interface SelectProps
   styleVariant?: SelectStyle;
   containerClassName?: string;
   selectClassName?: string;
+  /** Extra classes on the <label> (e.g. spacing overrides like mb-3).
+   * Appended AFTER the default label classes — Tailwind resolves any
+   * margin conflict by stylesheet scale order (mb-3 > mb-1). */
+  labelClassName?: string;
 }
 
+/**
+ * 'bare' = NO built-in styling: the caller supplies the complete class string
+ * via selectClassName. Escape hatch for migrating one-off legacy looks that
+ * don't match any measured family (the caller keeps pixel-exact classes and
+ * still gains the id/label/aria wiring). New code should NOT use 'bare' —
+ * pick a real variant or extend formStyles.ts with a measured pattern.
+ */
 const VARIANT_CLASSES: Record<SelectStyle, string> = {
   modern: inputModern,
   classic: inputClassic,
   large: inputLarge,
+  settings: inputSettings,
+  bare: '',
 };
 
 export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
@@ -57,6 +70,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       styleVariant = 'classic',
       containerClassName = '',
       selectClassName = '',
+      labelClassName = '',
       className,
       children,
       ...rest
@@ -72,7 +86,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className={`w-full ${containerClassName}`}>
         {label && (
-          <label htmlFor={id} className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1">
+          <label htmlFor={id} className={`block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1 ${labelClassName}`.trim()}>
             {label}
             {required && <span className="text-rose-500 ml-0.5" aria-hidden="true">*</span>}
           </label>
