@@ -7,6 +7,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
 import { CheckCircleIcon, ChevronDownIcon, XIcon, InfoIcon, ChevronRightIcon, LightbulbIcon } from '../constants';
 import { ChevronUp as ChevronUpIcon } from 'lucide-react';
+// ADR-0004 ratchet: no new raw <button> in src/components — the floater's
+// 4 buttons use the ui/ primitive (variant='bare' + verbatim class strings
+// = zero visual change, but type='button' default + focus ring + a11y).
+import { Button } from './ui';
 
 /**
  * GettingStartedChecklist — persistent sidebar widget shown after the Setup
@@ -701,14 +705,15 @@ const GettingStartedChecklist: React.FC = () => {
                 {/* ⓘ — opens the "Why this matters" floater for this step.
                     A sibling (not nested) button, so the HTML stays valid. */}
                 {!isDone && !isSkipped && (
-                  <button
+                  <Button
+                    variant="bare"
                     onClick={(e) => { e.stopPropagation(); setWhyStepKey(item.key); }}
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded text-slate-300 dark:text-zinc-600 hover:text-primary-600 dark:hover:text-emerald-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                     aria-label={`Why this matters: ${item.label}`}
                     title="Why this matters"
                   >
                     <InfoIcon className="w-3.5 h-3.5" />
-                  </button>
+                  </Button>
                 )}
               </li>
             );
@@ -748,14 +753,15 @@ const GettingStartedChecklist: React.FC = () => {
               <p className="mt-1 pr-7 text-sm font-bold text-slate-800 dark:text-zinc-100 leading-snug">
                 {whyItem.label}
               </p>
-              <button
+              <Button
+                variant="bare"
                 onClick={closeWhy}
                 className="absolute top-2.5 right-2.5 p-1 rounded-md text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 hover:bg-slate-200/60 dark:hover:bg-zinc-700/60 transition-colors"
                 aria-label="Dismiss"
                 title="Dismiss"
               >
                 <XIcon className="w-4 h-4" />
-              </button>
+              </Button>
             </div>
 
             {/* Body — readable size; that is the entire point of the floater. */}
@@ -774,7 +780,8 @@ const GettingStartedChecklist: React.FC = () => {
             {/* Footer — cycle remaining tips + start the step */}
             <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-800/40">
               {incompleteItems.length > 1 ? (
-                <button
+                <Button
+                  variant="bare"
                   onClick={() => {
                     const next = incompleteItems[(whyIndex + 1) % incompleteItems.length];
                     if (next) setWhyStepKey(next.key);
@@ -782,19 +789,20 @@ const GettingStartedChecklist: React.FC = () => {
                   className="text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:text-primary-600 dark:hover:text-emerald-400 transition-colors"
                 >
                   Next tip ({whyIndex + 1}/{incompleteItems.length})
-                </button>
+                </Button>
               ) : (
                 <span className="text-xs font-medium text-slate-400 dark:text-zinc-500">
                   {incompleteItems.length === 1 ? 'Last remaining step' : 'All done'}
                 </span>
               )}
-              <button
+              <Button
+                variant="bare"
                 onClick={() => startWhyStep(whyItem)}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold transition-colors shadow-sm"
               >
                 Start this step
                 <ChevronRightIcon className="w-3.5 h-3.5" />
-              </button>
+              </Button>
             </div>
           </div>
         </div>,
