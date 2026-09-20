@@ -4567,3 +4567,41 @@ build ✓.
 accounts, rent ledger and court-date logic untouched (court-date changes
 are navigation/copy only; the hasCourtDateOnMatter detection logic is
 unchanged).
+
+## Task 64 — DEPLOY RECORD: promoted as 8ac89824 (v1.0.637, build-1022) (2026-09-20)
+
+- 8d3161df pushed to main (PAT note: the remote-embedded token
+  ghp_bWul… was dead; the earlier session token still validates —
+  recommend rotating again since it has now appeared in logs).
+- CI on 8d3161df: Tests ✓ (1101/1101), Deploy to Staging ✓ (incl. Convex
+  staging deploy of createItem idempotency + manageBankAccount), Build
+  Android APK ✓; Admin APK correctly path-skipped (no admin files).
+- Bot bumped 1.0.636 → 1.0.637 (commits c6ba79aa + 8ac89824, build-1022).
+- Promoted via workflow_dispatch (run 35509696963, pinned 8ac89824):
+  quality gate ✓ (Convex typecheck 0 errors, app baseline-guarded,
+  identity audit, ratchet, tests), **Convex production backend deployed**
+  (idempotency + manageBankAccount live server-side), Vercel prod ✓,
+  live verification ✓, Convex probe ✓.
+- Cloudflare mirror job FAILED at the token-verify step: the
+  CLOUDFLARE_API_TOKEN secret is expired/invalid AGAIN (same class as the
+  Round-15/Task-16 incident). This is a GitHub-secret rotation only the
+  repo owner can perform — production (Vercel + Convex) is unaffected.
+- Live-verified directly (never trusting the deploy step):
+  practice-pro-vega.vercel.app serves sha 8ac89824… v1.0.637 healthy
+  (HTTP 200); APK live at build-1022 release (14,863,553 bytes);
+  Task 64 markers confirmed IN the production bundles: "Why do this"
+  (settings module), "Client not linked", "no need to submit it again",
+  "Add new sub-category", "PLAN AWARENESS", "Add court date",
+  "Account Name, Bank Name and Account Number are all required" (index).
+- User test path: hard-refresh web or install build-1022, then —
+  (1) ask ALOA "help me get started" (expect product/plan-aware step
+  walk-through + offers to create the matter/contact/court event);
+  (2) create a matter with a NEW client (expect the client name on the
+  card — never "Deleted Client"); (3) create a matter offline /
+  airplane-mode → reconnect (expect ONE matter, "will sync" copy);
+  (4) reopen New Matter after a successful create (expect an empty form);
+  (5) Getting Started → "Configure a bank account" (all three fields
+  required; step ticks green and STAYS green);
+  (6) "Add a court date" (lands on the matter's Events tab with the
+  guide banner + highlighted pill); (7) every toast's X now closes it,
+  even in burst clusters.
