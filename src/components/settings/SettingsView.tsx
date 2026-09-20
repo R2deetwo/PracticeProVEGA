@@ -52,7 +52,7 @@ import { useOnboarding } from '../../contexts/OnboardingProvider';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { CHECKLIST_DISMISSED_KEY_PREFIX, BANNER_DISMISSED_KEY_PREFIX } from '../GettingStartedChecklist';
+import { CHECKLIST_DISMISSED_KEY_PREFIX, BANNER_DISMISSED_KEY_PREFIX, CHECKLIST_WHY_SEEN_KEY_PREFIX } from '../GettingStartedChecklist';
 import AutomationSettings from './AutomationSettings';
 import SubscriptionSettings from './SubscriptionSettings';
 import SecuritySettings from './SecuritySettings';
@@ -435,6 +435,7 @@ const HelpOnboardingPanel: React.FC = () => {
         try {
             localStorage.removeItem(`${CHECKLIST_DISMISSED_KEY_PREFIX}${firmId}`);
             localStorage.removeItem(`${BANNER_DISMISSED_KEY_PREFIX}${firmId}`);
+            localStorage.removeItem(`${CHECKLIST_WHY_SEEN_KEY_PREFIX}${firmId}`);
             // Clear the durable server-side dismissal too.
             setChecklistDismissed({
                 dismissed: false,
