@@ -36,11 +36,17 @@ export const useMatters = (appState: any, actions: any) => {
         if (client && client.data) {
             try {
                 const newContact = await actions.addItem('contacts', { ...client.data, matterId: m.id }, 'Contact');
-                // DEEP AUDIT FIX: Backfill the matter's clientId so display logic
-                // can resolve the new contact. Without this, the matter shows
-                // "Unknown Client" permanently.
+                // DEEP AUDIT FIX (retained): backfill the matter's clientId if
+                // it wasn't pre-linked. TASK 64: MatterForm now pre-links via a
+                // stable client UUID on BOTH records (matter.clientId AND
+                // contact.id), so this backfill is normally skipped; it stays
+                // as a safety net for other callers. When it DOES run, prefer
+                // the durable Convex _id — the local optimistic uuid does not
+                // survive the backend merge, which is exactly what made fresh
+                // matters display "Deleted Client".
                 if (newContact?.id && !m.clientId) {
-                    await actions.updateItem('matters', { id: m.id, clientId: newContact.id }, 'Matter Client Link');
+                    const durableContactId = (newContact as any)._id ?? newContact.id;
+                    await actions.updateItem('matters', { id: m.id, clientId: durableContactId }, 'Matter Client Link');
                 }
             } catch (e) {
                 try {

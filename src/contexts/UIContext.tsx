@@ -10,6 +10,8 @@ import { api } from "../../convex/_generated/api";
 import { useAuth } from './AuthContext';
 // R12: user-scoped theme storage (kills the cross-account/cross-tab theme leak)
 import { loadUserTheme, saveUserTheme, purgeLegacyThemeKey } from '../utils/themeStorage';
+// TASK 64 — collision-free toast ids (see utils/toastIds.ts).
+import { nextToastId } from '../utils/toastIds';
 
 export interface UIContextType {
     theme: Theme;
@@ -682,7 +684,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const currentHistoryEntry = history[historyIndex] || { view: 'dashboard', selectedId: null };
 
     const addToast = React.useCallback((message: React.ReactNode, options?: { type?: Toast['type']; link?: Toast['link']; duration?: number }) => {
-        const id = Date.now();
+        const id = nextToastId();
         // DEBOUNCING — deduplicate identical toast messages within a 2-second
         // window to prevent UI spam (e.g. when a button is double-clicked or
         // a Convex subscription fires multiple rapid updates).
@@ -882,7 +884,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
                     // a toast explaining why their action was blocked.
                     setShowTermsBar(true);
                     setToasts(prev => [...prev, {
-                        id: Date.now(),
+                        id: nextToastId(),
                         message: 'You need to accept the Terms of Service and Privacy Policy before creating new entries. The acceptance bar is shown below.',
                         type: 'warning' as const,
                         link: undefined,

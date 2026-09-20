@@ -9,6 +9,7 @@ import { useUI } from '../contexts/UIContext';
 import { useMatterState } from '../contexts/MatterContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
 import { useCoreState } from '../contexts/CoreContext';
+import { resolveContactById } from '../utils/resolveContact';
 
 const PIXELS_PER_DAY = 30; 
 const MONTH_HEADER_HEIGHT = 40;
@@ -222,7 +223,7 @@ const TimelineView: React.FC = () => {
                                             const barEndX = todayX; // Extends to today
                                             const barWidth = Math.max(4, barEndX - barStartX);
                                             
-                                            const clientName = contacts.find(c => c.id === matter.clientId)?.name || 'Unknown';
+                                            const clientName = resolveContactById(contacts, matter.clientId)?.name || 'Unknown';
                                             const matterEvents = events.filter(e => e.matterId === matter.id && e.status === 'Active');
 
                                             return (

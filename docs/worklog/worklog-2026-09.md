@@ -4448,3 +4448,122 @@ rent ledger and court-date logic untouched.
   message while the first is still responding; close/reopen the panel
   mid-response; send on a dead-ish network (expect a visible timeout card
   within 2 min, never a silent disappearance).
+
+## Task 64 — ALOA onboarding awareness + matter-creation integrity + bank-account save + toast X + sub-categories + court-date routing (2026-09-20)
+
+User report, verbatim symptoms: (1) asked ALOA/ARIA for help with Getting
+Started — useless answer; wants ALOA to know the product/tier and help with
+onboarding. (2) Can add a practice area but NOT a sub-category. (3) Matter
+created on a flaky connection saved MULTIPLE times when reconnected; a
+Convex error toast mixed with "congratulations" toasts — wants honest
+"saved, will sync" messaging. (4) Freshly created matter shows "Deleted
+Client" although the client was just added in the form. (5) The "set your
+billing rate" toast refused to close — X did nothing. (6) New matter form
+still pre-filled with the last created matter. (7) Bank account: why
+configure one? Account Name optional (should be required); toast references
+Atrium in VEGA; checklist step stays undone; "even after hitting save, the
+account did not save". (8) Court date step unclear; "Add new date" lands on
+Tasks tab not Events; no highlight of where to click.
+
+### Root causes (all verified in code before fixing)
+
+1. **Offline duplicate matters** — backend `createItem` had NO idempotency
+   and never persisted client ids. On flaky networks the same logical
+   create reaches the server repeatedly: pending Convex mutations commit on
+   reconnect while the user, seeing a stuck form, force-closes → reopens
+   the DRAFT-RESTORED form (draft_newMatter is only cleared on success) →
+   resubmits; the localStorage offline queue also replays after mid-replay
+   reloads or from a second tab (its single-flight lock is per-JS-context).
+2. **"Deleted Client"** — `onAddMatter` backfilled `matter.clientId` with
+   the contact's LOCAL optimistic uuid; the Phase B backend merge replaces
+   the contact's `id` with the Convex `_id` (backend doc had no custom id),
+   so `contacts.find(c => c.id === matter.clientId)` never matched. The
+   OFFLINE path was worse: no backfill was queued at all.
+3. **Bank account not saving** — the modal spread the ENTIRE client-side
+   firmDetails through `updateItem('firms')` (lost-update races with any
+   concurrent firmDetails writer wipe bankAccounts) and toasted success via
+   a 400ms setTimeout REGARDLESS of the mutation result.
+4. **Toast X dead** — `addToast` ids were `Date.now()`; the onboarding
+   congratulations cluster fires multiple toasts in the same millisecond →
+   duplicate ids → duplicate React keys → one Toast instance reused with an
+   already-fired ToastAutoDismiss controller whose one-shot `dismissed`
+   flag makes dismiss() a silent no-op.
+5. **Stale matter form** — the draft survived pending/failed saves; the
+   unguarded property-link `updateItem` after creation could throw →
+   catch → `setIsSubmitting(false)` → the draft-save effect RESURRECTED the
+   cleared draft.
+6. **Sub-category dead end** — MatterForm rendered a `<select>` with an
+   "Other / Custom" option whose value was "" — no way to type a new one.
+7. **Court date step** — the checklist passes `initialSubView:'events'` but
+   TasksAndEventsTab never consumed it (defaults to Tasks) AND the
+   highlight target (data-item-id on "+ New Event") isn't rendered while
+   the Events sub-view is hidden, so useHighlight clears it after 50ms.
+8. **ALOA onboarding blindness** — getSystemInstruction had no
+   account/tier/onboarding context at all.
+
+### Fixes shipped
+
+- **convex/myFunctions.ts**: `createItem` is now IDEMPOTENT on a
+  client-supplied stable `id` (UUID) — replays find the existing doc and
+  return its _id instead of inserting (exported `findDocByClientId`,
+  pinned by tests). New Admin-gated, field-scoped `manageBankAccount`
+  mutation (add/update/setDefault/delete) that patches ONLY
+  firm.bankAccounts — immune to lost-update races.
+- **DataProvider.addItem**: sends `id: tempId` in the mutation data
+  (direct + offline-queue paths) so every create is idempotent and the
+  merge resolves by the durable custom id.
+- **MatterForm**: stable `submissionId` persisted INSIDE the draft and
+  restored with it — resubmitting a draft-restored form resolves to the
+  SAME matter (no duplicates); pre-generated `contact_<uuid>` links the
+  inline client on BOTH records (works offline too); "+ Add new
+  sub-category…" swaps the select for a text input (ui/ primitives) and
+  persists the new sub-category onto the workflow; property-link updates
+  made non-blocking (a side-link failure can no longer resurrect the
+  draft or hide the success); offline toast now says "no need to submit it
+  again".
+- **useMatters**: backfill kept as a safety net, now using the durable
+  Convex `_id`.
+- **resolveContactById** util + adoption in MatterList, MatterDetailView,
+  MatterBoardView, CommandPalette, TimelineView, ComposeEmailModal,
+  CaseManagementReports, ReportingView — every client lookup matches id OR
+  _id (fixes legacy "Deleted Client" rows); MatterList copy changed to
+  "Client not linked".
+- **BankAccountForm**: Account Name required (shared
+  `validateBankAccountInput` util, all fields trimmed, placeholders);
+  ModalManager + DockedModal now call `manageBankAccount` and await it —
+  success toast ONLY on real success, actionable error toast on failure,
+  Atrium references removed from VEGA copy.
+- **Toast system**: `nextToastId` (module-level monotonic sequence,
+  utils/toastIds.ts) kills id/key collisions; the X handler is now
+  self-sufficient (drives the exit itself, no longer solely dependent on
+  the one-shot controller).
+- **Court date step**: TasksAndEventsTab consumes `initialSubView` +
+  `checklistAction`; arriving from the checklist/banner lands directly on
+  the Events sub-view with an explainer banner, a pulsing Events pill and
+  a "+ Add court date" CTA that opens New Event pre-set to "Court
+  Hearing"; CompleteSetupBanner deep-links the same way (was: bare matters
+  list).
+- **Getting Started context**: every checklist item now carries a `why`
+  string rendered behind a "Why do this?" expander (what it means, what
+  you get, what to expect) — bank account, court date, billing rate and
+  the rest.
+- **ALOA awareness**: `buildAccountContext` (utils/aloaAccountContext.ts,
+  pure + tested) injects PRODUCT, PLAN, TRIAL days, the exact remaining
+  Getting Started steps with HOW-to-complete guidance per step, an
+  onboarding walk-through instruction, and a PLAN AWARENESS guardrail
+  (never recommend features the tier doesn't include) — wired
+  AloaChat → geminiService (sendMessage + streamMessage) →
+  AgencyHub.getSystemInstruction.
+
+### Gates
+
+vitest 1101/1101 (+30: toastIds 4, resolveContact 6, aloaAccountContext
+10, bankAccountValidation 5, createItemIdempotency 5); tsc 129 = baseline
+(0 net-new, verified by before/after diff); eslint 0 errors; ui-primitives
+ratchet 2374 held (new controls use ui/ primitives); vite build ✓; admin
+build ✓.
+
+**RPC Rule note:** createItem idempotency + manageBankAccount only — trust
+accounts, rent ledger and court-date logic untouched (court-date changes
+are navigation/copy only; the hasCourtDateOnMatter detection logic is
+unchanged).

@@ -13,6 +13,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useProduct } from '../../contexts/ProductContext';
 import InlineMatterReview from '../InlineMatterReview';
+import { resolveContactById } from '../../utils/resolveContact';
 
 // ─── LOCAL ICONS ─────────────────────────────────────────────────────────────
 const TaskAlertIcon: React.FC<{className?: string}> = ({className}) => (
@@ -391,7 +392,7 @@ const CaseManagementReports: React.FC<CaseManagementReportsProps> = () => {
             ghostCount: caseloadByUser.filter(l => l.isGhost).length,
             staleMattersList: staleMatters.map(m => ({
                 ...m,
-                clientName: contacts.find(c => c.id === m.clientId)?.name || 'N/A',
+                clientName: resolveContactById(contacts, m.clientId)?.name || 'N/A',
                 // Attach the computed last activity date for display in table
                 lastActivityAt: matterActivityMap.get(m.id)?.toISOString() || m.stageLastUpdated || m.createdAt
             }))

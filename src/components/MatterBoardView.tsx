@@ -8,6 +8,7 @@ import { formatDueDate, getDueDateColor, getDueDateBorderColor } from '../utils/
 import { useProduct, useTerminology } from '../contexts/ProductContext';
 import { ShieldCheckIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
+import { resolveContactById } from '../utils/resolveContact';
 
 // Define local interface for enriched matter (consistent with List view logic, but passed down)
 interface EnrichedMatter extends Matter {
@@ -19,7 +20,7 @@ interface EnrichedMatter extends Matter {
 const MatterCard: React.FC<{ matter: EnrichedMatter; index: number; workflow: WorkflowDefinition | undefined, contacts: Contact[], onViewDetails: (id: string) => void; }> = ({ matter, index, workflow, contacts, onViewDetails }) => {
     const { isProperty } = useProduct();
     const terminology = useTerminology();
-    const client = contacts.find(c => c.id === matter.clientId);
+    const client = resolveContactById(contacts, matter.clientId);
 
     const matterWorkflow = workflow
         ? matter.subCategory

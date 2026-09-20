@@ -2159,6 +2159,103 @@ export const setGettingStartedChecklistDismissed = mutation({
 });
 
 /**
+ * mutation: manageBankAccount (Task 64)
+ *
+ * Dedicated, field-scoped bank-account writer for the Getting Started
+ * "Configure a bank account" flow and Settings → Firm Configuration.
+ *
+ * WHY THIS EXISTS: the previous path spread the ENTIRE client-side
+ * firmDetails object through the generic updateItem('firms', ...) —
+ * any concurrent firmDetails writer (onboarding wizard flags, AI
+ * settings, integrations) could race it with a stale copy and silently
+ * WIPE the bankAccounts field, so the account "did not save" while the
+ * UI still toasted success (the toast was a setTimeout, not gated on
+ * the mutation result). This mutation touches ONLY firm.bankAccounts:
+ * lost-update races on other fields can no longer erase accounts, and
+ * the caller gets a truthful result it can toast on.
+ *
+ * Ops:
+ *  - add:      append account (first account auto-becomes default)
+ *  - update:   replace by account.id
+ *  - setDefault: mark one account default, clear the rest
+ *  - delete:   remove by account.id (default falls back to the first remaining)
+ */
+export const manageBankAccount = mutation({
+  args: {
+    op: v.string(), // 'add' | 'update' | 'setDefault' | 'delete'
+    account: v.optional(v.any()), // { id, accountName, bankName, accountNumber, isDefault? }
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Bank accounts are firm-level financial configuration → Admin only
+    // (mirrors the updateItem('firms') security gate).
+    await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const firm: any = await ctx.db.get(firmId as any).catch(() => null);
+    if (!firm) throw new Error("Firm not found.");
+
+    const current: any[] = Array.isArray(firm.bankAccounts) ? firm.bankAccounts : [];
+    let next: any[] = current;
+    const a = args.account || {};
+
+    switch (args.op) {
+      case "add": {
+        if (!a.bankName || !a.accountNumber || !a.accountName) {
+          throw new Error("Account name, bank name and account number are all required.");
+        }
+        const id = a.id || `acct_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        next = [...current, {
+          id,
+          accountName: String(a.accountName).trim(),
+          bankName: String(a.bankName).trim(),
+          accountNumber: String(a.accountNumber).trim(),
+          isDefault: current.length === 0 ? true : !!a.isDefault,
+        }];
+        break;
+      }
+      case "update": {
+        if (!a.id) throw new Error("Account id is required for update.");
+        if (!a.bankName || !a.accountNumber || !a.accountName) {
+          throw new Error("Account name, bank name and account number are all required.");
+        }
+        next = current.map(acc => acc.id === a.id ? {
+          ...acc,
+          accountName: String(a.accountName).trim(),
+          bankName: String(a.bankName).trim(),
+          accountNumber: String(a.accountNumber).trim(),
+        } : acc);
+        break;
+      }
+      case "setDefault": {
+        if (!a.id) throw new Error("Account id is required.");
+        next = current.map(acc => ({ ...acc, isDefault: acc.id === a.id }));
+        break;
+      }
+      case "delete": {
+        if (!a.id) throw new Error("Account id is required.");
+        const remaining = current.filter(acc => acc.id !== a.id);
+        // If the default was deleted, promote the first remaining account.
+        if (remaining.length > 0 && !remaining.some(acc => acc.isDefault)) {
+          remaining[0] = { ...remaining[0], isDefault: true };
+        }
+        next = remaining;
+        break;
+      }
+      default:
+        throw new Error(`Unknown op "${args.op}".`);
+    }
+
+    await ctx.db.patch(firm._id, {
+      bankAccounts: next,
+      updatedAt: new Date().toISOString(),
+    });
+    return { success: true, count: next.length, accounts: next };
+  },
+});
+
+
+/**
  * query: getUserApiKey
  * Retrieves the user's stored Gemini API key from their user record.
  * Used on login to sync the key to localStorage.
@@ -3543,6 +3640,35 @@ export const createItem = mutation({
       throw new Error("Unauthenticated: userEmail required. Anonymous createItem calls are no longer permitted.");
     }
     const effectiveFirmId = firmId;
+
+    // ─── IDEMPOTENCY (Task 64): client-supplied stable `id` ────────────
+    // Problem this solves: on flaky networks the SAME logical create can
+    // reach the server more than once — (a) the Convex React client keeps
+    // pending mutations queued and commits them on reconnect, while the
+    // user (seeing a stuck form) force-closes, reopens the draft-restored
+    // form and resubmits; (b) the localStorage offline queue replays after
+    // a mid-replay reload or from a second tab (its single-flight lock is
+    // per-JS-context only). Every execution inserted a fresh document —
+    // the "matter saved multiple times" bug.
+    // Fix: when the client sends a stable UUID in `data.id` (DataProvider
+    // now always does), a replay finds the already-created document and
+    // returns its _id WITHOUT inserting. Replays are therefore no-ops.
+    const clientId =
+      typeof sanitizedData.id === "string" && sanitizedData.id.trim() !== ""
+        ? sanitizedData.id.trim()
+        : null;
+    if (clientId) {
+      const existing = await findDocByClientId(ctx, table, clientId);
+      if (existing) {
+        // Cross-firm collision on a client UUID should never happen (UUIDs),
+        // but fail CLOSED if it does — never return another firm's document.
+        if (existing.firmId && existing.firmId !== effectiveFirmId) {
+          throw new Error("Record already exists in another workspace.");
+        }
+        return existing._id;
+      }
+    }
+
     const dataWithTimestamp = {
       ...sanitizedData,
       firmId: effectiveFirmId,
@@ -4390,6 +4516,37 @@ function sanitizeForConvex(val: any): any {
     return out;
   }
   return val;
+}
+
+/**
+ * TASK 64 — idempotency lookup for createItem: find an existing document by
+ * its client-supplied stable `id` (custom id field). Uses the by_custom_id
+ * index for indexed tables; a filtered query otherwise. Returns null when
+ * not found (or when the table can't be queried — callers treat that as
+ * "no duplicate" and insert normally).
+ *
+ * EXPORTED FOR TESTS (same pattern as resolveRecordForUpdate above): the
+ * lookup contract is pinned by tests/unit/createItemIdempotency.test.ts.
+ */
+export async function findDocByClientId(
+  ctx: { db: { query: (table: any) => any } },
+  table: string,
+  clientId: string
+): Promise<any | null> {
+  try {
+    if (INDEXED_CUSTOM_ID_TABLES.includes(table)) {
+      return await ctx.db
+        .query(table as any)
+        .withIndex("by_custom_id" as any, (q: any) => q.eq("id", clientId))
+        .first();
+    }
+    return await ctx.db
+      .query(table as any)
+      .filter((q: any) => q.eq(q.field("id"), clientId))
+      .first();
+  } catch {
+    return null;
+  }
 }
 
 /** Resolve Convex _id from internal id or legacy custom id field (mirrors deleteItem Strategy B).

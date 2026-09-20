@@ -133,6 +133,52 @@ const ModalManager: React.FC = () => {
   const { currentUser, appMode, bearerToken } = useAuth();
   const isProperty = useIsProperty();
   const terminology = useTerminology();
+  // TASK 64 — dedicated, field-scoped bank-account writer (see convex
+  // manageBankAccount). Replaces the full-firmDetails updateItem spread that
+  // lost bankAccounts to concurrent-writer races and toasted success
+  // unconditionally even when the save failed.
+  const manageBankAccountMutation = useMutation(api.myFunctions.manageBankAccount);
+
+  // TASK 64 — shared, HONEST bank-account save flow: awaits the mutation and
+  // only celebrates when the server actually persisted the account. Copy is
+  // product-neutral (no cross-product "Atrium" references in VEGA).
+  const handleBankAccountOp = async (
+    op: 'add' | 'update' | 'setDefault' | 'delete',
+    account: any,
+    opts?: { stayOpen?: boolean }
+  ): Promise<boolean> => {
+    try {
+      const res = await manageBankAccountMutation({
+        op,
+        account,
+        userEmail: currentUser?.email,
+        sessionToken: (bearerToken ?? undefined),
+      });
+      if (op === 'add') {
+        addToast(
+          res.count === 1
+            ? 'Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, and a Trust/Client account for funds held on behalf of clients. Use “Add Bank Account” again to set up another.'
+            : `Bank account saved — you now have ${res.count} accounts. Set a default for invoice payments and collections, or add more for different purposes (Trust, Operating).`,
+          { type: 'success', duration: 8000 }
+        );
+      } else if (op === 'delete') {
+        addToast('Bank account removed.', { type: 'success' });
+      } else if (op === 'setDefault') {
+        addToast('Default account updated.', { type: 'success' });
+      }
+      if (!opts?.stayOpen) closeModal();
+      return true;
+    } catch (e: any) {
+      console.error('[ModalManager] manageBankAccount failed:', e);
+      addToast(
+        e?.message?.includes('required')
+          ? e.message
+          : 'Could not save the bank account — nothing was lost. Please try again in a moment.',
+        { type: 'error', duration: 6000 }
+      );
+      return false;
+    }
+  };
 
   if (!modal) return null;
 
@@ -465,34 +511,20 @@ const ModalManager: React.FC = () => {
       const bankAccounts = coreState.firmDetails?.bankAccounts || [];
       const account = bankAccounts.find(a => a.id === editingId);
       content = <BankAccountForm accountToEdit={account}
-        onAddAccount={(a) => {
-          const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }];
-          dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
-          // Close the modal so the user sees the settings page underneath.
-          closeModal();
-          // Navigate to the firm settings page so the user sees their saved
-          // bank account in context, alongside other firm configuration.
-          navigateTo('settings', null, { settingsTargetId: 'firm-details' });
-          // Tell the user they can add MULTIPLE bank accounts and WHY — this
-          // is important for firms that need separate accounts for:
-          //   - Operating (general business income/expenses)
-          //   - Trust/Client (held on behalf of clients — legally separate)
-          //   - Rent collection (for Atrium property managers)
-          //   - Service charge collections (for Atrium estates)
-          // Without this nudge, users add one account and never realize they
-          // can add more for different purposes.
-          setTimeout(() => {
-            addToast(
-              newAccounts.length === 1
-                ? "Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, a Trust/Client account for funds held on behalf of clients, or a Rent Collection account for Atrium. Click 'Add Bank Account' again to set up another."
-                : `Bank account saved. You now have ${newAccounts.length} account${newAccounts.length === 1 ? '' : 's'}. Set a default for rent collections and invoice payments, or add more for different purposes (Trust, Operating, Service Charge).`,
-              { type: 'success', duration: 8000 }
-            );
-          }, 400);
+        onAddAccount={async (a) => {
+          // TASK 64: dedicated mutation — the old path spread the entire
+          // firmDetails through updateItem and toasted success on a
+          // setTimeout regardless of the result ("account did not save").
+          const ok = await handleBankAccountOp('add', a);
+          if (ok) {
+            // Navigate to the firm settings page so the user sees their saved
+            // bank account in context, alongside other firm configuration.
+            navigateTo('settings', null, { settingsTargetId: 'firm-details' });
+          }
         }}
-        onUpdateAccount={(a) => { const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }}
-        onSetDefault={(id) => { const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id })); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); }}
-        onDelete={(id) => { const newAccounts = bankAccounts.filter(acc => acc.id !== id); dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts }); closeModal(); }}
+        onUpdateAccount={async (a) => { await handleBankAccountOp('update', a); }}
+        onSetDefault={async (id) => { await handleBankAccountOp('setDefault', { id }); }}
+        onDelete={async (id) => { await handleBankAccountOp('delete', { id }); }}
         onClose={closeModal} />;
       break;
     }

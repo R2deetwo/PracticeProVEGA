@@ -38,6 +38,10 @@ interface ChecklistItem {
   action: { kind: 'view'; view: string } | { kind: 'modal'; modalType: string };
   /** Optional short hint shown under the label. */
   hint?: string;
+  /** TASK 64 — richer WHAT/WHY context: one or two sentences telling the
+   *  user what this step means, what they'll get out of it, and roughly
+   *  what to expect. Shown as an expandable detail line under the hint. */
+  why?: string;
 }
 
 const VEGA_ITEMS: ChecklistItem[] = [
@@ -45,24 +49,24 @@ const VEGA_ITEMS: ChecklistItem[] = [
   // blueprint (auto-applied during onboarding, retroactive for existing
   // firms). Deep-links to Settings → Firm Configuration → Practice
   // Blueprint modal via the 'practice-blueprint' target.
-  { key: 'hasPracticeProfile', label: 'Pre-configure your practice', action: { kind: 'view', view: 'settings' }, hint: 'Pick your areas of law — we set up matching matter types, contact types and checklists.' },
-  { key: 'hasMatter',        label: 'Create your first matter',  action: { kind: 'modal', modalType: 'newMatter' },     hint: 'A matter is any case or engagement.' },
-  { key: 'hasContact',       label: 'Add a client contact',      action: { kind: 'modal', modalType: 'newContact' },    hint: 'Clients you can bill and message.' },
-  { key: 'hasBankAccount',   label: 'Configure a bank account',  action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For trust and operating accounts.' },
-  { key: 'hasBillingRate',   label: 'Set your billing rate',     action: { kind: 'view',  view: 'billing' },            hint: 'Create a matter with an hourly rate, or configure in Settings.' },
-  { key: 'hasCourtDateOnMatter', label: 'Add a court date',     action: { kind: 'view',  view: 'matters' },            hint: 'Open a matter → Tasks & Events tab → New Event (Court Hearing).' },
-  { key: 'hasInvitedUser',   label: 'Invite a team member',      action: { kind: 'view',  view: 'settings' },            hint: 'Lawyers, paralegals, accountants.' },
+  { key: 'hasPracticeProfile', label: 'Pre-configure your practice', action: { kind: 'view', view: 'settings' }, hint: 'Pick your areas of law — we set up matching matter types, contact types and checklists.', why: 'Takes ~1 minute: choose your areas of law and default state, and we pre-create the matter types, stages, document folders and event types most firms like yours use — so your workspace is ready to work with on day one instead of empty.' },
+  { key: 'hasMatter',        label: 'Create your first matter',  action: { kind: 'modal', modalType: 'newMatter' },     hint: 'A matter is any case or engagement.', why: 'Every piece of work in your practice lives in a matter: documents, tasks, court dates, notes and billing all attach to it. Create one and you will immediately see the timeline, stage tracker and billing tools that come with it.' },
+  { key: 'hasContact',       label: 'Add a client contact',      action: { kind: 'modal', modalType: 'newContact' },    hint: 'Clients you can bill and message.', why: 'Contacts are the people and companies behind your matters. Adding them unlocks client portals, billing profiles, and one-click communication — and lets you link multiple matters to the same client over time.' },
+  { key: 'hasBankAccount',   label: 'Configure a bank account',  action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For trust and operating accounts.', why: 'Your firm\'s accounts are where money movements are recorded: client funds you hold in trust stay separable from firm operating income, and invoices/payments get tied to the right account. Add one now — you can add more later (e.g. a dedicated Trust account).' },
+  { key: 'hasBillingRate',   label: 'Set your billing rate',     action: { kind: 'view',  view: 'billing' },            hint: 'Create a matter with an hourly rate, or configure in Settings.', why: 'Billing rates power every invoice: time entries are multiplied by the rate on each matter (or per team member). Setting yours now means the first invoice you generate is accurate without manual math.' },
+  { key: 'hasCourtDateOnMatter', label: 'Add a court date',     action: { kind: 'view',  view: 'matters' },            hint: 'Open a matter → Tasks & Events → Events tab → New Event.', why: 'Court dates (hearings, mentions, trials) added as events give you reminders before every appearance, a clean chronological timeline per matter, and an at-a-glance calendar of what\'s coming up — so nothing sneaks up on you.' },
+  { key: 'hasInvitedUser',   label: 'Invite a team member',      action: { kind: 'view',  view: 'settings' },            hint: 'Lawyers, paralegals, accountants.', why: 'Practice is a team sport. Invite colleagues to share matters, assign tasks and split billing credit — each person gets their own login, and you control what they can see and do.' },
 ];
 
 const ATRIUM_ITEMS: ChecklistItem[] = [
   // PRACTICE-PROFILE ENGINE: first-class item — see VEGA_ITEMS note.
-  { key: 'hasPortfolioProfile', label: 'Pre-configure your portfolio', action: { kind: 'view', view: 'settings' }, hint: 'Pick your portfolio mix — we set up matching contact types, folders and checklists.' },
-  { key: 'hasProperty',              label: 'Add your first property',     action: { kind: 'modal', modalType: 'newProperty' },    hint: 'Residential, commercial, or estate.' },
-  { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → edit a unit → enter resident name.' },
-  { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Units tab → edit a unit → set service charge.' },
-  { key: 'hasBankAccount',           label: 'Configure bank account',       action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For rent collections.' },
-  { key: 'hasInvitedResidentToPortal', label: 'Invite a resident to portal', action: { kind: 'view', view: 'settings' },           hint: 'Residents self-serve rent payments.' },
-  { key: 'hasSentReminder',         label: 'Send your first rent reminder', action: { kind: 'view', view: 'messaging' },          hint: 'Email/portal nudge to a defaulter (or a one-tap WhatsApp share).' },
+  { key: 'hasPortfolioProfile', label: 'Pre-configure your portfolio', action: { kind: 'view', view: 'settings' }, hint: 'Pick your portfolio mix — we set up matching contact types, folders and checklists.', why: 'Takes ~1 minute: choose your portfolio composition and we pre-create the contact types, folders and checklists most portfolios like yours use.' },
+  { key: 'hasProperty',              label: 'Add your first property',     action: { kind: 'modal', modalType: 'newProperty' },    hint: 'Residential, commercial, or estate.', why: 'Properties are the backbone of your portfolio: units, residents, rent schedules and service charges all hang off them.' },
+  { key: 'hasTenantOnProperty',      label: 'Add a resident to a unit',    action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → edit a unit → enter resident name.', why: 'A property only earns when someone lives in it. Adding residents unlocks rent ledgers, reminders and the resident portal per unit.' },
+  { key: 'hasServiceCharge',         label: 'Set up service charges',      action: { kind: 'view',  view: 'properties' },           hint: 'Open a property → Units tab → edit a unit → set service charge.', why: 'Service charges (dues, levies, facility fees) are billed separately from rent. Setting them up means accurate demand notices and automatic arrears tracking from day one.' },
+  { key: 'hasBankAccount',           label: 'Configure bank account',       action: { kind: 'modal', modalType: 'newBankAccount' }, hint: 'For rent collections.', why: 'Bank accounts are where collections are recorded and reconciled — keeping rent income separable from other money makes your books (and your accountants) happy.' },
+  { key: 'hasInvitedResidentToPortal', label: 'Invite a resident to portal', action: { kind: 'view', view: 'settings' },           hint: 'Residents self-serve rent payments.', why: 'Portal residents can see their balance, download receipts and pay without calling you — fewer “how much do I owe?” conversations.' },
+  { key: 'hasSentReminder',         label: 'Send your first rent reminder', action: { kind: 'view', view: 'messaging' },          hint: 'Email/portal nudge to a defaulter (or a one-tap WhatsApp share).', why: 'Reminders are how arrears get paid before they become disputes. Send one and see the delivery status tracked per resident.' },
 ];
 
 const KOMPLETE_ITEMS: ChecklistItem[] = [
@@ -70,6 +74,32 @@ const KOMPLETE_ITEMS: ChecklistItem[] = [
   ...VEGA_ITEMS,
   ...ATRIUM_ITEMS.filter(item => !VEGA_ITEMS.some(v => v.key === item.key)),
 ];
+
+// TASK 64 — expandable WHY line. Rendered as a span role="button" because the
+// whole checklist row is already a <button> (nested buttons are invalid HTML);
+// stopPropagation keeps expanding the detail from triggering the row action.
+const WhyDetail: React.FC<{ text: string; itemKey: string }> = ({ text, itemKey }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="block mt-0.5">
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); setOpen(o => !o); } }}
+        className="inline-block text-3xs font-bold text-primary-500 dark:text-emerald-400/80 hover:underline cursor-pointer"
+        aria-expanded={open}
+      >
+        {open ? 'Hide' : 'Why do this?'}
+      </span>
+      {open && (
+        <span className="block text-3xs text-slate-500 dark:text-zinc-400 font-normal mt-1 leading-relaxed pr-1" data-tour-id={`checklist-why-${itemKey}`}>
+          {text}
+        </span>
+      )}
+    </span>
+  );
+};
 
 const GettingStartedChecklist: React.FC = () => {
   const { currentUser, bearerToken } = useAuth();
@@ -537,6 +567,13 @@ const GettingStartedChecklist: React.FC = () => {
                       <p className="text-3xs text-slate-400 dark:text-zinc-500 font-normal mt-0.5 leading-snug">
                         {item.hint}
                       </p>
+                    )}
+                    {/* TASK 64 — the WHY line: one tap expands the fuller
+                        what/why/benefit context so the sidebar stays compact
+                        by default but never leaves the user guessing ("why
+                        should I configure a bank account?"). */}
+                    {item.why && !isDone && !isSkipped && (
+                      <WhyDetail text={item.why} itemKey={item.key} />
                     )}
                   </div>
                 </button>

@@ -8,6 +8,7 @@ import { useCoreState } from '../contexts/CoreContext';
 import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon, OfficeBuildingIcon } from '../constants';
 import Fuse from 'fuse.js';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { resolveContactById } from '../utils/resolveContact';
 
 type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task' | 'Property';
 
@@ -81,7 +82,7 @@ const CommandPalette: React.FC = () => {
 
         // Matters
         matterState.matters.forEach(m => {
-            const client = matterState.contacts.find(c => c.id === m.clientId);
+            const client = resolveContactById(matterState.contacts, m.clientId);
             dataItems.push({
                 id: `matter-${m.id}`,
                 title: m.title,

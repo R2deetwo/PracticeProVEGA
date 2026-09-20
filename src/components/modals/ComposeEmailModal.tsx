@@ -7,6 +7,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { DocumentIcon, UploadIcon, DismissIcon, PaperClipIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { Document } from '../../types';
+import { resolveContactById } from '../../utils/resolveContact';
 
 interface ComposeEmailModalProps {
   onClose: () => void;
@@ -45,7 +46,7 @@ const ComposeEmailModal: React.FC<ComposeEmailModalProps> = ({ onClose, initialC
   const matterId = initialContext?.matterId;
   const matter = matterState.matters.find(m => m.id === matterId);
   const matterDocs = documentState.documents.filter(d => d.matter?.id === matterId);
-  const client = matter ? matterState.contacts.find(c => c.id === matter.clientId) : null;
+  const client = matter ? resolveContactById(matterState.contacts, matter.clientId) : null;
 
   useEffect(() => {
     if (!hasAutoFilled.current) {

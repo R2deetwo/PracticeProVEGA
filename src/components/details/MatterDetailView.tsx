@@ -36,6 +36,7 @@ import { useFinanceState } from '../../contexts/FinanceContext';
 import ErrorBoundary from '../ErrorBoundary';
 import { MattersSkeleton } from '../toolkit/Skeleton';
 import { useHighlight } from '../../hooks/useHighlight';
+import { resolveContactById } from '../../utils/resolveContact';
 
 const TabButton: React.FC<{ label: string; isActive: boolean; onClick: () => void; badgeCount?: number; 'data-tour-id'?: string }> = ({ label, isActive, onClick, badgeCount, ...rest }) => (
     <button
@@ -260,7 +261,7 @@ const MatterDetailViewContent: React.FC = () => {
         };
     }, [documents, tasks, events, notePages, invoices, currentUser?.id, matterData?.id, activeTab, canViewBilling]);
 
-    const client = matterState.contacts.find(c => c.id === matterData?.clientId);
+    const client = resolveContactById(matterState.contacts, matterData?.clientId);
     const workflow = executionState.workflows.find(w => w.type === matterData?.type);
 
     const stages = useMemo(() => {
@@ -575,6 +576,8 @@ const MatterDetailViewContent: React.FC = () => {
                             currentUser={currentUser || {} as User}
                             navigateTo={navigateTo}
                             onDeleteItem={deleteItem as any}
+                            initialSubView={((currentHistoryEntry as any).initialSubView ?? (currentHistoryEntry.context as any)?.initialSubView) as 'timeline' | 'list' | 'events' | undefined}
+                            checklistAction={((currentHistoryEntry as any).checklistAction ?? (currentHistoryEntry.context as any)?.checklistAction) ?? null}
                         />
                     ) : activeTab === 'billing' ? (
                         !canViewBilling ? null : <BillingSummaryWidget matter={matterData} timeEntries={timeEntries} expenses={expenses} invoices={invoices} openModal={openModal} onDeleteTimeEntry={onDeleteTimeEntry} onDeleteExpense={onDeleteExpense} navigateTo={navigateTo} />

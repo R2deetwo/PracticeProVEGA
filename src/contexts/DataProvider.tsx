@@ -118,10 +118,17 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             // cache. createItem preserves the client UUID as the document
             // id, so the Phase B merge dedupes correctly after the queue
             // replays — no duplicate cards, no lost notes.
+            // TASK 64: the client UUID is now INCLUDED IN THE MUTATION DATA
+            // (data.id = tempId). The backend createItem is idempotent on
+            // that id — a replay (offline queue, mid-replay reload, second
+            // tab, or the user resubmitting a draft-restored form) finds the
+            // already-created doc and returns it instead of inserting a
+            // duplicate. This is the structural fix for "saved the same
+            // thing multiple times" on flaky connections.
             if (effectivelyOfflineRef.current) {
                 queueMutation({
                     mutationName: 'createItem',
-                    args: { table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email },
+                    args: { table, data: { ...data, id: tempId, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email },
                     label: itemName || table,
                 });
                 addToast(`Saved offline — ${itemName || 'item'} will sync when you reconnect.`, { type: 'info' });
@@ -129,7 +136,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             }
 
             try {
-                const rawId = await createItemMutation({ table, data: { ...data, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+                const rawId = await createItemMutation({ table, data: { ...data, id: tempId, firmId: data.firmId || currentUser?.firmId }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
                 const convexId = rawId?.toString() || rawId;
                 // CRITICAL: Keep the original client UUID as `id` (matching what was
                 // saved to the backend document) and store the Convex internal _id

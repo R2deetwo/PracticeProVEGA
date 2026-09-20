@@ -20,6 +20,7 @@ import { tools } from '../../services/geminiService';
 import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
+import { buildAccountContext as buildAccountContextPure } from '../../utils/aloaAccountContext';
 import { handleCleanCopy } from '../../utils/copyUtils';
 import { formatNairaInText } from '../../utils/formatting';
 import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
@@ -182,6 +183,27 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         api.proactive.getInsights,
         showAiSuggestions && firmId ? { firmId, dismissed: false, limit: 10 } : 'skip'
     );
+
+    // ─── TASK 64 — ACCOUNT / TIER / ONBOARDING AWARENESS ─────────────────
+    // The user asked ALOA for help with Getting Started and got nothing
+    // useful: the system prompt had NO idea which product the firm is on,
+    // what plan/tier they pay for, or which onboarding steps remain. This
+    // subscription feeds the same checklist query the sidebar widget uses;
+    // the built context block (below, before send) teaches the assistant to
+    // (a) answer setup questions concretely, (b) offer to DO the step via
+    // its create_matter / create_contact / create_event tools, and (c) never
+    // suggest features the current plan doesn't include.
+    const onboardingChecklist = useQuery(
+        api.myFunctions.getGettingStartedChecklist,
+        firmId ? { firmId } : 'skip'
+    );
+
+    // TASK 64: the context builder lives in utils/aloaAccountContext.ts
+    // (pure + unit-tested). Thin wrapper binds the live firm/checklist data.
+    const buildAccountContext = (): string | null =>
+        buildAccountContextPure(coreState?.firmDetails as any, onboardingChecklist as any, {
+            productFallback: currentUser?.product,
+        });
 
     const [textInput, setTextInput] = useState('');
     // ─── PER-CONVERSATION DRAFT PERSISTENCE ────────────────────────────────
@@ -1486,6 +1508,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 title: i.title,
                 body: i.body,
             })) ?? null,
+            // TASK 64 — account/tier/onboarding awareness (see the builder
+            // above): the assistant knows the product, plan, trial state and
+            // the exact remaining Getting Started steps, and can offer to
+            // complete them with its tools.
+            accountContext: buildAccountContext(),
         };
 
         // The execute function runs inside the queue — it receives an

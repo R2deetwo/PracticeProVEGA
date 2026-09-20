@@ -15,6 +15,7 @@ import { LockClosedIcon } from '../constants';
 
 import BusinessIntelligenceReports from './reports/BusinessIntelligenceReports';
 import FinancialReports from './reports/FinancialReports';
+import { resolveContactById } from '../utils/resolveContact';
 
 type MainTab = 'dashboard' | 'generator';
 type DashboardTab = 'bi' | 'financial';
@@ -113,7 +114,7 @@ const ReportGenerator: React.FC = () => {
                     const data: MatterStatusReportData = {
                         matters: matterState.matters.map(m => ({
                             title: m.title,
-                            clientName: matterState.contacts.find(c => c.id === m.clientId)?.name || 'N/A',
+                            clientName: resolveContactById(matterState.contacts, m.clientId)?.name || 'N/A',
                             status: m.status,
                             currentStage: m.stage,
                             assignedTeam: (m.assignedUsers || []).map(id => activeUsers.find(u => u.id === id)?.name).filter(Boolean).join(', '),

@@ -115,6 +115,19 @@ const CompleteSetupBanner: React.FC = () => {
       return;
     }
 
+    // TASK 64 — "Add a court date" now deep-links to the FIRST MATTER's
+    // Events sub-tab (same destination as the sidebar checklist) instead of
+    // the bare matters list, so the user lands exactly where the court-date
+    // event form lives.
+    if (nextItem.key === 'hasCourtDateOnMatter' && (checklist as any).firstMatterId) {
+      navigateTo('matterDetail' as any, (checklist as any).firstMatterId, {
+        initialTab: 'schedule_tasks',
+        initialSubView: 'events',
+        checklistAction: nextItem.key,
+      });
+      return;
+    }
+
     if (nextItem.action.kind === 'view') {
       // PRACTICE-PROFILE ENGINE: blueprint items deep-link to the Firm
       // Configuration blueprint modal (same target the checklist uses).

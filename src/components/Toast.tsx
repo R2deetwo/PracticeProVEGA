@@ -86,7 +86,24 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
 
   // Single graceful-exit funnel for every dismissal path: auto-expiry,
   // hover-leave-after-expiry, [X] button, and link clicks.
-  const handleManualClose = () => controllerRef.current?.dismiss();
+  // TASK 64 — the manual close is now SELF-SUFFICIENT: it no longer relies
+  // solely on the controller's one-shot `dismissed` flag. If the controller
+  // already fired (or was created for a different toast instance via a
+  // duplicate-key reuse — the id-collision bug fixed in UIContext), the old
+  // code silently did NOTHING and the toast refused to close. Now the click
+  // handler drives the exit itself, guarded by the local exitingRef so it
+  // can still never double-schedule the removal.
+  const beginExit = () => {
+    if (exitingRef.current) return;
+    exitingRef.current = true;
+    setIsExiting(true);
+    setTimeout(() => onRemoveRef.current(toast.id), 300);
+  };
+  const handleManualClose = () => {
+    try { controllerRef.current?.dismiss(); } catch { /* controller may be stale */ }
+    // Belt-and-braces: even if the controller no-ops, the toast closes.
+    beginExit();
+  };
 
   const handleLinkClick = () => {
     if (toast.link) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BankAccount } from '../../types';
 import { Button, Input } from '../ui';
 import { useUI } from '../../contexts/UIContext';
+import { validateBankAccountInput } from '../../utils/bankAccountValidation';
 
 interface BankAccountFormProps {
   accountToEdit?: BankAccount;
@@ -47,15 +48,15 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!bankName.trim() || !accountNumber.trim()) {
-      addToast("Bank Name and Account Number are required.", { type: 'error' });
+    // TASK 64: the user's standard — every bank account record carries an
+    // ACCOUNT NAME, BANK and ACCOUNT NUMBER (shared validation util keeps
+    // this consistent with the backend manageBankAccount gate).
+    const validation = validateBankAccountInput({ accountName, bankName, accountNumber });
+    if (!validation.ok) {
+      addToast(validation.error, { type: 'error' });
       return;
     }
-    const accountData = {
-      accountName,
-      bankName,
-      accountNumber,
-    };
+    const accountData = validation.value;
     if (isEditing && accountToEdit) {
       await onUpdateAccount({ ...accountToEdit, ...accountData });
     } else {
@@ -67,7 +68,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <Input
-        label="Account Name (Optional)"
+        label="Account Name"
         id="accountName"
         styleVariant="classic"
         autoComplete="off"
@@ -75,6 +76,8 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
         type="text"
         value={accountName}
         onChange={e => setAccountName(e.target.value)}
+        placeholder="e.g. Firm Operating Account"
+        required
       />
       <Input
         label="Bank Name"
@@ -85,6 +88,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
         type="text"
         value={bankName}
         onChange={e => setBankName(e.target.value)}
+        placeholder="e.g. Guaranty Trust Bank"
         required
       />
       <Input

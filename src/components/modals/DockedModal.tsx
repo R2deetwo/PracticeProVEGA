@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -64,8 +66,44 @@ export const DockedModal: React.FC = () => {
   const { coreState, isDataLoaded } = useCoreState();
   const { financeState } = useFinanceState();
   const dataHandlers = useDataActions();
-  const { currentUser, appMode } = useAuth();
+  const { currentUser, appMode, bearerToken } = useAuth();
   const isProperty = useIsProperty();
+  // TASK 64 — dedicated bank-account writer (mirrors ModalManager; see the
+  // fuller rationale there and on convex manageBankAccount).
+  const manageBankAccountMutation = useMutation(api.myFunctions.manageBankAccount);
+  const handleBankAccountOp = async (op: 'add' | 'update' | 'setDefault' | 'delete', account: any): Promise<boolean> => {
+    try {
+      const res = await manageBankAccountMutation({
+        op,
+        account,
+        userEmail: currentUser?.email,
+        sessionToken: (bearerToken ?? undefined),
+      });
+      if (op === 'add') {
+        addToast(
+          res.count === 1
+            ? 'Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, and a Trust/Client account for funds held on behalf of clients. Use “Add Bank Account” again to set up another.'
+            : `Bank account saved — you now have ${res.count} accounts. Set a default for invoice payments and collections, or add more for different purposes (Trust, Operating).`,
+          { type: 'success', duration: 8000 }
+        );
+      } else if (op === 'delete') {
+        addToast('Bank account removed.', { type: 'success' });
+      } else if (op === 'setDefault') {
+        addToast('Default account updated.', { type: 'success' });
+      }
+      closeModal();
+      return true;
+    } catch (e: any) {
+      console.error('[DockedModal] manageBankAccount failed:', e);
+      addToast(
+        e?.message?.includes('required')
+          ? e.message
+          : 'Could not save the bank account — nothing was lost. Please try again in a moment.',
+        { type: 'error', duration: 6000 }
+      );
+      return false;
+    }
+  };
   
   const [isVisible, setIsVisible] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
@@ -392,33 +430,16 @@ export const DockedModal: React.FC = () => {
         const account = bankAccounts.find(a => a.id === editingId);
         content = <BankAccountForm
           accountToEdit={account}
-          onAddAccount={(a) => {
-            const newAccounts = [...bankAccounts, { ...a, id: Date.now().toString(), isDefault: bankAccounts.length === 0 }];
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
-            closeModal();
-            navigateTo('settings', null, { settingsTargetId: 'firm-details' });
-            setTimeout(() => {
-              addToast(
-                newAccounts.length === 1
-                  ? "Bank account saved. You can add MULTIPLE accounts — e.g. an Operating account for general income, a Trust/Client account for funds held on behalf of clients, or a Rent Collection account for Atrium. Click 'Add Bank Account' again to set up another."
-                  : `Bank account saved. You now have ${newAccounts.length} account${newAccounts.length === 1 ? '' : 's'}. Set a default for rent collections and invoice payments, or add more for different purposes (Trust, Operating, Service Charge).`,
-                { type: 'success', duration: 8000 }
-              );
-            }, 400);
+          onAddAccount={async (a) => {
+            // TASK 64: dedicated mutation with honest success/error toasts
+            // (replaces the unconditional success setTimeout + full-firmDetails
+            // spread that could silently lose the account).
+            const ok = await handleBankAccountOp('add', a);
+            if (ok) navigateTo('settings', null, { settingsTargetId: 'firm-details' });
           }}
-          onUpdateAccount={(a) => {
-            const newAccounts = bankAccounts.map(acc => acc.id === a.id ? a : acc);
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
-          }}
-          onSetDefault={(id) => {
-            const newAccounts = bankAccounts.map(acc => ({ ...acc, isDefault: acc.id === id }));
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
-          }}
-          onDelete={(id) => {
-            const newAccounts = bankAccounts.filter(acc => acc.id !== id);
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, bankAccounts: newAccounts });
-            closeModal();
-          }}
+          onUpdateAccount={async (a) => { await handleBankAccountOp('update', a); }}
+          onSetDefault={async (id) => { await handleBankAccountOp('setDefault', { id }); }}
+          onDelete={async (id) => { await handleBankAccountOp('delete', { id }); }}
           onClose={closeModal}
         />;
         break;

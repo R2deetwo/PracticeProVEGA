@@ -16,6 +16,7 @@ import InlineMatterReview from './InlineMatterReview';
 import EmptyState from './EmptyState';
 import { MattersSkeleton } from './toolkit/Skeleton';
 import MatterBoardView from './MatterBoardView';
+import { resolveContactById } from '../utils/resolveContact';
 
 // ─── Icons (inline so no new imports needed) ────────────────────────────────
 const ListIcon = ({ className }: { className?: string }) => (
@@ -43,7 +44,7 @@ const XIcon = ({ className }: { className?: string }) => (
 function exportMattersToCSV(matters: Matter[], contacts: any[], notePages: any[]) {
     const headers = ['Reference', 'Title', 'Client', 'Type', 'Stage', 'Status', 'Court', 'Created', 'Latest Endorsements'];
     const rows = matters.map(m => {
-        const client = contacts.find((c: any) => c.id === m.clientId);
+        const client = resolveContactById(contacts, m.clientId);
         
         // Find endorsements for this matter
         const matterNotes = notePages
@@ -102,7 +103,7 @@ const MatterCardItem: React.FC<{
     const { handleDeleteMatter, archiveItem } = useDataActions();
     const { openModal, closeModal, navigateTo, addToast } = useUI();
 
-    const client = matterState.contacts.find((c: any) => c.id === matter.clientId);
+    const client = resolveContactById(matterState.contacts, matter.clientId);
     const matterTasks = executionState.tasks.filter(t => t.matterId === matter.id);
     const assignedUsers = (matter.assignedUsers || []).map(id => coreState.users.find(u => u.id === id)).filter(Boolean) as any[];
     const pendingTasks = matterTasks.filter(t => t.status !== TaskStatus.Done);
@@ -168,7 +169,11 @@ const MatterCardItem: React.FC<{
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary-600 transition-colors leading-tight">{matter.title}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">
-                                    {client?.name || 'Deleted Client'}
+                                    {/* TASK 64: clearer copy than the old "Deleted Client" —
+                                    an unresolvable id can also mean a legacy link (pre stable-id
+                                    era) or an offline-created matter whose client hasn't synced
+                                    yet; the Orphaned chip below carries the actionable hint. */}
+                                {client?.name || 'Client not linked'}
                                 </span>
                                 {client?.isArchived && (
                                     <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" title="This client has been archived — restore from Contacts to reactivate.">
@@ -275,7 +280,7 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
         return result.filter((m: any) =>
             m.title.toLowerCase().includes(lower) ||
             m.referenceNumber?.toLowerCase().includes(lower) ||
-            matterState.contacts.find((c: any) => c.id === m.clientId)?.name.toLowerCase().includes(lower)
+            resolveContactById(matterState.contacts, m.clientId)?.name.toLowerCase().includes(lower)
         );
     }, [presetFiltered, searchTerm, typeFilter, matterState.contacts]);
 

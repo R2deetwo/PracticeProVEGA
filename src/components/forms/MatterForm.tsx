@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Matter, User, Contact, WorkflowDefinition, MatterType, CourtType, AppMode, View, ContactType, BillingModel, BillingFrequency, MatterStatus, ModalType, FirmSpecialty, MatterSpecialtyData, LitigationParty } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -9,6 +10,7 @@ import { useOfflineQueue } from '../../hooks/useOfflineQueue';
 import { useFeatures } from '../../hooks/useFeatures';
 import { OfficeBuildingIcon, ShieldCheckIcon, GavelIconLarge, CurrencyDollarIcon, PlusIcon, UserCircleIcon as UserIcon, MapPinIcon, CalendarIcon, DesktopComputerIcon as BriefcaseIcon, SearchIcon, XIcon, SaveIcon, PhoneIcon, MailIcon, DocumentTextIcon } from '../../constants';
 import { UserAssignment } from './UserAssignment';
+import { Button as UIButton, Input as UIInput } from '../ui';
 import { formatNaira, formatNumberWithCommas, parseFormattedNumber, autoFormatSuitTitle } from '../../utils/formatting';
 import { analyzePartyName, analyzeMatterIntelligence } from '../../utils/defenseUtils';
 import { inputModern } from '../../utils/formStyles';
@@ -188,6 +190,24 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     // --- State ---
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // TASK 64 — STABLE SUBMISSION ID: every unsaved draft carries a UUID that
+    // is persisted INSIDE the draft and reused across resubmits. It is sent
+    // as matterData.id, and the backend createItem is idempotent on it — so
+    // resubmitting a draft-restored form (the classic flaky-network loop:
+    // save pends → user force-closes → reopens → form is pre-filled from the
+    // still-saved draft → saves again) can never create a duplicate matter:
+    // the second submission resolves to the SAME document. A brand-new form
+    // (draft cleared after success) always starts with a fresh UUID.
+    const [submissionId, setSubmissionId] = useState<string>(() => `matter_${uuidv4()}`);
+
+    // TASK 64 — SUB-CATEGORY CREATION: when the selected practice area has
+    // preset sub-categories, the picker previously offered a dead "Other /
+    // Custom" option (value="") with no way to actually type a new one.
+    // Now "+ Add new sub-category…" switches to a free-text input, and the
+    // new value is persisted onto the workflow on save so it appears in the
+    // picker for every future matter.
+    const [isCreatingNewSubCategory, setIsCreatingNewSubCategory] = useState(false);
+
     // Core
     const [title, setTitle] = useState('');
     const [matterType, setMatterType] = useState<string>(currentUser.defaultMatterType || (availableWorkflows && availableWorkflows[0]?.type) || '');
@@ -365,6 +385,9 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
             if (savedDraft) {
                 try {
                     const draft = JSON.parse(savedDraft);
+                    // TASK 64: restore the draft's stable submission id so a
+                    // resubmit stays idempotent against the original save.
+                    if (draft.draftId) setSubmissionId(draft.draftId);
                     if (draft.title) setTitle(draft.title);
                     if (draft.matterType) setMatterType(draft.matterType);
                     if (draft.subCategory) setSubCategory(draft.subCategory);
@@ -387,13 +410,14 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     useEffect(() => {
         if (!isEditing && !isSubmitting && title && currentUser?.id) {
             const draft = {
+                draftId: submissionId,
                 title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel,
                 billingFrequency, retainerAutoBillingEnabled,
                 lastSaved: new Date().toISOString()
             };
             localStorage.setItem(`draft_newMatter_${currentUser.id}`, JSON.stringify(draft));
         }
-    }, [title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel, billingFrequency, retainerAutoBillingEnabled, isEditing, isSubmitting, currentUser]);
+    }, [title, matterType, subCategory, clientId, isLitigation, suitNumber, court, billingModel, billingFrequency, retainerAutoBillingEnabled, isEditing, isSubmitting, currentUser, submissionId]);
 
     const activeWorkflow = availableWorkflows.find(w => w.type === matterType);
     const subCategoryOptions = activeWorkflow?.subCategories ? Object.keys(activeWorkflow.subCategories) : [];
@@ -435,6 +459,9 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
             if (!isEditing && subCategory && subCategoryOptions.length > 0 && !subCategoryOptions.includes(subCategory)) {
                 setSubCategory('');
             }
+            // TASK 64: leaving the "+ Add new sub-category" input open across a
+            // practice-area switch would attach the typed name to the WRONG area.
+            setIsCreatingNewSubCategory(false);
             prevMatterTypeRef.current = matterType;
         }
     }, [matterType, subCategoryOptions, isEditing, subCategory]);
@@ -497,6 +524,16 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
 
             let finalClientId = clientId;
             let clientToCreate: any = null;
+            // TASK 64 — CLIENT UUID: generated UP FRONT so the matter can
+            // reference the not-yet-created client by a stable id. Previously
+            // the matter was created with clientId '' and a backfill update
+            // pointed it at the contact's LOCAL uuid — which the Phase B
+            // backend merge replaced with the Convex _id, so the lookup never
+            // matched and the matter showed "Deleted Client". With the uuid
+            // on both records (matter.clientId AND contact.id) the link is
+            // durable — and it works for the OFFLINE queue too, where no
+            // backfill update was ever queued at all.
+            const inlineClientUuid = `contact_${uuidv4()}`;
             if (isCreatingClient) {
                 const newContactData = {
                     firmId: activeFirmId,
@@ -511,12 +548,17 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     if (newContact) finalClientId = newContact.id;
                     else throw new Error("Failed to create new client contact");
                 } else {
-                    clientToCreate = { data: newContactData, createPortal: false };
+                    clientToCreate = { data: { ...newContactData, id: inlineClientUuid }, createPortal: false };
+                    finalClientId = inlineClientUuid;
                 }
             }
 
             const matterData: any = {
                 firmId: activeFirmId,
+                // TASK 64: stable client-generated id — the backend createItem
+                // is idempotent on it, so replays/resubmits of the same draft
+                // can never duplicate the matter.
+                ...(isEditing ? {} : { id: submissionId }),
                 title,
                 clientId: finalClientId,
                 type: finalMatterType as MatterType,
@@ -590,11 +632,16 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
 
             if (isEditing && matterToEdit) {
                 await onUpdateMatter({ ...matterToEdit, ...matterData });
-                // Update property link if changed
+                // Update property link if changed (TASK 64: non-blocking — an
+                // edit must never fail wholesale because a side-link failed)
                 if (linkedPropertyId) {
-                    const prop = coreState.properties.find(p => p.id === linkedPropertyId);
-                    if (prop && prop.matterId !== matterToEdit.id) {
-                         await dataHandlers.updateItem('properties', { ...prop, id: linkedPropertyId, matterId: matterToEdit.id }, 'Property Link');
+                    try {
+                        const prop = coreState.properties.find(p => p.id === linkedPropertyId);
+                        if (prop && prop.matterId !== matterToEdit.id) {
+                             await dataHandlers.updateItem('properties', { ...prop, id: linkedPropertyId, matterId: matterToEdit.id }, 'Property Link');
+                        }
+                    } catch (e) {
+                        console.warn('[MatterForm] Property link update failed:', e);
                     }
                 }
                 // ─── Sync retainer schedule on the backend ────────────────
@@ -615,9 +662,35 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 }
                 addToast("Matter updated successfully.", { type: 'success' });
             } else {
+                // TASK 64 — persist a NEWLY-TYPED sub-category onto the workflow
+                // so it appears in the picker for every future matter. Runs
+                // BEFORE the create so the workflow definition exists either
+                // way; failures are non-blocking (the matter still saves with
+                // the sub-category as a plain text field).
+                if (!isEditing && subCategory.trim() && !isCreatingNewType &&
+                    subCategoryOptions.length > 0 && !subCategoryOptions.includes(subCategory)) {
+                    try {
+                        const wf = availableWorkflows.find(w => w.type === finalMatterType);
+                        if (wf) {
+                            await dataHandlers.handleUpdateWorkflow({
+                                ...wf,
+                                subCategories: {
+                                    ...(wf.subCategories || {}),
+                                    [subCategory.trim()]: { stages: effectiveStages.length > 0 ? effectiveStages : ['Intake', 'In Progress', 'Closed'], suggestions: {} },
+                                },
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('[MatterForm] Could not persist new sub-category to workflow:', e);
+                    }
+                }
+
                 // TASK: Offline queue — if the device is offline, queue the
                 // matter creation in localStorage and notify the user.
                 // The useOfflineQueue hook will auto-replay when connection returns.
+                // TASK 64: matterData.id (stable draft UUID) + the inline
+                // client UUID are already embedded, so the replay links the
+                // client correctly and is idempotent against duplicates.
                 if (!isOnline) {
                     queueMutation({
                         table: 'matters',
@@ -634,7 +707,8 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         });
                     }
                     localStorage.removeItem(`draft_newMatter_${currentUser.id}`);
-                    addToast('Matter saved offline. It will sync automatically when you reconnect.', { type: 'info', duration: 6000 });
+                    setSubmissionId(`matter_${uuidv4()}`); // next form = fresh submission identity
+                    addToast('Matter saved offline. It will sync automatically when you reconnect — no need to submit it again.', { type: 'info', duration: 7000 });
                     onClose();
                     return;
                 }
@@ -642,10 +716,20 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 const res = await onAddMatter(matterData, clientToCreate);
                 const newMatter = res as any; // onAddMatter returns the matter
                 
-                // Bidirectional Link: Update property with new matterId
+                // Bidirectional Link: Update property with new matterId.
+                // TASK 64: wrapped — a failed property link must NOT throw
+                // after the matter was created (that resurrected the cleared
+                // draft via the save-draft effect on setIsSubmitting(false),
+                // so the next "new matter" form appeared pre-filled with the
+                // last matter's content).
                 if (newMatter && linkedPropertyId) {
-                    const prop = coreState.properties.find(p => p.id === linkedPropertyId);
-                    await dataHandlers.updateItem('properties', { ...(prop || {}), id: linkedPropertyId, matterId: newMatter.id }, 'Property Link');
+                    try {
+                        const prop = coreState.properties.find(p => p.id === linkedPropertyId);
+                        await dataHandlers.updateItem('properties', { ...(prop || {}), id: linkedPropertyId, matterId: newMatter.id }, 'Property Link');
+                    } catch (e) {
+                        console.warn('[MatterForm] Property link failed (matter is saved):', e);
+                        addToast('Matter saved, but linking the property failed — link it from the property page.', { type: 'warning', duration: 6000 });
+                    }
                 }
 
                 // ─── Sync retainer schedule on the backend ────────────────
@@ -665,6 +749,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                 }
 
                 localStorage.removeItem(`draft_newMatter_${currentUser.id}`); // Clear draft on success
+                setSubmissionId(`matter_${uuidv4()}`); // TASK 64: next form = fresh submission identity
                 addToast("Matter created successfully.", { type: 'success' });
                 
                 // MARK ALOA ACTION COMPLETED
@@ -909,26 +994,57 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                         </div>
                         <div className="space-y-1.5">
                             <label className={labelClass}>Sub-Category</label>
-                            {subCategoryOptions.length > 0 ? (
+                            {subCategoryOptions.length > 0 && !isCreatingNewSubCategory ? (
                                 <select
-                                    value={subCategory}
-                                    onChange={e => setSubCategory(e.target.value)}
+                                    value={subCategoryOptions.includes(subCategory) ? subCategory : ''}
+                                    onChange={e => {
+                                        if (e.target.value === '___NEW_SUB___') {
+                                            setIsCreatingNewSubCategory(true);
+                                            setSubCategory('');
+                                        } else {
+                                            setSubCategory(e.target.value);
+                                        }
+                                    }}
                                     className={commonInputClass}
                                 >
                                     <option value="">-- No Sub-Category --</option>
                                     {subCategoryOptions.map(sc => (
                                         <option key={sc} value={sc}>{sc}</option>
                                     ))}
-                                    <option value="">Other / Custom</option>
+                                    {/* TASK 64: replaces the dead "Other / Custom" option (value=""
+                                        that could never be typed into) with a real affordance —
+                                        switching to a free-text input below. */}
+                                    <option value="___NEW_SUB___">+ Add new sub-category…</option>
                                 </select>
                             ) : (
-                                <input autoComplete="off" data-lpignore="true" 
-                                    type="text"
-                                    value={subCategory}
-                                    onChange={e => setSubCategory(e.target.value)}
-                                    className={commonInputClass}
-                                    placeholder="Optional Sub-Category..."
-                                />
+                                <div className="flex gap-2">
+                                    {/* TASK 64: shared ui primitives (ADR-0004) — the
+                                        raw-element ratchet forbids adding new form
+                                        elements outside the ui layer. */}
+                                    <UIInput
+                                        styleVariant="modern"
+                                        type="text"
+                                        value={subCategory}
+                                        onChange={e => setSubCategory(e.target.value)}
+                                        placeholder={subCategoryOptions.length > 0 ? 'New sub-category name…' : 'Optional Sub-Category...'}
+                                        autoFocus={isCreatingNewSubCategory}
+                                    />
+                                    {isCreatingNewSubCategory && (
+                                        <UIButton
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() => { setIsCreatingNewSubCategory(false); setSubCategory(''); }}
+                                            className="flex-shrink-0"
+                                        >
+                                            Cancel
+                                        </UIButton>
+                                    )}
+                                </div>
+                            )}
+                            {subCategoryOptions.length > 0 && !isCreatingNewSubCategory && (
+                                <p className="text-2xs text-slate-400 dark:text-zinc-500">
+                                    Sort matters into a finer breakdown (e.g. Divorce Petition under Family Law). New entries are saved to the practice area for reuse.
+                                </p>
                             )}
                         </div>
                     </div>

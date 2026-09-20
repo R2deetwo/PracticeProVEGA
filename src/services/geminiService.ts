@@ -279,6 +279,9 @@ export const sendMessage = async (
         injectedContext?: AriaChatContext | null;
         conversationMemoryContext?: string | null;
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
+        // TASK 64 — account/tier/onboarding context: product, plan, trial
+        // state and remaining Getting Started steps (built in AloaChat).
+        accountContext?: string | null;
     },
     modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
     signal?: AbortSignal
@@ -327,7 +330,8 @@ export const sendMessage = async (
         context.injectedContext,
         context.conversationMemoryContext,
         context.proactiveInsights,
-        legalKnowledgeContext
+        legalKnowledgeContext,
+        context.accountContext ?? undefined
     ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
     // Inject research-mode protocol if applicable
@@ -585,6 +589,9 @@ export const streamMessage = async (
         injectedContext?: AriaChatContext | null;
         conversationMemoryContext?: string | null;
         proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null;
+        // TASK 64 — account/tier/onboarding context: product, plan, trial
+        // state and remaining Getting Started steps (built in AloaChat).
+        accountContext?: string | null;
     },
     onChunk: (text: string) => void,
     modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
@@ -630,7 +637,8 @@ export const streamMessage = async (
         context.injectedContext,
         context.conversationMemoryContext,
         context.proactiveInsights,
-        legalKnowledgeContext
+        legalKnowledgeContext,
+        context.accountContext ?? undefined
     ) + `\n\nUPLOADED DOCUMENT HANDLING: When a user uploads a document in the chat (via the paperclip button) and asks about it ("tell me about this document", "analyze this", "summarize this file"), the document content is ALREADY provided to you as context. Do NOT call the analyze_document tool for uploaded chat attachments — that tool only works with documents in the vault. Instead, read the provided document content and respond naturally.`;
 
     // Inject research-mode protocol (same as sendMessage)

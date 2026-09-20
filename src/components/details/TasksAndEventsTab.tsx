@@ -5,6 +5,7 @@ import { ChevronDownIcon, CalendarIcon, ListBulletIcon, EditIcon, ClockIcon } fr
 import { useUI } from '../../contexts/UIContext';
 import { expandRecurringEvents } from '../../utils/calendarUtils';
 import Tooltip from '../Tooltip';
+import { Button } from '../ui';
 import { StatutoryTaskTimeline } from './StatutoryTaskTimeline';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
 
@@ -43,6 +44,14 @@ interface TasksAndEventsTabProps {
     // Type is loose (string) to avoid importing AppState type — the runtime
     // check in deleteItem validates the table name.
     onDeleteItem?: (table: string, id: string, name: string) => Promise<void> | void;
+    // TASK 64 — deep-link sub-view. The Getting Started "Add a court date"
+    // step navigates here with initialSubView:'events', but the tab never
+    // consumed it — users landed on TASKS (the default) and found no Events
+    // form, with no highlight showing where to click.
+    initialSubView?: 'timeline' | 'list' | 'events';
+    // TASK 64 — true when a checklist deep-link opened this tab; drives the
+    // guiding banner + shimmer highlight on the Events pill.
+    checklistAction?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +59,7 @@ interface TasksAndEventsTabProps {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
-    tasks, events, matterId, matter, documents, openModal, onUpdateTaskStatus, lastViewedAt, currentUser, navigateTo, onDeleteItem
+    tasks, events, matterId, matter, documents, openModal, onUpdateTaskStatus, lastViewedAt, currentUser, navigateTo, onDeleteItem, initialSubView, checklistAction
 }) => {
     const { setHighlightTarget, closeModal } = useUI();
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
@@ -64,8 +73,10 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
         return !!(wf.subCategories as any)[matter.subCategory];
     }, [matter?.type, matter?.subCategory]);
 
+    // TASK 64 — honor the deep-linked sub-view (Getting Started "Add a court
+    // date" lands directly on Events). Falls back to the previous defaults.
     const [subView, setSubView] = useState<'timeline' | 'list' | 'events'>(
-        hasStatutoryWorkflow ? 'timeline' : 'list'
+        initialSubView || (hasStatutoryWorkflow ? 'timeline' : 'list')
     );
 
     useEffect(() => {
@@ -132,7 +143,9 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
     }, [events]);
 
     // ─── Sub-view tab pill ────────────────────────────────────────────────────
-    const TabPill: React.FC<{ id: string; label: string; active: boolean; onClick: () => void }> = ({ id, label, active, onClick }) => (
+    // TASK 64: optional `highlight` — the court-date deep-link pulses the
+    // Events pill so the user knows exactly where the new-event form lives.
+    const TabPill: React.FC<{ id: string; label: string; active: boolean; onClick: () => void; highlight?: boolean }> = ({ id, label, active, onClick, highlight }) => (
         <button
             key={id}
             onClick={onClick}
@@ -140,7 +153,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                 active
                     ? 'bg-white dark:bg-zinc-700 shadow-sm text-slate-700 dark:text-zinc-100'
                     : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200'
-            }`}
+            } ${highlight ? 'ring-2 ring-primary-400 animate-pulse' : ''}`}
         >
             {label}
         </button>
@@ -317,8 +330,33 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
     );
 
     // ─── Render ───────────────────────────────────────────────────────────────
+    // TASK 64 — court-date guidance: when the Getting Started "Add a court
+    // date" step deep-links here, show a short explanatory banner (WHAT a
+    // court-date event is, WHY it matters) and a one-click CTA that opens the
+    // New Event form pre-set to a Court Hearing.
+    const isCourtDateGuide = checklistAction === 'hasCourtDateOnMatter';
     return (
         <div className="py-2 space-y-4">
+            {isCourtDateGuide && (
+                <div data-item-id="checklist-cta-hasCourtDateOnMatter-guide" className="rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-900/20 px-3 py-2.5 flex items-start gap-2.5">
+                    <CalendarIcon className="w-4 h-4 text-primary-600 dark:text-primary-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-primary-800 dark:text-primary-200">Add this matter's court dates</p>
+                        <p className="text-2xs text-primary-700/80 dark:text-primary-300/80 mt-0.5 leading-relaxed">
+                            Court hearings, mentions and trials live here on the Events tab. Adding them means you get reminders, the dates appear on your calendar, and the matter timeline stays accurate — never miss an appearance.
+                        </p>
+                        {/* TASK 64: ui/ Button primitive (ADR-0004 ratchet). */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openModal('newEvent', null, { matterId, openedFrom: 'matterDetail', type: 'Court Hearing' })}
+                            className="mt-1.5 font-black uppercase tracking-widest text-primary-600 dark:text-primary-300 hover:underline"
+                        >
+                            + Add court date
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Sub-view Tab Pills */}
             <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg w-fit">
@@ -326,7 +364,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                     <TabPill id="timeline" label="Timeline" active={subView === 'timeline'} onClick={() => setSubView('timeline')} />
                 )}
                 <TabPill id="list" label="Tasks" active={subView === 'list'} onClick={() => setSubView('list')} />
-                <TabPill id="events" label="Events" active={subView === 'events'} onClick={() => setSubView('events')} />
+                <TabPill id="events" label="Events" active={subView === 'events'} onClick={() => setSubView('events')} highlight={isCourtDateGuide && subView !== 'events'} />
             </div>
 
             {/* Timeline */}

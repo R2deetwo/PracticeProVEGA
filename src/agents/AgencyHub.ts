@@ -19,7 +19,12 @@ export const getSystemInstruction = (
     proactiveInsights?: { category: string; severity: string; title: string; body: string }[] | null,
     // Task 51 — Rules & Forms engine retrieval (provisions + court forms
     // retrieved from the curated Nigerian legal knowledge base).
-    legalKnowledgeContext?: string
+    legalKnowledgeContext?: string,
+    // TASK 64 — account/tier/onboarding context: which product the firm is
+    // on, what plan they pay for (trial state), and which Getting Started
+    // steps remain — so the assistant can concretely help with onboarding
+    // and never recommends features the plan doesn't include.
+    accountContext?: string
 ): string => {
     // Determine the active agent mode early to avoid hoisting issues
     const isAtriumMode = currentUser.product === 'property' || 
@@ -279,6 +284,20 @@ Proactively mention these if they relate to the user's current query or context.
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────
+    // TASK 64 — ACCOUNT / TIER / ONBOARDING CONTEXT. Built in AloaChat from
+    // the firm record + the live Getting Started checklist; teaches the
+    // assistant what the user's plan covers and exactly which setup steps
+    // remain (with the tool or route to complete each one).
+    // ─────────────────────────────────────────────────────────────────────
+    let accountContextBlock = '';
+    if (accountContext) {
+        accountContextBlock = `
+**ACCOUNT, PLAN & ONBOARDING STATUS (the user's own subscription — use this to answer "what can I do" / "help me get started" questions):**
+${accountContext}
+`;
+    }
+
     // Inject the base universal context AFTER identity lock
     const universalContext = `
     ${identityLockStr}
@@ -286,6 +305,8 @@ Proactively mention these if they relate to the user's current query or context.
     ${deepContextBlock}
 
     ${jurisdictionChatBlock}
+
+    ${accountContextBlock}
 
     ${getAloaProtocol(false, null, appState.firmDetails?.product)}
     ${demoGuide}
