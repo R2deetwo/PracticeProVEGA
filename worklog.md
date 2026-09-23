@@ -12102,3 +12102,17 @@ Stage Summary:
 - 9 fixes for the AI assistants shipped (4 critical dead-feature/hijack bugs, 5 UX/robustness improvements). The Brain and Rules & Forms retrieval had never worked in production — both live now. Every ALOA/ARIA message now streams.
 - Deploy: staging auto-deployed on push; production promote for 498cd750 to follow (Vercel + Convex + Cloudflare mirror).
 - Standing note: public CORS proxies power research web search (fragile; Convex server-side fetchUrlContent/searchWeb actions exist but unused) — recommend switching to the Convex actions next.
+
+---
+Task ID: task-67-aloa-aria-audit (deploy record)
+Agent: main (Super Z)
+Task: Production promotion of Task 67.
+
+Work Log:
+- Promote run 35869522481 on 018c971f (= 498cd750 + auto version bump, v1.0.644 build-1029): gates job (typecheck + 1107 unit tests) SUCCESS; Vercel + Convex production deploy + live-verify SUCCESS; Cloudflare mirror failed at the token check (standing expired CLOUDFLARE_API_TOKEN — same as Tasks 65/66, needs user rotation).
+- Live-verified production: version.json sha 018c971f, status healthy, stableSince 13:50:30Z, APK 1.0.644; main bundle contains the new popup-blocked feedback string.
+- Note for future promotes: the workflow's sha input must be the FULL 40-char SHA (a short sha fails actions/checkout — run 35869279920 was the casualty).
+- Local main synced and pushed (worklog commit rebased to 8b77f82c).
+
+Stage Summary:
+- Task 67 LIVE in production (v1.0.644): Brain/RAG + Rules & Forms retrieval working for the first time, DraftPro opens a single tab without hijacking the chat, every ALOA/ARIA message streams. No blockers except the recurring Cloudflare token.
