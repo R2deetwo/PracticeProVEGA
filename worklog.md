@@ -12223,3 +12223,31 @@ Stage Summary:
   checks). Note for prod deploys: local sandbox DuckDuckGo calls time out
   (datacenter IP rate-limit) but the PRODUCTION Convex deployment returns
   real results — verified directly.
+
+---
+Task ID: task-69-deploy
+Agent: main (Super Z)
+Task: Deploy Task 69 (ALOA Document Packet system) to production.
+
+Work Log:
+- Commit 0df23c2b pushed to main (rebased onto bf6751a9 CI version bumps,
+  v1.0.648 build-1033).
+- CI: Tests ✓, Deploy to Staging ✓, Build Android APK ✓.
+- Production promote (run 35898630794): Typecheck + unit tests ✓;
+  Vercel + Convex deploy & live-verify ✓; Cloudflare mirror ✗ at the token
+  check (standing expired CLOUDFLARE_API_TOKEN — same as Tasks 65–68, needs
+  user rotation; not a blocker for this change).
+- Live verification on practice-pro-vega.vercel.app: version.json
+  sha=0df23c2b, status=healthy, apkVersion=1.0.648. Bundle checks: main
+  bundle contains plan_document_packet + "structuring your document
+  packet" + "Mapping what this job needs"; module-documents chunk contains
+  the DOCUMENT PACKETS protocol in BOTH identities (ALOA + ARIA).
+- Production webFetch.searchWeb action live-verified earlier with real
+  DuckDuckGo results (Lagos Ministry of Justice source) — the Convex-first
+  search path the packet research depends on.
+
+Stage Summary:
+- Task 69 LIVE in production (v1.0.648). ALOA/ARIA now itemise research-
+  backed document packets before drafting; web search works in production
+  for the first time since the CSP hardening. Standing: Cloudflare mirror
+  token rotation.
