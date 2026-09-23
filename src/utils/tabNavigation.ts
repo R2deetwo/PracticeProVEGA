@@ -193,10 +193,14 @@ export function openInNewTab(url: string): boolean {
     if (typeof window === 'undefined') return false;
     if (isMobileOrNative()) return false;
     try {
-        const win = window.open(url, '_blank', 'noopener,noreferrer');
-        if (win && !win.closed) {
-            // Some browsers return a non-null Window even when the popup
-            // is blocked — check `closed` as well to be sure.
+        // 2026-09-23 ALOA audit fix: 'noopener,noreferrer' in the features
+        // string makes window.open return null BY SPEC — the success check
+        // below never passed and every caller fell back to in-app navigation
+        // even though the tab HAD opened (double navigation). Open normally,
+        // then sever the opener manually — same security, working check.
+        const win = window.open(url, '_blank');
+        if (win) {
+            try { (win as any).opener = null; } catch { /* cross-origin fine */ }
             win.focus?.();
             return true;
         }
@@ -266,9 +270,19 @@ export function openDraftProNewTab(
     }
 
     // Strategy 1: Direct window.open
+    //
+    // 2026-09-23 ALOA audit fix: the features string used to include
+    // 'noopener,noreferrer' — per spec, window.open() then ALWAYS returns
+    // null, so the success check below never passed: the tab DID open, the
+    // code believed it failed, strategy 2 opened a SECOND tab, and (before
+    // the 'blocked' fix) the main tab was navigated in-place as well — three
+    // editors at once. The standard pattern is used instead: open normally,
+    // then sever the opener reference manually (same security property,
+    // but we keep the Window reference for the success check + focus).
     try {
-        const win = window.open(url, '_blank', 'noopener,noreferrer');
-        if (win && !win.closed) {
+        const win = window.open(url, '_blank');
+        if (win) {
+            try { (win as any).opener = null; } catch { /* cross-origin fine */ }
             win.focus?.();
             return 'new-tab';
         }
@@ -294,9 +308,11 @@ export function openDraftProNewTab(
         };
         localStorage.setItem(regKey, JSON.stringify(reg));
 
-        // Try window.open again with the named window (dedup)
-        const win2 = window.open(url, tabName, 'noopener,noreferrer');
-        if (win2 && !win2.closed) {
+        // Try window.open again with the named window (dedup).
+        // Same noopener-via-opener-severing pattern as strategy 1.
+        const win2 = window.open(url, tabName);
+        if (win2) {
+            try { (win2 as any).opener = null; } catch { /* cross-origin fine */ }
             win2.focus?.();
             return 'existing-tab';
         }
@@ -305,21 +321,18 @@ export function openDraftProNewTab(
     }
 
     // Desktop: BOTH strategies failed (popup blocked).
-    // Fall back to in-place navigation. The old concern was that this
-    // "destroys the ALOA chat session" — but in practice, the ALOA chat
-    // state is persisted in the AloaProvider context and the conversation
-    // is saved to localStorage. When the user navigates back from DraftPro,
-    // the chat is restored. Getting the draft to actually OPEN is more
-    // important than keeping the chat tab alive — a blocked popup that
-    // does nothing is far worse UX than navigating in-place.
-    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. Falling back to in-place navigation.');
-    try {
-        window.location.href = url;
-    } catch {
-        // Last resort — shouldn't happen but just in case
-        window.location.assign(url);
-    }
-    return 'in-place';
+    //
+    // 2026-09-23 ALOA audit fix: we NO LONGER navigate in-place here. The
+    // in-place fallback hijacked the ALOA chat tab mid-conversation whenever
+    // the browser blocked the popup (which is the common case — this code
+    // runs after several awaits, so the user's click gesture has usually
+    // expired). AloaChat's start_drafting handler has a dedicated 'blocked'
+    // branch that keeps the chat intact and tells the user to allow
+    // pop-ups. Returning 'blocked' (as this function's own architecture
+    // doc above prescribes) routes the UX there instead of destroying the
+    // conversation.
+    console.warn('[openDraftProNewTab] Both window.open strategies failed — popup likely blocked. Returning "blocked"; caller must surface an in-chat affordance.');
+    return 'blocked';
 }
 
 /**

@@ -34,12 +34,16 @@ export const AI_CONFIG = {
         proModel: 'gemini-2.5-pro',
         flashModel: 'gemini-2.0-flash',
         researchModel: 'gemini-2.5-pro', // Same model as Pro but with different system prompt + thinking budget
+        // 2026-09-23 ALOA audit: reordered — try the modern flash tier first,
+        // the lite tier next, and only fall back to 2.5-pro (slowest, most
+        // expensive) as the last resort. The old order tried pro BEFORE
+        // flash-latest, so a transient flash failure could land every user
+        // on a 2.5-pro latency profile.
         fallbackPlan: [
-            'gemini-2.0-flash',
             'gemini-2.5-flash',
+            'gemini-flash-latest',
             'gemini-2.0-flash-lite',
-            'gemini-2.5-pro',
-            'gemini-flash-latest'
+            'gemini-2.5-pro'
         ]
     },
     embeddingModel: 'text-embedding-004'
@@ -193,26 +197,47 @@ export const streamGeminiMultipart = async (
     const apiKey = options.apiKeyOverride || getGeminiApiKey();
     if (!apiKey) throw new Error("API Key missing. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration");
 
-    const modelName = options.model || AI_CONFIG.gemini.defaultModel;
-    const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
-    const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
+    // 2026-09-23 ALOA audit: multipart (document/image analysis) previously
+    // had NO timeout and NO fallback — a single hung request stalled document
+    // analysis forever, unlike streamGemini which retries across models.
+    const modelsToTry = [
+        options.model || AI_CONFIG.gemini.defaultModel,
+        ...AI_CONFIG.gemini.fallbackPlan.filter(m => m !== (options.model || AI_CONFIG.gemini.defaultModel))
+    ];
+    let lastError: any = null;
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{ role: 'user', parts }],
-            generationConfig: { temperature: 0.4, maxOutputTokens: 8192 }
-        })
-    });
+    for (const modelName of modelsToTry.slice(0, 2)) { // bounded: 2 attempts for multipart
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 90_000);
+        try {
+            const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
 
-    if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(`Gemini Multipart Error (${modelName}): ${errData?.error?.message || response.statusText}`);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                signal: controller.signal,
+                body: JSON.stringify({
+                    contents: [{ role: 'user', parts }],
+                    generationConfig: { temperature: 0.4, maxOutputTokens: 8192 }
+                })
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(`Gemini Multipart Error (${modelName}): ${errData?.error?.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        } catch (e: any) {
+            lastError = e;
+            console.warn(`[AI Multipart] Model ${modelName} failed:`, e.message);
+        } finally {
+            clearTimeout(timeoutId);
+        }
     }
-
-    const data = await response.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    throw lastError || new Error('Gemini multipart request failed.');
 };
 
 /**

@@ -28,14 +28,41 @@ export const trackEvent = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // 2026-09-23 ALOA audit fix — ANONYMOUS FUNNEL EVENTS.
+    // The landing page fires `page_view` via a bare fetch (no session, no
+    // firm, no user) so the founder's visitor analytics can measure
+    // landing effectiveness. Those calls were rejected by BOTH the
+    // required-field validator (missing firmId/userId) and
+    // requireStaffCaller — every public page view failed with an
+    // ArgumentValidationError in the Convex log and the visitor funnel
+    // recorded NOTHING. Anonymous events are now accepted for a strict
+    // safe-list of funnel event names and stored with public markers;
+    // everything else still requires a verified staff caller.
+    const ANONYMOUS_SAFE_EVENTS = new Set(['page_view']);
+    const hasIdentityContext = !!(args.sessionToken || args.userEmail || args.userId);
+    if (!hasIdentityContext) {
+      if (!ANONYMOUS_SAFE_EVENTS.has(args.event)) {
+        throw new Error(
+          "Unauthenticated: this analytics event requires a signed-in caller."
+        );
+      }
+      await ctx.db.insert("analytics_events", {
+        firmId: args.firmId || 'public',
+        userId: 'anonymous',
+        event: args.event,
+        properties: args.properties,
+        timestamp: Date.now(),
+      });
+      return;
+    }
     await requireStaffCaller(ctx, { sessionToken: args.sessionToken,
       userEmail: args.userEmail,
       userId: args.userId,
       firmId: args.firmId,
     });
     await ctx.db.insert("analytics_events", {
-      firmId: args.firmId,
-      userId: args.userId,
+      firmId: args.firmId || 'unknown',
+      userId: args.userId || 'unknown',
       event: args.event,
       properties: args.properties,
       timestamp: Date.now(),

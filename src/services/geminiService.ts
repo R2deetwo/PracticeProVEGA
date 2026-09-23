@@ -573,7 +573,15 @@ IMPORTANT:
     throw lastError || new Error("All AI models are currently unavailable.");
 };
 
-/** Stream chat text (no tools) for responsive ALOA UI — tool flows still use sendMessage. */
+/** Stream chat text WITH tool support for responsive ALOA UI.
+ * 2026-09-23 ALOA audit upgrade — this used to be a tools-less fast path:
+ *  AlohaChat gated it behind a wantsToolAction regex, so any message
+ *  containing words like "matter", "new", "draft", "add" fell back to the
+ *  blocking sendMessage path and users stared at a "Thinking…" indicator
+ *  for the entire generation. The stream now declares the same tools as
+ *  sendMessage, accumulates functionCall parts from the SSE chunks, and
+ *  returns them so the caller can execute the tool loop — every message
+ *  gets progressive rendering, tool-capable or not. */
 export const streamMessage = async (
     history: AloaMessage[],
     context: {
@@ -596,7 +604,7 @@ export const streamMessage = async (
     onChunk: (text: string) => void,
     modelPreference: 'auto' | 'flash' | 'pro' | 'research' = 'auto',
     signal?: AbortSignal
-): Promise<{ text: string; modelUsed?: string }> => {
+): Promise<{ text: string; modelUsed?: string; toolCalls?: any[]; thoughtSignature?: string }> => {
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;
     const firmKey = appState.firmDetails?.aiSettings?.firmGeminiApiKey || getGeminiApiKey();
 
@@ -662,10 +670,40 @@ You are operating in RESEARCH MODE. Apply these rules:
 
     const contents: Content[] = [];
     for (const msg of history) {
+        // ── Tool-message support (ported from sendMessage) ─────────────
+        // Required now that the stream path also carries tool loops:
+        // role 'tool' → functionResponse, model toolCalls → functionCall
+        // parts (with preserved thought signatures).
+        if (msg.role === 'tool' && (msg as any).toolResult) {
+            contents.push({
+                role: 'user',
+                parts: [{
+                    functionResponse: {
+                        name: (msg as any).toolResult.toolName,
+                        response: { result: (msg as any).toolResult.output }
+                    }
+                }]
+            });
+            continue;
+        }
+        if (msg.role === 'model' && (msg as any).toolCalls) {
+            const toolParts: any[] = ((msg as any).toolCalls as any[]).map(tc => ({
+                functionCall: { name: tc.name, args: tc.args }
+            }));
+            if ((msg as any).thoughtSignature) {
+                toolParts.unshift({
+                    thought: true,
+                    thoughtSignature: (msg as any).thoughtSignature,
+                });
+            }
+            contents.push({ role: 'model', parts: toolParts });
+            continue;
+        }
+
         const text = typeof msg.content === 'string' ? stripPII(msg.content) : '';
         const attachments = (msg as any).attachments as string[] | undefined;
         const attachmentNames = (msg as any).attachmentNames as string[] | undefined;
-        if (msg.role === 'tool' || (!text && !attachments?.length)) continue;
+        if (!text && !attachments?.length) continue;
 
         const parts: any[] = [];
         if (text) parts.push({ text });
@@ -714,6 +752,9 @@ You are operating in RESEARCH MODE. Apply these rules:
         body: JSON.stringify({
             contents,
             systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
+            // Same tool declarations as sendMessage — the stream is now the
+            // primary path for ALL messages, tool-capable or not.
+            tools: [{ functionDeclarations: tools }],
             generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
             safetySettings: [
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -734,6 +775,8 @@ You are operating in RESEARCH MODE. Apply these rules:
     const isPropertyProduct = appState.firmDetails?.product === 'property' || appState.firmDetails?.product === 'atrium';
     const agent = isPropertyView || isPropertyProduct ? 'ARIA' : 'ALOA';
     let fullText = '';
+    const collectedToolCalls: any[] = [];
+    let collectedThoughtSignature: string | undefined;
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
@@ -752,17 +795,30 @@ You are operating in RESEARCH MODE. Apply these rules:
             if (!dataStr || dataStr === '[DONE]') continue;
             try {
                 const data = JSON.parse(dataStr);
-                const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (text) {
-                    fullText += text;
-                    onChunk(text);
+                const chunkParts = data?.candidates?.[0]?.content?.parts || [];
+                for (const p of chunkParts) {
+                    if (p.text) {
+                        fullText += p.text;
+                        onChunk(p.text);
+                    }
+                    if (p.functionCall) {
+                        collectedToolCalls.push(p.functionCall);
+                    }
+                    if (p.thoughtSignature && !collectedThoughtSignature) {
+                        collectedThoughtSignature = p.thoughtSignature;
+                    }
                 }
             } catch { /* skip */ }
         }
     }
 
     const sanitized = validateAIResponse(fullText, agent === 'ARIA');
-    return { text: sanitized, modelUsed: preferredModelName };
+    return {
+        text: sanitized,
+        modelUsed: preferredModelName,
+        toolCalls: collectedToolCalls.length > 0 ? collectedToolCalls : undefined,
+        thoughtSignature: collectedThoughtSignature,
+    };
 };
 
 export const streamDraft = async (

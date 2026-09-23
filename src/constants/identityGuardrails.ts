@@ -43,8 +43,18 @@ export const getIdentityGuardrail = (isProperty: boolean): string => {
 };
 
 /**
- * Post-generation validator: Strips any accidental generic AI leakage
- * from ARIA responses before they are shown to the user.
+ * Post-generation validator: surgically redacts generic-AI identity leakage
+ * from ARIA/ALOA responses before they are shown to the user.
+ *
+ * 2026-09-23 ALOA audit fix — this used to REPLACE THE ENTIRE RESPONSE with
+ * a canned one-line greeting whenever any prohibited phrase appeared
+ * anywhere. A single false positive ("...as an AI language model..." inside
+ * an otherwise excellent 1,000-word researched answer with citations)
+ * destroyed the whole answer and replaced it with an off-topic "How can I
+ * help with your practice?" — catastrophic for trust. Now we redact ONLY
+ * the offending phrase (and its sentence, when the phrase reads like a
+ * standalone disclaimer) and keep the rest of the answer intact. The
+ * canned fallback is reserved for responses that are ONLY the leak.
  */
 export const validateAIResponse = (
     response: string,
@@ -71,15 +81,42 @@ export const validateAIResponse = (
     ];
 
     const lowerResponse = response.toLowerCase();
-    const hasLeak = prohibitedPhrases.some(phrase =>
+    const found = prohibitedPhrases.filter(phrase =>
         lowerResponse.includes(phrase.toLowerCase())
     );
 
-    if (hasLeak) {
+    if (found.length === 0) return response;
+
+    // Sort longest-first so "I am a large language model" is removed before
+    // its substring "large language model" leaves a dangling sentence.
+    const sorted = [...found].sort((a, b) => b.length - a.length);
+
+    let cleaned = response;
+    for (const phrase of sorted) {
+        // Case-insensitive literal replacement.
+        cleaned = cleaned.replace(
+            new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'),
+            ''
+        );
+    }
+    // Tidy whitespace/punctuation debris left by the redaction.
+    cleaned = cleaned
+        .replace(/\b(as|As)\s+an?\s+[-–—]\s*/g, '')   // "As an -powered …" (phrase mid-word)
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .replace(/\n{3,}/g, '\n\n')
+        .replace(/^\s*[,.;:]\s*/gm, '')
+        .trim();
+
+    // If redaction gutted the answer (the response was essentially ONLY the
+    // leak — e.g. "As an AI, I cannot help with that."), fall back to a short
+    // identity-correct line rather than showing a meaningless fragment. Real
+    // answers that merely CONTAIN a leak keep their substance above.
+    if (cleaned.length < 60) {
         return isProperty
             ? "I'm ARIA, your property management assistant within PracticePro Atrium. How can I help with your portfolio? I can assist with revenue monitoring, residents management, property tracking, and more."
             : "I'm ALOA, your legal practice assistant within PracticePro Vega. How can I help with your practice? I can assist with matter management, legal drafting, client relations, and more.";
     }
 
-    return response;
+    return cleaned;
 };

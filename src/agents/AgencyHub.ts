@@ -121,10 +121,26 @@ export const getSystemInstruction = (
         const currentYear = new Date().getFullYear();
         const startOfYearMs = new Date(currentYear, 0, 1).getTime();
         const endOfYearMs = new Date(currentYear, 11, 31, 23, 59, 59).getTime();
-        
+
+        // 2026-09-23 ALOA audit fix — CONTEXT BUDGET. This block used to
+        // enumerate EVERY event of EVERY team member for the ENTIRE YEAR.
+        // For an active firm that is hundreds of schedule lines injected
+        // into EVERY single chat message — more tokens, slower first
+        // response, higher Gemini cost, and the model mostly needs "who is
+        // free soon?". We now send the next 30 days per person plus the
+        // yearly total, which preserves scheduling usefulness at a fraction
+        // of the prompt size.
+        const SCHEDULE_WINDOW_DAYS = 30;
+        const scheduleWindowStartMs = nowMs;
+        const scheduleWindowEndMs = nowMs + SCHEDULE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
         const scheduleByUserId: Record<string, any[]> = {};
+        const yearlyCountByUserId: Record<string, number> = {};
         if (appState.users) {
-            appState.users.forEach(u => scheduleByUserId[u.id] = []);
+            appState.users.forEach(u => {
+                scheduleByUserId[u.id] = [];
+                yearlyCountByUserId[u.id] = 0;
+            });
         }
 
         const yearEvents = (appState.events || []).filter(e => {
@@ -142,21 +158,26 @@ export const getSystemInstruction = (
             }
             uidsToMark.forEach(uid => {
                 if (scheduleByUserId[uid]) {
-                    scheduleByUserId[uid].push(`[${new Date(e.date).toLocaleDateString('en-GB')}] ${e.title}`);
+                    yearlyCountByUserId[uid] = (yearlyCountByUserId[uid] || 0) + 1;
+                    const eTime = new Date(e.date).getTime();
+                    if (eTime >= scheduleWindowStartMs && eTime <= scheduleWindowEndMs) {
+                        scheduleByUserId[uid].push(`[${new Date(e.date).toLocaleDateString('en-GB')}] ${e.title}`);
+                    }
                 }
             });
         });
 
         teamScheduleContext = `
-        FIRM-WIDE TEAM DIRECTORY & ANNUAL SCHEDULE:
-        You have FULL visibility into the entire firm calendar for ${currentYear}. Use the records below to determine team member availability. 
+        FIRM-WIDE TEAM DIRECTORY & AVAILABILITY (next ${SCHEDULE_WINDOW_DAYS} days):
+        You can see each team member's upcoming schedule for the next ${SCHEDULE_WINDOW_DAYS} days, plus their total committed events for ${currentYear}. Use these records to determine team member availability.
         ${Object.keys(scheduleByUserId).map(uid => {
             const u = appState.users?.find(x => x.id === uid);
             if (!u) return '';
             const sched = scheduleByUserId[uid];
-            return `- **${u.name}** (${u.role}): ${sched.length > 0 ? 'Busy on: ' + sched.join(', ') : 'No Events Scheduled for this year'}`;
+            const yearTotal = yearlyCountByUserId[uid] || 0;
+            return `- **${u.name}** (${u.role}): ${sched.length > 0 ? 'Busy on: ' + sched.join(', ') : 'No events in the next ' + SCHEDULE_WINDOW_DAYS + ' days'} (${yearTotal} events total in ${currentYear})`;
         }).filter(Boolean).join('\n        ')}
-        If the user asks to schedule a meeting or assign a task based on availability, CROSS-REFERENCE THIS ANNUAL SCHEDULE.
+        If the user asks to schedule a meeting or assign a task based on availability, CROSS-REFERENCE THIS SCHEDULE.
         `;
     }
 

@@ -943,21 +943,28 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 openEditorRef.current(null, draftConfig);
                             } else {
                                 // 'blocked' — desktop popup blocked. DO NOT navigate in-place.
-                                feedbackMessage = `I prepared **${draftConfig.draftTitle}** but your browser blocked the pop-up. Please allow pop-ups for this site and ask me to draft again — your chat will stay intact here.`;
+                                // 2026-09-23 ALOA audit fix: arm the pending-open
+                                // action so the "Open DraftPro" button under this
+                                // response opens the draft on click (a real user
+                                // gesture — window.open is allowed from it).
+                                draftConfig.__pendingDraftOpen = true;
+                                draftConfig.__draftKey = draftKey;
+                                draftConfig.__draftUrl = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(draftConfig.draftTitle)}${draftConfig.draftPrompt ? `&prompt=${encodeURIComponent(draftConfig.draftPrompt)}` : ''}`;
+                                feedbackMessage = `I prepared **${draftConfig.draftTitle}** but your browser blocked the pop-up. Click the button below to open it — your chat stays intact here.`;
                             }
-                        } catch (e) {
+                        } catch (e: any) {
                             console.warn('[start_drafting] tab open failed', e);
-                            // DRAFTPRO-NEW-TAB — last-resort fallback
-                            // DRAFTPRO-NEW-TAB — mobile/popup-blocked fallback (allowed)
+                            // DRAFTPRO-NEW-TAB — last-resort fallback (mobile/popup-blocked)
                             openEditorRef.current(null, draftConfig);
                         }
-                        // Build the action data. The label is always "Resume Drafting"
-                        // now — we no longer show a pending-open button. If the popup
-                        // was blocked, we opened the draft in-place immediately.
+                        // Build the action data. Normal case: "Resume Drafting".
+                        // Popup-blocked case: the config carries __pendingDraftOpen
+                        // so the button click opens the prepared draft in a tab.
+                        const popupWasBlocked = !!(draftConfig as any).__pendingDraftOpen;
                         actionData = {
                             type: 'draft',
                             config: draftConfig,
-                            label: 'Resume Drafting',
+                            label: popupWasBlocked ? 'Open DraftPro' : 'Resume Drafting',
                             jurisdictionAnalysis,  // attach for the UI
                         };
                         if (!feedbackMessage) feedbackMessage = `Drafting in **${jurisdictionAnalysis.jurisdiction}** — ${jurisdictionAnalysis.court}`;
@@ -1592,7 +1599,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             query,
                             firmId: currentUser?.firmId || coreState.firmDetails?.id || '',
                             scope: isProperty ? 'property' : 'legal',
-                            convexQuery: (name: any, args: any) => convex.query(name, args),
+                            // 2026-09-23 ALOA audit fix: searchMemories is a Convex
+                            // ACTION — calling it through convex.query() made every
+                            // Brain/RAG search fail server-side ("defined as
+                            // Action"). The firm-memory retrieval was silently dead.
+                            convexQuery: (name: any, args: any) => convex.action(name, args),
                             userId: currentUser?.id,
                             userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined
                         });
@@ -1843,23 +1854,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         setAloaStatus('Searching records…');
                     }
 
-                    const wantsToolAction = /\b(create|open|add|new|draft|navigate|show me|find my|schedule|invoice|task|matter|contact)\b/i.test(content);
-
-                    if (!wantsToolAction) {
-                        setAloaStatus('Writing…');
-                        try {
-                            const streamed = await aiService.streamMessage(
-                                capturedMessages,
-                                capturedAiContext,
-                                (chunk) => {
-                                    setMessages(prev => prev.map(m =>
-                                        m.id === streamMsgId ? { ...m, content: `${typeof m.content === 'string' ? m.content : ''}${chunk}` } : m
-                                    ));
-                                },
-                                effectiveModel,
-                                signal // ── AbortSignal passed for timeout cancellation
-                            );
-                            if (streamed.text?.trim()) {
+                    // ── STREAM-FIRST FOR EVERY MESSAGE (2026-09-23 ALOA audit) ──
+                    // The old `wantsToolAction` regex gate pushed any message
+                    // containing "matter", "new", "draft", "add", … onto the
+                    // BLOCKING path — which is most real legal questions — so
+                    // most users never saw progressive rendering. streamMessage
+                    // now declares tools and returns functionCalls, so we stream
+                    // every message first; when the model calls tools we hand the
+                    // calls to the tool loop below and stream the follow-up
+                    // rounds the same way.
+                    let streamHandoff: { text?: string; toolCalls?: any[]; modelUsed?: string; thoughtSignature?: string } | null = null;
+                    setAloaStatus('Writing…');
+                    try {
+                        const streamed = await aiService.streamMessage(
+                            capturedMessages,
+                            capturedAiContext,
+                            (chunk) => {
+                                setMessages(prev => prev.map(m =>
+                                    m.id === streamMsgId ? { ...m, content: `${typeof m.content === 'string' ? m.content : ''}${chunk}` } : m
+                                ));
+                            },
+                            effectiveModel,
+                            signal // ── AbortSignal passed for timeout cancellation
+                        );
+                        if (streamed.toolCalls && streamed.toolCalls.length > 0) {
+                            // The model wants tools — execute them via the loop below.
+                            streamHandoff = streamed;
+                        } else if (streamed.text?.trim()) {
                                 const validatedText = validateAIResponse(streamed.text, isProperty);
                                 // ── AI TRUST SIGNALS (Item 3) ── confidence +
                                 // unverified-citation scan + audit log on every
@@ -1904,14 +1925,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             }
                         } catch (streamErr: any) {
                             if (signal.aborted) throw streamErr; // timeout — propagate
-                            console.warn('[ARIA] Stream path failed, using tool-capable request:', streamErr);
+                            console.warn('[ALOA] Stream path failed, using tool-capable request:', streamErr);
                         }
-                    }
 
+                    // ── TOOL-CAPABLE PATH ── also serves the stream handoff
+                    // (streamHandoff carries toolCalls collected mid-stream) and
+                    // remains the fallback when the stream yields nothing.
                     setAloaStatus(pendingAttachments.length > 0 ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…` : 'Thinking…');
                     setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: '' } : m));
 
-                    const response = await aiService.sendMessage(
+                    const response = streamHandoff ?? await aiService.sendMessage(
                         capturedMessages,
                         capturedAiContext,
                         effectiveModel,
@@ -1993,12 +2016,40 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         turnHistory = [...turnHistory, assistantToolCallMsg, ...toolResultsMsgs];
 
                         setAloaStatus('Writing…');
-                        currentResponse = await aiService.sendMessage(
-                            turnHistory,
-                            capturedAiContext,
-                            effectiveModel,
-                            signal
-                        );
+                        // ── Stream the follow-up round too (2026-09-23 ALOA audit):
+                        // the final answer after tools renders progressively, exactly
+                        // like the first message. Falls back to the blocking request
+                        // if the stream fails for any reason.
+                        try {
+                            const streamedRound = await aiService.streamMessage(
+                                turnHistory,
+                                capturedAiContext,
+                                (chunk) => {
+                                    setMessages(prev => prev.map(m =>
+                                        m.id === streamMsgId ? { ...m, content: `${typeof m.content === 'string' ? m.content : ''}${chunk}` } : m
+                                    ));
+                                },
+                                effectiveModel,
+                                signal
+                            );
+                            if (streamedRound.toolCalls && streamedRound.toolCalls.length > 0) {
+                                // Another tool round — clear the partial text and loop.
+                                setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: '' } : m));
+                                currentResponse = streamedRound;
+                            } else if (streamedRound.text?.trim()) {
+                                currentResponse = streamedRound;
+                            } else {
+                                currentResponse = await aiService.sendMessage(
+                                    turnHistory, capturedAiContext, effectiveModel, signal
+                                );
+                            }
+                        } catch (roundErr: any) {
+                            if (signal.aborted) throw roundErr; // timeout — propagate
+                            console.warn('[ALOA] Stream round failed, blocking fallback:', roundErr);
+                            currentResponse = await aiService.sendMessage(
+                                turnHistory, capturedAiContext, effectiveModel, signal
+                            );
+                        }
                     }
 
                     if (currentResponse.text && currentResponse.text.trim()) {

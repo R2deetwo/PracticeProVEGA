@@ -28,7 +28,8 @@
  * Round 15; this module is now the only accepted identity proof.
  */
 import { v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { randomHex } from "./secureRandom";
 import { sha256Hex } from "./sha256";
 
@@ -137,10 +138,21 @@ export const validateSessionToken = query({
   },
 });
 
-/** Shared resolver (used by this module AND callerAuth.resolveCaller). */
+/** Shared resolver (used by this module AND callerAuth.resolveCaller).
+ *\n * ACTION-SAFE (2026-09-23 ALOA audit): Convex ACTIONS have no `ctx.db` —
+ * every action that authenticated via resolveCaller crashed with
+ * "Cannot read properties of undefined (reading 'query')" (Brain
+ * searchMemories, Rules & Forms searchKnowledge, legalRepo searchStatutes,
+ * portal invites). In an action context we now route the lookup through
+ * the internal query below (ctx.runQuery) instead of touching ctx.db.
+ */
 export async function resolveUserBySessionToken(ctx: any, token: string): Promise<any | null> {
   if (!token || typeof token !== "string") return null;
   const tokenHash = hashSessionToken(token);
+  if (!ctx.db) {
+    // Action context: no ctx.db — resolve via the internal query.
+    return await ctx.runQuery(internal.sessions.lookupUserByTokenHash, { tokenHash });
+  }
   const session = await ctx.db
     .query("sessions")
     .withIndex("by_tokenHash", (q: any) => q.eq("tokenHash", tokenHash))
@@ -150,6 +162,24 @@ export async function resolveUserBySessionToken(ctx: any, token: string): Promis
   if (!session) return null;
   return await ctx.db.get(session.userId);
 }
+
+/**
+ * Internal query — session-token → full user row, for ACTIONS (which have
+ * no ctx.db). Returns the RAW user row (resolveCaller needs role/firmId);
+ * never exposed publicly.
+ */
+export const lookupUserByTokenHash = internalQuery({
+  args: { tokenHash: v.string() },
+  handler: async (ctx, args) => {
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_tokenHash", (q: any) => q.eq("tokenHash", args.tokenHash))
+      .first();
+    const reason = sessionInvalidReason(session, Date.now());
+    if (reason || !session) return null;
+    return await ctx.db.get(session.userId);
+  },
+});
 
 /** Revoke the session presented by the token (logout). Idempotent. */
 export const revokeSession = mutation({
