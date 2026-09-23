@@ -39,9 +39,11 @@ import { setPendingDraft } from '../../utils/draftContentStore';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { shouldBlockToolCall } from '../../utils/intentGate';
+import { DocumentPacket, PacketDraftResult, normalizePacketArgs, buildPacketDraftPrompt, packetDocDraftKey, packetDocDraftUrl, mentionsDocumentSet } from '../../utils/documentPacket';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
 import { searchPortfolio, toPropertyToolResult } from '../../utils/portfolioContext';
 import { JurisdictionCard } from './JurisdictionCard';
+import { DocumentPacketCard } from './DocumentPacketCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
@@ -644,6 +646,118 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         );
     };
 
+    /**
+     * Best-effort web search: Convex server-side action first (no CORS
+     * proxies, real UA, Nigerian-results bias), client CORS-proxy as the
+     * fallback. Shared by the search_web tool handler and the research-mode
+     * auto-search flow. (Task 69 — replaces the proxy-only path that
+     * silently died whenever the public proxies were rate-limited.)
+     */
+    const searchWebBest = async (query: string): Promise<{ success: boolean; results: any[]; query: string }> => {
+        try {
+            const res: any = await convex.action(api.webFetch.searchWeb, { query });
+            if (res?.success && Array.isArray(res.results) && res.results.length > 0) {
+                return { success: true, results: res.results, query };
+            }
+        } catch (e: any) {
+            console.warn('[searchWebBest] server path failed:', e?.message || e);
+        }
+        try {
+            const { searchWebClient } = await import('../../utils/webFetchClient');
+            return await searchWebClient(query);
+        } catch (e: any) {
+            console.warn('[searchWebBest] client fallback failed:', e?.message || e);
+            return { success: false, results: [], query };
+        }
+    };
+
+    /**
+     * Prepare (and try to open) ONE document of a packet in DraftPro.
+     * Called by DocumentPacketCard buttons — the card tracks per-doc status.
+     *
+     * The draft prompt is packet-aware (buildPacketDraftPrompt): it carries
+     * the job, the process, the legal requirements, this document's purpose
+     * + legal basis, its position in the sequence, and the user's facts from
+     * the conversation. This is the Task 69 fix for "it drafted the next
+     * one rather weakly" — no packet document is ever drafted from a bare
+     * instruction.
+     */
+    const handlePacketDraft = async (packet: DocumentPacket, docIndex: number): Promise<PacketDraftResult> => {
+        const doc = packet.documents[docIndex];
+        if (!doc) return { status: 'error', draftKey: '', draftUrl: '', hadContent: false, error: 'Document not found in packet.' };
+
+        const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
+        const draftKey = packetDocDraftKey(packet, docIndex);
+        const draftUrl = packetDocDraftUrl(draftKey, doc.name);
+
+        // Facts from the conversation — the parties/dates/amounts the user
+        // actually gave. Last 6 user messages, newest last.
+        const conversationContext = messages
+            .filter(m => m.role === 'user' && typeof m.content === 'string' && (m.content as string).trim())
+            .slice(-6)
+            .map(m => (m.content as string).trim())
+            .join('\n');
+
+        const prompt = buildPacketDraftPrompt(packet, docIndex, {
+            conversationContext,
+            isProperty,
+        });
+
+        try {
+            // 1. Persist the draft session FIRST (never overwrite existing work).
+            let hadContent = false;
+            try {
+                const stored = fid ? loadDraftSession(fid, draftKey) : null;
+                hadContent = !!(stored?.content && stored.content.trim().length > 0);
+                if (!hadContent) {
+                    saveDraftSession(fid, draftKey, {
+                        title: doc.name,
+                        content: '', // empty — DraftPro auto-drafts from the packet prompt
+                        draftPrompt: prompt,
+                        updatedAt: new Date().toISOString(),
+                        savedAt: Date.now(),
+                    });
+                }
+            } catch (e) {
+                console.warn('[packetDraft] saveDraftSession failed:', e);
+            }
+
+            // 2. Mobile — in-place is correct (no tabs on mobile).
+            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                openEditorRef.current(null, {
+                    openedByAloa: true,
+                    draftTitle: doc.name,
+                    draftPrompt: prompt,
+                });
+                return { status: 'opened', draftKey, draftUrl, hadContent };
+            }
+
+            // 3. Desktop — open via the single source of truth. The full
+            // packet prompt may exceed the URL limit; openDraftProNewTab
+            // omits over-long prompts from the URL and WordProcessor falls
+            // back to the draft session we just saved (carrier chain).
+            const { openDraftProNewTab } = await import('../../utils/tabNavigation');
+            const result = openDraftProNewTab(draftKey, doc.name, prompt);
+            if (result === 'new-tab' || result === 'existing-tab') {
+                return { status: 'opened', draftKey, draftUrl, hadContent };
+            }
+            if (result === 'in-place') {
+                openEditorRef.current(null, {
+                    openedByAloa: true,
+                    draftTitle: doc.name,
+                    draftPrompt: prompt,
+                });
+                return { status: 'opened', draftKey, draftUrl, hadContent };
+            }
+            // 'blocked' — popup blocker. The card flips the row to an
+            // "Open DraftPro" button (a real user gesture) that retries.
+            return { status: 'blocked', draftKey, draftUrl, hadContent };
+        } catch (e: any) {
+            console.warn('[packetDraft] open failed:', e);
+            return { status: 'error', draftKey, draftUrl, hadContent: false, error: e?.message || String(e) };
+        }
+    };
+
     const handleToolExecution = async (
         toolCalls: any[],
         conversationContext?: string,
@@ -1006,6 +1120,52 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         if (!feedbackMessage) feedbackMessage = `Drafting in **${jurisdictionAnalysis.jurisdiction}** — ${jurisdictionAnalysis.court}`;
                         isTerminal = true;
 
+                    } else if (name === 'plan_document_packet') {
+                        // ── DOCUMENT PACKET (Task 69) ─────────────────────────
+                        // The user asked for "the documents necessary" for a
+                        // process. The model researched the process (search_web /
+                        // fetch_web_page) and itemised the full set. We render a
+                        // DocumentPacketCard in the chat; each document gets a
+                        // Draft button (and a Draft-all button). The model is
+                        // instructed NOT to start_drafting until the user
+                        // confirms — this tool is a PLAN, not a draft.
+                        const packet = normalizePacketArgs(args);
+                        if (!packet) {
+                            toolOutput = {
+                                error: 'NO_DOCUMENTS',
+                                message: 'The packet plan carried no documents. Ask the user to describe the job/process, then itemise the documents it genuinely requires before planning.',
+                            };
+                            feedbackMessage = '';
+                        } else {
+                            // Register research sources into the citation
+                            // registry so they travel into packet drafts.
+                            if (packet.sources && packet.sources.length > 0) {
+                                for (const src of packet.sources) {
+                                    citationRegistryRef.current.add({
+                                        type: (src.type || 'other') as any,
+                                        text: src.text || '',
+                                        rawText: src.text || '',
+                                        url: src.url,
+                                        jurisdiction: src.jurisdiction,
+                                    });
+                                }
+                            }
+
+                            actionData = {
+                                type: 'document_packet',
+                                packet,
+                            };
+
+                            const n = packet.documents.length;
+                            feedbackMessage = `I have itemised the **${n}-document packet** for **${packet.jobTitle}** below — review it and tell me which documents to draft, or say "draft them all".`;
+
+                            toolOutput = {
+                                success: true,
+                                packetId: packet.jobId,
+                                documentCount: n,
+                                guidance: 'The packet card is now displayed to the user. In your reply: (1) summarise the process and what the law requires in a few tight bullets — the card already itemises the documents, so do NOT repeat the full list; (2) ask which documents to draft, or offer to draft them all. Do NOT call start_drafting yet — wait for the user to confirm. When they confirm, call start_drafting once per confirmed document, and each prompt MUST carry the job, that document\'s purpose, its legal basis, and the parties/facts from the conversation — never a bare instruction.',
+                            };
+                        }
                     } else if (name === 'draft_workflow') {
                         const context = {
                             openedByAloa: true,
@@ -1114,23 +1274,22 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         // (which only triggers when the user pastes a URL).
                         // search_web lets the AI decide on its own that it needs
                         // fresh info, then formulate a search query.
+                        //
+                        // 2026-09-24 (Task 69): CONVEX-FIRST. The server-side
+                        // action (convex/webFetch.ts searchWeb) fetches
+                        // DuckDuckGo directly — no CORS proxies, a real UA, and
+                        // a Nigerian-results bias. The public CORS proxies the
+                        // client path relies on are fragile/rate-limited, so
+                        // they are now the FALLBACK. (The Convex backend has
+                        // been deployed since Task 67 — api.webFetch.searchWeb
+                        // exists at runtime now.)
                         const { query } = args;
-                        feedbackMessage = `Searching the web for "${query}"…`;
+                        feedbackMessage = `Researching “${query}”…`;
                         try {
-                            // Use client-side web search (no Convex needed).
-                            // The Convex backend was never deployed, so
-                            // api.webFetch.searchWeb is undefined at runtime.
-                            // This client-side version uses CORS proxies.
-                            let webResults: any[] = [];
-                            try {
-                                const { searchWebClient } = await import('../../utils/webFetchClient');
-                                const searchRes = await searchWebClient(query);
-                                if (searchRes.success && searchRes.results) {
-                                    webResults = searchRes.results;
-                                }
-                            } catch (searchErr) {
-                                console.warn('[search_web] client search failed:', searchErr);
-                            }
+                            // Convex server-side first (searchWebBest), client
+                            // CORS-proxy fallback — see searchWebBest above.
+                            const searchRes = await searchWebBest(query);
+                            const webResults: any[] = searchRes.success ? searchRes.results : [];
 
                             toolOutput = {
                                 results: webResults,
@@ -1147,8 +1306,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             };
 
                             feedbackMessage = webResults.length > 0
-                                ? `I found ${webResults.length} web result(s) for "${query}". Reading the most relevant ones now…`
-                                : `I couldn't find web results for "${query}". Could you refine the search or share a specific URL?`;
+                                ? `Found ${webResults.length} source${webResults.length > 1 ? 's' : ''} for “${query}” — reading the most relevant now…`
+                                : `I couldn't find web results for “${query}”. Could you refine the search or share a specific URL?`;
                         } catch (err: any) {
                             toolOutput = { error: err.message };
                             feedbackMessage = `Web search encountered an issue: ${err.message}. I'll answer from my training data instead.`;
@@ -1158,12 +1317,32 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         // Used after search_web to read a result in depth, OR
                         // when the user provides a URL and wants ALOA to
                         // actually READ the page (not just show a preview).
+                        // 2026-09-24 (Task 69): Convex server-side fetch first
+                        // (no CORS issues, real UA), client proxy fallback.
                         const { url } = args;
-                        feedbackMessage = `Reading ${url}…`;
+                        let host = url;
+                        try { host = new URL(url).hostname; } catch { /* keep raw */ }
+                        feedbackMessage = `Reading ${host}…`;
                         try {
-                            // Use client-side fetch (no Convex needed)
-                            const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
-                            const result = await fetchUrlContentClient(url);
+                            let result: any = null;
+                            // 1. Server-side fetch via Convex (preferred).
+                            try {
+                                result = await convex.action(api.webFetch.fetchUrlContent, { url });
+                            } catch (serverErr: any) {
+                                console.warn('[fetch_web_page] server-side fetch failed:', serverErr?.message || serverErr);
+                                result = null;
+                            }
+                            // 2. Client-side CORS-proxy fallback.
+                            if (!result?.success || !result.content) {
+                                try {
+                                    const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
+                                    result = await fetchUrlContentClient(url);
+                                } catch (clientErr) {
+                                    console.warn('[fetch_web_page] client fetch failed:', clientErr);
+                                    if (!result) result = { success: false, url, message: 'All fetch paths failed.' };
+                                }
+                            }
+
                             if (result.success && result.content) {
                                 toolOutput = {
                                     success: true,
@@ -1173,7 +1352,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     content: result.content,
                                     contentType: result.contentType,
                                 };
-                                feedbackMessage = `I've read "${result.title}". Analyzing the content now…`;
+                                feedbackMessage = `I've read “${result.title || host}” — extracting what matters for your question…`;
                             } else {
                                 toolOutput = {
                                     success: false,
@@ -1491,29 +1670,43 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…`
             : preferredModel === 'research'
                 ? 'Analyzing your query…'
-                : 'Thinking…';
+                // 2026-09-24 (Task 69): document-set requests ("the documents
+                // necessary for X") get a status that names the instructed
+                // behaviour — mapping the job before drafting anything.
+                : mentionsDocumentSet(content)
+                    ? 'Mapping what this job needs…'
+                    : 'Thinking…';
         setAloaStatus(baseStatus);
 
         // In research mode, show dynamic reasoning states that reflect
         // what's actually happening — NOT generic cycling phrases.
         // The status updates are triggered by real events (web fetch,
         // tool call, etc.) rather than a timer.
+        // 2026-09-24 (Task 69): the guard now checks against the KNOWN
+        // generic phrases instead of substring-matching a few keywords —
+        // the new specific statuses (e.g. "Researching “Lagos recovery
+        // process”…", "Structuring your document packet…") are never
+        // clobbered by the cycle.
         let reasoningTimer: ReturnType<typeof setTimeout> | null = null;
         if (preferredModel === 'research' && pendingAttachments.length === 0) {
-            // Only cycle if no specific action is happening
             const reasoningSteps = [
                 'Analyzing your query…',
                 'Identifying relevant legal principles…',
                 'Formulating response…',
             ];
+            const genericStatuses = new Set([
+                ...reasoningSteps,
+                'Thinking…',
+                'Writing…',
+                'Working…',
+            ]);
             let stepIdx = 0;
             reasoningTimer = setInterval(() => {
-                // Only advance if we're still in the "thinking" phase
-                // (not actively fetching web content or using tools)
+                // Only advance if we're still in a GENERIC "thinking" phase
+                // (not actively researching, reading, drafting, etc.)
                 stepIdx = (stepIdx + 1) % reasoningSteps.length;
                 setAloaStatus(prev => {
-                    // Don't override specific statuses (web fetch, tool use)
-                    if (prev.includes('Reading') || prev.includes('Searching') || prev.includes('Using tools')) {
+                    if (!genericStatuses.has(prev)) {
                         return prev;
                     }
                     return reasoningSteps[stepIdx];
@@ -1768,7 +1961,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         if (legalKeywords.test(content)) {
                             setAloaStatus('Searching the web (parallel queries)…');
                             try {
-                                const { searchWebClient, fetchUrlContentClient } = await import('../../utils/webFetchClient');
+                                const { fetchUrlContentClient } = await import('../../utils/webFetchClient');
 
                                 // ─── Generate multiple search queries ────────
                                 // Extract key topics from the user's message
@@ -1801,7 +1994,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 const searchResults = await Promise.all(
                                     queriesToRun.map(async (query) => {
                                         try {
-                                            const result = await searchWebClient(query);
+                                            // 2026-09-24 (Task 69): Convex server-side
+                                            // first (searchWebBest), proxy fallback.
+                                            const result = await searchWebBest(query);
                                             return { query, result, success: result.success };
                                         } catch {
                                             return { query, result: { success: false, results: [], query }, success: false };
@@ -1979,41 +2174,60 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     let currentResponse = response;
                     let iterationCount = 0;
-                    const maxIterations = 3;
+                    // 2026-09-24 (Task 69): 3 → 6. A packet-planning turn is a
+                    // multi-round sequence (search_web → fetch_web_page →
+                    // plan_document_packet → final answer), and research often
+                    // needs two searches + two reads. 3 rounds cut legitimate
+                    // research off mid-flight; 6 bounds it while letting the
+                    // full packet workflow complete inside one message turn.
+                    const maxIterations = 6;
                     let turnHistory = [...capturedMessages];
 
                     while (currentResponse.toolCalls && currentResponse.toolCalls.length > 0 && iterationCount < maxIterations) {
                         iterationCount++;
 
                         // ─── Show which tools are being called ──────────────
-                        // Make tool use evident — list the tool names in the
-                        // status so the user can see exactly what ALOA is doing.
-                        const toolNames = currentResponse.toolCalls.map((tc: any) => {
-                            // Convert tool name to a human-readable label
+                        // 2026-09-24 (Task 69): the status now names the ACTUAL
+                        // subject of the work (the query, the site, the
+                        // document) — truthful, specific "thinking" lines
+                        // instead of generic tool labels. Every label maps to
+                        // real work being executed in this very round.
+                        const trunc = (s: string, n = 42) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+                        const toolLabels = currentResponse.toolCalls.map((tc: any) => {
+                            // Convert tool name + args to a human-readable label
                             const name = tc.name || '';
-                            if (name === 'search_web') return 'web search';
-                            if (name === 'fetch_web_page') return 'reading page';
-                            if (name === 'query_firm_data') return 'firm data';
-                            if (name === 'analyze_document') return 'analyzing doc';
-                            if (name === 'start_drafting') return 'drafting';
-                            if (name === 'create_matter') return 'new matter';
-                            if (name === 'create_contact') return 'new contact';
-                            if (name === 'create_task') return 'new task';
-                            if (name === 'create_event') return 'new event';
-                            if (name === 'create_property') return 'new property';
+                            const a = tc.args || {};
+                            if (name === 'search_web') return a.query ? `researching “${trunc(String(a.query))}”` : 'searching the web';
+                            if (name === 'fetch_web_page') {
+                                try { return `reading ${new URL(String(a.url)).hostname}`; } catch { return 'reading page'; }
+                            }
+                            if (name === 'query_firm_data') return a.query ? `searching your records for “${trunc(String(a.query))}”` : 'searching your records';
+                            if (name === 'plan_document_packet') return 'structuring your document packet';
+                            if (name === 'start_drafting') return a.title ? `preparing “${trunc(String(a.title))}” in DraftPro` : 'preparing a draft';
+                            if (name === 'analyze_document') return 'analysing the document';
+                            if (name === 'get_note_details') return 'opening the note';
+                            if (name === 'create_matter') return 'opening a new matter form';
+                            if (name === 'create_contact') return 'opening a new contact form';
+                            if (name === 'create_task') return 'opening a new task form';
+                            if (name === 'create_event') return 'opening a new event form';
+                            if (name === 'create_property') return 'opening a new property form';
                             if (name === 'navigate_to') return 'navigating';
-                            if (name === 'execute_quick_action') return 'executing';
-                            if (name === 'update_open_form') return 'filling form';
+                            if (name === 'execute_quick_action') return 'executing the change';
+                            if (name === 'update_open_form') return 'filling the form';
+                            if (name === 'draft_workflow') return 'drafting the workflow';
                             return name.replace(/_/g, ' ');
                         });
 
-                        if (toolNames.length === 1) {
-                            setAloaStatus(`Using tool: ${toolNames[0]}…`);
-                        } else if (toolNames.length > 1) {
+                        // Capitalise the first letter of the first label for
+                        // a sentence-like status line.
+                        const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+                        if (toolLabels.length === 1) {
+                            setAloaStatus(`${capitalise(toolLabels[0])}…`);
+                        } else if (toolLabels.length > 1) {
                             // Multiple tools called in parallel
-                            setAloaStatus(`Running ${toolNames.length} tools in parallel: ${toolNames.join(' · ')}…`);
+                            setAloaStatus(`${capitalise(toolLabels[0])} (+${toolLabels.length - 1} more)…`);
                         } else {
-                            setAloaStatus('Using tools…');
+                            setAloaStatus('Working…');
                         }
 
                         // Build a conversation context string from recent user
@@ -2821,6 +3035,21 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             }
             // DRAFTPRO-NEW-TAB — last-resort fallback (allowed)
             openEditorRef.current(null, action.config);
+        } else if (action.type === 'web_search' && Array.isArray(action.results)) {
+            // ─── View Web Results ─────────────────────────────────────────
+            // 2026-09-24 (Task 69): this button existed (label "View Web
+            // Results" on the ActionCard) but executeStoredAction had no
+            // branch for it — clicking did nothing. It now populates the
+            // web results panel (the same expandable panel the research
+            // flow uses), where the user can browse the sources and push
+            // them to Research Studio.
+            setWebFetchResults(action.results.map((r: any) => ({
+                url: r.url,
+                title: r.title,
+                snippet: r.snippet,
+                success: true,
+            })));
+            setWebResultsCollapsed(false);
         } else if (action.type === 'note' && action.noteId) {
             setActiveNoteId(action.noteId);
             setActiveView('form');
@@ -3347,7 +3576,22 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         />
                                     )}
 
-                                    {msg.toolAction && (
+                                    {/* ─── DOCUMENT PACKET CARD (Task 69) ───────
+                                        Renders the itemised packet plan with
+                                        per-document Draft buttons and a
+                                        Draft-all button. Handled BEFORE the
+                                        generic ActionCard so packets get the
+                                        dedicated UI. */}
+                                    {msg.toolAction?.type === 'document_packet' && msg.toolAction.packet && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                                            <DocumentPacketCard
+                                                packet={msg.toolAction.packet}
+                                                onDraftDoc={handlePacketDraft}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {msg.toolAction && msg.toolAction.type !== 'document_packet' && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                                             <ActionCard
                                                 actionName={msg.toolAction.modalType || msg.toolAction.type || 'action'}

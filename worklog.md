@@ -12130,3 +12130,96 @@ Work Log:
 
 Stage Summary:
 - Task 68 LIVE in production (v1.0.646). No blockers for this change. Standing: Cloudflare mirror token rotation.
+
+---
+Task ID: task-69-aloa-packet-system
+Agent: main (Super Z)
+Task: User report — "I mentioned I would like Aloa to draft the documents
+necessary; I was expecting it to itemise them but instead it drafted one,
+and when I mentioned there are others it drafted the next rather weakly.
+This is exactly where we need the web searching feature to figure out what
+the process is, what the law requires, and the independent drafts — a neat
+system for preparing processes/packets for particular jobs. Aloa must also
+be much smarter in the things it says when it is thinking."
+
+Work Log:
+- Root-caused the single-document behaviour: there was NO tool to itemise a
+  document set — the model's only drafting primitive was start_drafting
+  (one document per call), so "the documents necessary" produced ONE draft,
+  and the follow-up "there are others" produced a thin bare-instruction
+  draft with none of the process context.
+- Built the DOCUMENT PACKET system:
+  1. New tool `plan_document_packet` (geminiService tools): jobTitle,
+     processSummary, legalRequirements, ordered documents[] (name, purpose,
+     legalBasis, notes), citations. Model instructed to research FIRST when
+     procedure/fees/notice periods may have changed, itemise the COMPLETE
+     set, and NOT draft until the user confirms.
+  2. New module src/utils/documentPacket.ts: packet types + normaliser
+     (hostile-input safe: truncation caps, source caps) +
+     buildPacketDraftPrompt (job + process + legal requirements + this
+     document's purpose/legal basis + (n of m) sequencing + the user's
+     conversation facts — the anti-weak-draft fix) + stable per-document
+     draft keys (draft:pkt-*) + document-set detection heuristic.
+  3. New component DocumentPacketCard.tsx: job title, collapsible process +
+     "what the law requires", numbered document rows (purpose + legal basis)
+     each with a Draft button, per-row status (idle→busy→opened / ready for
+     popup-blocked), "Draft all N documents" button (popup-blocker aware:
+     prepares every session, opens the first, remaining rows become
+     click-to-open), research sources list. Uses ui/Button primitives
+     (ADR-0004 — raw-element ratchet held at 2372).
+  4. AloaChat: plan_document_packet handler (renders card, registers packet
+     citations, non-terminal so the model summarises + asks which to draft),
+     handlePacketDraft (persist-then-open via openDraftProNewTab; never
+     overwrites an existing saved draft), packet card rendering branch,
+     handleWebSearch upgrade, executeStoredAction 'web_search' branch.
+- WEB SEARCH FIXED FOR PRODUCTION: the old client-side path fetched through
+  public CORS proxies — which the production CSP connect-src does NOT allow,
+  so search_web was dead in production. Now Convex server-side first
+  (api.webFetch.searchWeb / fetchUrlContent — CSP allows *.convex.cloud,
+  live-verified against the PRODUCTION deployment with real results), CORS
+  proxies demoted to dev-convenience fallback.
+- Smarter "thinking" lines: tool status now names the actual subject
+  (Researching "query"… / reading hostname / Structuring your document
+  packet / Preparing "title" in DraftPro); document-set requests open with
+  "Mapping what this job needs…"; research-mode status cycle can no longer
+  clobber specific statuses; tool loop maxIterations 3 → 6 (research rounds
+  were being cut off mid-flight).
+- Prompt protocol (ai/prompts/01-aloa + 02-aria): new DOCUMENT PACKETS —
+  ITEMISE BEFORE YOU DRAFT section (research → plan → confirm → draft with
+  context → handle missed documents); rule 3 amended with the approved-
+  packet exception; ANTI-REPETITION drafting-single-step exception added;
+  plan_document_packet added to both capability lists.
+- Phantom-packet gate: plan_document_packet added to MUTATING_TOOLS
+  (a "hello" can never produce a packet plan); empty-documents plans
+  rejected deterministically.
+- tabNavigation: prompts > 1200 chars are omitted from the editor URL (the
+  localStorage draft session is the carrier — packet prompts are long and
+  were breaking the URL length budget).
+- Gates: vitest 1150/1150 (+41: documentPacket 16, intentGate +5), tsc 129
+  = baseline, lint 0 errors + UI ratchet 2372 held, vite build clean,
+  bundle contains the new tool, both prompts and the card strings.
+- E2E (scripts/aloa-task69-verify.cjs, mocked Gemini, fresh signup, 24/24
+  PASS): A. document-set request → research → 3-document packet card, NO
+  premature tab, legal requirements surfaced, assistant asks which to
+  draft; B. card Draft → new tab, pkt draft key, session prompt carries
+  JOB + PURPOSE + LEGAL BASIS + user facts + (1 of 3), editor auto-drafts
+  the Notice to Quit; C. adversarial "hello"→plan_document_packet BLOCKED,
+  conversational reply; D. "draft them all" → both remaining documents
+  drafted with full packet context (0 weak drafts); E. system instruction
+  carries DOCUMENT PACKETS + plan_document_packet. VLM-inspected
+  screenshots: card layout polished, no overlaps; editor output properly
+  formatted.
+
+Stage Summary:
+- ALOA/ARIA now itemise document packets before drafting (research-backed,
+  user-confirmed, context-carrying per-document drafts) — the exact
+  "neat system for preparing processes/packets for particular jobs" the
+  user asked for.
+- Web search actually works in production for the first time since the CSP
+  hardening (Convex server-side path, live-verified).
+- Thinking/status lines are specific and truthful; research flows are no
+  longer cut off at 3 tool rounds.
+- E2E harness: /home/z/my-project/scripts/aloa-task69-verify.cjs (24
+  checks). Note for prod deploys: local sandbox DuckDuckGo calls time out
+  (datacenter IP rate-limit) but the PRODUCTION Convex deployment returns
+  real results — verified directly.

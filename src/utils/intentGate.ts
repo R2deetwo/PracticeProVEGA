@@ -35,6 +35,7 @@
 /** Tools that create or mutate data — gated by shouldBlockToolCall. */
 export const MUTATING_TOOLS: ReadonlySet<string> = new Set([
     'start_drafting',
+    'plan_document_packet',
     'create_matter',
     'create_contact',
     'create_task',
@@ -193,12 +194,29 @@ export function shouldBlockToolCall(input: IntentGateInput): IntentGateResult {
                 };
             }
         }
+        // Same idea for packets (Task 69): a real plan_document_packet call
+        // always carries at least one named document. A plan with no
+        // documents is a phantom plan.
+        if (toolName === 'plan_document_packet') {
+            const docs = Array.isArray(input.args?.documents) ? input.args.documents : [];
+            const first = docs.find((d: any) => d && typeof d.name === 'string' && d.name.trim());
+            if (!first) {
+                return {
+                    blocked: true,
+                    reason:
+                        'BLOCKED: The packet plan carried no documents. Do NOT present a plan. Ask the user to ' +
+                        'describe the job/process, then itemise the documents it genuinely requires before planning.',
+                };
+            }
+        }
         return { blocked: false };
     }
 
     const what =
         toolName === 'start_drafting'
             ? 'a document'
+            : toolName === 'plan_document_packet'
+                ? 'a document packet'
             : toolName.startsWith('create_')
                 ? `a new ${toolName.replace('create_', '').replace('_', ' ')}`
                 : 'this change';

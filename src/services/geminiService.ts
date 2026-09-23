@@ -126,7 +126,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "start_drafting",
-        description: "Starts drafting a document in the Law Editor. Use this ONLY when the user's CURRENT message explicitly asks you to write/draft/prepare a document, OR the user confirms details you just asked about for a draft THEY already requested. NEVER call this for greetings ('hello'), small talk, 'ok'/'thanks', or vague one-word messages — in those cases just reply in chat and ask what they need. The prompt parameter must carry the full drafting instructions (document type, parties, key facts) — if you don't have those, ask clarifying questions FIRST instead of calling this tool with a guessed prompt. In research mode, pass the citations array so they appear in the draft.",
+        description: "Starts drafting a document in the Law Editor. Use this ONLY when the user's CURRENT message explicitly asks you to write/draft/prepare a document, OR the user confirms details you just asked about for a draft THEY already requested, OR the user confirms a document packet you planned with plan_document_packet. NEVER call this for greetings ('hello'), small talk, 'ok'/'thanks', or vague one-word messages — in those cases just reply in chat and ask what they need. The prompt parameter must carry the full drafting instructions (document type, parties, key facts) — if you don't have those, ask clarifying questions FIRST instead of calling this tool with a guessed prompt. When drafting one document of an agreed packet, the prompt MUST carry the job/process, that document's purpose, its legal basis, and the parties/facts from the conversation — NEVER a bare instruction like 'draft the next document'. In research mode, pass the citations array so they appear in the draft.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -147,6 +147,46 @@ export const tools: FunctionDeclaration[] = [
                 }
             },
             required: ["prompt"]
+        }
+    },
+    {
+        name: "plan_document_packet",
+        description: "Presents an ITEMISED DOCUMENT PACKET to the user — the complete, ordered set of documents a job/process requires. Call this when the user asks for 'the documents necessary/needed/required', 'all the documents to file/serve/submit/complete X', 'the paperwork for X', or describes a process/transaction and wants you to prepare what it takes — ANY request that genuinely involves MULTIPLE documents. BEFORE calling: (1) if the procedure, forms, fees, notice periods or timelines could have changed — or you are not fully certain of them — research the process first with search_web (and fetch_web_page on the most authoritative results); (2) itemise EVERY document the job genuinely needs, in the order they are needed, each with its purpose and legal basis. Do NOT pad the list with documents the job does not need. Do NOT call start_drafting for any document in the packet until the user has reviewed the packet and confirmed which documents to draft (or asked for all of them).",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                jobTitle: { type: Type.STRING, description: "Short name of the job/process, e.g. 'Recovering possession of a tenanted flat in Lagos' or 'Registering a business name at CAC'" },
+                processSummary: { type: Type.STRING, description: "2-5 sentences: what the process is and its key steps, in order." },
+                legalRequirements: { type: Type.STRING, description: "What the law requires of the person in this situation: governing statutes, notice periods, fees, timelines, filing/registry steps." },
+                documents: {
+                    type: Type.ARRAY,
+                    description: "Every document the job requires, in the order they are needed.",
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            name: { type: Type.STRING, description: "Document title, e.g. 'Notice of Owner's Intention to Recover Possession'" },
+                            purpose: { type: Type.STRING, description: "What this document does in the process and why it is needed" },
+                            legalBasis: { type: Type.STRING, description: "Statute/rule/section this document rests on (or 'none — factual document')" },
+                            notes: { type: Type.STRING, description: "Optional drafting notes: parties, timing, sequencing dependencies" }
+                        },
+                        required: ["name", "purpose"]
+                    }
+                },
+                citations: {
+                    type: Type.ARRAY,
+                    description: "Sources (from your research) backing the process and legal requirements.",
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            type: { type: Type.STRING, enum: ["case", "statute", "regulation", "journal", "book", "web", "other"] },
+                            text: { type: Type.STRING, description: "Full citation/source description" },
+                            url: { type: Type.STRING, description: "Source URL if available" },
+                            jurisdiction: { type: Type.STRING, description: "Country/region (e.g. 'Nigeria')" }
+                        }
+                    }
+                }
+            },
+            required: ["jobTitle", "documents"]
         }
     },
     {

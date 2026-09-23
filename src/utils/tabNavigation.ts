@@ -257,16 +257,26 @@ export function openDraftProNewTab(
     if (isMobileOrNative()) return 'in-place';
 
     // Build the URL — base params for scalar values
-    let url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}`;
+    // 2026-09-24 (Task 69): packet-aware drafting prompts can run to several
+    // thousand characters. Browsers cap practical URL length (~2k for some
+    // servers/proxies), and an over-long ?prompt= param breaks the open.
+    // Long prompts are intentionally OMITTED from the URL — every caller
+    // that matters (ALOA start_drafting, packet drafts) persists the full
+    // prompt in the localStorage draft session FIRST, and WordProcessor's
+    // carrier chain (urlPrompt || ctx.draftPrompt || stored?.draftPrompt)
+    // falls back to the stored session when the URL param is absent.
+    const MAX_URL_PROMPT_CHARS = 1200;
+    const urlSafePrompt = prompt && prompt.length <= MAX_URL_PROMPT_CHARS ? prompt : undefined;
+    let url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${urlSafePrompt ? `&prompt=${encodeURIComponent(urlSafePrompt)}` : ''}`;
 
     // FIX 5b: If context contains citations or matterId, encode them in the hash
     // so the new tab can read them via readHashContext()
     if (context && (context.citations || context.matterId)) {
         url = buildRouteUrlWithHashContext('editor', context);
         // buildRouteUrlWithHashContext returns /editor#__ctx=... — we need to
-        // merge the query params back in
+        // merge the query params back in (urlSafePrompt — see Task 69 note above)
         const hashPart = url.split('#')[1];
-        url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}#${hashPart}`;
+        url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${urlSafePrompt ? `&prompt=${encodeURIComponent(urlSafePrompt)}` : ''}#${hashPart}`;
     }
 
     // Strategy 1: Direct window.open — with a NAMED window.

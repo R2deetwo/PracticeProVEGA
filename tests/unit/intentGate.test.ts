@@ -80,6 +80,44 @@ describe('real requests must never be blocked', () => {
     });
 });
 
+describe('plan_document_packet (Task 69 — phantom-packet gate)', () => {
+    const packetArgs = {
+        jobTitle: 'Recovering possession of a tenanted flat in Lagos',
+        documents: [
+            { name: 'Notice to Quit', purpose: 'Terminates the tenancy.' },
+            { name: "Notice of Owner's Intention to Recover Possession", purpose: '7-day statutory warning.' },
+        ],
+    };
+
+    it('is registered as a mutating tool', () => {
+        expect(MUTATING_TOOLS.has('plan_document_packet')).toBe(true);
+    });
+
+    it('blocks a packet plan triggered by "hello"', () => {
+        const r = gate('hello', 'plan_document_packet', packetArgs);
+        expect(r.blocked).toBe(true);
+        expect(r.reason).toContain('document packet');
+    });
+
+    it('blocks a real request when the plan carries no documents', () => {
+        const r = gate('draft the documents necessary for probate', 'plan_document_packet', { jobTitle: 'Probate', documents: [] });
+        expect(r.blocked).toBe(true);
+        expect(r.reason).toContain('no documents');
+    });
+
+    it('allows a genuine document-set request with a real plan', () => {
+        const r = gate('I want you to prepare the documents necessary to recover my flat in Ikeja', 'plan_document_packet', packetArgs);
+        expect(r.blocked).toBe(false);
+    });
+
+    it('allows "draft them all" after the packet card asked which to draft', () => {
+        const r = gate('draft them all', 'start_drafting', {
+            prompt: 'Draft the Notice to Quit for the packet "Recovering possession of a tenanted flat in Lagos" — terminates the tenancy per s. 13 Lagos Tenancy Law 2011; tenant: Chidi; property: 12 Awolowo Road.',
+        }, 'I have itemised the 2-document packet. Which should I draft, or say "draft them all"?');
+        expect(r.blocked).toBe(false);
+    });
+});
+
 describe('acknowledgements answer questions but never start work alone', () => {
     it('blocks a bare "ok" with no preceding question', () => {
         expect(gate('ok').blocked).toBe(true);
