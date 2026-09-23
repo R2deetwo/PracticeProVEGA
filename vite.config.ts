@@ -115,6 +115,34 @@ function generateVersionManifest() {
   };
 }
 
+// DEV-ONLY CSP LOOSENING (2026-09-23 audit finding): `npx convex dev` runs a
+// LOCAL backend at http://127.0.0.1:3210, but index.html's CSP meta only
+// allows https://*.convex.cloud — every fetch/WebSocket from the dev server
+// to a local backend was silently blocked (mutations hang until the client
+// reports "Connection timed out. Please check your internet."). This plugin
+// rewrites the CSP meta ONLY when `vite` serves (apply: 'serve'); production
+// builds keep the strict CSP byte-for-byte. Extra hosts (e.g. a LAN IP when
+// the browser runs on another machine) can be supplied via
+// VITE_DEV_CSP_EXTRA_HOSTS=host1,host2 in the environment.
+function loosenCspForLocalConvex(extraHosts: string[] = []) {
+  const localHosts = [
+    'http://127.0.0.1:3210', 'ws://127.0.0.1:3210',
+    'http://localhost:3210', 'ws://localhost:3210',
+    'http://[::1]:3210', 'ws://[::1]:3210',
+    ...extraHosts.filter(Boolean).flatMap((h) => [`http://${h}:3210`, `ws://${h}:3210`]),
+  ].join(' ');
+  return {
+    name: 'loosen-csp-for-local-convex',
+    apply: 'serve' as const,
+    transformIndexHtml(html: string) {
+      return html.replace(
+        /(connect-src\s+[^;]+);/,
+        `$1 ${localHosts};`
+      );
+    },
+  };
+}
+
 // CACHE-BUST NOTE (2026-08-31): CSS asset URLs are rotated per deploy by
 // scripts/bust-css-cache.cjs (run by `npm run build` AFTER vite build), NOT
 // by a vite plugin — Vite's internal html/asset post-processing re-derives
@@ -126,7 +154,15 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
 
   return {
-    plugins: [react(), generateVersionManifest()],
+    plugins: [
+      react(),
+      generateVersionManifest(),
+      // Dev server only (apply: 'serve') — loosens CSP so `npx convex dev`'s
+      // local backend is reachable. Production builds are unaffected.
+      loosenCspForLocalConvex(
+        (env.VITE_DEV_CSP_EXTRA_HOSTS || '').split(',').map((h: string) => h.trim()).filter(Boolean)
+      ),
+    ],
     server: {
       port: 5000,
       host: true,

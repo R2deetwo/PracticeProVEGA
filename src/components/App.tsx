@@ -1712,6 +1712,24 @@ export const App: React.FC = () => {
         }
     }, [currentUser, hasInitialSplashFinished, hasAcceptedTerms, serverTermsRecord]);
 
+    // COOKIE-BANNER SUPPRESSION (2026-09-23 audit): the cookie banner is a
+    // fixed z-[9999] bar that overlaps the bottom of the screen — it
+    // physically blocked the signup form's "Create Account" button and the
+    // onboarding wizard's footer buttons (NEXT / CONFIRM PLAN / START FREE)
+    // until acknowledged. It stays hidden while an auth modal or the
+    // OnboardingWizard is active, and re-appears afterwards if still
+    // unacknowledged.
+    const isAuthModalOpen = modal === 'login' || modal === 'signup';
+    const isOnboardingWizardActive = (() => {
+        if (!currentUser || isPortalUserRole || flowState === 'splash') return false;
+        let wizardInProgress = false;
+        try {
+            const ts = sessionStorage.getItem('practicepro_wizard_in_progress_ts');
+            wizardInProgress = !!ts && (Date.now() - parseInt(ts, 10)) < 60 * 60 * 1000;
+        } catch { /* storage unavailable — firmId check still applies */ }
+        return !currentUser.firmId || wizardInProgress;
+    })();
+
     return (
         <div className={`app-container font-sans text-base ${theme} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
             <SplashScreen 
@@ -1755,7 +1773,10 @@ export const App: React.FC = () => {
             {currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <OnboardingTour />}
             {/* What's New only for admin/firm users, not portal users */}
             {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
-            <CookieConsent />
+            {/* Suppressed during signup/login + onboarding (see
+                isOnboardingWizardActive / isAuthModalOpen) — the fixed
+                banner blocked the auth form's and the wizard's buttons. */}
+            {!isOnboardingWizardActive && !isAuthModalOpen && <CookieConsent />}
             {/* Terms & Conditions acceptance gate — shows on first access
                 or when the terms version changes. */}
             {(needsTermsAcceptance || showTermsBar) && (

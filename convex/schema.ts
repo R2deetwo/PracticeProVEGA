@@ -1194,6 +1194,12 @@ export default defineSchema({
     revokedAt: v.optional(v.string()),
     expiresAt: v.optional(v.string()),
   })
+  // NOTE (2026-09-23): this table's firm index is named "by_firmId", NOT
+  // "by_firm" like every other table — getFirmData's fetchByFirm used
+  // withIndex("by_firm") on firm_licenses, which threw on EVERY data load
+  // ("[getFirmData] Index failure for firm_licenses") and fell back to a
+  // take(1000) full scan (silently dropping licenses past the 1000th row).
+  // fetchByFirm now maps this table to its real index name.
   .index("by_firmId", ["firmId"])
   .index("by_moduleKey", ["moduleKey"])
   .index("by_firmId_moduleKey", ["firmId", "moduleKey"]),

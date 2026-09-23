@@ -14,8 +14,31 @@
  */
 
 // ─── The person: how they practise ───────────────────────────────────────────
-/** Preset professional titles — 'Other' switches to free text. */
-export const PROFESSIONAL_TITLES = [
+/**
+ * Preset professional titles — 'Other' switches to free text.
+ *
+ * PRODUCT-AWARE (2026-09-23 audit): the original list was property-first
+ * (it grew out of the Atrium correspondence request) but was ALSO shown to
+ * Vega (legal) users, who saw "Property Manager / Facilities Manager /
+ * Estate Manager …" with "Legal Practitioner" buried 8th in their own
+ * onboarding. Each product now gets a leading order that matches its
+ * audience; the union keeps every option reachable for cross-practice firms.
+ */
+export const LEGAL_PROFESSIONAL_TITLES = [
+    'Legal Practitioner',
+    'Managing Partner',
+    'Partner',
+    'Senior Advocate of Nigeria (SAN)',
+    'Barrister & Solicitor',
+    'In-House Counsel',
+    'Company Secretary / Legal Adviser',
+    'Head of Chambers',
+    'Managing Director',
+    'Operations Manager',
+    'Other',
+] as const;
+
+export const PROPERTY_PROFESSIONAL_TITLES = [
     'Property Manager',
     'Facilities Manager',
     'Property Administrator',
@@ -26,6 +49,27 @@ export const PROFESSIONAL_TITLES = [
     'Legal Practitioner',
     'Other',
 ] as const;
+
+/** Back-compat alias — the property-flavoured list (the original set). */
+export const PROFESSIONAL_TITLES = PROPERTY_PROFESSIONAL_TITLES;
+
+/**
+ * Union of both lists (deduped, legal-first) for surfaces that don't know
+ * the product (e.g. Profile Settings) — every role stays selectable.
+ */
+export const ALL_PROFESSIONAL_TITLES: readonly string[] = Array.from(
+    new Set([...LEGAL_PROFESSIONAL_TITLES, ...PROPERTY_PROFESSIONAL_TITLES]),
+);
+
+/** Title presets matched to the product the user is onboarding into. */
+export function getProfessionalTitles(product?: string | null): readonly string[] {
+    // Atrium users get the property-first order; everyone else (Vega legal,
+    // Komplete-unified, unknown/default) gets legal-first — the wizard's
+    // product switcher defaults to legal, and Komplete spans both.
+    return product === 'property' || product === 'atrium'
+        ? PROPERTY_PROFESSIONAL_TITLES
+        : LEGAL_PROFESSIONAL_TITLES;
+}
 
 // ─── The firm: its legal form ────────────────────────────────────────────────
 /** Preset legal entity forms — 'Other' switches to free text (e.g. "The

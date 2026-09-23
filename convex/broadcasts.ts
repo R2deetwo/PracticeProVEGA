@@ -89,12 +89,15 @@ export const getActiveBroadcasts = query({
           targetFirmId = String(userRecord.firmId || '');
         }
       } catch {
-        // Fallback: try case-insensitive scan
+        // Fallback: lowercase indexed lookup. All tokenIdentifier writers
+        // store lowercase, so this preserves the old case-insensitive scan
+        // (500-cap audit: the take(500) version missed every user created
+        // after the 500th row).
         try {
-          const allUsers = await ctx.db.query("users").take(500);
-          const found = allUsers.find((u: any) =>
-            (u.tokenIdentifier || '').toLowerCase() === targetEmail
-          );
+          const found = await ctx.db
+            .query("users")
+            .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", targetEmail.toLowerCase()))
+            .first();
           if (found) targetFirmId = String(found.firmId || '');
         } catch {}
       }

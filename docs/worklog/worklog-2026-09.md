@@ -4605,3 +4605,76 @@ unchanged).
   (6) "Add a court date" (lands on the matter's Events tab with the
   guide banner + highlighted pill); (7) every toast's X now closes it,
   even in burst clusters.
+
+## Task 66 — Full-app audit E2E: 500-cap auth scans (the signup-verification killer), free-first wizard, cookie-banner blocking, tier labels (2026-09-23)
+
+User directive: default the setup wizard to the free tier (approved from the
+Task-65 spot), then USE the app end-to-end and fix everything found.
+
+### Environment
+- Sandbox was a stale snapshot again (local main 70+ behind, dirty mode-bit
+  tree) — backed up to `backup-stale-tree-20260923`, hard-synced to origin/main
+  (1b475030, v1.0.640).
+- Stood up a LOCAL Convex backend (anonymous agent mode) + Vite dev server
+  and drove the real app with headless Chrome: landing → product chooser →
+  signup → email-code verify → 6-step wizard → app shell → matter creation →
+  settings → logout/login. Fresh-firm E2E (2 test users: ada.test+vega,
+  bode.free+vega), zero production data touched.
+
+### Findings & fixes
+1. **verifyCode + 4 siblings used `.take(500)` capped user scans** — the
+   same class as the Task-63 ALOA 500-conversation landmine. Table order is
+   oldest-first, so every account created after the 500th user got
+   "User not found" at email verification — freshly-registered users could
+   not complete signup (matches the live report "failed to load after
+   putting in the verification code"), password resets silently did nothing,
+   and getFirmData's team fetch made firm members vanish. Fixed with a new
+   indexed `findUserByTokenUncapped` helper (by_token, exact + lowercase —
+   all writers store lowercase): verifyCode, requestPasswordReset,
+   checkIncompleteRegistration, diagnoseAccount, repairAccount,
+   getFirmData (recovery + team fetch via by_firm index), broadcasts
+   fallback.
+2. **Wizard defaulted to Pro** (pay-only) — "Start Free Trial" users hit a
+   payment wall (trial button hidden on highest tiers). Now defaults to Core
+   (Free for Vega / Starter for Atrium — cheapest, trial always visible).
+   Free tier: primary CTA = "Start Free — No Card Required" → handleCreate
+   with NO trial flag (the old flow stamped trialStartsAt on ₦0 firms and
+   the app then showed "Welcome to your Core trial … full access for 30
+   days" — false urgency on a free-forever plan). Paid tiers unchanged.
+   Also: plan buttons now show tier LABELS ("Free"/"Starter"), not the
+   internal id ("Core") — and the ₦0.00 bank-transfer payment modal can no
+   longer open for a free plan.
+3. **Cookie-consent banner (fixed z-9999) physically blocked the signup
+   form's Create Account button and the wizard's NEXT/CONFIRM footer
+   buttons** until acknowledged. Now suppressed while an auth modal or the
+   OnboardingWizard is active; re-appears afterwards if unacknowledged.
+4. **Vega onboarding showed property-first roles** (Property Manager,
+   Facilities Manager … Legal Practitioner 8th) — the list was built from
+   the Atrium correspondence request. Now product-aware: legal-first for
+   Vega (Legal Practitioner, Managing Partner, Partner, SAN, Barrister &
+   Solicitor, …), property-first for Atrium; union list in Profile Settings.
+5. **firm_licenses index mismatch**: fetchByFirm used withIndex("by_firm")
+   but the table's index is named by_firmId — EVERY data load threw, logged
+   "[getFirmData] Index failure for firm_licenses" 3×, and fell back to a
+   take(1000) scan (dropping licenses past 1000). fetchByFirm now maps the
+   table to its real index name; warning gone (verified live).
+6. **Billing & Plans showed the internal id** ("Billing & Plans: Core")
+   while pricing surfaces call the same tier "Free"/"Starter" — now shows
+   the tier label. "+ Buy Extra Seat (₦4,000)" hidden on the free tier (it
+   read like a price on a ₦0 plan and clicked into the same upgrade flow).
+7. **CSP blocked local Convex development entirely** — index.html's
+   connect-src only allows https://*.convex.cloud, so `npx convex dev`
+   backends are unreachable from the dev server (mutations hang until
+   "Connection timed out. Please check your internet."). New dev-only Vite
+   plugin (apply: 'serve') injects localhost:3210 (+ optional
+   VITE_DEV_CSP_EXTRA_HOSTS); production CSP byte-identical.
+
+### Verified
+- E2E on the local backend: fresh Vega signup → code verify (indexed
+  lookup) → wizard defaults FREE → "Start Free — No Card Required" → no
+  payment modal → firm created plan=Core with NO trial fields → no trial
+  banner → legal-first role list → Billing header "Free", no seat upsell →
+  cookie banner absent during auth + wizard → logout/login round-trip.
+- Gates: convex tsc 0 errors; root tsc 129 (baseline 131); vitest
+  1101/1101; UI-primitives ratchet IMPROVED 2374 → 2372 (wizard CTAs moved
+  to ui/ Button, baseline ratcheted down); vite build green (19.8s).

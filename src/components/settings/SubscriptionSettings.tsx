@@ -411,12 +411,19 @@ const BillingCalculator: React.FC<{
                             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 1l2.928 6.327L20 8.18l-5 4.876L16.18 20 10 16.586 3.82 20 5 13.056 0 8.18l7.072-.853L10 1z" /></svg>
                             Upgrade Plan
                         </button>
-                        <button
-                            onClick={() => onUpgrade?.(undefined as any)}
-                            className="px-3 py-2 border-2 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex items-center gap-1.5"
-                        >
-                            + Buy Extra Seat (<NairaSymbol />4,000)
-                        </button>
+                        {/* Seat-purchase upsell only on PAID tiers — on the
+                            free tier (Vega Core, ₦0) "+ Buy Extra Seat (₦4,000)"
+                            read like a price on a free plan and clicked into
+                            the same upgrade flow anyway (both buttons called
+                            onUpgrade). Free users see the upgrade CTA only. */}
+                        {(currentTierDef?.monthlyPrice !== 0 || currentTierDef?.annualPrice !== 0) && (
+                            <button
+                                onClick={() => onUpgrade?.(undefined as any)}
+                                className="px-3 py-2 border-2 border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 text-xs font-bold rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all flex items-center gap-1.5"
+                            >
+                                + Buy Extra Seat (<NairaSymbol />4,000)
+                            </button>
+                        )}
                     </div>
                 )}
 
@@ -740,6 +747,11 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
     const tiers = getTiersForProduct(productMode);
     const currentPlan = firmDetails.subscriptionPlan || SubscriptionPlan.Core;
     const normalizedCurrent = currentPlan;
+    // User-facing tier label ("Free" / "Starter" / …) — the header must not
+    // show the internal plan id ("Core") that the pricing pages never use.
+    const currentTierLabel = currentPlan === SubscriptionPlan.Komplete
+        ? 'Komplete'
+        : ((tiers as any)[currentPlan as any]?.label || currentPlan);
 
     // ─── Fix Product Mode ──────────────────────────────────────────────
     // If the firm is on a Komplete/Enterprise plan but the product field
@@ -793,7 +805,13 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                 <div>
                     <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                            Billing &amp; Plans: <span className="text-primary-600 dark:text-primary-400">{currentPlan}</span>
+                            {/* Display the user-facing tier label ("Free" /
+                                "Starter") — not the internal plan id ("Core").
+                                PRICING AUDIT renamed the labels; the header
+                                never caught up and free-tier users saw
+                                "Billing & Plans: Core" while the pricing page
+                                called the same tier "Free". */}
+                            Billing &amp; Plans: <span className="text-primary-600 dark:text-primary-400">{currentTierLabel}</span>
                         </h3>
                     </div>
                     <p className="text-slate-500 dark:text-zinc-400 max-w-2xl text-sm mt-1">

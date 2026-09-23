@@ -23,7 +23,7 @@ import { NIGERIAN_STATES, PORTFOLIO_TYPE_OPTIONS, ATRIUM_FOCUS_OPTIONS } from '.
 // belong right under it. Parked via savePendingIdentity at wizard
 // completion; App.tsx applies it one-shot to the firm + user profile on
 // the first app load (reflected in the header, emails and receipts).
-import { PROFESSIONAL_TITLES, LEGAL_ENTITY_TYPES, savePendingIdentity } from '../../utils/professionalIdentity';
+import { getProfessionalTitles, LEGAL_ENTITY_TYPES, savePendingIdentity } from '../../utils/professionalIdentity';
 import { FirmSpecialty } from '../../types';
 // PRACTICE-PROFILE ENGINE — pre-populates the firm's configuration (matter
 // types with sub-categories & stages, contact types, document folders,
@@ -35,6 +35,10 @@ import { usePracticeProfile, mergePlans, type ApplyPlan } from '../../hooks/useP
 import { useDataState } from '../../contexts/DataContext';
 // CRO AUDIT Track A — A3: use the real PaymentGatewayModal instead of the stub.
 import PaymentGatewayModal from './PaymentGatewayModal';
+// ADR-0004: the plan-step CTAs use the ui/ Button primitive (variant='bare'
+// + verbatim class strings = zero visual change, but type='button' default,
+// focus ring and a11y come free). Raw <button> growth is ratchet-banned.
+import { Button } from '../ui';
 
 // SETUP WIZARD EXTENSION (Steps 3-5):
 // Channel-relevance copy for Step 3 (Communication Channels).
@@ -207,7 +211,14 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   // here predates the incident and only fires for records with NO product.
   const [product, setProduct] = useState<ProductMode>(userProduct || 'legal');
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('annual');
-  const [selectedTierId, setSelectedTierId] = useState<TierId>('Pro');
+  // FREE-FIRST DEFAULT (user-approved, 2026-09-23): the wizard used to
+  // pre-select Pro — a pay-only tier — so everyone who clicked "Start Free
+  // Trial" on the landing page landed on a payment wall (the trial button
+  // is hidden for highest tiers) unless they dug into "Compare with other
+  // plans". Vega's Core tier is FREE FOREVER; Atrium's Core (Starter) is
+  // the cheapest tier and keeps the trial button visible. Either way the
+  // first thing a free-first user sees is now the most affordable option.
+  const [selectedTierId, setSelectedTierId] = useState<TierId>('Core');
   const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDataMigration, setIsDataMigration] = useState(false);
@@ -704,7 +715,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                           className="w-full min-h-[44px] text-sm text-slate-900 bg-white border border-slate-200 rounded-xl px-3 py-2.5 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all outline-none"
                         >
                           <option value="">Select a role…</option>
-                          {PROFESSIONAL_TITLES.map(t => <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>)}
+                          {getProfessionalTitles(product).map(t => <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>)}
                         </select>
                         {professionalTitle === 'Other' && (
                           <input
@@ -958,7 +969,17 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             {(() => {
               const isKompleteTier = isKomplete(product);
               const isHighestTier = isKompleteTier || selectedTierId === 'Pro' || selectedTierId === 'Enterprise';
-              const planLabel = isKompleteTier ? 'Komplete' : selectedTierId;
+              // FREE-FIRST (2026-09-23): show the user-facing tier label
+              // ("Free" / "Starter"), not the internal TierId ("Core").
+              const planLabel = isKompleteTier
+                ? 'Komplete'
+                : (tiers[selectedTierId as keyof typeof tiers]?.label || selectedTierId);
+              // Vega Core is ₦0 forever. On a price-0 tier the primary CTA
+              // creates the workspace directly — no ₦0 bank-transfer modal,
+              // no "30-day trial" of a plan that never expires or changes.
+              const isFreeTier = !isKompleteTier
+                && (tiers[selectedTierId as keyof typeof tiers]?.monthlyPrice === 0)
+                && (tiers[selectedTierId as keyof typeof tiers]?.annualPrice === 0);
               // CRO AUDIT FIX: Komplete is annual-only at ₦2.5M/yr. Always use annualPrice
               // from the tier definition (never hardcode). For Komplete, billingCycle is
               // forced to 'annual' regardless of the toggle.
@@ -980,40 +1001,61 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     ← Back
                   </button>
 
-                  {/* CRO AUDIT FIX (Track C — C2): renamed "Pay Now" → "Confirm Plan".
-                      The Step 1 CTA already says "Next: Confirm Plan", so the Step 2
-                      primary CTA must match that language. */}
-                  <button
-                    onClick={() => { setPaymentAction('pay_now'); setShowPaymentModal(true); }}
+                  {/* FREE TIER (₦0 forever): the primary CTA creates the
+                      workspace immediately. No bank-transfer modal for a
+                      zero-naira plan, and no "30-day trial" machinery —
+                      a free-forever plan must never show trial-expiry
+                      urgency (the old flow stamped trialStartsAt/trialEndsAt
+                      on Core firms and the app then showed "Welcome to your
+                      Core trial … full access for 30 days").
+                      PAID TIER: CRO AUDIT FIX (Track C — C2) — "Confirm Plan"
+                       matches Step 1's "Next: Confirm Plan" language and opens
+                       the bank-transfer payment modal. */}
+                  <Button
+                    variant="bare"
+                    onClick={() => {
+                      if (isFreeTier) { setPaymentAction(null); handleCreate(false); }
+                      else { setPaymentAction('pay_now'); setShowPaymentModal(true); }
+                    }}
                     disabled={isSubmitting || !hasAgreed}
-                    className={`w-full py-4 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl flex justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}
+                    className={`w-full py-4 text-white font-black text-xs uppercase tracking-wide-label rounded-2xl shadow-xl justify-center items-center gap-2 transition-all ${isSubmitting || !hasAgreed ? 'bg-slate-200 cursor-not-allowed shadow-none' : 'bg-primary-600 hover:bg-primary-700 shadow-primary-600/20'}`}
                   >
                     {isSubmitting && <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                    {isSubmitting ? 'Creating...' : `Confirm Plan — ${planLabel}`}
-                  </button>
+                    {isSubmitting ? 'Creating...' : (isFreeTier ? 'Start Free — No Card Required' : `Confirm Plan — ${planLabel}`)}
+                  </Button>
 
-                  {/* Start 30-Day Free Trial — NOT available on highest tier */}
-                  {!isHighestTier && (
+                  {/* Start 30-Day Free Trial — paid non-highest tiers only
+                      (hidden on free tiers: a trial of a free-forever plan
+                      is meaningless, and hidden on highest tiers: no trial). */}
+                  {!isHighestTier && !isFreeTier && (
                     <>
                       <div className="flex items-center gap-3 py-1">
                         <div className="flex-1 h-px bg-slate-100" />
                         <span className="text-2xs text-slate-400 font-bold uppercase">or</span>
                         <div className="flex-1 h-px bg-slate-100" />
                       </div>
-                      <button
+                      <Button
+                        variant="bare"
                         onClick={() => { setPaymentAction('start_trial'); handleCreate(true); }}
                         disabled={isSubmitting || !hasAgreed}
                         className="w-full py-3 bg-white border-2 border-primary-200 text-primary-600 font-black text-xs uppercase tracking-wide-label rounded-2xl hover:bg-primary-50 transition-all disabled:opacity-50"
                       >
                         Start 30-Day Free Trial
-                      </button>
+                      </Button>
                       {/* Subtle upsell for Core tier — suggest trying the highest tier */}
                       {selectedTierId === 'Core' && !isKompleteTier && (
                         <p className="text-center text-2xs text-slate-400 mt-1">
-                          Want full features? <button onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 30 days</button> instead.
+                          Want full features? <Button variant="bare" onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 30 days</Button> instead.
                         </p>
                       )}
                     </>
+                  )}
+
+                  {/* Free tier: keep the upgrade path visible (trial of Pro). */}
+                  {isFreeTier && !isKompleteTier && (
+                    <p className="text-center text-2xs text-slate-400 mt-1">
+                      Need more? <Button variant="bare" onClick={() => { setSelectedTierId('Pro'); setShowAllPlans(false); }} className="text-primary-600 font-bold hover:underline">Try Pro free for 30 days</Button> — or compare all plans above.
+                    </p>
                   )}
 
                   {/* Highest tier — payment only, no trial */}

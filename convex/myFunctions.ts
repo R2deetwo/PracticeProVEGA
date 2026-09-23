@@ -234,8 +234,8 @@ export const diagnoseConnectivity = mutation({
 
     const emailInput = args.email.toLowerCase().trim();
 
-    const allUsers = await ctx.db.query("users").take(500);
-    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === emailInput);
+    // 500-cap audit: indexed lookup (take(500)+find broke past the 500th user)
+    const user = await findUserByTokenUncapped(ctx, emailInput);
 
     const diagnosis = {
       emailSearched: emailInput,
@@ -311,8 +311,8 @@ export const repairAccountConnection = mutation({
 
     const emailInput = args.email.toLowerCase().trim();
 
-    const allUsers = await ctx.db.query("users").take(500);
-    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === emailInput);
+    // 500-cap audit: indexed lookup (take(500)+find broke past the 500th user)
+    const user = await findUserByTokenUncapped(ctx, emailInput);
 
     if (!user) {
       return { success: false, code: 'USER_NOT_FOUND', message: "User account not found." };
@@ -359,10 +359,10 @@ export const getFirmData = query({
 
     // Recovery logic: find firm from email if firmId is missing
     if (!targetFirmId && userEmail) {
-      // Bounded scan (case-insensitive tokenIdentifier match — by_token is
-      // exact-match only, so the scan stays, capped).
-      const allUsers = await ctx.db.query("users").take(2000);
-      const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === userEmail.toLowerCase());
+      // 500-cap audit: indexed exact+lowercase lookup (all writers store
+      // tokenIdentifier lowercased) — the old take(2000) scan missed every
+      // user created after the 2000th row.
+      const user = await findUserByTokenUncapped(ctx, userEmail.toLowerCase());
 
       if (user && user.firmId) {
         targetFirmId = user.firmId;
@@ -408,15 +408,19 @@ export const getFirmData = query({
 
     // Helper: fetch by firmId index with robust recovery for legacy/untagged data
     const fetchByFirm = async (tableName: string) => {
+      // firm_licenses' firm index is named by_firmId (historical), not
+      // by_firm — see the schema note. Without this mapping every
+      // fetchByFirm("firm_licenses") threw and fell back to a full scan.
+      const firmIndexName = tableName === "firm_licenses" ? "by_firmId" : "by_firm";
       try {
         // 1. Primary Attempt: Use by_firm index for speed
         const firmItems = await ctx.db.query(tableName as any)
-          .withIndex("by_firm", (q: any) => q.eq("firmId", targetFirmId))
+          .withIndex(firmIndexName, (q: any) => q.eq("firmId", targetFirmId))
           .take(1000);
 
         // 2. Secondary Attempt: Fetch 'system' tagged items
         const systemItems = await ctx.db.query(tableName as any)
-          .withIndex("by_firm", (q: any) => q.eq("firmId", "system"))
+          .withIndex(firmIndexName, (q: any) => q.eq("firmId", "system"))
           .take(500);
 
         let combined = [...firmItems, ...systemItems];
@@ -477,10 +481,18 @@ export const getFirmData = query({
       fetchByFirm("tasks"),
       fetchByFirm("documents"),
       (async () => {
-        const allUsers = await ctx.db.query("users").take(500);
-        return allUsers.filter((u: any) => 
-          u.firmId === targetFirmId || (u.joinedFirmIds && u.joinedFirmIds.includes(targetFirmId))
-        );
+        // 500-cap audit: firm members via the by_firm index (the old
+        // take(500) global scan made team members vanish once the users
+        // table passed 500 rows). joinedFirmIds has no index — a bounded
+        // scan stays for that secondary association only.
+        const firmMembers = await ctx.db
+          .query("users")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", targetFirmId))
+          .collect();
+        const joinedElsewhere = (await ctx.db.query("users").take(2000))
+          .filter((u: any) => u.joinedFirmIds && u.joinedFirmIds.includes(targetFirmId));
+        const seen = new Set(firmMembers.map((u: any) => String(u._id)));
+        return [...firmMembers, ...joinedElsewhere.filter((u: any) => !seen.has(String(u._id)))];
       })(),
       fetchByFirm("workflows"),
       fetchByFirm("leads"),
@@ -1216,6 +1228,44 @@ async function findUserMatches(ctx: any, token: string): Promise<any[]> {
     );
 }
 
+/**
+ * 2026-09-23 (500-row cap audit): indexed single-user lookup for auth flows.
+ *
+ * The legacy pattern — `query("users").take(500)` + in-memory find on
+ * tokenIdentifier — silently returned "User not found" for every account
+ * created AFTER the first 500 users (table order is oldest-first). In
+ * production this broke the signup verification step, password resets, and
+ * account repair for all newly-registered users while the login path
+ * (getUserForAuth → findUserMatches, indexed) kept working — exactly the
+ * same class as the Task-63 ALOA 500-conversation landmine.
+ *
+ * This helper resolves the same case-insensitive tokenIdentifier match via
+ * the by_token index (exact as-given, then lowercased) with NO row cap.
+ * All writers store tokenIdentifier lowercased (startSignupLogic,
+ * createFounderAccount, portal invites), so the two-step indexed lookup
+ * preserves the old scan's semantics for every real record.
+ *
+ * Returns the RAW user record or null.
+ */
+async function findUserByTokenUncapped(ctx: any, rawToken: string): Promise<any | null> {
+  const token = String(rawToken || '').trim();
+  if (!token) return null;
+  const exact = await ctx.db
+    .query("users")
+    .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", token))
+    .first();
+  if (exact) return exact;
+  const lower = token.toLowerCase();
+  if (lower !== token) {
+    const ci = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", lower))
+      .first();
+    if (ci) return ci;
+  }
+  return null;
+}
+
 export const getUser = query({
   args: userLookupArgs,
   handler: async (ctx, args) => {
@@ -1360,8 +1410,8 @@ export const checkIncompleteRegistration = query({
     const token = args.email.toLowerCase().trim();
     if (!token) return null;
 
-    const allUsers = await ctx.db.query("users").take(500);
-    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+    // 500-cap audit: indexed lookup (take(500)+find broke past the 500th user)
+    const user = await findUserByTokenUncapped(ctx, token);
 
     // Case 1: Fully verified account with a firm — already registered
     if (user && user.isVerified && user.firmId) {
@@ -2276,8 +2326,12 @@ export const verifyCode = mutation({
   args: { email: v.string(), code: v.string() },
   handler: async (ctx, args) => {
     const token = args.email;
-    const allUsers = await ctx.db.query("users").take(500);
-    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token.toLowerCase());
+    // 500-cap audit (2026-09-23): THE signup-verification bug — the old
+    // take(500)+find scan returned "User not found" for every account
+    // created after the 500th user, so freshly-registered users could not
+    // verify their email (reported live: "failed to load after putting in
+    // the verification code"). Indexed lookup, no cap.
+    const user = await findUserByTokenUncapped(ctx, token.toLowerCase());
 
     if (!user) return { success: false, message: "User not found." };
     if (user.verificationCode !== args.code) return { success: false, message: "Invalid code." };
@@ -2546,8 +2600,9 @@ export const requestPasswordReset = mutation({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const token = args.email.toLowerCase().trim();
-    const allUsers = await ctx.db.query("users").take(500);
-    const user = allUsers.find((u: any) => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === token);
+    // 500-cap audit: indexed lookup (take(500)+find silently did nothing
+    // for every user past the 500th row — reset emails never arrived).
+    const user = await findUserByTokenUncapped(ctx, token);
 
     // Always return success to prevent email enumeration attacks
     if (!user) return { success: true };

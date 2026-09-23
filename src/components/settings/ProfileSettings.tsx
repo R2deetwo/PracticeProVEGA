@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { DesktopComputerIcon, UserCircleIcon } from '../../constants';
 import { useProduct } from '../../contexts/ProductContext';
-import { PROFESSIONAL_TITLES } from '../../utils/professionalIdentity';
+import { ALL_PROFESSIONAL_TITLES } from '../../utils/professionalIdentity';
 import FeedbackButton from '../FeedbackButton';
 // ui/ primitives (ADR-0004) — Task 61 reference migration. Every adopted
 // element is a zero-visual-change refactor; equivalence is proven by
@@ -201,7 +201,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps & { initialSubTab?: 'genera
                                 onChange={(e) => setTitleInput(e.target.value)}
                             >
                                 <option value="">Not specified</option>
-                                {PROFESSIONAL_TITLES.map(t => (
+                                {ALL_PROFESSIONAL_TITLES.map(t => (
                                     <option key={t} value={t}>{t === 'Other' ? 'Other (describe it)' : t}</option>
                                 ))}
                             </Select>
