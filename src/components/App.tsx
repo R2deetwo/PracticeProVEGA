@@ -1773,10 +1773,14 @@ export const App: React.FC = () => {
             {currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <OnboardingTour />}
             {/* What's New only for admin/firm users, not portal users */}
             {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
-            {/* Suppressed during signup/login + onboarding (see
-                isOnboardingWizardActive / isAuthModalOpen) — the fixed
-                banner blocked the auth form's and the wizard's buttons. */}
-            {!isOnboardingWizardActive && !isAuthModalOpen && <CookieConsent />}
+            {/* Cookie banner — LANDING PAGE ONLY (unauthenticated visitors).
+                Suppressed for signed-in users: they explicitly accepted the
+                ToS + Privacy Policy at signup (checkboxes) and the DPA in
+                the setup wizard, and the fixed z-9999 bar physically
+                blocked the ALOA FAB and the wizard/auth footer buttons in
+                the app shell. Analytics (PostHog) is also inactive without
+                a key, so no consent-bearing cookies are set in-app. */}
+            {!currentUser && !isOnboardingWizardActive && !isAuthModalOpen && <CookieConsent />}
             {/* Terms & Conditions acceptance gate — shows on first access
                 or when the terms version changes. */}
             {(needsTermsAcceptance || showTermsBar) && (

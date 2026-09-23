@@ -28,6 +28,12 @@ const AloaFAB: React.FC = () => {
 
     const handleClick = () => {
         if (!isAiActive) {
+            // 2026-09-23 audit: this used to be a silent no-op, which made
+            // the FAB a dead button for every free-tier firm (AI is
+            // Growth+) — the exact audience the free-first wizard default
+            // now funnels in. Route the click to the upgrade modal instead
+            // so the button always explains itself.
+            openModal('upgradePlan', null, { featureName: `${assistantName}® AI Copilot` });
             return;
         }
 
