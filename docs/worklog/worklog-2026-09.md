@@ -4678,3 +4678,19 @@ Task-65 spot), then USE the app end-to-end and fix everything found.
 - Gates: convex tsc 0 errors; root tsc 129 (baseline 131); vitest
   1101/1101; UI-primitives ratchet IMPROVED 2374 → 2372 (wizard CTAs moved
   to ui/ Button, baseline ratcheted down); vite build green (19.8s).
+
+### Task 66 — DEPLOY RECORD
+- Commit 572a37f3 pushed → CI green (Tests, Staging, APK build-1026 → bot
+  bumped v1.0.641). Production promote run 35856867065: quality gate ✓,
+  Vercel + Convex ✓, live-verified sha 044341c6.
+- E2E follow-up found two more issues, fixed in c57d10b0: (a) the cookie
+  banner also covered the ALOA FAB in the app shell — CookieConsent is now
+  landing-page-only (signed-in users accepted ToS/Privacy/DPA explicitly);
+  (b) the ALOA FAB dead-clicked for gated tiers (AI is Growth+; free firms
+  got a silent no-op) — it now opens the Upgrade Plan modal.
+- c57d10b0 pushed → CI green → APK build-1027 (v1.0.642) → production
+  promote: Vercel + Convex ✓ SUCCESS, live version.json sha af3583ab,
+  v1.0.642, healthy, "Start Free — No Card Required" + upgrade-modal
+  strings confirmed in the live bundle. Cloudflare mirror ✗ at the token
+  check (standing expired CLOUDFLARE_API_TOKEN — needs rotation; mirror
+  still serves the last manual deploy).
