@@ -12074,3 +12074,31 @@ Stage Summary:
 - Follow-ups if user still sees issues: capture the exact repro (new chat
   vs existing, network state, panel open/close) + check browser console
   for the new "[Aloa] Message could not be saved" warn line.
+
+---
+Task ID: task-67-aloa-aria-audit
+Agent: main (Super Z)
+Task: User: "use aloa/aria and figure out how to make it even better" — deep-dive the ALOA/ARIA AI assistant experience end-to-end.
+
+Work Log:
+- Read the full ALOA/ARIA surface: AgencyHub (system prompt builder), geminiService (sendMessage/streamMessage/streamDraft), aiUtils (models/fallbacks), AloaChat (3745-line chat core), AloaPanel/FAB, identity guardrails, brainService, tabNavigation, prompts in ai/prompts.
+- Stood up live E2E with a MOCKED Gemini REST API (Playwright route interception of generateContent / streamGenerateContent?alt=sse / embedContent) — full assistant UX exercisable without a key. Harness: scripts outside repo (read_local_users.py reads verification codes from the local Convex sqlite; aloa-live-audit.cjs drives signup → wizard → chat → tools → drafting on both products).
+- Live-used ALOA (Vega) and ARIA (Atrium) as fresh Growth-trial firms: FAB → panel → streaming chat → tool calls (query_firm_data, start_drafting → DraftPro) → PII messages → research mode → reload persistence. VLM-inspected every screenshot.
+- CRITICAL findings (all live-verified, then fixed + re-verified):
+  1. Brain/RAG dead: brain.search called the searchMemories ACTION via convex.query → "defined as Action" on every retrieval. Fixed to convex.action.
+  2. Actions crash on auth: resolveUserBySessionToken used ctx.db (absent in actions) → searchKnowledge (Rules & Forms), searchStatutes, portal invites all threw. Fixed via internal sessions.lookupUserByTokenHash + ctx.runQuery branch.
+  3. DraftPro popup-blocked hijack: openDraftProNewTab navigated the chat tab in-place on desktop (contradicting its own doc); AloaChat's 'blocked' branch existed but was unreachable. Now returns 'blocked' + arms the "Open DraftPro" in-chat button (__pendingDraftOpen wiring).
+  4. window.open noopener spec bug: features 'noopener,noreferrer' ⇒ return value is ALWAYS null — both strategies "failed" after opening real tabs (2 editor tabs + in-place nav = 3 editors); "Send to Research" double-navigated likewise. Fixed: open normally + sever opener manually (openDraftProNewTab, openInNewTab).
+- UX improvements:
+  5. Streaming for EVERY message: wantsToolAction regex forced most real legal questions onto the blocking path. streamMessage now declares tools, accumulates functionCalls (+thoughtSignature) from SSE, AloaChat streams first for all messages and streams post-tool rounds; blocking sendMessage remains the fallback.
+  6. validateAIResponse nuked entire answers on one leaked phrase → surgical phrase-level redaction (longest-first) + canned line only for all-leak responses; +6 unit tests (tests/unit/identityRedaction.test.ts).
+  7. Team-schedule prompt block enumerated every user's events for the WHOLE YEAR in every message → next 30 days + yearly totals.
+  8. Multipart analysis: +90s timeout + 1 fallback model; fallbackPlan reordered (flash tier before 2.5-pro).
+  9. Landing page_view analytics rejected (required firmId + staff auth) → anonymous safe-list (page_view only), stored with public markers.
+- Also observed, not changed: CSP console noise for '[::1]:3210' invalid source in dev; product tour + why-floater + toasts stack on first login (FAB hidden while tour modal open — by design); wizard Communication step leads with Atrium-ish copy for Vega firms.
+- Gates: tsc 129 (baseline), vitest 1107/1107 (+6), UI ratchet 2372 held, vite build green. Live re-verified: single DraftPro tab, chat intact, zero Brain/RAG errors, ARIA/ALOA identities correct on both products. Committed 498cd750, pushed to main.
+
+Stage Summary:
+- 9 fixes for the AI assistants shipped (4 critical dead-feature/hijack bugs, 5 UX/robustness improvements). The Brain and Rules & Forms retrieval had never worked in production — both live now. Every ALOA/ARIA message now streams.
+- Deploy: staging auto-deployed on push; production promote for 498cd750 to follow (Vercel + Convex + Cloudflare mirror).
+- Standing note: public CORS proxies power research web search (fragile; Convex server-side fetchUrlContent/searchWeb actions exist but unused) — recommend switching to the Convex actions next.
