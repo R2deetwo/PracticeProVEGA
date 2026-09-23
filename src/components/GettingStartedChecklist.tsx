@@ -5,6 +5,7 @@ import { api } from '../../convex/_generated/api';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
+import { useAloa } from '../contexts/AloaProvider';
 import { CheckCircleIcon, ChevronDownIcon, XIcon, InfoIcon, ChevronRightIcon, LightbulbIcon } from '../constants';
 import { ChevronUp as ChevronUpIcon } from 'lucide-react';
 // ADR-0004 ratchet: no new raw <button> in src/components — the floater's
@@ -183,6 +184,10 @@ const GettingStartedChecklist: React.FC = () => {
   const { currentUser, bearerToken } = useAuth();
   const { navigateTo, openModal, addToast, setHighlightTarget } = useUI();
   const { isProperty, isUnified, isProductResolved } = useProduct();
+  // 2026-09-24: while the ALOA/ARIA chat panel is open, the "Why this
+  // matters" floater must not render — it anchors bottom-right, exactly
+  // over the panel, and swallowed clicks on chat action buttons.
+  const { isPanelOpen: isAssistantPanelOpen } = useAloa();
   const firmId = (currentUser as any)?.firmId || '';
 
   // SERVER-SIDE DISMISSAL (2026-09-14): firms.checklistDismissedAt is the
@@ -734,8 +739,16 @@ const GettingStartedChecklist: React.FC = () => {
       {/* WHY FLOATER — dismissible "Why this matters" card. Portal-mounted so
           it escapes the sidebar's stacking/transform context and sits fixed
           over the viewport: above the Aloa FAB (bottom-20/right-6), below
-          toasts (z-[9999]). */}
-      {whyItem && createPortal(
+          toasts (z-[9999]).
+
+          2026-09-24 ALOA-panel ambush fix (caught by the Task 70 E2E): the
+          floater anchors to the bottom-RIGHT (sm:left-auto sm:w-[350px]) —
+          exactly where the ALOA/ARIA chat panel lives. With the panel open
+          it covered the chat's action buttons (e.g. a packet's "Draft all
+          documents") and swallowed their clicks. Same suppression pattern
+          as the 2026-09-23 tour fix: while the assistant panel is open the
+          floater does not render; it returns once the panel closes. */}
+      {whyItem && !isAssistantPanelOpen && createPortal(
         <div
           role="dialog"
           aria-label={`Why this matters: ${whyItem.label}`}

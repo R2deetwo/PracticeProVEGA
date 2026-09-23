@@ -107,6 +107,20 @@ describe('buildPacketDraftPrompt — the anti-weak-draft fix', () => {
         expect(property).toContain('property manager');
     });
 
+    it('injects firm research playbooks (web-learned knowledge) when provided', () => {
+        const prompt = buildPacketDraftPrompt(basePacket, 0, {
+            playbookContext: 'FIRM RESEARCH KNOWLEDGE (learned from public legal research — NOT user facts):\nPLAYBOOK 1 — Recovering possession of a tenanted flat in Lagos\nProcess: notice to quit → 7-day notice → filing.',
+        });
+        expect(prompt).toContain('FIRM RESEARCH KNOWLEDGE');
+        expect(prompt).toContain('PLAYBOOK 1');
+        expect(prompt.indexOf('PLAYBOOK 1')).toBeLessThan(prompt.indexOf('FACTS FROM THE CONVERSATION'));
+    });
+
+    it('demands zero vertical gaps in every packet draft (2026-09-24)', () => {
+        const prompt = buildPacketDraftPrompt(basePacket, 0, {});
+        expect(prompt).toContain('Zero vertical gaps');
+    });
+
     it('throws for an out-of-range index instead of drafting the wrong document', () => {
         expect(() => buildPacketDraftPrompt(basePacket, 9, {})).toThrow();
     });

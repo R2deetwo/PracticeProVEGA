@@ -53,9 +53,11 @@ export interface DocumentPacket {
     createdAt: string;
 }
 
-/** Result of preparing + opening one packet document in DraftPro. */
+/** Result of preparing + opening one packet document in DraftPro.
+ *  'ready' = the document is fully drafted and persisted (background
+ *  pre-draft) — opening it loads the saved draft instantly. */
 export interface PacketDraftResult {
-    status: 'opened' | 'blocked' | 'error';
+    status: 'opened' | 'blocked' | 'ready' | 'error';
     draftKey: string;
     draftUrl: string;
     /** True when an existing saved draft was found (never re-drafted over). */
@@ -99,6 +101,11 @@ export function buildPacketDraftPrompt(
         conversationContext?: string;
         /** Atrium/property mode — the principal is a property manager. */
         isProperty?: boolean;
+        /** Firm research knowledge from past web research (playbooks) —
+         *  process order, legal requirements, document lists. Injected so
+         *  the firm's accumulated research makes every draft sharper
+         *  (2026-09-24 “learn from the web, never from user data”). */
+        playbookContext?: string;
     } = {}
 ): string {
     const doc = packet.documents[docIndex];
@@ -136,7 +143,12 @@ export function buildPacketDraftPrompt(
         ? '- The user is the property manager (drafting on the landlord/owner side) unless the facts below say otherwise.'
         : '- The user is the lawyer/solicitor (drafting for their client) unless the facts below say otherwise.');
     lines.push('- Structure the document according to its type (letter, notice, agreement, court process) — no court captions on non-court documents, no decorative recitals.');
+    lines.push('- Zero vertical gaps: no empty paragraphs, no <br><br>, no spacer lines — the editor supplies all paragraph spacing at a fixed professional 1.5 line spacing.');
     lines.push('');
+    if (opts.playbookContext && opts.playbookContext.trim()) {
+        lines.push(opts.playbookContext.trim());
+        lines.push('');
+    }
     lines.push('FACTS FROM THE CONVERSATION:');
     lines.push(opts.conversationContext?.trim()
         ? opts.conversationContext.trim()

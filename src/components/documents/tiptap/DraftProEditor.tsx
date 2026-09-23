@@ -47,6 +47,12 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import LegalPlaceholder, { resolveCategory } from './extensions/LegalPlaceholder';
 import { getPlaceholderDef, resolveAutoFill, PlaceholderCategory, PLACEHOLDER_REGISTRY } from '../../../constants/placeholderRegistry';
 import { getAssistantName } from '../../../utils/assistantIdentity';
+// Shared AI-draft HTML post-processing (fences, markdown bold, <br> pairs,
+// empty-paragraph gaps, [PLACEHOLDER] → spans). One pipeline for the
+// in-editor stream, the final pass, abort recovery AND ALOA's background
+// packet drafting — previously four slightly-different inline copies, and
+// none of them stripped the "weird gaps" (2026-09-24 user report).
+import { cleanDraftHtml, finalizeDraftHtml } from '../../../utils/draftHtml';
 import GenerationOverlay from './GenerationOverlay';
 import { LegalPartiesGroup } from './extensions/LegalPartiesGroup';
 import { PageBreak } from './extensions/PageBreak';
@@ -302,11 +308,133 @@ const ToolbarBtn: React.FC<{
 };
 
 // ─── Auto Pagination Extension ───────────────────────────────────────────────
+// 2026-09-24 REWRITE (user report: "the text is overlapping — we should never
+// have a situation where text is overlapping like this; I have never seen it
+// happen in any other word processor").
+//
+// WHY THE OLD VERSION OVERLAPPED: it kept a hand-rolled running total of
+// block heights (`offsetHeight + marginBottom`) and ignored margin-TOP,
+// CSS margin collapse, and blocks taller than a page. Every drift error
+// accumulated silently until content bled across a sheet boundary straight
+// on top of the next page's text. A block taller than one usable page was
+// "jumped" to the next page top — where its own tail already was —
+// guaranteeing text-on-text overlap.
+//
+// THE NEW VERSION IS POSITION-BASED:
+//   1. Measure every top-level node's REAL layout box (offsetTop /
+//      offsetHeight — margins and collapse are already baked in by the
+//      browser, so there is nothing to hand-count).
+//   2. Recover each node's natural position by subtracting the jump margin
+//      it currently carries (known from the previous decoration set).
+//   3. Simulate pages sequentially in flow space: a node that would cross
+//      its page's usable bottom is pushed to the next page's content top —
+//      UNLESS (a) it is already the first node on its page, or (b) it is
+//      taller than a full usable page, in which case it can never fit on
+//      any page: it flows naturally across the boundary (a real word
+//      processor would split it) and the following node continues right
+//      after it — never stacked on top of it.
+//   4. Re-measure triggers: every document change, plus forced passes on
+//      zoom change, webfont load and window resize (see the
+//      forcePagination effects in the component) — stale decorations at
+//      stale metrics were a second overlap source.
 const AutoPagination = Extension.create({
     name: 'autoPagination',
 
     addProseMirrorPlugins() {
         const pluginKey = new PluginKey('autoPagination');
+        const PAGE_STRIDE = PAGE_HEIGHT_PX + PAGE_GAP_PX;
+        const FIRST_CONTENT_TOP = PAGE_MARGIN_PX + HEADER_HEIGHT_PX;
+        const pageContentTop = (page: number) => page * PAGE_STRIDE + FIRST_CONTENT_TOP;
+        const pageUsableBottom = (page: number) => page * PAGE_STRIDE + PAGE_HEIGHT_PX - PAGE_MARGIN_PX - FOOTER_HEIGHT_PX;
+
+        const runPass = (view: any) => {
+            // 1. Current jump decorations → pos → applied margin, so each
+            // node's NATURAL (un-jumped) position can be recovered.
+            const currentSet = pluginKey.getState(view.state) as DecorationSet;
+            const appliedJump = new Map<number, number>();
+            for (const d of currentSet.find()) {
+                const style = (d as any).type?.attrs?.style || '';
+                const m = /margin-top:\s*([\d.]+)px/.exec(style);
+                if (m) appliedJump.set(d.from, parseFloat(m[1]));
+            }
+
+            // 2. Measure the real boxes of all top-level blocks.
+            const nodes: { pos: number; nodeSize: number; naturalTop: number; height: number }[] = [];
+            view.state.doc.forEach((node: any, offset: number) => {
+                const dom = view.nodeDOM(offset) as HTMLElement | null;
+                if (!dom) return;
+                const jump = appliedJump.get(offset) || 0;
+                nodes.push({
+                    pos: offset,
+                    nodeSize: node.nodeSize,
+                    naturalTop: dom.offsetTop - jump,
+                    height: dom.offsetHeight,
+                });
+            });
+
+            // 3. Simulate page assignment in flow space.
+            const decos: Decoration[] = [];
+            let prevSimBottom: number | null = null;
+            let prevNaturalBottom: number | null = null;
+            let lastPage = 0;
+
+            for (const n of nodes) {
+                // Natural gap to the previous node — margin collapse is
+                // already embedded in the measured positions.
+                const gap: number = prevNaturalBottom === null
+                    ? 0
+                    : Math.max(0, n.naturalTop - prevNaturalBottom);
+
+                let simTop: number = prevSimBottom === null
+                    ? Math.max(n.naturalTop, FIRST_CONTENT_TOP)
+                    : (prevSimBottom as number) + gap;
+
+                // Which page sheet does simTop land on? (Clamped forward —
+                // content never moves to an earlier page than its peers.)
+                let page = Math.max(lastPage, Math.floor((simTop - FIRST_CONTENT_TOP) / PAGE_STRIDE));
+                if (page < 0) page = 0;
+
+                const isAtPageContentTop = simTop <= pageContentTop(page) + 2; // first node on its page
+                const fitsInOnePage = n.height <= USABLE_CONTENT_HEIGHT + 1;
+                let jump = 0;
+                if (fitsInOnePage && !isAtPageContentTop && simTop + n.height > pageUsableBottom(page)) {
+                    page += 1;
+                    jump = Math.max(0, Math.round(pageContentTop(page) - simTop));
+                    simTop = pageContentTop(page);
+                }
+
+                if (jump > 0) {
+                    decos.push(
+                        Decoration.node(n.pos, n.pos + n.nodeSize, {
+                            style: `margin-top: ${jump}px !important;`,
+                            class: 'auto-paginated-node',
+                        })
+                    );
+                }
+
+                lastPage = Math.max(lastPage, page);
+                prevSimBottom = simTop + n.height;
+                prevNaturalBottom = n.naturalTop + n.height;
+            }
+
+            // 4. Only dispatch when something actually changed — otherwise
+            // this pass (fired on every doc update) would loop.
+            const currentArray = currentSet.find();
+            let isDifferent = decos.length !== currentArray.length;
+            if (!isDifferent) {
+                for (let i = 0; i < decos.length; i++) {
+                    const d1 = decos[i] as any;
+                    const d2 = currentArray[i] as any;
+                    if (d1.from !== d2.from || d1.to !== d2.to || d1.type.attrs.style !== d2.type.attrs.style) {
+                        isDifferent = true;
+                        break;
+                    }
+                }
+            }
+            if (isDifferent) {
+                view.dispatch(view.state.tr.setMeta(pluginKey, DecorationSet.create(view.state.doc, decos)));
+            }
+        };
 
         return [
             new Plugin({
@@ -332,64 +460,12 @@ const AutoPagination = Extension.create({
                     return {
                         update(view, prevState) {
                             if (prevState.doc.eq(view.state.doc) && !view.state.tr.getMeta('forcePagination')) return;
-
+                            // rAF: measure after the DOM has actually laid
+                            // the new content out.
                             requestAnimationFrame(() => {
-                                const TOP_RESERVED = PAGE_MARGIN_PX + HEADER_HEIGHT_PX; // 176
-                                const BOTTOM_RESERVED = PAGE_MARGIN_PX + FOOTER_HEIGHT_PX; // 136
-
-                                let spaceUsed = 0;
-                                const decos: Decoration[] = [];
-
-                                view.state.doc.descendants((node, pos) => {
-                                    if (node.isBlock && view.state.doc.resolve(pos).depth === 0) {
-                                        const dom = view.nodeDOM(pos) as HTMLElement;
-                                        if (dom) {
-                                            const style = window.getComputedStyle(dom);
-                                            const marginBottom = parseFloat(style.marginBottom) || 0;
-                                            const childHeight = dom.offsetHeight + marginBottom;
-
-                                            if (spaceUsed + childHeight > USABLE_CONTENT_HEIGHT) {
-                                                const spaceLeft = USABLE_CONTENT_HEIGHT - spaceUsed;
-                                                const jumpMargin = spaceLeft + BOTTOM_RESERVED + PAGE_GAP_PX + TOP_RESERVED;
-
-                                                decos.push(
-                                                    Decoration.node(pos, pos + node.nodeSize, {
-                                                        style: `margin-top: ${jumpMargin}px !important;`,
-                                                        class: 'auto-paginated-node'
-                                                    })
-                                                );
-
-                                                spaceUsed = childHeight;
-                                            } else {
-                                                spaceUsed += childHeight;
-                                            }
-                                        }
-                                    }
-                                    return false; // Don't descend
-                                });
-
-                                const currentSet = pluginKey.getState(view.state) as DecorationSet;
-                                const currentArray = currentSet.find();
-
-                                let isDifferent = decos.length !== currentArray.length;
-                                if (!isDifferent) {
-                                    for (let i = 0; i < decos.length; i++) {
-                                        const d1 = decos[i] as any;
-                                        const d2 = currentArray[i] as any;
-                                        if (
-                                            d1.from !== d2.from ||
-                                            d1.to !== d2.to ||
-                                            d1.type.attrs.style !== d2.type.attrs.style
-                                        ) {
-                                            isDifferent = true;
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (isDifferent) {
-                                    const newSet = DecorationSet.create(view.state.doc, decos);
-                                    view.dispatch(view.state.tr.setMeta(pluginKey, newSet));
+                                if (view.isDestroyed) return;
+                                try { runPass(view); } catch (e) {
+                                    console.warn('[AutoPagination] pass failed:', e);
                                 }
                             });
                         },
@@ -1106,12 +1182,10 @@ ${sourceList}
                     const now = Date.now();
                     if (now - lastStreamUpdate > 250) {
                         lastStreamUpdate = now;
-                        let preview = draftBuffer
-                            .replace(/```html/g, '')
-                            .replace(/```/g, '')
-                            .replace(/\\n/g, '\n')
-                            .replace(/\r/g, '');
-                        preview = preview.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                        // Shared cleanup pipeline (fences, markdown bold,
+                        // doubled <br>, empty paragraphs) — see
+                        // utils/draftHtml.ts.
+                        const preview = cleanDraftHtml(draftBuffer);
                         if (preview.trim()) {
                             try {
                                 editor.commands.setContent(preview);
@@ -1139,18 +1213,9 @@ ${sourceList}
                     editor.setEditable(true);
                     const trimmedBuffer = draftBuffer.trim();
                     if (editor && trimmedBuffer) {
-                        let cleanDraft = trimmedBuffer
-                            .replace(/```html/g, '')
-                            .replace(/```/g, '')
-                            .replace(/\\n/g, '\n')
-                            .replace(/\r/g, '');
-
-                        cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                            const cat = resolveCategory(label);
-                            return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
-                        });
+                        // Full shared pipeline: cleanup + [PLACEHOLDER]
+                        // conversion (utils/draftHtml.ts).
+                        const processedDraft = finalizeDraftHtml(trimmedBuffer);
 
                         try {
                             editor.commands.setContent(processedDraft);
@@ -1222,16 +1287,8 @@ ${sourceList}
                     // where the stream produced some content then stalled.
                     const trimmedBuffer = draftBuffer.trim();
                     if (editor && !editor.isDestroyed && trimmedBuffer) {
-                        let cleanDraft = trimmedBuffer
-                            .replace(/```html/g, '')
-                            .replace(/```/g, '')
-                            .replace(/\\n/g, '\n')
-                            .replace(/\r/g, '');
-                        cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                            const cat = resolveCategory(label);
-                            return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
-                        });
+                        // Shared pipeline (utils/draftHtml.ts).
+                        const processedDraft = finalizeDraftHtml(trimmedBuffer);
                         try {
                             editor.commands.setContent(processedDraft);
                         } catch (err) {
@@ -1246,16 +1303,8 @@ ${sourceList}
                     try {
                         const trimmedBuffer = draftBuffer.trim();
                         if (editor && !editor.isDestroyed && trimmedBuffer) {
-                            let cleanDraft = trimmedBuffer
-                                .replace(/```html/g, '')
-                                .replace(/```/g, '')
-                                .replace(/\\n/g, '\n')
-                                .replace(/\r/g, '');
-                            cleanDraft = cleanDraft.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                            const processedDraft = cleanDraft.replace(/\[([^\]]+)\]/g, (_, label) => {
-                                const cat = resolveCategory(label);
-                                return `<span data-type="legal-placeholder" data-label="${label.toUpperCase()}" data-category="${cat}"></span>`;
-                            });
+                            // Shared pipeline (utils/draftHtml.ts).
+                            const processedDraft = finalizeDraftHtml(trimmedBuffer);
                             try {
                                 editor.commands.setContent(processedDraft);
                             } catch (err) {
@@ -1921,9 +1970,66 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
         addToast('Redrafting your document...', { type: 'info' });
     }, [redraftContext, activeDraftPrompt, draftPrompt, title, addToast]);
 
-    // Page count derived from structural pageBreak nodes OR dynamic content height
-    const calculatedPages = Math.max(pageBreakCount + 1, Math.ceil(contentHeight / PAGE_HEIGHT_PX));
+    // Page count derived from structural pageBreak nodes OR dynamic content
+    // height. 2026-09-24 fix: the old formula (`ceil(contentHeight /
+    // PAGE_HEIGHT_PX)`) ignored the PAGE_GAP between sheets and the header/
+    // footer reserves — it undercounted pages, so content ran past the last
+    // painted sheet. Correct math for content flowing over sheets of
+    // PAGE_HEIGHT with PAGE_GAP spacing, starting at the first content top:
+    // a full page of content ends at contentHeight = PAGE_HEIGHT, and
+    // (PAGE_HEIGHT + PAGE_GAP) / (PAGE_HEIGHT + PAGE_GAP) = exactly 1 page.
+    const calculatedPages = Math.max(
+        pageBreakCount + 1,
+        Math.ceil((contentHeight + PAGE_GAP_PX) / (PAGE_HEIGHT_PX + PAGE_GAP_PX)),
+        1,
+    );
     const pageCount = calculatedPages;
+
+    // ─── Forced re-pagination on LAYOUT-only changes ────────────────────
+    // The AutoPagination plugin re-measures on every doc change, but zoom,
+    // webfont loading and window resizes change layout WITHOUT changing the
+    // doc. Stale decorations at stale metrics were a second overlap source
+    // (content measured at zoom=1, displayed at zoom=1.5). Force a pass —
+    // twice: immediately, and again after the reflow settles.
+    useEffect(() => {
+        if (!editor) return;
+        let cancelled = false;
+        const force = () => {
+            if (cancelled || editor.isDestroyed) return;
+            try {
+                editor.view.dispatch(editor.state.tr.setMeta('forcePagination', true));
+            } catch { /* editor torn down mid-force */ }
+        };
+        force();
+        const t1 = setTimeout(force, 300);
+        const t2 = setTimeout(force, 800);
+        return () => { cancelled = true; clearTimeout(t1); clearTimeout(t2); };
+    }, [editor, zoom]);
+
+    useEffect(() => {
+        if (!editor) return;
+        let cancelled = false;
+        const force = () => {
+            if (cancelled || editor.isDestroyed) return;
+            try {
+                editor.view.dispatch(editor.state.tr.setMeta('forcePagination', true));
+            } catch { /* ignore */ }
+        };
+        // Webfonts change text metrics once loaded — re-measure after.
+        (document as any).fonts?.ready?.then?.(() => force()).catch?.(() => {});
+        // Window resizes can reflow the content column.
+        let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+        const onResize = () => {
+            if (resizeTimer) clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(force, 250);
+        };
+        window.addEventListener('resize', onResize);
+        return () => {
+            cancelled = true;
+            window.removeEventListener('resize', onResize);
+            if (resizeTimer) clearTimeout(resizeTimer);
+        };
+    }, [editor]);
 
     // Track the current page based on the scroll position of the editor canvas.
     // Previously this was hardcoded to "Page 1 of N" — now it reflects where
@@ -3655,15 +3761,25 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
 
             {/* ── Styles ── */}
             <style>{`
-        /* ── DraftPro Content Typography ── */
+        /* ── DraftPro Content Typography ──
+           2026-09-24 tightening (user: "sharpen the drafting skills so the
+           formatting is even tighter in terms of quality and output and
+           professional linespacing"): paragraph spacing reduced from a full
+           1em to 0.7em (≈8pt at 12pt body — Word's standard "6-8pt after"),
+           heading margins rebalanced so a heading reads as attached to the
+           text it introduces (generous above, tight below), and the dated
+           h3 underline removed — Nigerian court-process headings are bold,
+           not underlined. Line spacing stays at a professional 1.5. */
         .draftpro-editor-content { padding-bottom: 120px; }
-        .draftpro-editor-content h1 { font-size: 16pt; font-weight: bold; text-transform: uppercase; text-align: center; margin: 1em 0; break-after: avoid; }
-        .draftpro-editor-content h2 { font-size: 14pt; font-weight: bold; margin: 1em 0; break-after: avoid; }
-        .draftpro-editor-content h3 { font-size: 12pt; font-weight: bold; text-decoration: underline; margin: 1em 0; break-after: avoid; }
-        .draftpro-editor-content p  { margin: 0 0 1em 0; orphans: 2; widows: 2; }
-        .draftpro-editor-content ul, .draftpro-editor-content ol { padding-left: 1.5em; margin-bottom: 1em; }
+        .draftpro-editor-content h1 { font-size: 16pt; font-weight: bold; text-transform: uppercase; text-align: center; margin: 1.1em 0 0.5em; break-after: avoid; letter-spacing: 0.02em; }
+        .draftpro-editor-content h2 { font-size: 14pt; font-weight: bold; margin: 1em 0 0.45em; break-after: avoid; }
+        .draftpro-editor-content h3 { font-size: 12pt; font-weight: bold; margin: 0.9em 0 0.4em; break-after: avoid; }
+        .draftpro-editor-content h1 + p, .draftpro-editor-content h2 + p, .draftpro-editor-content h3 + p { margin-top: 0; }
+        .draftpro-editor-content p  { margin: 0 0 0.7em 0; orphans: 2; widows: 2; }
+        .draftpro-editor-content p:first-child { margin-top: 0; }
+        .draftpro-editor-content ul, .draftpro-editor-content ol { padding-left: 1.5em; margin: 0 0 0.7em 0; }
         .draftpro-editor-content li { margin-bottom: 0.25em; break-inside: avoid; }
-        .draftpro-editor-content table { border-collapse: collapse; width: 100%; margin-bottom: 1.5em; }
+        .draftpro-editor-content table { border-collapse: collapse; width: 100%; margin-bottom: 1.2em; }
         .draftpro-editor-content th, .draftpro-editor-content td { border: 1px solid #cbd5e1; padding: 8px 12px; min-width: 1em; position: relative; }
         .draftpro-editor-content th { background: #f8fafc; font-weight: bold; text-align: left; }
         .draftpro-editor-content img { max-width: 100%; height: auto; border-radius: 4px; margin: 1em 0; }

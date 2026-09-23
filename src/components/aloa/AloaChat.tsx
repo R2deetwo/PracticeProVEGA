@@ -40,10 +40,12 @@ import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
 import { shouldBlockToolCall } from '../../utils/intentGate';
 import { DocumentPacket, PacketDraftResult, normalizePacketArgs, buildPacketDraftPrompt, packetDocDraftKey, packetDocDraftUrl, mentionsDocumentSet } from '../../utils/documentPacket';
+import { finalizeDraftHtml, draftHasSubstance } from '../../utils/draftHtml';
+import { savePlaybook, findRelevantPlaybooks, renderPlaybookContext } from '../../utils/legalPlaybookStore';
+import { DocumentPacketCard, DocStatus } from './DocumentPacketCard';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
 import { searchPortfolio, toPropertyToolResult } from '../../utils/portfolioContext';
 import { JurisdictionCard } from './JurisdictionCard';
-import { DocumentPacketCard } from './DocumentPacketCard';
 import { 
     AloaIcon, MicrophoneIcon, StopIcon, SparklesIcon, ZapIcon, BookmarkIcon, 
     PlusIcon, EditIcon, ClipboardListIcon, ChevronDownIcon, CloudArrowUpIcon, 
@@ -57,6 +59,12 @@ import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceA
 
 // URL detection regex — matches http(s):// URLs in user messages
 const URL_REGEX = /https?:\/\/[^\s<>"']{4,}/gi;
+
+// ─── Background packet drafting (2026-09-24) ─────────────────────────
+// In-flight background drafts keyed by draftKey. Module-level so a card
+// re-render or a second "Draft all" click SHARES the running draft instead
+// of double-calling the drafting API for the same document.
+const preDraftInFlight = new Map<string, Promise<PacketDraftResult>>();
 
 // ─── TASK 63: message-save failure surfacing ──────────────────────────
 // saveMessageMutation calls were fire-and-forget (`void`) — when a save
@@ -698,9 +706,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             .map(m => (m.content as string).trim())
             .join('\n');
 
+        // ─── FIRM RESEARCH KNOWLEDGE (2026-09-24) ─────────────────────
+        // Playbooks learned from past WEB RESEARCH for similar jobs —
+        // process order, legal requirements, document lists. Never user
+        // data (see legalPlaybookStore).
+        let playbookContext = '';
+        try {
+            const playbooks = findRelevantPlaybooks(fid, `${packet.jobTitle} ${doc.name}`);
+            playbookContext = renderPlaybookContext(playbooks);
+        } catch { /* best-effort — drafting proceeds without it */ }
+
         const prompt = buildPacketDraftPrompt(packet, docIndex, {
             conversationContext,
             isProperty,
+            playbookContext,
         });
 
         try {
@@ -756,6 +775,125 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             console.warn('[packetDraft] open failed:', e);
             return { status: 'error', draftKey, draftUrl, hadContent: false, error: e?.message || String(e) };
         }
+    };
+
+    // ─── BACKGROUND PACKET DRAFTING (2026-09-24, user feedback round 3) ──
+    // "when i click to open the next one it is clear that it just started
+    //  drafting it and had not actually been drafted yet despite hitting
+    //  the draft all button."
+    //
+    // preDraftPacketDoc FULLY drafts one packet document in the background
+    // (no tab) and persists it, so "Draft all" genuinely drafts every
+    // document and opening any of them later is instant. The in-flight map
+    // deduplicates concurrent runs of the same document.
+    const preDraftPacketDoc = async (packet: DocumentPacket, docIndex: number): Promise<PacketDraftResult> => {
+        const doc = packet.documents[docIndex];
+        if (!doc) return { status: 'error', draftKey: '', draftUrl: '', hadContent: false, error: 'Document not found in packet.' };
+
+        const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
+        const draftKey = packetDocDraftKey(packet, docIndex);
+        const draftUrl = packetDocDraftUrl(draftKey, doc.name);
+
+        // 1. Already drafted (or being edited)? Never re-draft over work.
+        try {
+            const stored = fid ? loadDraftSession(fid, draftKey) : null;
+            if (stored?.content && draftHasSubstance(stored.content)) {
+                return { status: 'ready', draftKey, draftUrl, hadContent: true };
+            }
+        } catch { /* fall through */ }
+
+        // 2. Already drafting in the background? Share that promise.
+        const inflight = preDraftInFlight.get(draftKey);
+        if (inflight) return inflight;
+
+        // 3. Same rich, packet-aware prompt as the live path — plus the
+        //    firm's research playbooks (learned from the web, never from
+        //    user data).
+        const conversationContext = messages
+            .filter(m => m.role === 'user' && typeof m.content === 'string' && (m.content as string).trim())
+            .slice(-6)
+            .map(m => (m.content as string).trim())
+            .join('\n');
+        let playbookContext = '';
+        try {
+            const playbooks = findRelevantPlaybooks(fid, `${packet.jobTitle} ${doc.name}`);
+            playbookContext = renderPlaybookContext(playbooks);
+        } catch { /* best-effort */ }
+        const prompt = buildPacketDraftPrompt(packet, docIndex, {
+            conversationContext,
+            isProperty,
+            playbookContext,
+        });
+
+        const appStateForDraft = {
+            ...coreState, ...matterState, ...executionState, ...financeState, ...documentState,
+        } as any;
+
+        const task = (async (): Promise<PacketDraftResult> => {
+            let buffer = '';
+            await aiService.streamDraft(
+                [{ role: 'user', content: prompt }],
+                { appState: appStateForDraft, currentUser: currentUser! },
+                (chunk) => { buffer += chunk; },
+            );
+            // Shared deterministic pipeline — the same cleanup + [PLACEHOLDER]
+            // conversion the DraftPro editor applies, so background drafts
+            // are pixel-identical in quality to in-editor ones.
+            const html = finalizeDraftHtml(buffer);
+            if (!draftHasSubstance(html)) {
+                return { status: 'error', draftKey, draftUrl, hadContent: false, error: 'The drafting model returned an empty draft.' };
+            }
+            try {
+                saveDraftSession(fid, draftKey, {
+                    title: doc.name,
+                    content: html,
+                    draftPrompt: prompt, // kept so Redraft can re-run it
+                    updatedAt: new Date().toISOString(),
+                    savedAt: Date.now(),
+                });
+            } catch (e) {
+                console.warn('[preDraftPacketDoc] saveDraftSession failed:', e);
+            }
+            return { status: 'ready', draftKey, draftUrl, hadContent: false };
+        })().catch((e: any): PacketDraftResult => ({
+            status: 'error',
+            draftKey,
+            draftUrl,
+            hadContent: false,
+            error: e?.message || String(e),
+        })).finally(() => {
+            preDraftInFlight.delete(draftKey);
+        });
+
+        preDraftInFlight.set(draftKey, task);
+        return task;
+    };
+
+    /** Toast summary when a "Draft all" run completes (chat-level cue). */
+    const handlePacketDraftAllComplete = (s: { total: number; ready: number; opened: number; errors: number }) => {
+        const readyTotal = s.ready + s.opened;
+        if (s.errors > 0) {
+            addToast(`Packet drafting finished — ${readyTotal} of ${s.total} drafts ready. ${s.errors} need a retry from the card.`, { type: 'warning' });
+        } else if (readyTotal === s.total) {
+            addToast(`All ${s.total} drafts in this packet are ready — open them from the card as you need.`, { type: 'success' });
+        }
+    };
+
+    /**
+     * Row statuses for a packet card at mount: any document that already
+     * has a persisted draft shows as "Drafted — ready to open" instead of
+     * pretending nothing happened (survives reloads and re-opens).
+     */
+    const getPacketInitialStatuses = (packet: DocumentPacket): DocStatus[] => {
+        const fid = currentUser?.firmId || coreState?.firmDetails?.id || '';
+        return packet.documents.map((doc, i) => {
+            try {
+                const stored = fid ? loadDraftSession(fid, packetDocDraftKey(packet, i)) : null;
+                return stored?.content && draftHasSubstance(stored.content) ? 'ready' : 'idle';
+            } catch {
+                return 'idle';
+            }
+        });
     };
 
     const handleToolExecution = async (
@@ -974,6 +1112,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             draftPrompt: args.prompt,
                         };
 
+                        // ─── FIRM RESEARCH KNOWLEDGE (2026-09-24) ───────
+                        // Same web-research playbooks as packet drafts: if
+                        // the firm has researched this kind of job before,
+                        // the drafting prompt carries that process/legal
+                        // knowledge. Never user data.
+                        try {
+                            const fidPb = currentUser?.firmId || coreState?.firmDetails?.id || '';
+                            if (fidPb && draftConfig.draftPrompt) {
+                                const playbooks = findRelevantPlaybooks(
+                                    fidPb,
+                                    `${draftConfig.draftTitle || ''} ${draftConfig.draftPrompt} ${conversationContext || ''}`.slice(0, 800),
+                                );
+                                const pbCtx = renderPlaybookContext(playbooks);
+                                if (pbCtx) {
+                                    draftConfig.draftPrompt = `${draftConfig.draftPrompt}\n\n${pbCtx}`;
+                                }
+                            }
+                        } catch { /* best-effort — drafting proceeds without it */ }
+
                         // ─── Attach citations (research mode) ────────────────
                         // If the AI passed a citations array in the tool call,
                         // add them to the registry and attach to the draft.
@@ -1149,6 +1306,35 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         jurisdiction: src.jurisdiction,
                                     });
                                 }
+                            }
+
+                            // ─── LEARN FROM THE RESEARCH (2026-09-24) ─────
+                            // The user: "anything it gets from the web it
+                            // should learn from in terms of legal drafting
+                            // and law — but it should not use user data to
+                            // learn." The researched process knowledge
+                            // (process order, legal requirements, document
+                            // list, sources) is saved as a firm playbook so
+                            // future similar jobs draft sharper. The
+                            // scrubber guarantees no user-identifying
+                            // material is ever persisted.
+                            try {
+                                const fidPb = currentUser?.firmId || coreState?.firmDetails?.id || '';
+                                if (fidPb) {
+                                    savePlaybook(fidPb, {
+                                        jobTitle: packet.jobTitle,
+                                        processSummary: packet.processSummary,
+                                        legalRequirements: packet.legalRequirements,
+                                        documents: packet.documents.map(d => ({
+                                            name: d.name,
+                                            purpose: d.purpose,
+                                            legalBasis: d.legalBasis,
+                                        })),
+                                        sources: packet.sources?.map(s => ({ text: s.text, url: s.url })),
+                                    });
+                                }
+                            } catch (pbErr) {
+                                console.warn('[plan_document_packet] playbook save failed (non-fatal):', pbErr);
                             }
 
                             actionData = {
@@ -3587,6 +3773,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             <DocumentPacketCard
                                                 packet={msg.toolAction.packet}
                                                 onDraftDoc={handlePacketDraft}
+                                                onPreDraftDoc={preDraftPacketDoc}
+                                                onDraftAllComplete={handlePacketDraftAllComplete}
+                                                initialStatuses={getPacketInitialStatuses(msg.toolAction.packet)}
                                             />
                                         </div>
                                     )}

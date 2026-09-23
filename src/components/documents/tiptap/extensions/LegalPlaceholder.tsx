@@ -3,14 +3,26 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
 import { getPlaceholderDef, PlaceholderCategory } from '../../../../constants/placeholderRegistry';
 
-const CATEGORY_STYLES: Record<PlaceholderCategory, { border: string; bg: string; text: string; abbr: string }> = {
-  parties:   { border: 'border-blue-500',   bg: 'bg-blue-100/50',   text: 'text-blue-900 dark:text-blue-200',   abbr: 'P' },
-  dates:     { border: 'border-purple-500', bg: 'bg-purple-100/50', text: 'text-purple-900 dark:text-purple-200', abbr: 'D' },
-  financial: { border: 'border-green-500',  bg: 'bg-green-100/50',  text: 'text-green-900 dark:text-green-200',  abbr: '$' },
-  location:  { border: 'border-teal-500',   bg: 'bg-teal-100/50',   text: 'text-teal-900 dark:text-teal-200',   abbr: 'A' },
-  court:     { border: 'border-rose-500',   bg: 'bg-rose-100/50',   text: 'text-rose-900 dark:text-rose-200',   abbr: 'C' },
-  firm:      { border: 'border-indigo-500', bg: 'bg-indigo-100/50', text: 'text-indigo-900 dark:text-indigo-200', abbr: 'F' },
-  freetext:  { border: 'border-amber-500',  bg: 'bg-amber-100/50',  text: 'text-amber-900 dark:text-amber-200',  abbr: 'T' },
+/**
+ * Category colour system — HIGHLIGHT, not text colour (2026-09-24 user
+ * feedback: "the colors are not very legible — is it possible to have a
+ * highlight rather than change the color of the text so that it is more
+ * legible").
+ *
+ * The placeholder text keeps the document's own ink colour (inherited,
+ * always near-black on the white A4 sheet); the category colour is
+ * applied as a translucent background band — like a highlighter pen —
+ * plus a thin left/right colour core via the dashed underline. This is
+ * dramatically more legible than re-dying the letters themselves.
+ */
+const CATEGORY_STYLES: Record<PlaceholderCategory, { border: string; bg: string; dot: string; abbr: string }> = {
+  parties:   { border: 'border-blue-600',   bg: 'bg-blue-200/70',    dot: 'bg-blue-500',    abbr: 'P' },
+  dates:     { border: 'border-purple-600', bg: 'bg-purple-200/70',  dot: 'bg-purple-500',  abbr: 'D' },
+  financial: { border: 'border-green-600',  bg: 'bg-green-200/70',   dot: 'bg-green-500',   abbr: '$' },
+  location:  { border: 'border-teal-600',   bg: 'bg-teal-200/70',    dot: 'bg-teal-500',    abbr: 'A' },
+  court:     { border: 'border-rose-600',   bg: 'bg-rose-200/70',    dot: 'bg-rose-500',    abbr: 'C' },
+  firm:      { border: 'border-indigo-600', bg: 'bg-indigo-200/70',  dot: 'bg-indigo-500',  abbr: 'F' },
+  freetext:  { border: 'border-amber-600',  bg: 'bg-amber-200/70',   dot: 'bg-amber-500',   abbr: 'T' },
 };
 
 // Safe fallback for any category string that isn't in CATEGORY_STYLES.
@@ -30,6 +42,10 @@ export function resolveCategory(label: string, explicit?: string | null): Placeh
   if (def) return def.category;
   // 2. Pattern-based fallback for placeholders not in the registry
   const n = label.trim().toUpperCase();
+  // Court reference numbers ("SUIT NUMBER", "SUIT NO", "CASE NUMBER") are
+  // COURT facts, not durations — checked before the quantity heuristic so
+  // the word "NUMBER" alone doesn't misfile them.
+  if (/^(SUIT|CASE|MATTER|CAUSE)\s*(NO|NUMBER)/.test(n)) return 'court';
   // Duration/count labels should NOT be dates — they're quantities, not calendar dates
   // e.g. [NUMBER OF DAYS], [NOTICE PERIOD IN WEEKS], [LEASE TERM IN YEARS]
   const isDuration = /\b(NUMBER|COUNT|QUANTITY|DURATION|PERIOD|TERM|LENGTH)\b/.test(n)
@@ -118,11 +134,16 @@ const LegalPlaceholderComponent = (props: any) => {
     <NodeViewWrapper as="span" className="inline text-inherit cursor-pointer" style={{ display: 'inline' }}>
       <span
         onClick={handleClick}
-        className={`inline border-b border-dashed ${style.border} ${style.bg} ${style.text} rounded-sm hover:opacity-80 transition-opacity`}
-        style={{ padding: '0 2px', display: 'inline' }}
+        className={`inline border-b border-dashed ${style.border} ${style.bg} rounded-sm hover:opacity-80 transition-opacity`}
+        style={{ padding: '0 3px', display: 'inline', WebkitBoxDecorationBreak: 'clone', boxDecorationBreak: 'clone' }}
         contentEditable={false}
-        title={`Click to Fill — ${category}`}
+        title={`${label} — click to fill (${category})`}
       >
+        <span
+          className={`inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle ${style.dot}`}
+          style={{ fontSize: 0, lineHeight: 0 }}
+          aria-hidden="true"
+        />
         {label}
       </span>
     </NodeViewWrapper>
