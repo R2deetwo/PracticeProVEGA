@@ -12116,3 +12116,17 @@ Work Log:
 
 Stage Summary:
 - Task 67 LIVE in production (v1.0.644): Brain/RAG + Rules & Forms retrieval working for the first time, DraftPro opens a single tab without hijacking the chat, every ALOA/ARIA message streams. No blockers except the recurring Cloudflare token.
+
+---
+Task ID: task-68-deploy
+Agent: main (Super Z)
+Task: Deploy Task 68 (ALOA phantom-document fix + DraftPro UX) to production.
+
+Work Log:
+- Commit 1d94adce pushed to main (rebased onto 32aab562 CI version bumps).
+- CI: Tests ✓, Deploy to Staging ✓, Build Android APK ✓ (build-1031, v1.0.646).
+- Production promote (run 35884354438): Typecheck+tests ✓, Vercel+Convex deploy & live-verify ✓, Cloudflare mirror ✗ (pre-existing expired CLOUDFLARE_API_TOKEN — needs rotation; standing issue since Task 65).
+- Live verification on practice-pro-vega.vercel.app: version.json sha=1d94adce, status=healthy, apkVersion=1.0.646. Bundle checks: intent-gate BLOCKED strings in index bundle; "GREETINGS GET GREETINGS" ×2 (ALOA+ARIA identity prompts) and hint-banner / "Close editor" / "Save & Close" strings in module-documents bundle.
+
+Stage Summary:
+- Task 68 LIVE in production (v1.0.646). No blockers for this change. Standing: Cloudflare mirror token rotation.
