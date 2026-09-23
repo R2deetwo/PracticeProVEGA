@@ -107,6 +107,7 @@ import BottomNav from './BottomNav';
 import FullScreenSearch from './FullScreenSearch';
 import AloaPanel from './aloa/AloaPanel';
 import AloaFAB from './aloa/AloaFAB';
+import { useAloa } from '../contexts/AloaProvider';
 import { MatterList } from './MatterList';
 
 
@@ -620,6 +621,12 @@ export const App: React.FC = () => {
     const { startTour } = useOnboarding();
     const ui = useUI();
     const { isSessionLocked, setIsSessionLocked, goBack } = ui;
+    // 2026-09-23 DraftPro-ambush fix: the auto-starting product tour was
+    // firing inside dedicated DraftPro tabs (opened by ALOA start_drafting)
+    // 5 seconds into drafting, covering the editor with a "Welcome to Vega"
+    // modal. Same for the ALOA chat panel — the tour backdrop (z-[9999])
+    // buried the open conversation. Both surfaces now suppress the tour.
+    const { isPanelOpen: isAloaPanelOpen } = useAloa();
 
     // ─── PROFESSIONAL IDENTITY — one-shot apply from signup ─────────────────
     // The signup form asks for the user's role + the organization's legal
@@ -1217,6 +1224,16 @@ export const App: React.FC = () => {
             // Don't auto-start the tour for portal users (Client/Tenant)
             const isPortal = currentUser.role === UserRole.Client || currentUser.role === UserRole.Tenant;
             if (isPortal) return;
+            // 2026-09-23 DraftPro-ambush fix: NEVER auto-start the tour on the
+            // editor (DraftPro) view. ALOA opens drafts in a DEDICATED TAB —
+            // the tour used to fire there 5s into drafting and cover the
+            // editor with a "Welcome to Vega" modal, swallowing editor clicks
+            // (Close/Save buttons dead). The tour auto-starts on the next
+            // non-editor view instead; it's always available from Help.
+            if (view === 'editor') return;
+            // Same for an open ALOA/ARIA chat panel: the tour backdrop
+            // (z-[9999]) would bury the live conversation.
+            if (isAloaPanelOpen) return;
             // Don't auto-start the tour while the OnboardingWizard is showing
             // (user has no firm yet, or the wizard-in-progress flag is set) —
             // previously the 5s tour timer fired BEHIND the open wizard.
@@ -1247,7 +1264,7 @@ export const App: React.FC = () => {
                 return () => clearTimeout(timer);
             }
         }
-    }, [flowState, currentUser, startTour, isDataLoaded, forceEntry]);
+    }, [flowState, currentUser, startTour, isDataLoaded, forceEntry, view, isAloaPanelOpen]);
 
     const isPortalUserRole = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;
 

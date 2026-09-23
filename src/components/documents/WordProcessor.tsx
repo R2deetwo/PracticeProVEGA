@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useUI } from '../../contexts/UIContext';
 import { useLocation } from 'react-router-dom';
 import { DraftProEditor } from './tiptap/DraftProEditor';
@@ -8,6 +8,7 @@ import { draftSessionKey, loadDraftSession, saveDraftSession, clearDraftSession 
 import { registerDraftTab } from '../../utils/draftTabs';
 import { readHashContext } from '../../utils/tabNavigation';
 import { getAndClearPendingDraft } from '../../utils/draftContentStore';
+import { isTrivialDraftPrompt } from '../../utils/intentGate';
 
 /** Helper: extract context from ContextResult */
 function extractCtx(result: ReturnType<typeof readHashContext>): Record<string, any> {
@@ -17,7 +18,7 @@ function extractCtx(result: ReturnType<typeof readHashContext>): Record<string, 
 }
 
 export const WordProcessor: React.FC = () => {
-    const { currentHistoryEntry, openModal, goBack } = useUI();
+    const { currentHistoryEntry, openModal, goBack, modal: activeModal } = useUI();
     const location = useLocation();
     const { coreState } = useCoreState();
 
@@ -25,10 +26,17 @@ export const WordProcessor: React.FC = () => {
     const [initialContent, setInitialContent] = useState('');
     const [draftPrompt, setDraftPrompt] = useState<string | undefined>(undefined);
     const [disableAutoDraft, setDisableAutoDraft] = useState(false);
+    const [promptWasTrivial, setPromptWasTrivial] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [sessionKey, setSessionKey] = useState('');
     const [resolvedCitations, setResolvedCitations] = useState<any[] | undefined>(undefined);
     const [resolvedMatterId, setResolvedMatterId] = useState<string | undefined>(undefined);
+    // "Save & Close" (2026-09-23): armed by handleSaveForClose, consumed when
+    // the save-to-vault modal (newDocument) finishes — by SAVE or CANCEL — so
+    // the editor closes right after the user completes the save flow instead
+    // of stranding them on the editor with only the browser back button.
+    const [closeAfterSave, setCloseAfterSave] = useState(false);
+    const prevModalRef = useRef<string | null>(activeModal ?? null);
 
     const firmId = coreState.firmDetails?.id || '';
 
@@ -81,8 +89,16 @@ export const WordProcessor: React.FC = () => {
         // - Otherwise: ALLOW auto-drafting (this is the ALOA → DraftPro path where
         //   ALOA saves an empty-content session with a draftPrompt, and DraftPro
         //   should auto-generate the document on open).
-        const shouldSuppress = ctx.disableAutoDraft || (!!stored?.content && stored.content.trim().length > 0);
+        // - 2026-09-23 phantom-document fix: a TRIVIAL draftPrompt (empty,
+        //   "hello", a lone document-type word) must NEVER auto-draft — that
+        //   is how a greeting once produced a phantom court-captioned
+        //   "advisory". The editor opens blank instead, and the user is
+        //   prompted to say what they actually need.
+        const resolvedPromptForGate = urlPrompt || ctx.draftPrompt || stored?.draftPrompt || '';
+        const promptIsTrivial = isTrivialDraftPrompt(resolvedPromptForGate);
+        const shouldSuppress = ctx.disableAutoDraft || (!!stored?.content && stored.content.trim().length > 0) || promptIsTrivial;
         setDisableAutoDraft(shouldSuppress);
+        setPromptWasTrivial(promptIsTrivial);
 
         const resolvedPrompt = urlPrompt || ctx.draftPrompt || stored?.draftPrompt || undefined;
         setDraftPrompt(resolvedPrompt || undefined);
@@ -171,6 +187,60 @@ export const WordProcessor: React.FC = () => {
     };
 
     /**
+     * Close the DraftPro surface.
+     * - In a DEDICATED tab (opened via window.open): close the tab. The
+     *   draft session is already persisted to localStorage on every edit,
+     *   so nothing is lost even without an explicit save.
+     * - In-place (same tab as the app): go back to the previous view.
+     */
+    const handleClose = () => {
+        try {
+            // A tab opened by script can close itself; a user-created tab
+            // cannot. Try window.close() first and fall back to navigation.
+            const urlParams = new URLSearchParams(window.location.search);
+            const inDedicatedTab =
+                !!urlParams.get('draftKey') &&
+                ((window.opener !== null && window.opener !== undefined) ||
+                    !!(window.name && window.name.startsWith('draftpro-')));
+            if (inDedicatedTab) {
+                window.close();
+                // window.close() is asynchronous and silently fails for
+                // non-script tabs — if we're still here shortly after,
+                // navigate to the app home instead of leaving the user
+                // stranded on a dead editor.
+                window.setTimeout(() => {
+                    if (!document.hidden) window.location.href = '/';
+                }, 180);
+                return;
+            }
+        } catch { /* fall through to goBack */ }
+        goBack();
+    };
+
+    /** "Save & Close" — trigger the vault save flow (opens the newDocument
+     * modal) and arm the auto-close. The effect below closes the editor as
+     * soon as that modal is dismissed, so the user lands back in the app
+     * (or the tab closes) exactly when the save flow is finished. */
+    const handleSaveForClose = (content: string) => {
+        setCloseAfterSave(true);
+        handleSave(content);
+    };
+
+    // Consume the armed close when the save-to-vault modal finishes. We
+    // track the PREVIOUS modal value so we only fire on a genuine
+    // newDocument → null transition (not on unrelated renders).
+    useEffect(() => {
+        const wasNewDocumentModal = prevModalRef.current === 'newDocument';
+        prevModalRef.current = activeModal ?? null;
+        if (closeAfterSave && wasNewDocumentModal && activeModal == null) {
+            setCloseAfterSave(false);
+            // Slight delay lets the modal's own close animation/toasts settle.
+            window.setTimeout(() => handleClose(), 120);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeModal, closeAfterSave]);
+
+    /**
      * Convert HTML to clean plain text — preserves line breaks, lists,
      * and headings, but strips all HTML tags. The result is readable
      * text (not "<p>Hello</p>" but "Hello").
@@ -201,6 +271,7 @@ export const WordProcessor: React.FC = () => {
                     autoStartDrafting={!disableAutoDraft}
                     onSave={handleSave}
                     title={documentTitle}
+                    promptWasTrivial={promptWasTrivial}
                     onTitleChange={(t) => {
                         setDocumentTitle(t);
                         persistDraft(initialContent, t, draftPrompt);
@@ -208,6 +279,8 @@ export const WordProcessor: React.FC = () => {
                     onContentChange={(html) => persistDraft(html, documentTitle, draftPrompt)}
                     disableAloaAutoOpen={disableAutoDraft || !currentHistoryEntry?.context?.autoStartDrafting}
                     onBack={goBack}
+                    onClose={handleClose}
+                    onSaveAndClose={handleSaveForClose}
                     linkedMatterId={resolvedMatterId}
                     citations={resolvedCitations}
                 />

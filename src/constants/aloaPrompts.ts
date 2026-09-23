@@ -406,6 +406,16 @@ Every draft must clear this bar before being returned. Review your own output si
 ### D. Placeholders
 13. Every [PLACEHOLDER] must be actionable — descriptive enough that the user knows exactly what to insert ("[TENANT'S FULL NAME]" not "[X]").
 14. If a legally critical fact is missing (notice period basis, tenancy frequency, property state), insert the placeholder AND a one-line bracketed drafting note at that point, e.g. [NOTE: 6-month statutory notice for yearly tenancy — confirm frequency].
+
+### E. Document-Type Honesty (2026-09-23 — phantom-document fix)
+15. **MATCH THE STRUCTURE TO THE DOCUMENT TYPE.** Before writing, classify the document from the prompt:
+    - COURT PROCESSES (writ of summons, statements of claim/defence, motions, affidavits, petitions, appeals, originating processes) → court caption ("IN THE HIGH COURT OF [STATE]…"), suit number placeholder, parties' addresses, the proper format for that process.
+    - LETTERS & NOTICES (solicitor's letters, demand letters, advisory letters, client letters, quit/demand notices) → letter format ONLY: [DATE] top-right, recipient block, centred subject line ("Re: …"), body, closing, signature block. **NEVER a court caption, NEVER a suit number.**
+    - AGREEMENTS (tenancy, lease, service, sale) → title, parties block, recitals, numbered clauses, execution blocks. **NEVER a court caption.**
+    - MEMORANDA / OPINIONS / ADVISORIES → heading ("MEMORANDUM" / "LEGAL OPINION"), addressee, dated, numbered paragraphs. **NEVER a court caption.**
+16. **IF THE PROMPT DOES NOT NAME A DOCUMENT TYPE, DO NOT GUESS A LITIGATION FORMAT.** Use a professional letter structure and add a first-line bracketed note: [NOTE: document type not specified — drafted as a letter; tell me the document type and I will restructure.]
+17. **NO DECORATIVE LEGALISM.** Do not insert "applicable legal framework", "applicable jurisdiction", "locus standi" or similar recital paragraphs unless the document type genuinely requires them (an agreement's governing-law clause; a court process's jurisdictional recital). Every paragraph must do work. Padding a document to look thorough is the opposite of thorough.
+18. **IF THE INSTRUCTION IS EMPTY OR CARRIES NO SUBSTANTIVE REQUEST** (a greeting, "hello", a single word), output ONLY: <p>[NO DRAFTING INSTRUCTION PROVIDED — tell me what document you need: the type, the parties, and what it must achieve.]</p> — do NOT invent a document.
 `;
 
 /**

@@ -18,7 +18,11 @@
  *   to own the dismissal).
  * - dismiss() (the [X] button / link click) fires exactly once and cancels
  *   the pending timer so the toast can never be double-removed.
- * - destroy() cancels the timer without firing (component unmount).
+ * - destroy() cancels the timer without firing (component unmount) AND
+ *   resets `started`, so a subsequent start() re-arms the countdown.
+ *   Without the reset, React 18 StrictMode's mount → cleanup → mount
+ *   cycle (dev) left every toast WITHOUT a live timer — toasts stayed on
+ *   screen forever, parked over the UI (including the ALOA chat input).
  *
  * Timers are injectable so the state machine is unit-testable without
  * real clocks (tests/unit/toastAutoDismiss.test.ts).
@@ -37,9 +41,11 @@ export class ToastAutoDismiss {
     private readonly clearTimer: (id: unknown) => void = (id) => clearTimeout(id as ReturnType<typeof setTimeout>),
   ) {}
 
-  /** Begin the countdown. Idempotent — calling it twice changes nothing. */
+  /** Begin the countdown. Idempotent within a lifetime — but re-armable
+   *  after destroy() (see the StrictMode note above). */
   start(): void {
     if (this.started) return;
+    if (this.dismissed) return; // already gone — nothing to arm
     this.started = true;
     if (this.durationMs > 0) {
       this.timerId = this.setTimer(() => this.handleExpiry(), this.durationMs);
@@ -80,9 +86,13 @@ export class ToastAutoDismiss {
     this.fire();
   }
 
-  /** Cancel without firing (unmount). Safe to call multiple times. */
+  /** Cancel without firing (unmount). Safe to call multiple times.
+   *  Resets `started` so a later start() (StrictMode remount, or the
+   *  ToastContainer unmount/remounting across app-flow transitions) can
+   *  re-arm the countdown — otherwise the toast would never dismiss. */
   destroy(): void {
     this.cancelTimer();
+    this.started = false;
   }
 
   private fire(): void {

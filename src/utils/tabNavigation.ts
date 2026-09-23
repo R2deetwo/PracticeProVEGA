@@ -269,7 +269,7 @@ export function openDraftProNewTab(
         url = `/editor?draftKey=${encodeURIComponent(draftKey)}&title=${encodeURIComponent(title)}${prompt ? `&prompt=${encodeURIComponent(prompt)}` : ''}#${hashPart}`;
     }
 
-    // Strategy 1: Direct window.open
+    // Strategy 1: Direct window.open — with a NAMED window.
     //
     // 2026-09-23 ALOA audit fix: the features string used to include
     // 'noopener,noreferrer' — per spec, window.open() then ALWAYS returns
@@ -279,8 +279,19 @@ export function openDraftProNewTab(
     // editors at once. The standard pattern is used instead: open normally,
     // then sever the opener reference manually (same security property,
     // but we keep the Window reference for the success check + focus).
+    //
+    // 2026-09-23 phantom-document follow-up: the window is now NAMED
+    // (`draftpro-<key>`) instead of '_blank'. Two reasons:
+    //   1. The receiving tab detects "dedicated DraftPro tab" via
+    //      window.name.startsWith('draftpro-') — an unnamed '_blank' tab
+    //      has window.name === '' and (opener severed) window.opener ===
+    //      null, so DraftProEditor's isInNewTab check used to misfire and
+    //      show a dead Back button with no Close button.
+    //   2. Naming also dedupes: re-opening the same draft focuses the
+    //      existing tab instead of spawning a duplicate.
+    const tabName = `draftpro-${draftKey.replace(/[^a-z0-9]/gi, '-').slice(0, 80)}`;
     try {
-        const win = window.open(url, '_blank');
+        const win = window.open(url, tabName);
         if (win) {
             try { (win as any).opener = null; } catch { /* cross-origin fine */ }
             win.focus?.();

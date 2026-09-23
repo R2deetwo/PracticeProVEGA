@@ -191,3 +191,30 @@ describe('ToastAutoDismiss — degenerate durations', () => {
     expect(dismissed).toHaveLength(1);
   });
 });
+
+describe('ToastAutoDismiss — StrictMode remount (2026-09-23 stuck-toast fix)', () => {
+  it('re-arms the countdown after destroy() (React 18 StrictMode mount → cleanup → mount)', () => {
+    // In dev StrictMode, Toast's effect runs twice on the SAME controller:
+    //   start() → cleanup destroy() → start() again.
+    // Before the fix, the second start() no-op'd (started stayed true) and
+    // the destroyed timer meant the toast NEVER dismissed — it sat over the
+    // ALOA chat input forever. destroy() must reset `started`.
+    const { c, dismissed, clock } = setup(3500);
+    c.start();
+    c.destroy(); // StrictMode cleanup — cancels the timer
+    expect(dismissed).toHaveLength(0);
+    c.start(); // StrictMode re-mount — must re-arm
+    clock.tick();
+    expect(dismissed).toHaveLength(1);
+  });
+
+  it('destroy() after natural expiry does not resurrect dismissal', () => {
+    const { c, dismissed, clock } = setup(100);
+    c.start();
+    clock.tick();
+    expect(dismissed).toHaveLength(1);
+    c.destroy();
+    c.start(); // dismissed already — must not fire again
+    expect(dismissed).toHaveLength(1);
+  });
+});

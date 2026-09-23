@@ -36,7 +36,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "create_matter",
-        description: "Opens the New Matter form. Extract all provided details like title, clientId, matterType, suitNumber, court, etc.",
+        description: "Opens the New Matter form. Extract all provided details like title, clientId, matterType, suitNumber, court, etc. ONLY call this when the user actually asks to open a matter/case — never for greetings or small talk.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -55,7 +55,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "create_event",
-        description: "Opens the New Event/Meeting form. Extract details like title, date, time, matterId, type, etc.",
+        description: "Opens the New Event/Meeting form. Extract details like title, date, time, matterId, type, etc. ONLY call this when the user actually asks to schedule something — never for greetings or small talk.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -71,7 +71,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "create_task",
-        description: "Opens the New Task form. Extract details like title, dueDate, matterId, priority, etc. Always set dueDate when creating a task so it automatically appears in the user's chronological Diary Mode view on that date.",
+        description: "Opens the New Task form. Extract details like title, dueDate, matterId, priority, etc. Always set dueDate when creating a task so it automatically appears in the user's chronological Diary Mode view on that date. ONLY call this when the user actually asks to create a task — never for greetings or small talk.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -85,7 +85,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "create_contact",
-        description: "Opens the New Contact form. Extract details like name, email, phone, category, etc.",
+        description: "Opens the New Contact form. Extract details like name, email, phone, category, etc. ONLY call this when the user actually asks to add a contact — never for greetings or small talk.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -100,7 +100,7 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "create_property",
-        description: "Opens the New Property form for property management. Extract details like address, category, propertyType, value, rentAmount, etc.",
+        description: "Opens the New Property form for property management. Extract details like address, category, propertyType, value, rentAmount, etc. ONLY call this when the user actually asks to add a property — never for greetings or small talk.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -126,12 +126,12 @@ export const tools: FunctionDeclaration[] = [
     },
     {
         name: "start_drafting",
-        description: "Starts drafting a document in the Law Editor. Use this when the user asks to write, draft, or create a document. In research mode, pass the citations array so they appear in the draft.",
+        description: "Starts drafting a document in the Law Editor. Use this ONLY when the user's CURRENT message explicitly asks you to write/draft/prepare a document, OR the user confirms details you just asked about for a draft THEY already requested. NEVER call this for greetings ('hello'), small talk, 'ok'/'thanks', or vague one-word messages — in those cases just reply in chat and ask what they need. The prompt parameter must carry the full drafting instructions (document type, parties, key facts) — if you don't have those, ask clarifying questions FIRST instead of calling this tool with a guessed prompt. In research mode, pass the citations array so they appear in the draft.",
         parameters: {
             type: Type.OBJECT,
             properties: {
                 title: { type: Type.STRING, description: "Title of the document" },
-                prompt: { type: Type.STRING, description: "Detailed instructions for the drafting agent" },
+                prompt: { type: Type.STRING, description: "Detailed instructions for the drafting agent: document type, parties, facts, relief sought. Must be substantive — never just a greeting or a document-type word alone." },
                 citations: {
                     type: Type.ARRAY,
                     description: "Citations to include in the draft (research mode). Pass the same citations you used in your response.",
@@ -896,6 +896,8 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     ${jurisdictionBlock}
 
     TASK: Write a perfectly formatted, authoritative ${isPropertyFirm ? 'professional property document' : 'legal document'}.
+
+    DOCUMENT-TYPE HONESTY (CRITICAL): First classify the document type from the user's instruction (court process vs letter/notice vs agreement vs memorandum/opinion) and use ONLY the structure that type requires. Court captions ("IN THE HIGH COURT OF…", suit numbers) appear ONLY on court processes — never on letters, advisories, demand notices or agreements. Never add "applicable legal framework / jurisdiction" recitals the document type does not need. If the user's instruction below is empty, a greeting, or carries no substantive drafting request, output ONLY this paragraph and nothing else: <p>[NO DRAFTING INSTRUCTION PROVIDED — tell me what document you need: the type, the parties, and what it must achieve.]</p>
 
     ${isPropertyFirm ? 'Adhere strictly to Nigerian Law, specifically relevant property and tenancy legislation (Land Use Act, Tenancy Law, Service Charge Regulations) where applicable.' : 'Adhere strictly to Nigerian Law, applying the correct state procedural rules per the JURISDICTIONAL CONTEXT above, or general Nigerian statutes (CAMA 2020, Land Use Act) where applicable.'}
 

@@ -404,6 +404,7 @@ const AutoPagination = Extension.create({
 
 import * as aiService from '../../../services/aiService';
 import { installBeforeUnloadGuard, shouldBlockNavigation, openInNewTab, buildRouteUrlWithHashContext } from '../../../utils/tabNavigation';
+import { Button } from '../../ui';
 
 export interface DraftProEditorProps {
     initialContent?: string;
@@ -420,11 +421,22 @@ export interface DraftProEditorProps {
     onContentChange?: (html: string) => void;
     disableAloaAutoOpen?: boolean;
     onBack?: () => void;
+    /** 2026-09-23 UX fix — dedicated close affordance. In a dedicated
+     *  DraftPro tab this closes the browser tab; in-place it mirrors
+     *  onBack. Wired through the dirty-state guard either way. */
+    onClose?: () => void;
+    /** 2026-09-23 UX fix — "file it and get out": triggers the vault save
+     *  flow; WordProcessor closes the editor when that flow completes. */
+    onSaveAndClose?: (html: string) => void;
     linkedMatterId?: string;
     /** Citations from ALOA research mode. When present, the editor
      *  displays a Sources panel and passes the citations to the drafting
      *  AI so it can cite them inline. */
     citations?: { citations: any[] };
+    /** 2026-09-23 phantom-document fix — true when the incoming draft
+     *  prompt carried no substantive instruction (greeting/empty), so
+     *  auto-drafting was suppressed and a hint should be shown. */
+    promptWasTrivial?: boolean;
 }
 
 export type DocumentEditorProps = DraftProEditorProps;
@@ -438,8 +450,11 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     onTitleChange,
     onContentChange,
     onBack,
+    onClose,
+    onSaveAndClose,
     linkedMatterId,
     citations,
+    promptWasTrivial = false,
 }) => {
     const { addToast, navigateTo } = useUI();
     const { confirm: confirmDialog, ConfirmDialog: ConfirmDialogEl } = useConfirm();
@@ -648,6 +663,8 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
 
     const [isHeaderDesignerOpen, setIsHeaderDesignerOpen] = useState(false);
     const [isSaved, setIsSaved] = useState(true);
+    // Trivial-prompt hint dismissal (user clicked the X on the banner)
+    const [promptWasTrivialDismissed, setPromptWasTrivialDismissed] = useState(false);
     const [placeholderCount, setPlaceholderCount] = useState(0);
 
     // ─── Unsaved-changes Navigation Guardrail ──────────────────────────
@@ -659,7 +676,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     // `pendingNavTarget` is non-null while the modal is open. It holds the
     // original navigation callback so we can fire it after the user chooses.
     const [pendingNav, setPendingNav] = useState<{
-        kind: 'back' | 'research' | 'custom';
+        kind: 'back' | 'close' | 'research' | 'custom';
         onConfirm: () => void;
     } | null>(null);
 
@@ -1334,11 +1351,49 @@ ${sourceList}
         }
     }, [editor, onSave, addToast]);
 
+    // ─── Close handlers (2026-09-23 UX fix) ────────────────────────────
+    // The editor previously had NO close affordance — only Save — so users
+    // reached for the browser back button (user report). Two flows:
+    //
+    // handleCloseEditor: leaves the editor. Dedicated DraftPro tab → close
+    //   the tab (window.close works for script-opened tabs); in-place →
+    //   onBack. The draft session is already persisted on every edit, so
+    //   nothing is lost either way.
+    // handleSaveAndClose: triggers the save-to-vault flow via onSaveAndClose
+    //   (WordProcessor opens the newDocument modal and closes the editor
+    //   when that flow completes). Falls back to onSave + close when the
+    //   prop isn't provided (e.g. other DraftProEditor consumers).
+    const handleCloseEditor = useCallback(() => {
+        if (onClose) { onClose(); return; }
+        if (onBack) { onBack(); return; }
+        if (typeof window !== 'undefined') window.location.href = '/';
+    }, [onClose, onBack]);
+
+    const handleSaveAndClose = useCallback(() => {
+        try {
+            if (editor && !editor.isDestroyed) {
+                if (onSaveAndClose) {
+                    // Delegated flow: WordProcessor completes the vault save
+                    // (modal) and closes the editor when it finishes. Do not
+                    // close here — the user is mid-modal.
+                    onSaveAndClose(editor.getHTML());
+                    return;
+                }
+                onSave?.(editor.getHTML());
+                setIsSaved(true);
+            }
+        } catch (e) {
+            console.error('[DraftPro] save before close failed:', e);
+            addToast('Could not save — your draft is still auto-preserved in this tab.', { type: 'warning' });
+        }
+        handleCloseEditor();
+    }, [editor, onSave, onSaveAndClose, handleCloseEditor, addToast]);
+
     // ─── Navigation guard helpers ──────────────────────────────────────
     // `attemptNavigation` checks the dirty state. If dirty, it opens the
     // custom guard modal and stashes the navigation callback. If clean,
     // it just fires the callback immediately.
-    const attemptNavigation = useCallback((kind: 'back' | 'research' | 'custom', onConfirm: () => void) => {
+    const attemptNavigation = useCallback((kind: 'back' | 'close' | 'research' | 'custom', onConfirm: () => void) => {
         if (shouldBlockNavigation(!isSaved)) {
             setPendingNav({ kind, onConfirm });
         } else {
@@ -2156,7 +2211,14 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                                     url.searchParams.set('draftKey', key);
                                     url.searchParams.set('title', encodeURIComponent(title));
                                 }
-                                window.open(url.toString(), '_blank');
+                                // NAMED WINDOW (2026-09-23): a named tab lets
+                                // the new tab detect it is a dedicated
+                                // DraftPro tab (window.name check) so it can
+                                // hide the Back button and offer Close
+                                // instead. '_blank' tabs have no name and the
+                                // detection used to misfire.
+                                const tabName = `draftpro-${(url.searchParams.get('draftKey') || title || 'draft').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`;
+                                window.open(url.toString(), tabName);
                             }}
                             className="flex items-center justify-center p-1.5 rounded-lg text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                             title="Open in new tab"
@@ -2183,8 +2245,69 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                         <Save className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Save</span>
                     </button>
+                    {/* ── Save & Close (2026-09-23 UX fix) ─────────────────────
+                        The user's #1 editor complaint: after saving there was
+                        no way out except the browser back button. This saves
+                        (persistDraft runs on every edit anyway — this triggers
+                        the vault save flow) and then closes: dedicated tab →
+                        window.close(); in-place → go back to the app.
+                        ui/ Button (variant='bare') per ADR-0004; className is
+                        the verbatim design-token styling. */}
+                    <Button
+                        variant="bare"
+                        onClick={() => attemptNavigation('close', handleSaveAndClose)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-md active:scale-95"
+                        title="Save and close the editor"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="hidden sm:inline">Save &amp; Close</span>
+                        <span className="sm:hidden">Done</span>
+                    </Button>
+                    {/* ── Close (X) — always visible, wired through the dirty guard */}
+                    <Button
+                        variant="bare"
+                        onClick={() => attemptNavigation('close', handleCloseEditor)}
+                        className="flex items-center justify-center p-1.5 rounded-lg text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                        title="Close editor"
+                        aria-label="Close editor"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </Button>
                 </div>
             </div>
+
+            {/* ── Trivial-prompt hint (2026-09-23 phantom-document fix) ──
+                When the incoming draft prompt carried no substantive
+                instruction (e.g. a stray "hello"), auto-drafting was
+                suppressed. Explain WHY the canvas is blank and what to do,
+                instead of leaving the user wondering or letting the AI
+                invent a phantom court-captioned document. */}
+            {promptWasTrivial && !promptWasTrivialDismissed && !isDrafting && (
+                <div className="flex-shrink-0 flex items-start gap-2.5 px-4 py-2.5 bg-sky-50 dark:bg-sky-900/20 border-b border-sky-200 dark:border-sky-800/50 no-print">
+                    <svg className="w-4 h-4 mt-0.5 text-sky-600 dark:text-sky-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+                    </svg>
+                    <p className="text-xs leading-relaxed text-sky-800 dark:text-sky-200 flex-1">
+                        <span className="font-bold">No drafting instruction was provided</span> — the blank page is intentional; I did not
+                        invent a document. Tell me what to draft: the <span className="font-semibold">document type</span> (letter, agreement, affidavit…), the{' '}
+                        <span className="font-semibold">parties</span>, and <span className="font-semibold">what it must achieve</span> — or ask {getAssistantName(isProperty)} in the chat.
+                    </p>
+                    <Button
+                        variant="bare"
+                        onClick={() => setPromptWasTrivialDismissed(true)}
+                        className="flex-shrink-0 p-1 rounded text-sky-500 hover:text-sky-700 dark:hover:text-sky-300 transition-colors"
+                        aria-label="Dismiss"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </Button>
+                </div>
+            )}
 
             {/* ── Ribbon Toolbar (hidden in Focus Mode — press F11 to toggle) ──
                 Organized into clear functional groups with visual dividers:

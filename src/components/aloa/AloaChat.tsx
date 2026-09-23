@@ -38,6 +38,7 @@ import { draftSessionKey, loadDraftSession, saveDraftSession } from '../../utils
 import { setPendingDraft } from '../../utils/draftContentStore';
 import { openDraftInTab, isDraftTabOpen } from '../../utils/draftTabs';
 import { saveAloaSession } from '../../utils/aloaSession';
+import { shouldBlockToolCall } from '../../utils/intentGate';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
 import { searchPortfolio, toPropertyToolResult } from '../../utils/portfolioContext';
 import { JurisdictionCard } from './JurisdictionCard';
@@ -643,7 +644,15 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         );
     };
 
-    const handleToolExecution = async (toolCalls: any[], conversationContext?: string): Promise<{ outputs: any[]; isTerminal: boolean }> => {
+    const handleToolExecution = async (
+        toolCalls: any[],
+        conversationContext?: string,
+        // ─── INTENT GATE CONTEXT (2026-09-23 phantom-document fix) ──────
+        // The last user + model messages of THIS turn, so mutating tool
+        // calls can be rejected when the user only said "hello". Omitted
+        // when replaying historical tool calls (they already happened).
+        gateContext?: { lastUserMessage: any; lastModelMessage: any }
+    ): Promise<{ outputs: any[]; isTerminal: boolean }> => {
         if (!toolCalls || toolCalls.length === 0) return { outputs: [], isTerminal: false };
 
         const outputs: any[] = [];
@@ -655,6 +664,33 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             let feedbackMessage = "";
             let actionData: any = null;
             let toolOutput: any = { success: true };
+
+            // ─── INTENT GATE — phantom-action backstop ───────────────────
+            // A greeting ("hello") or bare ack ("ok") is not an instruction.
+            // If the model tries to create a document / matter / task from
+            // one, reject the call with a corrective tool result so it
+            // recovers and answers conversationally instead. Prompt-side
+            // instructions are advisory; this is deterministic.
+            if (gateContext) {
+                try {
+                    const gate = shouldBlockToolCall({
+                        lastUserMessage: gateContext.lastUserMessage,
+                        lastModelMessage: gateContext.lastModelMessage,
+                        toolName: name,
+                        args,
+                    });
+                    if (gate.blocked) {
+                        console.warn(`[ALOA][intentGate] Blocked ${name} — user message carried no actionable intent.`);
+                        outputs.push({
+                            toolName: name,
+                            output: gate.reason || 'BLOCKED: not a user request. Reply conversationally and ask what they need.',
+                        });
+                        continue; // NOT terminal — let the model write a chat reply
+                    }
+                } catch (gateErr) {
+                    console.warn('[ALOA][intentGate] gate check failed (allowing tool):', gateErr);
+                }
+            }
 
             try {
                 if (name === 'query_firm_data') {
@@ -1989,7 +2025,19 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             .slice(-3) // last 3 user messages for context
                             .map(m => typeof m.content === 'string' ? m.content : '')
                             .join(' \n ');
-                        const { outputs: toolOutputs, isTerminal } = await handleToolExecution(currentResponse.toolCalls, conversationContext);
+
+                        // INTENT GATE CONTEXT — the messages this turn is
+                        // actually responding to. capturedMessages was frozen
+                        // at send time and ends with the user's new message,
+                        // so the last user/model entries are exactly what the
+                        // gate needs (the tool loop appends to turnHistory,
+                        // not to capturedMessages).
+                        const gateContext = {
+                            lastUserMessage: [...capturedMessages].reverse().find(m => m.role === 'user'),
+                            lastModelMessage: [...capturedMessages].reverse().find((m: any) => m.role === 'model' || m.role === 'assistant'),
+                        };
+
+                        const { outputs: toolOutputs, isTerminal } = await handleToolExecution(currentResponse.toolCalls, conversationContext, gateContext);
 
                         if (isTerminal) {
                             setMessages(prev => prev.filter(m => m.id !== streamMsgId));
@@ -2628,7 +2676,14 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 if (typeof window !== 'undefined' && window.innerWidth >= 768) {
                     let opened = false;
                     try {
-                        const win = window.open(cfg.__draftUrl, '_blank');
+                        // NAMED window (2026-09-23): the draft tab identifies
+                        // itself as a dedicated DraftPro tab via window.name,
+                        // so the editor shows Close instead of a dead Back
+                        // button. Also dedupes repeat opens of the same draft.
+                        const tabName = cfg.__draftKey
+                            ? `draftpro-${String(cfg.__draftKey).replace(/[^a-z0-9]/gi, '-').slice(0, 80)}`
+                            : '_blank';
+                        const win = window.open(cfg.__draftUrl, tabName);
                         if (win && !win.closed) {
                             win.focus();
                             opened = true;
