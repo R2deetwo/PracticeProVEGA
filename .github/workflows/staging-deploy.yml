@@ -144,7 +144,9 @@ jobs:
 
       - name: Install Vercel CLI
         if: steps.staging_cfg.outputs.configured == 'true'
-        run: npm install -g vercel@latest
+        # PINNED — see the note in production-deploy.yml (vercel@latest 62.x
+        # broke `vercel pull`; 59.16.0 is the last verified version).
+        run: npm install -g vercel@59.16.0
 
       - name: Build staging frontend (wired to the staging backend)
         if: steps.staging_cfg.outputs.configured == 'true'
