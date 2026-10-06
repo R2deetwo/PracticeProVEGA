@@ -20,6 +20,9 @@ import {
 // TASK 54: click-event-safe product normalization for the signup funnel.
 import { normalizeSignupProduct } from '../utils/signupProduct';
 import ContactSalesDrawer from './marketing/ContactSalesDrawer';
+// W1 (website repositioning): new interactive elements use the ui/ Button
+// primitive per ADR-0004 — the raw-element ratchet must not grow.
+import { Button } from './ui';
 
 // ─── SHARED PRIMITIVE COMPONENTS ────────────────────────────────────────────
 
@@ -392,7 +395,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             )}
                         </span>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">Building systems for Nigerian organizations.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">The company behind Vega and Atrium — dedicated operating systems for the organizations that run modern Africa.</p>
                     {productChosen && (
                         <div className="mt-4 flex items-center gap-3">
                             <button
@@ -433,6 +436,25 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         </div>
                     </div>
                 )}
+                {/* Products — hub mode: the company's portfolio. On product pages
+                    the Product column (Features/Pricing/…) serves this role. */}
+                {!productChosen && (
+                    <div>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Products</p>
+                        <div className="flex flex-col gap-2.5">
+                            {/* W1: ui/Button (bare) — ADR-0004, keeps the raw-element ratchet from growing. */}
+                            <Button variant="bare" onClick={() => setActiveProduct('vega')} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
+                                Vega — Legal Practice OS
+                            </Button>
+                            <Button variant="bare" onClick={() => setActiveProduct('atrium')} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
+                                Atrium — Property Management OS
+                            </Button>
+                            <Button variant="bare" onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
+                                Komplete — both, for real-estate attorneys
+                            </Button>
+                        </div>
+                    </div>
+                )}
                 {/* Company — always on the far right (column 4) */}
                 <div className={productChosen ? '' : 'md:col-start-4'}>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
@@ -449,6 +471,8 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
             </div>
             <div className="border-t border-white/5 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
                 <p className="text-xs text-slate-400">© {new Date().getFullYear()} PracticePro Systems Limited Lagos, Nigeria.</p>
+                {/* W2: the product→company attribution mark. */}
+                <p className="text-xs text-slate-500 order-last md:order-none">Vega &amp; Atrium · Built by PracticePro</p>
                 <p className="text-xs text-slate-500">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
             </div>
         </div>
@@ -545,6 +569,12 @@ const HubHero: React.FC<{
                 where there are no fixed bottom elements. */}
             <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-24 pb-28 sm:pb-16 px-4 sm:px-6 text-center">
 
+                {/* W1: the hub speaks as the COMPANY. PracticePro Systems is
+                    the builder; Vega and Atrium are its products. */}
+                <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-6" style={{ color: 'var(--color-moss)' }}>
+                    PracticePro Systems · Lagos, Nigeria
+                </p>
+
                 <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.15] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
                     Professional Practice,
                     <br />
@@ -554,7 +584,7 @@ const HubHero: React.FC<{
                 </h1>
 
                 <p className="text-lg md:text-xl max-w-xl mx-auto mb-14 leading-[1.75] text-slate-600">
-                    Select your discipline to enter your dedicated workspace.
+                    We build dedicated operating systems for the organizations that run modern Africa. Select your discipline to enter your workspace.
                 </p>
 
                 {/* Audience routing cards — unified .landing-card token system */}
