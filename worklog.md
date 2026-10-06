@@ -12316,3 +12316,21 @@ Stage Summary:
 - LIVE NOW (Convex, deployed from dc5493eb): note-taker cleanup on gemini-2.5-flash (QUALITY_MODEL), proactive briefings + conversation summarization on BACKGROUND_MODEL via convex/aiModels.ts registry, extractContactInfo on QUALITY_MODEL. All API-compatible — zero risk to the serving frontend.
 - COMMITTED, TESTED, AWAITING VERCEL (main @ 53996b19): frontend half of A0 — AI_CONFIG defaultModel/flashModel → 2.5-flash (ALOA/ARIA 'auto' chat tier, streamGemini, transcription chain, ComposeModal AI drafts, jurisdiction agent), dead DraftingAgent deleted, scripts de-keyed.
 - BLOCKER (needs Vercel dashboard access): create a fresh Vercel token → update the VERCEL_TOKEN GitHub secret (repo Settings → Secrets → Actions) → re-dispatch "Deploy to Production (promote)" (sha blank = latest main). Cloudflare mirror will ride along once the Vercel job is green.
+
+---
+Task ID: task-73-a0-production-promote
+Agent: Main agent (Super Z) — PracticePro Systems
+Task: Unblock and land the A0 production promote — rotate the expired VERCEL_TOKEN secret with the owner's fresh Vercel token, dispatch "Deploy to Production (promote)", live-verify. Run directly by the agent with owner-supplied fresh GitHub PAT + Vercel token (2026-10-06).
+
+Work Log:
+- Owner supplied a fresh Vercel token + a fresh GitHub PAT ("do everything yourself"). Rotated the VERCEL_TOKEN repository secret via the GitHub Actions secrets API (repo public-key 3380204578043523366, libsodium sealed-box via pynacl) — HTTP 204. No credential values written to any file.
+- Dispatched production-deploy.yml, sha blank → resolved to eb91f15e (v1.0.655, build-1041 — includes dc5493eb model refresh + 53996b19 CLI pin + ec7091f1 + APK-bot version bumps). Run #81 (37499850938).
+- Quality gate ✓ (convex tsc 0, root tsc within the 131 baseline, identity audit, UI-primitives ratchet, vitest suite).
+- deploy-production (Vercel + Convex) ✓ — Convex production redeployed, Vercel CLI 59.16.0 pull/build/deploy SUCCEEDED. The token rotation confirms the root-cause diagnosis: the expired secret, not the CLI version or project linkage. Live verify: version.json healthy at sha eb91f15e on practice-pro-vega.vercel.app, apkVersion 1.0.655 (build-1041). Convex live-query probe ✓.
+- deploy-cloudflare ✗ at the fail-fast token check — CLOUDFLARE_API_TOKEN returns "Invalid API Token" (CF codes 1000/9109; the 2026-09-12 rotation has since expired/been revoked). Owner action: dash.cloudflare.com → My Profile → API Tokens → Create Token (template "Edit Cloudflare Workers", scoped to the account) → repo Settings → Secrets → Actions → update CLOUDFLARE_API_TOKEN → re-run "Deploy to Production (promote)" with sha blank (main is still eb91f15e).
+
+Stage Summary:
+- A0 is now FULLY LIVE on the primary production targets: Vercel + Convex at eb91f15e / v1.0.655. Note-taker cleanup on gemini-2.5-flash, single-sourced model registries, zero retired models in any runtime path.
+- The only outstanding production target is the Cloudflare mirror (secondary), blocked on a Cloudflare token rotation — a 2-minute owner action with the exact recipe above.
+- Standing reminder (P6): rotate the GitHub PAT and Vercel token shared in chat once this deployment window closes.
+- Next stages queued: A1 note-taker ASR upgrade (Whisper/Groq or Gemini native audio), A2 provider abstraction, W0-W5 website repositioning (practicepro.ng).
