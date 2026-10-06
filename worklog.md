@@ -12334,3 +12334,28 @@ Stage Summary:
 - The only outstanding production target is the Cloudflare mirror (secondary), blocked on a Cloudflare token rotation — a 2-minute owner action with the exact recipe above.
 - Standing reminder (P6): rotate the GitHub PAT and Vercel token shared in chat once this deployment window closes.
 - Next stages queued: A1 note-taker ASR upgrade (Whisper/Groq or Gemini native audio), A2 provider abstraction, W0-W5 website repositioning (practicepro.ng).
+
+---
+Task ID: task-74-a1-note-taker
+Agent: Main agent (Super Z) — PracticePro Systems
+Task: Stage A1 — note-taker upgrade to Gemini-native audio dictation (approved A0→A1→A2/W roadmap; owner: "carry on with a1 and let me know if you successfully push and can check the changes").
+
+Work Log:
+- Synced local main → origin (b2043314, v1.0.656/build-1042); 359-commit fast-forward. The stale uncommitted Task-16 worklog record was dropped (already present in origin's worklog, twice).
+- A1 changes (7 files, +348/−155, commit dcefbfe3):
+  - webmToWav: linear-resample to 16 kHz mono (full ASR bandwidth, ~3x smaller payloads); never upsamples.
+  - transcribeAudio: domain-specialised prompts (Nigerian legal vs property practice — names, statutes, tenancy terms, Naira verbatim rule) + optional continuationTail that heals the 10s chunk seams; default mimeType audio/webm → audio/wav (webm was never a valid Gemini inline type).
+  - NoteEditor: Safari/Firefox previously rendered a permanently-disabled mic button — now a real AI-audio dictation engine (MediaRecorder → 16 kHz WAV → Gemini 2.5 Flash via the domain prompt), landing text at the saved cursor every ~10s and feeding the SAME Vega dual-output ceremony on stop; mic released on unmount; "no speech detected" toast only when the whole session produced nothing.
+  - SaveToNoteForm (Unified Dictation): passes continuationTail between periodic segments; tail reset per session.
+  - Dead code deleted: analyzeAttorneyDictation (zero callers; sent audio/webm inline, which Gemini's inline-data API rejects), its aiService re-export, and the AppState.handleAnalyzeAttorneyDictation type — same hygiene as A0's DraftingAgent removal.
+- Gates: tsc 129 = baseline with ZERO errors in the changed files; vitest 1181/1181 (71 files); vite build clean; ui-primitives ratchet IMPROVED 2372 → 2371 (the dead disabled-mic button was removed) — baseline ratcheted down and committed.
+- Local env: bun install refreshed 729 packages (the ff brought new deps incl. vitest.config.ts); bun.lock left dirty per standing rule — never commit it.
+- Push: the PAT previously baked into the remote URL was dead ("Invalid username or token") → rotated the remote to the owner's new PAT (git-config only, never in tracked files); pushed dcefbfe3. CI on dcefbfe3: Tests ✓, Staging ✓, APK ✓ (bot bumped to v1.0.657 / build-1043 → 56256d16).
+- Production promote dispatched (run 37517944226, sha blank → 56256d16; verified dcefbfe3 is an ancestor). Quality gate ✓; deploy-production (Vercel + Convex) ✓ — LIVE; deploy-cloudflare ✗ at the fail-fast token check — still the expired CLOUDFLARE_API_TOKEN (unchanged from task-73; owner recipe recorded there).
+- Live verification: version.json healthy at 56256d16, apkVersion 1.0.657. A1 markers grepped from the served bundles: "AI audio mode — your words appear every ~10 seconds" (index-CDjmazeF.js), "Nigerian legal practitioner" + "Nigerian property practitioner" + "continuationTail" (module-documents-C7r9c96Q.js). Verdict: A1 code is live in production.
+
+Stage Summary:
+- A1 LIVE on Vercel + Convex at 56256d16 (v1.0.657, build-1043). Safari/Firefox users get real dictation in the Note Editor; every dictation surface now uses the domain-specialised Nigerian-English prompts; audio payloads ~3x smaller; 10s chunk seams heal via continuationTail.
+- Remaining known blocker: the Cloudflare mirror (secondary target) — still awaiting a CLOUDFLARE_API_TOKEN rotation; 2-minute owner action, recipe in task-73.
+- Standing reminder (P6): rotate the GitHub PAT shared in chat once this deployment window closes.
+- Next stages queued: A2 provider abstraction (Llama/Qwen/GLM-ready), W0-W5 website repositioning (practicepro.ng), Kozy-Dryclean Change 1 (footer credit) + Change 2 (testimonial fix) using the new PAT.
