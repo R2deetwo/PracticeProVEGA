@@ -715,6 +715,14 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
                     {/* Left: text content */}
                     <div className="text-center lg:text-left">
+                        {/* W2: product→company attribution. The page names the
+                            product; the eyebrow credits the builder. */}
+                        <p
+                            className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-5"
+                            style={{ color: accentColorValue }}
+                        >
+                            {isVega ? 'Vega · Built by PracticePro' : 'Atrium · Built by PracticePro'}
+                        </p>
                         {/* Headline — Space Grotesk display */}
                         <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.15] mb-6" style={{ color: 'var(--color-ink)' }}>
                             {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
@@ -864,7 +872,7 @@ const ATRIUM_FEATURE_CATEGORIES = [
         items: [
             { title: 'Rent Collection', desc: 'Collect rent in Naira with payment reminders, receipt generation, and payment tracking. Generate invoices and track status at a glance.' },
             { title: 'Service Charge Tracking', desc: 'Itemized SC (Service Charge) and MV (Minimum Vend) tracking per unit. Monitor payment status, flag defaulters, and generate compliance-ready financial reports.' },
-            { title: 'WhatsApp Share', desc: 'Compose rent reminders and demand notices in PracticePro, then share them to WhatsApp with one tap — the message opens pre-written to the right number; you review and send. Automated notices also go out by email and to the residents\' portal.', badge: 'Pro' },
+            { title: 'WhatsApp Share', desc: 'Compose rent reminders and demand notices in Atrium, then share them to WhatsApp with one tap — the message opens pre-written to the right number; you review and send. Automated notices also go out by email and to the residents\' portal.', badge: 'Pro' },
             { title: 'Lease Management', desc: 'Lease expiry alerts and calendar integration. Send renewal notices and rent review communications. Never miss a critical date again.' },
         ],
     },
@@ -1986,7 +1994,7 @@ const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ a
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12 md:mb-16">
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-                        {isVega ? 'Why firms run on PracticePro' : 'Why portfolios run on PracticePro'}
+                        {isVega ? 'Why firms run on Vega' : 'Why portfolios run on Atrium'}
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
                         {isVega
@@ -2085,7 +2093,7 @@ const FAQ_ITEMS = {
             a: "The Revenue Monitor tracks defaulters by days overdue and sends automated demand notices by email and to the residents' portal (with a one-tap WhatsApp share for phone-first residents). You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
         },
         {
-            q: "I'm a property owner living abroad. Can I use PracticePro to manage my Nigerian properties?",
+            q: "I'm a property owner living abroad. Can I use Atrium to manage my Nigerian properties?",
             a: "Yes. While PracticePro Atrium is built primarily for professional property managers, diaspora property owners can use it directly to manage their own portfolios. You get real-time visibility into collections, service charges, maintenance tickets, and resident communications via the dashboard and automated email/portal alerts. Your residents use the Residents' Portal for payments and requests. You can also assign a local property manager with granular access controls if you want boots on the ground — or run everything yourself remotely.",
         },
     ],
