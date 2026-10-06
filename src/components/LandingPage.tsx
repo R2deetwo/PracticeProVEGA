@@ -1927,67 +1927,57 @@ const HowItWorksSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ act
     );
 };
 
-// ─── TESTIMONIALS SECTION ────────────────────────────────────────────────
-// Product-specific testimonials. Vega shows lawyer testimonials, Atrium
-// shows property manager testimonials. Previously showed a mixed bag of
-// 3 testimonials regardless of which product page the user was on.
-const TESTIMONIALS: Record<'vega' | 'atrium', Array<{
-    quote: string;
-    name: string;
-    role: string;
-    initials: string;
-    color: string;
+// ─── WHY RUN ON [PRODUCT] — verifiable capability cards ────────────────
+// W3 (2026-10-07, P8 honest marketing): this section previously showed six
+// invented barrister/property-manager personas with five-star ratings —
+// fabricated testimonials, the same defect flagged on the Kozy review.
+// Until real, consenting customer quotes exist, the section
+// presents VERIFIABLE capability statements only — every claim below maps to
+// shipped behaviour (DraftPro formatting, Court Rules Agent, PII Shield,
+// Revenue Monitor, NigerianLegalJurisdictionAgent, Residents' Portal).
+const WHY_RUN_ON: Record<'vega' | 'atrium', Array<{
+    title: string;
+    body: string;
+    Icon: React.ComponentType<{ className?: string }>;
 }>> = {
     vega: [
         {
-            quote: "DraftPro saves me 4 hours per brief. ALOA's case summaries are scarily accurate — it pulls the holding, the ratio, and the dissent in seconds.",
-            name: "Barrister Adebayo Ogundimu",
-            role: "Senior Associate, Lagos",
-            initials: "AO",
-            color: "bg-primary-500",
+            title: 'Drafted for Nigerian courts',
+            body: "DraftPro formats writs, affidavits and motions to Nigerian court practice — caption blocks, parties' designations, NWLR and NSC citations — paginated to A4, ready to file.",
+            Icon: DocumentIcon,
         },
         {
-            quote: "The Court Rules Agent has eliminated deadline misses in our office. It calculates filing deadlines automatically based on the correct state's Civil Procedure Rules.",
-            name: "Adaeze Nwosu",
-            role: "Managing Partner, Abuja",
-            initials: "AN",
-            color: "bg-indigo-500",
+            title: "Deadlines by the right state's rules",
+            body: "The Court Rules Agent calculates filing deadlines from the Civil Procedure Rules of the correct state, so the firm diary keeps itself.",
+            Icon: ScalesIcon,
         },
         {
-            quote: "We migrated 200+ matters from Excel in a weekend. The Matter Ingestion Wizard is a game-changer for any firm drowning in paper files.",
-            name: "Chidi Okafor",
-            role: "Practice Manager, Port Harcourt",
-            initials: "CO",
-            color: "bg-violet-500",
+            title: 'Client data never trains a model',
+            body: 'PII Shield strips names, phone numbers, NIN and BVN before anything reaches an AI model. Firm data stays isolated and NDPA 2023 compliant.',
+            Icon: ShieldCheckIcon,
         },
     ],
     atrium: [
         {
-            quote: "PracticePro cut our rent collection cycle from 3 weeks to 8 days. The Revenue Monitor alone is worth the subscription.",
-            name: "Tunde Bakare",
-            role: "Property Manager, Lagos",
-            initials: "TB",
-            color: "bg-emerald-500",
+            title: 'Collections that run themselves',
+            body: "Invoices, receipts and defaulter tracking are automatic — payments map to the right unit, ledgers update instantly, receipts generate without a phone call.",
+            Icon: ZapIcon,
         },
         {
-            quote: "Our residents love the Residents' Portal. We went from 20 'where is my receipt?' calls per week to zero. Receipts generate automatically now.",
-            name: "Funmi Adewale",
-            role: "Estate Surveyor, Lekki",
-            initials: "FA",
-            color: "bg-amber-500",
+            title: "Every state's tenancy law, applied",
+            body: 'ARIA works from the property and tenancy laws of all 36 states and the FCT, and applies the law of the state where each property is located — quit notices included.',
+            Icon: ScalesIcon,
         },
         {
-            quote: "ARIA flags defaulters before they become a problem. The morning briefing tells me exactly which units need attention before I even open my laptop.",
-            name: "Emeka Obi",
-            role: "Portfolio Manager, Abuja",
-            initials: "EO",
-            color: "bg-teal-500",
+            title: "Residents served, not chased",
+            body: "The Residents' Portal answers 'where is my receipt?' before it is asked — payments, maintenance requests and notices in one place.",
+            Icon: OfficeBuildingIcon,
         },
     ],
 };
 
-const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
-    const testimonials = TESTIMONIALS[activeProduct];
+const WhyRunOnSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
+    const cards = WHY_RUN_ON[activeProduct];
     const isVega = activeProduct === 'vega';
     return (
         <section className="py-12 sm:py-20 lg:py-28 bg-slate-50">
@@ -2003,28 +1993,13 @@ const TestimonialsSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ a
                     </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
-                    {testimonials.map((t, i) => (
+                    {cards.map((c, i) => (
                         <div key={i} className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition-shadow">
-                            {/* Star rating */}
-                            <div className="flex gap-1 mb-4">
-                                {[...Array(5)].map((_, s) => (
-                                    <svg key={s} className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                    </svg>
-                                ))}
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-5 ${isVega ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                <c.Icon className="w-5 h-5" />
                             </div>
-                            <p className="text-slate-700 italic text-base leading-relaxed mb-6">
-                                "{t.quote}"
-                            </p>
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full ${t.color} flex items-center justify-center text-white text-sm font-bold`}>
-                                    {t.initials}
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-slate-900 text-sm">{t.name}</p>
-                                    <p className="text-xs text-slate-500">{t.role}</p>
-                                </div>
-                            </div>
+                            <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
+                            <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>
                         </div>
                 ))}
             </div>
@@ -2487,7 +2462,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <AICapabilitiesSection activeProduct={activeProduct} />
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                     <HowItWorksSection activeProduct={activeProduct} />
-                    <TestimonialsSection activeProduct={activeProduct} />
+                    <WhyRunOnSection activeProduct={activeProduct} />
                     <FAQSection activeProduct={activeProduct} />
                     <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} activeProduct={activeProduct} />
                 </main>
