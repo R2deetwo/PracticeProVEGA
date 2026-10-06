@@ -12300,3 +12300,19 @@ Stage Summary:
 - Single-source-of-truth restored: two registries (src/utils/aiUtils.ts AI_CONFIG for frontend, convex/aiModels.ts for backend) with sync notes, replacing 8+ scattered hardcoded strings.
 - Secrets hygiene: 3 committed keys removed from scripts (all already dead via Google leak detection — no exposure remains, but the pattern is now env-var only).
 - Next stages queued: A1 note-taker upgrade path (Whisper/Groq or Gemini native audio for better Nigerian-English ASR), A2 provider abstraction (escape hatch from the Google lock-in), W0-W5 website repositioning.
+
+---
+Task ID: task-72-ai-model-refresh-a0 (deploy record)
+Agent: Main agent (Super Z) — PracticePro Systems
+
+Work Log:
+- Pushed dc5493eb → main. CI on it: Tests ✓, Staging ✓ (quality gate only — staging Convex secrets still unset), APK ✓ (bot bumped 1.0.653/build-1039).
+- Production promote dispatched twice (runs 37493209695 pinned dc5493eb, 37494460850 pinned 53996b19). BOTH: quality gate ✓, Convex production backend DEPLOYED ✓, Vercel CLI deploy ✗ — "Could not retrieve Project Settings" at `vercel pull --environment=production`.
+- Root cause isolated: NOT the code (gate green twice), NOT the CLI version (failed identically on vercel@latest 62.4.0 AND pinned 59.16.0 — the exact version that ran the verified Sep 23 promote, run 34603143211; workflows unchanged since). Conclusion: the VERCEL_TOKEN GitHub secret expired/was revoked (or the Vercel project/team linkage changed) between 2026-09-23 and 2026-10-06.
+- Side fix shipped while diagnosing: commit 53996b19 pins Vercel CLI to 59.16.0 in both deploy workflows (@latest had drifted 3 majors in 13 days — drift risk is real even though it wasn't this failure's cause).
+- Cloudflare mirror job: skipped (gated behind the Vercel job); mirror itself serving Sep 18 (04d798b3) — also stale.
+
+Stage Summary:
+- LIVE NOW (Convex, deployed from dc5493eb): note-taker cleanup on gemini-2.5-flash (QUALITY_MODEL), proactive briefings + conversation summarization on BACKGROUND_MODEL via convex/aiModels.ts registry, extractContactInfo on QUALITY_MODEL. All API-compatible — zero risk to the serving frontend.
+- COMMITTED, TESTED, AWAITING VERCEL (main @ 53996b19): frontend half of A0 — AI_CONFIG defaultModel/flashModel → 2.5-flash (ALOA/ARIA 'auto' chat tier, streamGemini, transcription chain, ComposeModal AI drafts, jurisdiction agent), dead DraftingAgent deleted, scripts de-keyed.
+- BLOCKER (needs Vercel dashboard access): create a fresh Vercel token → update the VERCEL_TOKEN GitHub secret (repo Settings → Secrets → Actions) → re-dispatch "Deploy to Production (promote)" (sha blank = latest main). Cloudflare mirror will ride along once the Vercel job is green.
