@@ -1,5 +1,6 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
+import { QUALITY_MODEL } from "./aiModels";
 
 /**
  * SECURE AI PROXY
@@ -74,7 +75,7 @@ ${args.text}
 
     const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY not configured in backend environment.");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${QUALITY_MODEL}:generateContent?key=${apiKey}`;
 
     const response = await fetch(url, {
       method: "POST",

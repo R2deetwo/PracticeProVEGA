@@ -12278,3 +12278,25 @@ Stage Summary:
 **Standing issues (unchanged):** Cloudflare mirror still blocked on the expired CLOUDFLARE_API_TOKEN (needs user rotation); recommend rotating the GitHub PAT shared in chat.
 
 **Task 70 deploy record:** promote run 35913458861 — Typecheck + unit tests ✓, Vercel + Convex ✓ (Cloudflare mirror ✗ at the standing expired-token check). LIVE: practice-pro-vega.vercel.app v1.0.651 (sha 82c92991, which contains eef021fe + bc662bb0), health 200; Task 70 strings verified present in the deployed bundles ("Drafted — ready to open", "legalplaybooks:", "FIRM RESEARCH KNOWLEDGE", "Drafting your packet", "auto-paginated-node", "forcePagination", "Zero vertical gaps").
+
+---
+Task ID: task-72-ai-model-refresh-a0
+Agent: Main agent (Super Z) — PracticePro Systems
+Task: A0 quick wins (PracticePro repositioning program) — purge retired Gemini models, centralize the model registry, bump the quality tier to 2.5-flash.
+
+Work Log:
+- Audited every model reference in src/ + convex/: found gemini-1.5-flash (RETIRED by Google, 404s since early 2026) still pinned in the note-taker cleanup (convex/noteDictation.ts), the transcription fallback chain (geminiService.ts), NigerianLegalJurisdictionAgent.ts, and dead DraftingAgent.ts; found 2 more dead leaked keys in scratch scripts (check_api.js, check_api_sdk.js — Google's leak detection already auto-revoked both).
+- src/utils/aiUtils.ts AI_CONFIG: defaultModel/flashModel 2.0-flash → 2.5-flash (upgrades the 'auto' tier for ALOA/ARIA chat via sendMessage/streamMessage, generic streamGemini calls, transcription, ComposeModal AI drafts); fallbackPlan now 2.5-flash → flash-latest → 2.0-flash → 2.0-flash-lite → 2.5-pro; embedding model PINNED to text-embedding-004 with a comment explaining the 768-dim compatibility lock (switching to gemini-embedding-001 would orphan every stored vector).
+- NEW convex/aiModels.ts — backend registry (QUALITY_MODEL = 2.5-flash for interactive surfaces, BACKGROUND_MODEL = 2.0-flash for cron/volume surfaces) since Convex functions cannot import from src/. Frontend registry must stay in sync (documented in both files).
+- Wired: noteDictation + ai.ts extractContactInfo → QUALITY_MODEL (note-taker cleanup now runs on the reasoning tier — better Nigerian names/legal terminology); proactive briefings + conversationMemory summarization → BACKGROUND_MODEL (deliberate: 2.0-flash still fully supported, cheaper at cron volume, nobody waits on the reply).
+- geminiService.transcribeAudio: purged 1.5-flash from the chain (2.5-flash → 2.0-flash → 2.0-flash-lite), comment updated.
+- NigerianLegalJurisdictionAgent + atrium ComposeModal: hardcoded model strings → AI_CONFIG registry values.
+- DELETED src/agents/DraftingAgent.ts (zero imports — dead code); DELETED scripts/check_api.js, check_api_sdk.js, test-gemini.js (unreferenced scratch, retired models, dead keys); scripts/test-working-models.js de-keyed to process.env.GEMINI_API_KEY (P6).
+- Left deliberately untouched: AloaChat live-voice model (gemini-2.0-flash-live-001 — Live API surface, needs live-session testing before any bump), GeminiStructurer indexer chain (already 2.5-first, no retired models).
+- Verified locally, exactly as CI runs it (npm ci): convex tsc 0 errors · root tsc 129 (baseline 131, none in changed files) · vitest 1181/1181 · vite build 20.2s clean.
+
+Stage Summary:
+- Every runtime path now runs a supported model; the quality tier (ALOA/ARIA chat, dictation cleanup, transcription, AI message drafts, jurisdiction analysis) is on gemini-2.5-flash; background cron surfaces stay on 2.0-flash as a documented cost decision.
+- Single-source-of-truth restored: two registries (src/utils/aiUtils.ts AI_CONFIG for frontend, convex/aiModels.ts for backend) with sync notes, replacing 8+ scattered hardcoded strings.
+- Secrets hygiene: 3 committed keys removed from scripts (all already dead via Google leak detection — no exposure remains, but the pattern is now env-var only).
+- Next stages queued: A1 note-taker upgrade path (Whisper/Groq or Gemini native audio for better Nigerian-English ASR), A2 provider abstraction (escape hatch from the Google lock-in), W0-W5 website repositioning.

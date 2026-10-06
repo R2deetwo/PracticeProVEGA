@@ -1189,8 +1189,11 @@ export const analyzeAttorneyDictation = async (
 
 /**
  * Transcribes a raw audio recording using Gemini multimodal via backend proxy.
- * Tries gemini-2.0-flash first (good audio support), falls back to gemini-1.5-flash
- * if the primary model fails (some regions/keys have different model availability).
+ * Tries the quality tier first (gemini-2.5-flash — strong audio handling and
+ * the best Nigerian-English recognition of the available tiers), then falls
+ * back to the cheaper 2.0 tiers for keys/regions where 2.5 is unavailable.
+ * (gemini-1.5-flash was removed from this chain on 2026-10-06 — Google has
+ * retired it and calls now fail with 404.)
  */
 export const transcribeAudio = async (
     audioBase64: string,
@@ -1201,13 +1204,10 @@ export const transcribeAudio = async (
     const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
     const cleanBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
 
-    // Models to try in order. gemini-2.0-flash has good audio support.
-    // gemini-1.5-flash is a fallback for keys that don't have 2.0 access yet.
-    // gemini-2.5-flash is another fallback.
+    // Models to try in order, sourced from the central registry.
     const modelsToTry = [
-        AI_CONFIG.gemini.defaultModel,        // 'gemini-2.0-flash'
-        'gemini-2.5-flash',
-        'gemini-1.5-flash',
+        AI_CONFIG.gemini.defaultModel,        // 'gemini-2.5-flash'
+        'gemini-2.0-flash',
         'gemini-2.0-flash-lite',
     ];
     // Deduplicate

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { logError } from "./observability";
 import { internal } from "./_generated/api";
 import { requireStaffCaller, assertSameFirm } from "./callerAuth";
+import { BACKGROUND_MODEL } from "./aiModels";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED — all 15 former .collect() terminals
@@ -574,7 +575,7 @@ export const generateMorningBriefing = internalAction({
 
       try {
         const aiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${BACKGROUND_MODEL}:generateContent?key=${apiKey}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -800,7 +801,7 @@ export const storeBriefing = internalMutation({
       id: `briefing_${Date.now()}`,
       role: "model",
       content: briefingText,
-      modelUsed: "gemini-2.0-flash",
+      modelUsed: BACKGROUND_MODEL,
       createdAt,
     });
 

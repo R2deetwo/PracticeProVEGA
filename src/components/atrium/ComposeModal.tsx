@@ -11,7 +11,7 @@ import { useDataActions } from '../../contexts/DataContext';
 import { AutomationMessageType, AutomationChannel } from '../../types';
 import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
-import { getGeminiApiKey } from '../../utils/aiUtils';
+import { getGeminiApiKey, AI_CONFIG } from '../../utils/aiUtils';
 import { usePropertyGroups, UnitOption } from '../../hooks/usePropertyGroups';
 import { resolveFinancials, parseMoneyInput } from '../../utils/messageFinancials';
 import { buildMoveInBreakdown, MoveInBreakdownRow } from '../../utils/propertyPayload';
@@ -568,7 +568,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
 
       const systemPrompt = `You are a professional property management assistant in Nigeria. Write a concise, direct, and highly professional message based on the user's instructions. No fluff, no emojis, no excessive pleasantries. Get straight to the point. Keep it under 150 words. Use Nigerian English spelling and Naira (₦) symbol where relevant.\n\nContext:\n${context}`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.gemini.defaultModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

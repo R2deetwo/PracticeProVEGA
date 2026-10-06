@@ -29,19 +29,35 @@ export const setInMemoryApiKey = (key: string | null): void => {
 
 export const AI_CONFIG = {
     gemini: {
-        // Models confirmed available via /v1beta/models for this API key (May 2026)
-        defaultModel: 'gemini-2.0-flash',
+        // 2026-10-06 model refresh (A0 quick wins):
+        // - gemini-1.5-flash is RETIRED by Google and now fails with 404 —
+        //   every remaining reference was removed (note-taker cleanup,
+        //   transcription chain, jurisdiction agent, dead DraftingAgent).
+        // - defaultModel bumped 2.0-flash → 2.5-flash: the 'auto' tier for
+        //   ALOA/ARIA chat, generic streamGemini calls, transcription and
+        //   ComposeModal drafts. 2.5 Flash reasons before answering, which
+        //   measurably improves Nigerian legal drafting quality.
+        // - Embedding model is PINNED: text-embedding-004 produces 768-dim
+        //   vectors matching everything already stored in the firm index.
+        //   Switching to gemini-embedding-001 (3072-dim) would silently
+        //   orphan every existing embedding — do not change without a
+        //   re-index migration.
+        defaultModel: 'gemini-2.5-flash',
         proModel: 'gemini-2.5-pro',
-        flashModel: 'gemini-2.0-flash',
+        flashModel: 'gemini-2.5-flash',
         researchModel: 'gemini-2.5-pro', // Same model as Pro but with different system prompt + thinking budget
         // 2026-09-23 ALOA audit: reordered — try the modern flash tier first,
         // the lite tier next, and only fall back to 2.5-pro (slowest, most
         // expensive) as the last resort. The old order tried pro BEFORE
         // flash-latest, so a transient flash failure could land every user
         // on a 2.5-pro latency profile.
+        // 2026-10-06: 2.0-flash inserted before lite — if a key/region
+        // cannot serve 2.5 yet, 2.0-flash (still fully supported) is the
+        // most compatible wide fallback.
         fallbackPlan: [
             'gemini-2.5-flash',
             'gemini-flash-latest',
+            'gemini-2.0-flash',
             'gemini-2.0-flash-lite',
             'gemini-2.5-pro'
         ]

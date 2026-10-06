@@ -18,6 +18,7 @@
 import { action, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
+import { QUALITY_MODEL } from "./aiModels";
 
 // ─── AI CLEANUP ACTION (Vega only) ────────────────────────────────────────
 // Calls Gemini to produce a cleaned version of the raw transcript.
@@ -56,7 +57,10 @@ RULES:
 
 ${args.contextHint ? `CONTEXT: This is a ${args.contextHint}.` : ""}`;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // QUALITY_MODEL (gemini-2.5-flash): reasoning-capable tier — handles
+    // Nigerian names, legal terminology and structured cleanup noticeably
+    // better than the retired 1.5-flash that used to sit here.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${QUALITY_MODEL}:generateContent?key=${apiKey}`;
     const body = {
       contents: [{
         role: 'user',

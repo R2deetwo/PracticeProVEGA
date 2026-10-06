@@ -2,6 +2,7 @@ import { internalMutation, internalAction, internalQuery, query, mutation } from
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { resolveCaller, assertSameFirm } from "./callerAuth";
+import { BACKGROUND_MODEL } from "./aiModels";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CONVERSATION MEMORY — Phase 2
@@ -234,7 +235,7 @@ Be specific — include names, matter titles, amounts, or deadlines that were di
     if (!apiKey) throw new Error("No API key for summarization");
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${BACKGROUND_MODEL}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

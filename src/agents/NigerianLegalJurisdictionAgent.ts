@@ -24,14 +24,14 @@ export const determineJurisdiction = async (
 ): Promise<JurisdictionalAnalysis> => {
   try {
     // FIX: Use shared utility for API key retrieval
-    const { getGeminiApiKey } = await import('../utils/aiUtils');
+    const { getGeminiApiKey, AI_CONFIG } = await import('../utils/aiUtils');
     const apiKey = getGeminiApiKey();
     if (!apiKey) throw new Error("API Key missing");
 
     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
+      model: AI_CONFIG.gemini.defaultModel,
       contents: `Analyze the following matter:
 - Title: "${matter.title}"
 - Matter Type: "${matter.type}"
