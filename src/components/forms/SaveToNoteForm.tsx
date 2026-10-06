@@ -76,6 +76,11 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
     const isRecordingRef = useRef(isRecording);
     const lastProcessedIndexRef = useRef(0);
     const isProcessingTranscriptionRef = useRef(false);
+    // A1 (2026-10-07): tail of the previous transcription segment — passed to
+    // transcribeAudio so consecutive 10-second chunks join at sentence
+    // boundaries (no duplicated or dropped words at the seams). Reset at the
+    // start of each recording session.
+    const lastTranscriptTailRef = useRef('');
 
     // Sync refs for event handlers
     useEffect(() => {
@@ -142,7 +147,9 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 const transcription = await geminiService.transcribeAudio(
                     base64Audio,
                     'audio/wav',
-                    coreState.firmDetails
+                    coreState.firmDetails,
+                    // A1: continuation tail heals the 10s chunk seams
+                    { continuationTail: lastTranscriptTailRef.current }
                 );
 
                 if (transcription && transcription.trim()) {
@@ -156,6 +163,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     setContent(newContent);
                     contentRef.current = newContent;
                     setInterimTranscript('');
+                    // A1: remember the tail for the NEXT chunk's continuation hint
+                    lastTranscriptTailRef.current = transcription.trim().split(/\s+/).slice(-10).join(' ');
                     return transcription;
                 } else {
                     // Gemini returned empty — could be inaudible audio or a model
@@ -215,6 +224,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 const recorder = new MediaRecorder(stream, { mimeType });
                 mediaRecorderRef.current = recorder;
                 audioChunksRef.current = [];
+                // A1: fresh session — no continuation from a previous recording
+                lastTranscriptTailRef.current = '';
 
                 recorder.ondataavailable = (event) => {
                     if (event.data.size > 0) {

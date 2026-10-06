@@ -1,5 +1,5 @@
 
-import { AppState, User, HistoryEntry, AloaMessage, Matter } from '../types';
+import { AppState, User, HistoryEntry, AloaMessage } from '../types';
 import { SignerContext } from '../contexts/ProductContext';
 import { getAIProvider } from '../utils/aiUtils';
 import * as geminiService from './geminiService';
@@ -32,7 +32,3 @@ export const streamDraft = async (
     return geminiService.streamDraft(history, context, onChunk, signal);
 };
 
-export const analyzeAttorneyDictation = async (audioBase64: string, matter: Matter, firmDetails?: any) => {
-    // Currently Gemini unique due to multimodal audio support
-    return geminiService.analyzeAttorneyDictation(audioBase64, matter, firmDetails);
-};

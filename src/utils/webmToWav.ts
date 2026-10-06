@@ -8,7 +8,17 @@
  * 2. Adds a 15-second timeout to decodeAudioData (prevents indefinite hang
  *    on malformed webm chunks)
  * 3. Properly closes the AudioContext on error
+ *
+ * A1 (2026-10-07): output is downsampled to 16 kHz mono. Speech energy lives
+ * below 8 kHz, so 16 kHz (Nyquist 8 kHz) loses nothing for ASR — while cutting
+ * the payload ~3x vs the browser's native 48 kHz. Smaller base64 bodies mean
+ * faster Convex proxy round-trips for the 10-second dictation chunks and the
+ * NoteEditor AI-audio fallback. Source rates at or below 16 kHz pass through
+ * untouched (never upsampled).
  */
+
+// Target sample rate for ASR payloads — see header note.
+const ASR_SAMPLE_RATE = 16000;
 
 // Shared AudioContext — reused across all convertBlobToWav calls
 let sharedAudioContext: AudioContext | null = null;
@@ -50,7 +60,7 @@ export async function convertBlobToWav(blob: Blob): Promise<Blob> {
 
     // Convert to mono (mix channels if stereo)
     const numChannels = audioBuffer.numberOfChannels;
-    const sampleRate = audioBuffer.sampleRate;
+    const sourceRate = audioBuffer.sampleRate;
     const length = audioBuffer.length;
     const monoData = new Float32Array(length);
 
@@ -61,15 +71,34 @@ export async function convertBlobToWav(blob: Blob): Promise<Blob> {
         }
     }
 
+    // ─── A1: downsample to 16 kHz for ASR (see header) ─────────────────
+    // Linear-interpolation resampler. Only runs when the source rate is
+    // ABOVE the target; 8/16 kHz sources pass through at their native rate
+    // (never upsampled — upsampling only bloats the payload).
+    const targetRate = sourceRate > ASR_SAMPLE_RATE ? ASR_SAMPLE_RATE : sourceRate;
+    let resampled: Float32Array = monoData;
+    if (targetRate !== sourceRate) {
+        const outLength = Math.max(1, Math.floor((length * targetRate) / sourceRate));
+        resampled = new Float32Array(outLength);
+        const step = sourceRate / targetRate;
+        for (let i = 0; i < outLength; i++) {
+            const srcPos = i * step;
+            const i0 = Math.floor(srcPos);
+            const i1 = Math.min(i0 + 1, length - 1);
+            const frac = srcPos - i0;
+            resampled[i] = monoData[i0] * (1 - frac) + monoData[i1] * frac;
+        }
+    }
+
     // Convert Float32 (-1.0 to 1.0) to Int16 PCM
-    const pcmData = new Int16Array(length);
-    for (let i = 0; i < length; i++) {
-        const s = Math.max(-1, Math.min(1, monoData[i]));
+    const pcmData = new Int16Array(resampled.length);
+    for (let i = 0; i < resampled.length; i++) {
+        const s = Math.max(-1, Math.min(1, resampled[i]));
         pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
 
-    // Build WAV file
-    const wavBuffer = encodeWav(pcmData, sampleRate);
+    // Build WAV file (at the ASR rate, not the browser's native rate)
+    const wavBuffer = encodeWav(pcmData, targetRate);
     return new Blob([wavBuffer], { type: 'audio/wav' });
 }
 

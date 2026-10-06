@@ -1141,68 +1141,68 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     throw lastError || new Error("Drafting failed to initialize via proxy.");
 };
 
-export const analyzeAttorneyDictation = async (
-    audioBase64: string,
-    matter: Matter,
-    firmDetails?: any 
-): Promise<{ analysis: any; transcription: string }> => {
-
-    const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
-    const audioPart = {
-        inlineData: {
-            mimeType: 'audio/webm',
-            data: audioBase64.split(',')[1] || audioBase64,
-        },
-    };
-
-    const textPart = {
-        text: `Analyze the provided ${(firmDetails?.product === 'property' || firmDetails?.product === 'atrium') ? 'property' : 'legal'} dictation for the matter: "${matter.title}". 
-        Extract the full transcription and provide a strategy analysis in the specified JSON format.`
-    };
-
-    const modelName = AI_CONFIG.gemini.defaultModel;
-
-    try {
-        const response = await convex.action(api.ai.generateContent, {
-            modelName: modelName,
-            contents: [{ role: 'user', parts: [audioPart, textPart] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-            },
-            firmGeminiApiKey: firmKey
-        });
-
-        const candidate = response?.candidates?.[0];
-        const jsonString = candidate?.content?.parts?.find((p: any) => p.text)?.text || '{}';
-        
-        const result = JSON.parse(jsonString || '{}');
-        // If the AI missed the schema, fallback gracefully
-        return {
-            analysis: result.analysis || { summary: "Analysis failed", facts: [], missingInfo: [], recommendations: [] },
-            transcription: result.transcription || "Transcription failed"
-        };
-    } catch (error: any) {
-        console.error(`Analysis Error (${modelName}):`, error);
-        throw error;
-    }
-};
-
 /**
  * Transcribes a raw audio recording using Gemini multimodal via backend proxy.
- * Tries the quality tier first (gemini-2.5-flash — strong audio handling and
- * the best Nigerian-English recognition of the available tiers), then falls
- * back to the cheaper 2.0 tiers for keys/regions where 2.5 is unavailable.
- * (gemini-1.5-flash was removed from this chain on 2026-10-06 — Google has
- * retired it and calls now fail with 404.)
+ * Tries the quality tier first (gemini-2.5-flash — strong native audio
+ * understanding and the best Nigerian-English recognition of the available
+ * tiers), then falls back to the cheaper 2.0 tiers for keys/regions where
+ * 2.5 is unavailable. (gemini-1.5-flash was removed from this chain on
+ * 2026-10-06 — Google has retired it and calls now fail with 404.)
+ *
+ * A1 (2026-10-07): the prompt is domain-aware. A generic "transcribe exactly"
+ * prompt wastes 2.5-flash's audio understanding on the surfaces where it
+ * matters most — Nigerian legal and property dictation (names, statutory
+ * references, tenancy terms, Naira amounts). `options.domain` selects the
+ * specialist prompt (default derived from firmDetails.product);
+ * `options.continuationTail` carries the last words of the previous chunk so
+ * the 10-second segmenting used by SaveToNoteForm and the NoteEditor AI-audio
+ * fallback heals at sentence boundaries instead of duplicating or dropping
+ * the join words.
+ *
+ * Dead code removed in the same pass: analyzeAttorneyDictation (sent
+ * audio/webm inline — a MIME type Gemini's inline-data API rejects, and it
+ * had zero callers). Same hygiene as A0's DraftingAgent deletion.
  */
+export interface TranscribeAudioOptions {
+    /** 'legal' (Vega) or 'property' (Atrium). Default: derived from firmDetails.product. */
+    domain?: 'legal' | 'property';
+    /** Last ~10 words of the previous segment in the same dictation session. */
+    continuationTail?: string;
+}
+
+const buildTranscriptionPrompt = (domain: 'legal' | 'property', continuationTail?: string): string => {
+    const domainBlock = domain === 'property'
+        ? `Transcribe this audio dictation from a Nigerian property practitioner (estate agency / property management).
+- The speaker uses Nigerian English; expect Nigerian names, estate and area names (Lekki, Ikeja GRA, Wuse II, Gwarinpa) and local tenancy terms (service charge, agency fee, caution deposit, estate dues) with standard Nigerian spellings.
+- Render Naira amounts exactly as spoken — never invent figures that were not spoken.`
+        : `Transcribe this audio dictation from a Nigerian legal practitioner.
+- The speaker uses Nigerian English; expect Nigerian names (Adebayo, Chidi, Ngozi, Oluwaseun), Nigerian place names (Ikeja, Yaba, Maitama, Port Harcourt) and occasional Yoruba/Igbo/Hausa words — standard Nigerian spellings, not phonetic guesses.
+- Preserve legal terminology VERBATIM: case names, parties, statutes and sections (e.g. "Section 28 of the Land Use Act"), court names (Federal High Court, Court of Appeal, Supreme Court, Magistrate Court) and Latin legal maxims.
+- Render Naira amounts exactly as spoken — never invent figures that were not spoken.`;
+
+    const continuationBlock = continuationTail?.trim()
+        ? `\n- This audio CONTINUES the same dictation. The previous segment ended with: "${continuationTail.trim()}". Pick up from the very next word — do NOT repeat those words.`
+        : '';
+
+    return `${domainBlock}
+- Natural punctuation and paragraph breaks from the speech; no preamble, no analysis, no commentary, no added or summarised content.
+- If the audio is inaudible or contains no speech, return an empty string.${continuationBlock}`;
+};
+
 export const transcribeAudio = async (
     audioBase64: string,
-    mimeType: string = 'audio/webm',
-    firmDetails?: any
+    mimeType: string = 'audio/wav',
+    firmDetails?: any,
+    options?: TranscribeAudioOptions
 ): Promise<string> => {
 
     const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
     const cleanBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
+
+    const domain: 'legal' | 'property' = options?.domain
+        ?? ((firmDetails?.product === 'property' || firmDetails?.product === 'atrium') ? 'property' : 'legal');
+
+    const prompt = buildTranscriptionPrompt(domain, options?.continuationTail);
 
     // Models to try in order, sourced from the central registry.
     const modelsToTry = [
@@ -1223,12 +1223,7 @@ export const transcribeAudio = async (
                     role: 'user',
                     parts: [
                         { inlineData: { mimeType, data: cleanBase64 } },
-                        {
-                            text: `Transcribe the audio recording exactly as spoken.
-Return ONLY the transcribed text with no preamble, no analysis, no commentary.
-Preserve natural punctuation and paragraph breaks.
-If the audio is inaudible or contains no speech, return an empty string.`
-                        }
+                        { text: prompt }
                     ]
                 }],
                 firmGeminiApiKey: firmKey

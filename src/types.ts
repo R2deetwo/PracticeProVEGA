@@ -601,7 +601,6 @@ export interface DataActionsContextType {
     handleAnalyzeIntake: (leadId: string) => void;
     handleActivateLead: (lead: Lead, matterData: any, billingData: any) => void;
     handleCancelIntakeRequest: (leadId: string) => void;
-    handleAnalyzeAttorneyDictation: (audio: string, matter: Matter) => Promise<any>;
     handleRequestTrustDeposit: (matterId: string, amount: number, description: string) => void;
     handleAddContact: (contact: Omit<Contact, 'id'>, createPortal: boolean) => Promise<Contact | null>;
     handleUpdateContact: (contact: Contact, createPortal: boolean) => void;

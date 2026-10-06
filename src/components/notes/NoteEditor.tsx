@@ -10,6 +10,8 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { searchEntities, EntitySearchResult } from '../../utils/linkParser';
+import { convertBlobToWav } from '../../utils/webmToWav';
+import * as geminiService from '../../services/geminiService';
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -176,6 +178,24 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const cleanTranscriptAction = useAction(api.noteDictation.cleanTranscript) as any;
     const saveTranscripts = useMutation(api.noteDictation.saveTranscripts);
 
+    // ─── A1: AI-AUDIO DICTATION FALLBACK (2026-10-07) ────────────────
+    // Browsers without the Web Speech API (Safari, Firefox) previously got
+    // a permanently-disabled mic button. A1 gives them real dictation:
+    // MediaRecorder captures the mic; every ~10 seconds the buffered audio
+    // is converted to 16 kHz WAV and transcribed by Gemini 2.5 Flash with
+    // the domain-specialised Nigerian-English prompt (legal vs property).
+    // Text lands at the saved cursor exactly like the Web Speech path, the
+    // verbatim transcript accumulates in rawTranscriptRef, and the SAME Vega
+    // dual-output ceremony runs on stop (cleanTranscript + saveTranscripts).
+    const aiRecorderRef = useRef<MediaRecorder | null>(null);
+    const aiStreamRef = useRef<MediaStream | null>(null);
+    const aiChunksRef = useRef<Blob[]>([]);
+    const aiTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const aiTailRef = useRef('');               // last words of the previous segment
+    const aiProcessingRef = useRef(false);      // guards concurrent segment calls
+    const aiGotAnyTextRef = useRef(false);      // drives the "no speech detected" toast
+    const [aiTranscribing, setAiTranscribing] = useState(false); // status bar indicator
+
     // Check if the current note already has transcripts (from a prior dictation)
     useEffect(() => {
         setHasExistingTranscript(!!(page.rawTranscript || page.cleanedTranscript));
@@ -184,6 +204,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     useEffect(() => {
         const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
         setDictationSupported(!!SR);
+    }, []);
+
+    // A1 (2026-10-07): release the mic if the editor unmounts mid-dictation.
+    useEffect(() => () => {
+        if (aiTimerRef.current) clearInterval(aiTimerRef.current);
+        try { if (aiRecorderRef.current && aiRecorderRef.current.state !== 'inactive') aiRecorderRef.current.stop(); } catch {}
+        aiStreamRef.current?.getTracks().forEach(t => t.stop());
     }, []);
 
     // Process transcript — convert spoken punctuation commands to actual punctuation
@@ -224,10 +251,146 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         }
     };
 
+    // ─── A1: AI-audio segment processing ────────────────────────────
+    // Transcribes one ~10s batch of audio chunks and lands the text in the
+    // editor + the raw accumulator. Mirrors the proven SaveToNoteForm
+    // engine (Unified Dictation), adapted to the dual-output pipeline.
+    const processAiAudioChunks = async (chunks: Blob[]): Promise<string> => {
+        if (chunks.length === 0) return '';
+        const totalSize = chunks.reduce((s, b) => s + b.size, 0);
+        if (totalSize < 500) return ''; // sub-second noise — final handler warns
+
+        setAiTranscribing(true);
+        try {
+            const combined = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+            const wavBlob = await convertBlobToWav(combined);
+            const base64Audio: string = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('Failed to read audio data.'));
+                reader.onloadend = () => {
+                    const result = reader.result as string;
+                    if (!result || !result.includes(',')) {
+                        reject(new Error('Audio data was empty.'));
+                        return;
+                    }
+                    resolve(result);
+                };
+                reader.readAsDataURL(wavBlob);
+            });
+
+            const text = await geminiService.transcribeAudio(
+                base64Audio,
+                'audio/wav',
+                coreState.firmDetails,
+                {
+                    domain: isDualMode ? 'legal' : 'property',
+                    continuationTail: aiTailRef.current,
+                }
+            );
+
+            if (text && text.trim()) {
+                aiGotAnyTextRef.current = true;
+                // Vega raw transcript: verbatim source of truth (same contract
+                // as the Web Speech path — accumulated before any processing).
+                if (isDualMode) {
+                    rawTranscriptRef.current += text.trim() + ' ';
+                }
+                // Gemini punctuates natively — no spoken-command substitution
+                // here (processTranscript stays Web-Speech-only: applying it to
+                // prose would mangle phrases like "the period of limitation").
+                insertTranscript(text.trim() + ' ');
+                aiTailRef.current = text.trim().split(/\s+/).slice(-10).join(' ');
+                setInterimText('');
+                return text.trim();
+            }
+            return '';
+        } catch (err: any) {
+            // Mid-session segment failures shouldn't kill the dictation — the
+            // remaining audio is still valuable. Only the final segment warns.
+            console.warn('[AI Dictation] segment failed:', err?.message);
+            return '';
+        } finally {
+            setAiTranscribing(false);
+        }
+    };
+
+    const startAiAudioDictation = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Pick the best supported codec — same preference order as the
+            // Unified Dictation Engine in SaveToNoteForm.
+            let mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+                else if (MediaRecorder.isTypeSupported('audio/ogg')) mimeType = 'audio/ogg';
+                else if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+            }
+            const recorder = new MediaRecorder(stream, { mimeType });
+            aiRecorderRef.current = recorder;
+            aiStreamRef.current = stream;
+            aiChunksRef.current = [];
+            aiTailRef.current = '';
+            aiGotAnyTextRef.current = false;
+
+            recorder.ondataavailable = (e) => {
+                if (e.data.size > 0) aiChunksRef.current.push(e.data);
+            };
+
+            recorder.start(1000); // 1s timeslices — segments drain every ~10s
+            // Focus the editor ONCE at start so the cursor is valid (mirrors
+            // the Web Speech path; no re-focus during dictation).
+            editor?.commands.focus();
+            setIsDictating(true);
+
+            aiTimerRef.current = setInterval(async () => {
+                if (aiProcessingRef.current) return;
+                if (aiRecorderRef.current?.state === 'recording' && aiChunksRef.current.length > 0) {
+                    aiProcessingRef.current = true;
+                    const batch = aiChunksRef.current;
+                    aiChunksRef.current = [];
+                    try { await processAiAudioChunks(batch); }
+                    finally { aiProcessingRef.current = false; }
+                }
+            }, 10_000);
+        } catch (err: any) {
+            console.error('[AI Dictation] mic/stream failed:', err);
+            addToast('Microphone unavailable. Grant microphone permission and try again.', { type: 'error' });
+            setIsDictating(false);
+        }
+    };
+
+    // Stops the AI-audio engine and drains the final segment BEFORE the
+    // dual-output ceremony runs — the ceremony reads rawTranscriptRef, so it
+    // must not race the last in-flight audio.
+    const stopAiAudioDictation = (): Promise<void> => new Promise((resolve) => {
+        if (aiTimerRef.current) { clearInterval(aiTimerRef.current); aiTimerRef.current = null; }
+        const finish = async () => {
+            aiStreamRef.current?.getTracks().forEach(t => t.stop());
+            const finalChunks = aiChunksRef.current;
+            aiChunksRef.current = [];
+            try { await processAiAudioChunks(finalChunks); } catch { /* keep whatever raw we have */ }
+            if (!aiGotAnyTextRef.current) {
+                addToast('No speech detected. Speak a little louder or closer to the microphone.', { type: 'info' });
+            }
+            resolve();
+        };
+        const recorder = aiRecorderRef.current;
+        if (!recorder || recorder.state === 'inactive') { finish(); return; }
+        recorder.onstop = () => { finish(); };
+        try { recorder.stop(); } catch { finish(); }
+    });
+
     const toggleDictation = async () => {
         if (isDictating) {
             userStoppedRef.current = true;
-            try { recognitionRef.current?.stop(); } catch (e) { /* already stopped */ }
+            if (dictationSupported) {
+                try { recognitionRef.current?.stop(); } catch (e) { /* already stopped */ }
+            } else {
+                // A1: drain the final audio segment BEFORE the ceremony reads
+                // rawTranscriptRef — otherwise the last ~10s of speech would
+                // miss the cleanup + save.
+                try { await stopAiAudioDictation(); } catch { /* keep whatever raw we have */ }
+            }
             setIsDictating(false);
             setInterimText('');
 
@@ -321,8 +484,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             }
             return;
         }
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR || !editor) return;
+        if (!editor) return;
 
         // Reset state for a fresh session
         userStoppedRef.current = false;
@@ -336,6 +498,16 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
         } catch {
             insertPosRef.current = null;
         }
+
+        // A1: browsers without the Web Speech API (Safari/Firefox) run the
+        // AI-audio engine instead — same dual-output ceremony on stop.
+        if (!dictationSupported) {
+            startAiAudioDictation();
+            return;
+        }
+
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SR) return;
 
         const recognition = new SR();
         // Use en-NG for Nigerian English when available (better accent match),
@@ -679,82 +851,65 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                         <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
                         <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('bulletList') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'} text-xs leading-none`}>• List</button>
                         <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-800 ${editor.isActive('orderedList') ? 'text-primary-600 bg-primary-50 dark:bg-primary-900/20' : 'text-slate-500'} text-xs leading-none`}>1. List</button>
-                        {/* Dictation (Voice-to-Text) — uses Web Speech API.
-                            Only shown on browsers/webviews that support it
-                            (Chrome, Edge, Android WebView). Hidden on Safari
-                            with an explicit tooltip explaining why. */}
-                        {dictationSupported ? (
-                            <>
-                                <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
-                                <button
-                                    onClick={toggleDictation}
-                                    disabled={isCleaning}
-                                    className={`p-1.5 rounded transition-all flex items-center gap-1 ${
-                                        isDictating
-                                            ? 'bg-red-500 text-white animate-pulse'
-                                            : isCleaning
-                                                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
-                                                : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500'
-                                    }`}
-                                    title={
-                                        isDictating ? 'Stop dictation'
-                                        : isCleaning ? 'AI cleaning transcript…'
-                                        : isDualMode
-                                            ? 'Start voice dictation (Vega mode — preserves raw + cleaned transcript)'
-                                            : 'Start voice dictation (Atrium mode — single-pass)'
-                                    }
-                                >
-                                    {isCleaning ? (
-                                        <div className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                                            <line x1="12" y1="19" x2="12" y2="23"/>
-                                            <line x1="8" y1="23" x2="16" y2="23"/>
-                                        </svg>
-                                    )}
-                                    {isDictating && <span className="text-3xs font-bold">Listening...</span>}
-                                    {isCleaning && <span className="text-3xs font-bold">Cleaning...</span>}
-                                </button>
-                                {/* VEGA DUAL-OUTPUT: raw/cleaned toggle + AI-disclosure marker.
-                                    Only shown after dictation completes (hasExistingTranscript).
-                                    Atrium mode doesn't get the toggle — single-pass only. */}
-                                {hasExistingTranscript && isDualMode && (
-                                    <button
-                                        onClick={() => setShowRawTranscript(!showRawTranscript)}
-                                        className="px-2 py-1 rounded text-3xs font-bold uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors flex items-center gap-1"
-                                        title="Toggle between AI-cleaned and verbatim raw transcript. Raw is preserved for dispute resolution — never edited automatically."
-                                    >
-                                        {showRawTranscript ? '📄 Raw' : '✨ Cleaned'}
-                                        <span className="opacity-60">⇄</span>
-                                    </button>
-                                )}
-                                {hasExistingTranscript && isDualMode && !showRawTranscript && (
-                                    <span className="text-3xs text-violet-500 dark:text-violet-400 italic">
-                                        AI-cleaned from dictation
-                                    </span>
-                                )}
-                            </>
-                        ) : (
-                            // Unsupported-browser state — explicit, not a broken button.
-                            // Shows a disabled mic icon with tooltip explaining why.
-                            <>
-                                <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
-                                <button
-                                    disabled
-                                    className="p-1.5 rounded text-slate-300 dark:text-zinc-600 cursor-not-allowed flex items-center gap-1"
-                                    title="Voice dictation requires Chrome, Edge, or Android WebView. Not supported in this browser (Safari/Firefox)."
-                                >
-                                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                                        <line x1="12" y1="19" x2="12" y2="23"/>
-                                        <line x1="8" y1="23" x2="16" y2="23"/>
-                                        <line x1="3" y1="3" x2="21" y2="21" stroke="currentColor" strokeWidth={2}/>
-                                    </svg>
-                                </button>
-                            </>
+                        {/* Dictation (Voice-to-Text). A1 (2026-10-07): two engines,
+                            one button — Web Speech API where the browser supports
+                            it (Chrome/Edge/Android WebView), AI-audio fallback
+                            (MediaRecorder → 16 kHz WAV → Gemini 2.5 Flash with
+                            domain prompt) on Safari/Firefox. Both feed the same
+                            Vega dual-output ceremony on stop. */}
+                        <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
+                        <button
+                            onClick={toggleDictation}
+                            disabled={isCleaning}
+                            className={`p-1.5 rounded transition-all flex items-center gap-1 ${
+                                isDictating
+                                    ? 'bg-red-500 text-white animate-pulse'
+                                    : isCleaning
+                                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                                        : 'hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500'
+                            }`}
+                            title={
+                                isDictating ? 'Stop dictation'
+                                : isCleaning ? 'AI cleaning transcript…'
+                                : dictationSupported
+                                    ? (isDualMode
+                                        ? 'Start voice dictation (Vega mode — preserves raw + cleaned transcript)'
+                                        : 'Start voice dictation (Atrium mode — single-pass)')
+                                    : (isDualMode
+                                        ? 'Start voice dictation (AI audio mode — Vega, preserves raw + cleaned transcript; text appears every ~10 seconds)'
+                                        : 'Start voice dictation (AI audio mode — single-pass; text appears every ~10 seconds)')
+                            }
+                        >
+                            {isCleaning ? (
+                                <div className="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                                    <line x1="12" y1="19" x2="12" y2="23"/>
+                                    <line x1="8" y1="23" x2="16" y2="23"/>
+                                </svg>
+                            )}
+                            {isDictating && <span className="text-3xs font-bold">Listening...</span>}
+                            {isCleaning && <span className="text-3xs font-bold">Cleaning...</span>}
+                        </button>
+                        {/* VEGA DUAL-OUTPUT: raw/cleaned toggle + AI-disclosure marker.
+                            Only shown after dictation completes (hasExistingTranscript).
+                            Atrium mode doesn't get the toggle — single-pass only. */}
+                        {hasExistingTranscript && isDualMode && (
+                            <button
+                                onClick={() => setShowRawTranscript(!showRawTranscript)}
+                                className="px-2 py-1 rounded text-3xs font-bold uppercase tracking-wider bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition-colors flex items-center gap-1"
+                                title="Toggle between AI-cleaned and verbatim raw transcript. Raw is preserved for dispute resolution — never edited automatically."
+                            >
+                                {showRawTranscript ? '📄 Raw' : '✨ Cleaned'}
+                                <span className="opacity-60">⇄</span>
+                            </button>
+                        )}
+                        {hasExistingTranscript && isDualMode && !showRawTranscript && (
+                            <span className="text-3xs text-violet-500 dark:text-violet-400 italic">
+                                AI-cleaned from dictation
+                            </span>
                         )}
                         {/* Note Templates — quick-start templates for common note types */}
                         <div className="w-px h-4 bg-slate-200 dark:bg-zinc-700 mx-1"></div>
@@ -858,7 +1013,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-xs font-bold text-red-600 dark:text-red-400">Listening…</span>
-                        <span className="text-2xs text-slate-400">Say "period", "comma", "new line" for punctuation</span>
+                        {dictationSupported ? (
+                            <span className="text-2xs text-slate-400">Say "period", "comma", "new line" for punctuation</span>
+                        ) : (
+                            // A1: AI-audio mode — Gemini transcribes in ~10s
+                            // batches, so there is no word-by-word interim.
+                            <span className="text-2xs text-slate-400">
+                                {aiTranscribing ? 'Transcribing last segment…' : 'AI audio mode — your words appear every ~10 seconds'}
+                            </span>
+                        )}
                     </div>
                     <button
                         onClick={toggleDictation}
