@@ -37,24 +37,24 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>PracticePro — Operating Systems for Modern Organizations</title>
-  <meta name="description" content="PracticePro builds dedicated operating systems for the organizations that run modern Africa. Atrium for property managers. Vega for Nigerian law firms. One platform, two specialized products." />
-  <meta name="keywords" content="PracticePro, Atrium, Vega, property management software, legal practice management Nigeria, NDPA compliance, law firm management, property management Africa, legal tech Nigeria, organization software" />
+  <title>PracticePro Systems — Vega for Law Firms, Atrium for Property Managers</title>
+  <meta name="description" content="PracticePro Systems builds dedicated operating systems for the organizations that run modern Africa — Vega for Nigerian law firms, Atrium for property managers." />
+  <meta name="keywords" content="PracticePro Systems, PracticePro, Atrium, Vega, property management software, legal practice management Nigeria, NDPA compliance, law firm management, property management Africa, legal tech Nigeria, organization software" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="PracticePro — Operating Systems for Modern Organizations" />
-  <meta property="og:description" content="PracticePro builds dedicated operating systems for the organizations that run modern Africa. Atrium for property managers. Vega for Nigerian law firms. One platform, two specialized products." />
-  <meta property="og:site_name" content="PracticePro" />
+  <meta property="og:title" content="PracticePro Systems — Vega for Law Firms, Atrium for Property Managers" />
+  <meta property="og:description" content="PracticePro Systems builds dedicated operating systems for the organizations that run modern Africa — Vega for Nigerian law firms, Atrium for property managers." />
+  <meta property="og:site_name" content="PracticePro Systems" />
   <meta property="og:image" content="/assets/landing/vega-hero-1.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="PracticePro — Vega for law firms, Atrium for property managers" />
+  <meta property="og:image:alt" content="PracticePro Systems — Vega for law firms, Atrium for property managers" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="PracticePro — Operating Systems for Modern Organizations" />
-  <meta name="twitter:description" content="Atrium for property managers. Vega for Nigerian law firms. One platform, two specialized products." />
+  <meta name="twitter:title" content="PracticePro Systems — Vega for Law Firms, Atrium for Property Managers" />
+  <meta name="twitter:description" content="Vega for Nigerian law firms. Atrium for property managers. Built by PracticePro Systems." />
   <meta name="twitter:image" content="/assets/landing/vega-hero-1.jpg" />
-  <meta name="twitter:image:alt" content="PracticePro — Vega for law firms, Atrium for property managers" />
+  <meta name="twitter:image:alt" content="PracticePro Systems — Vega for law firms, Atrium for property managers" />
   <meta name="robots" content="index, follow" />
-  <meta name="author" content="PracticePro" />
+  <meta name="author" content="PracticePro Systems Limited" />
   <link rel="preconnect" href="https://api.paystack.co">
   <link rel="preconnect" href="https://*.convex.cloud">
   <link rel="preconnect" href="https://firebasestorage.googleapis.com">
@@ -62,68 +62,92 @@
        (Task 62). Previously loaded from fonts.googleapis.com, which left the
        APKs falling back to system fonts whenever there was no network. -->
 
-  <!-- JSON-LD Structured Data — SoftwareApplication schema for SEO -->
+  <!-- JSON-LD Structured Data — W4 (2026-10-07): the COMPANY is declared as
+       an Organization; each PRODUCT is its own SoftwareApplication published
+       by that Organization. The old single "PracticePro" app node conflated
+       company and products, and carried a fabricated aggregateRating (4.8/
+       127 reviews) with no review surface behind it — removed per the
+       honest-marketing standard (docs/brand-architecture.md §4). -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "PracticePro",
-    "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Web, Android",
-    "description": "PracticePro is the Nigerian-built SaaS for law firms and property managers. Manage cases, collect rent, draft documents with AI, and stay NDPA compliant.",
-    "url": "https://practicepro.ng",
-    "offers": [
+    "@graph": [
       {
-        "@type": "Offer",
-        "name": "Vega Growth",
-        "price": "45000",
-        "priceCurrency": "NGN",
-        "priceValidUntil": "2026-12-31"
+        "@type": "Organization",
+        "@id": "https://practicepro.ng/#organization",
+        "name": "PracticePro Systems Limited",
+        "url": "https://practicepro.ng",
+        "logo": "https://practicepro.ng/logo.svg",
+        "description": "PracticePro Systems Limited builds dedicated operating systems for the organizations that run modern Africa.",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Lagos",
+          "addressCountry": "NG"
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "dpo@practicepro.ng"
+        }
       },
       {
-        "@type": "Offer",
-        "name": "Vega Pro",
-        "price": "80000",
-        "priceCurrency": "NGN",
-        "priceValidUntil": "2026-12-31"
+        "@type": "SoftwareApplication",
+        "name": "PracticePro Vega",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, Android",
+        "description": "Legal practice operating system for Nigerian law firms — case management, AI-assisted drafting with ALOA, court-rule-aware calendaring, and billing.",
+        "url": "https://practicepro.ng/vega",
+        "publisher": { "@id": "https://practicepro.ng/#organization" },
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Vega Growth",
+            "price": "45000",
+            "priceCurrency": "NGN",
+            "priceValidUntil": "2026-12-31"
+          },
+          {
+            "@type": "Offer",
+            "name": "Vega Pro",
+            "price": "80000",
+            "priceCurrency": "NGN",
+            "priceValidUntil": "2026-12-31"
+          },
+          {
+            "@type": "Offer",
+            "name": "Komplete — Vega + Atrium bundle",
+            "price": "2500000",
+            "priceCurrency": "NGN",
+            "priceValidUntil": "2026-12-31"
+          }
+        ]
       },
       {
-        "@type": "Offer",
-        "name": "Atrium Starter (Annual)",
-        "price": "490000",
-        "priceCurrency": "NGN",
-        "priceValidUntil": "2026-12-31"
-      },
-      {
-        "@type": "Offer",
-        "name": "Atrium Growth (Annual)",
-        "price": "965000",
-        "priceCurrency": "NGN",
-        "priceValidUntil": "2026-12-31"
-      },
-      {
-        "@type": "Offer",
-        "name": "Komplete",
-        "price": "2500000",
-        "priceCurrency": "NGN",
-        "priceValidUntil": "2026-12-31"
+        "@type": "SoftwareApplication",
+        "name": "PracticePro Atrium",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, Android",
+        "description": "Property management operating system for Nigerian portfolios — rent and service-charge collection, residents' portal, maintenance workflows, and revenue intelligence with ARIA.",
+        "url": "https://practicepro.ng/atrium",
+        "publisher": { "@id": "https://practicepro.ng/#organization" },
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Atrium Starter (Annual)",
+            "price": "490000",
+            "priceCurrency": "NGN",
+            "priceValidUntil": "2026-12-31"
+          },
+          {
+            "@type": "Offer",
+            "name": "Atrium Growth (Annual)",
+            "price": "965000",
+            "priceCurrency": "NGN",
+            "priceValidUntil": "2026-12-31"
+          }
+        ]
       }
-    ],
-    "aggregateRating": {
-      "@type": "AggregateRating",
-      "ratingValue": "4.8",
-      "ratingCount": "127",
-      "reviewCount": "127"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "PracticePro Systems Limited",
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Lagos",
-        "addressCountry": "NG"
-      }
-    }
+    ]
   }
   </script>
   <script type="application/ld+json">
