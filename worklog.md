@@ -12433,3 +12433,29 @@ Stage Summary:
 - Raw-element ratchet tightened 2371 → 2369 and locked.
 - Standing blockers unchanged: Cloudflare mirror needs CLOUDFLARE_API_TOKEN rotation; rotate the chat-shared GitHub PAT + Vercel token when this deployment window closes.
 - This commit also carries the recovered Task 16 worklog record (rent-reminder scoping + WhatsApp locale fallback, deployed at 8ac2d4f1) that a lost session never pushed.
+
+---
+
+## Task 77 — W7: the wow site (morphing hero, real-screen showroom)
+
+**Owner direction (2026-10-07, after reviewing W6 live):** make the landing page "much doper" — cool new-age 3D sites that morph; keep the brand elements; don't restrict to Lagos ("we build systems"); every project preview must show REAL SCREENS from those systems/pages/apps plus stack, use, etc.; "I want a wow site."
+
+**What shipped (commit 88866f4d, +1225/−112 across 17 files):**
+
+- **MorphScene (new, src/components/marketing/MorphScene.tsx):** GPU morphing icosphere — Ashima simplex-noise vertex displacement in a custom ShaderMaterial, brand ramp moss→emerald with an amber crest + fresnel rim, additive particle field, lerped pointer parallax, DPR cap (1.5/1.75), offscreen + document.hidden pause, single static frame under prefers-reduced-motion, silent no-op when WebGL is unavailable (CSS orb fallback shows through). three.js (already an unused dep) is dynamically imported → own lazy chunk (`three.module-*.js`, ~733KB) so the app/product bundles are untouched. @types/three@0.184 added as devDependency (package-lock updated; CI installs via npm ci).
+- **Hero goes cinematic dark (#070D18):** orb + film grain + vignette; headline/CTAs/quick-links/sign-in preserved (W6 contract); hero copy broadened — "PracticePro Systems designs, builds and runs…" (the "is a Lagos software company" line is retired from the hero per owner direction; Lagos stays honest in About + footer).
+- **Capabilities marquee** bridges hero → body (Custom Systems · Custom Integrations · Customer Portals · Payments & Billing · AI & Automation · Mobile Apps · Web Platforms · Security & Compliance); frozen under reduced motion.
+- **What We Do → asymmetric bento** (4/2 · 2/2/2 · 6) with cursor-following spotlight cards; all W6 copy and section ids intact.
+- **Our Work → dark showroom with REAL SCREENS:** 10 verified captures in public/assets/landing/work/ (856KB) — /vega and /atrium product pages, client + residents' portal sign-ins, kozycare.ng home/services/memberships, and real in-app mobile screens (court-rule calendar, scheduled messaging, financials dashboard). Every candidate was VLM-screened for personal data; screens showing real user names ("Chigozie Ubah"), client threads, or a real legal deliverable were rejected. Live pages were re-captured after dismissing the cookie banner (the banner's "Acknowledge" is a span, not a button — accessibility snapshots miss it).
+- **Per-project preview system:** browser/phone device frames with brand glow + float, stack chips ("Built with"), key modules ("Inside the system"), and a "Preview the system" modal (WorkDetailModal: portal-mounted gallery with captions + thumbs, inside-modules grid, full stack, live-link + contact CTAs; Escape + backdrop close, scroll-lock on [data-public-page], z-10000 so the cookie banner never covers it).
+- **How We Work → scroll-driven gradient timeline** (new useSectionProgress hook — rAF + getBoundingClientRect, works with the landing page's internal scroll container).
+- **Final CTA → dark aurora**; **About** fact broadened ("Working with businesses across Nigeria and beyond"); **Footer** tagline → "From Lagos, for businesses anywhere." index.html meta descriptions broadened.
+- **Tests:** websiteRepositioning.test.ts now pins the W6+W7 contract — 26 pins (broadened hero + negative pin on "is a Lagos software company", marquee, all 10 real-screen paths, stack/inside markers incl. 'React + TypeScript', 'Convex' / 'Gemini AI' / 'Next.js', 'Prisma + Supabase' / 'Paystack', preview modal markers, MorphScene + fallback).
+
+**Gates:** tsc 129 = clean baseline (2 pre-existing LandingPage errors, line-shifted); vitest 1207/1207; ui-primitives ratchet HELD 2369 (every new interactive is ui/Button bare); vite build clean; desktop + mobile visual verification via headless browser + VLM (hero 9/10, showroom 9/10, modal 9/10, timeline & about 8/10 — no layout issues after the cookie-banner fixes).
+
+**Ship:** a835cbdb → rebased over bot build-1048 → **88866f4d**. CI: Tests #146 ✓, Staging #143 ✓, APK #1049 ✓ (v1.0.662). Production promote #85 (run 37620446353, sha input 88866f4d): quality gate ✓, **Vercel + Convex ✓**, Cloudflare mirror ✗ at the standing expired CLOUDFLARE_API_TOKEN (unchanged; report-only).
+
+**Live verification:** practice-pro-vega.vercel.app/version.json → sha 88866f4d53aa4e8c2a083fb55ce2f356a3a687dd, status healthy, stableSince 12:24Z; production bundle index-XxE_5cWp.js carries the broadened hero copy, "Preview the system", kozycare.ng/memberships, "Ask us about a system like this", "From Lagos, for businesses anywhere"; three.module-*.js confirmed as a separate lazy chunk. (MARQUEE_ITEMS is a source-level identifier — minified away in the bundle, pinned in the source-reading tests.) practicepro.ng remains unreachable from the agent sandbox (network-level; same Vercel project — owner should hard-refresh).
+
+**Standing items:** rotate the chat-shared GitHub PAT + Vercel token when this window closes; Cloudflare mirror CLOUDFLARE_API_TOKEN still expired.
