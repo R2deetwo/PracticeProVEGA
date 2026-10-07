@@ -9,7 +9,9 @@ import {
     // W6 (corporate hub): icons for the company landing sections.
     BriefcaseIcon, LinkIcon, UsersIcon, NairaCircleIcon, BrainIcon,
     MapPinIcon, ClipboardListIcon, PencilSquareIcon, ComputerDesktopIcon,
-    CheckBadgeIcon, ExternalLinkIcon
+    CheckBadgeIcon, ExternalLinkIcon,
+    // W7 (the wow site): hero scroll cue, modal close, device/stack markers.
+    ChevronDownIcon, XMarkIcon, ChevronRightIcon, DeviceMobileIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
 // Legal pages and Resources are now routed via URL in App.tsx — no need to import them here.
@@ -24,6 +26,9 @@ import {
 // TASK 54: click-event-safe product normalization for the signup funnel.
 import { normalizeSignupProduct } from '../utils/signupProduct';
 import ContactSalesDrawer from './marketing/ContactSalesDrawer';
+// W7 (the wow site): the hero's WebGL morphing orb. three.js is imported
+// dynamically inside MorphScene, so it code-splits away from the app bundle.
+import MorphScene from './marketing/MorphScene';
 // W1 (website repositioning): new interactive elements use the ui/ Button
 // primitive per ADR-0004 — the raw-element ratchet must not grow.
 import { Button } from './ui';
@@ -102,6 +107,46 @@ function useScrollParallax<T extends HTMLElement = HTMLDivElement>() {
             if (rafId !== null) cancelAnimationFrame(rafId);
         };
     }, []);
+    return ref;
+}
+
+/**
+ * useSectionProgress (W7) — how far the viewport has scrolled through a
+ * section, 0..1. Runs a rAF loop only while the section is on screen and
+ * reads getBoundingClientRect(), so it works no matter which element
+ * owns the scrollbar (the landing page scrolls inside its own div).
+ * Returns a ref; the caller reads progress via the callback.
+ */
+function useSectionProgress<T extends HTMLElement = HTMLDivElement>(onProgress: (p: number) => void) {
+    const ref = useRef<T>(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        let rafId: number | null = null;
+        let inView = false;
+        const io = new IntersectionObserver((entries) => {
+            inView = entries.some((en) => en.isIntersecting);
+            if (inView && rafId === null) {
+                rafId = requestAnimationFrame(tick);
+            }
+        }, { threshold: 0 });
+        const tick = () => {
+            const rect = el.getBoundingClientRect();
+            const vh = window.innerHeight;
+            // 0 when the section's top hits the viewport bottom; 1 when its
+            // bottom reaches the viewport top. Clamped for safety.
+            const traveled = vh - rect.top;
+            const total = rect.height + vh;
+            const p = Math.min(1, Math.max(0, traveled / total));
+            onProgress(p);
+            rafId = inView ? requestAnimationFrame(tick) : null;
+        };
+        io.observe(el);
+        return () => {
+            io.disconnect();
+            if (rafId !== null) cancelAnimationFrame(rafId);
+        };
+    }, [onProgress]);
     return ref;
 }
 
@@ -458,9 +503,11 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             )}
                         </span>
                     </div>
-                    {/* W6: corporate tagline — the company builds AND runs
-                        systems, for itself and for clients. */}
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">A Lagos software company. We design, build and run the systems businesses manage their affairs with — our products Vega and Atrium, and custom commissions for clients.</p>
+                    {/* W6/W7: corporate tagline — the company builds AND runs
+                        systems, for itself and for clients. Broadened per owner
+                        direction: Lagos is where we work from, not a limit on
+                        where we work. */}
+                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — our products Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
                     {productChosen && (
                         <div className="mt-4 flex items-center gap-3">
                             <button
@@ -638,36 +685,42 @@ const HubHero: React.FC<{
     onLogin: () => void;
     scrollTo: (id: string) => void;
 }> = ({ onContactSales, onLogin, scrollTo }) => {
-    // Landing page is ALWAYS light mode. Value-first hero: what we DO for
-    // businesses leads; the company-and-location eyebrow that used to sit at
-    // the top is retired per owner direction ("not necessary at the top of
-    // the page") — the page itself is the company's home.
+    // W7 (the wow site): the hero goes dark and cinematic — a WebGL
+    // morphing orb in the brand ramp (moss → emerald → amber rim) breathes
+    // behind the value-first headline. Positioning is broadened per owner
+    // direction: no "Lagos software company" line here — we build systems,
+    // full stop. The company-and-location eyebrow stays retired.
     return (
-        <section id="home" className="relative overflow-hidden" style={{ background: 'var(--color-paper)' }}>
-            {/* Subtle dot grid — the only background texture */}
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
+        <section id="home" className="relative overflow-hidden min-h-[92vh] flex items-center w7-dark">
+            {/* Layer 0 — deep ink base */}
+            <div className="absolute inset-0 bg-[#070D18]" aria-hidden="true" />
+            {/* Layer 1 — the living orb (WebGL; CSS gradient fallback sits behind it) */}
+            <div className="absolute inset-0 w7-orb-fallback" aria-hidden="true" />
+            <MorphScene className="absolute inset-0" />
+            {/* Layer 2 — vignette + grain so the headline always reads */}
+            <div className="absolute inset-0 w7-vignette pointer-events-none" aria-hidden="true" />
+            <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
-            {/* pb-28 on mobile clears the chat FAB (bottom-20 = 80px);
-                sm:pb-16 restores tighter spacing on desktop. */}
-            <div className="hero-stagger relative z-10 container mx-auto px-4 sm:px-6 pt-28 pb-20 sm:pt-36 sm:pb-24 flex flex-col items-center text-center">
+            {/* pb-24 on mobile clears the chat FAB (bottom-20 = 80px). */}
+            <div className="hero-stagger relative z-10 container mx-auto px-4 sm:px-6 pt-28 pb-24 sm:pt-32 sm:pb-20 flex flex-col items-center text-center">
 
-                <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-6" style={{ color: 'var(--color-moss)' }}>
+                <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-6 text-emerald-400/90">
                     We design, build &amp; run business software
                 </p>
 
-                <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight leading-[1.15] mb-6 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
+                <h1 className="font-display text-[2.4rem] sm:text-6xl md:text-7xl lg:text-[5rem] font-bold tracking-tight leading-[1.08] mb-7 max-w-4xl text-white w7-headline-shadow">
                     We build the systems
                     <br />
-                    <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: `linear-gradient(to right, var(--color-amber), var(--color-emerald), var(--color-moss))` }}>
+                    <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399, #4ADE80)' }}>
                         businesses run on.
                     </span>
                 </h1>
 
-                <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-[1.75] text-slate-600">
-                    PracticePro Systems is a Lagos software company. We design, build and run
-                    the dedicated operating systems businesses use to manage their affairs —
-                    our products Vega and Atrium, client commissions like Kozy Care, and
-                    custom systems built around the way your business actually works.
+                <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-[1.75] text-slate-300/95">
+                    PracticePro Systems designs, builds and runs the dedicated operating
+                    systems businesses use to manage their affairs — our products Vega and
+                    Atrium, client commissions like Kozy Care, and custom systems built
+                    around the way your business actually works.
                 </p>
 
                 {/* CTAs — ui/Button (bare) per ADR-0004: new interactive
@@ -676,14 +729,14 @@ const HubHero: React.FC<{
                     <Button
                         variant="bare"
                         onClick={onContactSales}
-                        className="relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-600/25 hover:shadow-glow-primary transition-all duration-300 active:scale-[0.97]"
+                        className="relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.97]"
                     >
                         Talk to us about your system
                     </Button>
                     <Button
                         variant="bare"
                         onClick={() => scrollTo('ourWork')}
-                        className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white transition-all duration-300 active:scale-[0.97]"
+                        className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/10 text-white border border-white/15 backdrop-blur-sm hover:bg-white/15 hover:border-white/25 transition-all duration-300 active:scale-[0.97]"
                     >
                         See what we&apos;ve built
                     </Button>
@@ -692,20 +745,20 @@ const HubHero: React.FC<{
                 {/* Portfolio quick links — real anchors so they work everywhere
                     (full-page navigation, same as the old product cards). */}
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 mb-12 text-sm">
-                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-400">Our products</span>
-                    <a href="/vega" className="font-semibold text-slate-700 hover:text-amber-600 transition-colors min-h-[2rem] inline-flex items-center">
+                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-500">Our products</span>
+                    <a href="/vega" className="font-semibold text-slate-300 hover:text-amber-400 transition-colors min-h-[2rem] inline-flex items-center">
                         Vega — Legal
                     </a>
-                    <a href="/atrium" className="font-semibold text-slate-700 hover:text-emerald-600 transition-colors min-h-[2rem] inline-flex items-center">
+                    <a href="/atrium" className="font-semibold text-slate-300 hover:text-emerald-400 transition-colors min-h-[2rem] inline-flex items-center">
                         Atrium — Property
                     </a>
-                    <span className="hidden sm:block w-px h-4 bg-slate-200" aria-hidden="true" />
-                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-400">Client build</span>
+                    <span className="hidden sm:block w-px h-4 bg-white/15" aria-hidden="true" />
+                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-500">Client build</span>
                     <a
                         href="https://kozycare.ng"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-primary-600 transition-colors min-h-[2rem]"
+                        className="inline-flex items-center gap-1.5 font-semibold text-slate-300 hover:text-primary-400 transition-colors min-h-[2rem]"
                     >
                         Kozy Care <ExternalLinkIcon className="w-3.5 h-3.5 opacity-60" />
                     </a>
@@ -714,15 +767,66 @@ const HubHero: React.FC<{
                 {/* Auth link — single, quiet. Min 32px touch target. */}
                 <button
                     onClick={onLogin}
-                    className="text-sm transition-colors text-slate-500 hover:text-slate-700 min-h-[2rem] py-1"
+                    className="text-sm transition-colors text-slate-400 hover:text-slate-200 min-h-[2rem] py-1"
                 >
                     Already have an account?{' '}
-                    <span className="font-semibold hover:underline" style={{ color: 'var(--color-moss)' }}>Sign in →</span>
+                    <span className="font-semibold hover:underline text-emerald-400">Sign in →</span>
                 </button>
             </div>
+
+            {/* Scroll cue — invites the descent into the story. */}
+            <Button
+                variant="bare"
+                onClick={() => scrollTo('whatWeDo')}
+                aria-label="Scroll to what we do"
+                className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 p-2 text-slate-500 hover:text-slate-200 transition-colors w7-scroll-cue"
+            >
+                <ChevronDownIcon className="w-6 h-6" />
+            </Button>
+
+            {/* Bottom fade into the marquee band */}
+            <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-b from-transparent to-[#070D18] pointer-events-none" aria-hidden="true" />
         </section>
     );
 };
+
+// ─── MARQUEE (W7) — the capabilities ticker ─────────────────────────────────
+// A slow infinite band that carries the builder's vocabulary across the
+// seam between the dark hero and the light body. Pure CSS animation;
+// frozen under prefers-reduced-motion.
+
+const MARQUEE_ITEMS = [
+    'Custom Systems',
+    'Custom Integrations',
+    'Customer Portals',
+    'Payments & Billing',
+    'AI & Automation',
+    'Mobile Apps',
+    'Web Platforms',
+    'Security & Compliance',
+];
+
+const MarqueeStrip: React.FC = () => (
+    <div className="relative overflow-hidden border-y border-white/5 bg-[#0A101C] py-5" aria-label="What we build">
+        <div className="w7-marquee-track flex items-center gap-10 whitespace-nowrap w-max">
+            {[0, 1].map((dup) => (
+                <div key={dup} className="flex items-center gap-10" aria-hidden={dup === 1}>
+                    {MARQUEE_ITEMS.map((item) => (
+                        <span key={`${dup}-${item}`} className="flex items-center gap-10">
+                            <span className="font-display text-sm sm:text-base font-semibold uppercase tracking-[0.22em] text-slate-500">
+                                {item}
+                            </span>
+                            <span className="w-1.5 h-1.5 rotate-45 bg-gradient-to-br from-amber-500 to-emerald-500 opacity-70" aria-hidden="true" />
+                        </span>
+                    ))}
+                </div>
+            ))}
+        </div>
+        {/* Edge fades so the band dissolves instead of clipping */}
+        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#0A101C] to-transparent pointer-events-none" aria-hidden="true" />
+        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#0A101C] to-transparent pointer-events-none" aria-hidden="true" />
+    </div>
+);
 
 // ─── WHAT WE DO (corporate hub) ─────────────────────────────────────────────
 // The services PracticePro Systems sells. Each card is a capability already
@@ -768,14 +872,34 @@ const WHAT_WE_DO: Array<{
 
 const WhatWeDoSection: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
+    const gridRef = useScrollReveal<HTMLDivElement>();
+    // W7: bento spans — an asymmetric grid reads as designed, not templated.
+    // [4,2] / [2,2,2] / [6]: the first capability gets room to breathe, the
+    // last (hosting & security) closes the grid as a wide banner.
+    const bentoSpan = [
+        'md:col-span-4',
+        'md:col-span-2',
+        'md:col-span-2',
+        'md:col-span-2',
+        'md:col-span-2',
+        'md:col-span-6',
+    ];
+    const handleSpotlight = (e: React.MouseEvent<HTMLDivElement>) => {
+        const el = e.currentTarget;
+        const rect = el.getBoundingClientRect();
+        el.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+        el.style.setProperty('--my', `${e.clientY - rect.top}px`);
+    };
     return (
-        <section id="whatWeDo" className="py-16 sm:py-24 bg-white">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="whatWeDo" className="py-16 sm:py-24 bg-white relative">
+            {/* faint brand wash at the very top — heals the dark→light seam */}
+            <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#EEF2EB] to-transparent pointer-events-none" aria-hidden="true" />
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
                         What we do
                     </p>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display">
                         What we can build for you
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
@@ -783,10 +907,14 @@ const WhatWeDoSection: React.FC = () => {
                         The same engineering is available for your business.
                     </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 max-w-6xl mx-auto">
+                <div ref={gridRef} className="scroll-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
                     {WHAT_WE_DO.map((c, i) => (
-                        <div key={i} className="bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
-                            <div className="w-11 h-11 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center mb-5">
+                        <div
+                            key={i}
+                            onMouseMove={handleSpotlight}
+                            className={`w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
+                        >
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 bg-gradient-to-br from-primary-50 to-emerald-50 text-primary-600 group-hover:from-primary-500 group-hover:to-emerald-600 group-hover:text-white transition-all duration-300">
                                 <c.Icon className="w-5 h-5" />
                             </div>
                             <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
@@ -805,6 +933,19 @@ const WhatWeDoSection: React.FC = () => {
 // /atrium on this site); Kozy Care is a client commission, live at
 // kozycare.ng — shown here as proof we build for other people's businesses.
 
+// W7 (the wow site): every project ships with REAL SCREENS captured from the
+// live systems — marketing pages, portal logins and actual in-app screens —
+// plus the STACK it is built with and WHAT'S INSIDE it. Prospective clients
+// can see what we can do (capabilities), what we have done (these screens)
+// and how we could help them (the preview + CTA).
+
+type WorkScreen = {
+    src: string;
+    alt: string;
+    kind: 'browser' | 'phone';
+    label: string;
+};
+
 const OUR_WORK: Array<{
     name: string;
     tagline: string;
@@ -815,89 +956,470 @@ const OUR_WORK: Array<{
     body: string;
     cta: { label: string; href: string; external: boolean };
     ctaClass: string;
+    // ── W7 additions ──
+    frameUrl: string;          // shown in the browser-chrome mockup
+    stack: string[];           // what it's built with
+    inside: string[];          // modules inside the system
+    primaryScreen: WorkScreen; // the card's main showcase shot
+    detailScreens: WorkScreen[]; // the preview modal's gallery
+    glowClass: string;         // accent glow behind the devices
+    borderGlowClass: string;   // hover ring on the device stack
 }> = [
     {
         name: 'Vega',
         tagline: 'Legal Practice OS',
         badge: 'Our product',
-        badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+        badgeClass: 'bg-amber-500/10 text-amber-300 border border-amber-500/30',
         Icon: ScalesIcon,
-        iconClass: 'bg-amber-50 text-amber-600',
+        iconClass: 'bg-amber-500/10 text-amber-400',
         body: 'Case management, AI-assisted drafting with DraftPro and ALOA, court-rule-aware calendaring and billing for Nigerian law firms — from case intake to filing.',
         cta: { label: 'Explore Vega', href: '/vega', external: false },
-        ctaClass: 'group-hover:text-amber-600 text-amber-600',
+        ctaClass: 'group-hover:text-amber-400 text-amber-400',
+        frameUrl: 'practicepro.ng/vega',
+        stack: ['React + TypeScript', 'Convex', 'Tailwind CSS', 'Gemini AI', 'Paystack', 'Android app (Capacitor)'],
+        inside: [
+            'Matter & case management',
+            'AI drafting — DraftPro & ALOA',
+            'Court-rule-aware calendaring',
+            'Billing, invoices & receipts',
+            'Client portal with live case tracking',
+            'WhatsApp, SMS & email notifications',
+        ],
+        primaryScreen: {
+            src: '/assets/landing/work/vega-page.jpg',
+            alt: 'The PracticePro Vega product page — Practice Management for Nigerian Law Firms',
+            kind: 'browser',
+            label: 'Product page — practicepro.ng/vega',
+        },
+        detailScreens: [
+            {
+                src: '/assets/landing/work/vega-page.jpg',
+                alt: 'The PracticePro Vega product page — Practice Management for Nigerian Law Firms',
+                kind: 'browser',
+                label: 'Product page — practicepro.ng/vega',
+            },
+            {
+                src: '/assets/landing/work/vega-calendar.jpg',
+                alt: 'Vega\u2019s court-rule-aware calendar, running in the PracticePro Android app',
+                kind: 'phone',
+                label: 'Court-rule calendar — the mobile app',
+            },
+            {
+                src: '/assets/landing/work/vega-messages.jpg',
+                alt: 'Vega\u2019s scheduled messaging screen for client updates by email, SMS and WhatsApp',
+                kind: 'phone',
+                label: 'Scheduled client messaging — the mobile app',
+            },
+            {
+                src: '/assets/landing/work/vega-portal.jpg',
+                alt: 'The Vega client portal sign-in screen',
+                kind: 'browser',
+                label: 'Client portal — sign-in',
+            },
+        ],
+        glowClass: 'bg-amber-500/25',
+        borderGlowClass: 'group-hover:border-amber-500/40',
     },
     {
         name: 'Atrium',
         tagline: 'Property Management OS',
         badge: 'Our product',
-        badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        badgeClass: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30',
         Icon: OfficeBuildingIcon,
-        iconClass: 'bg-emerald-50 text-emerald-600',
+        iconClass: 'bg-emerald-500/10 text-emerald-400',
         body: "Rent and service-charge collection, residents' portal, maintenance workflows and revenue intelligence for property portfolios — applying the tenancy law of all 36 states and the FCT.",
         cta: { label: 'Explore Atrium', href: '/atrium', external: false },
-        ctaClass: 'group-hover:text-emerald-600 text-emerald-600',
+        ctaClass: 'group-hover:text-emerald-400 text-emerald-400',
+        frameUrl: 'practicepro.ng/atrium',
+        stack: ['React + TypeScript', 'Convex', 'Tailwind CSS', 'Paystack', 'WhatsApp & SMS', 'Web + Android'],
+        inside: [
+            'Rent & service-charge collection',
+            "Residents' portal with statements",
+            'Maintenance request workflows',
+            'Revenue intelligence & forecasting',
+            'Tenancy law engine — 36 states + FCT',
+            'Defaulter tracking & escalation',
+        ],
+        primaryScreen: {
+            src: '/assets/landing/work/atrium-page.jpg',
+            alt: 'The PracticePro Atrium product page — Revenue Monitor for Property Managers',
+            kind: 'browser',
+            label: 'Product page — practicepro.ng/atrium',
+        },
+        detailScreens: [
+            {
+                src: '/assets/landing/work/atrium-page.jpg',
+                alt: 'The PracticePro Atrium product page — Revenue Monitor for Property Managers',
+                kind: 'browser',
+                label: 'Product page — practicepro.ng/atrium',
+            },
+            {
+                src: '/assets/landing/work/atrium-financials.jpg',
+                alt: 'Atrium\u2019s financials dashboard showing collected revenue, outstanding balances and invoices, in the PracticePro mobile app',
+                kind: 'phone',
+                label: 'Revenue & collections dashboard — the mobile app',
+            },
+            {
+                src: '/assets/landing/work/atrium-portal.jpg',
+                alt: 'The Atrium residents\u2019 portal sign-in screen',
+                kind: 'browser',
+                label: "Residents' portal — sign-in",
+            },
+        ],
+        glowClass: 'bg-emerald-500/25',
+        borderGlowClass: 'group-hover:border-emerald-500/40',
     },
     {
         name: 'Kozy Care',
         tagline: 'Dry-cleaning & laundry platform',
         badge: 'Built for a client',
-        badgeClass: 'bg-primary-50 text-primary-700 border border-primary-200',
+        badgeClass: 'bg-primary-500/10 text-primary-300 border border-primary-500/30',
         Icon: MapPinIcon,
-        iconClass: 'bg-primary-50 text-primary-600',
+        iconClass: 'bg-primary-500/10 text-primary-400',
         body: 'A complete operations platform built to order for a Lagos dry-cleaning business — guest booking, Kozy Circle memberships, customer portal, GPS rider dispatch across 12 Lagos zones, multi-branch admin console and partner network.',
         cta: { label: 'Visit kozycare.ng', href: 'https://kozycare.ng', external: true },
-        ctaClass: 'group-hover:text-primary-600 text-primary-600',
+        ctaClass: 'group-hover:text-primary-400 text-primary-400',
+        frameUrl: 'kozycare.ng',
+        stack: ['Next.js', 'Prisma + Supabase', 'NextAuth', 'Paystack', 'Termii SMS', 'Vercel'],
+        inside: [
+            'Guest pickup booking & quotes',
+            'Kozy Circle memberships',
+            'Customer portal & order tracking',
+            'GPS rider dispatch — 12 zones',
+            'Multi-branch admin console',
+            'Partner garment-care network',
+        ],
+        primaryScreen: {
+            src: '/assets/landing/work/kozy-home.jpg',
+            alt: 'The Kozy Care home page — dry cleaning and laundry services, with pickup booking',
+            kind: 'browser',
+            label: 'Home page — kozycare.ng',
+        },
+        detailScreens: [
+            {
+                src: '/assets/landing/work/kozy-home.jpg',
+                alt: 'The Kozy Care home page — dry cleaning and laundry services, with pickup booking',
+                kind: 'browser',
+                label: 'Home page — kozycare.ng',
+            },
+            {
+                src: '/assets/landing/work/kozy-services.jpg',
+                alt: 'Kozy Care\u2019s services catalogue — men\u2019s and women\u2019s dry cleaning, home linens, shoe care and alterations',
+                kind: 'browser',
+                label: 'Services catalogue — kozycare.ng/services',
+            },
+            {
+                src: '/assets/landing/work/kozy-memberships.jpg',
+                alt: 'Kozy Care\u2019s membership plans page with laundry pricing',
+                kind: 'browser',
+                label: 'Membership plans — kozycare.ng/memberships',
+            },
+        ],
+        glowClass: 'bg-primary-500/25',
+        borderGlowClass: 'group-hover:border-primary-500/40',
     },
 ];
 
-const OurWorkSection: React.FC = () => {
-    const ref = useScrollReveal<HTMLDivElement>();
-    return (
-        <section id="ourWork" className="py-16 sm:py-24" style={{ background: 'var(--color-sage)' }}>
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
-                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
-                        Our work
-                    </p>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-                        Systems we&apos;ve built
-                    </h2>
-                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
-                        Two products we run ourselves, and one platform built to order for a client.
-                        Each one manages a business end to end.
+/** W7: a macOS-style browser chrome around a real screen capture. */
+const BrowserFrame: React.FC<{ url: string; src: string; alt: string; className?: string; eager?: boolean }> = ({ url, src, alt, className = '', eager = false }) => (
+    <div className={`overflow-hidden rounded-xl border border-white/10 bg-[#0E1626] shadow-2xl shadow-black/50 ${className}`}>
+        <div className="flex items-center gap-2 px-3 py-2 bg-[#111A2C] border-b border-white/[0.06]">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" aria-hidden="true" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" aria-hidden="true" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#28C840]" aria-hidden="true" />
+            <span className="flex-1 mx-1 px-3 py-1 rounded-md bg-black/40 text-[10px] leading-none text-slate-400 font-medium truncate flex items-center gap-1.5 min-h-[1.25rem]">
+                <LockClosedIcon className="w-2.5 h-2.5 flex-shrink-0" />
+                {url}
+            </span>
+        </div>
+        <img src={src} alt={alt} loading={eager ? 'eager' : 'lazy'} className="w-full aspect-[16/10] object-cover object-top block" />
+    </div>
+);
+
+/** W7: a phone chrome around a real in-app screen capture. */
+const PhoneFrame: React.FC<{ src: string; alt: string; className?: string }> = ({ src, alt, className = '' }) => (
+    <div className={`overflow-hidden rounded-[1.6rem] border-[5px] border-[#1A2334] bg-black shadow-2xl shadow-black/60 ${className}`}>
+        <div className="relative">
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-1.5 rounded-full bg-white/20 z-10" aria-hidden="true" />
+            <img src={src} alt={alt} loading="lazy" className="w-full aspect-[9/20] object-cover object-top block" />
+        </div>
+    </div>
+);
+
+/** W7: the "Preview the system" modal — real screens, the stack, what's inside. */
+const WorkDetailModal: React.FC<{
+    work: (typeof OUR_WORK)[number] | null;
+    onClose: () => void;
+    onContactSales: () => void;
+}> = ({ work, onClose, onContactSales }) => {
+    // Escape + scroll-lock (the landing page scrolls inside its own div).
+    useEffect(() => {
+        if (!work) return;
+        const scroller = document.querySelector('[data-public-page]') as HTMLElement | null;
+        const prevOverflow = scroller?.style.overflow ?? '';
+        if (scroller) scroller.style.overflow = 'hidden';
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKey);
+        return () => {
+            if (scroller) scroller.style.overflow = prevOverflow;
+            window.removeEventListener('keydown', onKey);
+        };
+    }, [work, onClose]);
+
+    if (!work) return null;
+
+    return createPortal(
+        // z-[10000] — above the cookie consent banner (z-[9999]) so a preview
+        // is never obscured; the banner reappears once the modal closes.
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-label={`${work.name} — system preview`}>
+            <div className="absolute inset-0 bg-[#070D18]/85 backdrop-blur-md" onClick={onClose} aria-hidden="true" />
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col animate-swap-in">
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4 px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${work.iconClass}`}>
+                            <work.Icon className="w-5 h-5" />
+                        </span>
+                        <div className="min-w-0">
+                            <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate">{work.name}</h3>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{work.tagline}</p>
+                        </div>
+                    </div>
+                    <Button
+                        variant="bare"
+                        onClick={onClose}
+                        autoFocus
+                        aria-label="Close preview"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors flex-shrink-0"
+                    >
+                        <XMarkIcon className="w-5 h-5" />
+                    </Button>
+                </div>
+
+                {/* Body */}
+                <div className="overflow-y-auto px-6 sm:px-8 py-6">
+                    <WorkDetailGallery work={work} />
+
+                    <p className="text-slate-600 text-sm leading-[1.75] mb-8 max-w-2xl">{work.body}</p>
+
+                    {/* What's inside */}
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Inside the system</p>
+                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 mb-8">
+                        {work.inside.map((item) => (
+                            <li key={item} className="flex items-start gap-2.5 text-sm text-slate-700">
+                                <CheckIcon className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary-500" />
+                                {item}
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* Stack */}
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Built with</p>
+                    <div className="flex flex-wrap gap-2 mb-8">
+                        {work.stack.map((s) => (
+                            <span key={s} className="px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
+                                {s}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* CTAs */}
+                    <div className="flex flex-col sm:flex-row gap-3 pb-2">
+                        <a
+                            href={work.cta.href}
+                            {...(work.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 transition-all"
+                        >
+                            {work.cta.label}
+                            {work.cta.external ? <ExternalLinkIcon className="w-4 h-4" /> : <span aria-hidden="true">→</span>}
+                        </a>
+                        <Button
+                            variant="bare"
+                            onClick={onContactSales}
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-slate-700 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all"
+                        >
+                            Ask us about a system like this
+                        </Button>
+                    </div>
+                    <p className="text-2xs font-semibold uppercase tracking-wider text-slate-400 mt-4">
+                        {work.name} · Built by PracticePro
                     </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-6xl mx-auto">
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+const WorkDetailGallery: React.FC<{ work: (typeof OUR_WORK)[number] }> = ({ work }) => {
+    const [index, setIndex] = useState(0);
+    const screen = work.detailScreens[index];
+    return (
+        <div className="mb-8">
+            {/* Stage — real screens on a neutral studio backdrop */}
+            <div className="rounded-2xl bg-slate-100 border border-slate-200 p-3 sm:p-5 flex items-center justify-center min-h-[240px] sm:min-h-[340px] overflow-hidden">
+                <img
+                    key={screen.src}
+                    src={screen.src}
+                    alt={screen.alt}
+                    className={`animate-swap-in ${screen.kind === 'phone' ? 'h-[300px] sm:h-[400px] w-auto rounded-2xl shadow-xl' : 'w-full max-w-2xl rounded-lg shadow-xl'}`}
+                    style={screen.kind === 'browser' ? { aspectRatio: '16 / 10', objectFit: 'cover', objectPosition: 'top' } : { objectFit: 'cover', objectPosition: 'top' }}
+                />
+            </div>
+            {/* Caption */}
+            <p className="text-center text-xs font-semibold text-slate-500 mt-2.5 mb-3">{screen.label}</p>
+            {/* Thumbs */}
+            {work.detailScreens.length > 1 && (
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                    {work.detailScreens.map((s, i) => (
+                        <Button
+                            key={s.src + i}
+                            variant="bare"
+                            onClick={() => setIndex(i)}
+                            aria-label={`View: ${s.label}`}
+                            aria-pressed={i === index}
+                            className={`p-1 rounded-lg border-2 transition-all ${i === index ? 'border-primary-500' : 'border-transparent hover:border-slate-300 opacity-70 hover:opacity-100'}`}
+                        >
+                            <img
+                                src={s.src}
+                                alt=""
+                                className={`rounded object-cover object-top ${s.kind === 'phone' ? 'h-12 w-7' : 'h-12 w-[5.35rem]'}`}
+                            />
+                        </Button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    const panelsRef = useScrollReveal<HTMLDivElement>();
+    const [preview, setPreview] = useState<(typeof OUR_WORK)[number] | null>(null);
+
+    return (
+        <section id="ourWork" className="relative py-16 sm:py-24 overflow-hidden w7-dark">
+            {/* deep ink base + brand aurora, so the real screens glow */}
+            <div className="absolute inset-0 bg-[#0A101C]" aria-hidden="true" />
+            <div className="absolute -top-40 left-1/4 w-[42rem] h-[42rem] rounded-full bg-emerald-600/10 blur-[140px] pointer-events-none" aria-hidden="true" />
+            <div className="absolute -bottom-52 right-1/4 w-[38rem] h-[38rem] rounded-full bg-amber-500/10 blur-[140px] pointer-events-none" aria-hidden="true" />
+            <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
+
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-emerald-400/90">
+                        Our work
+                    </p>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display">
+                        Systems we&apos;ve built
+                    </h2>
+                    <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto">
+                        Two products we run ourselves, and one platform built to order for a client.
+                        Each one manages a business end to end — real screens, real stack, really live.
+                    </p>
+                </div>
+
+                <div ref={panelsRef} className="scroll-reveal grid grid-cols-1 gap-6 md:gap-10 max-w-6xl mx-auto">
                     {OUR_WORK.map((w, i) => (
-                        <div key={i} className="group bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition-all flex flex-col">
-                            <div className="flex items-start justify-between mb-5">
-                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${w.iconClass}`}>
-                                    <w.Icon className="w-5 h-5" />
+                        <div
+                            key={w.name}
+                            className={`group relative rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 sm:p-10 transition-all duration-500 hover:border-white/20 hover:bg-white/[0.05] ${w.borderGlowClass}`}
+                        >
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                                {/* Text side — alternates sides so the page breathes */}
+                                <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <span className={`w-11 h-11 rounded-xl flex items-center justify-center ${w.iconClass}`}>
+                                            <w.Icon className="w-5 h-5" />
+                                        </span>
+                                        <span className={`text-2xs font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-full ${w.badgeClass}`}>
+                                            {w.badge}
+                                        </span>
+                                    </div>
+                                    <h3 className="font-display text-3xl font-bold tracking-tight text-white">{w.name}</h3>
+                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1.5 mb-4">{w.tagline}</p>
+                                    <p className="text-slate-300/90 text-sm leading-[1.75] mb-6">{w.body}</p>
+
+                                    {/* Stack chips — the first few, full list in the preview */}
+                                    <p className="text-2xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Built with</p>
+                                    <div className="flex flex-wrap gap-2 mb-6">
+                                        {w.stack.slice(0, 4).map((s) => (
+                                            <span key={s} className="px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-2xs font-semibold text-slate-300">
+                                                {s}
+                                            </span>
+                                        ))}
+                                        {w.stack.length > 4 && (
+                                            <span className="px-2.5 py-1 rounded-full text-2xs font-semibold text-slate-500">
+                                                +{w.stack.length - 4} more
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Key modules — a taste of what's inside */}
+                                    <p className="text-2xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Inside the system</p>
+                                    <ul className="space-y-1.5 mb-8">
+                                        {w.inside.slice(0, 3).map((item) => (
+                                            <li key={item} className="flex items-start gap-2 text-sm text-slate-400">
+                                                <CheckIcon className="w-3.5 h-3.5 mt-1 flex-shrink-0 text-primary-500" />
+                                                {item}
+                                            </li>
+                                        ))}
+                                    </ul>
+
+                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                                        <a
+                                            href={w.cta.href}
+                                            {...(w.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                                            className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5 ${w.ctaClass}`}
+                                        >
+                                            {w.cta.label} {w.cta.external
+                                                ? <ExternalLinkIcon className="w-3.5 h-3.5" />
+                                                : <span aria-hidden="true">→</span>}
+                                        </a>
+                                        <Button
+                                            variant="bare"
+                                            onClick={() => setPreview(w)}
+                                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors min-h-[2rem]"
+                                        >
+                                            <DeviceMobileIcon className="w-4 h-4" /> Preview the system
+                                        </Button>
+                                        <span className="text-2xs font-semibold uppercase tracking-wider text-slate-600">Built by PracticePro</span>
+                                    </div>
                                 </div>
-                                <span className={`text-2xs font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-full ${w.badgeClass}`}>
-                                    {w.badge}
-                                </span>
-                            </div>
-                            <h3 className="font-display text-2xl font-bold tracking-tight text-slate-900">{w.name}</h3>
-                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1 mb-3">{w.tagline}</p>
-                            <p className="text-slate-600 text-sm leading-[1.7] mb-6 flex-1">{w.body}</p>
-                            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                                <a
-                                    href={w.cta.href}
-                                    {...(w.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                                    className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5 ${w.ctaClass}`}
-                                >
-                                    {w.cta.label} {w.cta.external
-                                        ? <ExternalLinkIcon className="w-3.5 h-3.5" />
-                                        : <span aria-hidden="true">→</span>}
-                                </a>
-                                <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">Built by PracticePro</span>
+
+                                {/* Device side — real screens, floating in the glow */}
+                                <div className={`relative ${i % 2 === 1 ? 'lg:order-1' : ''}`}>
+                                    <div className={`absolute -inset-6 rounded-[2rem] blur-3xl opacity-60 group-hover:opacity-90 transition-opacity duration-700 ${w.glowClass}`} aria-hidden="true" />
+                                    <div className="relative transition-transform duration-500 ease-out group-hover:-translate-y-1.5">
+                                        <BrowserFrame
+                                            url={w.frameUrl}
+                                            src={w.primaryScreen.src}
+                                            alt={w.primaryScreen.alt}
+                                            className="transition-transform duration-500 group-hover:scale-[1.015] rotate-[-1.2deg] group-hover:rotate-0"
+                                        />
+                                        {/* The second surface: an in-app phone screen (Vega/Atrium)
+                                            or a second live page (Kozy Care). */}
+                                        {w.detailScreens[1].kind === 'phone' ? (
+                                            <PhoneFrame
+                                                src={w.detailScreens[1].src}
+                                                alt={w.detailScreens[1].alt}
+                                                className="absolute -bottom-8 -right-3 sm:-right-6 w-[27%] min-w-[92px] rotate-[3deg] w7-float"
+                                            />
+                                        ) : (
+                                            <div className="absolute -bottom-8 -right-2 sm:-right-5 w-[46%] rotate-[2.2deg] w7-float">
+                                                <BrowserFrame url={w.frameUrl + (w.name === 'Kozy Care' ? '/services' : '')} src={w.detailScreens[1].src} alt={w.detailScreens[1].alt} />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
+
+            <WorkDetailModal work={preview} onClose={() => setPreview(null)} onContactSales={onContactSales} />
         </section>
     );
 };
@@ -938,33 +1460,61 @@ const HOW_WE_WORK: Array<{
 
 const HowWeWorkSection: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
+    const stepsRef = useScrollReveal<HTMLDivElement>();
+    // W7: a vertical timeline whose spine fills with brand gradient as the
+    // visitor scrolls — the process literally draws itself.
+    const [progress, setProgress] = useState(0);
+    const onProgress = React.useCallback((p: number) => setProgress(p), []);
+    const timelineRef = useSectionProgress<HTMLDivElement>(onProgress);
     return (
-        <section id="howWeWork" className="py-16 sm:py-24 bg-white">
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <section id="howWeWork" className="py-16 sm:py-24 bg-white relative overflow-hidden">
+            {/* faint sage wash healing the dark→light seam from Our Work */}
+            <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#EEF2EB] to-transparent pointer-events-none" aria-hidden="true" />
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
                         How we work
                     </p>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display">
                         From first conversation to a system you run on
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
                         The same process that produced Vega, Atrium and Kozy Care.
                     </p>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6 max-w-6xl mx-auto">
-                    {HOW_WE_WORK.map((step, i) => (
-                        <div key={i} className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm hover:shadow-md transition-all">
-                            <div className="flex items-center justify-between mb-5">
-                                <div className="w-11 h-11 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
-                                    <step.Icon className="w-5 h-5" />
+
+                <div ref={timelineRef} className="relative max-w-3xl mx-auto">
+                    <div className="absolute left-[27px] sm:left-1/2 sm:-translate-x-1/2 top-2 bottom-2 w-[3px] rounded-full bg-slate-200 overflow-hidden" aria-hidden="true">
+                        <div
+                            className="w-full rounded-full bg-gradient-to-b from-amber-500 via-emerald-500 to-primary-600 will-change-[height]"
+                            style={{ height: `${Math.round(progress * 100)}%` }}
+                        />
+                    </div>
+
+                    <div ref={stepsRef} className="scroll-reveal-stagger space-y-10 sm:space-y-14">
+                        {HOW_WE_WORK.map((step, i) => (
+                            <div key={step.num} className={`relative flex items-start gap-6 sm:gap-0 ${i % 2 === 1 ? 'sm:flex-row-reverse' : ''}`}>
+                                {/* Node on the spine */}
+                                <div className="relative z-10 flex-shrink-0 sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:flex-shrink">
+                                    <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-md shadow-slate-900/5 font-display text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-primary-600">
+                                        {step.num}
+                                    </span>
                                 </div>
-                                <span className="font-display text-4xl font-extrabold text-slate-300">{step.num}</span>
+                                {/* Card */}
+                                <div className={`flex-1 sm:w-[calc(50%-3.5rem)] sm:max-w-sm ${i % 2 === 1 ? 'sm:mr-auto sm:text-right' : 'sm:ml-auto'}`}>
+                                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+                                        <div className={`flex items-center gap-3 mb-3 ${i % 2 === 1 ? 'sm:flex-row-reverse' : ''}`}>
+                                            <span className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+                                                <step.Icon className="w-5 h-5" />
+                                            </span>
+                                            <h3 className="font-display text-lg font-bold text-slate-900 tracking-tight">{step.title}</h3>
+                                        </div>
+                                        <p className="text-slate-600 text-sm leading-[1.7]">{step.body}</p>
+                                    </div>
+                                </div>
                             </div>
-                            <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{step.title}</h3>
-                            <p className="text-slate-600 text-sm leading-[1.7]">{step.body}</p>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
                 </div>
             </div>
         </section>
@@ -993,7 +1543,7 @@ const ABOUT_FACTS: Array<{
         Icon: ShieldCheckIcon,
     },
     {
-        text: 'Lagos-based, building for Nigerian businesses first',
+        text: 'Working with businesses across Nigeria and beyond — wherever a process needs a system',
         Icon: MapPinIcon,
     },
 ];
@@ -1030,7 +1580,8 @@ const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales
                             <p>
                                 That is the difference between a software vendor and a software partner:
                                 we live with the consequences of our engineering, in products we operate
-                                ourselves.
+                                ourselves. And when a business needs something that doesn&apos;t exist
+                                yet — in any industry, anywhere — we build that too.
                             </p>
                         </div>
                     </div>
@@ -1065,12 +1616,23 @@ const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales
 // ─── HUB FINAL CTA (corporate hub) ─────────────────────────────────────────
 
 const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: string) => void }> = ({ onContactSales, scrollTo }) => (
-    <section className="py-20 md:py-28 bg-primary-600 text-white">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-                Have a process that should run itself?
+    // W7: the closing argument goes dark — an aurora of the brand colors
+    // breathing behind the headline, so the page ends the way it began.
+    <section className="relative py-20 md:py-28 overflow-hidden w7-dark">
+        <div className="absolute inset-0 bg-[#0A101C]" aria-hidden="true" />
+        {/* Aurora — two brand-colored clouds drifting on a slow loop */}
+        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[46rem] h-[26rem] rounded-full bg-emerald-600/15 blur-[120px] w7-aurora-a" aria-hidden="true" />
+        <div className="absolute -bottom-40 left-1/4 w-[30rem] h-[22rem] rounded-full bg-amber-500/10 blur-[110px] w7-aurora-b" aria-hidden="true" />
+        <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
+
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl relative">
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white font-display">
+                Have a process that should{' '}
+                <span className="text-transparent bg-clip-text inline-block" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399)' }}>
+                    run itself?
+                </span>
             </h2>
-            <p className="text-lg text-white/80 mt-4 max-w-2xl mx-auto">
+            <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto">
                 Tell us how your business works today — we&apos;ll show you what its system could
                 look like. If one of our products already fits, we&apos;ll say so. If it
                 doesn&apos;t, we&apos;ll build the one that does.
@@ -1079,19 +1641,19 @@ const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: 
                 <Button
                     variant="bare"
                     onClick={onContactSales}
-                    className="bg-white text-primary-600 px-8 py-4 rounded-md font-semibold hover:bg-white/90 hover:scale-[1.02] transition-all shadow-lg"
+                    className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-semibold hover:bg-slate-100 hover:scale-[1.02] transition-all shadow-xl shadow-black/40"
                 >
                     Tell us what you need
                 </Button>
                 <Button
                     variant="bare"
                     onClick={() => scrollTo('ourWork')}
-                    className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-md font-semibold hover:bg-white/10 transition-all"
+                    className="bg-transparent border-2 border-white/20 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/30 transition-all"
                 >
                     Explore our products
                 </Button>
             </div>
-            <p className="text-sm text-white/60 mt-6">
+            <p className="text-sm text-slate-500 mt-6">
                 We reply within 24 hours.
             </p>
         </div>
@@ -2910,8 +3472,9 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                         onLogin={() => openModal('login')}
                         scrollTo={scrollTo}
                     />
+                    <MarqueeStrip />
                     <WhatWeDoSection />
-                    <OurWorkSection />
+                    <OurWorkSection onContactSales={() => openContactSales('Our Work')} />
                     <HowWeWorkSection />
                     <AboutSection onContactSales={() => openContactSales('About')} />
                     <HubFinalCTASection

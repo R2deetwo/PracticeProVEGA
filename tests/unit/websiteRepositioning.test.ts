@@ -1,5 +1,5 @@
 /**
- * Website-repositioning regression suite — W0–W6.
+ * Website-repositioning regression suite — W0–W7.
  *
  * Pins the PracticePro Systems brand architecture on the public website
  * (docs/brand-architecture.md), the same way corporateIdentity.test.ts pins
@@ -13,6 +13,11 @@
  *     corporate home — it sells the BUILDER (what we do, what we've built,
  *     how we work, how to reach us), not just the product picker. The
  *     company-and-location eyebrow is retired from the top of the page.
+ *   - W7 (2026-10-07, owner direction): the wow site — a cinematic dark hero
+ *     with a WebGL morphing brand orb, and a portfolio showroom where every
+ *     project carries REAL SCREENS from the live systems plus its stack and
+ *     what's inside. Positioning broadened: “we build systems” — Lagos is
+ *     where we work from, not a limit on where we work.
  *   - Honest marketing (P8): no fabricated testimonial personas, no
  *     fabricated structured-data ratings.
  */
@@ -25,13 +30,15 @@ const read = (...p: string[]) => readFileSync(join(repoRoot, ...p), "utf-8");
 const landing = read("src", "components", "LandingPage.tsx");
 const index = read("index.html");
 
-describe("W6 — the root page is the company's corporate home", () => {
+describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
     expect(landing).toContain("We build the systems");
     expect(landing).toContain("businesses run on.");
-    expect(landing).toContain(
-      "PracticePro Systems is a Lagos software company."
-    );
+  });
+
+  it("the hero positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
+    expect(landing).toContain("PracticePro Systems designs, builds and runs");
+    expect(landing).not.toContain("is a Lagos software company");
   });
 
   it("the company-and-location eyebrow is retired from the top of the page", () => {
@@ -98,11 +105,60 @@ describe("W6 — the portfolio: products + client commissions", () => {
   });
 });
 
+describe("W7 — the wow site: real screens, stack, and the preview system", () => {
+  it("the capabilities marquee carries the builder vocabulary", () => {
+    expect(landing).toContain("MARQUEE_ITEMS");
+    expect(landing).toContain("Custom Integrations");
+    expect(landing).toContain("AI & Automation");
+  });
+
+  it("every project showcases REAL SCREENS captured from the live systems", () => {
+    // Vega — product page + real mobile-app screens + client portal
+    expect(landing).toContain("/assets/landing/work/vega-page.jpg");
+    expect(landing).toContain("/assets/landing/work/vega-calendar.jpg");
+    expect(landing).toContain("/assets/landing/work/vega-messages.jpg");
+    expect(landing).toContain("/assets/landing/work/vega-portal.jpg");
+    // Atrium — product page + the financials app screen + residents' portal
+    expect(landing).toContain("/assets/landing/work/atrium-page.jpg");
+    expect(landing).toContain("/assets/landing/work/atrium-financials.jpg");
+    expect(landing).toContain("/assets/landing/work/atrium-portal.jpg");
+    // Kozy Care — the client's live customer-facing system
+    expect(landing).toContain("/assets/landing/work/kozy-home.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-services.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-memberships.jpg");
+  });
+
+  it("each project presents its stack and what's inside it", () => {
+    expect(landing).toContain("Built with");
+    expect(landing).toContain("Inside the system");
+    // Stack chips for all three systems (honest — verified against the repos)
+    expect(landing).toContain("'React + TypeScript', 'Convex'");
+    expect(landing).toContain("'Gemini AI'");
+    expect(landing).toContain("'Next.js', 'Prisma + Supabase'");
+    expect(landing).toContain("'Paystack'");
+    // What's inside
+    expect(landing).toContain("'AI drafting — DraftPro & ALOA'");
+    expect(landing).toContain("'GPS rider dispatch — 12 zones'");
+  });
+
+  it("the preview modal opens per project and offers the live system + contact", () => {
+    expect(landing).toContain("WorkDetailModal");
+    expect(landing).toContain("Preview the system");
+    expect(landing).toContain("Ask us about a system like this");
+  });
+
+  it("the hero carries the morphing brand orb with a CSS fallback", () => {
+    expect(landing).toContain("MorphScene");
+    expect(landing).toContain("w7-orb-fallback");
+  });
+});
+
 describe("W1/W2 — company-behind-products framing on the website", () => {
   it("the footer names the company's role and carries the Built-by mark", () => {
     expect(landing).toContain(
-      "A Lagos software company. We design, build and run the systems businesses manage their affairs with"
+      "We design, build and run the systems businesses manage their affairs with"
     );
+    expect(landing).toContain("From Lagos, for businesses anywhere");
     expect(landing).toContain("Vega &amp; Atrium · Built by PracticePro");
   });
 

@@ -2401,3 +2401,115 @@ nav,
   text-decoration: none dotted;
 }
 .dark .ai-unverified-cite { color: #fbbf24; /* amber-400 */ }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   W7 — THE WOW SITE (corporate hub visual system)
+   Dark cinematic sections, the morphing-orb hero, the capabilities marquee,
+   spotlight bento cards, floating device frames and the aurora CTA.
+   Brand ramp: moss #16A34A · emerald #059669 · amber #D97706 on ink #0B1220.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Film grain — a fine noise veil that makes the dark sections feel printed,
+   not flat. Applied as an overlay layer above the background paints. */
+.w7-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+
+/* Hero readability scrim — darkens toward the edges so white type always
+   wins against the orb, without dimming the center where the orb shines. */
+.w7-vignette {
+  background:
+    radial-gradient(ellipse 62% 55% at 50% 46%, rgba(7, 13, 24, 0.18) 0%, rgba(7, 13, 24, 0.0) 55%),
+    radial-gradient(ellipse 120% 105% at 50% 50%, rgba(7, 13, 24, 0) 45%, rgba(7, 13, 24, 0.72) 100%);
+}
+
+/* CSS orb fallback — if WebGL is unavailable the hero still gets a living
+   brand-gradient orb (soft breathing animation, no WebGL required). */
+.w7-orb-fallback {
+  background:
+    radial-gradient(circle at 38% 34%, rgba(52, 211, 153, 0.42) 0%, rgba(5, 150, 105, 0.28) 34%, rgba(22, 163, 74, 0.16) 52%, rgba(7, 13, 24, 0) 68%),
+    radial-gradient(circle at 62% 60%, rgba(217, 119, 6, 0.18) 0%, rgba(7, 13, 24, 0) 46%);
+  background-size: 135% 135%, 120% 120%;
+  background-position: 50% 46%;
+  animation: w7-orb-breathe 11s ease-in-out infinite alternate;
+}
+@keyframes w7-orb-breathe {
+  from { background-size: 128% 128%, 112% 112%; }
+  to   { background-size: 148% 148%, 132% 132%; }
+}
+
+/* Soft double shadow under the hero headline — keeps white type legible
+   over the brightest parts of the orb. */
+.w7-headline-shadow {
+  text-shadow: 0 2px 28px rgba(7, 13, 24, 0.85), 0 1px 6px rgba(7, 13, 24, 0.6);
+}
+
+/* Scroll cue — a slow, polite bob. */
+.w7-scroll-cue { animation: w7-cue-bob 2.4s ease-in-out infinite; }
+@keyframes w7-cue-bob {
+  0%, 100% { transform: translate(-50%, 0); opacity: 0.65; }
+  50%      { transform: translate(-50%, 8px); opacity: 1; }
+}
+
+/* Capabilities marquee — the track is duplicated in the DOM; translating it
+   -50% yields a seamless loop. */
+.w7-marquee-track {
+  animation: w7-marquee 42s linear infinite;
+}
+@keyframes w7-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Spotlight bento cards — a brand-tinted radial highlight that follows the
+   cursor (JS sets --mx/--my; the fallback recenters when touch has no mouse). */
+.w7-spotlight-card {
+  --mx: 50%;
+  --my: 50%;
+}
+.w7-spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(340px circle at var(--mx) var(--my), rgba(22, 163, 74, 0.09), rgba(217, 119, 6, 0.04) 45%, transparent 70%);
+  opacity: 0;
+  transition: opacity 350ms ease-out;
+  pointer-events: none;
+}
+.w7-spotlight-card:hover::before { opacity: 1; }
+
+/* Floating second surface — the phone / mini-browser overlapping each
+   showcase panel breathes on a slow loop. */
+.w7-float { animation: w7-float-y 7s ease-in-out infinite; }
+@keyframes w7-float-y {
+  0%, 100% { transform: translateY(0) rotate(3deg); }
+  50%      { transform: translateY(-10px) rotate(3deg); }
+}
+
+/* Aurora clouds in the closing CTA — two brand glows drifting out of phase. */
+.w7-aurora-a { animation: w7-aurora-drift-a 16s ease-in-out infinite alternate; }
+.w7-aurora-b { animation: w7-aurora-drift-b 19s ease-in-out infinite alternate; }
+@keyframes w7-aurora-drift-a {
+  from { transform: translate(-50%, 0) scale(1); }
+  to   { transform: translate(-54%, 34px) scale(1.12); }
+}
+@keyframes w7-aurora-drift-b {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(56px, -30px) scale(1.1); }
+}
+
+/* Reduced motion — the wow stays, the movement goes. Everything settles
+   into a static, composed frame. */
+@media (prefers-reduced-motion: reduce) {
+  .w7-marquee-track,
+  .w7-float,
+  .w7-aurora-a,
+  .w7-aurora-b,
+  .w7-scroll-cue,
+  .w7-orb-fallback {
+    animation: none;
+  }
+}
