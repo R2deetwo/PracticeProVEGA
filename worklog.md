@@ -12379,3 +12379,57 @@ Stage Summary:
 - practicepro.ng repositioned and LIVE on Vercel + Convex at 96203a6f (v1.0.659): the site now sells the COMPANY (PracticePro Systems) with Vega and Atrium as its products, carries the Built-by attribution, and meets the honest-marketing standard (no fabricated testimonials, no fabricated ratings).
 - Standing blockers (unchanged): Cloudflare mirror needs CLOUDFLARE_API_TOKEN rotation (2-min owner action, recipe in task-73); rotate the GitHub PAT + Vercel token shared in chat when this deployment window closes.
 - Queued next: A2 provider abstraction (Llama/Qwen/GLM-ready), Kozy-Dryclean Change 1 (footer credit) + Change 2 (testimonial fix) with the authorized PAT.
+
+
+---
+Task ID: 16
+Agent: Main agent (Super Z)
+Task: Late Rent Reminder wrongly includes Caution Deposit + Legal/Agency fees for an EXISTING tenant + "approved template failed to send" (user report 2026-09-11)
+
+Work Log:
+- Analyzed the template engine: buildMessage (messageTemplates.ts) renders fee lines only when fees > 0; the bug was upstream — resolveFinancials + auto-fill pulled caution/legal/agency from the unit record for EVERY tenant, with no new/existing distinction.
+- Data model study: rentPaymentHistory (RentPayment[]) and rentalDetails.leaseStart are the reliable "tenancy commenced" signals.
+- FIX (new vs existing scoping):
+  - usePropertyGroups.ts: UnitOption += leaseStart, isExistingTenant (computed: rent payment history non-empty, or leaseStart <= today).
+  - messageFinancials.ts resolveFinancials: for existing residents, caution/legal/agency resolve to manual-override-or-0 (typed figure still wins = deliberate fee recovery). Rent + recurring service charge unaffected. New residents keep full move-in breakdown.
+  - ComposeModal.tsx: fee fields never auto-filled for existing residents; emerald inline note explains the exclusion in the Financial Details section. Send path, per-recipient preview, bulk sends all inherit the rule via resolveFinancials.
+  - Template review: rent_reminder/late_notice/access_restriction/penalty_notice totals automatically exclude settled fees for existing residents; service_charge_alert & payment_receipt unaffected (targeted scopes); lease_renewal/welcome_note carry no figures; AutomationCenter bulk reminders already rent-only (no extraData).
+- FIX (WhatsApp send failure, "template approved but failed"): Meta matches templates by name + language exactly — a template registered under en_US/en_GB is invisible to a send requesting "en" (reported as does-not-exist / 132000-class).
+  - convex/communications.ts sendWhatsApp (+internal wrapper) take optional templateLanguage (default en).
+  - deliveryErrors.ts: sendWhatsAppWithTemplateFallback now retries the template across en → en_US → en_GB when the name+language pair isn't found (stops early on non-locale errors like quota); new isTemplateNotFoundError classifier.
+  - Result-panel guidance now names the exact template (atrium_rent_reminder) + name/language/phone-number checks.
+- Tests: +8 cases (resolveFinancials existing/new matrix, locale retry chain, end-to-end demand notice with the exact ₦1.4M/₦200k/₦280k scenario). Full suite 274/274 green. tsc 128 errors (CI baseline 131).
+- Deployed: pushed 8ac2d4f1 → main (automation bumped v1.0.569 on top → 2a12ab96). Tests ✓ Staging ✓. Production promote run 34603143211: quality gate ✓, Vercel+Convex deploy ✓ SUCCESS (Cloudflare mirror ✗ again — still the expired CLOUDFLARE_API_TOKEN). Verified live: new strings present in production bundles.
+
+Stage Summary:
+- Existing residents now get rent-only demands (move-in fees excluded unless typed deliberately); new residents keep the full breakdown; explanation surfaced in the composer UI.
+- WhatsApp template sends retry across en/en_US/en_GB locales — the most common "approved but failed" cause.
+- Remaining user action: verify in WhatsApp Business Manager that the template NAME is exactly atrium_rent_reminder, APPROVED, for the SAME phone number connected via Chakra; the result panel shows the exact provider error if it persists. Cloudflare mirror still needs CLOUDFLARE_API_TOKEN rotated.
+
+---
+Task ID: task-76-w6-corporate-hub
+Agent: Main agent (Super Z)
+Task: W6 — rebuild the root page as PracticePro Systems' full corporate home (owner feedback, 2026-10-07: the W1 hub was "scanty", just the products; the "PracticePro Systems · Lagos, Nigeria" eyebrow did not belong at the top; the page should be where PracticePro Systems LIVES — what we can do, what we have done incl. Kozy Care built for a client, how we could help — with Vega/Atrium still linking to their pages).
+
+Work Log:
+- Sync: repo was 70 commits behind; fast-forwarded, re-appended the locally-held Task 16 record (deployed work 8ac2d4f1) that had never been pushed.
+- src/components/LandingPage.tsx — replaced the thin HubHero product picker with the corporate hub:
+  - HubHero: value-first headline "We build the systems businesses run on.", sub-copy sells the builder (products + client commissions + custom systems), CTAs "Talk to us about your system" (contact drawer) / "See what we've built" (scroll), portfolio quick links (Vega /vega, Atrium /atrium, Kozy Care → kozycare.ng external), quiet sign-in. Company-location eyebrow RETIRED from the top (owner direction).
+  - WhatWeDoSection: 6 builder capabilities already shipping in production — custom business systems, custom integrations, customer portals, payments & revenue operations, AI & automation, hosting/security/compliance.
+  - OurWorkSection: portfolio — Vega ("Our product", → /vega), Atrium ("Our product", → /atrium), Kozy Care ("Built for a client", → https://kozycare.ng), each card carrying the Built-by mark.
+  - HowWeWorkSection: 4-step engagement process (understand → design → build & integrate → launch, train & run with you).
+  - AboutSection: "Built in Lagos. Run in production." — the credibility pitch (we run our own products daily) + honest at-a-glance facts + Talk-to-us CTA. This is where Lagos now lives, not as a top eyebrow.
+  - HubFinalCTASection: "Have a process that should run itself?" → contact drawer.
+  - NavBar walks the corporate sections on the hub (What We Do / Our Work / How We Work / About; desktop + mobile) using ui/Button (bare) per ADR-0004; product pages unchanged. Scroll tracking extended per page mode. Footer: corporate tagline ("A Lagos software company. We design, build and run the systems businesses manage their affairs with…"), "Products & Work" column adds the Kozy Care client-build link + "Custom systems — built to order" CTA.
+- index.html: title/description/OG/Twitter lead with the builder positioning ("We Build the Systems Businesses Run On"); Organization JSON-LD description covers products, client commissions and custom builds; keywords extended.
+- tests/unit/websiteRepositioning.test.ts: rewritten to the W6 contract — 20 pins (hero value-first, eyebrow ABSENT, corporate nav, services, portfolio incl. Kozy Care/kozycare.ng/Built-for-a-client, process, about, footer custom-systems line, W1/W2 Built-by framing, W3 honest marketing, W4 schema incl. new title).
+- Post-VLM-review fixes: step numbers slate-100 → slate-300 (too faint), About card balanced (space-y-6 + Talk-to-us footer), invalid w-4.5 class → w-5.
+- Gates: tsc 129 = clean-HEAD baseline (the 2 LandingPage errors pre-exist, line-shifted); vitest 1201/1201; ui-primitives ratchet IMPROVED 2371 → 2369 (2 raw buttons removed; all new interactive elements use ui/Button; tighter baseline committed); vite build clean (22.3s); headless-browser + VLM visual verification clean on desktop (1440px: hero, all sections, CTA/footer) and mobile (390px); /vega regression OK.
+- Ship: committed a38448e8, pushed. CI on it: Tests ✓ (run 37613610441), Staging ✓ (37613610520), APK → bot bumped v1.0.661 (e906eaa0). Production promote dispatched (run 37613881782 on e906eaa0): quality gate ✓, Vercel + Convex deploy ✓, Cloudflare mirror ✗ (standing expired CLOUDFLARE_API_TOKEN, unchanged since task-73).
+- Live verification: practice-pro-vega.vercel.app/version.json healthy (sha e906eaa0, built 2026-10-07T11:27); served title = "PracticePro Systems — We Build the Systems Businesses Run On"; bundle index-C0PWwA77.js carries all 15 W6 markers (hero, services, Kozy Care/kozycare.ng, process, about, custom-systems footer) and NONE of the retired strings (company-location eyebrow, "Professional Practice, Precisely Managed.", "Select your discipline"). practicepro.ng unreachable from the agent sandbox (network-level, not site-level — the domain serves via the same Vercel project; owner should hard-refresh).
+
+Stage Summary:
+- practicepro.ng now has a real corporate home page: the company sells itself as a builder of business systems (services → portfolio: Vega, Atrium, Kozy Care → process → about → contact), Vega/Atrium remain one click away, honest-marketing standard preserved.
+- Raw-element ratchet tightened 2371 → 2369 and locked.
+- Standing blockers unchanged: Cloudflare mirror needs CLOUDFLARE_API_TOKEN rotation; rotate the chat-shared GitHub PAT + Vercel token when this deployment window closes.
+- This commit also carries the recovered Task 16 worklog record (rent-reminder scoping + WhatsApp locale fallback, deployed at 8ac2d4f1) that a lost session never pushed.
