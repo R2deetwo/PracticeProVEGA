@@ -5,7 +5,11 @@ import { createPortal } from 'react-dom';
 import {
     Logo, CheckIcon, ZapIcon,
     ScalesIcon, ShieldCheckIcon, DocumentIcon, MattersIcon, SparklesIcon,
-    OfficeBuildingIcon, SearchIcon, ArrowLeftIcon, LockClosedIcon, KeyIcon
+    OfficeBuildingIcon, SearchIcon, ArrowLeftIcon, LockClosedIcon, KeyIcon,
+    // W6 (corporate hub): icons for the company landing sections.
+    BriefcaseIcon, LinkIcon, UsersIcon, NairaCircleIcon, BrainIcon,
+    MapPinIcon, ClipboardListIcon, PencilSquareIcon, ComputerDesktopIcon,
+    CheckBadgeIcon, ExternalLinkIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
 // Legal pages and Resources are now routed via URL in App.tsx — no need to import them here.
@@ -167,7 +171,7 @@ const NavBar: React.FC<{
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Logo + back-to-hub breadcrumb */}
             <div className="flex items-center gap-3">
-                <button onClick={() => productChosen ? scrollTo('home') : undefined} className="flex items-center gap-2 group">
+                <button onClick={() => scrollTo('home')} className="flex items-center gap-2 group">
                     <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
                     <span className="text-lg font-bold tracking-tight text-slate-900 flex items-center">
                         Practice<span className="text-primary-500">Pro</span>
@@ -277,6 +281,57 @@ const NavBar: React.FC<{
                     </button>
                     </>
                 )}
+                {/* W6 (corporate hub): on the company home page, the nav walks
+                    the corporate sections instead of a product's. ui/Button
+                    (bare) per ADR-0004 — the ratchet must not grow. */}
+                {!productChosen && (
+                    <>
+                    <Button
+                        variant="bare"
+                        onClick={() => scrollTo('whatWeDo')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'whatWeDo'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        What We Do
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => scrollTo('ourWork')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'ourWork'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        Our Work
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => scrollTo('howWeWork')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'howWeWork'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        How We Work
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => scrollTo('about')}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeSection === 'about'
+                                ? 'bg-primary-50 text-primary-700'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                    >
+                        About
+                    </Button>
+                    </>
+                )}
                 <button
                     onClick={onResources}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
@@ -359,6 +414,14 @@ const NavBar: React.FC<{
                         <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How It Works</button>
                         </>
                     )}
+                    {!productChosen && (
+                        <>
+                        <Button variant="bare" onClick={() => handleNavClick(() => scrollTo('whatWeDo'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">What We Do</Button>
+                        <Button variant="bare" onClick={() => handleNavClick(() => scrollTo('ourWork'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Our Work</Button>
+                        <Button variant="bare" onClick={() => handleNavClick(() => scrollTo('howWeWork'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How We Work</Button>
+                        <Button variant="bare" onClick={() => handleNavClick(() => scrollTo('about'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">About</Button>
+                        </>
+                    )}
                     <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
                     <div className="h-px bg-slate-200 my-3" />
@@ -395,7 +458,9 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             )}
                         </span>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">The company behind Vega and Atrium — dedicated operating systems for the organizations that run modern Africa.</p>
+                    {/* W6: corporate tagline — the company builds AND runs
+                        systems, for itself and for clients. */}
+                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">A Lagos software company. We design, build and run the systems businesses manage their affairs with — our products Vega and Atrium, and custom commissions for clients.</p>
                     {productChosen && (
                         <div className="mt-4 flex items-center gap-3">
                             <button
@@ -440,7 +505,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                     the Product column (Features/Pricing/…) serves this role. */}
                 {!productChosen && (
                     <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Products</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Products &amp; Work</p>
                         <div className="flex flex-col gap-2.5">
                             {/* W1: ui/Button (bare) — ADR-0004, keeps the raw-element ratchet from growing. */}
                             <Button variant="bare" onClick={() => setActiveProduct('vega')} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
@@ -451,6 +516,14 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             </Button>
                             <Button variant="bare" onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
                                 Komplete — both, for real-estate attorneys
+                            </Button>
+                            {/* W6: the company's other line of business — custom
+                                client systems (Kozy Care is the live example). */}
+                            <a href="https://kozycare.ng" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
+                                Kozy Care — a client build ↗
+                            </a>
+                            <Button variant="bare" onClick={onContactSales} className="text-primary-400 hover:text-primary-300 text-sm text-left font-semibold transition-colors min-h-[2rem] flex items-center">
+                                Custom systems — built to order →
                             </Button>
                         </div>
                     </div>
@@ -547,87 +620,95 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     );
 };
 
-// ─── HUB HERO (no product chosen yet) ───────────────────────────────────────
+// ─── CORPORATE HUB (PracticePro Systems home — no product chosen) ───────────
+// W6 (2026-10-07, owner direction): the root page is no longer a thin product
+// picker. It is the corporate home of PracticePro Systems — the company that
+// builds and runs the systems businesses manage their affairs with. The page
+// sells the BUILDER: what we can do (services already shipping inside Vega,
+// Atrium and Kozy Care), what we have done (the portfolio), how we work, and
+// how to reach us. Vega and Atrium remain one click away (nav, work cards,
+// footer); Kozy Care is presented as a client commission — proof we build
+// for other people's businesses too.
+//
+// P8 (honest marketing) still applies: every claim below maps to shipped,
+// verifiable behaviour. No invented clients, no invented metrics.
 
 const HubHero: React.FC<{
-    onPickProduct: (p: 'vega' | 'atrium') => void;
+    onContactSales: () => void;
     onLogin: () => void;
-    highlightKey?: number;
-}> = ({ onPickProduct, onLogin, highlightKey }) => {
-    // Landing page is ALWAYS light mode. Hub is intentionally minimal:
-    // headline, subheadline, two product cards, auth link. Nothing else.
-    // Uses Paper background (warm off-white) + Space Grotesk for headline.
+    scrollTo: (id: string) => void;
+}> = ({ onContactSales, onLogin, scrollTo }) => {
+    // Landing page is ALWAYS light mode. Value-first hero: what we DO for
+    // businesses leads; the company-and-location eyebrow that used to sit at
+    // the top is retired per owner direction ("not necessary at the top of
+    // the page") — the page itself is the company's home.
     return (
-        <section className="relative overflow-hidden min-h-[100dvh] flex flex-col" style={{ background: 'var(--color-paper)' }}>
+        <section id="home" className="relative overflow-hidden" style={{ background: 'var(--color-paper)' }}>
             {/* Subtle dot grid — the only background texture */}
             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
 
-            {/* hero-stagger: orchestrates headline → subheadline → cards → auth link.
-                pb-28 on mobile (112px) clears the WhatsApp FAB (bottom-20 = 80px)
-                plus the MobileStickyCTA bar (~64px) that appears after product
-                selection. sm:pb-16 restores the tighter spacing on desktop
-                where there are no fixed bottom elements. */}
-            <div className="hero-stagger relative z-10 flex-1 flex flex-col items-center justify-center pt-24 pb-28 sm:pb-16 px-4 sm:px-6 text-center">
+            {/* pb-28 on mobile clears the chat FAB (bottom-20 = 80px);
+                sm:pb-16 restores tighter spacing on desktop. */}
+            <div className="hero-stagger relative z-10 container mx-auto px-4 sm:px-6 pt-28 pb-20 sm:pt-36 sm:pb-24 flex flex-col items-center text-center">
 
-                {/* W1: the hub speaks as the COMPANY. PracticePro Systems is
-                    the builder; Vega and Atrium are its products. */}
                 <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-6" style={{ color: 'var(--color-moss)' }}>
-                    PracticePro Systems · Lagos, Nigeria
+                    We design, build &amp; run business software
                 </p>
 
-                <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.15] mb-5 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
-                    Professional Practice,
+                <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-[4.5rem] font-bold tracking-tight leading-[1.15] mb-6 max-w-4xl" style={{ color: 'var(--color-ink)' }}>
+                    We build the systems
                     <br />
                     <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: `linear-gradient(to right, var(--color-amber), var(--color-emerald), var(--color-moss))` }}>
-                        Precisely Managed.
+                        businesses run on.
                     </span>
                 </h1>
 
-                <p className="text-lg md:text-xl max-w-xl mx-auto mb-14 leading-[1.75] text-slate-600">
-                    We build dedicated operating systems for the organizations that run modern Africa. Select your discipline to enter your workspace.
+                <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-[1.75] text-slate-600">
+                    PracticePro Systems is a Lagos software company. We design, build and run
+                    the dedicated operating systems businesses use to manage their affairs —
+                    our products Vega and Atrium, client commissions like Kozy Care, and
+                    custom systems built around the way your business actually works.
                 </p>
 
-                {/* Audience routing cards — unified .landing-card token system */}
-                <div data-product-cards className="grid md:grid-cols-2 gap-5 w-full max-w-3xl mx-auto mb-12">
-                    {/* Vega card — typographic, amber accent on hover */}
-                    <button
-                        key={`vega-${highlightKey || 0}`}
-                        onClick={() => onPickProduct('vega')}
-                        className="landing-card group relative text-left active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
-                        style={{ '--border-card-hover': 'rgba(217, 119, 6, 0.4)' } as React.CSSProperties}
+                {/* CTAs — ui/Button (bare) per ADR-0004: new interactive
+                    elements never grow the raw-element ratchet. */}
+                <div className="flex flex-col sm:flex-row gap-4 mb-14 w-full sm:w-auto justify-center">
+                    <Button
+                        variant="bare"
+                        onClick={onContactSales}
+                        className="relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-600/25 hover:shadow-glow-primary transition-all duration-300 active:scale-[0.97]"
                     >
-                        <div className="flex items-baseline gap-3 mb-3">
-                            <span className="font-display text-3xl font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>Vega</span>
-                            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-amber)' }}>Legal</span>
-                        </div>
-                        <h3 className="text-base font-semibold mb-3 text-slate-700">For Nigerian Law Firms</h3>
-                        <p className="text-sm leading-[1.7] text-slate-500 mb-6">
-                            Case management, AI-assisted drafting, and automated billing.
-                        </p>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5" style={{ color: 'var(--color-amber)' }}>
-                            Enter Vega <span aria-hidden="true">→</span>
-                        </div>
-                    </button>
+                        Talk to us about your system
+                    </Button>
+                    <Button
+                        variant="bare"
+                        onClick={() => scrollTo('ourWork')}
+                        className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white transition-all duration-300 active:scale-[0.97]"
+                    >
+                        See what we&apos;ve built
+                    </Button>
+                </div>
 
-                    {/* Atrium card — typographic, emerald accent on hover */}
-                    <button
-                        key={`atrium-${highlightKey || 0}`}
-                        onClick={() => onPickProduct('atrium')}
-                        className="landing-card group relative text-left active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
-                        style={{ '--border-card-hover': 'rgba(5, 150, 105, 0.4)' } as React.CSSProperties}
+                {/* Portfolio quick links — real anchors so they work everywhere
+                    (full-page navigation, same as the old product cards). */}
+                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 mb-12 text-sm">
+                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-400">Our products</span>
+                    <a href="/vega" className="font-semibold text-slate-700 hover:text-amber-600 transition-colors min-h-[2rem] inline-flex items-center">
+                        Vega — Legal
+                    </a>
+                    <a href="/atrium" className="font-semibold text-slate-700 hover:text-emerald-600 transition-colors min-h-[2rem] inline-flex items-center">
+                        Atrium — Property
+                    </a>
+                    <span className="hidden sm:block w-px h-4 bg-slate-200" aria-hidden="true" />
+                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-400">Client build</span>
+                    <a
+                        href="https://kozycare.ng"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-semibold text-slate-700 hover:text-primary-600 transition-colors min-h-[2rem]"
                     >
-                        <div className="flex items-baseline gap-3 mb-3">
-                            <span className="font-display text-3xl font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>Atrium</span>
-                            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--color-emerald)' }}>Property</span>
-                        </div>
-                        <h3 className="text-base font-semibold mb-3 text-slate-700">For Property Managers</h3>
-                        <p className="text-sm leading-[1.7] text-slate-500 mb-6">
-                            Revenue monitoring, rent collection, and portfolio analytics.
-                        </p>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5" style={{ color: 'var(--color-emerald)' }}>
-                            Enter Atrium <span aria-hidden="true">→</span>
-                        </div>
-                    </button>
+                        Kozy Care <ExternalLinkIcon className="w-3.5 h-3.5 opacity-60" />
+                    </a>
                 </div>
 
                 {/* Auth link — single, quiet. Min 32px touch target. */}
@@ -638,13 +719,384 @@ const HubHero: React.FC<{
                     Already have an account?{' '}
                     <span className="font-semibold hover:underline" style={{ color: 'var(--color-moss)' }}>Sign in →</span>
                 </button>
-
-                {/* Compliance note — quiet, bottom */}
-                <p className="text-xs mt-10 tracking-wide text-slate-500">NDPA 2023 Compliant · TLS 1.3 · Encrypted at Rest*</p>
             </div>
         </section>
     );
 };
+
+// ─── WHAT WE DO (corporate hub) ─────────────────────────────────────────────
+// The services PracticePro Systems sells. Each card is a capability already
+// running in production inside Vega, Atrium or Kozy Care — the pitch to a
+// prospective client is "this exact engineering, applied to your business".
+
+const WHAT_WE_DO: Array<{
+    title: string;
+    body: string;
+    Icon: React.ComponentType<{ className?: string }>;
+}> = [
+    {
+        title: 'Custom business systems',
+        body: 'A system shaped around your operations, not your operations reshaped around software. We study how your business actually runs — the paperwork, the phone calls, the spreadsheets — then build the software that runs it. Kozy Care, a complete dry-cleaning operations platform, was built exactly this way.',
+        Icon: BriefcaseIcon,
+    },
+    {
+        title: 'Custom integrations',
+        body: 'The tools you already use, wired into one workflow: WhatsApp and SMS messaging, Paystack payments, email, calendars and document tools. Vega and Atrium ship with integrations like these — we can build yours into whatever your business runs on.',
+        Icon: LinkIcon,
+    },
+    {
+        title: 'Portals your customers actually use',
+        body: 'Self-service portals for the people you serve — track cases, view receipts and ledgers, book services, request maintenance. Your customers help themselves at any hour, on any phone, without a call to your office.',
+        Icon: UsersIcon,
+    },
+    {
+        title: 'Payments & revenue operations',
+        body: 'Invoicing, collections, defaulter tracking, automatic receipts and reconciliation — with dashboards that answer revenue questions in seconds. Built naira-first, with Paystack and bank transfer flows already in production.',
+        Icon: NairaCircleIcon,
+    },
+    {
+        title: 'AI & automation',
+        body: 'AI drafting, deadline computation, smart reminders and workflow automation that take over the repetitive work — the same engine that drafts court documents in Vega and applies tenancy law across 36 states and the FCT in Atrium.',
+        Icon: BrainIcon,
+    },
+    {
+        title: 'Hosting, security & compliance',
+        body: 'Deployment, monitoring, backups and NDPA 2023-aligned data handling, so your system stays up and your data stays yours. We run the infrastructure on our own products every day — we can run yours too.',
+        Icon: ShieldCheckIcon,
+    },
+];
+
+const WhatWeDoSection: React.FC = () => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    return (
+        <section id="whatWeDo" className="py-16 sm:py-24 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                        What we do
+                    </p>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                        What we can build for you
+                    </h2>
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                        Everything below already runs in production inside Vega, Atrium or Kozy Care.
+                        The same engineering is available for your business.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 max-w-6xl mx-auto">
+                    {WHAT_WE_DO.map((c, i) => (
+                        <div key={i} className="bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+                            <div className="w-11 h-11 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center mb-5">
+                                <c.Icon className="w-5 h-5" />
+                            </div>
+                            <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
+                            <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// ─── OUR WORK (corporate hub) — the portfolio ──────────────────────────────
+// P8: every card maps to a real, deployed system. Vega and Atrium are
+// PracticePro's own products (their marketing pages live at /vega and
+// /atrium on this site); Kozy Care is a client commission, live at
+// kozycare.ng — shown here as proof we build for other people's businesses.
+
+const OUR_WORK: Array<{
+    name: string;
+    tagline: string;
+    badge: string;
+    badgeClass: string;
+    Icon: React.ComponentType<{ className?: string }>;
+    iconClass: string;
+    body: string;
+    cta: { label: string; href: string; external: boolean };
+    ctaClass: string;
+}> = [
+    {
+        name: 'Vega',
+        tagline: 'Legal Practice OS',
+        badge: 'Our product',
+        badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200',
+        Icon: ScalesIcon,
+        iconClass: 'bg-amber-50 text-amber-600',
+        body: 'Case management, AI-assisted drafting with DraftPro and ALOA, court-rule-aware calendaring and billing for Nigerian law firms — from case intake to filing.',
+        cta: { label: 'Explore Vega', href: '/vega', external: false },
+        ctaClass: 'group-hover:text-amber-600 text-amber-600',
+    },
+    {
+        name: 'Atrium',
+        tagline: 'Property Management OS',
+        badge: 'Our product',
+        badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+        Icon: OfficeBuildingIcon,
+        iconClass: 'bg-emerald-50 text-emerald-600',
+        body: "Rent and service-charge collection, residents' portal, maintenance workflows and revenue intelligence for property portfolios — applying the tenancy law of all 36 states and the FCT.",
+        cta: { label: 'Explore Atrium', href: '/atrium', external: false },
+        ctaClass: 'group-hover:text-emerald-600 text-emerald-600',
+    },
+    {
+        name: 'Kozy Care',
+        tagline: 'Dry-cleaning & laundry platform',
+        badge: 'Built for a client',
+        badgeClass: 'bg-primary-50 text-primary-700 border border-primary-200',
+        Icon: MapPinIcon,
+        iconClass: 'bg-primary-50 text-primary-600',
+        body: 'A complete operations platform built to order for a Lagos dry-cleaning business — guest booking, Kozy Circle memberships, customer portal, GPS rider dispatch across 12 Lagos zones, multi-branch admin console and partner network.',
+        cta: { label: 'Visit kozycare.ng', href: 'https://kozycare.ng', external: true },
+        ctaClass: 'group-hover:text-primary-600 text-primary-600',
+    },
+];
+
+const OurWorkSection: React.FC = () => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    return (
+        <section id="ourWork" className="py-16 sm:py-24" style={{ background: 'var(--color-sage)' }}>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                        Our work
+                    </p>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                        Systems we&apos;ve built
+                    </h2>
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                        Two products we run ourselves, and one platform built to order for a client.
+                        Each one manages a business end to end.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-6xl mx-auto">
+                    {OUR_WORK.map((w, i) => (
+                        <div key={i} className="group bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-md transition-all flex flex-col">
+                            <div className="flex items-start justify-between mb-5">
+                                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${w.iconClass}`}>
+                                    <w.Icon className="w-5 h-5" />
+                                </div>
+                                <span className={`text-2xs font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-full ${w.badgeClass}`}>
+                                    {w.badge}
+                                </span>
+                            </div>
+                            <h3 className="font-display text-2xl font-bold tracking-tight text-slate-900">{w.name}</h3>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1 mb-3">{w.tagline}</p>
+                            <p className="text-slate-600 text-sm leading-[1.7] mb-6 flex-1">{w.body}</p>
+                            <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                                <a
+                                    href={w.cta.href}
+                                    {...(w.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                                    className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5 ${w.ctaClass}`}
+                                >
+                                    {w.cta.label} {w.cta.external
+                                        ? <ExternalLinkIcon className="w-3.5 h-3.5" />
+                                        : <span aria-hidden="true">→</span>}
+                                </a>
+                                <span className="text-2xs font-semibold uppercase tracking-wider text-slate-400">Built by PracticePro</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// ─── HOW WE WORK (corporate hub) — the engagement process ──────────────────
+
+const HOW_WE_WORK: Array<{
+    num: string;
+    title: string;
+    body: string;
+    Icon: React.ComponentType<{ className?: string }>;
+}> = [
+    {
+        num: '1',
+        title: 'Understand your operations',
+        body: 'We sit with your team and map how the business actually runs — the paperwork, the phone calls, the spreadsheets — and where the friction lives. You talk; we listen and take notes.',
+        Icon: ClipboardListIcon,
+    },
+    {
+        num: '2',
+        title: 'Design the system',
+        body: 'Workflows, data model, integrations and screens — designed with you and agreed before a line of code is written, so there are no surprises at handover.',
+        Icon: PencilSquareIcon,
+    },
+    {
+        num: '3',
+        title: 'Build & integrate',
+        body: 'We build in weekly increments and demo as we go, so your feedback lands in the product from week one — not at the end, when changes are expensive.',
+        Icon: ComputerDesktopIcon,
+    },
+    {
+        num: '4',
+        title: 'Launch, train & run with you',
+        body: 'We deploy, train your staff and migrate your records. Then we stay on — monitoring, supporting and iterating as the business grows.',
+        Icon: CheckBadgeIcon,
+    },
+];
+
+const HowWeWorkSection: React.FC = () => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    return (
+        <section id="howWeWork" className="py-16 sm:py-24 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                        How we work
+                    </p>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                        From first conversation to a system you run on
+                    </h2>
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                        The same process that produced Vega, Atrium and Kozy Care.
+                    </p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-6 max-w-6xl mx-auto">
+                    {HOW_WE_WORK.map((step, i) => (
+                        <div key={i} className="bg-white border border-slate-200 rounded-2xl p-7 shadow-sm hover:shadow-md transition-all">
+                            <div className="flex items-center justify-between mb-5">
+                                <div className="w-11 h-11 rounded-xl bg-primary-50 text-primary-600 flex items-center justify-center">
+                                    <step.Icon className="w-5 h-5" />
+                                </div>
+                                <span className="font-display text-4xl font-extrabold text-slate-300">{step.num}</span>
+                            </div>
+                            <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{step.title}</h3>
+                            <p className="text-slate-600 text-sm leading-[1.7]">{step.body}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// ─── WHO WE ARE (corporate hub) — about the company ────────────────────────
+// Where "Lagos, Nigeria" legitimately lives: not as a top-of-page eyebrow,
+// but as the company's identity — a software company that runs its own
+// products in production, which is the credibility pitch for client builds.
+
+const ABOUT_FACTS: Array<{
+    text: string;
+    Icon: React.ComponentType<{ className?: string }>;
+}> = [
+    {
+        text: '3 systems live in production — Vega, Atrium and Kozy Care',
+        Icon: CheckIcon,
+    },
+    {
+        text: 'Payments, messaging, portals and AI automation shipping today, not planned',
+        Icon: ZapIcon,
+    },
+    {
+        text: 'NDPA 2023-aligned data handling, encrypted in transit and at rest',
+        Icon: ShieldCheckIcon,
+    },
+    {
+        text: 'Lagos-based, building for Nigerian businesses first',
+        Icon: MapPinIcon,
+    },
+];
+
+const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    return (
+        <section id="about" className="py-16 sm:py-24" style={{ background: 'var(--color-paper)' }}>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div ref={ref} className="scroll-reveal grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 max-w-6xl mx-auto items-center">
+                    <div>
+                        <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                            Who we are
+                        </p>
+                        <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-6">
+                            Built in Lagos.
+                            <br />
+                            Run in production.
+                        </h2>
+                        <div className="space-y-5 text-slate-600 leading-[1.75]">
+                            <p>
+                                PracticePro Systems is a software company based in Lagos, Nigeria. We build
+                                the systems businesses use to manage their affairs — the daily operating
+                                software that tracks the work, moves the money, talks to the customers and
+                                keeps the records straight.
+                            </p>
+                            <p>
+                                We don&apos;t just build systems for other people — we run our own, every
+                                working day. Vega serves Nigerian law firms and Atrium serves property
+                                portfolios. That means the foundations a client system stands on — payments,
+                                messaging, portals, automation, security — are already in production, not on
+                                a roadmap.
+                            </p>
+                            <p>
+                                That is the difference between a software vendor and a software partner:
+                                we live with the consequences of our engineering, in products we operate
+                                ourselves.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10 flex flex-col">
+                        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">PracticePro Systems at a glance</p>
+                        <ul className="space-y-6 flex-1">
+                            {ABOUT_FACTS.map((f, i) => (
+                                <li key={i} className="flex items-start gap-4">
+                                    <span className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center flex-shrink-0">
+                                        <f.Icon className="w-5 h-5" />
+                                    </span>
+                                    <span className="text-sm leading-[1.7] text-slate-700">{f.text}</span>
+                                </li>
+                            ))}
+                        </ul>
+                        <div className="border-t border-slate-100 mt-8 pt-6">
+                            <Button
+                                variant="bare"
+                                onClick={onContactSales}
+                                className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors min-h-[2rem] inline-flex items-center gap-1.5"
+                            >
+                                Talk to us <span aria-hidden="true">→</span>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+};
+
+// ─── HUB FINAL CTA (corporate hub) ─────────────────────────────────────────
+
+const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: string) => void }> = ({ onContactSales, scrollTo }) => (
+    <section className="py-20 md:py-28 bg-primary-600 text-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+                Have a process that should run itself?
+            </h2>
+            <p className="text-lg text-white/80 mt-4 max-w-2xl mx-auto">
+                Tell us how your business works today — we&apos;ll show you what its system could
+                look like. If one of our products already fits, we&apos;ll say so. If it
+                doesn&apos;t, we&apos;ll build the one that does.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                <Button
+                    variant="bare"
+                    onClick={onContactSales}
+                    className="bg-white text-primary-600 px-8 py-4 rounded-md font-semibold hover:bg-white/90 hover:scale-[1.02] transition-all shadow-lg"
+                >
+                    Tell us what you need
+                </Button>
+                <Button
+                    variant="bare"
+                    onClick={() => scrollTo('ourWork')}
+                    className="bg-transparent border-2 border-white text-white px-8 py-4 rounded-md font-semibold hover:bg-white/10 transition-all"
+                >
+                    Explore our products
+                </Button>
+            </div>
+            <p className="text-sm text-white/60 mt-6">
+                We reply within 24 hours.
+            </p>
+        </div>
+    </section>
+);
 
 // ─── HOME / HERO ─────────────────────────────────────────────────────────────
 
@@ -2276,7 +2728,12 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     useEffect(() => {
         const handleScroll = () => {
             if (!scrollRef.current) return;
-            const sections = ['home', 'features', 'pricing'];
+            // W6: section tracking follows the page mode — the corporate hub
+            // tracks its own sections (whatWeDo/ourWork/howWeWork/about),
+            // product pages track features/pricing (as before) plus howItWorks.
+            const sections = productChosen
+                ? ['home', 'features', 'pricing', 'howItWorks']
+                : ['home', 'whatWeDo', 'ourWork', 'howWeWork', 'about'];
             const scrollPos = scrollRef.current.scrollTop + 100;
             for (const section of sections) {
                 const el = document.getElementById(section);
@@ -2289,7 +2746,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
         const container = scrollRef.current;
         container?.addEventListener('scroll', handleScroll);
         return () => container?.removeEventListener('scroll', handleScroll);
-    }, []);
+    }, [productChosen]);
 
     const scrollTo = (id: string) => {
         const el = document.getElementById(id);
@@ -2298,14 +2755,9 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
         }
     };
 
-    const handlePickProduct = (p: 'vega' | 'atrium') => {
-        // Navigate in-place to /vega or /atrium (NOT new tab — popup blockers
-        // were preventing the new tab from opening, and the user saw nothing
-        // happen or got redirected to the wrong product).
-        // The URL changes to /vega or /atrium, which App.tsx picks up via
-        // urlProduct and passes to LandingPage as initialProduct.
-        window.location.href = `/${p}`;
-    };
+    // W6: product cards are gone from the hub — Vega/Atrium are reached via
+    // real anchors (href="/vega" / "/atrium") in the hero, the work cards and
+    // the nav, so no in-SPA pick handler is needed anymore.
 
     const handleBackToHub = () => {
         setProductChosen(false);
@@ -2448,11 +2900,25 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             </a>
 
             {!productChosen ? (
-                <HubHero
-                    onPickProduct={handlePickProduct}
-                    onLogin={() => openModal('login')}
-                    highlightKey={0}
-                />
+                // W6: the corporate hub — the company's own home page. The old
+                // thin product-picker hero is replaced by the full corporate
+                // narrative: hero → what we do → our work → how we work →
+                // who we are → contact CTA.
+                <main id="main-content" className="animate-swap-in">
+                    <HubHero
+                        onContactSales={() => openContactSales('Hub Hero')}
+                        onLogin={() => openModal('login')}
+                        scrollTo={scrollTo}
+                    />
+                    <WhatWeDoSection />
+                    <OurWorkSection />
+                    <HowWeWorkSection />
+                    <AboutSection onContactSales={() => openContactSales('About')} />
+                    <HubFinalCTASection
+                        onContactSales={() => openContactSales('Hub Final CTA')}
+                        scrollTo={scrollTo}
+                    />
+                </main>
             ) : (
                 <main key={activeProduct} id="main-content" className="animate-swap-in">
                     <HomeSection onSignup={openSignup} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
