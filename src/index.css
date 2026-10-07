@@ -2421,23 +2421,24 @@ nav,
    wins against the orb, without dimming the center where the orb shines. */
 .w7-vignette {
   background:
-    radial-gradient(ellipse 62% 55% at 50% 46%, rgba(7, 13, 24, 0.18) 0%, rgba(7, 13, 24, 0.0) 55%),
+    radial-gradient(ellipse 62% 55% at 50% 46%, rgba(7, 13, 24, 0.28) 0%, rgba(7, 13, 24, 0.0) 55%),
     radial-gradient(ellipse 120% 105% at 50% 50%, rgba(7, 13, 24, 0) 45%, rgba(7, 13, 24, 0.72) 100%);
 }
 
-/* CSS orb fallback — if WebGL is unavailable the hero still gets a living
-   brand-gradient orb (soft breathing animation, no WebGL required). */
-.w7-orb-fallback {
+/* Structural CSS fallback — W8. If WebGL is unavailable the hero still gets
+   a lattice: concentric rings (structure) over the living brand gradient
+   (fluid). Replaces the retired W7 orb fallback. */
+.w8-lattice-fallback {
   background:
-    radial-gradient(circle at 38% 34%, rgba(52, 211, 153, 0.42) 0%, rgba(5, 150, 105, 0.28) 34%, rgba(22, 163, 74, 0.16) 52%, rgba(7, 13, 24, 0) 68%),
-    radial-gradient(circle at 62% 60%, rgba(217, 119, 6, 0.18) 0%, rgba(7, 13, 24, 0) 46%);
-  background-size: 135% 135%, 120% 120%;
-  background-position: 50% 46%;
-  animation: w7-orb-breathe 11s ease-in-out infinite alternate;
+    repeating-radial-gradient(circle at 50% 46%, rgba(52, 211, 153, 0.055) 0 1px, transparent 1px 64px),
+    radial-gradient(circle at 38% 34%, rgba(52, 211, 153, 0.34) 0%, rgba(5, 150, 105, 0.22) 32%, rgba(22, 163, 74, 0.12) 50%, rgba(7, 13, 24, 0) 66%),
+    radial-gradient(circle at 62% 60%, rgba(217, 119, 6, 0.15) 0%, rgba(7, 13, 24, 0) 44%);
+  background-size: 170% 170%, 135% 135%, 120% 120%;
+  animation: w8-fallback-breathe 12s ease-in-out infinite alternate;
 }
-@keyframes w7-orb-breathe {
-  from { background-size: 128% 128%, 112% 112%; }
-  to   { background-size: 148% 148%, 132% 132%; }
+@keyframes w8-fallback-breathe {
+  from { background-size: 170% 170%, 128% 128%, 112% 112%; }
+  to   { background-size: 170% 170%, 148% 148%, 132% 132%; }
 }
 
 /* Soft double shadow under the hero headline — keeps white type legible
@@ -2509,7 +2510,58 @@ nav,
   .w7-aurora-a,
   .w7-aurora-b,
   .w7-scroll-cue,
-  .w7-orb-fallback {
+  .w8-lattice-fallback,
+  .w8-scene-enter,
+  .w8-seam-blob {
     animation: none;
   }
+  .w8-nav-pill {
+    transition: none;
+  }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   W8 — STRUCTURED FLUIDITY (the lattice system)
+   The blob becomes a system: a morphing crystal lattice in the hero, liquid
+   seams melting the sections into one another, a fluid nav pill. Structure
+   visible, motion continuous. Brand ramp unchanged: moss · emerald · amber.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The scene arrives — one slow scale-and-settle instead of a hard cut.
+   Sits on the MorphScene wrapper in the hero. */
+.w8-scene-enter { animation: w8-scene-in 1.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes w8-scene-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* Liquid seams — the previous section's color pours into the next through a
+   slowly morphing organic edge. One blob per seam; GPU-cheap; frozen under
+   prefers-reduced-motion (see the shared reduced-motion block above). */
+.w8-seam { contain: paint; }
+.w8-seam-blob {
+  border-radius: 46% 54% 59% 41% / 58% 44% 56% 42%;
+  animation: w8-seam-morph 19s ease-in-out infinite alternate;
+}
+@keyframes w8-seam-morph {
+  0%   { border-radius: 46% 54% 59% 41% / 58% 44% 56% 42%; transform: translateX(-1.6%) rotate(-1.2deg); }
+  33%  { border-radius: 57% 43% 41% 59% / 47% 59% 41% 53%; transform: translateX(1.9%) rotate(0.9deg); }
+  66%  { border-radius: 41% 59% 55% 45% / 53% 41% 61% 47%; transform: translateX(-0.9%) rotate(-0.7deg); }
+  100% { border-radius: 52% 48% 45% 55% / 43% 57% 47% 53%; transform: translateX(1.3%) rotate(1.1deg); }
+}
+
+/* Fluid nav pill — a single indicator that morphs between the section links
+   as the visitor scrolls. JS (NavBar) measures the active link and drives
+   width/translate; the CSS transition makes the movement liquid. */
+.w8-nav-pill {
+  position: absolute;
+  top: 50%;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  background: rgba(22, 163, 74, 0.09);
+  border: 1px solid rgba(22, 163, 74, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease;
+}
+.w8-nav-pill.is-live { opacity: 1; }

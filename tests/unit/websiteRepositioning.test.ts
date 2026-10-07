@@ -1,5 +1,5 @@
 /**
- * Website-repositioning regression suite — W0–W7.
+ * Website-repositioning regression suite — W0–W8.
  *
  * Pins the PracticePro Systems brand architecture on the public website
  * (docs/brand-architecture.md), the same way corporateIdentity.test.ts pins
@@ -18,6 +18,12 @@
  *     project carries REAL SCREENS from the live systems plus its stack and
  *     what's inside. Positioning broadened: “we build systems” — Lagos is
  *     where we work from, not a limit on where we work.
+ *   - W8 (2026-10-08, owner direction): structured fluidity — the blob becomes
+ *     a system: a morphing crystal lattice with wireframe, nodes, rings and a
+ *     constellation network. Sections melt into one another through liquid
+ *     seams, the nav carries a fluid pill, and auth (Log In / Start Free
+ *     Trial) lives with the products, not on the company page. Alpha 3D
+ *     (the W7 orb) is preserved at git tag `alpha-3d` for rollback.
  *   - Honest marketing (P8): no fabricated testimonial personas, no
  *     fabricated structured-data ratings.
  */
@@ -29,6 +35,8 @@ const repoRoot = join(__dirname, "..", "..");
 const read = (...p: string[]) => readFileSync(join(repoRoot, ...p), "utf-8");
 const landing = read("src", "components", "LandingPage.tsx");
 const index = read("index.html");
+const scene = read("src", "components", "marketing", "MorphScene.tsx");
+const css = read("src", "index.css");
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
@@ -147,9 +155,52 @@ describe("W7 — the wow site: real screens, stack, and the preview system", () 
     expect(landing).toContain("Ask us about a system like this");
   });
 
-  it("the hero carries the morphing brand orb with a CSS fallback", () => {
+  it("the hero carries the morphing system with a structural CSS fallback", () => {
     expect(landing).toContain("MorphScene");
-    expect(landing).toContain("w7-orb-fallback");
+    expect(landing).toContain("w8-lattice-fallback");
+    expect(landing).toContain("w8-scene-enter");
+  });
+});
+
+describe("W8 — structured fluidity: the lattice system", () => {
+  it("the hero shows structure that morphs — a system lattice, not a blob", () => {
+    // The crystal lattice: faceted core + wireframe + nodes + rings + network.
+    expect(scene).toContain("structured fluidity");
+    expect(scene).toContain("IcosahedronGeometry");
+    expect(scene).toContain("LineSegments");
+    expect(scene).toContain("constellation network");
+    // The structural CSS fallback lives in the stylesheet.
+    expect(css).toContain(".w8-lattice-fallback");
+  });
+
+  it("sections melt into each other through liquid seams", () => {
+    expect(landing).toContain("FluidSeam");
+    expect(css).toContain("w8-seam-morph");
+    // Every tonal shift on the hub is seamed: dark→light, light→dark,
+    // dark→light again, and paper→dark into the closing CTA.
+    expect(landing).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
+    expect(landing).toContain('<FluidSeam from="#FFFFFF" to="#0A101C"');
+    expect(landing).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
+    expect(landing).toContain('<FluidSeam from="#FBFBF9" to="#0A101C"');
+  });
+
+  it("the nav carries a fluid pill that morphs between sections", () => {
+    expect(landing).toContain("w8-nav-pill");
+    expect(landing).toContain("data-nav-id");
+    expect(css).toContain(".w8-nav-pill");
+  });
+
+  it("auth lives with the products, not on the company page", () => {
+    // The hub hero no longer offers a sign-in…
+    expect(landing).not.toContain("Already have an account?");
+    // …the NavBar gates Log In / Start Free Trial behind productChosen and
+    // offers a quiet conversation on the company page instead.
+    expect(landing).toContain("auth lives with the products");
+    expect(landing).toContain("Talk to us");
+    expect(landing).toContain("Talk to us about your system");
+    // The product pages keep their conversion machinery.
+    expect(landing).toContain("Start Free Trial");
+    expect(landing).toContain("Log In");
   });
 });
 

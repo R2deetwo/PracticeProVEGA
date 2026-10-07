@@ -202,6 +202,31 @@ const NavBar: React.FC<{
     // can open it. Hover is unreliable on iPadOS Safari.
     const [productsOpen, setProductsOpen] = React.useState(false);
 
+    // W8: the fluid nav — a single pill that morphs between the section links
+    // as the visitor scrolls (and between page modes), instead of per-button
+    // background swaps. Purely decorative; the buttons sit above it.
+    const navRef = React.useRef<HTMLElement>(null);
+    const pillRef = React.useRef<HTMLDivElement>(null);
+    React.useLayoutEffect(() => {
+        const movePill = () => {
+            const nav = navRef.current, pill = pillRef.current;
+            if (!nav || !pill) return;
+            const btn = nav.querySelector<HTMLElement>(`[data-nav-id="${activeSection}"]`);
+            if (!btn || btn.getBoundingClientRect().width === 0) {
+                pill.classList.remove('is-live');
+                return;
+            }
+            const nb = nav.getBoundingClientRect();
+            const bb = btn.getBoundingClientRect();
+            pill.style.width = `${Math.round(bb.width)}px`;
+            pill.style.transform = `translate(${Math.round(bb.left - nb.left)}px, -50%)`;
+            pill.classList.add('is-live');
+        };
+        movePill();
+        window.addEventListener('resize', movePill);
+        return () => window.removeEventListener('resize', movePill);
+    }, [activeSection, productChosen, productsOpen, mobileMenuOpen]);
+
     // Close mobile menu on product switch or navigation
     const handleNavClick = (fn: () => void) => {
         setMobileMenuOpen(false);
@@ -256,7 +281,10 @@ const NavBar: React.FC<{
                 because iPad portrait (768-820px) was showing this nav and
                 overflowing horizontally on /vega and /atrium pages (9 items
                 don't fit in 720px). iPad portrait now uses the mobile menu. */}
-            <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
+            <nav ref={navRef} className="hidden lg:flex items-center gap-1 relative" aria-label="Main navigation">
+                {/* W8: the fluid pill — it morphs to whichever section link is
+                    active. Decorative; the links themselves sit above it. */}
+                <div ref={pillRef} className="w8-nav-pill" aria-hidden="true" />
                 {/* Products dropdown — click-toggle (was hover-only, which
                     broke iPad/tablet touch). Click to open, click again or
                     click outside to close. */}
@@ -296,9 +324,10 @@ const NavBar: React.FC<{
                     <>
                     <button
                         onClick={() => scrollTo('features')}
+                        data-nav-id="features"
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'features'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -306,9 +335,10 @@ const NavBar: React.FC<{
                     </button>
                     <button
                         onClick={() => scrollTo('pricing')}
+                        data-nav-id="pricing"
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'pricing'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -316,9 +346,10 @@ const NavBar: React.FC<{
                     </button>
                     <button
                         onClick={() => scrollTo('howItWorks')}
+                        data-nav-id="howItWorks"
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'howItWorks'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -333,10 +364,11 @@ const NavBar: React.FC<{
                     <>
                     <Button
                         variant="bare"
+                        data-nav-id="whatWeDo"
                         onClick={() => scrollTo('whatWeDo')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'whatWeDo'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -344,10 +376,11 @@ const NavBar: React.FC<{
                     </Button>
                     <Button
                         variant="bare"
+                        data-nav-id="ourWork"
                         onClick={() => scrollTo('ourWork')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'ourWork'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -355,10 +388,11 @@ const NavBar: React.FC<{
                     </Button>
                     <Button
                         variant="bare"
+                        data-nav-id="howWeWork"
                         onClick={() => scrollTo('howWeWork')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'howWeWork'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -366,10 +400,11 @@ const NavBar: React.FC<{
                     </Button>
                     <Button
                         variant="bare"
+                        data-nav-id="about"
                         onClick={() => scrollTo('about')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'about'
-                                ? 'bg-primary-50 text-primary-700'
+                                ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         }`}
                     >
@@ -391,22 +426,37 @@ const NavBar: React.FC<{
                 </button>
             </nav>
 
-            {/* Right Actions */}
+            {/* Right Actions — W8: auth lives with the products. On the
+                company page the right hand offers a quiet conversation
+                instead; Log In / Start Free Trial render only on the product
+                pages, next to the systems they open. */}
             <div className="flex items-center gap-2">
                 <div className="hidden lg:block h-4 w-px bg-slate-200 mx-1" />
 
-                <button
-                    onClick={onLogin}
-                    className="hidden lg:block px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors"
-                >
-                    Log In
-                </button>
-                {/* TASK 54: invoke with NO arguments — passing the handler
-                    directly leaked the click event into openSignup's
-                    productOverride (see comment at openSignup). */}
-                <PrimaryButton onClick={() => onSignup()} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-lg">
-                    Start Free Trial
-                </PrimaryButton>
+                {productChosen ? (
+                    <>
+                        <button
+                            onClick={onLogin}
+                            className="hidden lg:block px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors"
+                        >
+                            Log In
+                        </button>
+                        {/* TASK 54: invoke with NO arguments — passing the handler
+                            directly leaked the click event into openSignup's
+                            productOverride (see comment at openSignup). */}
+                        <PrimaryButton onClick={() => onSignup()} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-lg">
+                            Start Free Trial
+                        </PrimaryButton>
+                    </>
+                ) : (
+                    <Button
+                        variant="bare"
+                        onClick={onContactSales}
+                        className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors min-h-[2rem]"
+                    >
+                        Talk to us <span aria-hidden="true">→</span>
+                    </Button>
+                )}
 
                 {/* Mobile hamburger button — shown below lg (1024px) so iPad
                     portrait uses the mobile menu instead of the overflowed
@@ -470,11 +520,23 @@ const NavBar: React.FC<{
                     <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
                     <div className="h-px bg-slate-200 my-3" />
-                    <button onClick={() => handleNavClick(onLogin)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Log In</button>
-                    <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-lg !text-sm mt-2">
-                        Start Free Trial
-                    </PrimaryButton>
-                    <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
+                    {productChosen ? (
+                        <>
+                            <button onClick={() => handleNavClick(onLogin)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Log In</button>
+                            <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-lg !text-sm mt-2">
+                                Start Free Trial
+                            </PrimaryButton>
+                            <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
+                        </>
+                    ) : (
+                        <Button
+                            variant="bare"
+                            onClick={() => handleNavClick(onContactSales)}
+                            className="!w-full !py-3 !rounded-lg !text-sm font-semibold text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600"
+                        >
+                            Talk to us about your system
+                        </Button>
+                    )}
                 </nav>
             </div>
         )}
@@ -682,21 +744,26 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
 
 const HubHero: React.FC<{
     onContactSales: () => void;
-    onLogin: () => void;
     scrollTo: (id: string) => void;
-}> = ({ onContactSales, onLogin, scrollTo }) => {
-    // W7 (the wow site): the hero goes dark and cinematic — a WebGL
-    // morphing orb in the brand ramp (moss → emerald → amber rim) breathes
-    // behind the value-first headline. Positioning is broadened per owner
-    // direction: no "Lagos software company" line here — we build systems,
-    // full stop. The company-and-location eyebrow stays retired.
+}> = ({ onContactSales, scrollTo }) => {
+    // W8 (structured fluidity): the hero keeps the dark cinematic stage but
+    // the blob becomes a SYSTEM — a morphing crystal lattice (see
+    // MorphScene.tsx). Positioning stays broadened per owner direction: no
+    // "Lagos software company" line here — we build systems, full stop.
+    // The company-and-location eyebrow stays retired.
+    //
+    // W8 auth policy: Log in / Start Free Trial live with the products
+    // (the Vega and Atrium pages). The company page sells the company.
     return (
         <section id="home" className="relative overflow-hidden min-h-[92vh] flex items-center w7-dark">
             {/* Layer 0 — deep ink base */}
             <div className="absolute inset-0 bg-[#070D18]" aria-hidden="true" />
-            {/* Layer 1 — the living orb (WebGL; CSS gradient fallback sits behind it) */}
-            <div className="absolute inset-0 w7-orb-fallback" aria-hidden="true" />
-            <MorphScene className="absolute inset-0" />
+            {/* Layer 1 — the living lattice (WebGL; a structural CSS fallback
+                sits behind it), arriving with one slow settle. */}
+            <div className="absolute inset-0 w8-lattice-fallback" aria-hidden="true" />
+            <div className="absolute inset-0 w8-scene-enter" aria-hidden="true">
+                <MorphScene className="absolute inset-0" />
+            </div>
             {/* Layer 2 — vignette + grain so the headline always reads */}
             <div className="absolute inset-0 w7-vignette pointer-events-none" aria-hidden="true" />
             <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
@@ -764,14 +831,8 @@ const HubHero: React.FC<{
                     </a>
                 </div>
 
-                {/* Auth link — single, quiet. Min 32px touch target. */}
-                <button
-                    onClick={onLogin}
-                    className="text-sm transition-colors text-slate-400 hover:text-slate-200 min-h-[2rem] py-1"
-                >
-                    Already have an account?{' '}
-                    <span className="font-semibold hover:underline text-emerald-400">Sign in →</span>
-                </button>
+                {/* W8: auth lives with the products. The company page sells
+                    the company — the sign-in link lives on the product pages. */}
             </div>
 
             {/* Scroll cue — invites the descent into the story. */}
@@ -789,6 +850,24 @@ const HubHero: React.FC<{
         </section>
     );
 };
+
+// ─── FLUID SEAMS (W8) ───────────────────────────────────────────────────────
+// The dark↔light section cuts of W7 were healed with static gradient washes.
+// W8 replaces the cuts with liquid seams: the previous section's color pours
+// into the next through a slowly morphing organic edge, so the page reads as
+// one continuous system instead of stacked bands. Pure CSS (border-radius
+// keyframes, one blob per seam); frozen under prefers-reduced-motion.
+
+const FluidSeam: React.FC<{ from: string; to: string }> = ({ from, to }) => (
+    <div className="relative h-24 sm:h-36 overflow-hidden w8-seam" style={{ background: to }} aria-hidden="true">
+        {/* The previous section's color hanging into this one. The blob is
+            oversized (124% × 170%) and offset upward so its elliptical BOTTOM
+            edge — the liquid boundary — crosses the visible band at roughly
+            60% of the seam's height. The edge morphs continuously (see
+            .w8-seam-morph); the container clips everything else. */}
+        <div className="w8-seam-blob absolute left-[-12%] top-[-105%] w-[124%] h-[170%]" style={{ background: from }} />
+    </div>
+);
 
 // ─── MARQUEE (W7) — the capabilities ticker ─────────────────────────────────
 // A slow infinite band that carries the builder's vocabulary across the
@@ -892,8 +971,8 @@ const WhatWeDoSection: React.FC = () => {
     };
     return (
         <section id="whatWeDo" className="py-16 sm:py-24 bg-white relative">
-            {/* faint brand wash at the very top — heals the dark→light seam */}
-            <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#EEF2EB] to-transparent pointer-events-none" aria-hidden="true" />
+            {/* W8: the FluidSeam above owns the dark→light transition now —
+                the static sage wash is retired. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
@@ -1468,8 +1547,7 @@ const HowWeWorkSection: React.FC = () => {
     const timelineRef = useSectionProgress<HTMLDivElement>(onProgress);
     return (
         <section id="howWeWork" className="py-16 sm:py-24 bg-white relative overflow-hidden">
-            {/* faint sage wash healing the dark→light seam from Our Work */}
-            <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#EEF2EB] to-transparent pointer-events-none" aria-hidden="true" />
+            {/* W8: the FluidSeam above owns the dark→light transition now. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
@@ -3469,14 +3547,19 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 <main id="main-content" className="animate-swap-in">
                     <HubHero
                         onContactSales={() => openContactSales('Hub Hero')}
-                        onLogin={() => openModal('login')}
                         scrollTo={scrollTo}
                     />
                     <MarqueeStrip />
+                    {/* W8: liquid seams — each section pours into the next
+                        through a slowly morphing organic edge. */}
+                    <FluidSeam from="#0A101C" to="#FFFFFF" />
                     <WhatWeDoSection />
+                    <FluidSeam from="#FFFFFF" to="#0A101C" />
                     <OurWorkSection onContactSales={() => openContactSales('Our Work')} />
+                    <FluidSeam from="#0A101C" to="#FFFFFF" />
                     <HowWeWorkSection />
                     <AboutSection onContactSales={() => openContactSales('About')} />
+                    <FluidSeam from="#FBFBF9" to="#0A101C" />
                     <HubFinalCTASection
                         onContactSales={() => openContactSales('Hub Final CTA')}
                         scrollTo={scrollTo}
