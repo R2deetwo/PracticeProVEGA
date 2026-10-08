@@ -12608,3 +12608,19 @@ Stage Summary:
 - Old correction list now fully closed (c stale, d/e done W10-W11, f done W10, g done W10, h done W13).
 - Remaining workstreams: Woosh repo clone + improvement plan (awaits owner-provided access; prompts already authored), Kozy review & stamp (awaits R2deetwo account access), A2 (AI/note-taker) later.
 - Standing: rotate the chat-shared GitHub PAT when this window closes; CLOUDFLARE_API_TOKEN expired (mirror-only).
+
+---
+Task ID: task-95-w15
+Agent: main (Super Z) — PracticePro Systems
+Task: W15 — scale-with hero (cycling verticals), the informed tour (per-stop breakdowns + Desktop/Mobile toggle + notifications→Messages + matters consolidation + AI stop), demo-gating fixes, competitive-research-informed positioning.
+
+Work Log:
+- Research: Clio/Buildium/Atomic Object/Mobirevo patterns extracted (Buildium's outcome-headline + 3-capability-bullets adopted for tour stops).
+- 16 new real captures (demo app desktop + 390px mobile + Kozy live mobile), all VLM-verified; demo-mode Unauthenticated regressions fixed in MessagesView (5 queries), ScheduledTab (3), AutomationWorkflows (3), BroadcastBanner (1).
+- SystemTour rewritten: TourStop feature-story model, What-it-takes panels, Desktop⇄Mobile toggle; Vega 9 stops (Messages replaces notifications; Matters = detail; new ALOA stop), Atrium 4, Kozy 15, Woosh 5.
+- Hero: ScalingWord cycles 8 verticals; sub-copy + HowWeWork headline + index.html metadata → scale positioning; Kozy card = "ordinary business, extraordinary systems" story.
+- Checks: 1235/1235 tests, tsc 129 baseline, ratchet held, build clean; browser-verified desktop + 390px + /vega + /atrium + console clean on fresh load.
+
+Stage Summary:
+- LIVE at ddb4919d (promote run 37794030541: gates ✓, Vercel+Convex ✓, live version.json sha ✓, title ✓, new assets 200 ✓; Cloudflare mirror ✗ standing expired token). Rollback: …9d6f11e7 → ddb4919d.
+- Standing: rotate chat-shared GitHub PAT at window close; Woosh clone + plan (needs access); Kozy stamp (awaits R2deetwo); A2 later.
