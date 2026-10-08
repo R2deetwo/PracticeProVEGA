@@ -12483,3 +12483,26 @@ Stage Summary:
 - Live verification: version.json sha d643cd22df2f277707e757c8401e9c2d750da87a, status healthy, APK v1.0.664. Production CSS (index-DzpwiIHb-d643cd22.css) carries w8-lattice-fallback/w8-seam-morph/w8-nav-pill/w8-scene-in; w7-orb-fallback gone from both bundles. three.module-4xNEFFrG.js serves at 200 (733KB lazy chunk). Main bundle carries "Talk to us about your system". (FluidSeam/MARQUEE-style identifiers are minified away — pinned at source level in the tests.)
 - ROLLBACK: `git checkout alpha-3d` (or deploy tag alpha-3d) restores the W7 orb iteration exactly; the tag is on origin.
 - Standing items unchanged: rotate the chat-shared GitHub PAT + Vercel token when the window closes; Cloudflare mirror CLOUDFLARE_API_TOKEN still expired (report-only).
+
+---
+Task ID: task-79-w9-living-page
+Agent: main (Super Z) — PracticePro Systems
+Task: W9 — the living page (owner review of live W8: keep the mouse-parallax 3D; the logo should assemble in 3D at "What can we build for you?" and its squares ride down the page; "Preview the system" must be more interactive with more of the system visible — notifications/banners, data entry, client portal, payments, Kozy members/ordering/portal/admin; the process diagram should animate step→step; soft text transitions; curves that morph as you scroll; workflows content).
+
+Work Log:
+- Rollback ladder intact: tag alpha-3d (W7) → d643cd22 (W8, was LIVE) → this task.
+- New real kozycare.ng captures (VLM-verified; "personal data" on signup/join-riders proved to be the site's own placeholder attributes): /book, /login, /signup, /measurements, /join-riders, /partners → public/assets/landing/work/ (kozy-book, kozy-login, kozy-partners join the gallery).
+- LogoScene.tsx (three.js): the mark traced 1:1 from public/logo.svg — three slab rects + the P contour with counter hole; slabs fly in and stack, the P rises with emissive settle, brand squares peel off and stream downward. MorphScene-grade guards (lazy chunk, DPR caps, pause, reduced-motion static frame, CSS fallback on a dark product-shot card).
+- SystemSquares.tsx: fixed, pointer-events-none canvas of sparse brand squares drifting down the page past #whatWeDo; scroll wind + cursor repulsion; hidden under reduced motion; hub-only.
+- SystemTour.tsx: 11 animated guided-tour screens (Vega dashboard/new-matter-typing/notifications/billing/client-portal; Atrium revenue/collections/residents-portal; Kozy booking/customer-portal/admin-console) from a mini UI kit — cycling alert banners, typing fields, growing bars; auto-advance 7s, pause on hover; chips are ui/Button; permanent "Guided tour · demo data" badge (P8: all tour data fictional).
+- WorkDetailModal v2: opens on the guided tour; "Live screens" toggle keeps the real captures beside it.
+- HowWeWork walks itself: auto-advance 3s in view, gradient-filled nodes (cumulative), active card lifts, pulse rides the spine fill (max of scroll progress and walk).
+- FluidSeam v2: JS scroll-driven organic-edge morph (3 states, phase-shifted by scroll) + lean/squash; W8 keyframes retired.
+- w9-reveal/w9-reveal-stagger (fade+rise+de-blur, staggered) across the hub; 7th capability "Workflow & notification engines"; marquee + "Workflow Automation"; Kozy inside-list + payments line.
+- Gates: tsc 129 baseline (0 new); vitest 1219/1219 (38 repositioning pins); ratchet held 2368; build clean (three.js lazy chunk).
+- Verified locally + VLM (desktop + 390px): logo assembly + peel, tour (3 systems + notifications screen), 6 Kozy live thumbs, step 1→2 walk + spine pulse, seam reshaping, squares gating, no mobile overflow, /vega regression clean.
+- Ship: 83befc0f → rebase over build bumps → da387e5d pushed. CI Tests/Staging/APK ✓ (v1.0.666). Promote #87 (37712986780): quality ✓, Vercel+Convex ✓ live-verified; Cloudflare mirror ✗ standing expired token. LIVE: version.json sha da387e5d healthy; bundle + CSS carry all W9 markers; VLM-confirmed live hero + assembled logo.
+
+Stage Summary:
+- W9 LIVE on practicepro.ng at da387e5d. Rollback: alpha-3d → d643cd22 → da387e5d.
+- Standing: rotate chat-shared GitHub PAT + Vercel token when window closes; CLOUDFLARE_API_TOKEN expired (mirror-only). Next: Kozy-Dryclean changes 1+2, then A2.
