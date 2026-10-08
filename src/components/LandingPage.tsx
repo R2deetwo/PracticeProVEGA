@@ -13,7 +13,9 @@ import {
     // W7 (the wow site): hero scroll cue, modal close, device/stack markers.
     ChevronDownIcon, XMarkIcon, ChevronRightIcon, DeviceMobileIcon,
     // W9 (the living page): the workflow engine capability card.
-    BellIcon
+    BellIcon,
+    // W11 (real interiors + our tool): the Woosh temp-mail card.
+    MailIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
 // Legal pages and Resources are now routed via URL in App.tsx — no need to import them here.
@@ -639,6 +641,10 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                             <a href="https://kozycare.ng" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
                                 Kozy Care — a client build ↗
                             </a>
+                            {/* W11: our own free tool — live and public. */}
+                            <a href="https://woosh.dpdns.org" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
+                                Woosh — free temp email ↗
+                            </a>
                             <Button variant="bare" onClick={onContactSales} className="text-primary-400 hover:text-primary-300 text-sm text-left font-semibold transition-colors min-h-[2rem] flex items-center">
                                 Custom systems — built to order →
                             </Button>
@@ -1255,7 +1261,7 @@ const OUR_WORK: Array<{
         badgeClass: 'bg-primary-500/10 text-primary-300 border border-primary-500/30',
         Icon: MapPinIcon,
         iconClass: 'bg-primary-500/10 text-primary-400',
-        body: 'A complete operations platform built to order for a Lagos dry-cleaning business — guest booking, Kozy Circle memberships, customer portal, GPS rider dispatch across 12 Lagos zones, multi-branch admin console and partner network.',
+        body: '“Uncompromising care. Exceptional convenience.” A complete operations platform built to order for a Lagos dry-cleaning business — guest booking, Kozy Circle memberships, a customer portal with live order tracking, GPS rider dispatch across 12 Lagos zones, multi-branch admin console and partner network.',
         cta: { label: 'Visit kozycare.ng', href: 'https://kozycare.ng', external: true },
         ctaClass: 'group-hover:text-primary-400 text-primary-400',
         frameUrl: 'kozycare.ng',
@@ -1265,7 +1271,7 @@ const OUR_WORK: Array<{
             'Guest pickup booking & quotes',
             'Kozy Circle memberships',
             'Customer portal & order tracking',
-            'Payments & receipts — Paystack',
+            'Payments, receipts & invoices — Paystack',
             'GPS rider dispatch — 12 zones',
             'Multi-branch admin console',
             'Partner garment-care network',
@@ -1284,10 +1290,52 @@ const OUR_WORK: Array<{
                 label: 'Home page — kozycare.ng',
             },
             {
+                src: '/assets/landing/work/kozy-order-service.jpg',
+                alt: 'Kozy Care\u2019s signed-in ordering flow — the service picker with per-item naira pricing',
+                kind: 'browser',
+                label: 'Ordering — the service picker',
+            },
+            {
+                src: '/assets/landing/work/kozy-order-checkout.jpg',
+                alt: 'Kozy Care\u2019s checkout — the live quote with discounts applied, card or bank transfer',
+                kind: 'browser',
+                label: 'Ordering — checkout',
+            },
+            {
+                src: '/assets/landing/work/kozy-portal-order.jpg',
+                alt: 'The Kozy Care customer portal — an active order with its status timeline',
+                kind: 'browser',
+                label: 'Customer portal — live order tracking',
+            },
+            {
+                src: '/assets/landing/work/kozy-invoice.jpg',
+                alt: 'A Kozy Care invoice — itemised in naira, printable and downloadable',
+                kind: 'browser',
+                label: 'The invoice',
+            },
+            {
+                src: '/assets/landing/work/kozy-membership-active.jpg',
+                alt: 'An active Kozy Circle membership on a live account, in the customer portal',
+                kind: 'phone',
+                label: 'Kozy Circle — an active membership',
+            },
+            {
+                src: '/assets/landing/work/kozy-admin-kanban.jpg',
+                alt: 'The Kozy Care admin console\u2019s order board',
+                kind: 'browser',
+                label: 'Admin console — the order board',
+            },
+            {
+                src: '/assets/landing/work/kozy-admin-crm.jpg',
+                alt: 'The Kozy Care admin CRM — customers with lifetime value and MEMBER badges',
+                kind: 'browser',
+                label: 'Admin console — the CRM',
+            },
+            {
                 src: '/assets/landing/work/kozy-book.jpg',
                 alt: 'The Kozy Care pickup booking flow — items, live quote, pickup slot and zone',
                 kind: 'browser',
-                label: 'Booking & quotes — kozycare.ng/book',
+                label: 'Guest booking & quotes — kozycare.ng/book',
             },
             {
                 src: '/assets/landing/work/kozy-services.jpg',
@@ -1316,6 +1364,68 @@ const OUR_WORK: Array<{
         ],
         glowClass: 'bg-primary-500/25',
         borderGlowClass: 'group-hover:border-primary-500/40',
+    },
+    {
+        name: 'Woosh',
+        tagline: 'Free temporary email — for humans and test rigs',
+        badge: 'Our tool',
+        badgeClass: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30',
+        Icon: MailIcon,
+        iconClass: 'bg-indigo-500/10 text-indigo-400',
+        body: 'A free temporary-email service we built in-house: instant disposable inboxes that keep spam out of real mailboxes — plus a documented API with webhooks, revocable API keys and extracted verification codes. Our own test rigs run signup, payment and notification batteries on it, sparing our transactional email quota.',
+        cta: { label: 'Visit woosh.dpdns.org', href: 'https://woosh.dpdns.org', external: true },
+        ctaClass: 'group-hover:text-indigo-400 text-indigo-400',
+        frameUrl: 'woosh.dpdns.org',
+        tourSystem: 'woosh',
+        stack: ['Cloudflare edge', 'REST API + webhooks', 'Verification-code extraction', 'Free — no sign-up'],
+        inside: [
+            'Instant disposable inboxes',
+            'Shareable inbox links',
+            'Codes & links extracted for you',
+            'Webhooks — push instead of poll',
+            'Revocable API keys, docs + console',
+            'Dark mode & mail notifications',
+        ],
+        primaryScreen: {
+            src: '/assets/landing/work/woosh-home.jpg',
+            alt: 'Woosh — a free temporary email address in one click, at woosh.dpdns.org',
+            kind: 'browser',
+            label: 'The tool — woosh.dpdns.org',
+        },
+        detailScreens: [
+            {
+                src: '/assets/landing/work/woosh-home.jpg',
+                alt: 'Woosh — a free temporary email address in one click, at woosh.dpdns.org',
+                kind: 'browser',
+                label: 'The tool — woosh.dpdns.org',
+            },
+            {
+                src: '/assets/landing/work/woosh-inbox.jpg',
+                alt: 'A live Woosh inbox receiving Kozy Care\u2019s real transactional email',
+                kind: 'browser',
+                label: 'A live inbox — receiving Kozy Care\u2019s mail',
+            },
+            {
+                src: '/assets/landing/work/woosh-message.jpg',
+                alt: 'A verification email opened in Woosh, with the code extracted and ready to copy',
+                kind: 'browser',
+                label: 'Message view — codes extracted for you',
+            },
+            {
+                src: '/assets/landing/work/woosh-dark.jpg',
+                alt: 'Woosh in dark mode, with a live inbox',
+                kind: 'browser',
+                label: 'Dark mode',
+            },
+            {
+                src: '/assets/landing/work/woosh-api.jpg',
+                alt: 'The Woosh Email Testing API documentation — endpoints, webhooks, API keys and an llms.txt prompt block',
+                kind: 'browser',
+                label: 'The developer API — woosh.dpdns.org/api-docs',
+            },
+        ],
+        glowClass: 'bg-indigo-500/25',
+        borderGlowClass: 'group-hover:border-indigo-500/40',
     },
 ];
 
@@ -1479,8 +1589,8 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
                         Systems we&apos;ve built
                     </h2>
                     <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
-                        Two products we run ourselves, and one platform built to order for a client.
-                        Each one manages a business end to end — real screens, real stack, really live.
+                        Two products we run ourselves, a platform built to order for a client, and a free tool running on the open internet.
+                        Each one manages a real workflow end to end — real screens, real stack, really live.
                     </p>
                 </div>
 

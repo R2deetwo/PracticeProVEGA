@@ -23,16 +23,23 @@ import { Button } from '../ui';
  * (or lets the tour walk itself): chips, auto-advance, hover/focus pause
  * and a progress bar — all carried over from W9, now carrying real
  * pixels instead of illustrations.
+ *
+ * W11: the Kozy set now goes INSIDE — the signed-in ordering flow, the
+ * customer portal with a live order, the invoice, membership states and
+ * the admin console (CRM, members, order board). New: the Woosh set —
+ * our own live tool at woosh.dpdns.org, captured in action receiving
+ * Kozy Care's real transactional email.
  */
 
 // ─── Per-system accents ────────────────────────────────────────────────────
 
-export type TourSystem = 'vega' | 'atrium' | 'kozy';
+export type TourSystem = 'vega' | 'atrium' | 'kozy' | 'woosh';
 
 const ACCENTS: Record<TourSystem, { hex: string; soft: string; text: string; ring: string; chipBg: string }> = {
     vega: { hex: '#D97706', soft: 'rgba(217,119,6,0.10)', text: '#B45309', ring: 'rgba(217,119,6,0.35)', chipBg: 'rgba(217,119,6,0.12)' },
     atrium: { hex: '#059669', soft: 'rgba(5,150,105,0.10)', text: '#047857', ring: 'rgba(5,150,105,0.35)', chipBg: 'rgba(5,150,105,0.12)' },
     kozy: { hex: '#16A34A', soft: 'rgba(22,163,74,0.10)', text: '#15803D', ring: 'rgba(22,163,74,0.35)', chipBg: 'rgba(22,163,74,0.12)' },
+    woosh: { hex: '#6366F1', soft: 'rgba(99,102,241,0.10)', text: '#4F46E5', ring: 'rgba(99,102,241,0.35)', chipBg: 'rgba(99,102,241,0.12)' },
 };
 
 const acc = (s: TourSystem) => ACCENTS[s];
@@ -77,15 +84,29 @@ export const TOUR_SCREENS: Record<TourSystem, RealScreen[]> = {
         { id: 'portal', label: "Residents' portal", caption: "The residents' portal sign-in — statements, payments and maintenance requests.", src: '/assets/landing/work/atrium-portal.jpg', url: 'practicepro.ng/portal/tenant', kind: 'browser', badge: LIVE },
     ],
     kozy: [
-        { id: 'home', label: 'Home', caption: 'The home page — dry cleaning and laundry services, with pickup booking.', src: '/assets/landing/work/kozy-home.jpg', url: 'kozycare.ng', kind: 'browser', badge: LIVE },
+        { id: 'home', label: 'Home', caption: 'The home page — "Uncompromising care. Exceptional convenience." Dry cleaning and laundry with pickup booking.', src: '/assets/landing/work/kozy-home.jpg', url: 'kozycare.ng', kind: 'browser', badge: LIVE },
         { id: 'services', label: 'Services', caption: "The services catalogue — men's and women's dry cleaning, home linens, shoe care and alterations.", src: '/assets/landing/work/kozy-services.jpg', url: 'kozycare.ng/services', kind: 'browser', badge: LIVE },
-        { id: 'booking', label: 'Ordering', caption: 'The ordering flow your customers use — items, live quote, pickup slot and zone.', src: '/assets/landing/work/kozy-book.jpg', url: 'kozycare.ng/book', kind: 'browser', badge: LIVE },
+        { id: 'order-service', label: 'Order · items', caption: 'Ordering, step one — per-item or per-kg, full service, wash & fold or iron only, with live naira pricing for every garment.', src: '/assets/landing/work/kozy-order-service.jpg', url: 'kozycare.ng — signed in', kind: 'browser', badge: LIVE },
+        { id: 'order-logistics', label: 'Order · pickup', caption: 'Pickup and delivery — date, one-hour slots, and turnaround from standard 3–5 days to 24-hour express.', src: '/assets/landing/work/kozy-order-logistics.jpg', url: 'kozycare.ng — signed in', kind: 'browser', badge: LIVE },
+        { id: 'order-checkout', label: 'Order · checkout', caption: 'Checkout — the live quote with first-order and online discounts applied, paid by card or bank transfer.', src: '/assets/landing/work/kozy-order-checkout.jpg', url: 'kozycare.ng — signed in', kind: 'browser', badge: LIVE },
+        { id: 'portal-order', label: 'Portal', caption: "The customer portal — an active order with its status timeline, exactly as the customer tracks it.", src: '/assets/landing/work/kozy-portal-order.jpg', url: 'kozycare.ng/portal', kind: 'browser', badge: LIVE },
+        { id: 'order-detail', label: 'Order detail', caption: 'Inside the order — progress, items, payment and the event timeline in one view.', src: '/assets/landing/work/kozy-order-detail.jpg', url: 'kozycare.ng/portal', kind: 'browser', badge: LIVE },
+        { id: 'invoice', label: 'Invoice', caption: 'The invoice — itemised in naira, printable and downloadable as PDF.', src: '/assets/landing/work/kozy-invoice.jpg', url: 'kozycare.ng/portal', kind: 'browser', badge: LIVE },
         { id: 'memberships', label: 'Memberships', caption: 'Kozy Circle membership plans with laundry pricing.', src: '/assets/landing/work/kozy-memberships.jpg', url: 'kozycare.ng/memberships', kind: 'browser', badge: LIVE },
-        { id: 'login', label: 'Customer portal', caption: 'The customer portal sign-in — order tracking and payment history.', src: '/assets/landing/work/kozy-login.jpg', url: 'kozycare.ng/login', kind: 'browser', badge: LIVE },
-        { id: 'signup', label: 'Sign-up', caption: 'Customer sign-up — the portal registration flow.', src: '/assets/landing/work/kozy-signup.jpg', url: 'kozycare.ng/signup', kind: 'browser', badge: LIVE },
-        { id: 'measurements', label: 'Measurements', caption: 'The measurements guide — customers submit their measurements for tailoring.', src: '/assets/landing/work/kozy-measurements.jpg', url: 'kozycare.ng/measurements', kind: 'browser', badge: LIVE },
+        { id: 'membership-join', label: 'Join', caption: "Inside the portal's membership tab — joining the Kozy Circle.", src: '/assets/landing/work/kozy-membership-join.jpg', url: 'kozycare.ng/portal', kind: 'browser', badge: LIVE },
+        { id: 'membership-active', label: 'Member', caption: 'An active membership on a live account — the plan, its countdown and the benefits.', src: '/assets/landing/work/kozy-membership-active.jpg', url: 'kozycare.ng/portal', kind: 'phone', badge: LIVE },
+        { id: 'admin-kanban', label: 'Admin · orders', caption: "The admin console's order board — every order moved from pickup to delivery.", src: '/assets/landing/work/kozy-admin-kanban.jpg', url: 'the admin console', kind: 'browser', badge: LIVE },
+        { id: 'admin-crm', label: 'Admin · CRM', caption: 'The CRM — customers with lifetime value, MEMBER badges and their own ordering rhythm.', src: '/assets/landing/work/kozy-admin-crm.jpg', url: 'the admin console', kind: 'browser', badge: APP },
+        { id: 'admin-members', label: 'Admin · members', caption: 'Membership operations — verify a transfer receipt, activate or reject, in one place.', src: '/assets/landing/work/kozy-admin-members.jpg', url: 'the admin console', kind: 'browser', badge: LIVE },
         { id: 'riders', label: 'Riders', caption: 'Rider recruitment — GPS dispatch across 12 Lagos zones.', src: '/assets/landing/work/kozy-join-riders.jpg', url: 'kozycare.ng/join-riders', kind: 'browser', badge: LIVE },
         { id: 'partners', label: 'Partners', caption: 'The partner network — other laundry operators running under the Kozy brand.', src: '/assets/landing/work/kozy-partners.jpg', url: 'kozycare.ng/partners', kind: 'browser', badge: LIVE },
+    ],
+    woosh: [
+        { id: 'home', label: 'The tool', caption: 'The tool itself — a free temporary email address in one click. No sign-up, no personal details.', src: '/assets/landing/work/woosh-home.jpg', url: 'woosh.dpdns.org', kind: 'browser', badge: LIVE },
+        { id: 'inbox', label: 'Live inbox', caption: "A live inbox receiving real mail — Kozy Care's signup verification and payment notice, seconds after they were sent.", src: '/assets/landing/work/woosh-inbox.jpg', url: 'woosh.dpdns.org', kind: 'browser', badge: LIVE },
+        { id: 'message', label: 'Message', caption: 'The verification email opened — codes and links are extracted for you, so a test rig (or a human) can copy them in one tap.', src: '/assets/landing/work/woosh-message.jpg', url: 'woosh.dpdns.org', kind: 'browser', badge: LIVE },
+        { id: 'dark', label: 'Dark mode', caption: 'Dark mode, shareable inbox links and desktop notifications — built like a consumer product.', src: '/assets/landing/work/woosh-dark.jpg', url: 'woosh.dpdns.org', kind: 'browser', badge: LIVE },
+        { id: 'api', label: 'API', caption: 'The developer side — a documented API with webhooks, revocable API keys and an llms.txt prompt block for AI agents.', src: '/assets/landing/work/woosh-api.jpg', url: 'woosh.dpdns.org/api-docs', kind: 'browser', badge: LIVE },
     ],
 };
 

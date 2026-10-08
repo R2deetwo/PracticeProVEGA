@@ -1,5 +1,5 @@
 /**
- * Website-repositioning regression suite — W0–W9.
+ * Website-repositioning regression suite — W0–W11.
  *
  * Pins the PracticePro Systems brand architecture on the public website
  * (docs/brand-architecture.md), the same way corporateIdentity.test.ts pins
@@ -33,6 +33,16 @@
  *     data) with the real screens alongside.
  *   - Honest marketing (P8): no fabricated testimonial personas, no
  *     fabricated structured-data ratings, and the tour is labeled demo data.
+ *   - W10 (2026-10-08, owner direction): the mark becomes the system — the
+ *     intact logo in a box whose P flattens into shards that fly into the
+ *     capability cards; the streak-squares layer retired; SVG wave seams;
+ *     the preview is REAL CAPTURES ONLY (demo data is fine, mocked-up UI
+ *     is not).
+ *   - W11 (2026-10-08, owner direction): the interiors go real — Kozy Care's
+ *     signed-in ordering flow, portal with a live order, invoice, membership
+ *     states and admin console, all captured from the live product; plus
+ *     Woosh, our own free temporary-email tool (live at woosh.dpdns.org),
+ *     joins the portfolio with its API story.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -277,14 +287,14 @@ describe("W9/W10 — the living page, then the mark becomes the system", () => {
     expect(landing).toContain("tourSystem: 'kozy'");
     // The areas the owner called out, as REAL screens: the app dashboard,
     // notifications, data entry (new matter), billing, the client portal —
-    // and Kozy's ordering flow from the live site.
+    // and Kozy's ordering flow (W11: the signed-in picker from the live site).
     expect(tour).toContain("vega-demo-dashboard.jpg");
     expect(tour).toContain("vega-demo-notifications.jpg");
     expect(tour).toContain("vega-demo-newmatter.jpg");
     expect(tour).toContain("vega-demo-billing.jpg");
     expect(tour).toContain("vega-portal.jpg");
     expect(tour).toContain("atrium-demo-financials.jpg");
-    expect(tour).toContain("kozy-book.jpg");
+    expect(tour).toContain("kozy-order-service.jpg");
     // Auto-advance walk + pause on hover.
     expect(tour).toContain("DWELL_MS");
     expect(tour).toContain("onMouseEnter");
@@ -301,7 +311,60 @@ describe("W9/W10 — the living page, then the mark becomes the system", () => {
     expect(landing).toContain("/assets/landing/work/kozy-book.jpg");
     expect(landing).toContain("/assets/landing/work/kozy-login.jpg");
     expect(landing).toContain("/assets/landing/work/kozy-partners.jpg");
-    expect(landing).toContain("Payments & receipts — Paystack");
+    expect(landing).toContain("Payments, receipts & invoices — Paystack");
+  });
+});
+
+describe("W11 — the interiors go real, and our own tool joins the portfolio", () => {
+  it("Kozy Care quotes its real tagline on the card", () => {
+    expect(landing).toContain("Uncompromising care. Exceptional convenience.");
+  });
+
+  it("the Kozy tour goes INSIDE — ordering, portal, invoice, membership, admin", () => {
+    // The signed-in ordering flow, captured from the live product.
+    expect(tour).toContain("kozy-order-service.jpg");
+    expect(tour).toContain("kozy-order-logistics.jpg");
+    expect(tour).toContain("kozy-order-checkout.jpg");
+    // The customer portal with a live order, its detail and the invoice.
+    expect(tour).toContain("kozy-portal-order.jpg");
+    expect(tour).toContain("kozy-order-detail.jpg");
+    expect(tour).toContain("kozy-invoice.jpg");
+    // Membership states — joining and an active plan.
+    expect(tour).toContain("kozy-membership-join.jpg");
+    expect(tour).toContain("kozy-membership-active.jpg");
+    // The admin console — order board, CRM, membership operations.
+    expect(tour).toContain("kozy-admin-kanban.jpg");
+    expect(tour).toContain("kozy-admin-crm.jpg");
+    expect(tour).toContain("kozy-admin-members.jpg");
+  });
+
+  it("the Kozy gallery carries the interiors too", () => {
+    expect(landing).toContain("/assets/landing/work/kozy-order-service.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-portal-order.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-invoice.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-admin-crm.jpg");
+  });
+
+  it("Woosh — our own free tool — joins the portfolio as a fourth entry", () => {
+    expect(landing).toContain("name: 'Woosh'");
+    expect(landing).toContain("Our tool");
+    expect(landing).toContain("https://woosh.dpdns.org");
+    expect(landing).toContain("tourSystem: 'woosh'");
+    // The stack story is capability-honest (no invented framework).
+    expect(landing).toContain("REST API + webhooks");
+    expect(landing).toContain("Verification-code extraction");
+  });
+
+  it("the Woosh tour shows the real tool in action, including Kozy mail", () => {
+    expect(tour).toContain("woosh-home.jpg");
+    expect(tour).toContain("woosh-inbox.jpg");
+    expect(tour).toContain("woosh-message.jpg");
+    expect(tour).toContain("woosh-dark.jpg");
+    expect(tour).toContain("woosh-api.jpg");
+  });
+
+  it("the footer lists Woosh alongside the products and the client build", () => {
+    expect(landing).toContain("Woosh — free temp email");
   });
 });
 
