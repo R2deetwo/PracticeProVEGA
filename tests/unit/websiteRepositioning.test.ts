@@ -43,10 +43,13 @@
  *     Woosh, our own free temporary-email tool (live at woosh.dpdns.org),
  *     joins the portfolio with its API story.
  *   - W12 (2026-10-08, owner direction): the breaking-apart of the logo is
- *     RETIRED FOR GOOD — the mark is never disassembled. Instead it powers
- *     the system: PCB-style circuit traces route from the intact box's
- *     connector pads into the capability cards, light pulses ride the
- *     traces, and each card's port switches ON with its own capability icon.
+ *     RETIRED FOR GOOD — the mark is never disassembled. (Superseded below.)
+ *   - W13 (2026-10-08, owner direction): the mark LEAVES the What-we-do
+ *     section entirely — no box, no traces (the full-page trace overlay
+ *     drew its lines over the section's headings; that class of bug is now
+ *     structurally impossible). In its place: a real three.js rendering —
+ *     the system core, seven glass modules orbiting a faceted engine, one
+ *     per capability — drawn strictly INSIDE its own canvas.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -57,7 +60,7 @@ const read = (...p: string[]) => readFileSync(join(repoRoot, ...p), "utf-8");
 const landing = read("src", "components", "LandingPage.tsx");
 const index = read("index.html");
 const scene = read("src", "components", "marketing", "MorphScene.tsx");
-const logoScene = read("src", "components", "marketing", "LogoScene.tsx");
+const coreScene = read("src", "components", "marketing", "SystemCoreScene.tsx");
 const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 
@@ -235,47 +238,67 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 });
 
-describe("W9/W10/W12 — the living page, then the mark powers the system", () => {
-  it("the logo sits INTACT in a display box — and never breaks apart (W12)", () => {
-    expect(landing).toContain("<LogoScene />");
-    // The display box itself lives in the scene component.
-    expect(logoScene).toContain("w10-logo-box");
-    // The mark is the real SVG geometry — no 3D twisting, no fallback box.
-    // W12: the owner killed the facet-flight for good; nothing in the
-    // scene may take the logo apart.
-    expect(logoScene).not.toContain("shard");
-    expect(logoScene).not.toContain("LOGO_");
-    expect(logoScene).not.toContain("disassembl");
+describe("W9/W10/W13 — the living page, then the system core", () => {
+  it("the What-we-do visual is a real 3D system core — and the mark is nowhere in it (W13)", () => {
+    expect(landing).toContain('<SystemCoreScene className="w13-canvas" />');
+    // The old mark-in-a-box scene is gone from the page for good.
+    expect(landing).not.toContain("LogoScene");
+    expect(landing).not.toContain("w10-logo-box");
+    // Seven modules — one per capability card below.
+    expect(coreScene).toContain("MODULE_COUNT = 7");
+    // The mark may never be disassembled (W10/W12 standing rule), and the
+    // owner has now removed it from this section altogether: the scene
+    // carries no mark geometry at all.
+    expect(coreScene).not.toContain("shard");
+    expect(coreScene).not.toContain("LOGO_");
+    expect(coreScene).not.toContain("disassembl");
+    expect(coreScene).not.toContain("w10-logo");
+    expect(coreScene).not.toContain("P_PATH");
     expect(landing).not.toContain("LOGO_SHARDS");
-  });
-
-  it("on scroll the mark POWERS the cards — traces route, ports ignite (W12)", () => {
-    // PCB-style traces draw from the box's connector pads into the card
-    // ports; pulses ride them; a port ignites when its trace lands.
-    expect(logoScene).toContain("TRACE_COUNT = 7");
-    expect(logoScene).toContain("w12-trace-overlay");
-    expect(logoScene).toContain("getPointAtLength");
-    expect(logoScene).toContain("trace-landed");
-    expect(logoScene).toContain("One mark. Every system.");
-    expect(landing).toContain("data-trace-grid");
-    expect(landing).toContain("data-trace-slot");
-    expect(landing).toContain("data-trace-socket");
-    expect(landing).toContain("trace-port-icon");
-    expect(css).toContain(".w12-trace-overlay");
-    expect(css).toContain(".trace-port.trace-landed");
-    // The old facet machinery is gone from the page for good.
+    // The old facet machinery stays gone from the page for good (W10).
     expect(landing).not.toContain("data-shard");
     expect(landing).not.toContain("shard-socket");
     expect(css).not.toContain(".shard-socket");
     expect(css).not.toContain(".w10-shard-overlay");
   });
 
-  it("each capability card carries its OWN icon port — no logo fragments", () => {
-    // The ports light up with the capability's real icon (briefcase, link,
-    // payments…) — the mark powers the cards without lending them pieces.
-    expect(landing).toContain('<c.Icon className="w-full h-full" />');
-    expect(landing).toContain('className="trace-port w-12 h-12 mb-5"');
-    expect(css).toContain(".trace-port-icon");
+  it("each capability card carries a quiet, always-on icon chip (W13)", () => {
+    // The orbiting modules above carry the motion now; the cards stay calm
+    // and legible — no dashed ports waiting for a trace that no longer
+    // exists. Each card shows its own icon (briefcase, link, payments…).
+    expect(landing).toContain('<c.Icon className="w-6 h-6" />');
+    expect(landing).toContain("rounded-xl bg-emerald-50 border border-emerald-100");
+  });
+
+  it("everything renders INSIDE the canvas — no line may ever cross the text (W13)", () => {
+    // The W12 overlay was fixed, viewport-sized, and portaled to body —
+    // its traces struck through the section's headings. The system core
+    // is a plain block in the document flow: no portal, no fixed layer,
+    // no measured-DOM routing, so text can never be overlapped.
+    expect(coreScene).not.toContain("createPortal");
+    expect(coreScene).not.toContain("position: fixed");
+    expect(coreScene).not.toContain("getPointAtLength");
+    expect(landing).not.toContain("data-trace-grid");
+    expect(landing).not.toContain("data-trace-slot");
+    expect(landing).not.toContain("data-trace-socket");
+    expect(landing).not.toContain("trace-port");
+    expect(css).not.toContain(".w12-trace-overlay");
+    expect(css).not.toContain(".trace-port");
+    // The scene still arrives with craft: a stage, an ambient CSS fallback
+    // if WebGL is missing, and a caption that ties it to the cards.
+    expect(landing).toContain('className="w13-stage"');
+    expect(landing).toContain('className="w13-canvas"');
+    expect(landing).toContain("Seven modules. One system.");
+    expect(css).toContain(".w13-stage");
+    expect(css).toContain(".w13-fallback");
+    expect(css).toContain(".w13-caption");
+  });
+
+  it("the scene runs on the hero's engine contract — lazy, pausable, disposable", () => {
+    expect(coreScene).toContain("await import('three')");
+    expect(coreScene).toContain("IntersectionObserver");
+    expect(coreScene).toContain("prefers-reduced-motion");
+    expect(coreScene).toContain("renderer.dispose()");
   });
 
   it("the riding-squares layer is retired — no stray floaters (W10)", () => {

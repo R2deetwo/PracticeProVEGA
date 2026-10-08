@@ -33,12 +33,11 @@ import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 // W7 (the wow site): the hero's WebGL morphing orb. three.js is imported
 // dynamically inside MorphScene, so it code-splits away from the app bundle.
 import MorphScene from './marketing/MorphScene';
-// W12 (the mark powers the system): the logo sits INTACT in a display box
-// above "What we can build for you" — it is never broken apart. Instead,
-// glowing circuit traces route from its connector pads into the capability
-// cards, switching each port ON; the portfolio preview shows REAL captures
-// only — live pages plus the real app on demo data.
-import LogoScene from './marketing/LogoScene';
+// W13 (the system core): a real 3D rendering above "What we can build for
+// you" — seven glass modules orbiting a faceted core, one per capability.
+// NO mark in this section (owner direction), and everything renders inside
+// the scene's own canvas: nothing floats over the page's text, ever.
+import SystemCoreScene from './marketing/SystemCoreScene';
 import { SystemTour, type TourSystem } from './marketing/SystemTour';
 // W1 (website repositioning): new interactive elements use the ui/ Button
 // primitive per ADR-0004 — the raw-element ratchet must not grow.
@@ -1046,14 +1045,17 @@ const WhatWeDoSection: React.FC = () => {
             {/* W8: the FluidSeam above owns the dark→light transition now —
                 the static sage wash is retired. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                {/* W12: the mark, INTACT in its display box — exactly as it
-                    looks in the header, and it stays that way. No 3D
-                    twisting, no breaking apart. As the visitor scrolls,
-                    circuit traces route from the box's connector pads into
-                    the capability cards below (LogoScene owns the routing;
-                    the card ports switch ON when the traces arrive). */}
-                <div className="relative mx-auto mb-8 md:mb-10 w-full max-w-[300px]">
-                    <LogoScene />
+                {/* W13: the system core — a real three.js rendering (lazy
+                    chunk, same contract as the hero). Seven glass modules
+                    orbit a faceted core, one per capability card below,
+                    with energy links that live INSIDE the canvas — no mark
+                    here, no full-page overlays, nothing can cross the text. */}
+                <div className="relative mx-auto mb-9 md:mb-12 w-full max-w-[620px]">
+                    <div className="w13-stage">
+                        <div className="w13-fallback" aria-hidden="true" />
+                        <SystemCoreScene className="w13-canvas" />
+                    </div>
+                    <p className="w13-caption">Seven modules. One system.</p>
                 </div>
                 <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
@@ -1067,25 +1069,18 @@ const WhatWeDoSection: React.FC = () => {
                         The same engineering is available for your business.
                     </p>
                 </div>
-                <div ref={gridRef} data-trace-grid className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
+                <div ref={gridRef} className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
                     {WHAT_WE_DO.map((c, i) => (
                         <div
                             key={i}
-                            data-trace-slot={i}
                             onMouseMove={handleSpotlight}
                             className={`w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
                         >
-                            {/* W12: the port — the mark's trace lands here and
-                                switches this capability ON. Dashed frame until
-                                the trace arrives, then it fills green and the
-                                capability's own icon lights up: the mark
-                                POWERS the cards; it never breaks apart. */}
-                            <div data-trace-socket className="trace-port w-12 h-12 mb-5" aria-hidden="true">
-                                <span className="trace-port-frame" />
-                                <span className="trace-port-icon">
-                                    <c.Icon className="w-full h-full" />
-                                </span>
-                                <span className="trace-port-dot" />
+                            {/* W13: a quiet, always-on icon chip — the orbiting
+                                modules above carry the motion now; the cards
+                                stay calm and legible. */}
+                            <div className="w-12 h-12 mb-5 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors duration-300" aria-hidden="true">
+                                <c.Icon className="w-6 h-6" />
                             </div>
                             <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
                             <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>
