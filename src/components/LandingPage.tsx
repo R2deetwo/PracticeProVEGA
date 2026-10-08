@@ -11,7 +11,9 @@ import {
     MapPinIcon, ClipboardListIcon, PencilSquareIcon, ComputerDesktopIcon,
     CheckBadgeIcon, ExternalLinkIcon,
     // W7 (the wow site): hero scroll cue, modal close, device/stack markers.
-    ChevronDownIcon, XMarkIcon, ChevronRightIcon, DeviceMobileIcon
+    ChevronDownIcon, XMarkIcon, ChevronRightIcon, DeviceMobileIcon,
+    // W9 (the living page): the workflow engine capability card.
+    BellIcon
 } from '../constants';
 import { useUI } from '../contexts/UIContext';
 // Legal pages and Resources are now routed via URL in App.tsx — no need to import them here.
@@ -29,6 +31,13 @@ import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 // W7 (the wow site): the hero's WebGL morphing orb. three.js is imported
 // dynamically inside MorphScene, so it code-splits away from the app bundle.
 import MorphScene from './marketing/MorphScene';
+// W9 (the living page): the logo assembles in 3D above "What we can build
+// for you", its squares ride down the rest of the page, and the portfolio
+// preview gains a guided tour of each system's inside. All lazily loaded
+// alongside the hero scene.
+import LogoScene from './marketing/LogoScene';
+import SystemSquares from './marketing/SystemSquares';
+import { SystemTour, type TourSystem } from './marketing/SystemTour';
 // W1 (website repositioning): new interactive elements use the ui/ Button
 // primitive per ADR-0004 — the raw-element ratchet must not grow.
 import { Button } from './ui';
@@ -851,23 +860,81 @@ const HubHero: React.FC<{
     );
 };
 
-// ─── FLUID SEAMS (W8) ───────────────────────────────────────────────────────
+// ─── FLUID SEAMS (W8 → W9) ───────────────────────────────────────────────
 // The dark↔light section cuts of W7 were healed with static gradient washes.
-// W8 replaces the cuts with liquid seams: the previous section's color pours
-// into the next through a slowly morphing organic edge, so the page reads as
-// one continuous system instead of stacked bands. Pure CSS (border-radius
-// keyframes, one blob per seam); frozen under prefers-reduced-motion.
+// W8 replaced the cuts with liquid seams (a CSS-keyframed organic edge).
+// W9 makes the seams RESHAPE AS YOU SCROLL: each seam morphs between three
+// organic edge states — the phase driven by a slow time drift PLUS the
+// seam's scroll position — so scrolling actively redraws the curve, and the
+// blob leans and squashes as it crosses the viewport. One rAF loop per
+// seam, running only while the seam is in view; a static organic edge
+// under prefers-reduced-motion.
 
-const FluidSeam: React.FC<{ from: string; to: string }> = ({ from, to }) => (
-    <div className="relative h-24 sm:h-36 overflow-hidden w8-seam" style={{ background: to }} aria-hidden="true">
-        {/* The previous section's color hanging into this one. The blob is
-            oversized (124% × 170%) and offset upward so its elliptical BOTTOM
-            edge — the liquid boundary — crosses the visible band at roughly
-            60% of the seam's height. The edge morphs continuously (see
-            .w8-seam-morph); the container clips everything else. */}
-        <div className="w8-seam-blob absolute left-[-12%] top-[-105%] w-[124%] h-[170%]" style={{ background: from }} />
-    </div>
-);
+const FluidSeam: React.FC<{ from: string; to: string }> = ({ from, to }) => {
+    const hostRef = useRef<HTMLDivElement>(null);
+    const blobRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const host = hostRef.current;
+        const blob = blobRef.current;
+        if (!host || !blob) return;
+        // Three organic edge states (per-corner horizontal + vertical radii).
+        const STATES: number[][] = [
+            [46, 54, 59, 41, 58, 44, 56, 42],
+            [57, 43, 41, 59, 47, 59, 41, 53],
+            [41, 59, 55, 45, 53, 41, 61, 47],
+        ];
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const s = STATES[0];
+            blob.style.borderRadius = `${s[0]}% ${s[1]}% ${s[2]}% ${s[3]}% / ${s[4]}% ${s[5]}% ${s[6]}% ${s[7]}%`;
+            return;
+        }
+        let inView = true;
+        const io = new IntersectionObserver((entries) => {
+            inView = entries.some((en) => en.isIntersecting);
+        }, { threshold: 0 });
+        io.observe(host);
+        let rafId: number | null = null;
+        const t0 = performance.now();
+        const frame = (now: number) => {
+            const rect = host.getBoundingClientRect();
+            const vh = window.innerHeight;
+            // 0 as the seam enters from the bottom, 1 as it leaves the top.
+            const p = Math.min(1, Math.max(0, (vh - rect.top) / (vh + rect.height)));
+            const t = (now - t0) / 1000;
+            // Slow ambient drift + scroll-driven reshaping.
+            const f = (t * 0.05 + p * 1.5) % 3;
+            const i = Math.floor(f) % 3;
+            const j = (i + 1) % 3;
+            const k = f - Math.floor(f);
+            const e = k * k * (3 - 2 * k); // smoothstep
+            const a = STATES[i];
+            const b = STATES[j];
+            const r = a.map((av, idx) => av + (b[idx] - av) * e);
+            blob.style.borderRadius = `${r[0]}% ${r[1]}% ${r[2]}% ${r[3]}% / ${r[4]}% ${r[5]}% ${r[6]}% ${r[7]}%`;
+            // The blob leans and squashes as the seam crosses the viewport.
+            const tx = Math.sin(p * Math.PI * 2) * 2.0;
+            const rot = -1.3 + p * 2.6;
+            const sy = 1 + Math.sin(p * Math.PI) * 0.05;
+            blob.style.transform = `translateX(${tx}%) rotate(${rot}deg) scaleY(${sy})`;
+            rafId = inView ? requestAnimationFrame(frame) : null;
+        };
+        rafId = requestAnimationFrame(frame);
+        return () => {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            io.disconnect();
+        };
+    }, []);
+    return (
+        <div ref={hostRef} className="relative h-24 sm:h-36 overflow-hidden w9-seam" style={{ background: to }} aria-hidden="true">
+            {/* The previous section's color hanging into this one. The blob is
+                oversized (124% × 170%) and offset upward so its elliptical
+                BOTTOM edge — the liquid boundary — crosses the visible band.
+                W9: the edge morphs with scroll (JS above); the container
+                clips everything else. */}
+            <div ref={blobRef} className="w9-seam-blob absolute left-[-12%] top-[-105%] w-[124%] h-[170%]" style={{ background: from }} />
+        </div>
+    );
+};
 
 // ─── MARQUEE (W7) — the capabilities ticker ─────────────────────────────────
 // A slow infinite band that carries the builder's vocabulary across the
@@ -879,6 +946,7 @@ const MARQUEE_ITEMS = [
     'Custom Integrations',
     'Customer Portals',
     'Payments & Billing',
+    'Workflow Automation',
     'AI & Automation',
     'Mobile Apps',
     'Web Platforms',
@@ -943,6 +1011,11 @@ const WHAT_WE_DO: Array<{
         Icon: BrainIcon,
     },
     {
+        title: 'Workflow & notification engines',
+        body: 'The rules that run the business day to day: approvals, reminders, escalations and banner alerts that reach the right person on WhatsApp, SMS or email. When a payment fails or a deadline looms, the system moves first — your team simply sees what needs doing.',
+        Icon: BellIcon,
+    },
+    {
         title: 'Hosting, security & compliance',
         body: 'Deployment, monitoring, backups and NDPA 2023-aligned data handling, so your system stays up and your data stays yours. We run the infrastructure on our own products every day — we can run yours too.',
         Icon: ShieldCheckIcon,
@@ -953,15 +1026,18 @@ const WhatWeDoSection: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
     const gridRef = useScrollReveal<HTMLDivElement>();
     // W7: bento spans — an asymmetric grid reads as designed, not templated.
-    // [4,2] / [2,2,2] / [6]: the first capability gets room to breathe, the
-    // last (hosting & security) closes the grid as a wide banner.
+    // W9: a seventh capability (workflow & notification engines) joins, so
+    // the grid closes with two half-wide cards instead of one banner.
+    // [4,2] / [2,2,2] / [3,3]: first capability breathes, the workflow +
+    // hosting pair closes the grid side by side.
     const bentoSpan = [
         'md:col-span-4',
         'md:col-span-2',
         'md:col-span-2',
         'md:col-span-2',
         'md:col-span-2',
-        'md:col-span-6',
+        'md:col-span-3',
+        'md:col-span-3',
     ];
     const handleSpotlight = (e: React.MouseEvent<HTMLDivElement>) => {
         const el = e.currentTarget;
@@ -974,19 +1050,31 @@ const WhatWeDoSection: React.FC = () => {
             {/* W8: the FluidSeam above owns the dark→light transition now —
                 the static sage wash is retired. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                {/* W9: the mark assembles — when you arrive at "What can we
+                    build for you?", the logo pops up in 3D: its three layers
+                    fly in and stack, the P rises, and small squares peel off
+                    and ride down the rest of the page (SystemSquares carries
+                    them below this section). */}
+                <div className="w9-logo-stage w9-logo-enter relative mx-auto mb-8 md:mb-10 h-[220px] sm:h-[270px] w-full max-w-[350px]">
+                    <div className="absolute inset-0 rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#111C30] to-[#0B1220] shadow-2xl shadow-slate-900/25 overflow-hidden">
+                        <div className="absolute inset-0 w9-logo-fallback" aria-hidden="true" />
+                        <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden="true" />
+                    </div>
+                    <LogoScene className="absolute inset-0" />
+                </div>
+                <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
                         What we do
                     </p>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
                         What we can build for you
                     </h2>
-                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         Everything below already runs in production inside Vega, Atrium or Kozy Care.
                         The same engineering is available for your business.
                     </p>
                 </div>
-                <div ref={gridRef} className="scroll-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
+                <div ref={gridRef} className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
                     {WHAT_WE_DO.map((c, i) => (
                         <div
                             key={i}
@@ -1043,6 +1131,8 @@ const OUR_WORK: Array<{
     detailScreens: WorkScreen[]; // the preview modal's gallery
     glowClass: string;         // accent glow behind the devices
     borderGlowClass: string;   // hover ring on the device stack
+    // ── W9 additions ──
+    tourSystem: TourSystem;    // the guided tour's screen set (demo data)
 }> = [
     {
         name: 'Vega',
@@ -1055,6 +1145,7 @@ const OUR_WORK: Array<{
         cta: { label: 'Explore Vega', href: '/vega', external: false },
         ctaClass: 'group-hover:text-amber-400 text-amber-400',
         frameUrl: 'practicepro.ng/vega',
+        tourSystem: 'vega',
         stack: ['React + TypeScript', 'Convex', 'Tailwind CSS', 'Gemini AI', 'Paystack', 'Android app (Capacitor)'],
         inside: [
             'Matter & case management',
@@ -1110,6 +1201,7 @@ const OUR_WORK: Array<{
         cta: { label: 'Explore Atrium', href: '/atrium', external: false },
         ctaClass: 'group-hover:text-emerald-400 text-emerald-400',
         frameUrl: 'practicepro.ng/atrium',
+        tourSystem: 'atrium',
         stack: ['React + TypeScript', 'Convex', 'Tailwind CSS', 'Paystack', 'WhatsApp & SMS', 'Web + Android'],
         inside: [
             'Rent & service-charge collection',
@@ -1159,11 +1251,13 @@ const OUR_WORK: Array<{
         cta: { label: 'Visit kozycare.ng', href: 'https://kozycare.ng', external: true },
         ctaClass: 'group-hover:text-primary-400 text-primary-400',
         frameUrl: 'kozycare.ng',
+        tourSystem: 'kozy',
         stack: ['Next.js', 'Prisma + Supabase', 'NextAuth', 'Paystack', 'Termii SMS', 'Vercel'],
         inside: [
             'Guest pickup booking & quotes',
             'Kozy Circle memberships',
             'Customer portal & order tracking',
+            'Payments & receipts — Paystack',
             'GPS rider dispatch — 12 zones',
             'Multi-branch admin console',
             'Partner garment-care network',
@@ -1182,6 +1276,12 @@ const OUR_WORK: Array<{
                 label: 'Home page — kozycare.ng',
             },
             {
+                src: '/assets/landing/work/kozy-book.jpg',
+                alt: 'The Kozy Care pickup booking flow — items, live quote, pickup slot and zone',
+                kind: 'browser',
+                label: 'Booking & quotes — kozycare.ng/book',
+            },
+            {
                 src: '/assets/landing/work/kozy-services.jpg',
                 alt: 'Kozy Care\u2019s services catalogue — men\u2019s and women\u2019s dry cleaning, home linens, shoe care and alterations',
                 kind: 'browser',
@@ -1192,6 +1292,18 @@ const OUR_WORK: Array<{
                 alt: 'Kozy Care\u2019s membership plans page with laundry pricing',
                 kind: 'browser',
                 label: 'Membership plans — kozycare.ng/memberships',
+            },
+            {
+                src: '/assets/landing/work/kozy-login.jpg',
+                alt: 'The Kozy Care customer portal sign-in screen',
+                kind: 'browser',
+                label: 'Customer portal — sign-in',
+            },
+            {
+                src: '/assets/landing/work/kozy-partners.jpg',
+                alt: 'The Kozy Care partner network page — other laundry operators running under the Kozy brand',
+                kind: 'browser',
+                label: 'Partner network — kozycare.ng/partners',
             },
         ],
         glowClass: 'bg-primary-500/25',
@@ -1225,12 +1337,20 @@ const PhoneFrame: React.FC<{ src: string; alt: string; className?: string }> = (
     </div>
 );
 
-/** W7: the "Preview the system" modal — real screens, the stack, what's inside. */
+/** W7: the "Preview the system" modal — real screens, the stack, what's inside.
+ *  W9: the preview opens on a GUIDED TOUR — an interactive, clearly-labeled
+ *  demo walk-through of the system's inside (dashboard, notifications,
+ *  billing, portals, admin) — with the REAL captured screens one tap away
+ *  under "Live screens". Tour data is fictional (P8 honesty); live screens
+ *  are real captures. */
 const WorkDetailModal: React.FC<{
     work: (typeof OUR_WORK)[number] | null;
     onClose: () => void;
     onContactSales: () => void;
 }> = ({ work, onClose, onContactSales }) => {
+    // W9: tour (default) | live — reset whenever a different system opens.
+    const [mode, setMode] = useState<'tour' | 'live'>('tour');
+    useEffect(() => { setMode('tour'); }, [work]);
     // Escape + scroll-lock (the landing page scrolls inside its own div).
     useEffect(() => {
         if (!work) return;
@@ -1264,6 +1384,26 @@ const WorkDetailModal: React.FC<{
                             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{work.tagline}</p>
                         </div>
                     </div>
+                    {/* W9: tour ↔ live — the interactive demo walk-through and
+                        the real captured screens, side by side. */}
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 flex-shrink-0">
+                        <Button
+                            variant="bare"
+                            onClick={() => setMode('tour')}
+                            aria-pressed={mode === 'tour'}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Guided tour
+                        </Button>
+                        <Button
+                            variant="bare"
+                            onClick={() => setMode('live')}
+                            aria-pressed={mode === 'live'}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'live' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Live screens
+                        </Button>
+                    </div>
                     <Button
                         variant="bare"
                         onClick={onClose}
@@ -1277,7 +1417,13 @@ const WorkDetailModal: React.FC<{
 
                 {/* Body */}
                 <div className="overflow-y-auto px-6 sm:px-8 py-6">
-                    <WorkDetailGallery work={work} />
+                    {mode === 'tour' ? (
+                        <div className="mb-8">
+                            <SystemTour system={work.tourSystem} />
+                        </div>
+                    ) : (
+                        <WorkDetailGallery work={work} />
+                    )}
 
                     <p className="text-slate-600 text-sm leading-[1.75] mb-8 max-w-2xl">{work.body}</p>
 
@@ -1386,20 +1532,20 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
             <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-emerald-400/90">
                         Our work
                     </p>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
                         Systems we&apos;ve built
                     </h2>
-                    <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto">
+                    <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         Two products we run ourselves, and one platform built to order for a client.
                         Each one manages a business end to end — real screens, real stack, really live.
                     </p>
                 </div>
 
-                <div ref={panelsRef} className="scroll-reveal grid grid-cols-1 gap-6 md:gap-10 max-w-6xl mx-auto">
+                <div ref={panelsRef} className="w9-reveal-stagger grid grid-cols-1 gap-6 md:gap-10 max-w-6xl mx-auto">
                     {OUR_WORK.map((w, i) => (
                         <div
                             key={w.name}
@@ -1542,45 +1688,73 @@ const HowWeWorkSection: React.FC = () => {
     const stepsRef = useScrollReveal<HTMLDivElement>();
     // W7: a vertical timeline whose spine fills with brand gradient as the
     // visitor scrolls — the process literally draws itself.
+    // W9: the process also WALKS ITSELF — steps light up in sequence while
+    // the section is in view (auto-advance every 3s), each node filling with
+    // the brand gradient and its card lifting, with a pulse riding the
+    // leading edge of the spine fill. Scroll progress and the walk combine:
+    // the spine shows whichever is further along.
     const [progress, setProgress] = useState(0);
+    const [active, setActive] = useState(0);
     const onProgress = React.useCallback((p: number) => setProgress(p), []);
     const timelineRef = useSectionProgress<HTMLDivElement>(onProgress);
+    useEffect(() => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        let inView = false;
+        const io = new IntersectionObserver((entries) => {
+            inView = entries.some((en) => en.isIntersecting);
+        }, { threshold: 0.25 });
+        if (timelineRef.current) io.observe(timelineRef.current);
+        const iv = window.setInterval(() => {
+            if (inView) setActive((a) => (a + 1) % HOW_WE_WORK.length);
+        }, 3000);
+        return () => {
+            io.disconnect();
+            window.clearInterval(iv);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fill = Math.max(progress, (active + 1) / HOW_WE_WORK.length);
     return (
         <section id="howWeWork" className="py-16 sm:py-24 bg-white relative overflow-hidden">
             {/* W8: the FluidSeam above owns the dark→light transition now. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div ref={ref} className="scroll-reveal text-center mb-12 md:mb-16">
+                <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
                         How we work
                     </p>
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display">
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
                         From first conversation to a system you run on
                     </h2>
-                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         The same process that produced Vega, Atrium and Kozy Care.
                     </p>
                 </div>
 
                 <div ref={timelineRef} className="relative max-w-3xl mx-auto">
-                    <div className="absolute left-[27px] sm:left-1/2 sm:-translate-x-1/2 top-2 bottom-2 w-[3px] rounded-full bg-slate-200 overflow-hidden" aria-hidden="true">
+                    <div className="absolute left-[27px] sm:left-1/2 sm:-translate-x-1/2 top-2 bottom-2 w-[3px] rounded-full bg-slate-200 overflow-visible" aria-hidden="true">
                         <div
                             className="w-full rounded-full bg-gradient-to-b from-amber-500 via-emerald-500 to-primary-600 will-change-[height]"
-                            style={{ height: `${Math.round(progress * 100)}%` }}
+                            style={{ height: `${Math.round(fill * 100)}%` }}
                         />
+                        {/* W9: a pulse riding the leading edge of the fill. */}
+                        {!reducedMotion && (
+                            <span className="w9-spine-pulse" style={{ top: `${Math.round(fill * 100)}%` }} />
+                        )}
                     </div>
 
-                    <div ref={stepsRef} className="scroll-reveal-stagger space-y-10 sm:space-y-14">
+                    <div ref={stepsRef} className="w9-reveal-stagger space-y-10 sm:space-y-14">
                         {HOW_WE_WORK.map((step, i) => (
                             <div key={step.num} className={`relative flex items-start gap-6 sm:gap-0 ${i % 2 === 1 ? 'sm:flex-row-reverse' : ''}`}>
-                                {/* Node on the spine */}
+                                {/* Node on the spine — W9: lights up as the walk passes. */}
                                 <div className="relative z-10 flex-shrink-0 sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:flex-shrink">
-                                    <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-md shadow-slate-900/5 font-display text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-primary-600">
-                                        {step.num}
+                                    <span className={`w9-step-node flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-md shadow-slate-900/5 font-display text-xl font-extrabold ${i <= active ? 'is-active' : ''}`}>
+                                        <span className="w9-step-num text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-primary-600">{step.num}</span>
                                     </span>
                                 </div>
-                                {/* Card */}
+                                {/* Card — W9: the current step lifts. */}
                                 <div className={`flex-1 sm:w-[calc(50%-3.5rem)] sm:max-w-sm ${i % 2 === 1 ? 'sm:mr-auto sm:text-right' : 'sm:ml-auto'}`}>
-                                    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+                                    <div className={`w9-step-card bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-slate-300 transition-all ${i === active ? 'is-active' : ''}`}>
                                         <div className={`flex items-center gap-3 mb-3 ${i % 2 === 1 ? 'sm:flex-row-reverse' : ''}`}>
                                             <span className="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
                                                 <step.Icon className="w-5 h-5" />
@@ -1631,7 +1805,7 @@ const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales
     return (
         <section id="about" className="py-16 sm:py-24" style={{ background: 'var(--color-paper)' }}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div ref={ref} className="scroll-reveal grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 max-w-6xl mx-auto items-center">
+                <div ref={ref} className="w9-reveal grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 max-w-6xl mx-auto items-center">
                     <div>
                         <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
                             Who we are
@@ -1693,9 +1867,12 @@ const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales
 
 // ─── HUB FINAL CTA (corporate hub) ─────────────────────────────────────────
 
-const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: string) => void }> = ({ onContactSales, scrollTo }) => (
+const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: string) => void }> = ({ onContactSales, scrollTo }) => {
     // W7: the closing argument goes dark — an aurora of the brand colors
     // breathing behind the headline, so the page ends the way it began.
+    // W9: it settles in with the same soft reveal as the rest of the page.
+    const ref = useScrollReveal<HTMLDivElement>();
+    return (
     <section className="relative py-20 md:py-28 overflow-hidden w7-dark">
         <div className="absolute inset-0 bg-[#0A101C]" aria-hidden="true" />
         {/* Aurora — two brand-colored clouds drifting on a slow loop */}
@@ -1703,7 +1880,7 @@ const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: 
         <div className="absolute -bottom-40 left-1/4 w-[30rem] h-[22rem] rounded-full bg-amber-500/10 blur-[110px] w7-aurora-b" aria-hidden="true" />
         <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl relative">
+        <div ref={ref} className="w9-reveal container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl relative">
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white font-display">
                 Have a process that should{' '}
                 <span className="text-transparent bg-clip-text inline-block" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399)' }}>
@@ -1736,7 +1913,8 @@ const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: 
             </p>
         </div>
     </section>
-);
+    );
+};
 
 // ─── HOME / HERO ─────────────────────────────────────────────────────────────
 
@@ -3545,6 +3723,10 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 // narrative: hero → what we do → our work → how we work →
                 // who we are → contact CTA.
                 <main id="main-content" className="animate-swap-in">
+                    {/* W9: the system squares — the logo's modules riding down
+                        the rest of the page (activates once the logo section
+                        is passed; fixed layer, pointer-events none). */}
+                    <SystemSquares />
                     <HubHero
                         onContactSales={() => openContactSales('Hub Hero')}
                         scrollTo={scrollTo}

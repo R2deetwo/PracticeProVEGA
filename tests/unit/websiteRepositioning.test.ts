@@ -1,5 +1,5 @@
 /**
- * Website-repositioning regression suite — W0–W8.
+ * Website-repositioning regression suite — W0–W9.
  *
  * Pins the PracticePro Systems brand architecture on the public website
  * (docs/brand-architecture.md), the same way corporateIdentity.test.ts pins
@@ -24,8 +24,15 @@
  *     seams, the nav carries a fluid pill, and auth (Log In / Start Free
  *     Trial) lives with the products, not on the company page. Alpha 3D
  *     (the W7 orb) is preserved at git tag `alpha-3d` for rollback.
+ *   - W9 (2026-10-08, owner direction): the living page — the logo assembles
+ *     in 3D where “What can we build for you?” lands and its squares ride
+ *     down the rest of the page; the process section walks itself step by
+ *     step; text settles in softly; the seams reshape as you scroll; a
+ *     workflow & notification capability joins the services; and “Preview
+ *     the system” becomes an interactive guided tour (clearly-labeled demo
+ *     data) with the real screens alongside.
  *   - Honest marketing (P8): no fabricated testimonial personas, no
- *     fabricated structured-data ratings.
+ *     fabricated structured-data ratings, and the tour is labeled demo data.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -36,6 +43,9 @@ const read = (...p: string[]) => readFileSync(join(repoRoot, ...p), "utf-8");
 const landing = read("src", "components", "LandingPage.tsx");
 const index = read("index.html");
 const scene = read("src", "components", "marketing", "MorphScene.tsx");
+const logoScene = read("src", "components", "marketing", "LogoScene.tsx");
+const squares = read("src", "components", "marketing", "SystemSquares.tsx");
+const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
@@ -173,9 +183,12 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(css).toContain(".w8-lattice-fallback");
   });
 
-  it("sections melt into each other through liquid seams", () => {
+  it("sections melt into each other through liquid seams that reshape as you scroll (W9)", () => {
     expect(landing).toContain("FluidSeam");
-    expect(css).toContain("w8-seam-morph");
+    // W9: the seam edge is scroll-driven JS morphing between organic states.
+    expect(landing).toContain("w9-seam-blob");
+    expect(landing).toContain("scroll-driven reshaping");
+    expect(css).toContain(".w9-seam");
     // Every tonal shift on the hub is seamed: dark→light, light→dark,
     // dark→light again, and paper→dark into the closing CTA.
     expect(landing).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
@@ -201,6 +214,82 @@ describe("W8 — structured fluidity: the lattice system", () => {
     // The product pages keep their conversion machinery.
     expect(landing).toContain("Start Free Trial");
     expect(landing).toContain("Log In");
+  });
+});
+
+describe("W9 — the living page: the logo, the squares, the walk, the tour", () => {
+  it("the logo assembles in 3D where “What can we build for you?” lands", () => {
+    expect(landing).toContain("LogoScene");
+    expect(landing).toContain("w9-logo-stage");
+    // The scene reproduces the actual mark: the P path + the stacked layers.
+    expect(logoScene).toContain("pShape");
+    expect(logoScene).toContain("bezierCurveTo");
+    expect(logoScene).toContain("peel off");
+    // A structural CSS fallback sits behind the canvas.
+    expect(css).toContain(".w9-logo-fallback");
+  });
+
+  it("the squares ride down the rest of the page and interact with it", () => {
+    expect(landing).toContain("SystemSquares");
+    expect(squares).toContain("is-live");
+    expect(squares).toContain("whatWeDo");
+    expect(css).toContain(".w9-squares-canvas");
+  });
+
+  it("text settles in softly across the hub — never a hard cut", () => {
+    expect(css).toContain(".w9-reveal");
+    expect(css).toContain(".w9-reveal-stagger");
+    expect(landing).toContain("w9-reveal text-center");
+    expect(landing).toContain("w9-reveal-stagger grid");
+  });
+
+  it("the process walks itself — steps light up in sequence", () => {
+    expect(landing).toContain("w9-step-node");
+    expect(landing).toContain("w9-step-card");
+    expect(landing).toContain("w9-spine-pulse");
+    expect(landing).toContain("WALKS ITSELF");
+    expect(css).toContain(".w9-step-node.is-active");
+  });
+
+  it("a workflow & notification capability joins the builder services", () => {
+    expect(landing).toContain("Workflow & notification engines");
+    expect(landing).toContain("Workflow Automation");
+  });
+
+  it("the preview opens on an interactive guided tour with more of the system inside", () => {
+    expect(landing).toContain("SystemTour");
+    expect(landing).toContain("Guided tour");
+    expect(landing).toContain("Live screens");
+    expect(landing).toContain("tourSystem: 'vega'");
+    expect(landing).toContain("tourSystem: 'atrium'");
+    expect(landing).toContain("tourSystem: 'kozy'");
+    // The tour covers the areas the owner called out: notifications/banners,
+    // data entry, client portals, billing/payments, and Kozy's members,
+    // ordering, customer portal and admin console.
+    expect(tour).toContain("VegaNotifications");
+    expect(tour).toContain("VegaNewMatter");
+    expect(tour).toContain("VegaClientPortal");
+    expect(tour).toContain("VegaBilling");
+    expect(tour).toContain("KozyBooking");
+    expect(tour).toContain("KozyCustomerPortal");
+    expect(tour).toContain("KozyAdmin");
+    expect(tour).toContain("AtriumCollections");
+    // Auto-advance walk + pause on hover.
+    expect(tour).toContain("DWELL_MS");
+    expect(tour).toContain("onMouseEnter");
+  });
+
+  it("the tour is honest: demo data is labeled, never passed off as real", () => {
+    expect(tour).toContain("Guided tour · demo data");
+    expect(tour).toContain("fictional");
+    expect(tour).not.toContain("screenshot");
+  });
+
+  it("Kozy Care's live gallery grows — booking, portal sign-in, partner network", () => {
+    expect(landing).toContain("/assets/landing/work/kozy-book.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-login.jpg");
+    expect(landing).toContain("/assets/landing/work/kozy-partners.jpg");
+    expect(landing).toContain("Payments & receipts — Paystack");
   });
 });
 
