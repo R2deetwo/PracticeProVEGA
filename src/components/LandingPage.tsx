@@ -787,6 +787,60 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
 // P8 (honest marketing) still applies: every claim below maps to shipped,
 // verifiable behaviour. No invented clients, no invented metrics.
 
+/**
+ * W15 — the scaling tagline. The hero promise moves from “run on” to
+ * “scale with” (owner direction): what we build is not plumbing, it is
+ * capacity — more customers, handled well. The noun cycles through the
+ * verticals we build for so a hospital administrator, a pharmacist or a
+ * property manager each see themselves in the headline within seconds.
+ * SSR/no-JS/reduced-motion all degrade to a static word (no layout jump,
+ * no hydration mismatch — the first word is rendered server-side).
+ */
+const SCALE_VERTICALS = [
+    'hospitals',
+    'pharmacies',
+    'law firms',
+    'property managers',
+    'schools',
+    'delivery businesses',
+    'organizations',
+    'businesses',
+];
+
+const ScalingWord: React.FC = () => {
+    const [i, setI] = useState(0);
+    const [on, setOn] = useState(true);
+    useEffect(() => {
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        let swapId: number | null = null;
+        const tick = window.setInterval(() => {
+            setOn(false);
+            if (swapId !== null) window.clearTimeout(swapId);
+            swapId = window.setTimeout(() => {
+                setI((v) => (v + 1) % SCALE_VERTICALS.length);
+                setOn(true);
+            }, 340);
+        }, 2700);
+        return () => {
+            window.clearInterval(tick);
+            if (swapId !== null) window.clearTimeout(swapId);
+        };
+    }, []);
+    return (
+        <span
+            className="inline-block align-baseline"
+            style={{
+                transition: 'opacity 340ms ease, transform 340ms ease, filter 340ms ease',
+                opacity: on ? 1 : 0,
+                transform: on ? 'translateY(0)' : 'translateY(-0.3em)',
+                filter: on ? 'blur(0px)' : 'blur(7px)',
+            }}
+        >
+            {SCALE_VERTICALS[i]}
+        </span>
+    );
+};
+
 const HubHero: React.FC<{
     onContactSales: () => void;
     scrollTo: (id: string) => void;
@@ -824,16 +878,15 @@ const HubHero: React.FC<{
                     We build the systems
                     <br />
                     <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399, #4ADE80)' }}>
-                        businesses run on.
+                        <ScalingWord /> scale with.
                     </span>
                 </h1>
 
                 <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-[1.75] text-slate-300/95">
-                    PracticePro Systems designs, builds and runs the dedicated operating
-                    systems businesses use to manage their affairs — from the orders that
-                    arrive on WhatsApp to the receipts that leave with every job. When
-                    spreadsheets, chat threads and memory can no longer keep up, we build
-                    the system that takes over.
+                    PracticePro Systems designs, builds and runs the operating systems
+                    businesses scale on — from the orders that arrive on WhatsApp to the receipts that leave with every job.
+                    When spreadsheets, chat threads and memory can no longer keep up, we build the system that takes over — so
+                    you can take on more customers, and take care of them, without the chaos doubling.
                 </p>
 
                 {/* CTAs — ui/Button (bare) per ADR-0004: new interactive
@@ -1492,7 +1545,7 @@ const OUR_WORK: Array<{
         badgeClass: 'bg-primary-500/10 text-primary-300 border border-primary-500/30',
         Icon: MapPinIcon,
         iconClass: 'bg-primary-500/10 text-primary-400',
-        body: '“Uncompromising care. Exceptional convenience.” A complete operations platform built to order for a Lagos dry-cleaning business — guest booking, Kozy Circle memberships, a customer portal with live order tracking, GPS rider dispatch across 12 Lagos zones, multi-branch admin console and partner network.',
+        body: '“Uncompromising care. Exceptional convenience.” Pickup-and-delivery laundry is a crowded business — nothing special about the idea. What lets this one scale is the system behind it: guest booking, Kozy Circle memberships, a customer portal with live order tracking, GPS rider dispatch across 12 Lagos zones, a multi-branch admin console and a partner network — more customers, handled well, without the chaos doubling.',
         cta: { label: 'Visit kozycare.ng', href: 'https://kozycare.ng', external: true },
         ctaClass: 'group-hover:text-primary-400 text-primary-400',
         frameUrl: 'kozycare.ng',
@@ -1716,7 +1769,7 @@ const WorkDetailModal: React.FC<{
         // is never obscured; the banner reappears once the modal closes.
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-label={`${work.name} — system preview`}>
             <div className="absolute inset-0 bg-[#070D18]/85 backdrop-blur-md" onClick={onClose} aria-hidden="true" />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col animate-swap-in">
+            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col animate-swap-in">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3 min-w-0">
@@ -1821,7 +1874,7 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
                     </h2>
                     <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         Two products we run ourselves, a platform built to order for a client, and a free tool running on the open internet.
-                        Each one manages a real workflow end to end — real screens, real stack, really live.
+                        Each one takes a real workflow end to end — and shows what it takes to run a business that scales. Real screens, real stack, really live.
                     </p>
                 </div>
 
@@ -2004,7 +2057,7 @@ const HowWeWorkSection: React.FC = () => {
                         How we work
                     </p>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
-                        From first conversation to a system you run on
+                        From first conversation to a system you scale with
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         The same process that produced Vega, Atrium and Kozy Care.

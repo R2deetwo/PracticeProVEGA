@@ -339,7 +339,7 @@ export const BroadcastBanner: React.FC = () => {
     const userEmail = currentUser?.email || '';
 
     const broadcasts = useQuery(api.broadcasts.getActiveBroadcasts,
-        isAuthenticated && (userIdStr || userEmail)
+        isAuthenticated && (userIdStr || userEmail) && currentUser?.email !== 'demo@practicepro.ng'
             ? { userId: userIdStr, email: userEmail, sessionToken: bearerToken ?? undefined }
             : "skip");
 

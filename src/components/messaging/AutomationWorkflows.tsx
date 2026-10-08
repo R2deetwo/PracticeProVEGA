@@ -122,10 +122,13 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
   const { addToast } = useUI();
   const sessionToken = (bearerToken ?? undefined) || undefined;
   const auth = { userEmail: currentUser?.email, sessionToken };
+  // Demo sessions (DEV demo mode) have no verified bearer — server-authed
+  // queries would throw Unauthenticated and trip the section boundary.
+  const awIsDemo = currentUser?.email === 'demo@practicepro.ng';
 
   const overview = useQuery(
     api.automationEngine.getAutomationOverview,
-    firmId && currentUser ? { firmId, userEmail: currentUser.email, sessionToken } : 'skip'
+    firmId && currentUser && !awIsDemo ? { firmId, userEmail: currentUser.email, sessionToken } : 'skip'
   );
   const setWorkflowEnabled = useMutation(api.automationEngine.setWorkflowEnabled);
   const updateWorkflowStep = useMutation(api.automationEngine.updateWorkflowStep);
@@ -141,12 +144,12 @@ export const AutomationWorkflows: React.FC<{ firmId: string }> = ({ firmId }) =>
 
   const preview = useQuery(
     api.automationEngine.previewWorkflowTargets,
-    previewFor && firmId && currentUser ? { firmId, workflowKey: previewFor, userEmail: currentUser.email, sessionToken } : 'skip'
+    previewFor && firmId && currentUser && !awIsDemo ? { firmId, workflowKey: previewFor, userEmail: currentUser.email, sessionToken } : 'skip'
   );
 
   const unitStatus = useQuery(
     api.automationEngine.listUnitAutomationStatus,
-    unitPanelOpen && firmId && currentUser ? { firmId, userEmail: currentUser.email, sessionToken } : 'skip'
+    unitPanelOpen && firmId && currentUser && !awIsDemo ? { firmId, userEmail: currentUser.email, sessionToken } : 'skip'
   );
 
   const workflows: WorkflowCard[] = (overview as any)?.workflows || [];

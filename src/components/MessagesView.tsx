@@ -325,6 +325,12 @@ const MessagesView: React.FC = () => {
     // crashed the entire messaging view. Now all hooks run unconditionally,
     // and the guard is applied in the render body below.
 
+    // Demo sessions (DEV demo mode) have no verified bearer — server-authed
+    // queries would throw Unauthenticated and trip the error boundary.
+    // Defined BEFORE the first such query (getChatMessages) so every
+    // server-authed query below can gate on it.
+    const mvIsDemo = currentUser?.email === 'demo@practicepro.ng';
+
     const conversations = coreState.chatConversations || [];
     const users = coreState.users || [];
     const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
@@ -332,7 +338,7 @@ const MessagesView: React.FC = () => {
     // Load chat messages from Convex (getFirmData returns chatMessages: [])
     // This is the REAL data source — without this, messages disappear on refresh
     const chatMessagesResult = useQuery(api.myFunctions.getChatMessages,
-        firmId ? { firmId } : 'skip'
+        firmId && !mvIsDemo ? { firmId } : 'skip'
     );
     const messages = chatMessagesResult || [];
     const onNavigate = (view: any, id: any, context: any) => navigateTo(view, id, context);
@@ -400,9 +406,6 @@ const MessagesView: React.FC = () => {
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
     // ── Team DM state (team chat renders inside the Conversations inbox) ──
-    // Demo sessions (DEV demo mode) have no verified bearer — server-authed
-    // queries would throw Unauthenticated and trip the error boundary.
-    const mvIsDemo = currentUser?.email === 'demo@practicepro.ng';
     const myFeedbackResult = useQuery(api.feedback.getMyFeedbackReplies, mvIsDemo ? 'skip' : { userId: currentUser?.id || '' });
     const myFeedback = myFeedbackResult || [];
 
@@ -419,7 +422,7 @@ const MessagesView: React.FC = () => {
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];
     // Audit trail for outbound messages
-    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId ? { firmId, limit: 100, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
+    const automationLogs = useQuery(api.sentry.getAutomationLogs, firmId && !mvIsDemo ? { firmId, limit: 100, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
 
     // ── Loading state detection ──
     const isInboxLoading = atriumInboundResult === undefined || portalConversationsResult === undefined || portalMessagesResult === undefined;
@@ -754,7 +757,7 @@ const MessagesView: React.FC = () => {
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
         api.portals.getConversationMessages,
-        (selectedSection === 'client_tenant' && selectedInboxId) ? { conversationId: selectedInboxId } : 'skip'
+        (selectedSection === 'client_tenant' && selectedInboxId && !mvIsDemo) ? { conversationId: selectedInboxId } : 'skip'
     );
 
     // ── Admin file upload for replies ──
@@ -763,11 +766,11 @@ const MessagesView: React.FC = () => {
     const adminFileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Notice Board — count for tab badge (content rendered by NoticeBoardTab) ──
-    const allNotices = useQuery(api.portals.getAllNotices, firmId ? { firmId } : 'skip') || [];
+    const allNotices = useQuery(api.portals.getAllNotices, firmId && !mvIsDemo ? { firmId } : 'skip') || [];
     const activeNoticesCount = useMemo(() => (allNotices as any[]).filter((n: any) => n.status === 'active').length, [allNotices]);
 
     // ── Scheduled — count for tab badge (content rendered by ScheduledTab) ──
-    const scheduledMessagesCount = useQuery(api.portals.getScheduledMessagesByFirm, firmId ? { firmId } : 'skip') || [];
+    const scheduledMessagesCount = useQuery(api.portals.getScheduledMessagesByFirm, firmId && !mvIsDemo ? { firmId } : 'skip') || [];
     const pendingScheduled = useMemo(() => (scheduledMessagesCount as any[]).filter((m: any) => m.status === 'scheduled').length, [scheduledMessagesCount]);
     // Failed sends badge on the Outbox tab — draws attention to delivery
     // problems the moment they exist (was invisible before this round).

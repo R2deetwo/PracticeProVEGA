@@ -108,9 +108,12 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
   const auth = { userEmail: currentUser?.email, sessionToken };
 
   // ── Data ─────────────────────────────────────────────────────────────────
+  // Demo sessions (DEV demo mode) have no verified bearer — server-authed
+  // queries would throw Unauthenticated and kill the tab.
+  const stIsDemo = currentUser?.email === 'demo@practicepro.ng';
   const queue = useQuery(
     api.automationEngine.getAutomationQueue,
-    firmId && currentUser ? { firmId, ...auth } : 'skip'
+    firmId && currentUser && !stIsDemo ? { firmId, ...auth } : 'skip'
   );
   // NOTE (2026-09-14 incident): the Upcoming projection query moved into the
   // <UpcomingProjection> child below, wrapped in a SectionErrorBoundary.
@@ -127,7 +130,7 @@ export const ScheduledTab: React.FC<ScheduledTabProps> = ({ firmId }) => {
   // Overdue-account recipients (engine's real service-charge resolver).
   const overduePreview = useQuery(
     api.automationEngine.previewWorkflowTargets,
-    firmId && currentUser ? { firmId, workflowKey: 'service_charge', ...auth } : 'skip'
+    firmId && currentUser && !stIsDemo ? { firmId, workflowKey: 'service_charge', ...auth } : 'skip'
   );
 
   // Unit catalogue for scope-based auto-population.
@@ -1066,9 +1069,12 @@ const UpcomingProjection: React.FC<UpcomingProjectionProps> = ({ firmId, auth })
   // projects the next 14 days from the workflow configs + live anchors.
   // It is a PLAN, not a promise — the nightly engine re-checks paid/
   // paused/opt-out gates at enqueue time, so rows here can still drop out.
+  // Demo sessions skip it (no bearer → Unauthenticated).
+  const { currentUser: upCurrentUser } = useAuth();
+  const upIsDemo = upCurrentUser?.email === 'demo@practicepro.ng';
   const upcoming = useQuery(
     api.automationEngine.getUpcomingAutomation,
-    firmId && auth.userEmail ? { firmId, days: 14, ...auth } : 'skip'
+    firmId && auth.userEmail && !upIsDemo ? { firmId, days: 14, ...auth } : 'skip'
   );
   const [upcomingExpanded, setUpcomingExpanded] = useState(true);
 

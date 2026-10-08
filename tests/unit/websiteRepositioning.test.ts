@@ -78,7 +78,16 @@ const css = read("src", "index.css");
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
     expect(landing).toContain("We build the systems");
-    expect(landing).toContain("businesses run on.");
+    // W15: the promise moved from “run on” to “scale with”, and the noun
+    // cycles through the verticals we build for.
+    expect(landing).toContain("scale with.");
+    expect(landing).toContain("SCALE_VERTICALS");
+    expect(landing).toContain("'hospitals'");
+    expect(landing).toContain("'pharmacies'");
+    expect(landing).toContain("'law firms'");
+    expect(landing).toContain("'property managers'");
+    expect(landing).toContain("'businesses'");
+    expect(landing).not.toContain("businesses run on.");
   });
 
   it("the hero positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
@@ -108,7 +117,7 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
 
   it("the engagement process is presented", () => {
     expect(landing).toContain("HOW_WE_WORK");
-    expect(landing).toContain("From first conversation to a system you run on");
+    expect(landing).toContain("From first conversation to a system you scale with");
     expect(landing).toContain("Understand your operations");
     expect(landing).toContain("Launch, train & run with you");
   });
@@ -340,21 +349,40 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     expect(landing).toContain("Workflow Automation");
   });
 
-  it("the preview goes INSIDE with REAL captures — no mocked-up UI (W10)", () => {
+  it("the preview goes INSIDE with REAL captures — no mocked-up UI (W10, W15)", () => {
     expect(landing).toContain("SystemTour");
     expect(landing).toContain("tourSystem: 'vega'");
     expect(landing).toContain("tourSystem: 'atrium'");
     expect(landing).toContain("tourSystem: 'kozy'");
-    // The areas the owner called out, as REAL screens: the app dashboard,
-    // notifications, data entry (new matter), billing, the client portal —
-    // and Kozy's ordering flow (W11: the signed-in picker from the live site).
+    // W15: every stop is a feature story with a Desktop ⇄ Mobile toggle
+    // wherever both real captures exist. The owner's review removed the
+    // notifications panel (the stop is Messages, the real outbox) and
+    // folded the matters board into “Matters” (the detail view).
     expect(tour).toContain("vega-demo-dashboard.jpg");
-    expect(tour).toContain("vega-demo-notifications.jpg");
+    expect(tour).toContain("vega-demo-messages.jpg");
     expect(tour).toContain("vega-demo-newmatter.jpg");
+    expect(tour).toContain("vega-demo-matter-detail.jpg");
     expect(tour).toContain("vega-demo-billing.jpg");
+    expect(tour).toContain("vega-demo-calendar.jpg");
+    expect(tour).toContain("vega-demo-aloa.jpg");
     expect(tour).toContain("vega-portal.jpg");
+    expect(tour).not.toContain("vega-demo-notifications.jpg");
+    expect(tour).not.toContain("vega-demo-matters.jpg");
+    // The mobile halves of the toggle pairs.
+    expect(tour).toContain("vega-m-dashboard.jpg");
+    expect(tour).toContain("vega-m-matters.jpg");
+    expect(tour).toContain("vega-m-billing.jpg");
+    expect(tour).toContain("vega-m-messages.jpg");
     expect(tour).toContain("atrium-demo-financials.jpg");
     expect(tour).toContain("kozy-order-service.jpg");
+    // Every stop educates: outcome headline + “what it takes” ingredients.
+    expect(tour).toContain("What it takes");
+    expect(tour).toContain("Run the firm from one screen");
+    expect(tour).toContain("Meet clients where they already are");
+    expect(tour).toContain("Deadlines that compute themselves");
+    // The form-factor toggle exists where both surfaces exist.
+    expect(tour).toContain("'Desktop'");
+    expect(tour).toContain("'Mobile'");
     // Auto-advance walk + pause on hover.
     expect(tour).toContain("DWELL_MS");
     expect(tour).toContain("onMouseEnter");
@@ -567,9 +595,9 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(index).not.toContain("ratingValue");
   });
 
-  it("page metadata leads with the company's builder positioning (W6)", () => {
+  it("page metadata leads with the company's scaling positioning (W15)", () => {
     expect(index).toContain(
-      "<title>PracticePro Systems — We Build the Systems Businesses Run On</title>"
+      "<title>PracticePro Systems — We Build the Systems Businesses Scale With</title>"
     );
     expect(index).toContain(
       '<meta property="og:site_name" content="PracticePro Systems" />'
