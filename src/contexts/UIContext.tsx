@@ -365,7 +365,10 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
 
     // Heartbeat Effect
     React.useEffect(() => {
-        if (!currentUser || !currentUser.firmId) return;
+        // Demo sessions (DEV-only demo mode) carry no verified bearer, so the
+        // server-authed heartbeat would throw Unauthenticated every pulse and
+        // trip the Convex error boundary — skip it entirely for the demo user.
+        if (!currentUser || !currentUser.firmId || currentUser.email === 'demo@practicepro.ng') return;
 
         const sendPulse = () => {
             sendHeartbeatMutation({

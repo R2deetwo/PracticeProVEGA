@@ -96,7 +96,10 @@ const Header: React.FC = React.memo(() => {
     // IMPORTANT: Use hasPropertyFeatures (not isProperty) so Komplete firms
     // also get resident messages. isProperty is only for the assistant name.
     const headerFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, hasPropertyFeatures && headerFirmId ? { firmId: headerFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
+    // Demo sessions (DEV demo mode) have no verified bearer — the server-authed
+    // inbox query would throw Unauthenticated and trip the error boundary.
+    const headerIsDemo = currentUser?.email === 'demo@practicepro.ng';
+    const inboundTenantMessages = useQuery(api.sentry.getInboundMessages, hasPropertyFeatures && headerFirmId && !headerIsDemo ? { firmId: headerFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
 
     const rawUserName = currentUser?.name || currentUser?.email?.split('@')[0] || 'User';
     const displayUserName = isProperty ? rawUserName.replace(/Lawyer/g, 'Manager').replace(/Attorney/g, 'Agent') : rawUserName;

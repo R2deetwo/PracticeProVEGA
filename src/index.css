@@ -2534,10 +2534,10 @@ nav,
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* Liquid seams — W8 drove the organic edge with CSS keyframes; W9 drives
-   it from the scroll position in FluidSeam (JS) — see the W9 block below.
-   The container class is .w9-seam (contain: paint) and the blob is
-   .w9-seam-blob (will-change hints); nothing left to keyframe here. */
+/* Liquid seams — W8 drove the organic edge with CSS keyframes; W10 draws
+   a true SVG wave per seam (see the W10 block below — .w10-seam). The
+   container is contain:paint; the curve itself is path 'd' animation in
+   FluidSeam (JS), so nothing is keyframed here. */
 
 /* Fluid nav pill — a single indicator that morphs between the section links
    as the visitor scrolls. JS (NavBar) measures the active link and drives
@@ -2604,56 +2604,95 @@ nav,
 .w9-reveal-stagger.is-visible > *:nth-child(7) { transition-delay: 540ms; }
 .w9-reveal-stagger.is-visible > *:nth-child(8) { transition-delay: 630ms; }
 
-/* ── 2. The logo stage — where the 3D logo assembles (WebGL; the CSS art
-   below is the no-WebGL fallback: the mark drawn in layered planes). */
-.w9-logo-stage { position: relative; }
-.w9-logo-enter { animation: w9-logo-in 1.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
-@keyframes w9-logo-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+/* ── W10 — the mark becomes the system ──────────────────────────────────
+   The logo sits INTACT in a display box (exactly the header mark); on
+   scroll the P flattens into facets that fly into the capability cards.
+   Real SVG/DOM throughout — no WebGL, so there is no fallback box that
+   could ever look wrong. */
+.w10-seam { contain: paint; }
+.w10-seam > svg { display: block; }
+
+.w10-logo-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.25rem 2rem 1.4rem;
+  border-radius: 1.75rem;
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 24px 60px -28px rgba(15, 23, 42, 0.25),
+    0 2px 6px rgba(15, 23, 42, 0.06);
+  animation: w10-box-settle 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes w10-box-settle {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
   to   { opacity: 1; transform: none; }
 }
-.w9-logo-fallback {
+.w10-logo-glow {
+  /* Soft halo hugging the box — kept within the box's page margins so it
+     never widens the page on small screens (inset clamped, not -30%). */
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: -10% -6%;
+  background: radial-gradient(closest-side, rgba(22, 163, 74, 0.16), transparent 72%);
+  pointer-events: none;
 }
-.w9-logo-fallback::before,
-.w9-logo-fallback::after {
-  content: "";
-  position: absolute;
-  border-radius: 18%;
-  border: 1.5px solid rgba(22, 163, 74, 0.35);
+.w10-logo-mark {
+  width: 62%;
+  max-width: 172px;
+  height: auto;
+  display: block;
+  position: relative;
+  filter: drop-shadow(0 12px 28px rgba(22, 163, 74, 0.30));
 }
-.w9-logo-fallback::before { width: 150px; height: 150px; animation: w9-fallback-breathe 11s ease-in-out infinite alternate; }
-.w9-logo-fallback::after { width: 96px; height: 96px; border-color: rgba(217, 119, 6, 0.4); animation: w9-fallback-breathe 9s ease-in-out -3s infinite alternate-reverse; }
-@keyframes w9-fallback-breathe {
-  from { transform: rotate(-4deg) scale(0.96); }
-  to   { transform: rotate(5deg) scale(1.04); }
+.w10-logo-caption {
+  position: relative;
+  margin-top: 1.05rem;
+  height: 1.3em;
+  width: 100%;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #64748B;
 }
+.w10-logo-caption span { position: absolute; left: 0; right: 0; }
+.w10-logo-caption span + span { opacity: 0; }
 
-/* ── 3. The system squares — the layer of little brand squares that peel off
-   the logo and ride down the rest of the page (canvas is drawn by
-   SystemSquares.tsx; the element only positions and fades it). */
-.w9-squares-canvas {
+/* The flight overlay — the P's facets crossing the page. */
+.w10-shard-overlay {
   position: fixed;
+  inset: 0;
+  z-index: 30; /* above section art, below the nav (z-40) and any modal */
+  pointer-events: none;
+}
+.w10-shard-overlay svg { display: block; width: 100%; height: 100%; }
+.w10-shard-overlay polygon { will-change: transform, opacity; }
+
+/* The card sockets — dashed outline until the facet lands, then the
+   glyph settles in with a soft pop and stays as the card's mark. */
+.shard-socket { position: relative; }
+.shard-socket-outline,
+.shard-socket-glyph {
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: 5; /* above section art, below the nav (z-40) and any modal */
-  opacity: 0;
-  transition: opacity 1.1s ease;
+  display: block;
 }
-.w9-squares-canvas.is-live { opacity: 1; }
-
-/* ── 4. Seams that reshape as you scroll — FluidSeam (W9) drives
-   border-radius + transform directly from the scroll position each frame
-   (JS morph between three organic states, phase-shifted by scroll). The
-   base class only reserves compositing; no keyframes to fight inline style. */
-.w9-seam { contain: paint; }
-.w9-seam-blob { will-change: border-radius, transform; }
+.shard-socket-outline { color: #94A3B8; transition: opacity 350ms ease; }
+.shard-socket-glyph { opacity: 0; transform: scale(0.45) rotate(-8deg); }
+.shard-socket.shard-landed .shard-socket-outline { opacity: 0; }
+.shard-socket.shard-landed .shard-socket-glyph {
+  animation: w10-glyph-settle 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes w10-glyph-settle {
+  0%   { opacity: 0; transform: scale(0.45) rotate(-8deg); }
+  60%  { opacity: 1; transform: scale(1.08) rotate(3deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
 
 /* ── 5. The process that walks itself — HowWeWorkSection (W9). Steps light
    up in sequence (auto-advance + scroll), the spine fill follows, and a
@@ -2714,43 +2753,12 @@ nav,
   from { opacity: 0; transform: translateY(10px) scale(0.99); }
   to   { opacity: 1; transform: none; }
 }
-.w9-banner-in { animation: w9-banner-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
-@keyframes w9-banner-enter {
-  from { opacity: 0; transform: translateY(-8px); }
-  to   { opacity: 1; transform: none; }
-}
-.w9-tour-bar {
-  transform-origin: bottom;
-  animation: w9-bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--i, 0) * 90ms);
-}
-@keyframes w9-bar-grow {
-  from { transform: scaleY(0.05); opacity: 0.4; }
-  to   { transform: scaleY(1); opacity: 1; }
-}
-.w9-caret::after {
-  content: "";
-  display: inline-block;
-  width: 1.5px;
-  height: 0.95em;
-  margin-left: 1px;
-  background: currentColor;
-  vertical-align: -0.12em;
-  animation: w9-caret-blink 1.05s steps(2, start) infinite;
-}
-@keyframes w9-caret-blink { 50% { opacity: 0; } }
 .w9-tour-progress-fill {
   animation: w9-tour-fill var(--w9-tour-t, 7s) linear forwards;
 }
 @keyframes w9-tour-fill { from { width: 0%; } to { width: 100%; } }
-.w9-tour-dot { animation: w9-tour-dot-ping 2.2s ease-out infinite; }
-@keyframes w9-tour-dot-ping {
-  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
-  70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-}
 
-/* ── W9 reduced motion: everything above settles to its end state. ── */
+/* ── W9/W10 reduced motion: everything settles to its end state. ── */
 @media (prefers-reduced-motion: reduce) {
   .w9-reveal,
   .w9-reveal-stagger > * {
@@ -2759,19 +2767,13 @@ nav,
     filter: none;
     transition: none;
   }
-  .w9-logo-enter,
-  .w9-logo-fallback::before,
-  .w9-logo-fallback::after,
-  .w9-squares-canvas,
   .w9-spine-pulse,
   .w9-tour-swap,
-  .w9-banner-in,
-  .w9-tour-bar,
-  .w9-caret::after,
-  .w9-tour-progress-fill,
-  .w9-tour-dot {
+  .w9-tour-progress-fill {
     animation: none;
   }
-  .w9-squares-canvas { display: none; }
   .w9-tour-progress-fill { width: 100%; }
+  .w10-logo-box { animation: none; }
+  .w10-logo-caption span + span { opacity: 0; }
+  .shard-socket-glyph { animation: none; opacity: 1; transform: none; }
 }

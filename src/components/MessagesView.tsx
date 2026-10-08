@@ -400,18 +400,21 @@ const MessagesView: React.FC = () => {
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
     // ── Team DM state (team chat renders inside the Conversations inbox) ──
-    const myFeedbackResult = useQuery(api.feedback.getMyFeedbackReplies, { userId: currentUser?.id || '' });
+    // Demo sessions (DEV demo mode) have no verified bearer — server-authed
+    // queries would throw Unauthenticated and trip the error boundary.
+    const mvIsDemo = currentUser?.email === 'demo@practicepro.ng';
+    const myFeedbackResult = useQuery(api.feedback.getMyFeedbackReplies, mvIsDemo ? 'skip' : { userId: currentUser?.id || '' });
     const myFeedback = myFeedbackResult || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
     // Atrium: inbound WhatsApp/Email messages from residents
-    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
+    const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId && !mvIsDemo ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
     const atriumInbound = atriumInboundResult || [];
     // Atrium: portal conversations (conversation-based, replaces flat portal messages)
-    const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId ? { firmId } : 'skip');
+    const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId && !mvIsDemo ? { firmId } : 'skip');
     const portalConversations = portalConversationsResult || [];
     // Legacy: still fetch portal messages for backward compat
-    const portalMessagesResult = useQuery(api.portals.getPortalMessagesByFirm, firmId ? { firmId } : 'skip');
+    const portalMessagesResult = useQuery(api.portals.getPortalMessagesByFirm, firmId && !mvIsDemo ? { firmId } : 'skip');
     const portalMessages = portalMessagesResult || [];
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];

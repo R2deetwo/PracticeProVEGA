@@ -146,12 +146,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
 
     // Fetch inbound resident messages for unified badge count
+    // Demo sessions (DEV demo mode) have no verified bearer — the server-authed
+    // inbox and portal queries would throw Unauthenticated and trip the error boundary.
     const sidebarFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId ? { firmId: sidebarFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
+    const sidebarIsDemo = currentUser?.email === 'demo@practicepro.ng';
+    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
     const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
 
     // Fetch portal messages for unified badge count
-    const portalMsgs = useQuery(api.portals.getPortalMessagesByFirm, sidebarFirmId ? { firmId: sidebarFirmId } : 'skip') || [];
+    const portalMsgs = useQuery(api.portals.getPortalMessagesByFirm, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId } : 'skip') || [];
     const portalUnread = (portalMsgs as any[]).filter((m: any) => m.status === 'unread').length;
 
     const chatNotificationCount = (coreState.notifications || []).filter(n => n.userId === currentUser.id && !n.isRead && n.link?.view === 'messaging').length;

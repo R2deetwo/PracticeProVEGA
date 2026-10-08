@@ -31,12 +31,11 @@ import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 // W7 (the wow site): the hero's WebGL morphing orb. three.js is imported
 // dynamically inside MorphScene, so it code-splits away from the app bundle.
 import MorphScene from './marketing/MorphScene';
-// W9 (the living page): the logo assembles in 3D above "What we can build
-// for you", its squares ride down the rest of the page, and the portfolio
-// preview gains a guided tour of each system's inside. All lazily loaded
-// alongside the hero scene.
-import LogoScene from './marketing/LogoScene';
-import SystemSquares from './marketing/SystemSquares';
+// W10 (the mark becomes the system): the logo sits INTACT in a display box
+// above "What we can build for you" and, on scroll, its P flattens into
+// facets that fly into the capability cards; the portfolio preview shows
+// REAL captures only — live pages plus the real app on demo data.
+import LogoScene, { LOGO_SHARDS, SHARD_CENTERS, SHARD_VIEWBOX } from './marketing/LogoScene';
 import { SystemTour, type TourSystem } from './marketing/SystemTour';
 // W1 (website repositioning): new interactive elements use the ui/ Button
 // primitive per ADR-0004 — the raw-element ratchet must not grow.
@@ -860,62 +859,53 @@ const HubHero: React.FC<{
     );
 };
 
-// ─── FLUID SEAMS (W8 → W9) ───────────────────────────────────────────────
-// The dark↔light section cuts of W7 were healed with static gradient washes.
-// W8 replaced the cuts with liquid seams (a CSS-keyframed organic edge).
-// W9 makes the seams RESHAPE AS YOU SCROLL: each seam morphs between three
-// organic edge states — the phase driven by a slow time drift PLUS the
-// seam's scroll position — so scrolling actively redraws the curve, and the
-// blob leans and squashes as it crosses the viewport. One rAF loop per
-// seam, running only while the seam is in view; a static organic edge
-// under prefers-reduced-motion.
+// ─── FLUID SEAMS (W8 → W9 → W10) ───────────────────────────────────────────────
+// W10: the curvature is BACK and impossible to miss. Each seam is now a
+// true SVG wave — the previous section's colour pours into the next through
+// a visible arc whose crest slides and breathes as the seam crosses the
+// viewport (plus a slow ambient drift). The W9 organic-radius blob read
+// as a straight cut; this is a real curve again, and it morphs as you
+// scroll from page to page.
 
-const FluidSeam: React.FC<{ from: string; to: string }> = ({ from, to }) => {
+const FluidSeam: React.FC<{ from: string; to: string; phase?: number }> = ({ from, to, phase = 0 }) => {
     const hostRef = useRef<HTMLDivElement>(null);
-    const blobRef = useRef<HTMLDivElement>(null);
+    const pathRef = useRef<SVGPathElement>(null);
     useEffect(() => {
         const host = hostRef.current;
-        const blob = blobRef.current;
-        if (!host || !blob) return;
-        // Three organic edge states (per-corner horizontal + vertical radii).
-        const STATES: number[][] = [
-            [46, 54, 59, 41, 58, 44, 56, 42],
-            [57, 43, 41, 59, 47, 59, 41, 53],
-            [41, 59, 55, 45, 53, 41, 61, 47],
-        ];
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-            const s = STATES[0];
-            blob.style.borderRadius = `${s[0]}% ${s[1]}% ${s[2]}% ${s[3]}% / ${s[4]}% ${s[5]}% ${s[6]}% ${s[7]}%`;
-            return;
-        }
+        const path = pathRef.current;
+        if (!host || !path) return;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // p: 0 as the seam enters from the bottom, 1 as it leaves the top.
+        // The wave's crest slides horizontally and its amplitude breathes
+        // with the seam's viewport position — morphing, never static.
+        // The fill paints the region ABOVE the curve with the previous
+        // section's colour, which then pours into the next section below —
+        // dark at top, flowing to light at the bottom, through a living arc.
+        const draw = (p: number, t: number) => {
+            const breath = 0.5 + 0.5 * Math.sin(Math.PI * p);          // peaks mid-viewport
+            const amp = 13 + 15 * breath;                              // 13–28 of 100 units
+            const slide = Math.sin(t * 0.35 + phase * 1.7) * 8;         // slow ambient drift
+            const cRest = Math.sin(p * Math.PI * 1.3 + phase) * amp;
+            const cLead = Math.cos(p * Math.PI * 1.1 + phase * 0.8) * amp;
+            const a = 46 - cRest * 0.35 + slide * 0.5;
+            const b = 54 + cLead * 0.35 - slide * 0.5;
+            path.setAttribute('d',
+                `M0,0 L100,0 L100,${b.toFixed(2)} C70,${(b - amp * 0.9).toFixed(2)} 30,${(a + amp * 0.9).toFixed(2)} 0,${a.toFixed(2)} Z`);
+        };
+        if (reduced) { draw(0.5, 0); return; }
         let inView = true;
-        const io = new IntersectionObserver((entries) => {
-            inView = entries.some((en) => en.isIntersecting);
-        }, { threshold: 0 });
-        io.observe(host);
         let rafId: number | null = null;
         const t0 = performance.now();
+        const io = new IntersectionObserver((entries) => {
+            inView = entries.some((en) => en.isIntersecting);
+            if (inView && rafId === null) rafId = requestAnimationFrame(frame);
+        }, { threshold: 0 });
+        io.observe(host);
         const frame = (now: number) => {
             const rect = host.getBoundingClientRect();
             const vh = window.innerHeight;
-            // 0 as the seam enters from the bottom, 1 as it leaves the top.
             const p = Math.min(1, Math.max(0, (vh - rect.top) / (vh + rect.height)));
-            const t = (now - t0) / 1000;
-            // Slow ambient drift + scroll-driven reshaping.
-            const f = (t * 0.05 + p * 1.5) % 3;
-            const i = Math.floor(f) % 3;
-            const j = (i + 1) % 3;
-            const k = f - Math.floor(f);
-            const e = k * k * (3 - 2 * k); // smoothstep
-            const a = STATES[i];
-            const b = STATES[j];
-            const r = a.map((av, idx) => av + (b[idx] - av) * e);
-            blob.style.borderRadius = `${r[0]}% ${r[1]}% ${r[2]}% ${r[3]}% / ${r[4]}% ${r[5]}% ${r[6]}% ${r[7]}%`;
-            // The blob leans and squashes as the seam crosses the viewport.
-            const tx = Math.sin(p * Math.PI * 2) * 2.0;
-            const rot = -1.3 + p * 2.6;
-            const sy = 1 + Math.sin(p * Math.PI) * 0.05;
-            blob.style.transform = `translateX(${tx}%) rotate(${rot}deg) scaleY(${sy})`;
+            draw(p, (now - t0) / 1000);
             rafId = inView ? requestAnimationFrame(frame) : null;
         };
         rafId = requestAnimationFrame(frame);
@@ -923,15 +913,14 @@ const FluidSeam: React.FC<{ from: string; to: string }> = ({ from, to }) => {
             if (rafId !== null) cancelAnimationFrame(rafId);
             io.disconnect();
         };
-    }, []);
+    }, [phase]);
     return (
-        <div ref={hostRef} className="relative h-24 sm:h-36 overflow-hidden w9-seam" style={{ background: to }} aria-hidden="true">
-            {/* The previous section's color hanging into this one. The blob is
-                oversized (124% × 170%) and offset upward so its elliptical
-                BOTTOM edge — the liquid boundary — crosses the visible band.
-                W9: the edge morphs with scroll (JS above); the container
-                clips everything else. */}
-            <div ref={blobRef} className="w9-seam-blob absolute left-[-12%] top-[-105%] w-[124%] h-[170%]" style={{ background: from }} />
+        <div ref={hostRef} className="relative h-24 sm:h-32 overflow-hidden w10-seam" style={{ background: to }} aria-hidden="true">
+            {/* The previous section's colour, hanging into this one through a
+                living curve — the wave shape is the liquid boundary. */}
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path ref={pathRef} fill={from} d="M0,0 L100,0 L100,54 C70,42 30,58 0,46 Z" />
+            </svg>
         </div>
     );
 };
@@ -1050,17 +1039,13 @@ const WhatWeDoSection: React.FC = () => {
             {/* W8: the FluidSeam above owns the dark→light transition now —
                 the static sage wash is retired. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                {/* W9: the mark assembles — when you arrive at "What can we
-                    build for you?", the logo pops up in 3D: its three layers
-                    fly in and stack, the P rises, and small squares peel off
-                    and ride down the rest of the page (SystemSquares carries
-                    them below this section). */}
-                <div className="w9-logo-stage w9-logo-enter relative mx-auto mb-8 md:mb-10 h-[220px] sm:h-[270px] w-full max-w-[350px]">
-                    <div className="absolute inset-0 rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#111C30] to-[#0B1220] shadow-2xl shadow-slate-900/25 overflow-hidden">
-                        <div className="absolute inset-0 w9-logo-fallback" aria-hidden="true" />
-                        <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-emerald-500/15 blur-3xl" aria-hidden="true" />
-                    </div>
-                    <LogoScene className="absolute inset-0" />
+                {/* W10: the mark, INTACT in its display box — exactly as it
+                    looks in the header. No 3D twisting, no fallback box. As
+                    the visitor scrolls, the P flattens into its facets and
+                    they fly into the capability cards below (LogoScene owns
+                    the flight; the card sockets receive the pieces). */}
+                <div className="relative mx-auto mb-8 md:mb-10 w-full max-w-[300px]">
+                    <LogoScene />
                 </div>
                 <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
@@ -1074,15 +1059,37 @@ const WhatWeDoSection: React.FC = () => {
                         The same engineering is available for your business.
                     </p>
                 </div>
-                <div ref={gridRef} className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
+                <div ref={gridRef} data-shard-grid className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
                     {WHAT_WE_DO.map((c, i) => (
                         <div
                             key={i}
+                            data-shard-slot={i}
                             onMouseMove={handleSpotlight}
                             className={`w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
                         >
-                            <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-5 bg-gradient-to-br from-primary-50 to-emerald-50 text-primary-600 group-hover:from-primary-500 group-hover:to-emerald-600 group-hover:text-white transition-all duration-300">
-                                <c.Icon className="w-5 h-5" />
+                            {/* W10: the shard socket — a piece of the P flies in
+                                here as you scroll. Dashed outline until its
+                                facet lands, then the glyph settles and stays
+                                as the card's mark: the logo's elements have
+                                literally become the page. */}
+                            <div data-shard-socket className="shard-socket w-12 h-12 mb-5" aria-hidden="true">
+                                <svg className="shard-socket-outline" viewBox={SHARD_VIEWBOX}>
+                                    <polygon
+                                        points={LOGO_SHARDS[i].pts}
+                                        transform={`rotate(${LOGO_SHARDS[i].angle} ${SHARD_CENTERS[i].cx} ${SHARD_CENTERS[i].cy})`}
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2.2"
+                                        strokeDasharray="4 3"
+                                    />
+                                </svg>
+                                <svg className="shard-socket-glyph" viewBox={SHARD_VIEWBOX}>
+                                    <polygon
+                                        points={LOGO_SHARDS[i].pts}
+                                        transform={`rotate(${LOGO_SHARDS[i].angle} ${SHARD_CENTERS[i].cx} ${SHARD_CENTERS[i].cy})`}
+                                        fill="url(#w10-shard-grad)"
+                                    />
+                                </svg>
                             </div>
                             <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
                             <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>
@@ -1093,6 +1100,7 @@ const WhatWeDoSection: React.FC = () => {
         </section>
     );
 };
+
 
 // ─── OUR WORK (corporate hub) — the portfolio ──────────────────────────────
 // P8: every card maps to a real, deployed system. Vega and Atrium are
@@ -1338,19 +1346,14 @@ const PhoneFrame: React.FC<{ src: string; alt: string; className?: string }> = (
 );
 
 /** W7: the "Preview the system" modal — real screens, the stack, what's inside.
- *  W9: the preview opens on a GUIDED TOUR — an interactive, clearly-labeled
- *  demo walk-through of the system's inside (dashboard, notifications,
- *  billing, portals, admin) — with the REAL captured screens one tap away
- *  under "Live screens". Tour data is fictional (P8 honesty); live screens
- *  are real captures. */
+ *  W10: the preview is REAL CAPTURES ONLY — live pages from the deployed
+ *  systems plus the real app running its own demo data (P8 honesty: every
+ *  screen is labelled with exactly what it is). No mocked-up UI. */
 const WorkDetailModal: React.FC<{
     work: (typeof OUR_WORK)[number] | null;
     onClose: () => void;
     onContactSales: () => void;
 }> = ({ work, onClose, onContactSales }) => {
-    // W9: tour (default) | live — reset whenever a different system opens.
-    const [mode, setMode] = useState<'tour' | 'live'>('tour');
-    useEffect(() => { setMode('tour'); }, [work]);
     // Escape + scroll-lock (the landing page scrolls inside its own div).
     useEffect(() => {
         if (!work) return;
@@ -1384,26 +1387,6 @@ const WorkDetailModal: React.FC<{
                             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{work.tagline}</p>
                         </div>
                     </div>
-                    {/* W9: tour ↔ live — the interactive demo walk-through and
-                        the real captured screens, side by side. */}
-                    <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 flex-shrink-0">
-                        <Button
-                            variant="bare"
-                            onClick={() => setMode('tour')}
-                            aria-pressed={mode === 'tour'}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'tour' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            Guided tour
-                        </Button>
-                        <Button
-                            variant="bare"
-                            onClick={() => setMode('live')}
-                            aria-pressed={mode === 'live'}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${mode === 'live' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            Live screens
-                        </Button>
-                    </div>
                     <Button
                         variant="bare"
                         onClick={onClose}
@@ -1417,13 +1400,11 @@ const WorkDetailModal: React.FC<{
 
                 {/* Body */}
                 <div className="overflow-y-auto px-6 sm:px-8 py-6">
-                    {mode === 'tour' ? (
-                        <div className="mb-8">
-                            <SystemTour system={work.tourSystem} />
-                        </div>
-                    ) : (
-                        <WorkDetailGallery work={work} />
-                    )}
+                    {/* W10: real captures only — live pages from the deployed
+                        systems plus the real app on demo data. */}
+                    <div className="mb-8">
+                        <SystemTour system={work.tourSystem} />
+                    </div>
 
                     <p className="text-slate-600 text-sm leading-[1.75] mb-8 max-w-2xl">{work.body}</p>
 
@@ -1473,48 +1454,6 @@ const WorkDetailModal: React.FC<{
             </div>
         </div>,
         document.body
-    );
-};
-
-const WorkDetailGallery: React.FC<{ work: (typeof OUR_WORK)[number] }> = ({ work }) => {
-    const [index, setIndex] = useState(0);
-    const screen = work.detailScreens[index];
-    return (
-        <div className="mb-8">
-            {/* Stage — real screens on a neutral studio backdrop */}
-            <div className="rounded-2xl bg-slate-100 border border-slate-200 p-3 sm:p-5 flex items-center justify-center min-h-[240px] sm:min-h-[340px] overflow-hidden">
-                <img
-                    key={screen.src}
-                    src={screen.src}
-                    alt={screen.alt}
-                    className={`animate-swap-in ${screen.kind === 'phone' ? 'h-[300px] sm:h-[400px] w-auto rounded-2xl shadow-xl' : 'w-full max-w-2xl rounded-lg shadow-xl'}`}
-                    style={screen.kind === 'browser' ? { aspectRatio: '16 / 10', objectFit: 'cover', objectPosition: 'top' } : { objectFit: 'cover', objectPosition: 'top' }}
-                />
-            </div>
-            {/* Caption */}
-            <p className="text-center text-xs font-semibold text-slate-500 mt-2.5 mb-3">{screen.label}</p>
-            {/* Thumbs */}
-            {work.detailScreens.length > 1 && (
-                <div className="flex items-center justify-center gap-2 flex-wrap">
-                    {work.detailScreens.map((s, i) => (
-                        <Button
-                            key={s.src + i}
-                            variant="bare"
-                            onClick={() => setIndex(i)}
-                            aria-label={`View: ${s.label}`}
-                            aria-pressed={i === index}
-                            className={`p-1 rounded-lg border-2 transition-all ${i === index ? 'border-primary-500' : 'border-transparent hover:border-slate-300 opacity-70 hover:opacity-100'}`}
-                        >
-                            <img
-                                src={s.src}
-                                alt=""
-                                className={`rounded object-cover object-top ${s.kind === 'phone' ? 'h-12 w-7' : 'h-12 w-[5.35rem]'}`}
-                            />
-                        </Button>
-                    ))}
-                </div>
-            )}
-        </div>
     );
 };
 
@@ -1801,12 +1740,16 @@ const ABOUT_FACTS: Array<{
 ];
 
 const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => {
-    const ref = useScrollReveal<HTMLDivElement>();
+    // W10: the section settles in as a cascade — eyebrow, headline and each
+    // paragraph arrive in sequence, then the facts card rises after the
+    // copy (the old single-block reveal read as bland).
+    const leftRef = useScrollReveal<HTMLDivElement>();
+    const cardRef = useScrollReveal<HTMLDivElement>();
     return (
         <section id="about" className="py-16 sm:py-24" style={{ background: 'var(--color-paper)' }}>
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-                <div ref={ref} className="w9-reveal grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 max-w-6xl mx-auto items-center">
-                    <div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 max-w-6xl mx-auto items-center">
+                    <div ref={leftRef} className="w9-reveal-stagger">
                         <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
                             Who we are
                         </p>
@@ -1815,29 +1758,27 @@ const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales
                             <br />
                             Run in production.
                         </h2>
-                        <div className="space-y-5 text-slate-600 leading-[1.75]">
-                            <p>
+                            <p className="text-slate-600 leading-[1.75] mb-5">
                                 PracticePro Systems is a software company based in Lagos, Nigeria. We build
                                 the systems businesses use to manage their affairs — the daily operating
                                 software that tracks the work, moves the money, talks to the customers and
                                 keeps the records straight.
                             </p>
-                            <p>
+                            <p className="text-slate-600 leading-[1.75] mb-5">
                                 We don&apos;t just build systems for other people — we run our own, every
                                 working day. Vega serves Nigerian law firms and Atrium serves property
                                 portfolios. That means the foundations a client system stands on — payments,
                                 messaging, portals, automation, security — are already in production, not on
                                 a roadmap.
                             </p>
-                            <p>
+                            <p className="text-slate-600 leading-[1.75]">
                                 That is the difference between a software vendor and a software partner:
                                 we live with the consequences of our engineering, in products we operate
                                 ourselves. And when a business needs something that doesn&apos;t exist
                                 yet — in any industry, anywhere — we build that too.
                             </p>
-                        </div>
                     </div>
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10 flex flex-col">
+                    <div ref={cardRef} className="w9-reveal bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10 flex flex-col" style={{ '--w9-d': '420ms' } as React.CSSProperties}>
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-6">PracticePro Systems at a glance</p>
                         <ul className="space-y-6 flex-1">
                             {ABOUT_FACTS.map((f, i) => (
@@ -3723,10 +3664,6 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 // narrative: hero → what we do → our work → how we work →
                 // who we are → contact CTA.
                 <main id="main-content" className="animate-swap-in">
-                    {/* W9: the system squares — the logo's modules riding down
-                        the rest of the page (activates once the logo section
-                        is passed; fixed layer, pointer-events none). */}
-                    <SystemSquares />
                     <HubHero
                         onContactSales={() => openContactSales('Hub Hero')}
                         scrollTo={scrollTo}
@@ -3734,14 +3671,14 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                     <MarqueeStrip />
                     {/* W8: liquid seams — each section pours into the next
                         through a slowly morphing organic edge. */}
-                    <FluidSeam from="#0A101C" to="#FFFFFF" />
+                    <FluidSeam from="#0A101C" to="#FFFFFF" phase={0} />
                     <WhatWeDoSection />
-                    <FluidSeam from="#FFFFFF" to="#0A101C" />
+                    <FluidSeam from="#FFFFFF" to="#0A101C" phase={1} />
                     <OurWorkSection onContactSales={() => openContactSales('Our Work')} />
-                    <FluidSeam from="#0A101C" to="#FFFFFF" />
+                    <FluidSeam from="#0A101C" to="#FFFFFF" phase={2} />
                     <HowWeWorkSection />
                     <AboutSection onContactSales={() => openContactSales('About')} />
-                    <FluidSeam from="#FBFBF9" to="#0A101C" />
+                    <FluidSeam from="#FBFBF9" to="#0A101C" phase={3} />
                     <HubFinalCTASection
                         onContactSales={() => openContactSales('Hub Final CTA')}
                         scrollTo={scrollTo}

@@ -44,7 +44,6 @@ const landing = read("src", "components", "LandingPage.tsx");
 const index = read("index.html");
 const scene = read("src", "components", "marketing", "MorphScene.tsx");
 const logoScene = read("src", "components", "marketing", "LogoScene.tsx");
-const squares = read("src", "components", "marketing", "SystemSquares.tsx");
 const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 
@@ -183,12 +182,17 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(css).toContain(".w8-lattice-fallback");
   });
 
-  it("sections melt into each other through liquid seams that reshape as you scroll (W9)", () => {
+  it("sections pour into each other through visible SVG waves that morph as you scroll (W10)", () => {
     expect(landing).toContain("FluidSeam");
-    // W9: the seam edge is scroll-driven JS morphing between organic states.
-    expect(landing).toContain("w9-seam-blob");
-    expect(landing).toContain("scroll-driven reshaping");
-    expect(css).toContain(".w9-seam");
+    // W10: the seam is a true SVG wave — the curve reshapes with scroll.
+    expect(landing).toContain("w10-seam");
+    expect(landing).toContain("path.setAttribute");
+    expect(css).toContain(".w10-seam");
+    // Each seam carries its own phase so no two curves match.
+    expect(landing).toContain("phase={0}");
+    expect(landing).toContain("phase={1}");
+    expect(landing).toContain("phase={2}");
+    expect(landing).toContain("phase={3}");
     // Every tonal shift on the hub is seamed: dark→light, light→dark,
     // dark→light again, and paper→dark into the closing CTA.
     expect(landing).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
@@ -217,23 +221,33 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 });
 
-describe("W9 — the living page: the logo, the squares, the walk, the tour", () => {
-  it("the logo assembles in 3D where “What can we build for you?” lands", () => {
-    expect(landing).toContain("LogoScene");
-    expect(landing).toContain("w9-logo-stage");
-    // The scene reproduces the actual mark: the P path + the stacked layers.
-    expect(logoScene).toContain("pShape");
-    expect(logoScene).toContain("bezierCurveTo");
-    expect(logoScene).toContain("peel off");
-    // A structural CSS fallback sits behind the canvas.
-    expect(css).toContain(".w9-logo-fallback");
+describe("W9/W10 — the living page, then the mark becomes the system", () => {
+  it("the logo sits INTACT in a display box — exactly the header mark (W10)", () => {
+    expect(landing).toContain("<LogoScene />");
+    // The display box itself lives in the scene component.
+    expect(logoScene).toContain("w10-logo-box");
+    // The mark is the real SVG geometry — no 3D twisting, no fallback box.
+    expect(logoScene).toContain("LOGO_SHARDS");
+    expect(logoScene).toContain("SHARD_CENTERS");
+    expect(logoScene).toContain("disassembles");
   });
 
-  it("the squares ride down the rest of the page and interact with it", () => {
-    expect(landing).toContain("SystemSquares");
-    expect(squares).toContain("is-live");
-    expect(squares).toContain("whatWeDo");
-    expect(css).toContain(".w9-squares-canvas");
+  it("on scroll the P flattens into facets that fly into the capability cards", () => {
+    // The shards tile the P; each card carries a socket that receives its
+    // piece and keeps it as the card's mark — the logo becomes the page.
+    expect(logoScene).toContain("LOGO_SHARDS.length");
+    expect(logoScene).toContain("shard-landed");
+    expect(landing).toContain("data-shard-grid");
+    expect(landing).toContain("data-shard-slot");
+    expect(landing).toContain("data-shard-socket");
+    expect(landing).toContain("shard-socket-glyph");
+    expect(css).toContain(".w10-shard-overlay");
+    expect(css).toContain(".shard-socket.shard-landed");
+  });
+
+  it("the riding-squares layer is retired — no stray floaters (W10)", () => {
+    expect(landing).not.toContain("SystemSquares");
+    expect(css).not.toContain(".w9-squares-canvas");
   });
 
   it("text settles in softly across the hub — never a hard cut", () => {
@@ -256,33 +270,31 @@ describe("W9 — the living page: the logo, the squares, the walk, the tour", ()
     expect(landing).toContain("Workflow Automation");
   });
 
-  it("the preview opens on an interactive guided tour with more of the system inside", () => {
+  it("the preview goes INSIDE with REAL captures — no mocked-up UI (W10)", () => {
     expect(landing).toContain("SystemTour");
-    expect(landing).toContain("Guided tour");
-    expect(landing).toContain("Live screens");
     expect(landing).toContain("tourSystem: 'vega'");
     expect(landing).toContain("tourSystem: 'atrium'");
     expect(landing).toContain("tourSystem: 'kozy'");
-    // The tour covers the areas the owner called out: notifications/banners,
-    // data entry, client portals, billing/payments, and Kozy's members,
-    // ordering, customer portal and admin console.
-    expect(tour).toContain("VegaNotifications");
-    expect(tour).toContain("VegaNewMatter");
-    expect(tour).toContain("VegaClientPortal");
-    expect(tour).toContain("VegaBilling");
-    expect(tour).toContain("KozyBooking");
-    expect(tour).toContain("KozyCustomerPortal");
-    expect(tour).toContain("KozyAdmin");
-    expect(tour).toContain("AtriumCollections");
+    // The areas the owner called out, as REAL screens: the app dashboard,
+    // notifications, data entry (new matter), billing, the client portal —
+    // and Kozy's ordering flow from the live site.
+    expect(tour).toContain("vega-demo-dashboard.jpg");
+    expect(tour).toContain("vega-demo-notifications.jpg");
+    expect(tour).toContain("vega-demo-newmatter.jpg");
+    expect(tour).toContain("vega-demo-billing.jpg");
+    expect(tour).toContain("vega-portal.jpg");
+    expect(tour).toContain("atrium-demo-financials.jpg");
+    expect(tour).toContain("kozy-book.jpg");
     // Auto-advance walk + pause on hover.
     expect(tour).toContain("DWELL_MS");
     expect(tour).toContain("onMouseEnter");
   });
 
-  it("the tour is honest: demo data is labeled, never passed off as real", () => {
-    expect(tour).toContain("Guided tour · demo data");
-    expect(tour).toContain("fictional");
-    expect(tour).not.toContain("screenshot");
+  it("the tour is honest: every screen is labelled with exactly what it is", () => {
+    expect(tour).toContain("Real app · demo data");
+    expect(tour).toContain("The real mobile app");
+    expect(tour).toContain("Live site");
+    expect(tour).not.toContain("Guided tour · demo data");
   });
 
   it("Kozy Care's live gallery grows — booking, portal sign-in, partner network", () => {

@@ -229,6 +229,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                 uniforms: {
                     uTime: { value: 0 },
                     uAmp: { value: AMP },
+                    uEdge: { value: 0 },
                     uColorA: { value: COLOR_MOSS },
                     uColorB: { value: COLOR_EMERALD },
                     uColorC: { value: COLOR_AMBER },
@@ -238,6 +239,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uniform vec3 uColorA;
                     uniform vec3 uColorB;
                     uniform vec3 uColorC;
+                    uniform float uEdge;
                     varying float vNoise;
                     varying vec3 vNormal;
                     varying vec3 vView;
@@ -251,8 +253,10 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                         float top = clamp(vNormal.y * 0.5 + 0.5, 0.0, 1.0);
                         col *= 0.38 + top * 0.8;
                         // Amber fresnel rim — the brand's signature edge light.
+                        // W10: the rim ignites as the pointer nears the rails
+                        // (edge volatility) and banks back to calm at centre.
                         float fres = pow(1.0 - clamp(dot(vNormal, vView), 0.0, 1.0), 2.6);
-                        col += uColorC * fres * 0.5;
+                        col += uColorC * fres * (0.5 + uEdge * 0.45);
                         gl_FragColor = vec4(col, 1.0);
                     }
                 `,
@@ -526,17 +530,31 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
             let last = performance.now();
             const BASE_TIME = 7.0; // a pleasing static pose for reduced motion
             let time = reducedMotion ? BASE_TIME : 0;
+            // W10 edge volatility — 0 with the pointer centred (the relaxed
+            // drift of W8), 1 at the screen rails. Drives time acceleration,
+            // morph amplitude, parallax gain and the fresnel rim, so the
+            // hero feels calm mid-screen and comes alive as you push out.
+            let edge = 0;
 
             const renderFrame = () => {
                 for (const m of timed) m.uniforms.uTime.value = time;
                 curX += (pointerX - curX) * 0.045;
                 curY += (pointerY - curY) * 0.045;
-                camera.position.x = curX * 0.55;
-                camera.position.y = -curY * 0.38;
+                const targetEdge = Math.min(1, Math.pow(Math.abs(curX), 1.25) * 1.12 + Math.abs(curY) * 0.15);
+                edge += (targetEdge - edge) * 0.05;
+                const amp = AMP * (1 + edge * 0.55);
+                solidMat.uniforms.uAmp.value = amp;
+                wireMat.uniforms.uAmp.value = amp;
+                nodeMat.uniforms.uAmp.value = amp;
+                solidMat.uniforms.uEdge.value = edge;
+                camera.position.x = curX * (0.55 + edge * 0.5);
+                camera.position.y = -curY * (0.38 + edge * 0.22);
                 camera.lookAt(0, 0, 0);
                 // The crystal turns slowly; a gentle wobble keeps it alive.
-                core.rotation.y = time * 0.05 + curX * 0.2;
-                core.rotation.x = Math.sin(time * 0.05) * 0.14 + curY * 0.12;
+                // Continuity note: only time RATE and lerped terms vary with
+                // edge — never a time multiplier — so nothing ever jumps.
+                core.rotation.y = time * 0.05 + curX * (0.2 + edge * 0.22);
+                core.rotation.x = Math.sin(time * 0.05) * 0.14 + curY * (0.12 + edge * 0.12);
                 const breathe = 1 + Math.sin(time * 0.16) * 0.012;
                 core.scale.setScalar(breathe);
                 // Ring gradients travel in-plane; the frames hold their tilt.
@@ -558,7 +576,10 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     const dt = Math.min(0.05, (now - last) / 1000);
                     last = now;
                     if (inView) {
-                        time += dt;
+                        // W10: time itself runs faster near the rails — every
+                        // time-driven motion in the scene accelerates together
+                        // and decelerates back, continuously (no jumps).
+                        time += dt * (1 + edge * 1.75);
                         renderFrame();
                     }
                     rafId = requestAnimationFrame(loop);
