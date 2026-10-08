@@ -2604,11 +2604,12 @@ nav,
 .w9-reveal-stagger.is-visible > *:nth-child(7) { transition-delay: 540ms; }
 .w9-reveal-stagger.is-visible > *:nth-child(8) { transition-delay: 630ms; }
 
-/* ── W10 — the mark becomes the system ──────────────────────────────────
-   The logo sits INTACT in a display box (exactly the header mark); on
-   scroll the P flattens into facets that fly into the capability cards.
-   Real SVG/DOM throughout — no WebGL, so there is no fallback box that
-   could ever look wrong. */
+/* ── W10/W12 — the mark, the system ────────────────────────────────────
+   The logo sits INTACT in a display box (exactly the header mark) and is
+   NEVER broken apart. On scroll, circuit traces route PCB-style from the
+   box's connector pads into the capability cards below and each port
+   switches ON. Real SVG/DOM throughout — no WebGL, so there is no
+   fallback box that could ever look wrong. */
 .w10-seam { contain: paint; }
 .w10-seam > svg { display: block; }
 
@@ -2632,15 +2633,22 @@ nav,
 }
 .w10-logo-glow {
   /* Soft halo hugging the box — kept within the box's page margins so it
-     never widens the page on small screens (inset clamped, not -30%). */
+     never widens the page on small screens (inset clamped, not -30%).
+     W12: the halo powers up (--w12-power, driven by scroll) as the traces
+     route — the mark is the source. */
   position: absolute;
   inset: -10% -6%;
   background: radial-gradient(closest-side, rgba(22, 163, 74, 0.16), transparent 72%);
+  opacity: calc(0.8 + 0.2 * var(--w12-power, 0));
   pointer-events: none;
 }
-.w10-logo-mark {
+.w10-logo-stage {
+  position: relative;
   width: 62%;
   max-width: 172px;
+}
+.w10-logo-mark {
+  width: 100%;
   height: auto;
   display: block;
   position: relative;
@@ -2661,37 +2669,139 @@ nav,
 .w10-logo-caption span { position: absolute; left: 0; right: 0; }
 .w10-logo-caption span + span { opacity: 0; }
 
-/* The flight overlay — the P's facets crossing the page. */
-.w10-shard-overlay {
+/* The routing overlay — the traces that carry the mark's power into the
+   cards. Fixed and viewport-sized; paths are measured live each frame
+   (works under the landing page's inner scroller). */
+.w12-trace-overlay {
   position: fixed;
   inset: 0;
   z-index: 30; /* above section art, below the nav (z-40) and any modal */
   pointer-events: none;
 }
-.w10-shard-overlay svg { display: block; width: 100%; height: 100%; }
-.w10-shard-overlay polygon { will-change: transform, opacity; }
+.w12-trace-overlay svg { display: block; width: 100%; height: 100%; }
+.w12-trace-overlay path,
+.w12-trace-overlay circle { will-change: opacity; }
 
-/* The card sockets — dashed outline until the facet lands, then the
-   glyph settles in with a soft pop and stays as the card's mark. */
-.shard-socket { position: relative; }
-.shard-socket-outline,
-.shard-socket-glyph {
+/* Connector pads on the box's lower edge — chip pins. Each lights when
+   its trace starts drawing. */
+.w12-pads {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5px;
+  display: flex;
+  justify-content: center;
+  gap: clamp(12px, 6vw, 30px);
+  pointer-events: none;
+}
+.w12-pad {
+  width: 11px;
+  height: 10px;
+  border-radius: 3px;
+  background: #E2E8F0;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  transition: background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+}
+.w12-pad.is-live {
+  background: linear-gradient(180deg, #22C55E, #16A34A);
+  border-color: rgba(5, 150, 105, 0.8);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.55);
+}
+
+/* Engineering corner brackets framing the mark + the one-shot scan
+   sweep — the box reads as a spec'd component, not a decoration. */
+.w12-brackets {
+  position: absolute;
+  inset: -9px;
+  pointer-events: none;
+}
+.w12-brackets i {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border: 0 solid #94A3B8;
+  opacity: 0;
+  animation: w12-bracket-in 500ms ease-out both;
+}
+.w12-brackets i:nth-child(1) { top: 0; left: 0; border-top-width: 1.5px; border-left-width: 1.5px; animation-delay: 550ms; }
+.w12-brackets i:nth-child(2) { top: 0; right: 0; border-top-width: 1.5px; border-right-width: 1.5px; animation-delay: 650ms; }
+.w12-brackets i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; animation-delay: 750ms; }
+.w12-brackets i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; animation-delay: 850ms; }
+@keyframes w12-bracket-in {
+  from { opacity: 0; transform: scale(0.6); }
+  to { opacity: 1; transform: scale(1); }
+}
+.w12-scan {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
+  overflow: hidden;
+  pointer-events: none;
 }
-.shard-socket-outline { color: #94A3B8; transition: opacity 350ms ease; }
-.shard-socket-glyph { opacity: 0; transform: scale(0.45) rotate(-8deg); }
-.shard-socket.shard-landed .shard-socket-outline { opacity: 0; }
-.shard-socket.shard-landed .shard-socket-glyph {
-  animation: w10-glyph-settle 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+.w12-scan::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: -45%;
+  width: 38%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55) 45%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 0.55) 55%, transparent);
+  transform: skewX(-12deg);
+  opacity: 0;
+  animation: w12-scan 1.5s cubic-bezier(0.4, 0, 0.2, 1) 450ms 2 both;
 }
-@keyframes w10-glyph-settle {
-  0%   { opacity: 0; transform: scale(0.45) rotate(-8deg); }
-  60%  { opacity: 1; transform: scale(1.08) rotate(3deg); }
-  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+@keyframes w12-scan {
+  0% { transform: translateX(0) skewX(-12deg); opacity: 0; }
+  12% { opacity: 0.9; }
+  85% { opacity: 0.9; }
+  100% { transform: translateX(500%) skewX(-12deg); opacity: 0; }
+}
+
+/* The card ports — dashed frame until the mark's trace lands, then the
+   port fills green and the capability's own icon lights up. */
+.trace-port { position: relative; }
+.trace-port-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 0.9rem;
+  border: 1.5px dashed #CBD5E1;
+  transition: border-color 300ms ease, background-color 300ms ease, box-shadow 300ms ease;
+}
+.trace-port-icon {
+  position: absolute;
+  inset: 0;
+  padding: 0.7rem;
+  color: #94A3B8;
+  transition: color 300ms ease;
+}
+.trace-port-icon > svg { display: block; width: 100%; height: 100%; }
+.trace-port-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #E2E8F0;
+  transition: background-color 300ms ease, box-shadow 300ms ease;
+}
+.trace-port.trace-landed .trace-port-frame {
+  border-style: solid;
+  border-color: #16A34A;
+  background: linear-gradient(135deg, #16A34A, #059669);
+  box-shadow: 0 10px 22px -10px rgba(22, 163, 74, 0.65);
+}
+.trace-port.trace-landed .trace-port-icon {
+  color: #FFFFFF;
+  animation: w12-port-pop 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.trace-port.trace-landed .trace-port-dot {
+  background: #4ADE80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.9);
+}
+@keyframes w12-port-pop {
+  0% { transform: scale(0.45); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
 }
 
 /* ── 5. The process that walks itself — HowWeWorkSection (W9). Steps light
@@ -2758,7 +2868,7 @@ nav,
 }
 @keyframes w9-tour-fill { from { width: 0%; } to { width: 100%; } }
 
-/* ── W9/W10 reduced motion: everything settles to its end state. ── */
+/* ── W9/W10/W12 reduced motion: everything settles to its end state. ── */
 @media (prefers-reduced-motion: reduce) {
   .w9-reveal,
   .w9-reveal-stagger > * {
@@ -2775,5 +2885,7 @@ nav,
   .w9-tour-progress-fill { width: 100%; }
   .w10-logo-box { animation: none; }
   .w10-logo-caption span + span { opacity: 0; }
-  .shard-socket-glyph { animation: none; opacity: 1; transform: none; }
+  .w12-brackets i { animation: none; opacity: 1; }
+  .w12-scan { display: none; }
+  .trace-port.trace-landed .trace-port-icon { animation: none; }
 }

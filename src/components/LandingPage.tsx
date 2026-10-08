@@ -33,11 +33,12 @@ import ContactSalesDrawer from './marketing/ContactSalesDrawer';
 // W7 (the wow site): the hero's WebGL morphing orb. three.js is imported
 // dynamically inside MorphScene, so it code-splits away from the app bundle.
 import MorphScene from './marketing/MorphScene';
-// W10 (the mark becomes the system): the logo sits INTACT in a display box
-// above "What we can build for you" and, on scroll, its P flattens into
-// facets that fly into the capability cards; the portfolio preview shows
-// REAL captures only — live pages plus the real app on demo data.
-import LogoScene, { LOGO_SHARDS, SHARD_CENTERS, SHARD_VIEWBOX } from './marketing/LogoScene';
+// W12 (the mark powers the system): the logo sits INTACT in a display box
+// above "What we can build for you" — it is never broken apart. Instead,
+// glowing circuit traces route from its connector pads into the capability
+// cards, switching each port ON; the portfolio preview shows REAL captures
+// only — live pages plus the real app on demo data.
+import LogoScene from './marketing/LogoScene';
 import { SystemTour, type TourSystem } from './marketing/SystemTour';
 // W1 (website repositioning): new interactive elements use the ui/ Button
 // primitive per ADR-0004 — the raw-element ratchet must not grow.
@@ -1045,11 +1046,12 @@ const WhatWeDoSection: React.FC = () => {
             {/* W8: the FluidSeam above owns the dark→light transition now —
                 the static sage wash is retired. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                {/* W10: the mark, INTACT in its display box — exactly as it
-                    looks in the header. No 3D twisting, no fallback box. As
-                    the visitor scrolls, the P flattens into its facets and
-                    they fly into the capability cards below (LogoScene owns
-                    the flight; the card sockets receive the pieces). */}
+                {/* W12: the mark, INTACT in its display box — exactly as it
+                    looks in the header, and it stays that way. No 3D
+                    twisting, no breaking apart. As the visitor scrolls,
+                    circuit traces route from the box's connector pads into
+                    the capability cards below (LogoScene owns the routing;
+                    the card ports switch ON when the traces arrive). */}
                 <div className="relative mx-auto mb-8 md:mb-10 w-full max-w-[300px]">
                     <LogoScene />
                 </div>
@@ -1065,37 +1067,25 @@ const WhatWeDoSection: React.FC = () => {
                         The same engineering is available for your business.
                     </p>
                 </div>
-                <div ref={gridRef} data-shard-grid className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
+                <div ref={gridRef} data-trace-grid className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
                     {WHAT_WE_DO.map((c, i) => (
                         <div
                             key={i}
-                            data-shard-slot={i}
+                            data-trace-slot={i}
                             onMouseMove={handleSpotlight}
                             className={`w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
                         >
-                            {/* W10: the shard socket — a piece of the P flies in
-                                here as you scroll. Dashed outline until its
-                                facet lands, then the glyph settles and stays
-                                as the card's mark: the logo's elements have
-                                literally become the page. */}
-                            <div data-shard-socket className="shard-socket w-12 h-12 mb-5" aria-hidden="true">
-                                <svg className="shard-socket-outline" viewBox={SHARD_VIEWBOX}>
-                                    <polygon
-                                        points={LOGO_SHARDS[i].pts}
-                                        transform={`rotate(${LOGO_SHARDS[i].angle} ${SHARD_CENTERS[i].cx} ${SHARD_CENTERS[i].cy})`}
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2.2"
-                                        strokeDasharray="4 3"
-                                    />
-                                </svg>
-                                <svg className="shard-socket-glyph" viewBox={SHARD_VIEWBOX}>
-                                    <polygon
-                                        points={LOGO_SHARDS[i].pts}
-                                        transform={`rotate(${LOGO_SHARDS[i].angle} ${SHARD_CENTERS[i].cx} ${SHARD_CENTERS[i].cy})`}
-                                        fill="url(#w10-shard-grad)"
-                                    />
-                                </svg>
+                            {/* W12: the port — the mark's trace lands here and
+                                switches this capability ON. Dashed frame until
+                                the trace arrives, then it fills green and the
+                                capability's own icon lights up: the mark
+                                POWERS the cards; it never breaks apart. */}
+                            <div data-trace-socket className="trace-port w-12 h-12 mb-5" aria-hidden="true">
+                                <span className="trace-port-frame" />
+                                <span className="trace-port-icon">
+                                    <c.Icon className="w-full h-full" />
+                                </span>
+                                <span className="trace-port-dot" />
                             </div>
                             <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
                             <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>

@@ -34,15 +34,19 @@
  *   - Honest marketing (P8): no fabricated testimonial personas, no
  *     fabricated structured-data ratings, and the tour is labeled demo data.
  *   - W10 (2026-10-08, owner direction): the mark becomes the system — the
- *     intact logo in a box whose P flattens into shards that fly into the
- *     capability cards; the streak-squares layer retired; SVG wave seams;
- *     the preview is REAL CAPTURES ONLY (demo data is fine, mocked-up UI
- *     is not).
+ *     intact logo in a box; the streak-squares layer retired; SVG wave
+ *     seams; the preview is REAL CAPTURES ONLY (demo data is fine, mocked-up
+ *     UI is not).
  *   - W11 (2026-10-08, owner direction): the interiors go real — Kozy Care's
  *     signed-in ordering flow, portal with a live order, invoice, membership
  *     states and admin console, all captured from the live product; plus
  *     Woosh, our own free temporary-email tool (live at woosh.dpdns.org),
  *     joins the portfolio with its API story.
+ *   - W12 (2026-10-08, owner direction): the breaking-apart of the logo is
+ *     RETIRED FOR GOOD — the mark is never disassembled. Instead it powers
+ *     the system: PCB-style circuit traces route from the intact box's
+ *     connector pads into the capability cards, light pulses ride the
+ *     traces, and each card's port switches ON with its own capability icon.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -231,28 +235,47 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 });
 
-describe("W9/W10 — the living page, then the mark becomes the system", () => {
-  it("the logo sits INTACT in a display box — exactly the header mark (W10)", () => {
+describe("W9/W10/W12 — the living page, then the mark powers the system", () => {
+  it("the logo sits INTACT in a display box — and never breaks apart (W12)", () => {
     expect(landing).toContain("<LogoScene />");
     // The display box itself lives in the scene component.
     expect(logoScene).toContain("w10-logo-box");
     // The mark is the real SVG geometry — no 3D twisting, no fallback box.
-    expect(logoScene).toContain("LOGO_SHARDS");
-    expect(logoScene).toContain("SHARD_CENTERS");
-    expect(logoScene).toContain("disassembles");
+    // W12: the owner killed the facet-flight for good; nothing in the
+    // scene may take the logo apart.
+    expect(logoScene).not.toContain("shard");
+    expect(logoScene).not.toContain("LOGO_");
+    expect(logoScene).not.toContain("disassembl");
+    expect(landing).not.toContain("LOGO_SHARDS");
   });
 
-  it("on scroll the P flattens into facets that fly into the capability cards", () => {
-    // The shards tile the P; each card carries a socket that receives its
-    // piece and keeps it as the card's mark — the logo becomes the page.
-    expect(logoScene).toContain("LOGO_SHARDS.length");
-    expect(logoScene).toContain("shard-landed");
-    expect(landing).toContain("data-shard-grid");
-    expect(landing).toContain("data-shard-slot");
-    expect(landing).toContain("data-shard-socket");
-    expect(landing).toContain("shard-socket-glyph");
-    expect(css).toContain(".w10-shard-overlay");
-    expect(css).toContain(".shard-socket.shard-landed");
+  it("on scroll the mark POWERS the cards — traces route, ports ignite (W12)", () => {
+    // PCB-style traces draw from the box's connector pads into the card
+    // ports; pulses ride them; a port ignites when its trace lands.
+    expect(logoScene).toContain("TRACE_COUNT = 7");
+    expect(logoScene).toContain("w12-trace-overlay");
+    expect(logoScene).toContain("getPointAtLength");
+    expect(logoScene).toContain("trace-landed");
+    expect(logoScene).toContain("One mark. Every system.");
+    expect(landing).toContain("data-trace-grid");
+    expect(landing).toContain("data-trace-slot");
+    expect(landing).toContain("data-trace-socket");
+    expect(landing).toContain("trace-port-icon");
+    expect(css).toContain(".w12-trace-overlay");
+    expect(css).toContain(".trace-port.trace-landed");
+    // The old facet machinery is gone from the page for good.
+    expect(landing).not.toContain("data-shard");
+    expect(landing).not.toContain("shard-socket");
+    expect(css).not.toContain(".shard-socket");
+    expect(css).not.toContain(".w10-shard-overlay");
+  });
+
+  it("each capability card carries its OWN icon port — no logo fragments", () => {
+    // The ports light up with the capability's real icon (briefcase, link,
+    // payments…) — the mark powers the cards without lending them pieces.
+    expect(landing).toContain('<c.Icon className="w-full h-full" />');
+    expect(landing).toContain('className="trace-port w-12 h-12 mb-5"');
+    expect(css).toContain(".trace-port-icon");
   });
 
   it("the riding-squares layer is retired — no stray floaters (W10)", () => {
