@@ -12624,3 +12624,22 @@ Work Log:
 Stage Summary:
 - LIVE at ddb4919d (promote run 37794030541: gates ✓, Vercel+Convex ✓, live version.json sha ✓, title ✓, new assets 200 ✓; Cloudflare mirror ✗ standing expired token). Rollback: …9d6f11e7 → ddb4919d.
 - Standing: rotate chat-shared GitHub PAT at window close; Woosh clone + plan (needs access); Kozy stamp (awaits R2deetwo); A2 later.
+
+---
+Task ID: task-96-w16
+Agent: main (Super Z) — PracticePro Systems
+Task: W16 — owner feedback on the W15 cycling hero: the swapping verticals changed the headline from two lines to three as they cycled; only the word should change, nothing else. New sentence: "Build systems that help scale your X" with X a sensible, Nigeria-popular noun (restaurant included).
+
+Work Log:
+- Diagnosis: W15's longest vertical ("delivery businesses" = 14.23em) needed 1139px at lg:80px against max-w-4xl (896px) — guaranteed 3-line wrap; measured with fontTools against the shipped @fontsource Space Grotesk 700 (scripts/measure_space_grotesk.py pattern), which reproduces the owner's exact complaint.
+- Sentence: "We build the systems <vertical> scale with." → "Build systems that help scale your <noun>." Nouns: business (universal first paint), practice, firm, clinic, pharmacy, school, restaurant (owner request), organization. "Management" dropped — "scale your management" doesn't parse.
+- Layout-stability mechanism: ScalingNoun renders the live noun in an inline-grid cell sized by an invisible 'organization.' reserve (visibility:hidden — no gradient bleed, no reflow). Shorter nouns leave an invisible gap instead of moving anything. SSR/reduced-motion degrade to static "business." (no hydration mismatch).
+- Breakpoint retune from measured metrics: text-[2.25rem] / sm:text-5xl / md:text-6xl / lg:text-[5rem], h1 max-w-4xl→max-w-5xl; gradient span inline below sm (wraps to "your <noun>." cleanly) / inline-block from sm. <br> after "help" is sm+ only.
+- index.html title/og/twitter/description → "Build Systems That Help Scale Your Business" phrasing.
+- Tests: W16 pins in websiteRepositioning.test.ts (sentence fragments, all eight nouns, SCALE_NOUN_RESERVE contract, negative W15 pins); metadata pin updated. 1235/1235 green; tsc 129 baseline; lint + UI-primitives ratchet held; vite build clean.
+- Verified on vite preview + agent-browser + VLM: sampled noun-box geometry across a full 8-noun cycle at 1440px — h1 height 164px, box width 485.7px, box left 672.3px, box top 285.0px ALL constant across every noun including "organization."; 640px and 768px exactly 2 lines; 390px exactly 3 lines ("Build systems that / help scale / your clinic." style), no stranded word, no overflow; gradient (amber→emerald) confirmed painting through the noun on desktop and mobile; /vega regression clean; zero page errors.
+- Shipped: a5138f4e.
+
+Stage Summary:
+- W16 code complete at a5138f4e. The hero now keeps a fixed two-line (three on mobile) shape while only the noun cycles — the exact behaviour the owner asked for.
+- Standing: rotate chat-shared GitHub PAT at window close; Woosh clone + plan (needs access); Kozy stamp (awaits R2deetwo); A2 later.
