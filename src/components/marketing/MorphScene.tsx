@@ -209,13 +209,25 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
             const coreVertex = `
                 uniform float uTime;
                 uniform float uAmp;
+                uniform vec3 uPulseDir;
+                uniform float uPulseAmp;
+                uniform float uAntiAmp;
+                uniform float uPulseWidth;
                 varying float vNoise;
                 varying vec3 vNormal;
                 varying vec3 vView;
                 ${NOISE_GLSL}
                 void main() {
                     float n = crystalNoise(position, uTime);
-                    vec3 p = position + normalize(position) * n * uAmp;
+                    vec3 dir = normalize(position);
+                    vec3 p = position + dir * n * uAmp;
+                    // W14: the pulse — a patch of the lattice zips toward the
+                    // pointer and springs back through a damped wave; the far
+                    // side answers with a softer, lagged echo (firePulse).
+                    float ca = dot(dir, uPulseDir);
+                    float nearW = exp(-pow(acos(clamp(ca, -1.0, 1.0)) / uPulseWidth, 2.0));
+                    float antiW = exp(-pow(acos(clamp(-ca, -1.0, 1.0)) / (uPulseWidth * 1.8), 2.0));
+                    p += uPulseDir * (nearW * uPulseAmp) - uPulseDir * (antiW * uAntiAmp * 0.5);
                     vNoise = n;
                     vNormal = normalize(normalMatrix * normal);
                     vec4 mv = modelViewMatrix * vec4(p, 1.0);
@@ -223,6 +235,13 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     gl_Position = projectionMatrix * mv;
                 }
             `;
+
+            const PULSE_UNIFORMS = () => ({
+                uPulseDir: { value: new THREE.Vector3(0, 0, 1) },
+                uPulseAmp: { value: 0 },
+                uAntiAmp: { value: 0 },
+                uPulseWidth: { value: 0.62 },
+            });
 
             // 1a. Solid — the faceted brand body.
             const solidMat = clock(new THREE.ShaderMaterial({
@@ -233,6 +252,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uColorA: { value: COLOR_MOSS },
                     uColorB: { value: COLOR_EMERALD },
                     uColorC: { value: COLOR_AMBER },
+                    ...PULSE_UNIFORMS(),
                 },
                 vertexShader: coreVertex,
                 fragmentShader: `
@@ -276,6 +296,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uColorA: { value: COLOR_EMERALD },
                     uColorB: { value: COLOR_MOSS },
                     uColorC: { value: COLOR_AMBER },
+                    ...PULSE_UNIFORMS(),
                 },
                 vertexShader: coreVertex,
                 fragmentShader: `
@@ -310,23 +331,38 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uAmp: { value: AMP },
                     uColorA: { value: COLOR_EMERALD },
                     uColorB: { value: COLOR_AMBER },
+                    ...PULSE_UNIFORMS(),
                 },
                 vertexShader: `
                     attribute float aSeed;
                     uniform float uTime;
                     uniform float uAmp;
+                    uniform vec3 uPulseDir;
+                    uniform float uPulseAmp;
+                    uniform float uAntiAmp;
+                    uniform float uPulseWidth;
                     varying float vSeed;
+                    varying float vPulse;
                     ${NOISE_GLSL}
                     void main() {
                         vSeed = aSeed;
                         float n = crystalNoise(position, uTime);
-                        vec3 p = position + normalize(position) * n * uAmp;
+                        vec3 dir = normalize(position);
+                        vec3 p = position + dir * n * uAmp;
+                        // Same pulse displacement as the crystal — the nodes
+                        // ride the zip and the echo exactly.
+                        float ca = dot(dir, uPulseDir);
+                        float nearW = exp(-pow(acos(clamp(ca, -1.0, 1.0)) / uPulseWidth, 2.0));
+                        float antiW = exp(-pow(acos(clamp(-ca, -1.0, 1.0)) / (uPulseWidth * 1.8), 2.0));
+                        p += uPulseDir * (nearW * uPulseAmp) - uPulseDir * (antiW * uAntiAmp * 0.5);
+                        vPulse = nearW * max(0.0, uPulseAmp);
                         vec4 mv = modelViewMatrix * vec4(p, 1.0);
-                        // Each module pulses on its own phase — the lattice
-                        // feels powered, not painted. Size is clamped so the
-                        // nearest vertices read as crisp pins, not bokeh.
+                        // Each module pulses on its own phase — and the node
+                        // being zipped SWELLS and ignites amber, so the eye
+                        // follows the point that reached for the pointer.
                         float pulse = 0.75 + 0.45 * sin(uTime * 0.9 + aSeed * 19.0);
-                        gl_PointSize = clamp((170.0 / -mv.z) * (0.5 + pulse * 0.3), 8.0, 20.0);
+                        float hot = 1.0 + clamp(vPulse * 2.6, 0.0, 1.4);
+                        gl_PointSize = clamp((170.0 / -mv.z) * (0.5 + pulse * 0.3) * hot, 8.0, 26.0);
                         gl_Position = projectionMatrix * mv;
                     }
                 `,
@@ -334,10 +370,13 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uniform vec3 uColorA;
                     uniform vec3 uColorB;
                     varying float vSeed;
+                    varying float vPulse;
                     void main() {
                         float d = distance(gl_PointCoord, vec2(0.5));
                         float alpha = smoothstep(0.5, 0.08, d) * 0.85;
+                        alpha *= 1.0 + clamp(vPulse * 2.0, 0.0, 1.0);
                         vec3 col = vSeed > 0.82 ? uColorB : uColorA;
+                        col = mix(col, uColorB, clamp(vPulse * 2.2, 0.0, 1.0));
                         gl_FragColor = vec4(col, alpha);
                     }
                 `,
@@ -497,11 +536,62 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
             }));
             network.add(new THREE.Points(netNodeGeo, netNodeMat));
 
+            // ── W14: the pulse — a lattice point zips toward the pointer ──
+            // Two damped springs drive one shared displacement (see the
+            // shaders above): the NEAR spring pulls a patch of the crystal's
+            // surface toward the pointer; the FAR spring echoes on the
+            // antipode a beat later, softer — the fluid "opposite reaction"
+            // the owner asked for. Underdamped on purpose: zip out, overshoot
+            // back, one or two quiet after-swings, settle. Nothing snaps.
+            let pulseAmp = 0, pulseVel = 0;
+            let antiAmp = 0, antiVel = 0;
+            let antiKickAt = Infinity;      // scene-time when the echo fires
+            let antiKickPower = 0;
+            let nextPulseAt = 2.2 + Math.random() * 1.4;   // first zip comes early
+            let velCooldownUntil = 0;
+            const SPRING_K = 26, SPRING_C = 4.0;           // near: lively
+            const ANTI_K = 19, ANTI_C = 4.6;               // far: lazier, softer
+            const dirWorld = new THREE.Vector3();
+            const firePulse = (mx: number, my: number, power = 1) => {
+                if (reducedMotion) return;
+                // Direction from the crystal's centre toward the pointer on
+                // its own plane, then into the core's OBJECT space — the
+                // shaders compare against object-space positions and the
+                // core turns slowly beneath the pulse.
+                const aspect = host.clientWidth / Math.max(1, host.clientHeight);
+                dirWorld.set(mx * 2.5 * aspect, my * 2.5, 4.4).normalize();
+                core.updateMatrixWorld();
+                const dirObj = core.worldToLocal(dirWorld.clone()).normalize();
+                solidMat.uniforms.uPulseDir.value.copy(dirObj);
+                wireMat.uniforms.uPulseDir.value.copy(dirObj);
+                nodeMat.uniforms.uPulseDir.value.copy(dirObj);
+                pulseVel += 2.6 * power;        // the zip OUT toward the pointer
+                antiKickAt = time + 0.14;       // the echo, a beat behind
+                antiKickPower = 0.55 * power;
+            };
+
             // ── Pointer parallax (lerped, never jumpy) ────────────────
             let pointerX = 0, pointerY = 0, curX = 0, curY = 0;
+            // W14 "the reactivity should include where the mouse is": the
+            // handler tracks velocity and recency — a fast flick fires a zip
+            // toward the pointer AT ONCE, and a quietly present pointer still
+            // gets an occasional reach-out every few seconds (see the loop).
+            let lastMoveAt = -99, lastMX = 0, lastMY = 0, lastMoveStamp = 0;
             const onPointerMove = (e: PointerEvent) => {
-                pointerX = (e.clientX / window.innerWidth) * 2 - 1;
-                pointerY = (e.clientY / window.innerHeight) * 2 - 1;
+                const nx = (e.clientX / window.innerWidth) * 2 - 1;
+                const ny = (e.clientY / window.innerHeight) * 2 - 1;
+                const now = performance.now();
+                if (lastMoveStamp > 0) {
+                    const dtMove = Math.max(8, now - lastMoveStamp) / 1000;
+                    const speed = Math.hypot(nx - lastMX, ny - lastMY) / dtMove; // NDC units/s
+                    if (speed > 1.35 && time > 1.0 && time >= velCooldownUntil) {
+                        firePulse(nx, ny, 0.9);
+                        velCooldownUntil = time + 1.15;
+                    }
+                }
+                lastMX = nx; lastMY = ny; lastMoveStamp = now;
+                lastMoveAt = time;
+                pointerX = nx; pointerY = ny;
             };
             window.addEventListener('pointermove', onPointerMove, { passive: true });
 
@@ -580,6 +670,33 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                         // time-driven motion in the scene accelerates together
                         // and decelerates back, continuously (no jumps).
                         time += dt * (1 + edge * 1.75);
+
+                        // ── W14: the pulse engine ─────────────────────────
+                        // 1) An occasional reach toward a present pointer —
+                        //    only when the visitor is actually around.
+                        if (time >= nextPulseAt) {
+                            if (time - lastMoveAt < 5.5) firePulse(pointerX, pointerY, 1.0);
+                            nextPulseAt = time + 2.6 + Math.random() * 2.2;
+                        }
+                        // 2) The far-side echo kicks a beat after the zip.
+                        if (time >= antiKickAt) {
+                            antiVel += 2.6 * antiKickPower;
+                            antiKickAt = Infinity;
+                        }
+                        // 3) Semi-implicit Euler on both springs — the wave
+                        //    stays fluid because the integration is stable
+                        //    even at 30fps (dt is clamped above).
+                        pulseVel += (-SPRING_K * pulseAmp - SPRING_C * pulseVel) * dt;
+                        pulseAmp = Math.max(-0.9, Math.min(0.9, pulseAmp + pulseVel * dt));
+                        antiVel += (-ANTI_K * antiAmp - ANTI_C * antiVel) * dt;
+                        antiAmp = Math.max(-0.6, Math.min(0.6, antiAmp + antiVel * dt));
+                        solidMat.uniforms.uPulseAmp.value = pulseAmp;
+                        wireMat.uniforms.uPulseAmp.value = pulseAmp;
+                        nodeMat.uniforms.uPulseAmp.value = pulseAmp;
+                        solidMat.uniforms.uAntiAmp.value = antiAmp;
+                        wireMat.uniforms.uAntiAmp.value = antiAmp;
+                        nodeMat.uniforms.uAntiAmp.value = antiAmp;
+
                         renderFrame();
                     }
                     rafId = requestAnimationFrame(loop);

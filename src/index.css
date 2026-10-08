@@ -2511,11 +2511,23 @@ nav,
   .w7-aurora-b,
   .w7-scroll-cue,
   .w8-lattice-fallback,
-  .w8-scene-enter {
+  .w8-scene-enter,
+  .w14-cue {
     animation: none;
   }
   .w8-nav-pill {
     transition: none;
+  }
+  /* W14: the landing presents itself fully-formed — the shapes rest in
+     place (the JS scene also renders one static frame), nothing drops. */
+  .w14-card .w14-shape {
+    opacity: 0.55;
+    transform: none;
+    animation: none !important;
+  }
+  .w14-card.w14-landed .w14-chip::after,
+  .w14-card.w14-landed {
+    animation: none !important;
   }
 }
 
@@ -2637,6 +2649,71 @@ nav,
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: #64748B;
+}
+
+/* ── W14 — the descent lands, the pitch mirrors, the cue continues ──────
+   Owner direction: the orbiting shapes "should go down into" the capability
+   cards; the caption jargon is gone ("Making your systems one." now); and
+   a cue under the scene walks visitors down to the cards. When a card
+   crosses into the viewport its wireframe shape DROPS IN (the moment its
+   module above "arrives"), the icon chip pings emerald and the border
+   flashes — reversible, scroll-driven, replayed on re-entry exactly like
+   the 3D shapes above. */
+.w14-cue { animation: w14-cue-bob 2.4s ease-in-out infinite; }
+@keyframes w14-cue-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.65; }
+  50%      { transform: translateY(6px); opacity: 1; }
+}
+
+/* The card's wireframe shape — parked above the card until it lands. */
+.w14-card .w14-shape {
+  opacity: 0;
+  transform: translateY(-30px) rotate(-75deg) scale(1.2);
+  will-change: opacity, transform;
+}
+.w14-card.w14-landed .w14-shape {
+  animation:
+    w14-shape-drop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    w14-shape-turn 28s linear 0.95s infinite;
+  animation-delay: calc(var(--w14-i, 0) * 90ms), calc(var(--w14-i, 0) * 90ms + 0.95s);
+}
+@keyframes w14-shape-drop {
+  0%   { opacity: 0;    transform: translateY(-30px) rotate(-75deg) scale(1.2); }
+  55%  { opacity: 0.55; transform: translateY(4px) rotate(10deg) scale(0.97); }
+  100% { opacity: 0.55; transform: translateY(0) rotate(0deg) scale(1); }
+}
+@keyframes w14-shape-turn {
+  from { transform: rotate(0deg) scale(1); }
+  to   { transform: rotate(360deg) scale(1); }
+}
+
+/* The icon chip pings as its shape arrives. */
+.w14-card .w14-chip { position: relative; }
+.w14-card.w14-landed .w14-chip::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 0.85rem;
+  border: 2px solid rgba(16, 185, 129, 0.55);
+  animation: w14-chip-ping 1s ease-out forwards;
+  animation-delay: calc(var(--w14-i, 0) * 90ms + 120ms);
+  pointer-events: none;
+}
+@keyframes w14-chip-ping {
+  0%   { transform: scale(0.92); opacity: 0.9; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+
+/* The card itself takes one soft emerald breath on landing, then returns
+   to its resting border (fill-mode none — the hover styles stay alive). */
+.w14-card.w14-landed {
+  animation: w14-card-flash 1.25s ease-out none;
+  animation-delay: calc(var(--w14-i, 0) * 90ms);
+}
+@keyframes w14-card-flash {
+  0%   { border-color: #E2E8F0; box-shadow: none; }
+  16%  { border-color: rgba(16, 185, 129, 0.55); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.10), 0 18px 40px -18px rgba(5, 150, 105, 0.25); }
+  100% { border-color: #E2E8F0; box-shadow: none; }
 }
 
 /* ── 5. The process that walks itself — HowWeWorkSection (W9). Steps light

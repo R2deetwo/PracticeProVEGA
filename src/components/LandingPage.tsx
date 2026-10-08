@@ -211,6 +211,25 @@ const NavBar: React.FC<{
     // Products dropdown — click-toggle (not hover) so iPad/tablet touch users
     // can open it. Hover is unreliable on iPadOS Safari.
     const [productsOpen, setProductsOpen] = React.useState(false);
+    // W14: the old onBlur+setTimeout auto-close was fragile — a blur that
+    // landed between mousedown and click (touch, assistive tech, automation)
+    // closed the menu before the choice registered, which read as "the
+    // Products menu doesn't do anything". The robust pattern instead:
+    // outside-pointer closes, Escape closes, choosing closes.
+    const productsRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+        if (!productsOpen) return;
+        const onPointerDown = (e: PointerEvent) => {
+            if (productsRef.current && !productsRef.current.contains(e.target as Node)) setProductsOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setProductsOpen(false); };
+        document.addEventListener('pointerdown', onPointerDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('pointerdown', onPointerDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [productsOpen]);
 
     // W8: the fluid nav — a single pill that morphs between the section links
     // as the visitor scrolls (and between page modes), instead of per-button
@@ -251,7 +270,17 @@ const NavBar: React.FC<{
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Logo + back-to-hub breadcrumb */}
             <div className="flex items-center gap-3">
-                <button onClick={() => scrollTo('home')} className="flex items-center gap-2 group">
+                {/* W14 (navigation truth): from a product page, the mark is the
+                    way HOME — it navigates back to the company page with the
+                    morphing crystal, exactly what every visitor expects a
+                    logo to do. On the hub it simply scrolls to the top. The
+                    old version only ever scrolled, so from /atrium the logo
+                    appeared to "do nothing". */}
+                <button
+                    onClick={() => { if (productChosen) onBackToHub(); else scrollTo('home'); }}
+                    aria-label="PracticePro Systems — home"
+                    className="flex items-center gap-2 group"
+                >
                     <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
                     <span className="text-lg font-bold tracking-tight text-slate-900 flex items-center">
                         Practice<span className="text-primary-500">Pro</span>
@@ -298,10 +327,9 @@ const NavBar: React.FC<{
                 {/* Products dropdown — click-toggle (was hover-only, which
                     broke iPad/tablet touch). Click to open, click again or
                     click outside to close. */}
-                <div className="relative">
+                <div className="relative" ref={productsRef}>
                     <button
                         onClick={() => setProductsOpen(o => !o)}
-                        onBlur={() => setTimeout(() => setProductsOpen(false), 150)}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
                         className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200"
@@ -626,13 +654,16 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                     <div>
                         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Products &amp; Work</p>
                         <div className="flex flex-col gap-2.5">
-                            {/* W1: ui/Button (bare) — ADR-0004, keeps the raw-element ratchet from growing. */}
-                            <Button variant="bare" onClick={() => setActiveProduct('vega')} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
+                            {/* W14: real anchors to the real pages — the
+                                footer navigates exactly like the Products
+                                menu does (and right-click / open-in-new-tab
+                                works, which a button never offered). */}
+                            <a href="/vega" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
                                 Vega — Legal Practice OS
-                            </Button>
-                            <Button variant="bare" onClick={() => setActiveProduct('atrium')} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
+                            </a>
+                            <a href="/atrium" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
                                 Atrium — Property Management OS
-                            </Button>
+                            </a>
                             <Button variant="bare" onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
                                 Komplete — both, for real-estate attorneys
                             </Button>
@@ -799,9 +830,10 @@ const HubHero: React.FC<{
 
                 <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-[1.75] text-slate-300/95">
                     PracticePro Systems designs, builds and runs the dedicated operating
-                    systems businesses use to manage their affairs — our products Vega and
-                    Atrium, client commissions like Kozy Care, and custom systems built
-                    around the way your business actually works.
+                    systems businesses use to manage their affairs — from the orders that
+                    arrive on WhatsApp to the receipts that leave with every job. When
+                    spreadsheets, chat threads and memory can no longer keep up, we build
+                    the system that takes over.
                 </p>
 
                 {/* CTAs — ui/Button (bare) per ADR-0004: new interactive
@@ -823,27 +855,11 @@ const HubHero: React.FC<{
                     </Button>
                 </div>
 
-                {/* Portfolio quick links — real anchors so they work everywhere
-                    (full-page navigation, same as the old product cards). */}
-                <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 mb-12 text-sm">
-                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-500">Our products</span>
-                    <a href="/vega" className="font-semibold text-slate-300 hover:text-amber-400 transition-colors min-h-[2rem] inline-flex items-center">
-                        Vega — Legal
-                    </a>
-                    <a href="/atrium" className="font-semibold text-slate-300 hover:text-emerald-400 transition-colors min-h-[2rem] inline-flex items-center">
-                        Atrium — Property
-                    </a>
-                    <span className="hidden sm:block w-px h-4 bg-white/15" aria-hidden="true" />
-                    <span className="text-2xs font-bold uppercase tracking-widest text-slate-500">Client build</span>
-                    <a
-                        href="https://kozycare.ng"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 font-semibold text-slate-300 hover:text-primary-400 transition-colors min-h-[2rem]"
-                    >
-                        Kozy Care <ExternalLinkIcon className="w-3.5 h-3.5 opacity-60" />
-                    </a>
-                </div>
+                {/* W14: the "Our products" quick-links are GONE from the hero —
+                    the owner's direction: it is far too early to walk visitors
+                    into the catalogue. The hero sells the problem and the
+                    promise; the products are introduced later, inside "Systems
+                    we've built", once the story has earned them. */}
 
                 {/* W8: auth lives with the products. The company page sells
                     the company — the sign-in link lives on the product pages. */}
@@ -970,6 +986,115 @@ const MarqueeStrip: React.FC = () => (
     </div>
 );
 
+// ─── SOUND FAMILIAR? (W14) — the bridge from "nice 3D" to "I need this" ────
+// Owner direction: "I don't think people who want the service(s) know they
+// need or want it." Before "What we do" can land as an answer, the page has
+// to hold a mirror up and name the daily friction in the visitor's own
+// words. Each row is a symptom any owner or manager will recognise — and
+// its system counterpart. This is the section that converts "cool site"
+// into "wait, that is MY business".
+
+const PAIN_MIRROR: Array<{ today: string; system: string }> = [
+    {
+        today: 'Orders and requests arrive by WhatsApp, SMS and walk-in — nobody sees all of them in one place.',
+        system: 'Every order lands in one queue — assigned, tracked, never lost.',
+    },
+    {
+        today: "Who has paid, who still owes, who renewed — it lives in somebody's head and a tattered notebook.",
+        system: 'Balances, receipts and reminders computed and sent without anyone chasing.',
+    },
+    {
+        today: 'Customer records scattered across three phones, two notebooks and a Gmail account.',
+        system: 'One record per customer — history, documents, payments and messages together.',
+    },
+    {
+        today: 'Month-end means days of reconciling bank alerts with hand-written receipts.',
+        system: 'Reconciliation that happens as the money lands — reports one click away.',
+    },
+    {
+        today: 'The only person who understands the whole process is on leave — and everything stalls.',
+        system: 'The system holds the process, so any member of the team can run the day.',
+    },
+];
+
+const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => {
+    const ref = useScrollReveal<HTMLDivElement>();
+    const rowsRef = useScrollReveal<HTMLDivElement>();
+    const closeRef = useScrollReveal<HTMLDivElement>();
+    return (
+        <section className="relative py-16 sm:py-24 overflow-hidden" style={{ background: '#0A101C' }}>
+            {/* the same ink stage as the hero, carried through the marquee */}
+            <div className="absolute -top-32 right-1/4 w-[34rem] h-[24rem] rounded-full bg-amber-500/[0.07] blur-[130px] pointer-events-none" aria-hidden="true" />
+            <div className="absolute -bottom-40 left-1/4 w-[36rem] h-[24rem] rounded-full bg-emerald-600/[0.08] blur-[130px] pointer-events-none" aria-hidden="true" />
+            <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
+
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
+                <div ref={ref} className="w9-reveal text-center mb-10 md:mb-14 max-w-3xl mx-auto">
+                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-amber-400/90">
+                        Sound familiar?
+                    </p>
+                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
+                        Your business already runs on a system.
+                        <br />
+                        <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399)' }}>
+                            It&rsquo;s just not software.
+                        </span>
+                    </h2>
+                    <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
+                        Spreadsheets, chat threads, memory and paper will get a business started —
+                        then quietly hold it back. Recognise any of these?
+                    </p>
+                </div>
+
+                <div ref={rowsRef} className="w9-reveal-stagger max-w-4xl mx-auto flex flex-col gap-3.5">
+                    {PAIN_MIRROR.map((row, i) => (
+                        <div
+                            key={i}
+                            className="group grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm px-5 py-4 md:px-7 md:py-5 transition-all duration-500 hover:border-white/[0.16] hover:bg-white/[0.045]"
+                        >
+                            {/* Today — the friction, in the visitor's words */}
+                            <div className="flex items-start gap-3.5 md:justify-end md:text-right">
+                                <span className="hidden md:block w-1.5 h-1.5 rounded-full bg-amber-400/70 flex-shrink-0 translate-y-2" aria-hidden="true" />
+                                <p className="text-sm leading-[1.7] text-slate-400 transition-colors duration-500 group-hover:text-slate-500">{row.today}</p>
+                                <span className="md:hidden w-1.5 h-1.5 rounded-full bg-amber-400/70 flex-shrink-0 translate-y-2" aria-hidden="true" />
+                            </div>
+                            {/* The turn */}
+                            <span className="hidden md:flex items-center justify-center w-9 h-9 rounded-full border border-white/10 bg-white/[0.03] text-slate-500 group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition-colors duration-500" aria-hidden="true">
+                                <ChevronRightIcon className="w-4 h-4" />
+                            </span>
+                            <span className="flex md:hidden items-center justify-center w-9 h-9 rounded-full border border-white/10 bg-white/[0.03] text-slate-500" aria-hidden="true">
+                                <ChevronDownIcon className="w-4 h-4" />
+                            </span>
+                            {/* On a system — the same day, running on software */}
+                            <div className="flex items-start gap-3.5">
+                                <span className="w-1.5 h-1.5 rotate-45 bg-emerald-400 flex-shrink-0 translate-y-2 transition-transform duration-500 group-hover:scale-150" aria-hidden="true" />
+                                <p className="text-sm font-medium leading-[1.7] text-slate-200/90 transition-colors duration-500 group-hover:text-emerald-100">{row.system}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div ref={closeRef} className="w9-reveal text-center mt-12 md:mt-14 max-w-2xl mx-auto">
+                    <p className="text-lg text-slate-300/95 leading-[1.75]">
+                        If any of that is your business, you don&rsquo;t need more discipline or a
+                        better spreadsheet. <span className="text-white font-semibold">You need a system</span> —
+                        and building it is exactly what we do.
+                    </p>
+                    <div className="mt-7">
+                        <Button
+                            variant="bare"
+                            onClick={onContactSales}
+                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.97]"
+                        >
+                            Tell us what runs your business today
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+};
+
 // ─── WHAT WE DO (corporate hub) ─────────────────────────────────────────────
 // The services PracticePro Systems sells. Each card is a capability already
 // running in production inside Vega, Atrium or Kozy Care — the pitch to a
@@ -1017,9 +1142,95 @@ const WHAT_WE_DO: Array<{
     },
 ];
 
-const WhatWeDoSection: React.FC = () => {
+// W14: the seven wireframe shapes — one per capability card, matching the
+// geometry the 3D scene builds above (cube, cuboid, pyramid, octahedron,
+// prism, gem, hex prism). Each card carries its own shape as a slowly
+// turning watermark; when the card lands in the viewport the shape DROPS IN
+// — the moment the orbiting shape above "arrives" in its card.
+const SHAPE_STROKE = {
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.4,
+    strokeLinejoin: 'round' as const,
+    strokeLinecap: 'round' as const,
+};
+const IsoCube: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M24 7 L39 15.5 L39 32.5 L24 41 L9 32.5 L9 15.5 Z" />
+        <path {...SHAPE_STROKE} d="M9 15.5 L24 24 L39 15.5 M24 24 L24 41" />
+    </svg>
+);
+const IsoCuboid: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M24 4 L36 10 L36 33 L24 39 L12 33 L12 10 Z" />
+        <path {...SHAPE_STROKE} d="M12 10 L24 16 L36 10 M24 16 L24 39" />
+    </svg>
+);
+const IsoPyramid: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M24 6 L8 27 L24 36 L40 27 Z" />
+        <path {...SHAPE_STROKE} d="M24 6 L24 36 M8 27 L40 27" />
+    </svg>
+);
+const IsoOctahedron: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M24 4 L41 24 L24 44 L7 24 Z" />
+        <path {...SHAPE_STROKE} d="M7 24 L41 24" />
+    </svg>
+);
+const IsoPrism: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M9 17 L33 17 L21 37 Z" />
+        <path {...SHAPE_STROKE} d="M15 9 L39 9 L27 29 Z" />
+        <path {...SHAPE_STROKE} d="M9 17 L15 9 M33 17 L39 9 M21 37 L27 29" />
+    </svg>
+);
+const IsoGem: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M14 12 L34 12 L42 21 L24 42 L6 21 Z" />
+        <path {...SHAPE_STROKE} d="M14 12 L24 21 L34 12 M6 21 L24 21 L42 21 M24 21 L24 42" />
+    </svg>
+);
+const IsoHexPrism: React.FC<{ className?: string }> = ({ className = '' }) => (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+        <path {...SHAPE_STROKE} d="M24 7 L33 12 L33 19 L24 24 L15 19 L15 12 Z" />
+        <path {...SHAPE_STROKE} d="M24 28 L33 33 L33 40 L24 45 L15 40 L15 33 Z" />
+        <path {...SHAPE_STROKE} d="M15 12 L15 33 M33 12 L33 33" />
+    </svg>
+);
+const CARD_SHAPES = [IsoCube, IsoCuboid, IsoPyramid, IsoOctahedron, IsoPrism, IsoGem, IsoHexPrism];
+
+/**
+ * useLandingCards (W14) — the descent's landing signal. As each capability
+ * card crosses into the viewport it gains .w14-landed (its wireframe shape
+ * drops in, its icon chip pings, its border flashes emerald) and loses it
+ * again on the way back up — so the story replays exactly like the 3D
+ * shapes above, which also return to orbit when you scroll up. Reversible,
+ * scroll-driven, no timers.
+ */
+function useLandingCards<T extends HTMLElement = HTMLDivElement>() {
+    const ref = useRef<T>(null);
+    useEffect(() => {
+        const root = ref.current;
+        if (!root) return;
+        const cards = Array.from(root.querySelectorAll<HTMLElement>('.w14-card'));
+        if (!('IntersectionObserver' in window)) {
+            cards.forEach((c) => c.classList.add('w14-landed'));
+            return;
+        }
+        const io = new IntersectionObserver((entries) => {
+            for (const en of entries) en.target.classList.toggle('w14-landed', en.isIntersecting);
+        }, { threshold: 0.3 });
+        cards.forEach((c) => io.observe(c));
+        return () => io.disconnect();
+    }, []);
+    return ref;
+}
+
+const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ scrollTo }) => {
     const ref = useScrollReveal<HTMLDivElement>();
     const gridRef = useScrollReveal<HTMLDivElement>();
+    const landingRef = useLandingCards<HTMLDivElement>();
     // W7: bento spans — an asymmetric grid reads as designed, not templated.
     // W9: a seventh capability (workflow & notification engines) joins, so
     // the grid closes with two half-wide cards instead of one banner.
@@ -1045,17 +1256,32 @@ const WhatWeDoSection: React.FC = () => {
             {/* W8: the FluidSeam above owns the dark→light transition now —
                 the static sage wash is retired. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                {/* W13: the system core — a real three.js rendering (lazy
-                    chunk, same contract as the hero). Seven glass modules
-                    orbit a faceted core, one per capability card below,
-                    with energy links that live INSIDE the canvas — no mark
-                    here, no full-page overlays, nothing can cross the text. */}
+                {/* W13→W14: the system core — a real three.js rendering (lazy
+                    chunk, same contract as the hero). Seven GLASS SHAPES —
+                    cubes that morph into pyramids, prisms and gems — orbit a
+                    faceted core, one per capability card below. As you scroll,
+                    the shapes DESCEND out of the scene toward their cards,
+                    and each card receives its own shape. All inside the
+                    canvas — no mark here, no overlays, nothing crosses text. */}
                 <div className="relative mx-auto mb-9 md:mb-12 w-full max-w-[620px]">
                     <div className="w13-stage">
                         <div className="w13-fallback" aria-hidden="true" />
                         <SystemCoreScene className="w13-canvas" />
                     </div>
-                    <p className="w13-caption">Seven modules. One system.</p>
+                    {/* W14: the owner's own words replace "Seven modules. One
+                        system." — a promise a layman can feel, not jargon. */}
+                    <p className="w13-caption">Making your systems one.</p>
+                    {/* W14: the descent continues — a cue under the scene walks
+                        the visitor down to the parts of the business, the way
+                        the hero cue walks them into this scene. */}
+                    <Button
+                        variant="bare"
+                        onClick={() => scrollTo('whatWeDoGrid')}
+                        aria-label="Scroll to what each part becomes"
+                        className="mx-auto flex items-center justify-center p-2 mt-1 text-slate-400 hover:text-slate-700 transition-colors w14-cue"
+                    >
+                        <ChevronDownIcon className="w-5 h-5" />
+                    </Button>
                 </div>
                 <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
                     <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
@@ -1065,27 +1291,47 @@ const WhatWeDoSection: React.FC = () => {
                         What we can build for you
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
-                        Everything below already runs in production inside Vega, Atrium or Kozy Care.
-                        The same engineering is available for your business.
+                        Every part of a business — orders, payments, customers, paperwork — becomes
+                        one system. Each piece below already runs in production inside Vega, Atrium
+                        or Kozy Care; the same engineering can run yours.
                     </p>
                 </div>
-                <div ref={gridRef} className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto">
-                    {WHAT_WE_DO.map((c, i) => (
+                {/* Both reveal and landing hooks watch the SAME grid: one
+                    fades the cards in, the other fires each card's shape
+                    drop when it truly lands in the viewport. */}
+                <div
+                    ref={(node) => {
+                        (gridRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                        (landingRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+                    }}
+                    id="whatWeDoGrid"
+                    className="w9-reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-5 md:gap-6 max-w-6xl mx-auto"
+                >
+                    {WHAT_WE_DO.map((c, i) => {
+                        const Shape = CARD_SHAPES[i % CARD_SHAPES.length];
+                        return (
                         <div
                             key={i}
                             onMouseMove={handleSpotlight}
-                            className={`w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
+                            style={{ '--w14-i': i } as React.CSSProperties}
+                            className={`w14-card w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
                         >
+                            {/* W14: the card's own wireframe shape — the same
+                                geometry that orbits above — drops in when the
+                                card lands, then turns slowly as a watermark. */}
+                            <Shape className="w14-shape pointer-events-none absolute top-4 right-4 w-11 h-11 text-emerald-500/60 group-hover:text-emerald-600/80 transition-colors duration-500" />
                             {/* W13: a quiet, always-on icon chip — the orbiting
-                                modules above carry the motion now; the cards
-                                stay calm and legible. */}
-                            <div className="w-12 h-12 mb-5 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors duration-300" aria-hidden="true">
+                                shapes above carry the motion now; the cards
+                                stay calm and legible. W14: the chip pings
+                                emerald when its shape lands. */}
+                            <div className="w14-chip w-12 h-12 mb-5 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors duration-300" aria-hidden="true">
                                 <c.Icon className="w-6 h-6" />
                             </div>
                             <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
                             <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>
@@ -3575,7 +3821,11 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             setProductChosen(true);
         } else {
             // On / (root), always show the HubHero — reset productChosen to false.
+            // W14: also settle the page at the top — arriving back at the hub
+            // (browser back, logo, All Products) should present the hero, not
+            // a mid-scroll cut of the previous product page.
             setProductChosen(false);
+            scrollRef.current?.scrollTo({ top: 0 });
         }
     }, [initialProduct]);
 
@@ -3605,31 +3855,56 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     const scrollTo = (id: string) => {
         const el = document.getElementById(id);
         if (el && scrollRef.current) {
-            scrollRef.current.scrollTo({ top: el.offsetTop - 64, behavior: 'smooth' });
+            // W14: rect-based math — el.offsetTop lies for elements nested
+            // inside positioned ancestors (the What-we-do grid sits inside a
+            // `relative` section, so its offsetTop was measured from the
+            // SECTION, not the page, and the cue landed ~2300px too high).
+            // Measuring against the scroll container's own rect is correct
+            // for every element, nested or not.
+            const container = scrollRef.current;
+            const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 64;
+            container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
         }
     };
 
-    // W6: product cards are gone from the hub — Vega/Atrium are reached via
-    // real anchors (href="/vega" / "/atrium") in the hero, the work cards and
-    // the nav, so no in-SPA pick handler is needed anymore.
+    // W6/W14: product cards are gone from the hub — Vega/Atrium are reached
+    // through the Products menu, the footer links and the work cards, all of
+    // which now navigate to the real /vega and /atrium pages.
 
+    // W14 (navigation truth): the hub and the product pages are REAL pages at
+    // /, /vega and /atrium — so every path between them now moves the URL as
+    // well as the state. The back button, refreshes and shared links all tell
+    // the same story the screen does. The old state-only switching left
+    // /atrium in the address bar while the hub rendered, and the Products
+    // menu felt like it "didn't do anything".
     const handleBackToHub = () => {
         setProductChosen(false);
         scrollRef.current?.scrollTo({ top: 0 });
+        if (window.location.pathname !== '/') navigate('/');
     };
 
     const handleProductSwitch = (p: 'vega' | 'atrium') => {
+        // Already on that page — nothing to do (and never yank the scroll).
+        if (p === activeProduct && productChosen) return;
+        // Was the visitor reading the pricing table? Bring them to the new
+        // product's pricing table, not the top of the page — that comparison
+        // is the whole reason a switch happens mid-page.
+        const pricingEl = document.getElementById('pricing');
+        const wasNearPricing = !!pricingEl && !!scrollRef.current
+            && scrollRef.current.scrollTop + 100 >= pricingEl.offsetTop - 300;
         setActiveProduct(p);
         setProductChosen(true);
-        const pricingEl = document.getElementById('pricing');
-        if (pricingEl && scrollRef.current) {
-            const scrollPos = scrollRef.current.scrollTop + 100;
-            if (scrollPos >= pricingEl.offsetTop - 300) {
-                setTimeout(() => {
-                    scrollRef.current?.scrollTo({ top: pricingEl.offsetTop - 64, behavior: 'smooth' });
-                }, 50);
+        const target = p === 'vega' ? '/vega' : '/atrium';
+        if (window.location.pathname !== target) navigate(target);
+        setTimeout(() => {
+            if (!scrollRef.current) return;
+            const next = document.getElementById('pricing');
+            if (wasNearPricing && next) {
+                scrollRef.current.scrollTo({ top: next.offsetTop - 64, behavior: 'smooth' });
+            } else {
+                scrollRef.current.scrollTo({ top: 0 });
             }
-        }
+        }, 80);
     };
 
     // BUG FIX (Task 11): Only pass selectedProduct when the user has EXPLICITLY
@@ -3764,10 +4039,14 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                         scrollTo={scrollTo}
                     />
                     <MarqueeStrip />
+                    {/* W14: the mirror before the pitch — name the visitor's
+                        daily friction FIRST, so "What we do" lands as the
+                        answer to a problem they just recognised as theirs. */}
+                    <PainMirrorSection onContactSales={() => openContactSales('Sound Familiar')} />
                     {/* W8: liquid seams — each section pours into the next
                         through a slowly morphing organic edge. */}
                     <FluidSeam from="#0A101C" to="#FFFFFF" phase={0} />
-                    <WhatWeDoSection />
+                    <WhatWeDoSection scrollTo={scrollTo} />
                     <FluidSeam from="#FFFFFF" to="#0A101C" phase={1} />
                     <OurWorkSection onContactSales={() => openContactSales('Our Work')} />
                     <FluidSeam from="#0A101C" to="#FFFFFF" phase={2} />

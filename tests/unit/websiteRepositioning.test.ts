@@ -50,6 +50,17 @@
  *     structurally impossible). In its place: a real three.js rendering —
  *     the system core, seven glass modules orbiting a faceted engine, one
  *     per capability — drawn strictly INSIDE its own canvas.
+ *   - W14 (2026-10-08, owner direction): navigation truth (the logo and the
+ *     Products menu move the URL — /, /vega, /atrium — like every visitor
+ *     expects); the hero orb ZIPS a point toward the pointer with a damped
+ *     wave and an opposite-side echo; the What-we-do shapes MORPH (cubes
+ *     melt into pyramids, prisms, octahedra) and DESCEND into the capability
+ *     cards on scroll, each card receiving its own wireframe shape; the
+ *     caption jargon "Seven modules. One system." becomes the owner's own
+ *     "Making your systems one."; the hero stops selling the product
+ *     catalogue; and a new "Sound familiar?" section mirrors the visitor's
+ *     daily friction first, because people who need a system don't know
+ *     they want one yet.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
@@ -288,7 +299,10 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     // if WebGL is missing, and a caption that ties it to the cards.
     expect(landing).toContain('className="w13-stage"');
     expect(landing).toContain('className="w13-canvas"');
-    expect(landing).toContain("Seven modules. One system.");
+    // W14: the owner's own words replace the jargon — "seven modules" never
+    // meant anything to a layman; "making your systems one" is the promise.
+    expect(landing).toContain("Making your systems one.");
+    expect(landing).not.toContain("Seven modules. One system.");
     expect(css).toContain(".w13-stage");
     expect(css).toContain(".w13-fallback");
     expect(css).toContain(".w13-caption");
@@ -411,6 +425,78 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
 
   it("the footer lists Woosh alongside the products and the client build", () => {
     expect(landing).toContain("Woosh — free temp email");
+  });
+});
+
+describe("W14 — navigation truth, the pulse, the descent and the pitch", () => {
+  it("the logo and All Products carry you home from any product page", () => {
+    // The logo navigates back to the hub (the morphing-crystal company page)
+    // instead of scrolling the product page to its own top.
+    expect(landing).toContain("if (productChosen) onBackToHub(); else scrollTo('home')");
+    expect(landing).toContain("pathname !== '/'");
+    expect(landing).toContain("navigate('/')");
+  });
+
+  it("the Products menu navigates to the real product pages", () => {
+    expect(landing).toContain("const target = p === 'vega' ? '/vega' : '/atrium';");
+    expect(landing).toContain("navigate(target)");
+    // The footer's product entries are real anchors now — right-click,
+    // open-in-new-tab and shared links all work.
+    expect(landing).toContain('href="/vega"');
+    expect(landing).toContain('href="/atrium"');
+  });
+
+  it("the hero sells the problem, not the product catalogue", () => {
+    // The "Our products" quick-links are gone from the hero — too early.
+    expect(landing).not.toContain("Our products</span>");
+    // The description plants the pain instead of listing the portfolio.
+    expect(landing).toContain("arrive on WhatsApp to the receipts that leave with every job");
+  });
+
+  it("a mirror before the pitch: Sound familiar? names the visitor's friction", () => {
+    expect(landing).toContain("PAIN_MIRROR");
+    expect(landing).toContain("Sound familiar?");
+    expect(landing).toContain("just not software");
+    expect(landing).toContain("You need a system");
+    expect(landing).toContain("Tell us what runs your business today");
+    expect(landing).toContain('<PainMirrorSection onContactSales');
+  });
+
+  it("the orb zips a point toward the pointer — wave out, echo back (MorphScene)", () => {
+    expect(scene).toContain("uPulseDir");
+    expect(scene).toContain("uAntiAmp");
+    expect(scene).toContain("firePulse");
+    // Two damped springs: the near zip and the far-side echo.
+    expect(scene).toContain("SPRING_K");
+    expect(scene).toContain("ANTI_K");
+  });
+
+  it("the system core morphs its shapes and they descend into the cards", () => {
+    // The superellipsoid engine: one formula, every form the owner asked for.
+    expect(coreScene).toContain("SUPERELLIPSOID");
+    expect(coreScene).toContain("const SHAPES: ShapeDef[]");
+    expect(coreScene).toContain("applyShape");
+    // Cubes are no longer the only citizens — pyramids, prisms, octahedra.
+    expect(coreScene).toContain("pyramid");
+    expect(coreScene).toContain("prism");
+    expect(coreScene).toContain("octahedron");
+    // The scroll-linked descent: shapes leave the canvas toward the cards.
+    expect(coreScene).toContain("descentProgress");
+    // Vertical pointer authority matches the horizontal.
+    expect(coreScene).toContain("curY * 0.24");
+  });
+
+  it("each capability card receives its own shape on landing", () => {
+    expect(landing).toContain("useLandingCards");
+    expect(landing).toContain("w14-card");
+    expect(landing).toContain("w14-shape");
+    expect(landing).toContain("w14-chip");
+    expect(landing).toContain('id="whatWeDoGrid"');
+    expect(landing).toContain("CARD_SHAPES");
+    expect(css).toContain(".w14-card.w14-landed .w14-shape");
+    expect(css).toContain(".w14-card.w14-landed .w14-chip::after");
+    // The cue under the scene continues the descent to the cards.
+    expect(landing).toContain("scrollTo('whatWeDoGrid')");
   });
 });
 
