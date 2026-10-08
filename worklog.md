@@ -12528,3 +12528,19 @@ Stage Summary:
 - Rollback ladder: alpha-3d → d643cd22 (W8) → da387e5d (W9) → d27832e8 (W10).
 - Owner requests open: (1) Woosh access (practiceprosystems-ubah PAT/grant or screenshots + stack from the Woosh conversation); (2) Kozy interiors (members/ordering-internal/payments/admin/subscriber portal — kozycare.ng demo credentials or screenshots); (3) client-portal interior (a client account on staging or screenshots).
 - Standing: rotate the chat-shared GitHub PAT + Vercel token when this window closes; CLOUDFLARE_API_TOKEN still expired (mirror-only).
+
+---
+Task ID: task-81-w11-real-interiors-and-woosh
+Agent: main (Super Z) — PracticePro Systems
+Task: W11 — the interiors go real (Kozy ordering/portal/admin from the live product) + Woosh, our own tool, joins the portfolio.
+
+Work Log:
+- Self-served the assets: used the live Woosh API (woosh.dpdns.org) to create an inbox, signed up on kozycare.ng with it ("PracticePro Demo", clearly labeled), verified via the received email, captured the signed-in ordering flow / portal / order detail / invoice / membership states at 1440x900; captured the Woosh UI itself (home, inbox with real Kozy mail, message view with copy-code, dark mode, API docs); curated 4 current-era admin/portal shots from the Kozy repo's committed verification archive (VLM-verified: current + test-data-only).
+- SystemTour: kozy set rebuilt to 16 screens (ordering → tracking → membership → admin → scale); new woosh set (5 screens). LandingPage: Kozy card quotes the real tagline, gallery grows to 13; new Woosh card (badge 'Our tool'; capability-honest stack chips — no invented framework); Our-Work intro counts four systems; footer gains the Woosh link.
+- Tests: W11 contract pinned (websiteRepositioning 45 pins; 2 W10 pins updated). Gates: tsc 129 = clean baseline; vitest 1226/1226; vite build clean; visual verification desktop+mobile incl. both modals (0 broken images), /vega regression clean.
+- Ship: 41b4e9f7 → rebase over build-1056 → 9d2c231b pushed. Tests ✓ Staging ✓; APK + Production promote (sha input 9d2c231b) in flight at record time.
+- Demo footprint on kozycare.ng: 1 labeled account + 1 awaiting-payment order (#KZ-61379339, bank transfer, no receipt) — safe to cancel from admin; creds handed to the owner for relay.
+- Owner deliverable: PROMPTS_FOR_OTHER_CONVERSATIONS.md — remaining asks for the other conversation: Woosh repo access + stack metadata, the Task-91 stamp deploy (link target practicepro.ng now live), one current admin-dashboard shot, admin blocklist confirm.
+
+Stage Summary:
+- W11 at 9d2c231b: the Kozy preview is the real product inside-out and Woosh is on the site with its API story. Rollback ladder unchanged: alpha-3d → d643cd22 → da387e5d → d27832e8 → 9d2c231b.
