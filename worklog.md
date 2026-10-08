@@ -12506,3 +12506,25 @@ Work Log:
 Stage Summary:
 - W9 LIVE on practicepro.ng at da387e5d. Rollback: alpha-3d → d643cd22 → da387e5d.
 - Standing: rotate chat-shared GitHub PAT + Vercel token when window closes; CLOUDFLARE_API_TOKEN expired (mirror-only). Next: Kozy-Dryclean changes 1+2, then A2.
+
+---
+Task ID: task-80-w10-mark-becomes-system
+Agent: main (Super Z) — PracticePro Systems
+Task: W10 — the mark becomes the system (owner review of W9: intact logo in a box → on scroll the P flattens into facets that fly into the capability cards; retire the riding squares; bring back visible morphing curvature between sections; About fades in; previews use REAL UI only — "demo data is fine, mocked-up UI is not"; hero volatile at the edges, relaxed at centre). Plus: add the owner's Woosh tool to the portfolio (blocked: practiceprosystems-ubah is the separate GitHub).
+
+Work Log:
+- Real interior captures: DEV demo mode was broken by the auth retrofit (sendHeartbeat + server-authed inbox/portal/feedback queries throw Unauthenticated and trip the Convex boundary). Demo-gated the callers (UIContext heartbeat; Header; Sidebar; MessagesView) — demo sessions skip the server-authed calls. Ran vite dev + agent-browser as demo@practicepro.ng and captured 8 real-interior screens (Vega dashboard/notifications/matters/matter-detail/new-matter/billing; Atrium dashboard/financials), VLM-verified. These now star in the tour as "Real app · demo data".
+- LogoScene rewritten (pure SVG/DOM — no WebGL, no fallback box): the exact mark intact in a white display box; on scroll the P crossfades into 7 shard facets (exact tiling), which fly curved staggered paths into the capability card sockets and land as each card's glyph (dashed outline → gradient glyph settle pop). Box keeps blocks + dashed ghost P; caption swaps mid-flight. Reversible, reduced-motion-safe, mobile-safe (glow clamped after a 20px 390px overflow).
+- SystemSquares deleted everywhere (the disliked streaks).
+- MorphScene: edge volatility — pointer distance from centre drives time rate (→2.75x), morph amplitude, parallax gain and a new uEdge fresnel brighten; continuous (rate-only changes, no jumps).
+- FluidSeam: true SVG wave per seam (first pass inverted — VLM caught the dark wave hanging at the bottom; fixed to pour from the top), crest slides + amplitude breathes with scroll; per-seam phase.
+- About: cascade reveal (staggered column + facts card at 420ms).
+- SystemTour: REAL CAPTURES ONLY with per-screen honesty badges (Live site / The real mobile app / Real app · demo data); mock-UI kit deleted; modal simplified to the real tour (tour/live toggle + gallery removed).
+- Gates: tsc 129; vitest 1220/1220 (39 landing pins); ratchet held 2368; build clean. Visual verification (agent-browser + VLM) desktop + 390px mobile; /vega regression clean.
+- Ship: d27832e8 pushed (stash dance over build-1053/1054; upload/ deletions untouched). CI Tests ✓ / Staging ✓ / APK ✓ (1.0.668). Promote run 37719237414: quality ✓, Vercel+Convex ✓, Cloudflare mirror ✗ (standing expired token).
+
+Stage Summary:
+- W10 THE MARK BECOMES THE SYSTEM IS LIVE at d27832e8 (APK 1.0.668): live-verified — version.json healthy; bundle + CSS carry the W10 markers; VLM-confirmed live hero + intact logo box.
+- Rollback ladder: alpha-3d → d643cd22 (W8) → da387e5d (W9) → d27832e8 (W10).
+- Owner requests open: (1) Woosh access (practiceprosystems-ubah PAT/grant or screenshots + stack from the Woosh conversation); (2) Kozy interiors (members/ordering-internal/payments/admin/subscriber portal — kozycare.ng demo credentials or screenshots); (3) client-portal interior (a client account on staging or screenshots).
+- Standing: rotate the chat-shared GitHub PAT + Vercel token when this window closes; CLOUDFLARE_API_TOKEN still expired (mirror-only).
