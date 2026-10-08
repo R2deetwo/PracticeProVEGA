@@ -12544,3 +12544,4 @@ Work Log:
 
 Stage Summary:
 - W11 at 9d2c231b: the Kozy preview is the real product inside-out and Woosh is on the site with its API story. Rollback ladder unchanged: alpha-3d → d643cd22 → da387e5d → d27832e8 → 9d2c231b.
+- DEPLOY CLOSEOUT: promote run 37723592846 — quality gate ✓, Vercel+Convex ✓, Cloudflare mirror ✗ at the standing expired CLOUDFLARE_API_TOKEN (fail-fast token check; report-only, unchanged). LIVE VERIFIED: version.json sha 9d2c231b, healthy, APK 1.0.670; production bundle index-Bsib41qf.js carries the W11 markers (Kozy tagline quote, kozy-admin-crm.jpg, woosh-inbox.jpg, Verification-code extraction). W11 IS LIVE on practicepro.ng.
