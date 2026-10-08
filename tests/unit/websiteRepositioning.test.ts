@@ -77,16 +77,25 @@ const css = read("src", "index.css");
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    expect(landing).toContain("We build the systems");
-    // W15: the promise moved from “run on” to “scale with”, and the noun
-    // cycles through the verticals we build for.
-    expect(landing).toContain("scale with.");
-    expect(landing).toContain("SCALE_VERTICALS");
-    expect(landing).toContain("'hospitals'");
-    expect(landing).toContain("'pharmacies'");
-    expect(landing).toContain("'law firms'");
-    expect(landing).toContain("'property managers'");
-    expect(landing).toContain("'businesses'");
+    expect(landing).toContain("Build systems that help");
+    // W16: the promise is “Build systems that help scale your X”. X is a
+    // single noun the owner recognises, and ONLY the noun ever changes —
+    // every noun paints inside a box as wide as the longest noun, so the
+    // headline's line count, breaks and word positions are identical for
+    // all nouns at every breakpoint (no more 2-line→3-line jumping).
+    expect(landing).toContain("scale your");
+    expect(landing).toContain("SCALE_NOUNS");
+    expect(landing).toContain("SCALE_NOUN_RESERVE");
+    expect(landing).toContain("'business'");
+    expect(landing).toContain("'practice'");
+    expect(landing).toContain("'firm'");
+    expect(landing).toContain("'clinic'");
+    expect(landing).toContain("'pharmacy'");
+    expect(landing).toContain("'school'");
+    expect(landing).toContain("'restaurant'");
+    expect(landing).toContain("'organization'");
+    expect(landing).not.toContain("scale with.");
+    expect(landing).not.toContain("SCALE_VERTICALS");
     expect(landing).not.toContain("businesses run on.");
   });
 
@@ -595,9 +604,9 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(index).not.toContain("ratingValue");
   });
 
-  it("page metadata leads with the company's scaling positioning (W15)", () => {
+  it("page metadata leads with the company's scaling positioning (W16)", () => {
     expect(index).toContain(
-      "<title>PracticePro Systems — We Build the Systems Businesses Scale With</title>"
+      "<title>PracticePro Systems — Build Systems That Help Scale Your Business</title>"
     );
     expect(index).toContain(
       '<meta property="og:site_name" content="PracticePro Systems" />'

@@ -788,26 +788,38 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
 // verifiable behaviour. No invented clients, no invented metrics.
 
 /**
- * W15 — the scaling tagline. The hero promise moves from “run on” to
- * “scale with” (owner direction): what we build is not plumbing, it is
- * capacity — more customers, handled well. The noun cycles through the
- * verticals we build for so a hospital administrator, a pharmacist or a
- * property manager each see themselves in the headline within seconds.
- * SSR/no-JS/reduced-motion all degrade to a static word (no layout jump,
- * no hydration mismatch — the first word is rendered server-side).
+ * W16 — the scaling noun (owner direction). The hero promise is now
+ * “Build systems that help scale your X”, where X is a noun the owner
+ * of a Nigerian business instantly recognises as theirs — practice,
+ * firm, clinic, pharmacy, school, restaurant, organization — with
+ * “business” as the universal opener.
+ *
+ * Layout stability is the contract (the owner rejected the W15
+ * version, where long verticals like “delivery businesses” pushed the
+ * headline from two lines to three): every noun paints inside a fixed
+ * box as wide as the longest noun, so ONLY the word ever changes —
+ * line count, line breaks and the position of every other word stay
+ * identical for all eight nouns, at every breakpoint (sizes computed
+ * against the shipped Space Grotesk 700 metrics — see worklog W16).
+ * SSR/no-JS/reduced-motion all degrade to a static noun (no layout
+ * jump, no hydration mismatch — the first noun renders server-side).
  */
-const SCALE_VERTICALS = [
-    'hospitals',
-    'pharmacies',
-    'law firms',
-    'property managers',
-    'schools',
-    'delivery businesses',
-    'organizations',
-    'businesses',
+const SCALE_NOUNS = [
+    'business',
+    'practice',
+    'firm',
+    'clinic',
+    'pharmacy',
+    'school',
+    'restaurant',
+    'organization',
 ];
+// The widest noun (+ the sentence's full stop) reserves the box. Every
+// noun paints left-aligned in the same slot — shorter nouns leave an
+// invisible gap instead of re-flowing the sentence.
+const SCALE_NOUN_RESERVE = 'organization.';
 
-const ScalingWord: React.FC = () => {
+const ScalingNoun: React.FC = () => {
     const [i, setI] = useState(0);
     const [on, setOn] = useState(true);
     useEffect(() => {
@@ -817,7 +829,7 @@ const ScalingWord: React.FC = () => {
             setOn(false);
             if (swapId !== null) window.clearTimeout(swapId);
             swapId = window.setTimeout(() => {
-                setI((v) => (v + 1) % SCALE_VERTICALS.length);
+                setI((v) => (v + 1) % SCALE_NOUNS.length);
                 setOn(true);
             }, 340);
         }, 2700);
@@ -827,16 +839,27 @@ const ScalingWord: React.FC = () => {
         };
     }, []);
     return (
+        // An inline-grid whose two children share one cell: the hidden
+        // reserve sizes the cell, the live noun paints on top of it.
+        // The box width never changes, so nothing around it ever moves.
         <span
-            className="inline-block align-baseline"
-            style={{
-                transition: 'opacity 340ms ease, transform 340ms ease, filter 340ms ease',
-                opacity: on ? 1 : 0,
-                transform: on ? 'translateY(0)' : 'translateY(-0.3em)',
-                filter: on ? 'blur(0px)' : 'blur(7px)',
-            }}
+            className="inline-grid align-baseline whitespace-nowrap"
+            style={{ gridTemplateAreas: '"noun"' }}
         >
-            {SCALE_VERTICALS[i]}
+            <span aria-hidden="true" style={{ gridArea: 'noun', visibility: 'hidden' }}>
+                {SCALE_NOUN_RESERVE}
+            </span>
+            <span
+                style={{
+                    gridArea: 'noun',
+                    transition: 'opacity 340ms ease, transform 340ms ease, filter 340ms ease',
+                    opacity: on ? 1 : 0,
+                    transform: on ? 'translateY(0)' : 'translateY(-0.3em)',
+                    filter: on ? 'blur(0px)' : 'blur(7px)',
+                }}
+            >
+                {SCALE_NOUNS[i]}.
+            </span>
         </span>
     );
 };
@@ -874,11 +897,11 @@ const HubHero: React.FC<{
                     We design, build &amp; run business software
                 </p>
 
-                <h1 className="font-display text-[2.4rem] sm:text-6xl md:text-7xl lg:text-[5rem] font-bold tracking-tight leading-[1.08] mb-7 max-w-4xl text-white w7-headline-shadow">
-                    We build the systems
-                    <br />
-                    <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399, #4ADE80)' }}>
-                        <ScalingWord /> scale with.
+                <h1 className="font-display text-[2.25rem] sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.08] mb-7 max-w-5xl text-white w7-headline-shadow">
+                    Build systems that help{' '}
+                    <br className="hidden sm:block" />
+                    <span className="text-transparent bg-clip-text inline sm:inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399, #4ADE80)' }}>
+                        scale your{' '}<ScalingNoun />
                     </span>
                 </h1>
 
