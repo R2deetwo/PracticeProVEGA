@@ -12638,8 +12638,8 @@ Work Log:
 - index.html title/og/twitter/description → "Build Systems That Help Scale Your Business" phrasing.
 - Tests: W16 pins in websiteRepositioning.test.ts (sentence fragments, all eight nouns, SCALE_NOUN_RESERVE contract, negative W15 pins); metadata pin updated. 1235/1235 green; tsc 129 baseline; lint + UI-primitives ratchet held; vite build clean.
 - Verified on vite preview + agent-browser + VLM: sampled noun-box geometry across a full 8-noun cycle at 1440px — h1 height 164px, box width 485.7px, box left 672.3px, box top 285.0px ALL constant across every noun including "organization."; 640px and 768px exactly 2 lines; 390px exactly 3 lines ("Build systems that / help scale / your clinic." style), no stranded word, no overflow; gradient (amber→emerald) confirmed painting through the noun on desktop and mobile; /vega regression clean; zero page errors.
-- Shipped: a5138f4e.
+- Shipped: rebased over the version-bot's 1.0.680 bump and pushed — feat e4863f57 + docs cbaf1196; CI green (Tests ✓, Deploy to Staging ✓, Build Android APK ✓) on the tip; production promote run 37812006622 dispatched with the full 40-char SHA cbaf1196.
 
 Stage Summary:
-- W16 code complete at a5138f4e. The hero now keeps a fixed two-line (three on mobile) shape while only the noun cycles — the exact behaviour the owner asked for.
+- W16 IS LIVE on production (Vercel+Convex ✓, quality gate ✓) at cbaf1196 — live version.json sha cbaf1196 healthy (stable since 16:53 UTC), live <title> = "PracticePro Systems — Build Systems That Help Scale Your Business". Cloudflare mirror ✗ standing expired token (fail-fast step, report-only — needs a new CLOUDFLARE_API_TOKEN from the owner). Rollback ladder: …9d6f11e7 → ddb4919d → cbaf1196 (or run the promote with any older SHA). The hero now keeps a fixed two-line (three on mobile) shape while only the noun cycles — the exact behaviour the owner asked for.
 - Standing: rotate chat-shared GitHub PAT at window close; Woosh clone + plan (needs access); Kozy stamp (awaits R2deetwo); A2 later.
