@@ -78,14 +78,25 @@ const css = read("src", "index.css");
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
     expect(landing).toContain("Build systems that help");
-    // W16: the promise is “Build systems that help scale your X”. X is a
-    // single noun the owner recognises, and ONLY the noun ever changes —
-    // every noun paints inside a box as wide as the longest noun, so the
-    // headline's line count, breaks and word positions are identical for
-    // all nouns at every breakpoint (no more 2-line→3-line jumping).
+    // W17: the promise is “Build systems that help scale your X”. X is a
+    // single noun the owner recognises, and ONLY the noun ever changes.
+    // W16 padded every noun into a box as wide as “organization” — a dead
+    // gap after every shorter word. W17 MEASURES each noun in the live
+    // headline font and glides the slot to exactly the live word: no
+    // reserve, no trailing gap, no full stop, and the line count is
+    // locked (below sm the noun owns its own line; from sm up the final
+    // line is sized for the widest noun).
     expect(landing).toContain("scale your");
     expect(landing).toContain("SCALE_NOUNS");
-    expect(landing).toContain("SCALE_NOUN_RESERVE");
+    expect(landing).not.toContain("SCALE_NOUN_RESERVE");
+    expect(landing).toContain("getBoundingClientRect().width");
+    expect(landing).toContain("ResizeObserver");
+    expect(landing).toContain("document.fonts.ready");
+    // No full stop riding the cycling word.
+    expect(landing).not.toContain("{SCALE_NOUNS[i]}.");
+    // The noun owns its line below sm — no noun can change the wrap.
+    expect(landing).not.toContain("scale your{' '}<ScalingNoun />");
+    expect(landing).toContain('<br className="sm:hidden" />');
     expect(landing).toContain("'business'");
     expect(landing).toContain("'practice'");
     expect(landing).toContain("'firm'");
@@ -97,6 +108,27 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     expect(landing).not.toContain("scale with.");
     expect(landing).not.toContain("SCALE_VERTICALS");
     expect(landing).not.toContain("businesses run on.");
+  });
+
+  it("W17 — the page decorates in the brand's green, not amber (owner: “quite a cry from my colors”)", () => {
+    // Gradient type: mint → emerald → green, never amber-led.
+    expect(landing).toContain("linear-gradient(to right, #6EE7B7, #34D399, #4ADE80)");
+    expect(landing).not.toContain("#F59E0B");
+    // The clouds/aurora glows are green.
+    expect(landing).not.toContain("bg-amber-500/10 blur-[110px]");
+    expect(landing).not.toContain("bg-amber-500/[0.07]");
+    expect(landing).not.toContain("bg-amber-400/70");
+    // The 3D scenes kiss their crests and rims in mint, not amber.
+    expect(scene).not.toContain("#D97706");
+    expect(scene).toContain("#6EE7B7");
+    expect(coreScene).not.toContain("#D97706");
+    expect(coreScene).toContain("#6EE7B7");
+    // The hero's structural fallback cloud is mint too.
+    expect(css).not.toContain("rgba(217, 119, 6, 0.15)");
+    expect(css).not.toContain("linear-gradient(135deg, #F59E0B, #16A34A)");
+    // Vega keeps its amber PRODUCT identity (product coding, not page
+    // decoration) — that contract is untouched.
+    expect(css).toContain("--color-amber: #D97706");
   });
 
   it("the hero positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {

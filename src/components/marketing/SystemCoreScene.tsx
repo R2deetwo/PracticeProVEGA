@@ -139,7 +139,7 @@ const SystemCoreScene: React.FC<{ className?: string }> = ({ className = '' }) =
             // Brand constants (see src/index.css :root).
             const COLOR_MOSS = new THREE.Color('#16A34A');
             const COLOR_EMERALD = new THREE.Color('#059669');
-            const COLOR_AMBER = new THREE.Color('#D97706');
+            const COLOR_MINT = new THREE.Color('#6EE7B7');
 
             // ── The cluster: everything orbits inside this tilted group.
             const TILT_X = 0.50;
@@ -148,7 +148,7 @@ const SystemCoreScene: React.FC<{ className?: string }> = ({ className = '' }) =
             scene.add(cluster);
 
             // ── 1. The core — a faceted engine, moss→emerald with an
-            //       amber rim. Opaque, so shapes and links pass behind it
+            //       mint rim. Opaque, so shapes and links pass behind it
             //       honestly.
             const coreGeo = new THREE.IcosahedronGeometry(0.52, 0);
             {
@@ -173,7 +173,7 @@ const SystemCoreScene: React.FC<{ className?: string }> = ({ className = '' }) =
                 uniforms: {
                     uColorA: { value: COLOR_MOSS },
                     uColorB: { value: COLOR_EMERALD },
-                    uColorC: { value: COLOR_AMBER },
+                    uColorC: { value: COLOR_MINT },
                 },
                 vertexShader: `
                     varying vec3 vNormal;
@@ -375,7 +375,7 @@ const SystemCoreScene: React.FC<{ className?: string }> = ({ className = '' }) =
                     uniforms: {
                         uColorA: { value: COLOR_MOSS },
                         uColorB: { value: COLOR_EMERALD },
-                        uColorC: { value: COLOR_AMBER },
+                        uColorC: { value: COLOR_MINT },
                         uFade: { value: 0 },
                     },
                     vertexShader: glassVertex,
@@ -480,7 +480,7 @@ const SystemCoreScene: React.FC<{ className?: string }> = ({ className = '' }) =
                         uSpeed: { value: 0.14 + (i % 3) * 0.05 },
                         uFade: { value: 0 },
                         uColorA: { value: COLOR_EMERALD },
-                        uColorB: { value: COLOR_AMBER },
+                        uColorB: { value: COLOR_MINT },
                     },
                     vertexShader: `
                         attribute float aT;

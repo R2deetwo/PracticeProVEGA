@@ -788,21 +788,27 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
 // verifiable behaviour. No invented clients, no invented metrics.
 
 /**
- * W16 — the scaling noun (owner direction). The hero promise is now
- * “Build systems that help scale your X”, where X is a noun the owner
- * of a Nigerian business instantly recognises as theirs — practice,
- * firm, clinic, pharmacy, school, restaurant, organization — with
+ * W17 — the scaling noun, refined (owner direction). The promise is
+ * “Build systems that help scale your X”, X = a noun the owner of a
+ * Nigerian business instantly recognises as theirs — practice, firm,
+ * clinic, pharmacy, school, restaurant, organization — with
  * “business” as the universal opener.
  *
- * Layout stability is the contract (the owner rejected the W15
- * version, where long verticals like “delivery businesses” pushed the
- * headline from two lines to three): every noun paints inside a fixed
- * box as wide as the longest noun, so ONLY the word ever changes —
- * line count, line breaks and the position of every other word stay
- * identical for all eight nouns, at every breakpoint (sizes computed
- * against the shipped Space Grotesk 700 metrics — see worklog W16).
- * SSR/no-JS/reduced-motion all degrade to a static noun (no layout
- * jump, no hydration mismatch — the first noun renders server-side).
+ * W16 held the line shape by padding every noun into a box as wide as
+ * “organization” — which left a long dead gap after every shorter word
+ * (“too much of a gap with all of them except organizations”), and a
+ * redundant full stop. W17 replaces the fixed box with a MEASURED,
+ * GLIDING slot: every noun is measured in the headline's exact font
+ * (responsive sizes, web-font swap) and the slot's width eases to
+ * precisely the live noun — the sentence always looks typeset, and the
+ * only motion is the word exchanging itself while the line's tail
+ * breathes with it (nothing else in the sentence moves).
+ *
+ * Line count can never change: below sm the noun owns its own line
+ * (an sm:hidden break after “scale your”), and from sm up
+ * “scale your <noun>” is the final line, sized for the widest noun
+ * (geometry verified in W16). SSR/no-JS/reduced-motion degrade to the
+ * static first noun.
  */
 const SCALE_NOUNS = [
     'business',
@@ -814,14 +820,39 @@ const SCALE_NOUNS = [
     'restaurant',
     'organization',
 ];
-// The widest noun (+ the sentence's full stop) reserves the box. Every
-// noun paints left-aligned in the same slot — shorter nouns leave an
-// invisible gap instead of re-flowing the sentence.
-const SCALE_NOUN_RESERVE = 'organization.';
 
 const ScalingNoun: React.FC = () => {
     const [i, setI] = useState(0);
     const [on, setOn] = useState(true);
+    const [widths, setWidths] = useState<number[] | null>(null);
+    const measureRef = useRef<HTMLSpanElement>(null);
+
+    // Measure every noun in the live headline font so the slot can
+    // glide to exactly the live word. The measuring twin is absolute +
+    // invisible: fully laid out (so every width is real) but never
+    // part of the sentence's own layout.
+    useEffect(() => {
+        const measure = () => {
+            const host = measureRef.current;
+            if (!host) return;
+            const next = Array.from(host.children).map(
+                (c) => (c as HTMLElement).getBoundingClientRect().width,
+            );
+            if (next.length === SCALE_NOUNS.length && next.every((w) => w > 0)) {
+                setWidths(next);
+            }
+        };
+        measure();
+        // Space Grotesk lands async — remeasure once it does, and again
+        // whenever a responsive font-size change resizes the twin.
+        if (document.fonts?.ready) {
+            document.fonts.ready.then(() => measure()).catch(() => {});
+        }
+        const ro = new ResizeObserver(() => measure());
+        if (measureRef.current) ro.observe(measureRef.current);
+        return () => ro.disconnect();
+    }, []);
+
     useEffect(() => {
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         let swapId: number | null = null;
@@ -831,34 +862,47 @@ const ScalingNoun: React.FC = () => {
             swapId = window.setTimeout(() => {
                 setI((v) => (v + 1) % SCALE_NOUNS.length);
                 setOn(true);
-            }, 340);
+            }, 380);
         }, 2700);
         return () => {
             window.clearInterval(tick);
             if (swapId !== null) window.clearTimeout(swapId);
         };
     }, []);
+
+    const live = widths?.[i];
     return (
-        // An inline-grid whose two children share one cell: the hidden
-        // reserve sizes the cell, the live noun paints on top of it.
-        // The box width never changes, so nothing around it ever moves.
-        <span
-            className="inline-grid align-baseline whitespace-nowrap"
-            style={{ gridTemplateAreas: '"noun"' }}
-        >
-            <span aria-hidden="true" style={{ gridArea: 'noun', visibility: 'hidden' }}>
-                {SCALE_NOUN_RESERVE}
-            </span>
+        // The outer span is the layout atom: its width IS the slot's
+        // width, so the sentence always ends exactly at the noun — no
+        // reserve, no trailing gap.
+        <span className="relative inline-block align-baseline whitespace-nowrap">
             <span
+                ref={measureRef}
+                aria-hidden="true"
+                className="absolute left-0 top-0 pointer-events-none"
+                style={{ visibility: 'hidden' }}
+            >
+                {SCALE_NOUNS.map((n) => (
+                    <span key={n} className="inline-block whitespace-nowrap">
+                        {n}
+                    </span>
+                ))}
+            </span>
+            {/* The live slot — the word exchanges itself (soft blur +
+                slide) while the box glides to the incoming noun's exact
+                width. One fluid motion, nothing jarring. */}
+            <span
+                className="inline-block align-baseline"
                 style={{
-                    gridArea: 'noun',
-                    transition: 'opacity 340ms ease, transform 340ms ease, filter 340ms ease',
+                    width: live !== undefined ? `${live}px` : undefined,
+                    transition:
+                        'width 520ms cubic-bezier(0.33, 0, 0.15, 1), opacity 380ms ease, transform 380ms ease, filter 380ms ease',
                     opacity: on ? 1 : 0,
-                    transform: on ? 'translateY(0)' : 'translateY(-0.3em)',
-                    filter: on ? 'blur(0px)' : 'blur(7px)',
+                    transform: on ? 'translateY(0)' : 'translateY(-0.22em)',
+                    filter: on ? 'blur(0px)' : 'blur(5px)',
                 }}
             >
-                {SCALE_NOUNS[i]}.
+                {SCALE_NOUNS[i]}
             </span>
         </span>
     );
@@ -900,8 +944,14 @@ const HubHero: React.FC<{
                 <h1 className="font-display text-[2.25rem] sm:text-5xl md:text-6xl lg:text-[5rem] font-bold tracking-tight leading-[1.08] mb-7 max-w-5xl text-white w7-headline-shadow">
                     Build systems that help{' '}
                     <br className="hidden sm:block" />
-                    <span className="text-transparent bg-clip-text inline sm:inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399, #4ADE80)' }}>
-                        scale your{' '}<ScalingNoun />
+                    {/* W17: the gradient is all-green (mint → emerald →
+                        green) — the brand's color, no amber lead. Below sm
+                        the noun owns its own line, so no noun can ever
+                        change the headline's line count. */}
+                    <span className="text-transparent bg-clip-text inline sm:inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #6EE7B7, #34D399, #4ADE80)' }}>
+                        scale your{' '}
+                        <br className="sm:hidden" />
+                        <ScalingNoun />
                     </span>
                 </h1>
 
@@ -1050,7 +1100,7 @@ const MarqueeStrip: React.FC = () => (
                             <span className="font-display text-sm sm:text-base font-semibold uppercase tracking-[0.22em] text-slate-500">
                                 {item}
                             </span>
-                            <span className="w-1.5 h-1.5 rotate-45 bg-gradient-to-br from-amber-500 to-emerald-500 opacity-70" aria-hidden="true" />
+                            <span className="w-1.5 h-1.5 rotate-45 bg-gradient-to-br from-emerald-300 to-emerald-500 opacity-70" aria-hidden="true" />
                         </span>
                     ))}
                 </div>
@@ -1100,19 +1150,19 @@ const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContact
     return (
         <section className="relative py-16 sm:py-24 overflow-hidden" style={{ background: '#0A101C' }}>
             {/* the same ink stage as the hero, carried through the marquee */}
-            <div className="absolute -top-32 right-1/4 w-[34rem] h-[24rem] rounded-full bg-amber-500/[0.07] blur-[130px] pointer-events-none" aria-hidden="true" />
+            <div className="absolute -top-32 right-1/4 w-[34rem] h-[24rem] rounded-full bg-emerald-500/[0.07] blur-[130px] pointer-events-none" aria-hidden="true" />
             <div className="absolute -bottom-40 left-1/4 w-[36rem] h-[24rem] rounded-full bg-emerald-600/[0.08] blur-[130px] pointer-events-none" aria-hidden="true" />
             <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="w9-reveal text-center mb-10 md:mb-14 max-w-3xl mx-auto">
-                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-amber-400/90">
+                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-emerald-400/90">
                         Sound familiar?
                     </p>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
                         Your business already runs on a system.
                         <br />
-                        <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399)' }}>
+                        <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #6EE7B7, #34D399)' }}>
                             It&rsquo;s just not software.
                         </span>
                     </h2>
@@ -1130,9 +1180,9 @@ const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContact
                         >
                             {/* Today — the friction, in the visitor's words */}
                             <div className="flex items-start gap-3.5 md:justify-end md:text-right">
-                                <span className="hidden md:block w-1.5 h-1.5 rounded-full bg-amber-400/70 flex-shrink-0 translate-y-2" aria-hidden="true" />
+                                <span className="hidden md:block w-1.5 h-1.5 rounded-full bg-emerald-400/70 flex-shrink-0 translate-y-2" aria-hidden="true" />
                                 <p className="text-sm leading-[1.7] text-slate-400 transition-colors duration-500 group-hover:text-slate-500">{row.today}</p>
-                                <span className="md:hidden w-1.5 h-1.5 rounded-full bg-amber-400/70 flex-shrink-0 translate-y-2" aria-hidden="true" />
+                                <span className="md:hidden w-1.5 h-1.5 rounded-full bg-emerald-400/70 flex-shrink-0 translate-y-2" aria-hidden="true" />
                             </div>
                             {/* The turn */}
                             <span className="hidden md:flex items-center justify-center w-9 h-9 rounded-full border border-white/10 bg-white/[0.03] text-slate-500 group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition-colors duration-500" aria-hidden="true">
@@ -1884,7 +1934,7 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
             {/* deep ink base + brand aurora, so the real screens glow */}
             <div className="absolute inset-0 bg-[#0A101C]" aria-hidden="true" />
             <div className="absolute -top-40 left-1/4 w-[42rem] h-[42rem] rounded-full bg-emerald-600/10 blur-[140px] pointer-events-none" aria-hidden="true" />
-            <div className="absolute -bottom-52 right-1/4 w-[38rem] h-[38rem] rounded-full bg-amber-500/10 blur-[140px] pointer-events-none" aria-hidden="true" />
+            <div className="absolute -bottom-52 right-1/4 w-[38rem] h-[38rem] rounded-full bg-emerald-500/10 blur-[140px] pointer-events-none" aria-hidden="true" />
             <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -2090,7 +2140,7 @@ const HowWeWorkSection: React.FC = () => {
                 <div ref={timelineRef} className="relative max-w-3xl mx-auto">
                     <div className="absolute left-[27px] sm:left-1/2 sm:-translate-x-1/2 top-2 bottom-2 w-[3px] rounded-full bg-slate-200 overflow-visible" aria-hidden="true">
                         <div
-                            className="w-full rounded-full bg-gradient-to-b from-amber-500 via-emerald-500 to-primary-600 will-change-[height]"
+                            className="w-full rounded-full bg-gradient-to-b from-emerald-300 via-emerald-500 to-primary-600 will-change-[height]"
                             style={{ height: `${Math.round(fill * 100)}%` }}
                         />
                         {/* W9: a pulse riding the leading edge of the fill. */}
@@ -2105,7 +2155,7 @@ const HowWeWorkSection: React.FC = () => {
                                 {/* Node on the spine — W9: lights up as the walk passes. */}
                                 <div className="relative z-10 flex-shrink-0 sm:absolute sm:left-1/2 sm:-translate-x-1/2 sm:flex-shrink">
                                     <span className={`w9-step-node flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-slate-200 shadow-md shadow-slate-900/5 font-display text-xl font-extrabold ${i <= active ? 'is-active' : ''}`}>
-                                        <span className="w9-step-num text-transparent bg-clip-text bg-gradient-to-br from-amber-500 to-primary-600">{step.num}</span>
+                                        <span className="w9-step-num text-transparent bg-clip-text bg-gradient-to-br from-emerald-400 to-primary-600">{step.num}</span>
                                     </span>
                                 </div>
                                 {/* Card — W9: the current step lifts. */}
@@ -2233,15 +2283,15 @@ const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: 
     return (
     <section className="relative py-20 md:py-28 overflow-hidden w7-dark">
         <div className="absolute inset-0 bg-[#0A101C]" aria-hidden="true" />
-        {/* Aurora — two brand-colored clouds drifting on a slow loop */}
+        {/* Aurora — two brand-green clouds drifting on a slow loop */}
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[46rem] h-[26rem] rounded-full bg-emerald-600/15 blur-[120px] w7-aurora-a" aria-hidden="true" />
-        <div className="absolute -bottom-40 left-1/4 w-[30rem] h-[22rem] rounded-full bg-amber-500/10 blur-[110px] w7-aurora-b" aria-hidden="true" />
+        <div className="absolute -bottom-40 left-1/4 w-[30rem] h-[22rem] rounded-full bg-emerald-300/10 blur-[110px] w7-aurora-b" aria-hidden="true" />
         <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
         <div ref={ref} className="w9-reveal container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl relative">
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white font-display">
                 Have a process that should{' '}
-                <span className="text-transparent bg-clip-text inline-block" style={{ backgroundImage: 'linear-gradient(to right, #F59E0B, #34D399)' }}>
+                <span className="text-transparent bg-clip-text inline-block" style={{ backgroundImage: 'linear-gradient(to right, #6EE7B7, #34D399)' }}>
                     run itself?
                 </span>
             </h2>

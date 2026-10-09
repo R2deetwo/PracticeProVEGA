@@ -2406,7 +2406,9 @@ nav,
    W7 — THE WOW SITE (corporate hub visual system)
    Dark cinematic sections, the morphing-orb hero, the capabilities marquee,
    spotlight bento cards, floating device frames and the aurora CTA.
-   Brand ramp: moss #16A34A · emerald #059669 · amber #D97706 on ink #0B1220.
+   Brand ramp: moss #16A34A · emerald #059669 · mint #6EE7B7 on ink #0B1220
+   (W17: page decoration is all-green; amber #D97706 remains Vega's PRODUCT
+   accent only — never the hub's decoration).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Film grain — a fine noise veil that makes the dark sections feel printed,
@@ -2432,7 +2434,7 @@ nav,
   background:
     repeating-radial-gradient(circle at 50% 46%, rgba(52, 211, 153, 0.055) 0 1px, transparent 1px 64px),
     radial-gradient(circle at 38% 34%, rgba(52, 211, 153, 0.34) 0%, rgba(5, 150, 105, 0.22) 32%, rgba(22, 163, 74, 0.12) 50%, rgba(7, 13, 24, 0) 66%),
-    radial-gradient(circle at 62% 60%, rgba(217, 119, 6, 0.15) 0%, rgba(7, 13, 24, 0) 44%);
+    radial-gradient(circle at 62% 60%, rgba(110, 231, 183, 0.13) 0%, rgba(7, 13, 24, 0) 44%);
   background-size: 170% 170%, 135% 135%, 120% 120%;
   animation: w8-fallback-breathe 12s ease-in-out infinite alternate;
 }
@@ -2535,7 +2537,7 @@ nav,
    W8 — STRUCTURED FLUIDITY (the lattice system)
    The blob becomes a system: a morphing crystal lattice in the hero, liquid
    seams melting the sections into one another, a fluid nav pill. Structure
-   visible, motion continuous. Brand ramp unchanged: moss · emerald · amber.
+   visible, motion continuous. Brand ramp unchanged: moss · emerald · mint (W17).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* The scene arrives — one slow scale-and-settle instead of a hard cut.
@@ -2574,7 +2576,7 @@ nav,
    down the rest of the page, the process walks itself step by step, text
    settles in softly (never a hard cut), and the section seams reshape as
    you scroll. The portfolio preview becomes a guided tour with more of the
-   system visible inside. Brand ramp unchanged: moss · emerald · amber.
+   system visible inside. Brand ramp unchanged: moss · emerald · mint (W17).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── 1. The settle — text and blocks arrive softly (fade + rise + de-blur).
@@ -2734,7 +2736,7 @@ nav,
   transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .w9-step-node.is-active {
-  background-image: linear-gradient(135deg, #F59E0B, #16A34A);
+  background-image: linear-gradient(135deg, #34D399, #16A34A);
   border-color: transparent;
   box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.12), 0 10px 24px -8px rgba(22, 163, 74, 0.55);
   transform: scale(1.08);

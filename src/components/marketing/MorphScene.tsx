@@ -80,7 +80,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
             // Brand constants (see src/index.css :root).
             const COLOR_MOSS = new THREE.Color('#16A34A');
             const COLOR_EMERALD = new THREE.Color('#059669');
-            const COLOR_AMBER = new THREE.Color('#D97706');
+            const COLOR_MINT = new THREE.Color('#6EE7B7');
 
             // Materials that tick with uTime — collected so the loop only
             // has to touch a list instead of reaching through the graph.
@@ -251,7 +251,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uEdge: { value: 0 },
                     uColorA: { value: COLOR_MOSS },
                     uColorB: { value: COLOR_EMERALD },
-                    uColorC: { value: COLOR_AMBER },
+                    uColorC: { value: COLOR_MINT },
                     ...PULSE_UNIFORMS(),
                 },
                 vertexShader: coreVertex,
@@ -267,12 +267,12 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                         // Moss → emerald across the noise field…
                         float g = smoothstep(-0.6, 0.95, vNoise);
                         vec3 col = mix(uColorA, uColorB, g);
-                        // …an amber kiss on the highest crests.
+                        // …a mint kiss on the highest crests.
                         col = mix(col, uColorC, smoothstep(0.55, 1.05, vNoise) * 0.5);
                         // Directional top light — makes every facet read.
                         float top = clamp(vNormal.y * 0.5 + 0.5, 0.0, 1.0);
                         col *= 0.38 + top * 0.8;
-                        // Amber fresnel rim — the brand's signature edge light.
+                        // Mint fresnel rim — the brand's signature edge light.
                         // W10: the rim ignites as the pointer nears the rails
                         // (edge volatility) and banks back to calm at centre.
                         float fres = pow(1.0 - clamp(dot(vNormal, vView), 0.0, 1.0), 2.6);
@@ -295,7 +295,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uAmp: { value: AMP },
                     uColorA: { value: COLOR_EMERALD },
                     uColorB: { value: COLOR_MOSS },
-                    uColorC: { value: COLOR_AMBER },
+                    uColorC: { value: COLOR_MINT },
                     ...PULSE_UNIFORMS(),
                 },
                 vertexShader: coreVertex,
@@ -330,7 +330,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     uTime: { value: 0 },
                     uAmp: { value: AMP },
                     uColorA: { value: COLOR_EMERALD },
-                    uColorB: { value: COLOR_AMBER },
+                    uColorB: { value: COLOR_MINT },
                     ...PULSE_UNIFORMS(),
                 },
                 vertexShader: `
@@ -358,7 +358,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                         vPulse = nearW * max(0.0, uPulseAmp);
                         vec4 mv = modelViewMatrix * vec4(p, 1.0);
                         // Each module pulses on its own phase — and the node
-                        // being zipped SWELLS and ignites amber, so the eye
+                        // being zipped SWELLS and ignites mint, so the eye
                         // follows the point that reached for the pointer.
                         float pulse = 0.75 + 0.45 * sin(uTime * 0.9 + aSeed * 19.0);
                         float hot = 1.0 + clamp(vPulse * 2.6, 0.0, 1.4);
@@ -413,7 +413,7 @@ const MorphScene: React.FC<{ className?: string }> = ({ className = '' }) => {
                     // missing uniform here once killed the whole rAF loop.
                     uTime: { value: 0 },
                     uColorA: { value: COLOR_MOSS },
-                    uColorB: { value: COLOR_AMBER },
+                    uColorB: { value: COLOR_MINT },
                 },
                 vertexShader: `
                     attribute float aT;
