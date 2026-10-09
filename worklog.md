@@ -12643,3 +12643,22 @@ Work Log:
 Stage Summary:
 - W16 IS LIVE on production (Vercel+Convex ✓, quality gate ✓) at cbaf1196 — live version.json sha cbaf1196 healthy (stable since 16:53 UTC), live <title> = "PracticePro Systems — Build Systems That Help Scale Your Business". Cloudflare mirror ✗ standing expired token (fail-fast step, report-only — needs a new CLOUDFLARE_API_TOKEN from the owner). Rollback ladder: …9d6f11e7 → ddb4919d → cbaf1196 (or run the promote with any older SHA). The hero now keeps a fixed two-line (three on mobile) shape while only the noun cycles — the exact behaviour the owner asked for.
 - Standing: rotate chat-shared GitHub PAT at window close; Woosh clone + plan (needs access); Kozy stamp (awaits R2deetwo); A2 later.
+
+---
+
+## 2026-10-09 — W17: gliding scaling-noun slot + all-green page decoration (owner feedback on W16)
+
+**Owner feedback:** the W16 reserve box left "too much of a gap with all of them except organizations"; the full stop is redundant; the swap should look smoother, not jarring; the clouds and the oranges in the writing are "quite a cry from my colors" — decoration must go brand-green.
+
+**Hero (ScalingNoun, `src/components/LandingPage.tsx`):**
+- Killed `SCALE_NOUN_RESERVE`. New: a hidden measuring twin (absolute, `visibility:hidden`) renders all 8 nouns in the h1's live font; `ResizeObserver` + `document.fonts.ready` remeasure on breakpoint/web-font changes; the live slot's width **eases to exactly the active noun** (520ms) while the word exchanges itself (380ms blur/slide). The sentence always ends precisely at the noun — no dead gap, no reflow of preceding words.
+- Full stop retired. Below sm the noun owns its own line (`<br className="sm:hidden">`); from sm up the final line is sized for the widest noun — line count locked at every breakpoint (verified: h1 164px constant at 1440; 116.6px = 3 lines "Build systems that / help scale your / <noun>" at 390).
+
+**Green sweep (page decoration only; Vega keeps its amber PRODUCT identity):**
+- Gradient type: `#6EE7B7 → #34D399 (→ #4ADE80)` in hero, "Sound familiar?", closing CTA — no amber lead.
+- Amber glow clouds → emerald (Sound familiar, OurWork, aurora-b); pain dots + eyebrow → emerald; How-we-work spine bar + step numbers → emerald; `.w9-step-node.is-active` → `#34D399→#16A34A`; hero CSS fallback amber radial → mint.
+- `MorphScene` + `SystemCoreScene`: `COLOR_AMBER #D97706` → `COLOR_MINT #6EE7B7` (crest kiss, fresnel rim, node ignition, energy rings).
+
+**Verification:** 1236/1236 tests (W17 pins: no reserve, no period, glide markers, green gradients, zero `#F59E0B`/`#D97706` in decoration, Vega amber var kept); tsc 129 baseline; build clean; agent-browser full-cycle geometry sampling at 1440/390 (line count constant, slot settles at each noun's exact width — "firm" 144.5px vs W16's 485.7px box); VLM: green gradient, no gap, no period, no orange in hero/CTA/steps; /vega regression clean; console clean.
+
+**Live:** `165ef6a7` — promote run 37872002286: quality gate ✓, Vercel+Convex ✓; version.json healthy at `165ef6a7`; live bundle 3× `#6EE7B7` / 0× `#F59E0B`; live VLM check passed. Cloudflare mirror still ✗ (standing expired `CLOUDFLARE_API_TOKEN` — owner action needed). Rollback: promote any older full SHA (cbaf1196 = W16).
