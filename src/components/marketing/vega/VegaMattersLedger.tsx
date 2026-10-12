@@ -9,7 +9,7 @@ import { Button } from '../../ui';
  * INDEX — the table of contents of a law report, not a card grid.
  * Numbered mono category entries divided by hairlines; a category expands
  * INLINE (one open at a time) to reveal its matters as ruled sub-rows
- * (serif titles, square mono plan badges, justified descriptions).
+ * (serif titles, justified descriptions).
  * Square corners only — no cards, no shadows, no hover-expand grid.
  *
  * Copy is the shipped Vega feature copy, verbatim. Zero hardcoded hexes;
@@ -19,7 +19,6 @@ import { Button } from '../../ui';
 type MatterItem = {
     title: string;
     desc: string;
-    badge?: string;
 };
 
 type MatterCategory = {
@@ -32,9 +31,9 @@ const MATTERS_INDEX: MatterCategory[] = [
         category: 'Case Management',
         items: [
             { title: 'Matter Management', desc: 'Organize cases by court, jurisdiction, and matter type. Link documents, parties, and deadlines in a unified workspace with custom matter IDs and court rule templates.' },
-            { title: 'Court Date Reminders', desc: "Automated reminders 7, 3, and 1 day(s) before each hearing, delivered by email and in-app. Never miss a court date again — reminders fire automatically based on your matter's adjourned date, sent directly to the assigned lawyer(s).", badge: 'Growth+' },
+            { title: 'Court Date Reminders', desc: "Automated reminders 7, 3, and 1 day(s) before each hearing, delivered by email and in-app. Never miss a court date again — reminders fire automatically based on your matter's adjourned date, sent directly to the assigned lawyer(s)." },
             { title: 'Task Board', desc: 'Kanban-style task management with assignments, due dates, priority levels, and matter linking. Track every deliverable from intake to resolution.' },
-            { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, upload and access documents, and submit KYC uploads. Available on Growth and Pro plans.', badge: 'Growth+' },
+            { title: 'Client Portal', desc: 'Self-service portal for clients to view matter milestones, upload and access documents, and submit KYC uploads.' },
             { title: 'Contacts & Parties', desc: 'Structured contact management with party grouping, witness tracking, and counsel records. Link contacts to matters and documents automatically.' },
         ],
     },
@@ -42,16 +41,16 @@ const MATTERS_INDEX: MatterCategory[] = [
         category: 'Legal Drafting',
         items: [
             { title: 'DraftPro Editor', desc: 'Rich-text editor with A4 pagination and Nigerian legal fonts. Placeholder guardrails block printing until every blank is filled — so you never accidentally send incomplete work. Draft, tweak, then save to a matter, print, or copy to Word.' },
-            { title: 'ALOA AI Copilot', desc: "Your firm's always-on legal intelligence — ask questions about your matters, get instant case summaries, analyze opposing counsel patterns, research precedent across Nigerian courts, and surface insights from your document vault. Trained on Nigerian legal terminology and court rules.", badge: 'Growth+' },
+            { title: 'ALOA AI Copilot', desc: "Your firm's always-on legal intelligence — ask questions about your matters, get instant case summaries, analyze opposing counsel patterns, research precedent across Nigerian courts, and surface insights from your document vault. Trained on Nigerian legal terminology and court rules." },
             { title: 'Document Vault', desc: "Secure document storage linked to every matter. Version history, access controls, NDPA-compliant metadata, and full-text search across your firm's document library." },
-            { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis.', badge: 'Growth+' },
+            { title: 'Research Studio', desc: 'Legal research workspace with jurisdiction-specific modules, statute lookup, and AI-assisted case analysis.' },
         ],
     },
     {
         category: 'Billing & Finance',
         items: [
             { title: 'Legal Billing', desc: 'Generate professional invoices seamlessly. Track billable hours, apply court-aligned rates, and automate retainer billing cycles.' },
-            { title: 'Financial Dashboard', desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable and which clients are overdue.', badge: 'Pro' },
+            { title: 'Financial Dashboard', desc: 'Real-time revenue analytics, outstanding balances, and payment tracking. See which matters are profitable and which clients are overdue.' },
             { title: 'Bank Transfer Payments', desc: "Honest payment workflow with Nigerian bank account details displayed on invoices. No pretend card forms — clients transfer directly to your firm's account." },
         ],
     },
@@ -63,8 +62,8 @@ const LedgerToggle: React.FC<{ open: boolean }> = ({ open }) => (
         className="relative inline-block w-3 h-3 flex-shrink-0"
         aria-hidden="true"
     >
-        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-amber -translate-y-1/2" />
-        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-amber -translate-x-1/2" />}
+        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-claret -translate-y-1/2" />
+        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-claret -translate-x-1/2" />}
     </span>
 );
 
@@ -82,7 +81,7 @@ export const VegaMattersLedger: React.FC = () => {
         >
             <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
                 {/* Numbered hairline section head — "01 — Matters & Drafting" */}
-                <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
+                <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
                     01 — Matters &amp; Drafting
                 </p>
                 <h2
@@ -110,11 +109,11 @@ export const VegaMattersLedger: React.FC = () => {
                                     aria-expanded={open}
                                     aria-controls={`vg-matters-panel-${i}`}
                                     onClick={() => setOpenIndex(open ? null : i)}
-                                    className={`w-full flex items-baseline gap-4 sm:gap-6 py-6 px-2 sm:px-4 text-left transition-colors hover:bg-vega-amber/5 focus-visible:ring-vega-amber ${
-                                        open ? 'bg-vega-amber/5' : ''
+                                    className={`w-full flex items-baseline gap-4 sm:gap-6 py-6 px-2 sm:px-4 text-left transition-colors hover:bg-vega-claret/5 focus-visible:ring-vega-claret ${
+                                        open ? 'bg-vega-claret/5' : ''
                                     }`}
                                 >
-                                    <span className="font-mono text-xs tracking-widest text-vega-amber-deep flex-shrink-0">
+                                    <span className="font-mono text-xs tracking-widest text-vega-claret-deep flex-shrink-0">
                                         {String(i + 1).padStart(2, '0')}
                                     </span>
                                     <span className="font-vega text-xl sm:text-2xl font-semibold text-slate-900 flex-1">
@@ -144,11 +143,6 @@ export const VegaMattersLedger: React.FC = () => {
                                                     </span>
                                                     <h3 className="font-vega text-lg font-semibold text-slate-900 leading-snug">
                                                         {item.title}
-                                                        {item.badge && (
-                                                            <span className="ml-2.5 font-mono text-3xs tracking-widest text-vega-amber-deep border border-vega-amber/40 bg-vega-amber/5 px-1.5 py-0.5 align-middle whitespace-nowrap">
-                                                                {item.badge}
-                                                            </span>
-                                                        )}
                                                     </h3>
                                                 </div>
                                                 <p className="sm:col-span-8 text-sm leading-[1.7] text-slate-600 text-left sm:text-justify">

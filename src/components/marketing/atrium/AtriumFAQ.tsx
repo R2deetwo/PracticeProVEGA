@@ -22,15 +22,15 @@ const SHARED_FAQS = [
     },
     {
         q: "Is there a free trial?",
-        a: "Yes. All paid tiers include a 30-day free trial. No credit card required to start. Sentry Pass also includes a 30-day free trial as an add-on.",
+        a: "Yes. Every Atrium subscription starts with a 30-day free trial — no credit card required to start. Sentry Pass also includes a 30-day free trial as an add-on.",
     },
     {
         q: "Do you offer support?",
-        a: "Yes. Email support for all tiers. Priority support for Growth and above. Dedicated account manager for Enterprise and Komplete.",
+        a: "Yes. Every portfolio gets email support. Priority support and a dedicated account manager are available on request — talk to us.",
     },
     {
-        q: "Can I switch between plans?",
-        a: "Yes. Upgrade or downgrade anytime. Prorated billing applies. Annual plans include a 30-day money-back guarantee.",
+        q: "How much does Atrium cost?",
+        a: "Atrium is priced per portfolio, based on the number of units you manage. Start with the 30-day free trial, or talk to sales for a quote that fits your portfolio. Annual plans include a 30-day money-back guarantee.",
     },
 ];
 

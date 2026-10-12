@@ -31,7 +31,7 @@ const CHRONOLOGY: ChronoEntry[] = [
     {
         date: '02 NOV 2026',
         title: 'Writ of Summons filed',
-        detail: 'REGISTRY · E-FILING CONFIRMED · SUIT NO. LD/ADR/2026/0847',
+        detail: 'REGISTRY · E-FILING CONFIRMED · SUIT NO. IKD/1287/2026',
         computed: false,
     },
     {
@@ -70,7 +70,7 @@ export const VegaCourtRules: React.FC = () => (
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
                 {/* Left — framing copy */}
                 <div className="lg:col-span-5 lg:sticky lg:top-24">
-                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
+                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
                         03 — Court-Rule Calendaring
                     </p>
                     <h2
@@ -93,7 +93,7 @@ export const VegaCourtRules: React.FC = () => (
                     {/* Legend — the chronology's key, in the ledger's voice */}
                     <div className="border-t border-slate-200 pt-5 space-y-2">
                         <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
-                            <span className="inline-block w-2 h-2 rounded-full bg-vega-amber" aria-hidden="true" />
+                            <span className="inline-block w-2 h-2 rounded-full bg-vega-claret" aria-hidden="true" />
                             DEADLINE COMPUTED BY THE COURT RULES AGENT
                         </p>
                         <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
@@ -111,7 +111,7 @@ export const VegaCourtRules: React.FC = () => (
                                 PROVISIONAL TIMELINE
                             </p>
                             <p className="font-mono text-2xs tracking-widest text-slate-400">
-                                MATTER LD/ADR/2026/0847 · COMPUTED 12 OCT 2026
+                                MATTER IKD/1287/2026 · COMPUTED 12 OCT 2026
                             </p>
                         </div>
 
@@ -124,7 +124,7 @@ export const VegaCourtRules: React.FC = () => (
                                 >
                                     <p
                                         className={`font-mono text-xs tracking-widest mb-1.5 ${
-                                            entry.computed ? 'text-vega-amber-deep' : 'text-slate-500'
+                                            entry.computed ? 'text-vega-claret-deep' : 'text-slate-500'
                                         }`}
                                     >
                                         {entry.date}

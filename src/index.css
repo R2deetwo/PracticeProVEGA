@@ -102,7 +102,8 @@
   --color-sage: #EEF2EB;
   /* Moss — brand primary, favicon match. */
   --color-moss: #16A34A;
-  /* Amber — Vega accent (amber-600, deeper than 500). */
+  /* Amber — legacy global accent (amber-600). Pinned by
+     tests/unit/websiteRepositioning.test.ts; Vega now uses claret/gilt. */
   --color-amber: #D97706;
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
@@ -112,11 +113,15 @@
      via the same rgb(var(--x) / <alpha-value>) mapping as the scales.
      --color-amber (hex, above) stays untouched — it is pinned by
      tests/unit/websiteRepositioning.test.ts. */
-  --color-vega-amber: 217 119 6;        /* #D97706 — rules, numerals, marks */
-  --color-vega-amber-deep: 180 83 9;    /* #B45309 — amber text on light   */
+  --color-vega-claret: 123 30 30;       /* #7B1E1E — rules, numerals, marks */
+  --color-vega-claret-deep: 92 20 20;   /* #5C1414 — claret text on light   */
+  --color-vega-gilt: 216 178 108;       /* #D8B26C — numerals + rules on ink */
   --color-vega-ink: 11 18 32;           /* #0B1220 — mirrors --color-ink   */
   --color-vega-ink-soft: 21 31 51;      /* card surfaces on ink sections   */
   --font-vega-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* Real Nigerian court documents are set in Times New Roman — the drafting
+     exhibits use it verbatim so the demo drafts are super accurate. */
+  --font-vega-document: 'Times New Roman', Times, Georgia, serif;
 
   /* ===== Atrium product-page tokens ("The Well-Kept Estate") ========== */
   --color-atrium-emerald: 5 150 105;    /* #059669 — Atrium's accent       */
@@ -2017,11 +2022,11 @@ span[data-type="legal-placeholder"] {
 .theme-vega .landing-card:hover {
   transform: none;
   box-shadow: none;
-  border-color: rgb(var(--color-vega-amber) / 0.45);
+  border-color: rgb(var(--color-vega-claret) / 0.45);
 }
 .theme-vega .feature-card.is-expanded {
   box-shadow: none;
-  border-color: rgb(var(--color-vega-amber));
+  border-color: rgb(var(--color-vega-claret));
 }
 .theme-vega .feature-card.is-expanded .feature-card__desc {
   max-height: 320px; /* legal copy runs longer than the 240px default */
@@ -2078,9 +2083,13 @@ span[data-type="legal-placeholder"] {
   transform: translateY(-1px);
 }
 .vg-doc__body {
-  font-family: var(--font-vega-display);
+  font-family: var(--font-vega-document);
   text-align: justify;
   hyphens: auto;
+}
+/* The pleading face — court documents are set in Times New Roman. */
+.vg-pleading {
+  font-family: var(--font-vega-document);
 }
 .vg-margin-note {
   font-family: var(--font-mono);
@@ -2092,11 +2101,11 @@ span[data-type="legal-placeholder"] {
 /* ── Vega tracked-changes marks (DraftPro exhibit) ──────────────────────── */
 .vg-ins {
   text-decoration: underline;
-  text-decoration-color: rgb(var(--color-vega-amber));
+  text-decoration-color: rgb(var(--color-vega-claret));
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
-  color: rgb(var(--color-vega-amber-deep));
-  background: rgb(var(--color-vega-amber) / 0.08);
+  color: rgb(var(--color-vega-claret-deep));
+  background: rgb(var(--color-vega-claret) / 0.08);
 }
 .vg-del {
   text-decoration: line-through;
@@ -2140,8 +2149,8 @@ span[data-type="legal-placeholder"] {
   border: 2px solid rgb(var(--color-slate-400));
 }
 .vg-chrono-node[data-computed='true']::before {
-  border-color: rgb(var(--color-vega-amber));
-  background: rgb(var(--color-vega-amber));
+  border-color: rgb(var(--color-vega-claret));
+  background: rgb(var(--color-vega-claret));
 }
 
 /* ── Vega ledger (Scale of Charges) ─────────────────────────────────────── */
@@ -2196,11 +2205,11 @@ span[data-type="legal-placeholder"] {
 }
 .on-vega-page .cookie-link,
 .on-vega-page .terms-link {
-  color: rgb(var(--color-vega-amber));
+  color: rgb(var(--color-vega-claret));
 }
 .on-vega-page .cookie-link:hover,
 .on-vega-page .terms-link:hover {
-  color: rgb(var(--color-vega-amber-deep));
+  color: rgb(var(--color-vega-claret-deep));
 }
 
 @media (prefers-reduced-motion: reduce) {

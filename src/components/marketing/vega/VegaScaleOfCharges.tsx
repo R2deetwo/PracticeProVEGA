@@ -38,7 +38,7 @@ export const VegaScaleOfCharges: React.FC = () => (
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
                 {/* Left — framing copy */}
                 <div className="lg:col-span-4">
-                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
+                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
                         04 — Scale of Charges
                     </p>
                     <h2
@@ -67,7 +67,7 @@ export const VegaScaleOfCharges: React.FC = () => (
                                 FEE NOTE — OKAFOR v. MERIDIAN LOGISTICS LTD
                             </p>
                             <p className="font-mono text-2xs tracking-widest text-slate-400">
-                                SUIT NO. LD/ADR/2026/0847
+                                SUIT NO. IKD/1287/2026
                             </p>
                         </div>
 
@@ -94,7 +94,7 @@ export const VegaScaleOfCharges: React.FC = () => (
                                         TOTAL FEES
                                     </td>
                                     <td className="py-4 pr-2 hidden sm:table-cell" />
-                                    <td className="py-4 text-right text-vega-amber-deep font-medium">
+                                    <td className="py-4 text-right text-vega-claret-deep font-medium">
                                         {LEDGER_TOTAL}
                                     </td>
                                 </tr>

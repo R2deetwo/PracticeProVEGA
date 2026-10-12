@@ -16,7 +16,6 @@ import { DocumentIcon, OfficeBuildingIcon, ShieldCheckIcon, SparklesIcon } from 
 type FeatureItem = {
     title: string;
     desc: string;
-    badge?: string;
 };
 
 type FeatureCategory = {
@@ -32,7 +31,7 @@ const ATRIUM_FEATURE_CATEGORIES: FeatureCategory[] = [
         items: [
             { title: 'Property Portfolio', desc: 'Manage residential, commercial, and mixed-use properties from a single dashboard. Track occupancy, upload photos, organize by location, and link to tenancy records.' },
             { title: 'Resident Management', desc: 'Complete resident profiles with KYC fields, lease agreements, and communication history. Manage resident lifecycles from application through to departure.' },
-            { title: "Residents' Portal", desc: "Self-service portal where residents view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow. Available on Growth and Pro plans.", badge: 'Growth+' },
+            { title: "Residents' Portal", desc: "Self-service portal where residents view SC/MV payment status, download rent receipts, and log maintenance tickets directly into your workflow." },
             { title: 'Revenue Monitor', desc: 'Real-time defaulter dashboard, rent collection tracking, and portfolio-level financial analytics. Know which residents are overdue and which properties are underperforming.' },
         ],
     },
@@ -42,7 +41,7 @@ const ATRIUM_FEATURE_CATEGORIES: FeatureCategory[] = [
         items: [
             { title: 'Rent Collection', desc: 'Collect rent in Naira with payment reminders, receipt generation, and payment tracking. Generate invoices and track status at a glance.' },
             { title: 'Service Charge Tracking', desc: 'Itemized SC (Service Charge) and MV (Minimum Vend) tracking per unit. Monitor payment status, flag defaulters, and generate compliance-ready financial reports.' },
-            { title: 'WhatsApp Share', desc: 'Compose rent reminders and demand notices in Atrium, then share them to WhatsApp with one tap — the message opens pre-written to the right number; you review and send. Automated notices also go out by email and to the residents\' portal.', badge: 'Pro' },
+            { title: 'WhatsApp Share', desc: 'Compose rent reminders and demand notices in Atrium, then share them to WhatsApp with one tap — the message opens pre-written to the right number; you review and send. Automated notices also go out by email and to the residents\' portal.' },
             { title: 'Lease Management', desc: 'Lease expiry alerts and calendar integration. Send renewal notices and rent review communications. Never miss a critical date again.' },
         ],
     },
@@ -50,17 +49,17 @@ const ATRIUM_FEATURE_CATEGORIES: FeatureCategory[] = [
         category: 'Maintenance & Operations',
         Icon: ShieldCheckIcon,
         items: [
-            { title: 'Sentry Pass', desc: 'Generate 6-digit visitor access codes for guests, contractors, and delivery personnel. Gatekeepers verify codes at the security terminal via PIN or QR code scan. Full audit trail with check-in/check-out timestamps. Includes offline fallback for unreliable gatehouse connectivity.', badge: 'Add-on ₦7.5K/mo' },
+            { title: 'Sentry Pass', desc: 'Generate 6-digit visitor access codes for guests, contractors, and delivery personnel. Gatekeepers verify codes at the security terminal via PIN or QR code scan. Full audit trail with check-in/check-out timestamps. Includes offline fallback for unreliable gatehouse connectivity.' },
             { title: 'Maintenance Tickets', desc: 'Residents log issues directly into your workflow via the portal. Categorize by plumbing, electrical, structural, or other. Track status from open to resolved.' },
             { title: 'Expense Tracking', desc: 'Log maintenance costs, service charges, and utility bills per property. Track income vs. expenses with cash flow visualizations.' },
-            { title: 'Estate Administration Documents', desc: 'Streamline property administration, manage tenancy records, and generate standard estate management administrative documents with precision.', badge: 'Pro' },
+            { title: 'Estate Administration Documents', desc: 'Streamline property administration, manage tenancy records, and generate standard estate management administrative documents with precision.' },
         ],
     },
     {
         category: 'Estate Community',
         Icon: SparklesIcon,
         items: [
-            { title: 'Amenity Booking', desc: 'Let residents book shared amenities — gym, pool, clubhouse, meeting rooms — directly from their portal. Admin defines slot duration, operating hours, and approval rules. Conflict detection prevents double-bookings. Perfect for estates where amenity scheduling is currently a phone-call bottleneck.', badge: 'Pro+ / Add-on ₦5K/mo' },
+            { title: 'Amenity Booking', desc: 'Let residents book shared amenities — gym, pool, clubhouse, meeting rooms — directly from their portal. Admin defines slot duration, operating hours, and approval rules. Conflict detection prevents double-bookings. Perfect for estates where amenity scheduling is currently a phone-call bottleneck.' },
             { title: 'Estate Bulletin', desc: 'Post community announcements — estate meetings, holiday hours, social events, security alerts. Distinct from operational notices (rent reminders, SC updates). Pinned posts surface to the top. Optional event metadata (date, time, location). Scope visibility to specific properties or estate-wide.' },
             { title: 'Service Provider Directory', desc: 'Curate a list of vetted plumbers, electricians, cleaners, gardeners, and security vendors. Residents browse and contact directly — you stay out of the middle. Admin marks providers as "Verified" based on track record. Internal admin notes (not shown to residents) help you track why a provider was added.' },
         ],
@@ -69,8 +68,8 @@ const ATRIUM_FEATURE_CATEGORIES: FeatureCategory[] = [
         category: 'AI & Research',
         Icon: SparklesIcon,
         items: [
-            { title: 'ARIA AI Copilot', desc: 'Your portfolio\'s always-on property intelligence — ask questions about your properties, get instant revenue insights, analyze defaulter patterns, research Nigerian property law, and surface insights from your portfolio data. Built for Nigerian property management.', badge: 'Growth+' },
-            { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations for property law and compliance matters.', badge: 'Growth+' },
+            { title: 'ARIA AI Copilot', desc: 'Your portfolio\'s always-on property intelligence — ask questions about your properties, get instant revenue insights, analyze defaulter patterns, research Nigerian property law, and surface insights from your portfolio data. Built for Nigerian property management.' },
+            { title: 'Research Studio', desc: 'Research workspace with document analysis, intelligent search, and AI-assisted document review. Build research notebooks with source citations for property law and compliance matters.' },
         ],
     },
 ];
@@ -190,18 +189,6 @@ export const AtriumFeatures: React.FC = () => {
                                                 <div className="feature-card__accent" aria-hidden="true" />
                                                 <h4 className="font-display text-base font-bold text-slate-900 pr-4">
                                                     {item.title}
-                                                    {item.badge && (
-                                                        <span
-                                                            className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border"
-                                                            style={{
-                                                                backgroundColor: `${accentColorValue}15`,
-                                                                color: accentColorValue,
-                                                                borderColor: `${accentColorValue}30`,
-                                                            }}
-                                                        >
-                                                            {item.badge}
-                                                        </span>
-                                                    )}
                                                 </h4>
                                                 {/* Description — hidden by default, expands on row hover/tap */}
                                                 <div className="feature-card__desc">

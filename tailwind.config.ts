@@ -169,12 +169,15 @@ const config: Config = {
                                 2: 'rgb(var(--bg-surface-2) / <alpha-value>)',       // = slate-100
                         },
                         // ─── PRODUCT PAGE ACCENTS (product-page rebrand) ─────
-                        // Vega ("The Chambers Standard"): amber as rules/numerals/
-                        // small marks — the deep variant is the text-on-light
-                        // amber; NEVER a bright decorative fill.
+                        // Vega ("The Chambers Standard"): claret as rules/
+                        // numerals/small marks on paper (the deep variant is
+                        // text-on-light), gilt for the same on ink bands —
+                        // the register of a law-report cover. NEVER a bright
+                        // decorative fill.
                         vega: {
-                                amber: 'rgb(var(--color-vega-amber) / <alpha-value>)',
-                                'amber-deep': 'rgb(var(--color-vega-amber-deep) / <alpha-value>)',
+                                claret: 'rgb(var(--color-vega-claret) / <alpha-value>)',
+                                'claret-deep': 'rgb(var(--color-vega-claret-deep) / <alpha-value>)',
+                                gilt: 'rgb(var(--color-vega-gilt) / <alpha-value>)',
                                 ink: 'rgb(var(--color-vega-ink) / <alpha-value>)',
                                 'ink-soft': 'rgb(var(--color-vega-ink-soft) / <alpha-value>)',
                         },

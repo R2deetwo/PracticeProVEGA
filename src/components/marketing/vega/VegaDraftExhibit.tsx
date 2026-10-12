@@ -19,10 +19,10 @@ export const VegaDraftExhibit: React.FC = () => (
     >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4 mb-5">
             <p className="font-mono text-2xs tracking-widest text-slate-800">
-                SETTLEMENT CLAUSE — TRACKED CHANGES
+                TERMS OF SETTLEMENT — TRACKED CHANGES
             </p>
             <div className="flex items-center gap-2">
-                <span className="font-mono text-2xs tracking-widest text-vega-amber-deep border border-vega-amber/40 bg-vega-amber/5 px-2 py-0.5">
+                <span className="font-mono text-2xs tracking-widest text-vega-claret-deep border border-vega-claret/40 bg-vega-claret/5 px-2 py-0.5">
                     2 INSERTIONS
                 </span>
                 <span className="font-mono text-2xs tracking-widest text-slate-500 border border-slate-300 px-2 py-0.5">
@@ -31,8 +31,9 @@ export const VegaDraftExhibit: React.FC = () => (
             </div>
         </div>
 
-        {/* The clause — serif body, the register of the instrument itself */}
-        <div className="font-vega text-sm sm:text-base leading-[1.7] text-slate-800">
+        {/* The clause — set in Times New Roman, the register of the
+            instrument itself */}
+        <div className="vg-pleading text-sm sm:text-base leading-[1.7] text-slate-800">
             <p className="vg-doc__line vg-doc__body">
                 3. The Defendant shall pay the Claimant the sum of &#8358;2,450,000.00 (Two
                 Million, Four Hundred and Fifty Thousand Naira only){' '}
@@ -46,8 +47,8 @@ export const VegaDraftExhibit: React.FC = () => (
         {/* Margin notes — joined to the clause by a hairline */}
         <div className="border-t border-slate-200 mt-6 pt-4 space-y-3">
             <div className="flex items-start gap-3">
-                <span className="inline-block w-4 h-px bg-vega-amber mt-2.5 flex-shrink-0" aria-hidden="true" />
-                <p className="vg-note text-vega-amber-deep">
+                <span className="inline-block w-4 h-px bg-vega-claret mt-2.5 flex-shrink-0" aria-hidden="true" />
+                <p className="vg-note text-vega-claret-deep">
                     ALOA — DEFINE &ldquo;FINAL PAYMENT&rdquo;, OR SUBSTITUTE &ldquo;FULL LIQUIDATION OF THE
                     JUDGMENT SUM&rdquo;.
                 </p>
@@ -62,7 +63,7 @@ export const VegaDraftExhibit: React.FC = () => (
 
         <figcaption className="flex items-center justify-between border-t border-slate-200 mt-5 pt-3">
             <span className="font-mono text-2xs tracking-widest text-slate-400">
-                DRAFTPRO · CLAUSE 3 OF 11
+                DRAFTPRO · TERMS OF SETTLEMENT, CLAUSE 3 OF 11
             </span>
             <span className="font-mono text-2xs tracking-widest text-slate-400">REV 4</span>
         </figcaption>

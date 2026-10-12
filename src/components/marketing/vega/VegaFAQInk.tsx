@@ -25,11 +25,11 @@ const FAQ_ITEMS = [
     },
     {
         q: 'How do court date reminders reach me?',
-        a: 'Automated reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers by email and in-app notification. Client-facing reminders are opt-in per matter. Available on the Growth plan and above.',
+        a: 'Automated reminders are sent 7, 3, and 1 day before each hearing to assigned lawyers by email and in-app notification. Client-facing reminders are opt-in per matter.',
     },
     {
         q: 'Can my clients access their case information?',
-        a: 'Yes. The Client Portal lets clients view milestones, upload documents, submit KYC, and track case progress — without calling your office. Available on Growth and above (up to 20 clients), uncapped on Pro.',
+        a: 'Yes. The Client Portal lets clients view milestones, upload documents, submit KYC, and track case progress — without calling your office.',
     },
     {
         q: 'Is my data secure?',
@@ -41,15 +41,15 @@ const FAQ_ITEMS = [
     },
     {
         q: 'Is there a free trial?',
-        a: 'Yes. All paid tiers include a 30-day free trial. No credit card required to start. Sentry Pass also includes a 30-day free trial as an add-on.',
+        a: 'Yes. Every Vega subscription starts with a 30-day free trial — no credit card required to start.',
     },
     {
         q: 'Do you offer support?',
-        a: 'Yes. Email support for all tiers. Priority support for Growth and above. Dedicated account manager for Enterprise and Komplete.',
+        a: 'Yes. Every firm gets email support. Priority support and a dedicated account manager are available on request — talk to us.',
     },
     {
-        q: 'Can I switch between plans?',
-        a: 'Yes. Upgrade or downgrade anytime. Prorated billing applies. Annual plans include a 30-day money-back guarantee.',
+        q: 'How much does Vega cost?',
+        a: 'Vega is priced per firm, not per user, and depends on how your practice works. Start with the 30-day free trial, or talk to sales for a quote that fits your firm. Annual plans include a 30-day money-back guarantee.',
     },
 ];
 
@@ -64,10 +64,10 @@ export const VegaFAQInk: React.FC = () => {
             <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
                 {/* Numbered hairline section head — ink variant */}
                 <p
-                    className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber mb-7"
+                    className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt mb-7"
                     data-ink="true"
                 >
-                    08 — Questions
+                    07 — Questions
                 </p>
                 <h2
                     id="vega-faq-heading"
@@ -91,17 +91,17 @@ export const VegaFAQInk: React.FC = () => {
                                     aria-expanded={open}
                                     aria-controls={`vg-faq-panel-${i}`}
                                     onClick={() => setOpenIndex(open ? null : i)}
-                                    className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors hover:bg-white/5 focus-visible:ring-vega-amber"
+                                    className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors hover:bg-white/5 focus-visible:ring-vega-gilt"
                                 >
-                                    <span className="font-mono text-2xs tracking-widest text-vega-amber flex-shrink-0">
+                                    <span className="font-mono text-2xs tracking-widest text-vega-gilt flex-shrink-0">
                                         Q.{i + 1}
                                     </span>
                                     <span className="font-vega text-base sm:text-lg font-semibold text-white flex-1 leading-snug">
                                         {item.q}
                                     </span>
                                     <span className="relative inline-block w-3 h-3 flex-shrink-0 translate-y-[-2px]" aria-hidden="true">
-                                        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-amber -translate-y-1/2" />
-                                        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-amber -translate-x-1/2" />}
+                                        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-gilt -translate-y-1/2" />
+                                        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-gilt -translate-x-1/2" />}
                                     </span>
                                 </Button>
                                 {open && (

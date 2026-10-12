@@ -255,11 +255,13 @@ describe("wording consistency (the four promise surfaces)", () => {
   it("LandingPage guarantee badge unchanged (the promise surface this round protects)", () => {
     // Pass B: the badge lives in the product-owned pricing sections —
     // both pages must keep carrying the refund promise verbatim.
-    expect(read("src/components/marketing/vega/VegaPricingLedger.tsx")).toContain(
-      "30-day money-back guarantee on annual plans"
+    // R21: the pricing tier sections are retired (owner direction) — the
+    // guarantee promise now lives in each product page's FAQ cost answer.
+    expect(read("src/components/marketing/vega/VegaFAQInk.tsx")).toContain(
+      "30-day money-back guarantee"
     );
-    expect(read("src/components/marketing/atrium/AtriumPricing.tsx")).toContain(
-      "30-day money-back guarantee on annual plans"
+    expect(read("src/components/marketing/atrium/AtriumFAQ.tsx")).toContain(
+      "30-day money-back guarantee"
     );
   });
 

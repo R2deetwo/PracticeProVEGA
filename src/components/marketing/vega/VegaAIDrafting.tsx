@@ -42,7 +42,7 @@ export const VegaAIDrafting: React.FC = () => (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             {/* Numbered hairline section head — ink variant */}
             <p
-                className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber mb-7"
+                className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt mb-7"
                 data-ink="true"
             >
                 02 — Drafting Intelligence
@@ -72,7 +72,7 @@ export const VegaAIDrafting: React.FC = () => (
                         {ALOA_CAPABILITIES.map((cap, i) => (
                             <li key={cap.title} className="py-7 first:pt-6 last:pb-0">
                                 <div className="flex items-baseline gap-4 mb-3">
-                                    <span className="font-mono text-xs tracking-widest text-vega-amber">
+                                    <span className="font-mono text-xs tracking-widest text-vega-gilt">
                                         {String(i + 1).padStart(2, '0')}
                                     </span>
                                     <h3 className="font-vega text-xl font-semibold">
@@ -85,7 +85,7 @@ export const VegaAIDrafting: React.FC = () => (
                                 <ul className="space-y-2 pl-8">
                                     {cap.features.map((f) => (
                                         <li key={f} className="flex items-start gap-2.5 text-sm text-slate-400">
-                                            <span className="inline-block w-1.5 h-1.5 bg-vega-amber mt-[7px] flex-shrink-0" aria-hidden="true" />
+                                            <span className="inline-block w-1.5 h-1.5 bg-vega-gilt mt-[7px] flex-shrink-0" aria-hidden="true" />
                                             <span>{f}</span>
                                         </li>
                                     ))}

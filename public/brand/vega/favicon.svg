@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- PracticePro Vega — serif V + the star (Vega, brightest in Lyra) on a claret seal. -->
+  <rect x="2" y="2" width="44" height="44" rx="10" fill="#7B1E1E"/>
+  <path d="M14.5 17 L24 35.5" fill="none" stroke="#FBFBF9" stroke-width="4"/>
+  <path d="M33.5 17 L24 35.5" fill="none" stroke="#FBFBF9" stroke-width="4"/>
+  <path d="M11.5 16.8 H17" stroke="#FBFBF9" stroke-width="3"/>
+  <path d="M31 16.8 H36.5" stroke="#FBFBF9" stroke-width="3"/>
+  <path d="M24 5.5 C24.85 8.1 25.4 8.65 28 9.5 C25.4 10.35 24.85 10.9 24 13.5 C23.15 10.9 22.6 10.35 20 9.5 C22.6 8.65 23.15 8.1 24 5.5 Z" fill="#D8B26C"/>
+</svg>

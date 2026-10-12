@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- PracticePro Atrium — doorway arch + floor + keystone on an emerald tile. -->
+  <rect x="2" y="2" width="44" height="44" rx="10" fill="#059669"/>
+  <path d="M16 36.5 V22 C16 14 32 14 32 22 V36.5" fill="none" stroke="#FAF7F2" stroke-width="4"/>
+  <path d="M11.5 36.5 H36.5" stroke="#FAF7F2" stroke-width="3.5"/>
+  <path d="M24 8 L27.2 11.7 L24 15.4 L20.8 11.7 Z" fill="#FAF7F2"/>
+</svg>

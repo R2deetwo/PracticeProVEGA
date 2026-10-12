@@ -36,8 +36,8 @@ export const VegaCredentials: React.FC = () => (
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             {/* Numbered hairline section head */}
-            <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
-                07 — Credentials
+            <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
+                06 — Credentials
             </p>
             <h2
                 id="vega-credentials-heading"
@@ -58,7 +58,7 @@ export const VegaCredentials: React.FC = () => (
                         key={a.title}
                         className="grid sm:grid-cols-12 gap-2 sm:gap-6 py-8 border-b border-slate-200"
                     >
-                        <p className="sm:col-span-1 font-mono text-xs tracking-widest text-vega-amber-deep">
+                        <p className="sm:col-span-1 font-mono text-xs tracking-widest text-vega-claret-deep">
                             {String(i + 1).padStart(2, '0')}
                         </p>
                         <h3 className="sm:col-span-4 font-vega text-xl font-semibold text-slate-900 leading-snug">
@@ -73,9 +73,9 @@ export const VegaCredentials: React.FC = () => (
 
             {/* The colophon — the trust strip, folded into the record */}
             <p className="font-mono text-2xs tracking-[0.22em] text-slate-400 mt-8 uppercase">
-                NDPA 2023 Compliant <span className="text-vega-amber mx-1">·</span> TLS 1.3
-                Encrypted <span className="text-vega-amber mx-1">·</span> Data Encrypted at Rest{' '}
-                <span className="text-vega-amber mx-1">·</span> 2FA Available
+                NDPA 2023 Compliant <span className="text-vega-claret mx-1">·</span> TLS 1.3
+                Encrypted <span className="text-vega-claret mx-1">·</span> Data Encrypted at Rest{' '}
+                <span className="text-vega-claret mx-1">·</span> 2FA Available
             </p>
         </div>
     </section>

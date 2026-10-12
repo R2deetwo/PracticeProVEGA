@@ -40,8 +40,8 @@ export const VegaProcedure: React.FC = () => (
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             {/* Numbered hairline section head */}
-            <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
-                06 — Procedure
+            <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
+                05 — Procedure
             </p>
             <h2
                 id="vega-procedure-heading"
@@ -58,7 +58,7 @@ export const VegaProcedure: React.FC = () => (
             <div className="grid md:grid-cols-3 md:divide-x md:divide-slate-200 border-t border-slate-200 md:border-t-0">
                 {STEPS.map((step) => (
                     <div key={step.num} className="py-8 md:py-4 md:px-8 first:md:pl-0 last:md:pr-0 border-b md:border-b-0 border-slate-200 last:border-b-0">
-                        <p className="font-vega text-5xl font-semibold text-vega-amber-deep leading-none mb-5">
+                        <p className="font-vega text-5xl font-semibold text-vega-claret-deep leading-none mb-5">
                             {step.num}
                         </p>
                         <h3 className="font-vega text-xl font-semibold text-slate-900 mb-3">

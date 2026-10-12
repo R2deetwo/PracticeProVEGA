@@ -77,15 +77,14 @@ const css = read("src", "index.css");
 // Vega Pass A — the page-specific rebuild files under marketing/vega/.
 const vegaHero = read("src", "components", "marketing", "vega", "VegaHero.tsx");
 const vegaMatters = read("src", "components", "marketing", "vega", "VegaMattersLedger.tsx");
-const vegaPricing = read("src", "components", "marketing", "vega", "VegaPricingLedger.tsx");
 const vegaProcedure = read("src", "components", "marketing", "vega", "VegaProcedure.tsx");
 const vegaCredentials = read("src", "components", "marketing", "vega", "VegaCredentials.tsx");
 const vegaFAQ = read("src", "components", "marketing", "vega", "VegaFAQInk.tsx");
+const vegaFinalCTA = read("src", "components", "marketing", "vega", "VegaFinalCTA.tsx");
 const atriumStats = read("src", "components", "marketing", "atrium", "AtriumStats.tsx");
 const atriumFeatures = read("src", "components", "marketing", "atrium", "AtriumFeatures.tsx");
 const atriumTrust = read("src", "components", "marketing", "atrium", "AtriumTrust.tsx");
 const atriumAI = read("src", "components", "marketing", "atrium", "AtriumAI.tsx");
-const atriumPricing = read("src", "components", "marketing", "atrium", "AtriumPricing.tsx");
 const atriumHowItWorks = read("src", "components", "marketing", "atrium", "AtriumHowItWorks.tsx");
 const atriumWhyRunOn = read("src", "components", "marketing", "atrium", "AtriumWhyRunOn.tsx");
 const atriumFAQ = read("src", "components", "marketing", "atrium", "AtriumFAQ.tsx");
@@ -541,20 +540,32 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
 
 describe("W14 — navigation truth, the pulse, the descent and the pitch", () => {
   it("the logo and All Products carry you home from any product page", () => {
-    // The logo navigates back to the hub (the morphing-crystal company page)
-    // instead of scrolling the product page to its own top.
-    expect(landing).toContain("if (productChosen) onBackToHub(); else scrollTo('home')");
+    // R21: on a product page the brand is the PRODUCT lockup (mark +
+    // wordmark + BY PRACTICEPRO) and it navigates back to the hub; on the
+    // hub the PracticePro logo scrolls to the top. The two are separate
+    // buttons now — no conditional handler.
+    expect(landing).toContain("aria-label={activeProduct === 'vega' ? 'Vega — a PracticePro product, back to all products'");
+    expect(landing).toContain("onClick={onBackToHub}");
+    expect(landing).toContain("onClick={() => scrollTo('home')}");
     expect(landing).toContain("pathname !== '/'");
     expect(landing).toContain("navigate('/')");
+    expect(landing).toContain("BY PRACTICEPRO");
   });
 
-  it("the Products menu navigates to the real product pages", () => {
-    expect(landing).toContain("const target = p === 'vega' ? '/vega' : '/atrium';");
-    expect(landing).toContain("navigate(target)");
-    // The footer's product entries are real anchors now — right-click,
-    // open-in-new-tab and shared links all work.
-    expect(landing).toContain('href="/vega"');
-    expect(landing).toContain('href="/atrium"');
+  it("selecting a product opens its own page in a NEW TAB (owner direction, R21)", () => {
+    // The in-tab SPA product switch is retired: openProductPage opens
+    // /vega or /atrium in a new tab and leaves this tab where it is.
+    expect(landing).toContain("window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer')");
+    expect(landing).not.toContain("navigate(target)");
+    // Every product-selection surface opens the new tab.
+    expect(landing).toContain("onOpenProduct('vega')");
+    expect(landing).toContain("onOpenProduct('atrium')");
+    // The footer's product entries are real anchors that open in new tabs.
+    expect(landing).toContain('href="/vega" target="_blank" rel="noopener noreferrer"');
+    expect(landing).toContain('href="/atrium" target="_blank" rel="noopener noreferrer"');
+    // The work cards' Explore CTAs are external links now.
+    expect(landing).toContain("label: 'Explore Vega', href: '/vega', external: true");
+    expect(landing).toContain("label: 'Explore Atrium', href: '/atrium', external: true");
   });
 
   it("the hero sells the problem, not the product catalogue", () => {
@@ -658,7 +669,8 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     ]) {
       expect(body).not.toContain(`<${s}`);
     }
-    // The vega composition: 11 bands, this exact order.
+    // The vega composition: 10 bands, this exact order (R21: the rate-card
+    // band was removed by owner direction — pricing is sales-led now).
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
@@ -669,7 +681,6 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
       "VegaAIDrafting",
       "VegaCourtRules",
       "VegaScaleOfCharges",
-      "VegaPricingLedger",
       "VegaProcedure",
       "VegaCredentials",
       "VegaFAQInk",
@@ -679,7 +690,7 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
 
   it("the vega branch never imports an atrium component and vice versa", () => {
     // Cross-page isolation: vega files import no atrium components.
-    for (const src of [vegaHero, vegaMatters, vegaPricing, vegaProcedure, vegaCredentials, vegaFAQ]) {
+    for (const src of [vegaHero, vegaMatters, vegaProcedure, vegaCredentials, vegaFAQ, vegaFinalCTA]) {
       expect(src).not.toContain("marketing/atrium/");
       expect(src).not.toContain("AtriumHero");
       expect(src).not.toContain("AtriumReceipt");
@@ -694,13 +705,20 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).not.toContain("bg-clip-text");
     expect(vegaHero).not.toContain("text-transparent");
     expect(vegaHero).not.toContain("font-vega-italic font-medium text-vega-amber-deep");
-    // The signature object: a rendered motion on pleading paper.
-    expect(vegaHero).toContain("IN THE HIGH COURT OF LAGOS STATE");
-    expect(vegaHero).toContain("MOTION ON NOTICE");
+    // The signature object: a rendered motion on pleading paper — R21:
+    // the demo drafts are SUPER ACCURATE, set in Times New Roman
+    // (vg-pleading), with real prayers, grounds and execution block.
+    expect(vegaHero).toContain("In the High Court of Lagos State");
+    expect(vegaHero).toContain("In the Ikeja Judicial Division");
+    expect(vegaHero).toContain("IKD/1287/2026");
+    expect(vegaHero).toContain("Motion on Notice");
+    expect(vegaHero).toContain("prays this Honourable Court for");
+    expect(vegaHero).toContain("The grounds for this application are");
+    expect(vegaHero).toContain("vg-pleading");
     expect(vegaHero).toContain("vg-doc__line");
-    // The title-page devices: serif display + thin amber rule.
+    // The title-page devices: serif display + thin claret rule.
     expect(vegaHero).toContain("font-vega");
-    expect(vegaHero).toContain("h-px w-16 bg-vega-amber");
+    expect(vegaHero).toContain("h-px w-16 bg-vega-claret");
   });
 
   it("the stat-chip row is replaced by a mono index line", () => {
@@ -717,17 +735,24 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaMatters).toContain("border-b border-slate-200");
   });
 
-  it("pricing is the ledger rate card: same data, ruled rows, mono prices", () => {
-    expect(vegaPricing).toContain('id="pricing"');
-    expect(vegaPricing).toContain("getDisplayTiersForProduct('legal')");
-    expect(vegaPricing).toContain("formatTierPrice");
-    expect(vegaPricing).toContain("Monthly");
-    expect(vegaPricing).toContain("Annual");
-    expect(vegaPricing).toContain("Save 20%");
-    expect(vegaPricing).toContain("30-day money-back guarantee on annual plans");
-    expect(vegaPricing).toContain("Are you a Real Estate Lawyer?");
-    expect(vegaPricing).not.toContain("rounded-3xl");
-    expect(vegaPricing).not.toContain("rounded-full");
+  it("pricing tiers are retired from the product pages (owner direction, R21)", () => {
+    // The rate-card sections are deleted outright.
+    expect(landing).not.toContain("VegaPricingLedger");
+    expect(landing).not.toContain("AtriumPricing");
+    expect(landing).not.toContain("getDisplayTiersForProduct");
+    expect(landing).not.toContain('scrollTo(\'pricing\')');
+    expect(landing).not.toContain("id=\"pricing\"");
+    // No tier names leak anywhere on the marketing surface.
+    for (const tier of ["Most Popular", "Start Growth", "Start Pro Trial", "Save 20%"]) {
+      expect(landing).not.toContain(tier);
+    }
+    // The Komplete + bespoke cross-sells survive, relocated to the
+    // colophon CTA band with the same verbatim copy.
+    expect(vegaFinalCTA).toContain("Are you a Real Estate Lawyer?");
+    expect(vegaFinalCTA).toContain("Explore Komplete");
+    expect(vegaFinalCTA).toContain("Custom Automations");
+    expect(vegaFinalCTA).not.toContain("rounded-3xl");
+    expect(vegaFinalCTA).not.toContain("rounded-full");
   });
 
   it("how-it-works is a procedure schedule with plain numerals", () => {
@@ -739,10 +764,16 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaProcedure).not.toContain("'01'");
   });
 
-  it("the FAQ is the ink band and carries the audit anchor copy", () => {
+  it("the FAQ is the ink band, de-tiered, and carries the audit anchor copy", () => {
     expect(vegaFAQ).toContain("Questions? Answered.");
     expect(vegaFAQ).toContain("bg-vega-ink");
     expect(vegaFAQ).toContain("PracticePro Vega for law firms");
+    // R21: no tier names anywhere in the FAQ.
+    expect(vegaFAQ).not.toContain("Growth");
+    expect(vegaFAQ).not.toContain("all tiers");
+    // The money-back guarantee promise survives on the cost question.
+    expect(vegaFAQ).toContain("How much does Vega cost?");
+    expect(vegaFAQ).toContain("30-day money-back guarantee");
   });
 
   it("credentials fold the trust badges into a mono colophon (no chip strip)", () => {
@@ -812,8 +843,9 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
       expect(landing).not.toContain(`<${s}`);
       expect(landing).not.toContain(`const ${s}`);
     }
-    // The atrium composition: 13 bands, this exact order.
-    const marker = landing.indexOf("ATRIUM PASS B");
+    // The atrium composition: 12 bands, this exact order (R21: the SCE
+    // pricing band was removed by owner direction — pricing is sales-led).
+    const marker = landing.indexOf("<AtriumHero");
     expect(marker).toBeGreaterThan(-1);
     const tail = landing.slice(marker);
     const order = (tail.match(/<(Atrium[A-Za-z]+)/g) || []).map((t) =>
@@ -828,7 +860,6 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
       "AtriumEstate",
       "AtriumReceipt",
       "AtriumSentryPass",
-      "AtriumPricing",
       "AtriumHowItWorks",
       "AtriumWhyRunOn",
       "AtriumFAQ",
@@ -837,7 +868,7 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
   });
 
   it("the atrium files never import a vega component (cross-page isolation)", () => {
-    for (const src of [atriumStats, atriumFeatures, atriumTrust, atriumAI, atriumPricing, atriumHowItWorks, atriumWhyRunOn, atriumFAQ, atriumFinalCTA]) {
+    for (const src of [atriumStats, atriumFeatures, atriumTrust, atriumAI, atriumHowItWorks, atriumWhyRunOn, atriumFAQ, atriumFinalCTA]) {
       expect(src).not.toContain("marketing/vega/");
       expect(src).not.toContain("VegaHero");
       expect(src).not.toContain("font-vega");
@@ -852,16 +883,13 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
     expect(atriumFeatures).not.toContain("vg-rule-h");
   });
 
-  it("pricing is the warm rounded SCE register (same data, calculator kept)", () => {
-    expect(atriumPricing).toContain('id="pricing"');
-    expect(atriumPricing).toContain("getDisplayTiersForProduct('property')");
-    expect(atriumPricing).toContain("formatTierPrice");
-    expect(atriumPricing).toContain("SceCalculatorModal");
-    expect(atriumPricing).toContain("Save 20%");
-    expect(atriumPricing).toContain("30-day money-back guarantee on annual plans");
-    expect(atriumPricing).toContain("rounded-3xl");
-    // The Komplete banner is Vega-only.
-    expect(atriumPricing).not.toContain("Are you a Real Estate Lawyer?");
+  it("the SCE pricing band is retired; the FAQ keeps the promise copy de-tiered", () => {
+    // R21: pricing tiers are off the marketing pages entirely — the
+    // guarantee promise survives in the FAQ's cost answer.
+    expect(atriumFAQ).toContain("How much does Atrium cost?");
+    expect(atriumFAQ).toContain("30-day money-back guarantee");
+    expect(atriumFAQ).not.toContain("all tiers");
+    expect(atriumFAQ).not.toContain("Growth and above");
   });
 
   it("how-it-works stays the warm 3-step tiles", () => {

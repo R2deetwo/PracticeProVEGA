@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
     Logo, CheckIcon, ZapIcon,
-    ScalesIcon, ShieldCheckIcon, MattersIcon,
-    OfficeBuildingIcon, SearchIcon, ArrowLeftIcon, LockClosedIcon,
+    ShieldCheckIcon,
+    SearchIcon, ArrowLeftIcon, LockClosedIcon,
     // W6 (corporate hub): icons for the company landing sections.
     BriefcaseIcon, LinkIcon, UsersIcon, NairaCircleIcon, BrainIcon,
     MapPinIcon, ClipboardListIcon, PencilSquareIcon, ComputerDesktopIcon,
@@ -21,8 +21,8 @@ import { useUI } from '../contexts/UIContext';
 // Legal pages and Resources are now routed via URL in App.tsx — no need to import them here.
 import {
     // LandingPage-level signup routing still needs the ProductMode type;
-    // the tier machinery now lives in the product-owned pricing sections
-    // (VegaPricingLedger / AtriumPricing).
+    // tier machinery lives in the app (signup/billing) — the marketing
+    // pages no longer display pricing tiers (owner direction, R21).
     type ProductMode,
 } from '../constants/tiers';
 // TASK 54: click-event-safe product normalization for the signup funnel.
@@ -57,11 +57,14 @@ import { VegaScaleOfCharges } from './marketing/vega/VegaScaleOfCharges';
 import { VegaIndexLine } from './marketing/vega/VegaIndexLine';
 import { VegaMattersLedger } from './marketing/vega/VegaMattersLedger';
 import { VegaAIDrafting } from './marketing/vega/VegaAIDrafting';
-import { VegaPricingLedger } from './marketing/vega/VegaPricingLedger';
 import { VegaProcedure } from './marketing/vega/VegaProcedure';
 import { VegaCredentials } from './marketing/vega/VegaCredentials';
 import { VegaFAQInk } from './marketing/vega/VegaFAQInk';
 import { VegaFinalCTA } from './marketing/vega/VegaFinalCTA';
+// R21 product identity: the product marks (nav, footer, dropdowns, work
+// cards) and the per-route document branding (favicon, title, OG card).
+import { VegaMark, AtriumMark } from './marketing/brand/ProductMarks';
+import { useProductBranding } from './marketing/brand/useProductBranding';
 import { AtriumHero } from './marketing/atrium/AtriumHero';
 import { AtriumReceipt } from './marketing/atrium/AtriumReceipt';
 import { AtriumEstate } from './marketing/atrium/AtriumEstate';
@@ -70,7 +73,6 @@ import { AtriumStats } from './marketing/atrium/AtriumStats';
 import { AtriumFeatures } from './marketing/atrium/AtriumFeatures';
 import { AtriumTrust } from './marketing/atrium/AtriumTrust';
 import { AtriumAI } from './marketing/atrium/AtriumAI';
-import { AtriumPricing } from './marketing/atrium/AtriumPricing';
 import { AtriumHowItWorks } from './marketing/atrium/AtriumHowItWorks';
 import { AtriumWhyRunOn } from './marketing/atrium/AtriumWhyRunOn';
 import { AtriumFAQ } from './marketing/atrium/AtriumFAQ';
@@ -224,7 +226,7 @@ const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; cl
         onClick={onClick}
         className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm transition-all duration-300 active:scale-[0.97] ${
             tone === 'vega'
-                ? 'bg-white/60 text-vega-amber-deep border border-vega-amber-deep/40 backdrop-blur-sm hover:border-vega-amber-deep hover:bg-vega-amber/5'
+                ? 'bg-white/60 text-vega-claret-deep border border-vega-claret-deep/40 backdrop-blur-sm hover:border-vega-claret-deep hover:bg-vega-claret/5'
                 : tone === 'atrium'
                 ? 'bg-white/85 text-emerald-700 border border-emerald-600/40 backdrop-blur-sm hover:border-emerald-600 hover:bg-white'
                 : 'bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white'
@@ -250,10 +252,10 @@ const NavBar: React.FC<{
     onResources: () => void;
     onContactSales: () => void;
     activeProduct: 'vega' | 'atrium';
-    setActiveProduct: (p: 'vega' | 'atrium') => void;
+    onOpenProduct: (p: 'vega' | 'atrium') => void;
     productChosen: boolean;
     onBackToHub: () => void;
-}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, activeProduct, setActiveProduct, productChosen, onBackToHub }) => {
+}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, activeProduct, onOpenProduct, productChosen, onBackToHub }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
     // Products dropdown — click-toggle (not hover) so iPad/tablet touch users
     // can open it. Hover is unreliable on iPadOS Safari.
@@ -323,42 +325,47 @@ const NavBar: React.FC<{
                     logo to do. On the hub it simply scrolls to the top. The
                     old version only ever scrolled, so from /atrium the logo
                     appeared to "do nothing". */}
-                <button
-                    onClick={() => { if (productChosen) onBackToHub(); else scrollTo('home'); }}
-                    aria-label="PracticePro Systems — home"
-                    className="flex items-center gap-2 group"
-                >
-                    <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
-                    <span className="text-lg font-bold tracking-tight text-slate-900 flex items-center">
-                        Practice{productChosen && activeProduct === 'vega' ? <span className="text-slate-900">Pro</span> : <span className="text-primary-500">Pro</span>}
-                    </span>
-                </button>
+                {productChosen ? (
+                    /* R21: on a product page the brand is the PRODUCT's own
+                       mark + wordmark, with the company retained as the
+                       attribution line — PracticePro stays the company that
+                       owns the products; Vega and Atrium get their own
+                       iconography. */
+                    <button
+                        onClick={onBackToHub}
+                        aria-label={activeProduct === 'vega' ? 'Vega — a PracticePro product, back to all products' : 'Atrium — a PracticePro product, back to all products'}
+                        className="flex items-center gap-2.5 group"
+                    >
+                        {activeProduct === 'vega'
+                            ? <VegaMark className="h-8 w-8 group-hover:scale-105 transition-transform" />
+                            : <AtriumMark className="h-8 w-8 group-hover:scale-105 transition-transform" />}
+                        <span className="flex flex-col items-start leading-none">
+                            <span className={`text-lg font-bold tracking-tight text-slate-900 ${activeProduct === 'vega' ? 'font-vega' : 'font-display'}`}>
+                                {activeProduct === 'vega' ? 'Vega' : 'Atrium'}
+                            </span>
+                            <span className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-1">BY PRACTICEPRO</span>
+                        </span>
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => scrollTo('home')}
+                        aria-label="PracticePro Systems — home"
+                        className="flex items-center gap-2 group"
+                    >
+                        <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
+                        <span className="text-lg font-bold tracking-tight text-slate-900 flex items-center">
+                            Practice<span className="text-primary-500">Pro</span>
+                        </span>
+                    </button>
+                )}
                 {productChosen && (
                     <button
                         onClick={onBackToHub}
-                        className="hidden md:flex items-center pl-3 border-l border-slate-200 group/breadcrumb relative h-7"
-                        style={{ overflow: 'hidden' }}
-                        aria-label={`Back to all products — currently viewing ${activeProduct === 'vega' ? 'Vega' : 'Atrium'}`}
+                        className="hidden md:flex items-center gap-1 pl-3 border-l border-slate-200 h-7 text-2xs font-black uppercase tracking-wide text-slate-400 hover:text-primary-500 transition-colors"
+                        aria-label="Back to all products"
                     >
-                        {/* Container — fixed width wide enough for "← All Products" on one line. */}
-                        <span
-                            className="relative flex items-center"
-                            style={{ height: '1.25rem', width: '9rem', overflow: 'hidden', whiteSpace: 'nowrap' }}
-                        >
-                            <span
-                                className={`absolute inset-0 flex items-center text-sm font-black uppercase tracking-tight transition-all duration-300 ease-out group-hover/breadcrumb:-translate-y-full group-hover/breadcrumb:opacity-0 ${activeProduct === 'vega' ? 'text-vega-amber-deep' : 'text-violet-400'}`}
-                                style={{ whiteSpace: 'nowrap' }}
-                            >
-                                {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
-                            </span>
-                            <span
-                                className="absolute inset-0 flex items-center gap-1 text-2xs font-black uppercase tracking-wide text-slate-400 translate-y-full opacity-0 group-hover/breadcrumb:translate-y-0 group-hover/breadcrumb:opacity-100 group-hover/breadcrumb:text-primary-500 transition-all duration-300 ease-out"
-                                style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap' }}
-                            >
-                                <ArrowLeftIcon className="w-3 h-3" style={{ flexShrink: 0 }} />
-                                <span style={{ flexShrink: 0 }}>All Products</span>
-                            </span>
-                        </span>
+                        <ArrowLeftIcon className="w-3 h-3" />
+                        <span>All Products</span>
                     </button>
                 )}
             </div>
@@ -388,18 +395,20 @@ const NavBar: React.FC<{
                         <div className="absolute top-full left-0 pt-1 w-[210px]">
                             <div className="bg-white border border-slate-200 rounded-lg shadow-xl flex flex-col p-1">
                                 <button
-                                    onClick={() => { setActiveProduct('vega'); setProductsOpen(false); }}
+                                    onClick={() => { onOpenProduct('vega'); setProductsOpen(false); }}
                                     className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                                 >
-                                    <ScalesIcon className="w-4 h-4 opacity-70" />
-                                    Vega
+                                    <VegaMark className="w-4 h-4" />
+                                    <span className="flex-1">Vega</span>
+                                    <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40" />
                                 </button>
                                 <button
-                                    onClick={() => { setActiveProduct('atrium'); setProductsOpen(false); }}
+                                    onClick={() => { onOpenProduct('atrium'); setProductsOpen(false); }}
                                     className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                                 >
-                                    <OfficeBuildingIcon className="w-4 h-4 opacity-70" />
-                                    Atrium
+                                    <AtriumMark className="w-4 h-4" />
+                                    <span className="flex-1">Atrium</span>
+                                    <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40" />
                                 </button>
                             </div>
                         </div>
@@ -417,17 +426,6 @@ const NavBar: React.FC<{
                         }`}
                     >
                         Features
-                    </button>
-                    <button
-                        onClick={() => scrollTo('pricing')}
-                        data-nav-id="pricing"
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                            activeSection === 'pricing'
-                                ? 'text-primary-700'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                    >
-                        Pricing
                     </button>
                     <button
                         onClick={() => scrollTo('howItWorks')}
@@ -584,17 +582,16 @@ const NavBar: React.FC<{
                     )}
                     <div className="mb-2">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
-                        <button onClick={() => handleNavClick(() => setActiveProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                            <ScalesIcon className="w-5 h-5 opacity-70" /> Vega — For Law Firms
+                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                            <VegaMark className="w-5 h-5" /> Vega — For Law Firms <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
-                        <button onClick={() => handleNavClick(() => setActiveProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}>
-                            <OfficeBuildingIcon className="w-5 h-5 opacity-70" /> Atrium — For Property Managers
+                        <button onClick={() => handleNavClick(() => onOpenProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                            <AtriumMark className="w-5 h-5" /> Atrium — For Property Managers <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
                     </div>
                     {productChosen && (
                         <>
                         <button onClick={() => handleNavClick(() => scrollTo('features'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Features</button>
-                        <button onClick={() => handleNavClick(() => scrollTo('pricing'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Pricing</button>
                         <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How It Works</button>
                         </>
                     )}
@@ -635,24 +632,33 @@ const NavBar: React.FC<{
 
 // ─── FOOTER ─────────────────────────────────────────────────────────────────
 
-const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onUsageClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, activeProduct, setActiveProduct, productChosen }) => (
+const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; onCookieClick: () => void; onUsageClick: () => void; onResources: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium'; onOpenProduct: (p: 'vega' | 'atrium') => void; productChosen: boolean }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, activeProduct, onOpenProduct, productChosen }) => (
     <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
                 {/* Brand */}
                 <div>
                     <div className="flex items-center gap-2.5 mb-4">
-                        <Logo className="h-6 w-6 text-primary-500" aria-hidden="true" />
-                        <span className="text-white font-bold text-lg flex items-center">
-                            Practice<span className={productChosen && activeProduct === 'vega' ? 'text-vega-amber' : 'text-primary-500'}>Pro</span>
-                            {productChosen && (
-                                <span
-                                    className={`ml-2 text-sm font-black uppercase tracking-tight ${activeProduct === 'vega' ? 'text-vega-amber-deep' : 'text-violet-400'}`}
-                                >
-                                    {activeProduct === 'vega' ? 'VEGA' : 'ATRIUM'}
+                        {productChosen ? (
+                            /* R21: the product's own mark on its page — the
+                               company stays as the attribution line. */
+                            <>
+                                {activeProduct === 'vega' ? <VegaMark className="h-7 w-7" /> : <AtriumMark className="h-7 w-7" />}
+                                <span className="flex flex-col leading-none">
+                                    <span className={`text-white font-bold text-lg ${activeProduct === 'vega' ? 'font-vega' : 'font-display'}`}>
+                                        {activeProduct === 'vega' ? 'Vega' : 'Atrium'}
+                                    </span>
+                                    <span className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-1">BY PRACTICEPRO</span>
                                 </span>
-                            )}
-                        </span>
+                            </>
+                        ) : (
+                            <>
+                                <Logo className="h-6 w-6 text-primary-500" aria-hidden="true" />
+                                <span className="text-white font-bold text-lg flex items-center">
+                                    Practice<span className="text-primary-500">Pro</span>
+                                </span>
+                            </>
+                        )}
                     </div>
                     {/* W6/W7: corporate tagline — the company builds AND runs
                         systems, for itself and for clients. Broadened per owner
@@ -662,12 +668,12 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                     {productChosen && (
                         <div className="mt-4 flex items-center gap-3">
                             <button
-                                onClick={() => setActiveProduct(activeProduct === 'vega' ? 'atrium' : 'vega')}
+                                onClick={() => onOpenProduct(activeProduct === 'vega' ? 'atrium' : 'vega')}
                                 className={`text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all ${activeProduct === 'vega'
-                                    ? 'text-vega-amber hover:text-vega-amber/80 border-vega-amber/30 hover:bg-vega-amber/10'
+                                    ? 'text-vega-claret hover:text-vega-claret/80 border-vega-claret/30 hover:bg-vega-claret/10'
                                     : 'text-emerald-400 hover:text-emerald-300 border-emerald-400/30 hover:bg-emerald-400/10'}`}
                             >
-                                Switch to {activeProduct === 'vega' ? 'Atrium' : 'Vega'} <span className="text-xs">→</span>
+                                Open {activeProduct === 'vega' ? 'Atrium' : 'Vega'} <span className="text-xs">↗</span>
                             </button>
                         </div>
                     )}
@@ -678,7 +684,6 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                         <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Product</p>
                         <div className="flex flex-col gap-2.5">
                             <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Features</button>
-                            <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Pricing</button>
                             <button onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Resources</button>
                             {/* ROUND 9: Changelog previously scrolled to #pricing —
                                 the actual changelog (What's New) lives on the
@@ -711,11 +716,11 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                                 footer navigates exactly like the Products
                                 menu does (and right-click / open-in-new-tab
                                 works, which a button never offered). */}
-                            <a href="/vega" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
-                                Vega — Legal Practice OS
+                            <a href="/vega" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
+                                Vega — Legal Practice OS ↗
                             </a>
-                            <a href="/atrium" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
-                                Atrium — Property Management OS
+                            <a href="/atrium" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
+                                Atrium — Property Management OS ↗
                             </a>
                             <Button variant="bare" onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
                                 Komplete — both, for real-estate attorneys
@@ -1514,10 +1519,10 @@ const OUR_WORK: Array<{
         tagline: 'Legal Practice OS',
         badge: 'Our product',
         badgeClass: 'bg-amber-500/10 text-amber-300 border border-amber-500/30',
-        Icon: ScalesIcon,
-        iconClass: 'bg-amber-500/10 text-amber-400',
+        Icon: VegaMark,
+        iconClass: '',
         body: 'Case management, AI-assisted drafting with DraftPro and ALOA, court-rule-aware calendaring and billing for Nigerian law firms — from case intake to filing.',
-        cta: { label: 'Explore Vega', href: '/vega', external: false },
+        cta: { label: 'Explore Vega', href: '/vega', external: true },
         ctaClass: 'group-hover:text-amber-400 text-amber-400',
         frameUrl: 'practicepro.ng/vega',
         tourSystem: 'vega',
@@ -1570,10 +1575,10 @@ const OUR_WORK: Array<{
         tagline: 'Property Management OS',
         badge: 'Our product',
         badgeClass: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30',
-        Icon: OfficeBuildingIcon,
-        iconClass: 'bg-emerald-500/10 text-emerald-400',
+        Icon: AtriumMark,
+        iconClass: '',
         body: "Rent and service-charge collection, residents' portal, maintenance workflows and revenue intelligence for property portfolios — applying the tenancy law of all 36 states and the FCT.",
-        cta: { label: 'Explore Atrium', href: '/atrium', external: false },
+        cta: { label: 'Explore Atrium', href: '/atrium', external: true },
         ctaClass: 'group-hover:text-emerald-400 text-emerald-400',
         frameUrl: 'practicepro.ng/atrium',
         tourSystem: 'atrium',
@@ -2442,6 +2447,11 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
         };
     }, [productChosen, activeProduct]);
 
+    // R21: per-product document identity — favicon, <title>, theme-color
+    // and the og:/twitter: card swap with the page's product and restore
+    // the PracticePro company identity on the hub.
+    useProductBranding(activeProduct, productChosen);
+
     // TASK 14: Sync productChosen + activeProduct with initialProduct when it
     // changes (SPA navigation). Without this, navigating from /vega back to /
     // via the browser's back button or logo click would leave productChosen=true,
@@ -2469,7 +2479,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             // tracks its own sections (whatWeDo/ourWork/howWeWork/about),
             // product pages track features/pricing (as before) plus howItWorks.
             const sections = productChosen
-                ? ['home', 'features', 'pricing', 'howItWorks']
+                ? ['home', 'features', 'howItWorks']
                 : ['home', 'whatWeDo', 'ourWork', 'howWeWork', 'about'];
             const scrollPos = scrollRef.current.scrollTop + 100;
             for (const section of sections) {
@@ -2516,28 +2526,13 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
         if (window.location.pathname !== '/') navigate('/');
     };
 
-    const handleProductSwitch = (p: 'vega' | 'atrium') => {
-        // Already on that page — nothing to do (and never yank the scroll).
-        if (p === activeProduct && productChosen) return;
-        // Was the visitor reading the pricing table? Bring them to the new
-        // product's pricing table, not the top of the page — that comparison
-        // is the whole reason a switch happens mid-page.
-        const pricingEl = document.getElementById('pricing');
-        const wasNearPricing = !!pricingEl && !!scrollRef.current
-            && scrollRef.current.scrollTop + 100 >= pricingEl.offsetTop - 300;
-        setActiveProduct(p);
-        setProductChosen(true);
-        const target = p === 'vega' ? '/vega' : '/atrium';
-        if (window.location.pathname !== target) navigate(target);
-        setTimeout(() => {
-            if (!scrollRef.current) return;
-            const next = document.getElementById('pricing');
-            if (wasNearPricing && next) {
-                scrollRef.current.scrollTo({ top: next.offsetTop - 64, behavior: 'smooth' });
-            } else {
-                scrollRef.current.scrollTo({ top: 0 });
-            }
-        }, 80);
+    // R21 (owner direction): selecting a product OPENS ITS OWN PAGE IN A
+    // NEW TAB — Vega and Atrium are separate product surfaces. This tab
+    // stays exactly where it is. The old in-tab SPA product switch (and its
+    // pricing-table scroll preservation) is retired along with the pricing
+    // tiers the owner removed from the product pages.
+    const openProductPage = (p: 'vega' | 'atrium') => {
+        window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer');
     };
 
     // BUG FIX (Task 11): Only pass selectedProduct when the user has EXPLICITLY
@@ -2650,7 +2645,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 onResources={() => navigate('/resources')}
                 onContactSales={() => openContactSales('Nav')}
                 activeProduct={activeProduct}
-                setActiveProduct={handleProductSwitch}
+                onOpenProduct={openProductPage}
                 productChosen={productChosen}
                 onBackToHub={handleBackToHub}
             />
@@ -2711,9 +2706,10 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                            inventory and order are deliberately different
                            from Atrium's page (hero → index line → matters
                            ledger → ink AI band → court-rule chronology →
-                           Scale of Charges ledger → pricing rate-card
-                           ledger → procedure schedule → attestations →
-                           ink FAQ → colophon CTA = 11 bands).
+                           Scale of Charges ledger → procedure schedule →
+                           attestations → ink FAQ → colophon CTA = 10
+                           bands; the pricing rate-card was removed by owner
+                           direction — pricing is now sales-led).
                            ══════════════════════════════════════════════════════ */
                         <>
                             <VegaHero
@@ -2734,13 +2730,12 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                             <VegaAIDrafting />
                             <VegaCourtRules />
                             <VegaScaleOfCharges />
-                            <VegaPricingLedger onSignup={openSignup} onContactSales={openContactSales} />
                             <VegaProcedure />
                             <VegaCredentials />
                             <VegaFAQInk />
                             <VegaFinalCTA
-                                onSignup={() => openSignup()}
-                                onContactSales={() => openContactSales('Final CTA')}
+                                onSignup={openSignup}
+                                onContactSales={openContactSales}
                             />
                         </>
                     ) : (
@@ -2752,9 +2747,11 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                            from Vega's page (photo hero → sage stat band →
                            features grid → trust strip → light AI band →
                            estate occupancy grid → resident receipt →
-                           gatehouse Sentry Pass → warm SCE pricing →
-                           3-step onboarding → capability attestations →
-                           light FAQ → sage close = 13 bands).
+                           gatehouse Sentry Pass → 3-step onboarding →
+                           capability attestations → light FAQ → sage
+                           close = 12 bands; the SCE pricing band was
+                           removed by owner direction — pricing is now
+                           sales-led).
                            ══════════════════════════════════════════════════════ */
                         <>
                             <AtriumHero
@@ -2777,7 +2774,6 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                             <AtriumEstate />
                             <AtriumReceipt />
                             <AtriumSentryPass />
-                            <AtriumPricing onSignup={openSignup} onContactSales={openContactSales} />
                             <AtriumHowItWorks />
                             <AtriumWhyRunOn />
                             <AtriumFAQ />
@@ -2807,7 +2803,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 onResources={() => navigate('/resources')}
                 onContactSales={() => openContactSales('Footer')}
                 activeProduct={activeProduct}
-                setActiveProduct={handleProductSwitch}
+                onOpenProduct={openProductPage}
                 productChosen={productChosen}
             />
         </div>
