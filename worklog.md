@@ -12662,3 +12662,20 @@ Stage Summary:
 **Verification:** 1236/1236 tests (W17 pins: no reserve, no period, glide markers, green gradients, zero `#F59E0B`/`#D97706` in decoration, Vega amber var kept); tsc 129 baseline; build clean; agent-browser full-cycle geometry sampling at 1440/390 (line count constant, slot settles at each noun's exact width — "firm" 144.5px vs W16's 485.7px box); VLM: green gradient, no gap, no period, no orange in hero/CTA/steps; /vega regression clean; console clean.
 
 **Live:** `165ef6a7` — promote run 37872002286: quality gate ✓, Vercel+Convex ✓; version.json healthy at `165ef6a7`; live bundle 3× `#6EE7B7` / 0× `#F59E0B`; live VLM check passed. Cloudflare mirror still ✗ (standing expired `CLOUDFLARE_API_TOKEN` — owner action needed). Rollback: promote any older full SHA (cbaf1196 = W16).
+
+## 2026-10-12 — W18: per-span hero gradient — "scale your X" always paints (owner feedback on W17)
+
+**Owner feedback:** "'your x' is not clear or rendering properly" — in the owner's browser the cycling noun of the W17 hero rendered unclearly.
+
+**Diagnosis:** W17 clipped ONE ancestor gradient (`text-transparent bg-clip-text` on the hero wrapper) around "scale your <noun>", but the noun slot is an inline-block that permanently carried `transform: translateY(0)` + `filter: blur(0px)` — non-`none` values that create the element's own stacking context. `background-clip: text` does not reliably paint through such descendants (Safari/iOS and some Chrome versions) — the noun inherited `color: transparent` with no background behind it → effectively invisible.
+
+**Fix (`src/components/LandingPage.tsx`):**
+- Every text-bearing span paints its OWN clipped gradient: "scale your" wears `#6EE7B7 → #34D399` (mint→emerald); the live noun span wears `#34D399 → #4ADE80` (emerald→green) directly on the slot span. No word depends on an ancestor's clip.
+- The noun slot at rest now holds `transform: none` / `filter: none` (was `translateY(0)` / `blur(0px)`) — no permanent stacking context; `none`↔value still transitions, so the 380ms exchange stays fluid.
+- Wrapper de-clipped (plain `inline sm:inline-block align-baseline` container); each gradient span keeps `pb-1` descender protection. Layout untouched: same break structure, same measured-glide slot.
+
+**Tests (`tests/unit/websiteRepositioning.test.ts`):** W17 combined-gradient pin split into the two per-span pins; new W18 regression test pins the noun span's own `text-transparent bg-clip-text` + gradient, at-rest `none` transform/filter, and bans any clipping wrapper around `<ScalingNoun />`.
+
+**Verification:** 1237/1237 tests; tsc 129 (≤131 workflow baseline); vite build clean. agent-browser at 1440/768/640/390 (rest + next-noun + mid-swap): every h1 gradient span computes `background-clip: text` + its own `linear-gradient` + transparent colour; h1 heights constant per viewport (1440: 164px, 768: 124px, 640: 100px, 390: 120.6px); slot still glides to measured widths ("business" 323.5px vs "firm" 144.5px at 1440). VLM read "scale your business/firm/practice" clearly in every frame incl. mid-swap (soft blur as designed); no amber text; hero background green/teal.
+
+**Ship status:** committed as `26c3079a` on local main (1 ahead of origin/main `8be0a6c7`) — **push BLOCKED**: the owner-supplied PAT returns 401 "Bad credentials" from the GitHub API (revoked/expired/mangled). Everything token-independent is done; when a valid PAT lands: push `26c3079a` + this worklog commit, watch CI (Tests/Staging/APK), dispatch `production-deploy.yml` with the full 40-char SHA, live-verify, then append the LIVE line. Rollback unchanged: promote any older full SHA (`165ef6a7` = W17).
