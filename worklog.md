@@ -12746,3 +12746,5 @@ Stage Summary:
 
 **State:** pushed ca6da3d8..48cb8294. CI (Tests/Staging/APK) then production promote with full SHA 48cb8294…, live-verify, then the LIVE line below.
 
+
+**LIVE (2026-10-12 18:42Z):** Pass B promoted to production at `f9c1cc5c` (run 38292428209: gates ✅, Vercel+Convex ✅, Cloudflare mirror ❌ at the standing expired-token check — mirror-only, owner action). Live-verified: version.json sha `f9c1cc5c…` healthy; /atrium 200 with the Pass B bundle (index-ChMi_5fF.js): "Why portfolios run on Atrium" ×1, SCE Calculator ×2, PAID ×8, shared-template identifiers ×0. /vega unchanged from the ca6da3d8 promote. Both product pages now render exclusively page-owned sections on production.
