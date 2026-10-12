@@ -809,6 +809,17 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
  * “scale your <noun>” is the final line, sized for the widest noun
  * (geometry verified in W16). SSR/no-JS/reduced-motion degrade to the
  * static first noun.
+ *
+ * W18 (rendering fix, owner: “your X is not clear or rendering
+ * properly”): the gradient is painted PER SPAN. One ancestor-clipped
+ * gradient cannot paint through this slot — the live span is an
+ * inline-block that carries transform + filter (its own stacking
+ * context), and several browsers exclude such descendants from the
+ * ancestor's background-clip:text, leaving the noun colour:transparent
+ * and effectively invisible. Each text-bearing span now carries its
+ * own clipped gradient (“scale your”: mint → emerald; the noun:
+ * emerald → green), and at rest the slot holds no transform/filter
+ * (none still transitions to value, so the exchange stays fluid).
  */
 const SCALE_NOUNS = [
     'business',
@@ -892,14 +903,15 @@ const ScalingNoun: React.FC = () => {
                 slide) while the box glides to the incoming noun's exact
                 width. One fluid motion, nothing jarring. */}
             <span
-                className="inline-block align-baseline"
+                className="inline-block align-baseline text-transparent bg-clip-text pb-1"
                 style={{
                     width: live !== undefined ? `${live}px` : undefined,
                     transition:
                         'width 520ms cubic-bezier(0.33, 0, 0.15, 1), opacity 380ms ease, transform 380ms ease, filter 380ms ease',
                     opacity: on ? 1 : 0,
-                    transform: on ? 'translateY(0)' : 'translateY(-0.22em)',
-                    filter: on ? 'blur(0px)' : 'blur(5px)',
+                    transform: on ? 'none' : 'translateY(-0.22em)',
+                    filter: on ? 'none' : 'blur(5px)',
+                    backgroundImage: 'linear-gradient(to right, #34D399, #4ADE80)',
                 }}
             >
                 {SCALE_NOUNS[i]}
@@ -947,9 +959,16 @@ const HubHero: React.FC<{
                     {/* W17: the gradient is all-green (mint → emerald →
                         green) — the brand's color, no amber lead. Below sm
                         the noun owns its own line, so no noun can ever
-                        change the headline's line count. */}
-                    <span className="text-transparent bg-clip-text inline sm:inline-block pb-1" style={{ backgroundImage: 'linear-gradient(to right, #6EE7B7, #34D399, #4ADE80)' }}>
-                        scale your{' '}
+                        change the headline's line count.
+                        W18: every text-bearing span paints its OWN clipped
+                        gradient — an ancestor's background-clip:text does
+                        not paint through the noun's inline-block slot
+                        (it carries transform/filter), which left the noun
+                        colourless and invisible in several browsers. */}
+                    <span className="inline sm:inline-block align-baseline">
+                        <span className="text-transparent bg-clip-text inline pb-1" style={{ backgroundImage: 'linear-gradient(to right, #6EE7B7, #34D399)' }}>
+                            scale your
+                        </span>{' '}
                         <br className="sm:hidden" />
                         <ScalingNoun />
                     </span>

@@ -111,8 +111,11 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
   });
 
   it("W17 — the page decorates in the brand's green, not amber (owner: “quite a cry from my colors”)", () => {
-    // Gradient type: mint → emerald → green, never amber-led.
-    expect(landing).toContain("linear-gradient(to right, #6EE7B7, #34D399, #4ADE80)");
+    // Gradient type: mint → emerald → green, never amber-led. W18: the
+    // ramp is painted per span — “scale your” wears mint → emerald, the
+    // cycling noun wears emerald → green (see the W18 test below).
+    expect(landing).toContain("linear-gradient(to right, #6EE7B7, #34D399)");
+    expect(landing).toContain("linear-gradient(to right, #34D399, #4ADE80)");
     expect(landing).not.toContain("#F59E0B");
     // The clouds/aurora glows are green.
     expect(landing).not.toContain("bg-amber-500/10 blur-[110px]");
@@ -129,6 +132,29 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     // Vega keeps its amber PRODUCT identity (product coding, not page
     // decoration) — that contract is untouched.
     expect(css).toContain("--color-amber: #D97706");
+  });
+
+  it("W18 — every word of the scaling promise paints its own clipped gradient (owner: “your X is not clear or rendering properly”)", () => {
+    // background-clip:text on the hero wrapper cannot paint through the
+    // noun slot: the slot is an inline-block carrying transform + filter
+    // (its own stacking context), and several browsers exclude such
+    // descendants from the ancestor's text clip — the noun inherited
+    // colour:transparent and vanished. Every text-bearing span is now
+    // self-sufficient.
+    expect(landing).toContain(
+      'className="inline-block align-baseline text-transparent bg-clip-text pb-1"',
+    );
+    expect(landing).toContain(
+      "backgroundImage: 'linear-gradient(to right, #34D399, #4ADE80)'",
+    );
+    // At rest the slot carries NO transform/filter — it must never sit
+    // in its own stacking context (none still transitions to value, so
+    // the exchange stays fluid).
+    expect(landing).toContain("transform: on ? 'none' : 'translateY(-0.22em)'");
+    expect(landing).toContain("filter: on ? 'none' : 'blur(5px)'");
+    // The wrapper around the noun must never itself clip text — only
+    // the word spans do.
+    expect(landing).not.toContain("bg-clip-text inline sm:inline-block");
   });
 
   it("the hero positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
