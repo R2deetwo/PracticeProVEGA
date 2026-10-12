@@ -139,15 +139,20 @@ describe('Primitives — single source of truth', () => {
         }
     });
 
-    it('designTokens BTN_PRIMARY matches the dominant measured pattern', () => {
+    it('designTokens BTN_PRIMARY carries the brand standard (6px radius, elevation-1)', () => {
+        // Brand overhaul (docs/design/brand.md §4.3): interactive elements at
+        // rounded-sm (6px), buttons at rest at elevation-1 — replaces the
+        // migration-era 20px pill pattern.
         expect(tokensSrc).toContain(
-            'bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 shadow-sm transition-colors'
+            'bg-primary-600 text-white rounded-sm font-semibold hover:bg-primary-700 shadow-sm transition-colors'
         );
     });
 
-    it('danger-soft matches the 7x measured soft-danger pattern', () => {
+    it('danger-soft carries the brand standard (rose hue, 6px radius)', () => {
+        // Brand overhaul: the soft-danger family unifies on rose (matching
+        // BTN_DANGER) at 6px — the migration-era red/rose split is retired.
         expect(tokensSrc).toContain(
-            'bg-red-100 text-red-700 dark:text-red-400 dark:bg-red-900/50 dark:text-red-300 rounded-lg font-semibold hover:bg-red-200 dark:hover:bg-red-900/80'
+            'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300 rounded-sm font-semibold hover:bg-rose-200 dark:hover:bg-rose-900/80'
         );
     });
 
@@ -308,7 +313,7 @@ describe('Task 61 — Button class equivalence (ProfileSettings migration)', () 
 
     // ── Font-size segmented control ─────────────────────────────────────────
     const SEGMENTED_BASE =
-        'w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-md text-sm font-bold transition-all capitalize flex items-center justify-center gap-2';
+        'w-full flex-shrink-0 flex-1 min-w-[100px] text-center px-4 py-2 rounded-sm text-sm font-bold transition-all capitalize flex items-center justify-center gap-2';
     const SEGMENTED_INACTIVE_ORIGINAL = `${SEGMENTED_BASE} text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200`;
     const SEGMENTED_ACTIVE_ORIGINAL = `${SEGMENTED_BASE} bg-white dark:bg-zinc-700 shadow-sm text-slate-900 dark:text-white`;
     const SEGMENTED_CLASS_DELTAS = 'w-full flex-shrink-0 flex-1 min-w-[100px] text-center';
@@ -331,7 +336,7 @@ describe('Task 61 — Button class equivalence (ProfileSettings migration)', () 
 
     // ── "Update Profile" emerald CTA ────────────────────────────────────────
     const SUCCESS_ORIGINAL =
-        'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg text-sm transition-colors shadow-md';
+        'w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-sm text-sm transition-colors shadow-sm';
 
     it('success CTA: variant=success + size=md + py-2.5 override superset of the hand-rolled string', () => {
         const composed = buildButtonClasses({ variant: 'success', size: 'md', className: 'w-full py-2.5' });
@@ -391,10 +396,10 @@ describe('Task 61 — formStyles settings input family equivalence', () => {
         // The 4px gap came from the input's mt-1 (label had no bottom margin).
         // The ui/Input label provides mb-1 (4px) with no input margin — identical
         // 4px gap, so inputSettings is the original minus mt-1.
-        const originalMinusMt1 =
-            'text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md p-2';
-        expect(inputSettings.split(/\s+/).sort().join(' ')).toBe(originalMinusMt1.split(/\s+/).sort().join(' '));
-        expect(inputSettings).not.toContain('shadow');
-        expect(inputSettings).not.toContain('focus:'); // flat look is the measured pattern
+        const brandStandard =
+            'text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-sm p-2 focus:ring-2 focus:ring-primary-500/60 focus:border-primary-500/60 outline-none transition-all';
+        expect(inputSettings.split(/\s+/).sort().join(' ')).toBe(brandStandard.split(/\s+/).sort().join(' '));
+        expect(inputSettings).not.toContain('shadow'); // flat look is kept
+        expect(inputSettings).toContain('focus:ring-2'); // focus is now visible (brand overhaul a11y)
     });
 });

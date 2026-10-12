@@ -24,19 +24,23 @@
  * so explicit dark: variants here take precedence over the safety net.
  */
 
-export const inputModern = "w-full bg-white dark:bg-zinc-800/60 border-none ring-1 ring-slate-200 dark:ring-zinc-700 rounded-md px-4 py-2.5 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-400 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 outline-none transition-all shadow-sm";
+// BRAND OVERHAUL (docs/design/brand.md §4.3/§4.4): inputs render at 6px
+// (rounded-sm — "drawn, not inflated"), matching the button system; every
+// variant now carries a visible focus ring (keyboard nav must never be
+// invisible — engagement non-negotiable #2).
+export const inputModern = "w-full bg-white dark:bg-zinc-800/60 border-none ring-1 ring-slate-200 dark:ring-zinc-700 rounded-sm px-4 py-2.5 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-400 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 outline-none transition-all shadow-sm";
 
-export const inputClassic = "text-slate-900 dark:text-zinc-100 w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-md shadow-sm p-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-primary-500 dark:focus:border-primary-400 placeholder:text-slate-400 dark:placeholder:text-zinc-400";
+export const inputClassic = "text-slate-900 dark:text-zinc-100 w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-sm shadow-sm p-2 focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-primary-500 dark:focus:border-primary-400 placeholder:text-slate-400 dark:placeholder:text-zinc-400";
 
-export const inputLarge = "text-slate-900 dark:text-zinc-100 w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-md shadow-sm p-3 min-h-[48px] focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-primary-500 dark:focus:border-primary-400 placeholder:text-slate-400 dark:placeholder:text-zinc-400";
+export const inputLarge = "text-slate-900 dark:text-zinc-100 w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-sm shadow-sm p-3 min-h-[48px] focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 focus:border-primary-500 dark:focus:border-primary-400 placeholder:text-slate-400 dark:placeholder:text-zinc-400";
 
 // Chunk B (Task 61) — the settings-screen form family: flat (no shadow),
-// zinc-700 dark surface, zinc-600 dark border, p-2, no focus ring.
-// MEASURED pattern: 5 occurrences in 3 files (ProfileSettings, ReportingView,
-// NewDirectMessageForm) — the dominant input style of the settings screens.
-// Note: unlike the three variants above it has NO focus classes and NO
-// shadow — that flatness is the look; don't "fix" it here.
-export const inputSettings = "text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-md p-2";
+// zinc-700 dark surface, zinc-600 dark border, p-2. MEASURED pattern.
+// BRAND OVERHAUL: radius joins the 6px input system and a subtle focus
+// ring is added — the measured pattern had NO focus indication at all,
+// which failed keyboard-nav visibility. The flatness is kept (no shadow);
+// only focus visibility is new.
+export const inputSettings = "text-slate-900 dark:text-zinc-300 w-full bg-slate-50 dark:bg-zinc-700 border border-slate-300 dark:border-zinc-600 rounded-sm p-2 focus:ring-2 focus:ring-primary-500/60 focus:border-primary-500/60 outline-none transition-all";
 
 // Backward-compatible alias — defaults to the Modern style.
 // Components can migrate one at a time by importing the specific variant they need.

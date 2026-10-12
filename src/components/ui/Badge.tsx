@@ -42,7 +42,7 @@ export const Badge: React.FC<BadgeProps> = ({
   ...rest
 }) => (
   <span
-    className={`inline-flex items-center font-semibold rounded-md whitespace-nowrap ${TONES[tone]} ${SIZES[size]} ${className}`}
+    className={`inline-flex items-center font-semibold rounded-sm whitespace-nowrap ${TONES[tone]} ${SIZES[size]} ${className}`}
     {...rest}
   >
     {children}

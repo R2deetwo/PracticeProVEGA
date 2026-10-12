@@ -101,7 +101,7 @@ export const FinancialStatusBadge: React.FC<FinancialStatusBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded font-bold uppercase tracking-wider ${variantStyle} ${sizeStyle} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-sm font-bold uppercase tracking-wider ${variantStyle} ${sizeStyle} ${className}`}
     >
       {label}
     </span>

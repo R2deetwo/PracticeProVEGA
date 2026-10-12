@@ -180,12 +180,12 @@ export const ConfirmDialogComponent: React.FC<{
 
       {/* Dialog */}
       <div
-        className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden animate-[zoom-in_0.15s_ease-out]"
+        className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-md shadow-md border border-slate-200 dark:border-zinc-800 overflow-hidden animate-[zoom-in_0.15s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="p-5 sm:p-6 flex items-start gap-4">
-          <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+          <div className={`flex-shrink-0 w-10 h-10 rounded-md flex items-center justify-center ${
             danger
               ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
               : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
@@ -202,7 +202,7 @@ export const ConfirmDialogComponent: React.FC<{
               </p>
             )}
             {context && (
-              <div className="mt-3 px-3 py-2 rounded-lg bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
+              <div className="mt-3 px-3 py-2 rounded-sm bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700">
                 <p className="text-xs font-mono text-slate-700 dark:text-zinc-300 break-words">
                   {context}
                 </p>
@@ -211,7 +211,7 @@ export const ConfirmDialogComponent: React.FC<{
           </div>
           <button
             onClick={onCancel}
-            className="flex-shrink-0 p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            className="flex-shrink-0 p-1 rounded-sm text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -222,17 +222,17 @@ export const ConfirmDialogComponent: React.FC<{
         <div className="px-5 sm:px-6 py-4 bg-slate-50 dark:bg-zinc-950/50 border-t border-slate-200 dark:border-zinc-800 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98]"
+            className="px-4 py-2.5 rounded-sm text-sm font-semibold text-slate-700 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors active:scale-[0.98]"
           >
             {cancelLabel || 'Cancel'}
           </button>
           <button
             onClick={onConfirm}
             autoFocus
-            className={`px-4 py-2.5 rounded-lg text-sm font-bold text-white transition-colors active:scale-[0.98] ${
+            className={`px-4 py-2.5 rounded-sm text-sm font-bold text-white shadow-sm transition-colors active:scale-[0.98] ${
               danger
-                ? 'bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/20'
-                : 'bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20'
+                ? 'bg-rose-600 hover:bg-rose-700'
+                : 'bg-primary-600 hover:bg-primary-700'
             }`}
           >
             {confirmLabel || 'Confirm'}
