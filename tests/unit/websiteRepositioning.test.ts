@@ -81,6 +81,15 @@ const vegaPricing = read("src", "components", "marketing", "vega", "VegaPricingL
 const vegaProcedure = read("src", "components", "marketing", "vega", "VegaProcedure.tsx");
 const vegaCredentials = read("src", "components", "marketing", "vega", "VegaCredentials.tsx");
 const vegaFAQ = read("src", "components", "marketing", "vega", "VegaFAQInk.tsx");
+const atriumStats = read("src", "components", "marketing", "atrium", "AtriumStats.tsx");
+const atriumFeatures = read("src", "components", "marketing", "atrium", "AtriumFeatures.tsx");
+const atriumTrust = read("src", "components", "marketing", "atrium", "AtriumTrust.tsx");
+const atriumAI = read("src", "components", "marketing", "atrium", "AtriumAI.tsx");
+const atriumPricing = read("src", "components", "marketing", "atrium", "AtriumPricing.tsx");
+const atriumHowItWorks = read("src", "components", "marketing", "atrium", "AtriumHowItWorks.tsx");
+const atriumWhyRunOn = read("src", "components", "marketing", "atrium", "AtriumWhyRunOn.tsx");
+const atriumFAQ = read("src", "components", "marketing", "atrium", "AtriumFAQ.tsx");
+const atriumFinalCTA = read("src", "components", "marketing", "atrium", "AtriumFinalCTA.tsx");
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
@@ -620,8 +629,9 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
   });
 
   it("sections name the product, never 'run on PracticePro'", () => {
+    // Pass B: both attestations live in the product-owned files.
     expect(vegaCredentials).toContain("Why firms run on Vega");
-    expect(landing).toContain("'Why portfolios run on Atrium'");
+    expect(atriumWhyRunOn).toContain("Why portfolios run on Atrium");
     expect(landing).not.toContain("run on PracticePro");
   });
 });
@@ -764,19 +774,113 @@ describe("Atrium rebrand — 'The Well-Kept Estate' register on /atrium", () => 
   });
 
   it("the AI band is anchorable and the body carries the atrium hook", () => {
-    expect(landing).toContain('id="ai-capabilities"');
+    expect(atriumAI).toContain('id="ai-capabilities"');
     expect(landing).toContain("body.classList.toggle('on-atrium-page', onAtrium)");
   });
 
   it("no dark bands on /atrium: AI capabilities and the final CTA go light", () => {
-    // The AI band renders bg-slate-900 only for Vega (remapped to ink);
-    // Atrium paints sage via the style branch instead.
-    expect(landing).toContain(
-      "${isVega ? 'bg-slate-900 text-white' : ''}`}"
-    );
-    // The final CTA is Vega-ink or Atrium-sage — the old bg-primary-600
-    // band is gone.
+    // Pass B: both bands are Atrium-owned files painting sage — no
+    // bg-slate-900 band, no vega ink, anywhere on the atrium page.
+    // (The regex allows slate-900 at hover opacities like
+    // hover:bg-slate-900/5 — a tint, not a band.)
+    const darkBand = /bg-slate-900(?![-\w/])/;
+    expect(atriumAI).not.toMatch(darkBand);
+    expect(atriumAI).not.toContain("bg-vega-ink");
+    expect(atriumAI).toContain("var(--color-sage)");
+    expect(atriumFinalCTA).not.toMatch(darkBand);
+    expect(atriumFinalCTA).not.toContain("bg-vega-ink");
+    expect(atriumFinalCTA).toContain("var(--color-sage)");
+    // The old bg-primary-600 band stays retired.
     expect(landing).not.toContain("'bg-primary-600'");
+  });
+});
+
+describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific sections", () => {
+  it("/atrium renders ONLY Atrium-owned sections — zero shared sections, different inventory + order", () => {
+    // The shared template is deleted wholesale: no trace of it may return.
+    for (const s of [
+      "StatsDemarcator",
+      "FeaturesSection",
+      "TrustBadgesStrip",
+      "AICapabilitiesSection",
+      "PricingSection",
+      "HowItWorksSection",
+      "WhyRunOnSection",
+      "FAQSection",
+      "FinalCTASection",
+    ]) {
+      expect(landing).not.toContain(`<${s}`);
+      expect(landing).not.toContain(`const ${s}`);
+    }
+    // The atrium composition: 13 bands, this exact order.
+    const marker = landing.indexOf("ATRIUM PASS B");
+    expect(marker).toBeGreaterThan(-1);
+    const tail = landing.slice(marker);
+    const order = (tail.match(/<(Atrium[A-Za-z]+)/g) || []).map((t) =>
+      t.slice(1)
+    );
+    expect(order).toEqual([
+      "AtriumHero",
+      "AtriumStats",
+      "AtriumFeatures",
+      "AtriumTrust",
+      "AtriumAI",
+      "AtriumEstate",
+      "AtriumReceipt",
+      "AtriumSentryPass",
+      "AtriumPricing",
+      "AtriumHowItWorks",
+      "AtriumWhyRunOn",
+      "AtriumFAQ",
+      "AtriumFinalCTA",
+    ]);
+  });
+
+  it("the atrium files never import a vega component (cross-page isolation)", () => {
+    for (const src of [atriumStats, atriumFeatures, atriumTrust, atriumAI, atriumPricing, atriumHowItWorks, atriumWhyRunOn, atriumFAQ, atriumFinalCTA]) {
+      expect(src).not.toContain("marketing/vega/");
+      expect(src).not.toContain("VegaHero");
+      expect(src).not.toContain("font-vega");
+      expect(src).not.toContain("bg-vega-ink");
+    }
+  });
+
+  it("features are the warm hover-expand grid, not a ruled ledger", () => {
+    expect(atriumFeatures).toContain('id="features"');
+    expect(atriumFeatures).toContain("ATRIUM_FEATURE_CATEGORIES");
+    expect(atriumFeatures).toContain("landing-card feature-card");
+    expect(atriumFeatures).not.toContain("vg-rule-h");
+  });
+
+  it("pricing is the warm rounded SCE register (same data, calculator kept)", () => {
+    expect(atriumPricing).toContain('id="pricing"');
+    expect(atriumPricing).toContain("getDisplayTiersForProduct('property')");
+    expect(atriumPricing).toContain("formatTierPrice");
+    expect(atriumPricing).toContain("SceCalculatorModal");
+    expect(atriumPricing).toContain("Save 20%");
+    expect(atriumPricing).toContain("30-day money-back guarantee on annual plans");
+    expect(atriumPricing).toContain("rounded-3xl");
+    // The Komplete banner is Vega-only.
+    expect(atriumPricing).not.toContain("Are you a Real Estate Lawyer?");
+  });
+
+  it("how-it-works stays the warm 3-step tiles", () => {
+    expect(atriumHowItWorks).toContain('id="howItWorks"');
+    expect(atriumHowItWorks).toContain("Sentry Pass");
+    expect(atriumHowItWorks).toContain("rounded-2xl");
+  });
+
+  it("the FAQ is light and rounded — no ink band on /atrium", () => {
+    expect(atriumFAQ).toContain("Questions? Answered.");
+    expect(atriumFAQ).toContain("PracticePro Atrium for property managers");
+    expect(atriumFAQ).toContain("rounded-lg");
+    expect(atriumFAQ).not.toContain("bg-vega-ink");
+  });
+
+  it("the stat band carries the mono money register on sage", () => {
+    expect(atriumStats).toContain("font-mono");
+    expect(atriumStats).toContain("var(--color-sage)");
+    expect(atriumStats).not.toContain("bg-vega-ink");
   });
 });
 
@@ -798,9 +902,11 @@ describe("W3 — honest social proof (P8)", () => {
   it("no five-star testimonial markup; capability cards instead", () => {
     expect(landing).not.toContain("Star rating");
     expect(landing).not.toContain("M9.049 2.927"); // the deleted star SVG path
-    expect(landing).toContain("WHY_RUN_ON");
-    expect(landing).toContain("Drafted for Nigerian courts");
-    expect(landing).toContain("Every state's tenancy law, applied");
+    // Pass B: the capability attestations live in the product-owned
+    // files — Vega's credentials section, Atrium's why-run-on band.
+    expect(vegaCredentials).toContain("Drafted for Nigerian courts");
+    expect(atriumWhyRunOn).toContain("WHY_RUN_ON");
+    expect(atriumWhyRunOn).toContain("Every state's tenancy law, applied");
   });
 });
 

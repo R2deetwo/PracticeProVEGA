@@ -253,7 +253,14 @@ describe("wording consistency (the four promise surfaces)", () => {
   });
 
   it("LandingPage guarantee badge unchanged (the promise surface this round protects)", () => {
-    expect(landing).toContain("30-day money-back guarantee on annual plans");
+    // Pass B: the badge lives in the product-owned pricing sections —
+    // both pages must keep carrying the refund promise verbatim.
+    expect(read("src/components/marketing/vega/VegaPricingLedger.tsx")).toContain(
+      "30-day money-back guarantee on annual plans"
+    );
+    expect(read("src/components/marketing/atrium/AtriumPricing.tsx")).toContain(
+      "30-day money-back guarantee on annual plans"
+    );
   });
 
   it("firm-side panel wires the customer submission mutation", () => {
