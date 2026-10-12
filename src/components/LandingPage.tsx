@@ -160,11 +160,12 @@ function useSectionProgress<T extends HTMLElement = HTMLDivElement>(onProgress: 
     return ref;
 }
 
-/** Primary CTA button – high-contrast gradient fill */
+/** Primary CTA button — the ramp fill (brand.md §4.1 sanctioned gradient
+ *  #2) on the 6px interactive radius, neutral elevation only. */
 const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
     <button
         onClick={onClick}
-        className={`relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-600/25 hover:shadow-glow-primary transition-all duration-300 active:scale-[0.97] ${className}`}
+        className={`relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-md transition-all duration-300 active:scale-[0.97] ${className}`}
     >
         {children}
     </button>
@@ -174,7 +175,7 @@ const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
 const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string }> = ({ onClick, children, className = '' }) => (
     <button
         onClick={onClick}
-        className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white transition-all duration-300 active:scale-[0.97] ${className}`}
+        className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white transition-all duration-300 active:scale-[0.97] ${className}`}
     >
         {children}
     </button>
@@ -622,7 +623,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 {/* Product — only rendered when a product is chosen */}
                 {productChosen && (
                     <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Product</p>
+                        <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Product</p>
                         <div className="flex flex-col gap-2.5">
                             <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Features</button>
                             <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors">Pricing</button>
@@ -637,7 +638,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 {/* Portals — only rendered when a product is chosen */}
                 {productChosen && (
                     <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Portals</p>
+                        <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Portals</p>
                         <div className="flex flex-col gap-2.5">
                             {activeProduct === 'vega' && (
                                 <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
@@ -652,7 +653,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                     the Product column (Features/Pricing/…) serves this role. */}
                 {!productChosen && (
                     <div>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Products &amp; Work</p>
+                        <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Products &amp; Work</p>
                         <div className="flex flex-col gap-2.5">
                             {/* W14: real anchors to the real pages — the
                                 footer navigates exactly like the Products
@@ -684,7 +685,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                 )}
                 {/* Company — always on the far right (column 4) */}
                 <div className={productChosen ? '' : 'md:col-start-4'}>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4">Company</p>
+                    <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Company</p>
                     <div className="flex flex-col gap-1">
                         <span onClick={onPrivacyClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Privacy Policy</span>
                         <span onClick={onTermsClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Terms of Service</span>
@@ -949,7 +950,7 @@ const HubHero: React.FC<{
             {/* pb-24 on mobile clears the chat FAB (bottom-20 = 80px). */}
             <div className="hero-stagger relative z-10 container mx-auto px-4 sm:px-6 pt-28 pb-24 sm:pt-32 sm:pb-20 flex flex-col items-center text-center">
 
-                <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-6 text-emerald-400/90">
+                <p className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-6 text-emerald-400/90">
                     We design, build &amp; run business software
                 </p>
 
@@ -987,14 +988,14 @@ const HubHero: React.FC<{
                     <Button
                         variant="bare"
                         onClick={onContactSales}
-                        className="relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.97]"
+                        className="relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-md transition-all duration-300 active:scale-[0.97]"
                     >
                         Talk to us about your system
                     </Button>
                     <Button
                         variant="bare"
                         onClick={() => scrollTo('ourWork')}
-                        className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm bg-white/10 text-white border border-white/15 backdrop-blur-sm hover:bg-white/15 hover:border-white/25 transition-all duration-300 active:scale-[0.97]"
+                        className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm bg-white/10 text-white border border-white/15 backdrop-blur-sm hover:bg-white/15 hover:border-white/25 transition-all duration-300 active:scale-[0.97]"
                     >
                         See what we&apos;ve built
                     </Button>
@@ -1116,7 +1117,7 @@ const MarqueeStrip: React.FC = () => (
                 <div key={dup} className="flex items-center gap-10" aria-hidden={dup === 1}>
                     {MARQUEE_ITEMS.map((item) => (
                         <span key={`${dup}-${item}`} className="flex items-center gap-10">
-                            <span className="font-display text-sm sm:text-base font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            <span className="font-mono text-xs sm:text-sm uppercase tracking-[0.22em] text-slate-500">
                                 {item}
                             </span>
                             <span className="w-1.5 h-1.5 rotate-45 bg-gradient-to-br from-emerald-300 to-emerald-500 opacity-70" aria-hidden="true" />
@@ -1175,7 +1176,7 @@ const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContact
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="w9-reveal text-center mb-10 md:mb-14 max-w-3xl mx-auto">
-                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-emerald-400/90">
+                    <p className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-4 text-emerald-400/90">
                         Sound familiar?
                     </p>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
@@ -1229,7 +1230,7 @@ const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContact
                         <Button
                             variant="bare"
                             onClick={onContactSales}
-                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.97]"
+                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-md transition-all duration-300 active:scale-[0.97]"
                         >
                             Tell us what runs your business today
                         </Button>
@@ -1429,7 +1430,7 @@ const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ scrollT
                     </Button>
                 </div>
                 <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
-                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                    <p className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--color-moss)' }}>
                         What we do
                     </p>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
@@ -1895,7 +1896,7 @@ const WorkDetailModal: React.FC<{
                     <p className="text-slate-600 text-sm leading-[1.75] mb-8 max-w-2xl">{work.body}</p>
 
                     {/* What's inside */}
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Inside the system</p>
+                    <p className="font-mono text-xs font-medium uppercase tracking-widest text-slate-400 mb-3">Inside the system</p>
                     <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 mb-8">
                         {work.inside.map((item) => (
                             <li key={item} className="flex items-start gap-2.5 text-sm text-slate-700">
@@ -1906,7 +1907,7 @@ const WorkDetailModal: React.FC<{
                     </ul>
 
                     {/* Stack */}
-                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Built with</p>
+                    <p className="font-mono text-xs font-medium uppercase tracking-widest text-slate-400 mb-3">Built with</p>
                     <div className="flex flex-wrap gap-2 mb-8">
                         {work.stack.map((s) => (
                             <span key={s} className="px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-700">
@@ -1958,7 +1959,7 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
-                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-emerald-400/90">
+                    <p className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-4 text-emerald-400/90">
                         Our work
                     </p>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
@@ -1992,7 +1993,7 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
                                     <p className="text-slate-300/90 text-sm leading-[1.75] mb-6">{w.body}</p>
 
                                     {/* Stack chips — the first few, full list in the preview */}
-                                    <p className="text-2xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Built with</p>
+                                    <p className="font-mono text-2xs font-medium uppercase tracking-widest text-slate-500 mb-2.5">Built with</p>
                                     <div className="flex flex-wrap gap-2 mb-6">
                                         {w.stack.slice(0, 4).map((s) => (
                                             <span key={s} className="px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-2xs font-semibold text-slate-300">
@@ -2007,7 +2008,7 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
                                     </div>
 
                                     {/* Key modules — a taste of what's inside */}
-                                    <p className="text-2xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Inside the system</p>
+                                    <p className="font-mono text-2xs font-medium uppercase tracking-widest text-slate-500 mb-2.5">Inside the system</p>
                                     <ul className="space-y-1.5 mb-8">
                                         {w.inside.slice(0, 3).map((item) => (
                                             <li key={item} className="flex items-start gap-2 text-sm text-slate-400">
@@ -2145,7 +2146,7 @@ const HowWeWorkSection: React.FC = () => {
             {/* W8: the FluidSeam above owns the dark→light transition now. */}
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
                 <div ref={ref} className="w9-reveal text-center mb-12 md:mb-16">
-                    <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                    <p className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--color-moss)' }}>
                         How we work
                     </p>
                     <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 font-display" style={{ '--w9-d': '90ms' } as React.CSSProperties}>
@@ -2236,7 +2237,7 @@ const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 max-w-6xl mx-auto items-center">
                     <div ref={leftRef} className="w9-reveal-stagger">
-                        <p className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4" style={{ color: 'var(--color-moss)' }}>
+                        <p className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.2em] mb-4" style={{ color: 'var(--color-moss)' }}>
                             Who we are
                         </p>
                         <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-6">
@@ -2323,14 +2324,14 @@ const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: 
                 <Button
                     variant="bare"
                     onClick={onContactSales}
-                    className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-semibold hover:bg-slate-100 hover:scale-[1.02] transition-all shadow-xl shadow-black/40"
+                    className="bg-white text-slate-900 px-8 py-4 rounded-sm font-semibold hover:bg-slate-100 hover:scale-[1.02] transition-all shadow-md"
                 >
                     Tell us what you need
                 </Button>
                 <Button
                     variant="bare"
                     onClick={() => scrollTo('ourWork')}
-                    className="bg-transparent border-2 border-white/20 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/30 transition-all"
+                    className="bg-transparent border-2 border-white/20 text-white px-8 py-4 rounded-sm font-semibold hover:bg-white/10 hover:border-white/30 transition-all"
                 >
                     Explore our products
                 </Button>
@@ -2448,7 +2449,7 @@ const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atr
                         <div className="hidden md:flex gap-4 justify-center lg:justify-start items-center mb-8">
                             {/* TASK 54: no-arg invocation — never leak the click
                                 event into the product override. */}
-                            <PrimaryButton onClick={() => onSignup()} className="text-base px-8 py-4 shadow-xl shadow-primary-500/30">
+                            <PrimaryButton onClick={() => onSignup()} className="text-base px-8 py-4">
                                 Get Started
                             </PrimaryButton>
                         </div>
@@ -2893,9 +2894,9 @@ const SceCalculatorModal: React.FC<{
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] overflow-y-auto flex flex-col">
+            <div className="relative bg-white rounded-t-md sm:rounded-md shadow-md w-full max-w-3xl max-h-[92vh] overflow-y-auto flex flex-col">
                 {/* Brand accent bar */}
-                <div className="h-1.5 w-full bg-gradient-to-r from-emerald-600 to-teal-600 rounded-t-2xl sm:rounded-t-2xl" />
+                <div className="h-1.5 w-full bg-primary-500 rounded-t-md sm:rounded-t-md" />
 
                 {/* Header */}
                 <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
@@ -3271,8 +3272,8 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             onMouseLeave={() => setIsHoveringArea(false)}
                         >
                             {/* Pill — always visible. PRICING AUDIT: removed "Billed Annually" (Atrium now has monthly too) */}
-                            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold border border-blue-200 whitespace-nowrap cursor-help">
-                                SCE shown per unit<span className="text-blue-500 font-bold">*</span>
+                            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-200 whitespace-nowrap cursor-help">
+                                SCE shown per unit<span className="text-emerald-500 font-bold">*</span>
                             </span>
                             {/* Tooltip */}
                             <div
@@ -3315,7 +3316,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             }`}
                     >
                         {plan.highlighted && (
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white text-2xs font-black uppercase tracking-wide-label rounded-full shadow-xl z-20 whitespace-nowrap">
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-2 bg-emerald-600 text-white text-2xs font-black uppercase tracking-wide-label rounded-full shadow-md z-20 whitespace-nowrap">
                                 Most Popular
                             </div>
                         )}
@@ -3347,7 +3348,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                     <span className={`text-sm leading-snug ${plan.highlighted ? 'text-slate-200' : 'text-slate-700'}`}>
                                         {f.text}
                                         {f.note && (
-                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">
+                                            <span className="ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
                                                 {f.note}
                                             </span>
                                         )}
@@ -3359,9 +3360,9 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         {/* CTA */}
                         <button
                             onClick={plan.id === 'Enterprise' ? () => onContactSales('Enterprise Pricing CTA') : () => onSignup()}
-                            className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg ${
+                            className={`w-full py-3.5 rounded-sm font-bold text-sm transition-all active:scale-[0.98] shadow-md ${
                                 plan.highlighted
-                                ? 'bg-gradient-to-r from-blue-500 to-emerald-500 text-white hover:opacity-90'
+                                ? 'bg-gradient-to-br from-primary-500 to-primary-700 text-white hover:from-primary-400 hover:to-primary-600'
                                 : 'bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200'
                             }`}
                         >
@@ -3389,7 +3390,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         </div>
                         <button
                             onClick={() => onSignup('unified')}
-                            className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-gradient-to-r from-primary-500 to-emerald-600 hover:from-primary-600 hover:to-emerald-700 text-white text-sm font-bold shadow-lg shadow-primary-500/20 transition-all active:scale-95 flex items-center gap-2"
+                            className="whitespace-nowrap px-7 py-3.5 rounded-sm bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 text-white text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
                         >
                             <SparklesIcon className="w-4 h-4" />
                             Explore Komplete
@@ -3400,8 +3401,8 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
 
                 {/* B. Custom Automation Pipeline — PracticePro Bespoke Systems */}
                 <div className="relative overflow-hidden p-8 md:p-10 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/40">
-                    <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full blur-3xl bg-violet-500/10 pointer-events-none" />
-                    <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-3xl bg-blue-500/8 pointer-events-none" />
+                    <div className="absolute -top-20 -left-20 w-60 h-60 rounded-full blur-3xl bg-primary-500/10 pointer-events-none" />
+                    <div className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-3xl bg-emerald-500/8 pointer-events-none" />
                     <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                         <div className="flex-1">
                             <h4 className="text-2xl font-extrabold text-white mb-2 tracking-tight">
@@ -3413,7 +3414,7 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         </div>
                         <button
                             onClick={() => onContactSales('Custom Automation Pipeline')}
-                            className="whitespace-nowrap px-7 py-3.5 rounded-2xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-bold shadow-lg shadow-white/10 transition-all active:scale-95 flex items-center gap-2"
+                            className="whitespace-nowrap px-7 py-3.5 rounded-sm bg-white hover:bg-slate-50 text-slate-900 text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
                         >
                             Contact Sales
                         </button>
