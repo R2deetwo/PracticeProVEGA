@@ -200,7 +200,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                                 <>We've updated our{' '}
                                     <button
                                         onClick={() => openLegalDocument('terms')}
-                                        className="text-primary-400 hover:text-primary-300 font-semibold underline underline-offset-2"
+                                        className="terms-link text-primary-400 hover:text-primary-300 font-semibold underline underline-offset-2"
                                     >Terms of Service</button>
                                     {' '}and{' '}
                                     <button
@@ -214,7 +214,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                                     <strong className="text-white">you must accept our{' '}
                                         <button
                                             onClick={() => openLegalDocument('terms')}
-                                            className="text-primary-400 hover:text-primary-300 font-semibold underline underline-offset-2"
+                                            className="terms-link text-primary-400 hover:text-primary-300 font-semibold underline underline-offset-2"
                                         >Terms of Service</button>
                                         {' '}and{' '}
                                         <button
@@ -240,7 +240,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
                         <button
                             onClick={handleAccept}
                             disabled={isSubmitting}
-                            className="px-5 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-md whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="terms-accept px-5 py-2 text-sm font-bold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-md whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isSubmitting ? 'Saving…' : 'Accept'}
                         </button>

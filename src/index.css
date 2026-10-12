@@ -8,7 +8,14 @@
    human hand — replaces Inter, which reads "default") · IBM Plex Mono
    (the ledger — kickers, IDs, prices). Dancing Script stays as a
    signature-rendering UTILITY only (SignDocumentModal), never brand
-   typography. */
+   typography.
+
+   VEGA REGISTER (product-page rebrand, docs/design/brand.md extension):
+   Fraunces Variable joins as the VEGA display serif — the legal voice,
+   loaded ONLY for /vega (unicode-range subsetted; other pages never
+   fetch a file unless a node actually uses the family). Serif display +
+   Plex Mono kickers is what makes Vega read as a different designer's
+   hand from every other page on the site. */
 @import '@fontsource/figtree/400.css';
 @import '@fontsource/figtree/500.css';
 @import '@fontsource/figtree/600.css';
@@ -20,6 +27,8 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 @import '@fontsource/dancing-script/700.css';
+@import '@fontsource-variable/fraunces';
+@import '@fontsource-variable/fraunces/wght-italic.css';
 
 @tailwind base;
 @tailwind components;
@@ -97,6 +106,22 @@
   --color-amber: #D97706;
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
+
+  /* ===== Vega product-page tokens ("The Chambers Standard") =========== */
+  /* Triplets (RGB space-separated) so Tailwind can alpha-modulate them
+     via the same rgb(var(--x) / <alpha-value>) mapping as the scales.
+     --color-amber (hex, above) stays untouched — it is pinned by
+     tests/unit/websiteRepositioning.test.ts. */
+  --color-vega-amber: 217 119 6;        /* #D97706 — rules, numerals, marks */
+  --color-vega-amber-deep: 180 83 9;    /* #B45309 — amber text on light   */
+  --color-vega-ink: 11 18 32;           /* #0B1220 — mirrors --color-ink   */
+  --color-vega-ink-soft: 21 31 51;      /* card surfaces on ink sections   */
+  --font-vega-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
+
+  /* ===== Atrium product-page tokens ("The Well-Kept Estate") ========== */
+  --color-atrium-emerald: 5 150 105;    /* #059669 — Atrium's accent       */
+  --color-clay: 180 132 108;            /* #B4846C — warm supporting tone  */
+  --color-cream: 250 247 242;           /* #FAF7F2 — warm base surface     */
 
   /* ===== Brand Overhaul Tokens (docs/design/brand.md §4) ============== */
   /* Type roles — three registers, theme-agnostic (fonts don't change per
@@ -1949,6 +1974,236 @@ span[data-type="legal-placeholder"] {
     max-height: none;
   }
   .animate-swap-in { animation: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VEGA PRODUCT PAGE — "The Chambers Standard" (.theme-vega scope)
+   ─────────────────────────────────────────────────────────────────────────
+   Every rule below is scoped under .theme-vega (applied to the landing
+   root ONLY while the /vega product page is shown) so the hub, /atrium
+   and every other surface render pixel-identically. No global rule in
+   this block may ever match an element outside a Vega page.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Scope: neutral remap to the ink/paper world ──────────────────────────
+   slate-900 (the dark AI/footer surfaces) becomes Vega ink #0B1220 and
+   slate-800 (dark card fills) becomes the ink-soft card surface. Light-
+   theme text colors are untouched, so nothing on paper shifts. */
+.theme-vega {
+  --color-slate-900: 11 18 32;   /* ink   — dark sections, strong text  */
+  --color-slate-800: 21 31 51;   /* ink-soft — cards on ink sections    */
+}
+
+/* ── Vega display serif ──────────────────────────────────────────────────── */
+.theme-vega .font-vega {
+  font-family: var(--font-vega-display);
+  font-optical-sizing: auto;
+  font-variation-settings: 'SOFT' 0, 'WONK' 0;
+}
+.theme-vega .font-vega-italic {
+  font-family: var(--font-vega-display);
+  font-style: italic;
+  font-optical-sizing: auto;
+  font-variation-settings: 'SOFT' 0, 'WONK' 0;
+}
+
+/* ── Square the shared marketing surfaces inside Vega only ────────────────
+   Document register: square corners, hairline borders, no lift shadows. */
+.theme-vega .landing-card {
+  border-radius: 0;
+  box-shadow: none;
+  border-color: rgb(var(--color-slate-200));
+}
+.theme-vega .landing-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgb(var(--color-vega-amber) / 0.45);
+}
+.theme-vega .feature-card.is-expanded {
+  box-shadow: none;
+  border-color: rgb(var(--color-vega-amber));
+}
+.theme-vega .feature-card.is-expanded .feature-card__desc {
+  max-height: 320px; /* legal copy runs longer than the 240px default */
+}
+.theme-vega .trust-badge-icon {
+  border-radius: 0;
+}
+.theme-vega .pricing-card {
+  border-radius: 0;
+}
+.theme-vega .pricing-card:hover {
+  transform: none;
+}
+
+/* ── Vega hero — the pleading-paper document ─────────────────────────────── */
+.vg-doc {
+  position: relative;
+  background: #FFFFFF;
+  border: 1px solid rgb(var(--color-slate-200));
+  box-shadow:
+    0 1px 2px 0 rgb(11 18 32 / 0.06),
+    24px 24px 0 -1px rgb(var(--color-sage));
+  /* the second "sheet" is painted by ::after to keep markup clean */
+}
+.vg-doc::after {
+  content: '';
+  position: absolute;
+  inset: 12px -12px -12px 12px;
+  z-index: -1;
+  background: #FFFFFF;
+  border: 1px solid rgb(var(--color-slate-200));
+}
+.vg-doc__paper {
+  /* the ruled body: left margin rule + numbered lines, like pleading paper */
+  --vg-rule: rgb(var(--color-slate-300));
+  border-left: 1px solid var(--vg-rule);
+}
+.vg-doc__lines {
+  counter-reset: vgline;
+}
+.vg-doc__line {
+  counter-increment: vgline;
+}
+.vg-doc__line::before {
+  content: counter(vgline) '.';
+  font-family: var(--font-mono);
+  font-size: 8px;
+  line-height: 1;
+  color: rgb(var(--color-slate-400));
+  display: inline-block;
+  width: 1.1rem;
+  margin-right: 0.5rem;
+  text-align: right;
+  transform: translateY(-1px);
+}
+.vg-doc__body {
+  font-family: var(--font-vega-display);
+  text-align: justify;
+  hyphens: auto;
+}
+.vg-margin-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: rgb(var(--color-slate-500));
+}
+
+/* ── Vega tracked-changes marks (DraftPro exhibit) ──────────────────────── */
+.vg-ins {
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--color-vega-amber));
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  color: rgb(var(--color-vega-amber-deep));
+  background: rgb(var(--color-vega-amber) / 0.08);
+}
+.vg-del {
+  text-decoration: line-through;
+  text-decoration-color: rgb(var(--color-slate-500));
+  text-decoration-thickness: 1.5px;
+  color: rgb(var(--color-slate-400));
+}
+.vg-note {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+
+/* ── Vega chronology (court-rule calendar) ──────────────────────────────── */
+.vg-chronology {
+  position: relative;
+}
+.vg-chronology::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: rgb(var(--color-slate-300));
+}
+.vg-chrono-node {
+  position: relative;
+  padding-left: 2.25rem;
+}
+.vg-chrono-node::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 6px;
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: var(--color-paper);
+  border: 2px solid rgb(var(--color-slate-400));
+}
+.vg-chrono-node[data-computed='true']::before {
+  border-color: rgb(var(--color-vega-amber));
+  background: rgb(var(--color-vega-amber));
+}
+
+/* ── Vega ledger (Scale of Charges) ─────────────────────────────────────── */
+.vg-ledger {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+.vg-ledger th,
+.vg-ledger td {
+  border-bottom: 1px solid rgb(var(--color-slate-200));
+}
+.vg-ledger tr[data-total='true'] th,
+.vg-ledger tr[data-total='true'] td {
+  border-bottom: 3px double rgb(var(--color-slate-900));
+  border-top: 1px solid rgb(var(--color-slate-900));
+}
+
+/* ── Vega hairline section heads ("01 — Matters") ───────────────────────── */
+.vg-rule-h {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+.vg-rule-h::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgb(var(--color-slate-300));
+  transform: translateY(-4px);
+}
+
+/* ── Global compliance bars while on /vega only ──────────────────────────
+   The cookie bar and terms gate are App-level surfaces (fixed, outside
+   the landing root), so .theme-vega cannot reach them. LandingPage sets
+   body.on-vega-page while /vega is shown; these hooks re-tint ONLY there.
+   Hook classes (.cookie-ack/.cookie-link/.terms-accept/.terms-link) are
+   inert everywhere else — zero effect on any other page. */
+.on-vega-page .cookie-ack,
+.on-vega-page .terms-accept {
+  background: rgb(var(--color-vega-ink));
+}
+.on-vega-page .cookie-ack:hover {
+  background: rgb(var(--color-vega-ink-soft));
+}
+.on-vega-page .terms-accept:hover {
+  background: rgb(var(--color-vega-ink-soft));
+}
+.on-vega-page .cookie-link,
+.on-vega-page .terms-link {
+  color: rgb(var(--color-vega-amber));
+}
+.on-vega-page .cookie-link:hover,
+.on-vega-page .terms-link:hover {
+  color: rgb(var(--color-vega-amber-deep));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-vega .landing-card,
+  .theme-vega .pricing-card {
+    transition: none;
+  }
 }
 
 /* ─── Print Styles ──────────────────────────────────────────────────────── */

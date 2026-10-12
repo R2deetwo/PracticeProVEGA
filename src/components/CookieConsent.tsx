@@ -27,12 +27,12 @@ const CookieConsent: React.FC = () => {
         <div className="fixed bottom-16 md:bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-700 text-white z-[9999] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl animate-slide-up">
             <div className="flex-1 text-xs text-slate-300 max-w-5xl mx-auto pl-4">
                 We use cookies to enhance your experience and analyze usage in accordance with the NDPA 2023.{' '}
-                <button onClick={() => openLegalDocument('privacy')} className="text-primary-400 hover:text-primary-300 underline font-medium">Privacy Policy</button>
+                <button onClick={() => openLegalDocument('privacy')} className="cookie-link text-primary-400 hover:text-primary-300 underline font-medium">Privacy Policy</button>
             </div>
             <div className="flex gap-3 w-full sm:w-auto shrink-0 pr-4">
                 <button
                     onClick={handleAccept}
-                    className="flex-1 sm:flex-none px-5 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg"
+                    className="cookie-ack flex-1 sm:flex-none px-5 py-2 bg-primary-600 hover:bg-primary-500 text-white text-sm font-bold rounded-lg transition-colors shadow-lg"
                 >
                     Acknowledge
                 </button>

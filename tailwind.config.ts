@@ -22,6 +22,11 @@ const config: Config = {
                         display: ['var(--font-display)'],
                         sans: ['var(--font-sans)'],
                         mono: ['var(--font-mono)'],
+                        // Vega register — the legal display serif. Used ONLY
+                        // on /vega markup (font-vega / font-vega-italic via
+                        // .theme-vega scoping in index.css); every other
+                        // page keeps the geometric-sans voice.
+                        vega: ['var(--font-vega-display)', 'Georgia', 'serif'],
                 },
                 colors: {
                         background: 'hsl(var(--background))',
@@ -162,6 +167,23 @@ const config: Config = {
                         surface: {
                                 DEFAULT: 'rgb(var(--bg-surface) / <alpha-value>)',   // = slate-50
                                 2: 'rgb(var(--bg-surface-2) / <alpha-value>)',       // = slate-100
+                        },
+                        // ─── PRODUCT PAGE ACCENTS (product-page rebrand) ─────
+                        // Vega ("The Chambers Standard"): amber as rules/numerals/
+                        // small marks — the deep variant is the text-on-light
+                        // amber; NEVER a bright decorative fill.
+                        vega: {
+                                amber: 'rgb(var(--color-vega-amber) / <alpha-value>)',
+                                'amber-deep': 'rgb(var(--color-vega-amber-deep) / <alpha-value>)',
+                                ink: 'rgb(var(--color-vega-ink) / <alpha-value>)',
+                                'ink-soft': 'rgb(var(--color-vega-ink-soft) / <alpha-value>)',
+                        },
+                        // Atrium ("The Well-Kept Estate"): emerald + a warm
+                        // clay supporting tone + cream base surface.
+                        atrium: {
+                                emerald: 'rgb(var(--color-atrium-emerald) / <alpha-value>)',
+                                clay: 'rgb(var(--color-clay) / <alpha-value>)',
+                                cream: 'rgb(var(--color-cream) / <alpha-value>)',
                         },
                 },
                 // ─── BORDER RADIUS (3 tokens, enforced) ─────────────────────────
