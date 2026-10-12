@@ -46,6 +46,10 @@ import { VegaHero } from './marketing/vega/VegaHero';
 import { VegaCourtRules } from './marketing/vega/VegaCourtRules';
 import { VegaScaleOfCharges } from './marketing/vega/VegaScaleOfCharges';
 import { VegaDraftExhibit } from './marketing/vega/VegaDraftExhibit';
+import { AtriumHero } from './marketing/atrium/AtriumHero';
+import { AtriumReceipt } from './marketing/atrium/AtriumReceipt';
+import { AtriumEstate } from './marketing/atrium/AtriumEstate';
+import { AtriumSentryPass } from './marketing/atrium/AtriumSentryPass';
 // W1 (website repositioning): new interactive elements use the ui/ Button
 // primitive per ADR-0004 — the raw-element ratchet must not grow.
 import { Button } from './ui';
@@ -170,13 +174,17 @@ function useSectionProgress<T extends HTMLElement = HTMLDivElement>(onProgress: 
 /** Primary CTA button — the ramp fill (brand.md §4.1 sanctioned gradient
  *  #2) on the 6px interactive radius, neutral elevation only.
  *  tone='vega' swaps in the Chambers Standard register: a flat ink fill,
- *  no gradient — amber is reserved for rules, numerals and small marks. */
-const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' }> = ({ onClick, children, className = '', tone = 'green' }) => (
+ *  no gradient — amber is reserved for rules, numerals and small marks.
+ *  tone='atrium' is the Well-Kept Estate register: a flat emerald fill
+ *  (the Atrium accent #059669), never a gradient, never moss. */
+const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' | 'atrium' }> = ({ onClick, children, className = '', tone = 'green' }) => (
     <button
         onClick={onClick}
         className={`relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm transition-all duration-300 active:scale-[0.97] ${
             tone === 'vega'
                 ? 'bg-vega-ink text-white hover:bg-vega-ink-soft shadow-sm'
+                : tone === 'atrium'
+                ? 'bg-atrium-emerald text-white hover:bg-emerald-700 shadow-sm'
                 : 'text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-md'
         } ${className}`}
     >
@@ -184,13 +192,16 @@ const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
     </button>
 );
 
-/** Ghost/secondary button — tone='vega' is the amber-outline variant. */
-const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' }> = ({ onClick, children, className = '', tone = 'green' }) => (
+/** Ghost/secondary button — tone='vega' is the amber-outline variant;
+ *  tone='atrium' is the warm emerald-outline variant for the photo hero. */
+const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' | 'atrium' }> = ({ onClick, children, className = '', tone = 'green' }) => (
     <button
         onClick={onClick}
         className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm transition-all duration-300 active:scale-[0.97] ${
             tone === 'vega'
                 ? 'bg-white/60 text-vega-amber-deep border border-vega-amber-deep/40 backdrop-blur-sm hover:border-vega-amber-deep hover:bg-vega-amber/5'
+                : tone === 'atrium'
+                ? 'bg-white/85 text-emerald-700 border border-emerald-600/40 backdrop-blur-sm hover:border-emerald-600 hover:bg-white'
                 : 'bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white'
         } ${className}`}
     >
@@ -367,7 +378,7 @@ const NavBar: React.FC<{
                                 </button>
                                 <button
                                     onClick={() => { setActiveProduct('atrium'); setProductsOpen(false); }}
-                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-purple-50 text-purple-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
                                 >
                                     <OfficeBuildingIcon className="w-4 h-4 opacity-70" />
                                     Atrium
@@ -502,7 +513,7 @@ const NavBar: React.FC<{
                             productOverride (see comment at openSignup). */}
                         <PrimaryButton
                             onClick={() => onSignup()}
-                            tone={activeProduct === 'vega' ? 'vega' : 'green'}
+                            tone={activeProduct === 'vega' ? 'vega' : activeProduct === 'atrium' ? 'atrium' : 'green'}
                             className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-sm !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-sm"
                         >
                             Start Free Trial
@@ -558,7 +569,7 @@ const NavBar: React.FC<{
                         <button onClick={() => handleNavClick(() => setActiveProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}`}>
                             <ScalesIcon className="w-5 h-5 opacity-70" /> Vega — For Law Firms
                         </button>
-                        <button onClick={() => handleNavClick(() => setActiveProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'atrium' ? 'bg-purple-50 text-purple-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                        <button onClick={() => handleNavClick(() => setActiveProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}>
                             <OfficeBuildingIcon className="w-5 h-5 opacity-70" /> Atrium — For Property Managers
                         </button>
                     </div>
@@ -636,7 +647,7 @@ const Footer: React.FC<{ onPrivacyClick: () => void; onTermsClick: () => void; o
                                 onClick={() => setActiveProduct(activeProduct === 'vega' ? 'atrium' : 'vega')}
                                 className={`text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all ${activeProduct === 'vega'
                                     ? 'text-vega-amber hover:text-vega-amber/80 border-vega-amber/30 hover:bg-vega-amber/10'
-                                    : 'text-primary-500 hover:text-primary-400 border-primary-500/20 hover:bg-primary-500/5'}`}
+                                    : 'text-emerald-400 hover:text-emerald-300 border-emerald-400/30 hover:bg-emerald-400/10'}`}
                             >
                                 Switch to {activeProduct === 'vega' ? 'Atrium' : 'Vega'} <span className="text-xs">→</span>
                             </button>
@@ -773,7 +784,9 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
 
     // VEGA REGISTER: the stat strip becomes the deep ink band — bookish,
     // like the spine of a law report. Serif values in paper, mono labels,
-    // hairline rules between cells. Atrium keeps the sage strip.
+    // hairline rules between cells. ATRIUM REGISTER: the strip stays sage
+    // (the section break), and the values go big tabular mono — the
+    // ledger/receipt numerals that carry Atrium's money register.
     return (
         <section
             ref={ref}
@@ -785,7 +798,7 @@ const StatsDemarcator: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                     {stats.map((s, i) => (
                         <div key={i} className={`flex flex-col items-center ${isVega ? 'md:items-start md:pl-4 md:first:pl-0' : ''}`}>
                             <p
-                                className={`${isVega ? 'font-vega' : 'font-display'} nums-tabular font-bold mb-2 whitespace-nowrap ${isVega
+                                className={`${isVega ? 'font-vega' : 'font-mono'} nums-tabular font-bold mb-2 whitespace-nowrap ${isVega
                                     ? 'text-2xl sm:text-3xl md:text-3xl lg:text-4xl'
                                     : 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl'}`}
                                 style={{ color: isVega ? 'var(--color-paper)' : 'var(--color-ink)' }}
@@ -2390,164 +2403,6 @@ const ATRIUM_STATS = [
     { value: 'NDPA 2023', label: 'Data Compliant' },
 ];
 
-const HomeSection: React.FC<{ onSignup: () => void; activeProduct: 'vega' | 'atrium'; setActiveProduct: (p: 'vega' | 'atrium') => void }> = ({ onSignup, activeProduct, setActiveProduct }) => {
-    // FIX: Use activeProduct instead of useProduct() — landing page has no firm
-    const isProperty = activeProduct === 'atrium';
-    // Landing page is ALWAYS light mode — no isDark logic.
-    const isVega = activeProduct === 'vega';
-
-    // ── Image cycling ──────────────────────────────────────────────
-    // Auto-rotate through 3 images per product every 6 seconds with a
-    // crossfade. Younger lawyers/pros, varied scenes (desk work, mentoring,
-    // team meeting). Cache-busted via build SHA so new deploys always fetch
-    // fresh images instead of serving stale cached versions.
-    const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
-    const heroImages = isVega
-        ? [
-            `/assets/landing/vega-hero-1.jpg?v=${buildSha}`,
-            `/assets/landing/vega-hero-2.jpg?v=${buildSha}`,
-            `/assets/landing/vega-hero-3.jpg?v=${buildSha}`,
-        ]
-        : [
-            `/assets/landing/atrium-hero-1.jpg?v=${buildSha}`,
-            `/assets/landing/atrium-hero-2.jpg?v=${buildSha}`,
-            `/assets/landing/atrium-hero-3.jpg?v=${buildSha}`,
-        ];
-    const [currentImageIdx, setCurrentImageIdx] = useState(0);
-    useEffect(() => {
-        // Skip cycling if user prefers reduced motion
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        const interval = setInterval(() => {
-            setCurrentImageIdx(prev => (prev + 1) % heroImages.length);
-        }, 6000);
-        return () => clearInterval(interval);
-    }, [heroImages.length]);
-
-    // Duotone brand tint — amber for Vega, emerald for Atrium.
-    const accentColorValue = isVega ? '#D97706' : '#059669';
-
-    return (
-        <section id="home" className="relative overflow-hidden" style={{ background: 'var(--color-paper)' }}>
-            {/* ── Subtle dot grid only — no radial glow blob ── */}
-            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,_#e2e8f0_1px,_transparent_1px)] [background-size:32px_32px] opacity-50" />
-
-            {/* ── Hero Content — 2-column on desktop, stacked on mobile ──
-                pb-28 on mobile (112px) clears the WhatsApp FAB (bottom-20 = 80px)
-                and the MobileStickyCTA bar (~64px tall at bottom-0). Without
-                this, the hero body paragraph ("Purpose-built for Nigerian
-                property portfolios... charge collection...") was getting
-                clipped behind the sticky CTA bar on small viewports.
-                sm:pb-16 restores desktop spacing where there are no fixed
-                bottom elements. */}
-            <div className="hero-stagger relative z-10 pt-24 pb-28 sm:pb-16 px-4 sm:px-6 lg:pt-48 lg:pb-32">
-                <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-                    {/* Left: text content */}
-                    <div className="text-center lg:text-left">
-                        {/* W2: product→company attribution. The page names the
-                            product; the eyebrow credits the builder. */}
-                        <p
-                            className="text-2xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-5"
-                            style={{ color: accentColorValue }}
-                        >
-                            {isVega ? 'Vega · Built by PracticePro' : 'Atrium · Built by PracticePro'}
-                        </p>
-                        {/* Headline — Space Grotesk display */}
-                        <h1 className="font-display text-[2rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.15] mb-6" style={{ color: 'var(--color-ink)' }}>
-                            {isVega ? <>Practice<br />Management</> : <>Revenue<br />Monitor</>}{' '}
-                            <br className="hidden md:block" />
-                            for{' '}
-                            <span className="relative">
-                                <span className="text-transparent bg-clip-text inline-block pb-1" style={{ backgroundImage: `linear-gradient(to right, ${accentColorValue}, var(--color-moss))` }}>
-                                    {isVega ? 'Nigerian Law Firms' : 'Property Managers'}
-                                </span>
-                            </span>
-                        </h1>
-
-                        {/* Sub-copy */}
-                        <p className="text-lg max-w-2xl mx-auto lg:mx-0 mb-10 leading-[1.7] text-slate-600">
-                            {isVega
-                                ? 'Case management, AI-assisted drafting, and billing that respects Nigerian court practice — from intake to judgment, in one workspace.'
-                                : 'Rent and service-charge collection, a residents\' portal, maintenance workflows, and revenue intelligence — built for Nigerian property portfolios, at home or from abroad.'}
-                        </p>
-
-                        {/* CTAs — hidden on mobile because the MobileStickyCTA bar
-                            provides the same action ("Start Free Trial") fixed
-                            at the viewport bottom. Showing both would create
-                            duplicate CTAs competing for attention on small
-                            screens. md+ shows the hero CTA since there's no
-                            sticky bar on desktop. */}
-                        <div className="hidden md:flex gap-4 justify-center lg:justify-start items-center mb-8">
-                            {/* TASK 54: no-arg invocation — never leak the click
-                                event into the product override. */}
-                            <PrimaryButton onClick={() => onSignup()} className="text-base px-8 py-4">
-                                Get Started
-                            </PrimaryButton>
-                        </div>
-
-                        {/* Image pagination dots — shows which image is active.
-                            Small enough to coexist with the sticky CTA bar on
-                            mobile (1.5px tall, sits in the hero body above the
-                            pb-28 clear zone). */}
-                        <div className="flex gap-2 justify-center lg:justify-start items-center">
-                            {heroImages.map((_, i) => (
-                                <button
-                                    key={i}
-                                    onClick={() => setCurrentImageIdx(i)}
-                                    className="p-2.5 flex items-center justify-center touch-target"
-                                    aria-label={`View image ${i + 1}`}
-                                    aria-pressed={i === currentImageIdx}
-                                >
-                                    <span
-                                        className="h-1.5 rounded-full transition-all duration-300 block"
-                                        style={{
-                                            width: i === currentImageIdx ? '24px' : '8px',
-                                            backgroundColor: i === currentImageIdx ? accentColorValue : 'rgb(203 213 225)',
-                                        }}
-                                    />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Right: hero image — CYCLING GALLERY with crossfade, bleeds to right edge */}
-                    <div className="relative order-first lg:order-last">
-                        {/* On desktop: image bleeds to the right edge of the section (negative margin) */}
-                        <div className="relative aspect-[4/3] lg:-mr-6 xl:-mr-12 rounded-3xl overflow-hidden shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5">
-                            {/* Stack all images, only the current one is visible (crossfade) */}
-                            {heroImages.map((imgSrc, i) => (
-                                <img
-                                    key={i}
-                                    src={imgSrc}
-                                    alt={isVega
-                                        ? `Nigerian lawyers collaborating — image ${i + 1}`
-                                        : `Nigerian property professionals collaborating — image ${i + 1}`}
-                                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-out"
-                                    style={{
-                                        opacity: i === currentImageIdx ? 1 : 0,
-                                        zIndex: i === currentImageIdx ? 2 : 1,
-                                    }}
-                                    loading={i === 0 ? 'eager' : 'lazy'}
-                                />
-                            ))}
-                            {/* Duotone brand-color overlay — amber for Vega, emerald for Atrium. */}
-                            <div
-                                className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-20"
-                                style={{ backgroundColor: accentColorValue, zIndex: 3 }}
-                                aria-hidden="true"
-                            />
-                            {/* Subtle gradient overlay for depth */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" style={{ zIndex: 4 }} aria-hidden="true" />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Bottom fade into next section */}
-            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t to-transparent pointer-events-none" style={{ backgroundImage: 'linear-gradient(to top, var(--color-sage), transparent)' }} />
-        </section>
-    );
-};
-
 // ─── FEATURES ────────────────────────────────────────────────────────────────
 
 const VEGA_FEATURE_CATEGORIES = [
@@ -2654,9 +2509,10 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
     const [tappedCard, setTappedCard] = useState<string | null>(null);
     // Vega carries its accent through the token system (rgb vars); Atrium
-    // keeps the established inline values until its own rebrand pass.
-    const accentColorValue = isVega ? 'rgb(var(--color-vega-amber))' : '#059669';
-    const accentShadow = isVega ? 'rgb(var(--color-vega-amber) / 0.15)' : 'rgba(5, 150, 105, 0.15)';
+    // ("The Well-Kept Estate") now does the same — emerald #059669 via
+    // --color-atrium-emerald, never the moss brand ramp.
+    const accentColorValue = isVega ? 'rgb(var(--color-vega-amber))' : 'rgb(var(--color-atrium-emerald))';
+    const accentShadow = isVega ? 'rgb(var(--color-vega-amber) / 0.15)' : 'rgb(var(--color-atrium-emerald) / 0.15)';
 
     return (
         <section id="features" className="py-12 sm:py-20 lg:py-28" style={{ background: 'var(--color-paper)' }}>
@@ -2672,7 +2528,7 @@ const FeaturesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activ
                             </span>
                         </p>
                     ) : (
-                        <Pill className="mb-5 bg-primary-50 text-primary-700 border-primary-200">
+                        <Pill className="mb-5 bg-emerald-50 text-emerald-700 border-emerald-200">
                             Features
                         </Pill>
                     )}
@@ -2956,8 +2812,8 @@ const SceCalculatorModal: React.FC<{
 
             {/* Modal */}
             <div className="relative bg-white rounded-t-md sm:rounded-md shadow-md w-full max-w-3xl max-h-[92vh] overflow-y-auto flex flex-col">
-                {/* Brand accent bar */}
-                <div className="h-1.5 w-full bg-primary-500 rounded-t-md sm:rounded-t-md" />
+                {/* Brand accent bar — Atrium register: emerald, not moss */}
+                <div className="h-1.5 w-full bg-emerald-500 rounded-t-md sm:rounded-t-md" />
 
                 {/* Header */}
                 <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-slate-100">
@@ -3376,7 +3232,9 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                     <div
                         key={plan.id}
                         className={`pricing-card group rounded-3xl sm:rounded-[40px] border p-5 sm:p-8 md:p-10 flex flex-col relative ${plan.highlighted
-                            ? 'bg-slate-900 border-transparent shadow-2xl shadow-slate-900/30 lg:-translate-y-4'
+                            ? (isVega
+                                ? 'bg-slate-900 border-transparent shadow-2xl shadow-slate-900/30 lg:-translate-y-4'
+                                : 'bg-white border-2 border-emerald-500 shadow-elevation-2 lg:-translate-y-4')
                             : 'bg-white border-slate-200 shadow-lg shadow-slate-900/5 hover:shadow-2xl hover:border-primary-300'
                             }`}
                     >
@@ -3388,18 +3246,18 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                             </div>
                         )}
 
-                        <h3 className={`font-display text-xl font-bold mb-1 ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
-                        <p className={`text-sm mb-6 ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>{plan.description}</p>
+                        <h3 className={`font-display text-xl font-bold mb-1 ${plan.highlighted && isVega ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
+                        <p className={`text-sm mb-6 ${plan.highlighted ? (isVega ? 'text-slate-300' : 'text-slate-500') : 'text-slate-500'}`}>{plan.description}</p>
 
                         {/* Price */}
                         <div className="flex items-baseline gap-1 mb-2">
-                            <span className={`font-display nums-tabular text-4xl font-extrabold tracking-tight ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>{plan.price}</span>
-                            <span className={`text-sm ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>{plan.per}</span>
+                            <span className={`font-display nums-tabular text-4xl font-extrabold tracking-tight ${plan.highlighted ? (isVega ? 'text-white' : 'text-slate-900') : 'text-slate-900'}`}>{plan.price}</span>
+                            <span className={`text-sm ${plan.highlighted ? (isVega ? 'text-slate-300' : 'text-slate-500') : 'text-slate-500'}`}>{plan.per}</span>
                         </div>
 
                         {/* For Atrium: show SCE per tenant as a clean inline line (no tooltip, no box) */}
                         {!isVega && plan.tenantContribution && (
-                            <p className={`text-xs mb-2 ${plan.highlighted ? 'text-slate-300' : 'text-slate-500'}`}>
+                            <p className={`text-xs mb-2 ${plan.highlighted ? (isVega ? 'text-slate-300' : 'text-slate-500') : 'text-slate-500'}`}>
                                 <span className="font-semibold">~{plan.tenantContribution}</span> per resident/mo (SCE)
                             </p>
                         )}
@@ -3411,13 +3269,13 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                         <ul className="space-y-3.5 mb-8 flex-1">
                             {plan.features.map((f, i) => (
                                 <li key={i} className="flex items-start gap-3">
-                                    <CheckIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? (isVega ? 'text-vega-amber' : 'text-emerald-400') : (isVega ? 'text-vega-amber-deep' : 'text-emerald-600')}`} />
-                                    <span className={`text-sm leading-snug ${plan.highlighted ? 'text-slate-200' : 'text-slate-700'}`}>
+                                    <CheckIcon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${plan.highlighted ? (isVega ? 'text-vega-amber' : 'text-emerald-600') : (isVega ? 'text-vega-amber-deep' : 'text-emerald-600')}`} />
+                                    <span className={`text-sm leading-snug ${plan.highlighted ? (isVega ? 'text-slate-200' : 'text-slate-700') : 'text-slate-700'}`}>
                                         {f.text}
                                         {f.note && (
                                             <span className={`ml-2 text-3xs font-bold uppercase tracking-wider px-1.5 py-0.5 ${isVega
                                                 ? 'font-mono tracking-widest bg-vega-amber/10 text-vega-amber-deep'
-                                                : 'rounded bg-emerald-100 text-emerald-700'}`}>
+                                                : 'rounded-full bg-emerald-100 text-emerald-700'}`}>
                                                 {f.note}
                                             </span>
                                         )}
@@ -3433,10 +3291,10 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                                 plan.highlighted
                                 ? (isVega
                                     ? 'bg-white text-vega-ink hover:bg-slate-100'
-                                    : 'bg-gradient-to-br from-primary-500 to-primary-700 text-white hover:from-primary-400 hover:to-primary-600')
+                                    : 'bg-atrium-emerald text-white hover:bg-emerald-700')
                                 : (isVega
                                     ? 'bg-transparent text-vega-ink border border-vega-ink/25 hover:border-vega-ink'
-                                    : 'bg-slate-100 text-slate-900 border border-slate-200 hover:bg-slate-200')
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100')
                             }`}
                         >
                             {plan.cta}
@@ -3476,24 +3334,29 @@ const PricingSection: React.FC<{ onSignup: (productOverride?: ProductMode) => vo
                 </div>
                 )}
 
-                {/* B. Custom Automation Pipeline — PracticePro Bespoke Systems */}
+                {/* B. Custom Automation Pipeline — PracticePro Bespoke Systems.
+                    ATRIUM REGISTER: warm sage panel with clay warmth — the
+                    hospitable counterpart of Vega's ink panel. No dark bands
+                    on /atrium. */}
                 <div className={`relative overflow-hidden p-8 md:p-10 border ${isVega
                     ? 'bg-vega-ink border-white/10'
-                    : 'rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700/40'}`}>
-                    <div className={`absolute -top-20 -left-20 w-60 h-60 rounded-full blur-3xl pointer-events-none ${isVega ? 'bg-vega-amber/10' : 'bg-primary-500/10'}`} />
-                    <div className={`absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-3xl pointer-events-none ${isVega ? 'bg-white/5' : 'bg-emerald-500/8'}`} />
+                    : 'rounded-2xl border-atrium-clay/30 shadow-elevation-2'}`} style={isVega ? undefined : { background: 'var(--color-sage)' }}>
+                    <div className={`absolute -top-20 -left-20 w-60 h-60 rounded-full blur-3xl pointer-events-none ${isVega ? 'bg-vega-amber/10' : 'bg-atrium-emerald/10'}`} />
+                    <div className={`absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-3xl pointer-events-none ${isVega ? 'bg-white/5' : 'bg-atrium-clay/20'}`} />
                     <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                         <div className="flex-1">
-                            <h4 className="text-2xl font-extrabold text-white mb-2 tracking-tight">
+                            <h4 className={`text-2xl font-extrabold mb-2 tracking-tight ${isVega ? 'text-white' : 'text-slate-900'}`}>
                                 Need Custom Automations or Tailored Management Tools?
                             </h4>
-                            <p className="text-sm text-slate-400 leading-relaxed max-w-xl">
+                            <p className={`text-sm leading-relaxed max-w-xl ${isVega ? 'text-slate-400' : 'text-slate-600'}`}>
                                 PracticePro develops bespoke operational systems, specialized CRMs, and custom workflow automations tailored to your organization's precise processes. Talk to us about building high-performance management tools engineered around your specific business architecture.
                             </p>
                         </div>
                         <button
                             onClick={() => onContactSales('Custom Automation Pipeline')}
-                            className="whitespace-nowrap px-7 py-3.5 rounded-sm bg-white hover:bg-slate-50 text-slate-900 text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2"
+                            className={`whitespace-nowrap px-7 py-3.5 rounded-sm text-sm font-bold shadow-md transition-all active:scale-95 flex items-center gap-2 ${isVega
+                                ? 'bg-white hover:bg-slate-50 text-slate-900'
+                                : 'bg-atrium-emerald text-white hover:bg-emerald-700'}`}
                         >
                             Contact Sales
                         </button>
@@ -3575,17 +3438,26 @@ const AI_CAPABILITIES = {
 const AICapabilitiesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
     const config = AI_CAPABILITIES[activeProduct];
     const isVega = activeProduct === 'vega';
-    const accentColor = isVega ? 'text-amber-400' : 'text-emerald-400';
-    const accentBg = isVega ? 'bg-amber-500/20' : 'bg-emerald-500/20';
-    const accentBorder = isVega ? 'hover:border-amber-500/50' : 'hover:border-emerald-500/50';
+    // ATRIUM REGISTER: light band, emerald ink on light — the -600/-700
+    // scales (the -400s were for the old dark band Vega still uses).
+    const accentColor = isVega ? 'text-amber-400' : 'text-emerald-600';
+    const accentBg = isVega ? 'bg-amber-500/20' : 'bg-emerald-50';
+    const accentBorder = isVega ? 'hover:border-amber-500/50' : 'hover:border-emerald-300';
 
     // VEGA REGISTER — the dark band is the drafting moment: the ALOA
     // headline in serif above a tracked-changes exhibit (white sheet on
     // ink) and the three capabilities as a hairline-ruled index, not
     // floating cards. bg-slate-900 is remapped to Vega ink by the
     // .theme-vega scope (index.css) — the class itself stays (audit).
+    // ATRIUM REGISTER — NO dark sections on /atrium: the same band
+    // renders as warm sage with white rounded-2xl cards and soft
+    // elevation — the hospitable opposite of Vega's ink.
     return (
-        <section className="py-20 md:py-28 bg-slate-900 text-white">
+        <section
+            id="ai-capabilities"
+            className={`py-20 md:py-28 ${isVega ? 'bg-slate-900 text-white' : ''}`}
+            style={isVega ? undefined : { background: 'var(--color-sage)' }}
+        >
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className={`mb-12 md:mb-16 ${isVega ? 'max-w-3xl text-left' : 'text-center'}`}>
                     {isVega ? (
@@ -3596,15 +3468,15 @@ const AICapabilitiesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({
                             </span>
                         </p>
                     ) : (
-                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 ${accentBg} rounded-full mb-4`}>
+                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 ${accentBg} rounded-full mb-4 border border-emerald-200/70`}>
                             <svg className={`w-4 h-4 ${accentColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                             <span className={`text-sm font-bold ${accentColor}`}>{config.assistantName} — {config.assistantFull}</span>
                         </div>
                     )}
-                    <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight ${isVega ? 'font-vega font-semibold leading-[1.12]' : ''}`}>
+                    <h2 className={`text-3xl md:text-4xl font-extrabold tracking-tight ${isVega ? 'font-vega font-semibold leading-[1.12] text-white' : 'font-display text-slate-900'}`}>
                         {config.headline}
                     </h2>
-                    <p className={`text-lg text-slate-300 mt-4 ${isVega ? 'max-w-2xl' : 'max-w-2xl mx-auto'}`}>
+                    <p className={`text-lg mt-4 ${isVega ? 'text-slate-300 max-w-2xl' : 'text-slate-600 max-w-2xl mx-auto'}`}>
                         {config.subtitle}
                     </p>
                 </div>
@@ -3642,21 +3514,21 @@ const AICapabilitiesSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
                         {config.capabilities.map((cap, i) => (
-                            <div key={i} className={`bg-slate-800/50 border border-slate-700 rounded-2xl p-8 ${accentBorder} transition-colors`}>
-                                <div className={`w-12 h-12 rounded-md ${accentBg} flex items-center justify-center mb-5`}>
+                            <div key={i} className={`bg-white rounded-2xl border border-slate-200/70 shadow-elevation-2 p-8 ${accentBorder} transition-colors`}>
+                                <div className={`w-12 h-12 rounded-xl ${accentBg} flex items-center justify-center mb-5`}>
                                     <svg className={`w-6 h-6 ${accentColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         {i === 0 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />}
                                         {i === 1 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />}
                                         {i === 2 && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />}
                                     </svg>
                                 </div>
-                                <h3 className="text-xl font-bold mb-3">{cap.title}</h3>
-                                <p className="text-slate-300 text-sm leading-relaxed mb-4">
+                                <h3 className="text-xl font-bold mb-3 text-slate-900">{cap.title}</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed mb-4">
                                     {cap.body}
                                 </p>
                                 <ul className="space-y-2">
                                     {cap.features.map((f, j) => (
-                                        <li key={j} className="flex items-start gap-2 text-sm text-slate-400">
+                                        <li key={j} className="flex items-start gap-2 text-sm text-slate-500">
                                             <svg className={`w-4 h-4 ${accentColor} flex-shrink-0 mt-0.5`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                             <span>{f}</span>
                                         </li>
@@ -3721,7 +3593,7 @@ const HOW_IT_WORKS_STEPS = {
 const HowItWorksSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
     const steps = HOW_IT_WORKS_STEPS[activeProduct];
     const isVega = activeProduct === 'vega';
-    const accentColor = isVega ? 'text-amber-500' : 'text-emerald-500';
+    const accentColor = isVega ? 'text-amber-500' : 'text-emerald-600';
     const accentBg = isVega ? 'bg-amber-50' : 'bg-emerald-50';
     const accentBorder = isVega ? 'border-amber-200' : 'border-emerald-200';
     return (
@@ -3811,8 +3683,13 @@ const WHY_RUN_ON: Record<'vega' | 'atrium', Array<{
 const WhyRunOnSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProduct }) => {
     const cards = WHY_RUN_ON[activeProduct];
     const isVega = activeProduct === 'vega';
+    // ATRIUM REGISTER: sage section break (not cool slate-50) — the warm
+    // page never drops to a cold gray.
     return (
-        <section className={`py-12 sm:py-20 lg:py-28 ${isVega ? 'bg-white border-t border-slate-200' : 'bg-slate-50'}`}>
+        <section
+            className={`py-12 sm:py-20 lg:py-28 ${isVega ? 'bg-white border-t border-slate-200' : ''}`}
+            style={isVega ? undefined : { background: 'var(--color-sage)' }}
+        >
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className={`mb-12 md:mb-16 ${isVega ? 'max-w-3xl text-left' : 'text-center'}`}>
                     {isVega && (
@@ -3947,7 +3824,7 @@ const FAQSection: React.FC<{ activeProduct: 'vega' | 'atrium' }> = ({ activeProd
                         <div key={i} className={`border border-slate-200 overflow-hidden bg-white ${isVega ? 'rounded-none' : 'rounded-lg'}`}>
                             <button
                                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                                className={`w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors ${isVega ? 'hover:bg-vega-amber/5' : ''}`}
+                                className={`w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors ${isVega ? 'hover:bg-vega-amber/5' : 'hover:bg-emerald-50'}`}
                                 aria-expanded={openIndex === i}
                             >
                                 <span className={`${isVega ? 'font-vega font-semibold' : 'font-semibold'} text-slate-900 text-sm md:text-base`}>{item.q}</span>
@@ -3989,15 +3866,20 @@ const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => vo
     const copy = FINAL_CTA_COPY[activeProduct];
     const isVega = activeProduct === 'vega';
     // VEGA REGISTER: the final call is a deep ink band — the bookish close,
-    // with a paper-fill primary and an amber-outline secondary. Atrium keeps
-    // the green band (its emerald identity lands in the Atrium rebrand pass).
+    // with a paper-fill primary and an amber-outline secondary.
+    // ATRIUM REGISTER: no dark bands — the close is the warmest sage panel
+    // on the page, ink headline, emerald solid primary, ink-outline
+    // secondary. The estate stays well-lit to the last frame.
     return (
-        <section className={`py-20 md:py-28 text-white ${isVega ? 'bg-vega-ink' : 'bg-primary-600'}`}>
+        <section
+            className={`py-20 md:py-28 ${isVega ? 'bg-vega-ink text-white' : ''}`}
+            style={isVega ? undefined : { background: 'var(--color-sage)' }}
+        >
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-                <h2 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${isVega ? 'font-vega font-semibold leading-[1.12]' : ''}`}>
+                <h2 className={`text-3xl md:text-5xl font-extrabold tracking-tight ${isVega ? 'font-vega font-semibold leading-[1.12]' : 'font-display text-slate-900'}`}>
                     {copy.headline}
                 </h2>
-                <p className="text-lg text-white/80 mt-4 max-w-2xl mx-auto">
+                <p className={`text-lg mt-4 max-w-2xl mx-auto ${isVega ? 'text-white/80' : 'text-slate-600'}`}>
                     {copy.body}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
@@ -4007,7 +3889,7 @@ const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => vo
                         onClick={() => onSignup()}
                         className={`px-8 py-4 rounded-sm font-semibold hover:scale-[1.02] transition-all shadow-lg ${isVega
                             ? 'bg-white text-vega-ink hover:bg-slate-100'
-                            : 'bg-white text-primary-600 hover:bg-white/90'}`}
+                            : 'bg-atrium-emerald text-white hover:bg-emerald-700'}`}
                     >
                         Start Free Trial
                     </button>
@@ -4015,12 +3897,12 @@ const FinalCTASection: React.FC<{ onSignup: () => void; onContactSales: () => vo
                         onClick={onContactSales}
                         className={`px-8 py-4 rounded-sm font-semibold transition-all ${isVega
                             ? 'bg-transparent border-2 border-vega-amber text-vega-amber hover:bg-vega-amber/10'
-                            : 'bg-transparent border-2 border-white text-white hover:bg-white/10'}`}
+                            : 'bg-transparent border-2 border-slate-900/70 text-slate-900 hover:bg-slate-900/5'}`}
                     >
                         Talk to Sales
                     </button>
                 </div>
-                <p className="text-sm text-white/60 mt-6">
+                <p className={`text-sm mt-6 ${isVega ? 'text-white/60' : 'text-slate-500'}`}>
                     No credit card · 30-day trial · Cancel anytime
                 </p>
             </div>
@@ -4043,12 +3925,13 @@ const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => vo
             Talk to Sales
         </button>
         {/* TASK 54: no-arg invocation — never leak the click event into the
-            product override. Vega's primary is ink, not green. */}
+            product override. Vega's primary is ink; Atrium's is its own
+            emerald — never the moss brand ramp. */}
         <button
             onClick={() => onSignup()}
             className={`flex-[1.5] py-3 rounded-lg text-white text-sm font-semibold transition-colors ${activeProduct === 'vega'
                 ? 'bg-vega-ink hover:bg-vega-ink-soft active:bg-vega-ink-soft'
-                : 'bg-primary-600 hover:bg-primary-700 active:bg-primary-800'}`}
+                : 'bg-atrium-emerald hover:bg-emerald-700 active:bg-emerald-800'}`}
         >
             Start Free Trial
         </button>
@@ -4074,7 +3957,7 @@ const WhatsAppFAB: React.FC<{ onContactSales: () => void; activeProduct: 'vega' 
         onClick={onContactSales}
         className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform ${activeProduct === 'vega'
             ? 'bg-vega-ink'
-            : 'bg-primary-600'}`}
+            : 'bg-atrium-emerald'}`}
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >
@@ -4126,11 +4009,17 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     // OUTSIDE this root div, so .theme-vega cannot reach them. Flag the body
     // while /vega is the active product so scoped CSS can re-tint them there
     // — and only there. Removed on unmount and on every product switch.
+    // ATRIUM REGISTER: same mechanism, emerald hooks (.on-atrium-page).
     useEffect(() => {
         const body = document.body;
         const onVega = productChosen && activeProduct === 'vega';
+        const onAtrium = productChosen && activeProduct === 'atrium';
         body.classList.toggle('on-vega-page', onVega);
-        return () => body.classList.remove('on-vega-page');
+        body.classList.toggle('on-atrium-page', onAtrium);
+        return () => {
+            body.classList.remove('on-vega-page');
+            body.classList.remove('on-atrium-page');
+        };
     }, [productChosen, activeProduct]);
 
     // TASK 14: Sync productChosen + activeProduct with initialProduct when it
@@ -4347,11 +4236,16 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             />
 
             {/* Skip to content link for accessibility — Vega's focus state
-                lands on ink, keeping the page free of green decoration. */}
+                lands on ink, Atrium's on its emerald; both keep their pages
+                free of the other product's accent. */}
             <a
                 href="#main-content"
                 className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold ${
-                    productChosen && activeProduct === 'vega' ? 'focus:bg-vega-ink' : 'focus:bg-primary-600'
+                    productChosen && activeProduct === 'vega'
+                        ? 'focus:bg-vega-ink'
+                        : productChosen && activeProduct === 'atrium'
+                        ? 'focus:bg-atrium-emerald'
+                        : 'focus:bg-primary-600'
                 }`}
             >
                 Skip to content
@@ -4407,7 +4301,23 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                             )}
                         />
                     ) : (
-                        <HomeSection onSignup={openSignup} activeProduct={activeProduct} setActiveProduct={handleProductSwitch} />
+                        /* ATRIUM REBRAND — "The Well-Kept Estate": the
+                           photography-led golden-hour hero. Headline and CTAs
+                           compose ON the image; the eyebrow string stays in
+                           this file (test pin) and arrives via prop. */
+                        <AtriumHero
+                            eyebrow={'Atrium · Built by PracticePro'}
+                            cta={(
+                                <>
+                                    <PrimaryButton onClick={() => openSignup()} tone="atrium" className="text-base px-8 py-4">
+                                        Get Started
+                                    </PrimaryButton>
+                                    <GhostButton onClick={() => openContactSales('Atrium Hero')} tone="atrium" className="text-base px-8 py-4">
+                                        Talk to Sales
+                                    </GhostButton>
+                                </>
+                            )}
+                        />
                     )}
                     <StatsDemarcator activeProduct={activeProduct} />
                     <FeaturesSection activeProduct={activeProduct} />
@@ -4422,6 +4332,21 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                         /* VEGA REBRAND — signature moment: the Scale of Charges
                            ledger, priming the pricing table that follows it. */
                         <VegaScaleOfCharges />
+                    )}
+                    {activeProduct === 'atrium' && (
+                        /* ATRIUM REBRAND — signature moment: the portfolio as a
+                           warm grid of units + the residents' portal phone. */
+                        <AtriumEstate />
+                    )}
+                    {activeProduct === 'atrium' && (
+                        /* ATRIUM REBRAND — signature moment: the resident
+                           receipt, priming the pricing table that follows. */
+                        <AtriumReceipt />
+                    )}
+                    {activeProduct === 'atrium' && (
+                        /* ATRIUM REBRAND — the gatehouse moment: Sentry Pass
+                           verification over a warm photograph. */
+                        <AtriumSentryPass />
                     )}
                     <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
                     <HowItWorksSection activeProduct={activeProduct} />

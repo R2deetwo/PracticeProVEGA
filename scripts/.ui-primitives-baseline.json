@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-07T23:46:39.292Z",
+  "generatedAt": "2026-10-12T14:44:55.935Z",
   "totals": {
-    "button": 1738,
+    "button": 1737,
     "input": 425,
     "select": 143,
     "textarea": 62
   },
-  "total": 2368,
+  "total": 2367,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -125,7 +125,7 @@
       "input": 1
     },
     "src/components/LandingPage.tsx": {
-      "button": 46,
+      "button": 45,
       "input": 1
     },
     "src/components/LinkAutocomplete.tsx": {

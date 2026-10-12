@@ -616,6 +616,44 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
   });
 });
 
+describe("Atrium rebrand — 'The Well-Kept Estate' register on /atrium", () => {
+  it("the photography-led hero and signature sections are wired in", () => {
+    expect(landing).toContain("import { AtriumHero } from './marketing/atrium/AtriumHero'");
+    expect(landing).toContain("import { AtriumReceipt } from './marketing/atrium/AtriumReceipt'");
+    expect(landing).toContain("import { AtriumEstate } from './marketing/atrium/AtriumEstate'");
+    expect(landing).toContain("import { AtriumSentryPass } from './marketing/atrium/AtriumSentryPass'");
+    expect(landing).toContain("<AtriumEstate />");
+    expect(landing).toContain("<AtriumReceipt />");
+    expect(landing).toContain("<AtriumSentryPass />");
+  });
+
+  it("hero CTAs carry the atrium emerald tone, not the moss ramp", () => {
+    expect(landing).toContain('tone="atrium"');
+    expect(landing).toContain("eyebrow={'Atrium · Built by PracticePro'}");
+  });
+
+  it("the old cycling-screenshot hero is retired", () => {
+    expect(landing).not.toContain("const HomeSection");
+    expect(landing).not.toContain("atrium-hero-1.jpg");
+  });
+
+  it("the AI band is anchorable and the body carries the atrium hook", () => {
+    expect(landing).toContain('id="ai-capabilities"');
+    expect(landing).toContain("body.classList.toggle('on-atrium-page', onAtrium)");
+  });
+
+  it("no dark bands on /atrium: AI capabilities and the final CTA go light", () => {
+    // The AI band renders bg-slate-900 only for Vega (remapped to ink);
+    // Atrium paints sage via the style branch instead.
+    expect(landing).toContain(
+      "${isVega ? 'bg-slate-900 text-white' : ''}`}"
+    );
+    // The final CTA is Vega-ink or Atrium-sage — the old bg-primary-600
+    // band is gone.
+    expect(landing).not.toContain("'bg-primary-600'");
+  });
+});
+
 describe("W3 — honest social proof (P8)", () => {
   it("no invented testimonial personas survive", () => {
     const personas = [

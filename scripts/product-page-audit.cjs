@@ -92,7 +92,7 @@ const PRODUCT = process.env.AUDIT_PRODUCT || 'vega'; // 'vega' or 'atrium'
         { name: 'Navigation (sticky header)', selector: 'header' },
         { name: 'Hero Section', selector: 'section#home, [id="home"]' },
         { name: 'Features Section', selector: 'section#features, [id="features"]' },
-        { name: 'AI Capabilities (dark)', selector: 'section.bg-slate-900' },
+        { name: 'AI Capabilities', selector: 'section#ai-capabilities, section.bg-slate-900' },
         { name: 'Pricing Section', selector: 'section#pricing, [id="pricing"]' },
         { name: 'How It Works', selector: 'section#howItWorks, [id="howItWorks"]' },
         { name: 'Testimonials', selector: 'section:has-text("What Nigerian professionals say")' },

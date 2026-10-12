@@ -2206,6 +2206,126 @@ span[data-type="legal-placeholder"] {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ATRIUM PRODUCT PAGE — "The Well-Kept Estate" (.theme-atrium scope)
+   ─────────────────────────────────────────────────────────────────────────
+   Warm-light throughout, no dark sections. One surface override warms the
+   page: --color-paper shifts to cream (#FAF7F2) so every section that
+   already paints paper becomes warm; sage stays as the section break.
+   Rounded-2xl cards and soft shadows are the default surface — the tactile
+   opposite of Vega's square, hairline-ruled world. Scoped to /atrium only.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Scope: the warm base surface ────────────────────────────────────────── */
+.theme-atrium {
+  --color-paper: #FAF7F2; /* cream — warmer than the parent page */
+}
+
+/* ── Resident receipt (the signature object) ────────────────────────────── */
+.at-receipt {
+  background: #FFFFFF;
+  border: 1px solid rgb(var(--color-clay) / 0.25);
+  border-radius: 20px;            /* the lg radius token */
+  box-shadow:
+    0 1px 3px 0 rgb(75 50 35 / 0.08),
+    0 10px 15px -3px rgb(75 50 35 / 0.10);
+  transform: rotate(-0.6deg);
+}
+.at-receipt__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.at-receipt__leader {
+  flex: 1;
+  border-bottom: 1px dotted rgb(var(--color-clay) / 0.45);
+  transform: translateY(-4px);
+}
+.at-stamp {
+  border: 3px solid rgb(5 150 105 / 0.55);
+  color: rgb(4 120 85);
+  border-radius: 6px;
+  transform: rotate(-8deg);
+  box-shadow: inset 0 0 0 1.5px rgb(5 150 105 / 0.25);
+  opacity: 0.9;
+}
+
+/* ── Occupancy grid (the portfolio as a warm grid of units) ─────────────── */
+.at-unit {
+  border-radius: 6px;
+  transition: transform 400ms var(--ease-out);
+}
+.at-unit--occupied {
+  background: rgb(var(--color-atrium-emerald) / 0.08);
+  border: 1px solid rgb(var(--color-atrium-emerald) / 0.22);
+  color: rgb(4 120 85);
+}
+.at-unit--vacant {
+  background: rgb(var(--color-clay) / 0.12);
+  border: 1px dashed rgb(var(--color-clay) / 0.5);
+  color: rgb(var(--color-clay));
+}
+@media (hover: hover) {
+  .at-unit:hover { transform: translateY(-2px); }
+}
+
+/* ── Residents' portal phone mockup ─────────────────────────────────────── */
+.at-phone {
+  border-radius: 24px;            /* the 3xl hero-card radius */
+  background: rgb(30 35 44);
+  padding: 10px;
+  box-shadow:
+    0 1px 3px 0 rgb(75 50 35 / 0.10),
+    0 18px 30px -8px rgb(75 50 35 / 0.22);
+}
+.at-phone__screen {
+  border-radius: 16px;
+  background: var(--color-paper);
+  overflow: hidden;
+}
+.at-phone__btn {
+  border-radius: 6px;
+  background: rgb(var(--color-atrium-emerald));
+  color: #fff;
+}
+
+/* ── Global compliance bars while on /atrium only ────────────────────────
+   Same mechanism as Vega: LandingPage toggles body.on-atrium-page; the
+   hook classes are inert on every other page. The bar container itself
+   is shared global chrome (dark on /vega too) — only the accents move
+   to Atrium's emerald, never the moss ramp. */
+.on-atrium-page .cookie-ack,
+.on-atrium-page .terms-accept {
+  background: rgb(var(--color-atrium-emerald));
+}
+.on-atrium-page .cookie-ack:hover {
+  background: rgb(4 120 85);
+}
+.on-atrium-page .terms-accept:hover {
+  background: rgb(4 120 85);
+}
+.on-atrium-page .cookie-link,
+.on-atrium-page .terms-link {
+  color: rgb(110 231 183); /* emerald-300 — legible on the dark chrome bar */
+}
+.on-atrium-page .cookie-link:hover,
+.on-atrium-page .terms-link:hover {
+  color: rgb(167 243 208); /* emerald-200 */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-atrium .landing-card,
+  .theme-atrium .pricing-card,
+  .theme-atrium .at-unit {
+    transition: none;
+  }
+  .theme-atrium .at-receipt,
+  .theme-atrium .at-stamp {
+    transform: none;
+  }
+}
+
 /* ─── Print Styles ──────────────────────────────────────────────────────── */
 @media print {
   /* Hide non-essential UI elements when printing */
