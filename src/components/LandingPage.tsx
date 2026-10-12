@@ -46,6 +46,22 @@ import { VegaHero } from './marketing/vega/VegaHero';
 import { VegaCourtRules } from './marketing/vega/VegaCourtRules';
 import { VegaScaleOfCharges } from './marketing/vega/VegaScaleOfCharges';
 import { VegaDraftExhibit } from './marketing/vega/VegaDraftExhibit';
+// VEGA PASS A (full page rebuild): /vega no longer renders ANY shared
+// marketing section. Every band below the hero is a Vega-owned component
+// with its own layout physics — index line, ruled matters ledger, ink AI
+// band, ledger pricing, procedure schedule, attestations, ink FAQ,
+// colophon CTA. The shared template (StatsDemarcator, FeaturesSection,
+// TrustBadgesStrip, AICapabilitiesSection, PricingSection,
+// HowItWorksSection, WhyRunOnSection, FAQSection, FinalCTASection) is the
+// ATRIUM page's composition until Atrium's own rebuild pass.
+import { VegaIndexLine } from './marketing/vega/VegaIndexLine';
+import { VegaMattersLedger } from './marketing/vega/VegaMattersLedger';
+import { VegaAIDrafting } from './marketing/vega/VegaAIDrafting';
+import { VegaPricingLedger } from './marketing/vega/VegaPricingLedger';
+import { VegaProcedure } from './marketing/vega/VegaProcedure';
+import { VegaCredentials } from './marketing/vega/VegaCredentials';
+import { VegaFAQInk } from './marketing/vega/VegaFAQInk';
+import { VegaFinalCTA } from './marketing/vega/VegaFinalCTA';
 import { AtriumHero } from './marketing/atrium/AtriumHero';
 import { AtriumReceipt } from './marketing/atrium/AtriumReceipt';
 import { AtriumEstate } from './marketing/atrium/AtriumEstate';
@@ -4284,75 +4300,77 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             ) : (
                 <main key={activeProduct} id="main-content" className="animate-swap-in">
                     {activeProduct === 'vega' ? (
-                        /* VEGA REBRAND — the editorial title-page hero with the
-                           DraftPro motion exhibit. The eyebrow string stays in
-                           this file (test pin) and arrives via prop. */
-                        <VegaHero
-                            eyebrow={'Vega · Built by PracticePro'}
-                            cta={(
-                                <>
-                                    <PrimaryButton onClick={() => openSignup()} tone="vega" className="text-base px-8 py-4">
-                                        Get Started
-                                    </PrimaryButton>
-                                    <GhostButton onClick={() => openContactSales('Vega Hero')} tone="vega" className="text-base px-8 py-4">
-                                        Talk to Sales
-                                    </GhostButton>
-                                </>
-                            )}
-                        />
+                        /* ══════════════════════════════════════════════════════
+                           VEGA PASS A — "The Chambers Standard".
+                           /vega renders ONLY Vega-owned sections: zero shared
+                           marketing components below the nav. Section
+                           inventory and order are deliberately different
+                           from Atrium's page (hero → index line → matters
+                           ledger → ink AI band → court-rule chronology →
+                           Scale of Charges ledger → pricing rate-card
+                           ledger → procedure schedule → attestations →
+                           ink FAQ → colophon CTA = 11 bands).
+                           ══════════════════════════════════════════════════════ */
+                        <>
+                            <VegaHero
+                                eyebrow={'The Chambers Standard — Built by PracticePro'}
+                                cta={(
+                                    <>
+                                        <PrimaryButton onClick={() => openSignup()} tone="vega" className="text-base px-8 py-4">
+                                            Get Started
+                                        </PrimaryButton>
+                                        <GhostButton onClick={() => openContactSales('Vega Hero')} tone="vega" className="text-base px-8 py-4">
+                                            Talk to Sales
+                                        </GhostButton>
+                                    </>
+                                )}
+                            />
+                            <VegaIndexLine />
+                            <VegaMattersLedger />
+                            <VegaAIDrafting />
+                            <VegaCourtRules />
+                            <VegaScaleOfCharges />
+                            <VegaPricingLedger onSignup={openSignup} onContactSales={openContactSales} />
+                            <VegaProcedure />
+                            <VegaCredentials />
+                            <VegaFAQInk />
+                            <VegaFinalCTA
+                                onSignup={() => openSignup()}
+                                onContactSales={() => openContactSales('Final CTA')}
+                            />
+                        </>
                     ) : (
-                        /* ATRIUM REBRAND — "The Well-Kept Estate": the
-                           photography-led golden-hour hero. Headline and CTAs
-                           compose ON the image; the eyebrow string stays in
-                           this file (test pin) and arrives via prop. */
-                        <AtriumHero
-                            eyebrow={'Atrium · Built by PracticePro'}
-                            cta={(
-                                <>
-                                    <PrimaryButton onClick={() => openSignup()} tone="atrium" className="text-base px-8 py-4">
-                                        Get Started
-                                    </PrimaryButton>
-                                    <GhostButton onClick={() => openContactSales('Atrium Hero')} tone="atrium" className="text-base px-8 py-4">
-                                        Talk to Sales
-                                    </GhostButton>
-                                </>
-                            )}
-                        />
+                        /* ATRIUM — "The Well-Kept Estate" (pre-rebuild
+                           composition; its own pass will replace the shared
+                           template with Atrium-owned sections). */
+                        <>
+                            <AtriumHero
+                                eyebrow={'Atrium · Built by PracticePro'}
+                                cta={(
+                                    <>
+                                        <PrimaryButton onClick={() => openSignup()} tone="atrium" className="text-base px-8 py-4">
+                                            Get Started
+                                        </PrimaryButton>
+                                        <GhostButton onClick={() => openContactSales('Atrium Hero')} tone="atrium" className="text-base px-8 py-4">
+                                            Talk to Sales
+                                        </GhostButton>
+                                    </>
+                                )}
+                            />
+                            <StatsDemarcator activeProduct={activeProduct} />
+                            <FeaturesSection activeProduct={activeProduct} />
+                            <TrustBadgesStrip />
+                            <AICapabilitiesSection activeProduct={activeProduct} />
+                            <AtriumEstate />
+                            <AtriumReceipt />
+                            <AtriumSentryPass />
+                            <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
+                            <HowItWorksSection activeProduct={activeProduct} />
+                            <WhyRunOnSection activeProduct={activeProduct} />
+                            <FAQSection activeProduct={activeProduct} />
+                            <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} activeProduct={activeProduct} />
+                        </>
                     )}
-                    <StatsDemarcator activeProduct={activeProduct} />
-                    <FeaturesSection activeProduct={activeProduct} />
-                    <TrustBadgesStrip />
-                    <AICapabilitiesSection activeProduct={activeProduct} />
-                    {activeProduct === 'vega' && (
-                        /* VEGA REBRAND — signature moment: the court-rule
-                           chronology between the drafting band and pricing. */
-                        <VegaCourtRules />
-                    )}
-                    {activeProduct === 'vega' && (
-                        /* VEGA REBRAND — signature moment: the Scale of Charges
-                           ledger, priming the pricing table that follows it. */
-                        <VegaScaleOfCharges />
-                    )}
-                    {activeProduct === 'atrium' && (
-                        /* ATRIUM REBRAND — signature moment: the portfolio as a
-                           warm grid of units + the residents' portal phone. */
-                        <AtriumEstate />
-                    )}
-                    {activeProduct === 'atrium' && (
-                        /* ATRIUM REBRAND — signature moment: the resident
-                           receipt, priming the pricing table that follows. */
-                        <AtriumReceipt />
-                    )}
-                    {activeProduct === 'atrium' && (
-                        /* ATRIUM REBRAND — the gatehouse moment: Sentry Pass
-                           verification over a warm photograph. */
-                        <AtriumSentryPass />
-                    )}
-                    <PricingSection onSignup={openSignup} onContactSales={openContactSales} activeProduct={activeProduct} setActiveProduct={setActiveProduct} setProductChosen={setProductChosen} />
-                    <HowItWorksSection activeProduct={activeProduct} />
-                    <WhyRunOnSection activeProduct={activeProduct} />
-                    <FAQSection activeProduct={activeProduct} />
-                    <FinalCTASection onSignup={openSignup} onContactSales={() => openContactSales('Final CTA')} activeProduct={activeProduct} />
                 </main>
             )}
 

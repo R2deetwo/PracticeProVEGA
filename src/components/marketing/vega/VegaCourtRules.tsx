@@ -70,9 +70,8 @@ export const VegaCourtRules: React.FC = () => (
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
                 {/* Left — framing copy */}
                 <div className="lg:col-span-5 lg:sticky lg:top-24">
-                    <p className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-6">
-                        <span className="inline-block w-1.5 h-1.5 bg-vega-amber" aria-hidden="true" />
-                        Court-Rule-Aware Calendaring
+                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
+                        03 — Court-Rule Calendaring
                     </p>
                     <h2
                         id="vega-court-rules-heading"
@@ -80,7 +79,7 @@ export const VegaCourtRules: React.FC = () => (
                         style={{ color: 'var(--color-ink)' }}
                     >
                         The firm diary that{' '}
-                        <span className="font-vega-italic font-medium text-vega-amber-deep">
+                        <span className="font-vega-italic font-medium">
                             keeps itself.
                         </span>
                     </h2>

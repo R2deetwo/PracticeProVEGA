@@ -74,6 +74,13 @@ const scene = read("src", "components", "marketing", "MorphScene.tsx");
 const coreScene = read("src", "components", "marketing", "SystemCoreScene.tsx");
 const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
+// Vega Pass A — the page-specific rebuild files under marketing/vega/.
+const vegaHero = read("src", "components", "marketing", "vega", "VegaHero.tsx");
+const vegaMatters = read("src", "components", "marketing", "vega", "VegaMattersLedger.tsx");
+const vegaPricing = read("src", "components", "marketing", "vega", "VegaPricingLedger.tsx");
+const vegaProcedure = read("src", "components", "marketing", "vega", "VegaProcedure.tsx");
+const vegaCredentials = read("src", "components", "marketing", "vega", "VegaCredentials.tsx");
+const vegaFAQ = read("src", "components", "marketing", "vega", "VegaFAQInk.tsx");
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
@@ -605,14 +612,133 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
   });
 
   it("product heroes carry the Built-by attribution eyebrow", () => {
-    expect(landing).toContain("'Vega · Built by PracticePro'");
+    // Pass A: Vega's eyebrow moves to its own register ("The Chambers
+    // Standard") so it no longer mirrors Atrium's "Product · Built by…"
+    // pattern; the Built-by attribution itself survives on both pages.
+    expect(landing).toContain("'The Chambers Standard — Built by PracticePro'");
     expect(landing).toContain("'Atrium · Built by PracticePro'");
   });
 
   it("sections name the product, never 'run on PracticePro'", () => {
-    expect(landing).toContain("'Why firms run on Vega'");
+    expect(vegaCredentials).toContain("Why firms run on Vega");
     expect(landing).toContain("'Why portfolios run on Atrium'");
     expect(landing).not.toContain("run on PracticePro");
+  });
+});
+
+describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections", () => {
+  it("/vega renders ONLY Vega-owned sections — zero shared sections, different inventory + order", () => {
+    // Extract the vega branch of the product-page render.
+    const branch = landing.match(
+      /\{activeProduct === 'vega' \? \(([\s\S]*?)\n {20}\) : \(/
+    );
+    expect(branch).not.toBeNull();
+    const body = branch![1];
+    // None of the shared template sections render on /vega.
+    for (const s of [
+      "StatsDemarcator",
+      "FeaturesSection",
+      "TrustBadgesStrip",
+      "AICapabilitiesSection",
+      "PricingSection",
+      "HowItWorksSection",
+      "WhyRunOnSection",
+      "FAQSection",
+      "FinalCTASection",
+    ]) {
+      expect(body).not.toContain(`<${s}`);
+    }
+    // The vega composition: 11 bands, this exact order.
+    const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
+      t.slice(1)
+    );
+    expect(order).toEqual([
+      "VegaHero",
+      "VegaIndexLine",
+      "VegaMattersLedger",
+      "VegaAIDrafting",
+      "VegaCourtRules",
+      "VegaScaleOfCharges",
+      "VegaPricingLedger",
+      "VegaProcedure",
+      "VegaCredentials",
+      "VegaFAQInk",
+      "VegaFinalCTA",
+    ]);
+  });
+
+  it("the vega branch never imports an atrium component and vice versa", () => {
+    // Cross-page isolation: vega files import no atrium components.
+    for (const src of [vegaHero, vegaMatters, vegaPricing, vegaProcedure, vegaCredentials, vegaFAQ]) {
+      expect(src).not.toContain("marketing/atrium/");
+      expect(src).not.toContain("AtriumHero");
+      expect(src).not.toContain("AtriumReceipt");
+    }
+  });
+
+  it("the hero is document-forward with NO accent-word / gradient headline", () => {
+    // The h1 is all ink serif — the amber-italic accent span is retired.
+    // (The ban is on gradient TEXT: bg-clip-text / transparent glyphs. The
+    // hero's pleading-paper texture may still use a repeating hairline
+    // pattern — that is a paper rule, not type.)
+    expect(vegaHero).not.toContain("bg-clip-text");
+    expect(vegaHero).not.toContain("text-transparent");
+    expect(vegaHero).not.toContain("font-vega-italic font-medium text-vega-amber-deep");
+    // The signature object: a rendered motion on pleading paper.
+    expect(vegaHero).toContain("IN THE HIGH COURT OF LAGOS STATE");
+    expect(vegaHero).toContain("MOTION ON NOTICE");
+    expect(vegaHero).toContain("vg-doc__line");
+    // The title-page devices: serif display + thin amber rule.
+    expect(vegaHero).toContain("font-vega");
+    expect(vegaHero).toContain("h-px w-16 bg-vega-amber");
+  });
+
+  it("the stat-chip row is replaced by a mono index line", () => {
+    expect(landing).toContain("import { VegaIndexLine }");
+    // No rounded stat cards on /vega — the shared chip row is atrium-only.
+    expect(vegaMatters).not.toContain("VEGA_STATS");
+  });
+
+  it("features are a ruled ledger index, not a hover-expand card grid", () => {
+    expect(vegaMatters).toContain('id="features"');
+    expect(vegaMatters).not.toContain("rounded-");
+    expect(vegaMatters).not.toContain("shadow-");
+    expect(vegaMatters).toContain("MATTERS_INDEX");
+    expect(vegaMatters).toContain("border-b border-slate-200");
+  });
+
+  it("pricing is the ledger rate card: same data, ruled rows, mono prices", () => {
+    expect(vegaPricing).toContain('id="pricing"');
+    expect(vegaPricing).toContain("getDisplayTiersForProduct('legal')");
+    expect(vegaPricing).toContain("formatTierPrice");
+    expect(vegaPricing).toContain("Monthly");
+    expect(vegaPricing).toContain("Annual");
+    expect(vegaPricing).toContain("Save 20%");
+    expect(vegaPricing).toContain("30-day money-back guarantee on annual plans");
+    expect(vegaPricing).toContain("Are you a Real Estate Lawyer?");
+    expect(vegaPricing).not.toContain("rounded-3xl");
+    expect(vegaPricing).not.toContain("rounded-full");
+  });
+
+  it("how-it-works is a procedure schedule with plain numerals", () => {
+    expect(vegaProcedure).toContain('id="howItWorks"');
+    expect(vegaProcedure).toContain("Matter Ingestion Wizard");
+    expect(vegaProcedure).toContain("DraftPro");
+    // The audit's legibility rule: no 01/02/03 numbering.
+    expect(vegaProcedure).not.toContain(">01<");
+    expect(vegaProcedure).not.toContain("'01'");
+  });
+
+  it("the FAQ is the ink band and carries the audit anchor copy", () => {
+    expect(vegaFAQ).toContain("Questions? Answered.");
+    expect(vegaFAQ).toContain("bg-vega-ink");
+    expect(vegaFAQ).toContain("PracticePro Vega for law firms");
+  });
+
+  it("credentials fold the trust badges into a mono colophon (no chip strip)", () => {
+    expect(vegaCredentials).toContain("NDPA 2023 Compliant");
+    expect(vegaCredentials).toContain("TLS 1.3");
+    expect(vegaCredentials).toContain("Data Encrypted at Rest");
   });
 });
 

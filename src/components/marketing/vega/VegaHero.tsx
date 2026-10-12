@@ -123,17 +123,17 @@ export const VegaHero: React.FC<{
                         {eyebrow}
                     </p>
 
-                    {/* Headline — set like the title page of a law report */}
+                    {/* Headline — set like the title page of a law report.
+                        All ink, no accent span, no gradient word: the serif
+                        carries the emphasis; the amber rule beneath is the
+                        only accent this page's headline gets. */}
                     <h1
                         className="font-vega text-4xl sm:text-5xl lg:text-6xl font-semibold leading-[1.08] tracking-[-0.01em] mb-0"
                         style={{ color: 'var(--color-ink)' }}
                     >
                         Practice Management
                         <br />
-                        for{' '}
-                        <span className="font-vega-italic font-medium text-vega-amber-deep">
-                            Nigerian Law Firms
-                        </span>
+                        for Nigerian Law Firms
                     </h1>
 
                     {/* Thin amber rule */}

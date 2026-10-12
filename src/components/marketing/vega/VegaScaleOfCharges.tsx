@@ -38,9 +38,8 @@ export const VegaScaleOfCharges: React.FC = () => (
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
                 {/* Left — framing copy */}
                 <div className="lg:col-span-4">
-                    <p className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-6">
-                        <span className="inline-block w-1.5 h-1.5 bg-vega-amber" aria-hidden="true" />
-                        Scale of Charges Compliance
+                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-amber-deep mb-7">
+                        04 — Scale of Charges
                     </p>
                     <h2
                         id="vega-scale-heading"
@@ -48,7 +47,7 @@ export const VegaScaleOfCharges: React.FC = () => (
                         style={{ color: 'var(--color-ink)' }}
                     >
                         Fees that follow the{' '}
-                        <span className="font-vega-italic font-medium text-vega-amber-deep">
+                        <span className="font-vega-italic font-medium">
                             Remuneration Order.
                         </span>
                     </h2>
