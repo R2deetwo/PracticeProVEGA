@@ -93,8 +93,9 @@ export const VegaMattersLedger: React.FC = () => {
                     Case Management &amp; Legal Intelligence
                 </h2>
                 <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-12 md:mb-16">
-                    Every matter, draft, and naira — organised the way chambers
-                    actually work: by court, by counsel, by cause of action.
+                    From intake to resolution, Vega covers every stage of your
+                    legal practice — drafting, research, billing, and client
+                    collaboration.
                 </p>
 
                 {/* The ruled index — hairline-divided entries, square corners */}
