@@ -12748,3 +12748,28 @@ Stage Summary:
 
 
 **LIVE (2026-10-12 18:42Z):** Pass B promoted to production at `f9c1cc5c` (run 38292428209: gates ✅, Vercel+Convex ✅, Cloudflare mirror ❌ at the standing expired-token check — mirror-only, owner action). Live-verified: version.json sha `f9c1cc5c…` healthy; /atrium 200 with the Pass B bundle (index-ChMi_5fF.js): "Why portfolios run on Atrium" ×1, SCE Calculator ×2, PAID ×8, shared-template identifiers ×0. /vega unchanged from the ca6da3d8 promote. Both product pages now render exclusively page-owned sections on production.
+
+---
+Task ID: r21-product-identity
+Agent: main (Super Z)
+Task: Owner direction (R21): better/different style for Vega with super-accurate demo drafts; Atrium stays as-is; remove all custom tiers; product logos/favicons/icons for Vega + Atrium (PracticePro retained as company); products open in new tabs.
+
+Work Log:
+- Recon confirmed Pass A + Pass B already LIVE in production (f9c1cc5c, per pass-b-ship entry) — "atrium on point" = keep Pass B.
+- Product identity: new src/components/marketing/brand/ProductMarks.tsx (VegaMark = serif V + 4-point star on claret seal; AtriumMark = arch + floor + keystone on emerald tile; token-driven rgb(var(--x)), crisp at 16px) + useProductBranding.ts (per-route favicon SVG+PNG+apple-touch, title, theme-color, og:/twitter: card; company identity restored on hub; og metas edited in place with capture/restore; favicon links appended after the company icon, PNG-then-SVG so Safari falls back to PNG).
+- Brand assets: public/brand/{vega,atrium}/ favicon.svg + generated favicon-48.png + apple-touch-icon.png (Playwright, deviceScaleFactor 2) + og-vega/og-atrium.png 1200x630 (real @fontsource fonts via file:// @font-source). VLM review PASS (favicons + cards; one card layout bug found and fixed — mark moved into the footer row).
+- Vega restyle: amber→claret (#7B1E1E) on paper / gilt (#D8B26C) on ink bands (tokens --color-vega-claret/-deep/--color-vega-gilt + Tailwind aliases + vg-* CSS repointed); --font-vega-document = Times New Roman; vg-pleading utility.
+- Super-accurate drafts: hero rebuilt as a complete Lagos Motion on Notice (Ikecha Judicial Division corrected to Ikeja, IKD/1287/2026, parties with right-aligned roles, enabling clause HCCPR 2019 + inherent jurisdiction, numbered reliefs (1)-(3), numbered grounds, 14-paragraph affidavit reference, execution block + address for service, dated in words at foot) all in Times New Roman; product chrome (mono microlabels) outside the paper. Settlement exhibit retitled TERMS OF SETTLEMENT, set in Times. Suit no. unified across CourtRules + ScaleOfCharges (same matter: Okafor v. Meridian Logistics).
+- Tiers removed: VegaPricingLedger.tsx + AtriumPricing.tsx deleted (files + renders + imports); tier badges stripped from VegaMattersLedger + AtriumFeatures (incl. 'Add-on' badges); 'Available on Growth and Pro plans' sentences out; FAQ (both products) de-tiered — 'Can I switch between plans?' → 'How much does Vega/Atrium cost?' with money-back guarantee retained; index.html JSON-LD offers arrays removed + FAQ JSON-LD synced; Pricing nav links (desktop + mobile + footer column) retired; handleScroll sections minus pricing. Komplete + bespoke cross-sells relocated to VegaFinalCTA (copy verbatim, Explore Komplete → onSignup('unified')).
+- New tabs: openProductPage = window.open('/vega'|'/atrium', '_blank', noopener) wired to products dropdown, mobile menu, footer switcher; hub work cards external:true; footer product anchors target=_blank. handleProductSwitch (pricing-scroll SPA switch) retired. Nav/footer show product lockups (mark + wordmark + BY PRACTICEPRO) on product pages; PracticePro logo stays on hub.
+- Tests/audit updated to the new spec: websiteRepositioning band orders (vega 10, atrium 12), pricing pins → removal assertions, hero pin → claret + accurate-pleading markers, logo/nav pins → lockup + new-tab semantics, atrium marker anchored on <AtriumHero (import comment also matched 'ATRIUM PASS B'); refunds pins repointed to the FAQ cost answers; product-page-audit.cjs: direct URL nav (cards open new tabs), pricing checks → tier-absence + JSON-LD-offers checks, new Draft Accuracy (pleading markers + Times font) + Document Branding (title/favicon/lockup) blocks, preview-only Convex 404s filtered with transparent count.
+- GOTCHA FIXED: the bash tool's output pipeline mangles '[m' sequences (ate '[m' from 'const [mobileMenuOpen…' making committed code LOOK corrupted) — node reads confirm the bytes are fine; python marker-edits with asserts are the safe pattern.
+- GOTCHA FIXED: ensureLink matched on rel only → SVG pass overwrote the PNG favicon href; now type-scoped.
+- Gates: tsc 127 (baseline 128; zero in touched files); vitest 1258/1258; tokens gray=0; build green 20.9s; audits vega 27 pass/0 err/3 warn + atrium 20/0/2 (warnings pre-existing); r21-verify.cjs 21/21 (new-tab popups, favicons, titles, lockups, tier absence, no 390px overflow); VLM art-direction PASS both pages (Vega hero document 'hyper-accurate, realistic').
+- Known (pre-existing, verified against pre-R21 screenshots): mobile cookie banner overlaps the sticky CTA — backlog item. Sandbox preview bakes the fallback Convex URL → analytics/ping 404 (production probed clean, 0 4xx).
+- Pushed ab1971a2..50114874; production promote dispatched (run 38302154399, blank sha = latest main).
+
+Stage Summary:
+- R21 LIVE in CI: product identity (marks, favicons, titles, OG cards), new-tab product selection, tier-free marketing pages, claret/gilt Vega with accurate Times New Roman pleadings. Atrium untouched stylistically.
+- Screenshots: download/r21/{vega,atrium}-{1440,390}-full.png.
+- Awaiting promote completion; verify version.json = 50114874 healthy + live markers after.
