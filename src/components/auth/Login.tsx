@@ -143,7 +143,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
   try {
    const result = await login(email, password, (requiresMfa || requiresInitialPassword) ? mfaCode : undefined, rememberMe);
    if (result.success) {
-    addToast("Welcome back!", { type: 'success' });
+    addToast("Welcome back", { type: 'success' });
     setIsSessionLocked(false);
     closeModal();
     // After successful login with rememberMe, offer biometric

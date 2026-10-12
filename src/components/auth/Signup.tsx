@@ -288,7 +288,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
       <ZapIcon className="w-8 h-8 text-primary-600" />
      </div>
-     <h3 className="text-xl font-bold text-slate-900 ">Almost there!</h3>
+     <h3 className="text-xl font-bold text-slate-900 ">Almost there</h3>
      <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
       Your new account is ready. Fill in a few details and we'll restore your previous workspace to this account.
      </p>
@@ -343,7 +343,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       >
        {isSubmittingRestore
         ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Sending Request...</>
-        : '🔁 Request Workspace Restoration'
+        : 'Request workspace restoration'
        }
       </button>
 
@@ -365,7 +365,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
        <CheckCircleIcon className="w-9 h-9 text-green-600" />
       </div>
       <div>
-       <p className="text-lg font-bold text-slate-900 ">Request Received!</p>
+       <p className="text-lg font-bold text-slate-900 ">Request received</p>
        <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
         We'll reach out to <strong>{email}</strong> within 24 hours to confirm your workspace has been restored.
        </p>
