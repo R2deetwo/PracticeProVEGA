@@ -292,7 +292,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     </div>
 
     {errorMsg && (
-     <div className={`p-4 text-sm rounded-lg border ${isLocked ? 'bg-red-600 border-red-700 text-white font-bold shadow-lg animate-pulse' : 'bg-red-50 text-red-600 border-red-100'} flex items-start gap-3`}>
+     <div className={`p-4 text-sm rounded-sm border ${isLocked ? 'bg-red-600 border-red-700 text-white font-bold shadow-md animate-pulse' : 'bg-red-50 text-red-600 border-red-100 rounded-sm'} flex items-start gap-3`}>
       {isLocked ? <WarningIcon className="w-5 h-5 shrink-0" /> : null}
       <div>{errorMsg}</div>
      </div>
@@ -316,7 +316,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
 
      {(requiresMfa || requiresInitialPassword) ? (
       <div className="space-y-4 animate-fade-in">
-       <div className="p-4 bg-primary-50 border border-primary-200 rounded-lg text-sm">
+       <div className="p-4 bg-primary-50 border border-primary-200 rounded-sm text-sm">
         <p className="font-bold text-primary-900 flex items-center gap-2">
          <ShieldCheckIcon className="w-5 h-5 text-primary-500" /> Security Check
         </p>
@@ -410,13 +410,13 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
          type="button"
          onClick={() => setIsRecovering(false)}
          disabled={isLoading}
-         className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition-all"
+         className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-sm font-bold hover:bg-slate-200 transition-all"
         >Cancel</button>
         <button
          type="button"
          onClick={handleResetPassword}
          disabled={isLoading || pwStrength.score < 4}
-         className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+         className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
          {isLoading ? 'Resetting...' : 'Save Password'}
         </button>
@@ -501,7 +501,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
        <button
         type="submit"
         disabled={isLoading}
-        className="w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 disabled:bg-slate-400 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+        className="w-full px-4 py-2.5 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
        >
         {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
         {isLoading ? 'Verifying...' : 'Sign In'}
@@ -519,7 +519,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
       <button
        type="submit"
        disabled={isLoading}
-       className="w-full mt-4 px-4 py-2.5 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md flex items-center justify-center gap-2 disabled:bg-slate-400"
+       className="w-full mt-4 px-4 py-2.5 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm flex items-center justify-center gap-2 disabled:bg-slate-400"
       >
        {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
        {isLoading ? 'Verifying Code...' : (requiresInitialPassword ? 'Verify & Set Password' : 'Verify & Sign In')}
@@ -534,7 +534,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
        type="button"
        onClick={handleResendCode}
        disabled={isLoading}
-       className="w-full px-4 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+       className="w-full px-4 py-2.5 bg-slate-100 text-slate-700 rounded-sm font-bold hover:bg-slate-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
        <MailIcon className="w-4 h-4" />
        Resend code
@@ -546,7 +546,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
        type="button"
        onClick={handleResendConfirmation}
        disabled={isLoading}
-       className="w-full px-4 py-2.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-lg font-bold hover:bg-yellow-100 transition-all flex items-center justify-center gap-2"
+       className="w-full px-4 py-2.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-sm font-bold hover:bg-yellow-100 transition-all flex items-center justify-center gap-2"
       >
        <MailIcon className="w-4 h-4" />
        Resend Confirmation Email

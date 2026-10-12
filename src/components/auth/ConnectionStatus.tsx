@@ -175,7 +175,7 @@ const ConnectionStatus: React.FC = () => {
   const renderBadge = () => {
     if (status === 'connected') {
       return (
-        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors group">
+        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm hover:bg-slate-100 transition-colors group">
           <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
           <span className="text-2xs font-black text-emerald-600 uppercase tracking-widest hidden sm:inline">Online</span>
         </div>
@@ -186,7 +186,7 @@ const ConnectionStatus: React.FC = () => {
       // Grey indicator — device has no network connection.
       // This is what shows when the user turns off their data.
       return (
-        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors">
+        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm bg-slate-100 border border-slate-200 hover:bg-slate-200 transition-colors">
           <div className="w-2 h-2 bg-slate-400 rounded-full"></div>
           <span className="text-2xs font-black text-slate-500 uppercase tracking-widest hidden sm:inline">Offline</span>
         </div>
@@ -195,7 +195,7 @@ const ConnectionStatus: React.FC = () => {
 
     if (status === 'offline') {
       return (
-        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">
+        <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-sm bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors">
           <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
           <span className="text-2xs font-black text-amber-700 uppercase tracking-widest">Offline Mode</span>
         </div>
@@ -203,9 +203,9 @@ const ConnectionStatus: React.FC = () => {
     }
 
     return (
-      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors">
-        <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-        <span className="text-2xs font-black text-purple-700 uppercase tracking-widest">Setup Needed</span>
+      <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-primary-50 border border-primary-200 hover:bg-primary-100 transition-colors">
+        <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
+        <span className="text-2xs font-black text-primary-700 uppercase tracking-widest">Setup Needed</span>
       </div>
     );
   };
@@ -223,8 +223,8 @@ const ConnectionStatus: React.FC = () => {
   }
 
   const triggerLabel = status === 'offline' ? "Reconnect" : "Find Office";
-  const triggerIcon = status === 'offline' ? <RevertIcon className="w-3 h-3 text-amber-600" /> : <OfficeBuildingIcon className="w-3 h-3 text-purple-700" />;
-  const triggerColor = status === 'offline' ? 'bg-amber-50 border-amber-200' : 'bg-purple-100 border-purple-300';
+  const triggerIcon = status === 'offline' ? <RevertIcon className="w-3 h-3 text-amber-600" /> : <OfficeBuildingIcon className="w-3 h-3 text-primary-700" />;
+  const triggerColor = status === 'offline' ? 'bg-amber-50 border-amber-200' : 'bg-primary-100 border-primary-300';
 
   // The Modal Content
   const modalContent = showDiagnostics ? (
@@ -238,7 +238,7 @@ const ConnectionStatus: React.FC = () => {
       {/* Modal Card — dark mode compliant per spec:
           bg-slate-900 border border-slate-800 in dark mode,
           bg-white border-slate-200 in light mode. */}
-      <div className="relative bg-white dark:bg-slate-900 rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 w-72 overflow-hidden flex flex-col z-10 max-h-[80vh]">
+      <div className="relative bg-white dark:bg-slate-900 rounded-md shadow-md border border-slate-200 dark:border-slate-800 w-72 overflow-hidden flex flex-col z-10 max-h-[80vh]">
         <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60">
           <h3 className="font-bold text-xs text-slate-800 dark:text-slate-100 uppercase tracking-wide">
             {firmToDelete ? "Delete Workspace" : "System Status"}
@@ -323,7 +323,7 @@ const ConnectionStatus: React.FC = () => {
                               <div className="flex items-center gap-1">
                                 <button
                                   onClick={() => handleConnectFirm(firm.id)}
-                                  className="text-2xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1.5 rounded-md"
+                                  className="text-2xs bg-primary-600 hover:bg-primary-700 text-white font-semibold px-3 py-1.5 rounded-sm"
                                 >
                                   Connect
                                 </button>
@@ -371,7 +371,7 @@ const ConnectionStatus: React.FC = () => {
         title="Click to troubleshoot connection"
       >
         <div className="relative mb-0.5">{triggerIcon}</div>
-        <span className={`text-3xs font-bold uppercase tracking-tight ${status === 'offline' ? 'text-amber-700' : 'text-purple-800'}`}>
+        <span className={`text-3xs font-bold uppercase tracking-tight ${status === 'offline' ? 'text-amber-700' : 'text-primary-800'}`}>
           {triggerLabel}
         </span>
       </button>

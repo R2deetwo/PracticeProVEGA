@@ -354,7 +354,7 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     // and legible — no dashed ports waiting for a trace that no longer
     // exists. Each card shows its own icon (briefcase, link, payments…).
     expect(landing).toContain('<c.Icon className="w-6 h-6" />');
-    expect(landing).toContain("rounded-xl bg-emerald-50 border border-emerald-100");
+    expect(landing).toContain("rounded-md bg-emerald-50 border border-emerald-100");
   });
 
   it("everything renders INSIDE the canvas — no line may ever cross the text (W13)", () => {

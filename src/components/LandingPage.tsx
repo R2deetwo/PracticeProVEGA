@@ -483,7 +483,7 @@ const NavBar: React.FC<{
                         {/* TASK 54: invoke with NO arguments — passing the handler
                             directly leaked the click event into openSignup's
                             productOverride (see comment at openSignup). */}
-                        <PrimaryButton onClick={() => onSignup()} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-lg !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-lg">
+                        <PrimaryButton onClick={() => onSignup()} className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-sm !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-sm">
                             Start Free Trial
                         </PrimaryButton>
                     </>
@@ -557,12 +557,12 @@ const NavBar: React.FC<{
                         </>
                     )}
                     <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
-                    <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
+                    <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-sm text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
                     <div className="h-px bg-slate-200 my-3" />
                     {productChosen ? (
                         <>
-                            <button onClick={() => handleNavClick(onLogin)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Log In</button>
-                            <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-lg !text-sm mt-2">
+                            <button onClick={() => handleNavClick(onLogin)} className="w-full text-left px-4 py-3 rounded-sm text-sm font-semibold text-slate-700 hover:bg-slate-50">Log In</button>
+                            <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-sm !text-sm mt-2">
                                 Start Free Trial
                             </PrimaryButton>
                             <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
@@ -1196,7 +1196,7 @@ const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContact
                     {PAIN_MIRROR.map((row, i) => (
                         <div
                             key={i}
-                            className="group grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-6 rounded-2xl border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm px-5 py-4 md:px-7 md:py-5 transition-all duration-500 hover:border-white/[0.16] hover:bg-white/[0.045]"
+                            className="group grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-6 rounded-md border border-white/[0.07] bg-white/[0.02] backdrop-blur-sm px-5 py-4 md:px-7 md:py-5 transition-all duration-500 hover:border-white/[0.16] hover:bg-white/[0.045]"
                         >
                             {/* Today — the friction, in the visitor's words */}
                             <div className="flex items-start gap-3.5 md:justify-end md:text-right">
@@ -1470,7 +1470,7 @@ const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ scrollT
                                 shapes above carry the motion now; the cards
                                 stay calm and legible. W14: the chip pings
                                 emerald when its shape lands. */}
-                            <div className="w14-chip w-12 h-12 mb-5 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors duration-300" aria-hidden="true">
+                            <div className="w14-chip w-12 h-12 mb-5 rounded-md bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-100 transition-colors duration-300" aria-hidden="true">
                                 <c.Icon className="w-6 h-6" />
                             </div>
                             <h3 className="font-display text-lg font-bold text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
@@ -1808,7 +1808,7 @@ const OUR_WORK: Array<{
 
 /** W7: a macOS-style browser chrome around a real screen capture. */
 const BrowserFrame: React.FC<{ url: string; src: string; alt: string; className?: string; eager?: boolean }> = ({ url, src, alt, className = '', eager = false }) => (
-    <div className={`overflow-hidden rounded-xl border border-white/10 bg-[#0E1626] shadow-2xl shadow-black/50 ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-white/10 bg-[#0E1626] shadow-lg shadow-black/50 ${className}`}>
         <div className="flex items-center gap-2 px-3 py-2 bg-[#111A2C] border-b border-white/[0.06]">
             <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" aria-hidden="true" />
             <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" aria-hidden="true" />
@@ -1866,7 +1866,7 @@ const WorkDetailModal: React.FC<{
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3 min-w-0">
-                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${work.iconClass}`}>
+                        <span className={`w-10 h-10 rounded-md flex items-center justify-center flex-shrink-0 ${work.iconClass}`}>
                             <work.Icon className="w-5 h-5" />
                         </span>
                         <div className="min-w-0">
@@ -1879,7 +1879,7 @@ const WorkDetailModal: React.FC<{
                         onClick={onClose}
                         autoFocus
                         aria-label="Close preview"
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors flex-shrink-0"
+                        className="p-2 rounded-sm text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors flex-shrink-0"
                     >
                         <XMarkIcon className="w-5 h-5" />
                     </Button>
@@ -1921,7 +1921,7 @@ const WorkDetailModal: React.FC<{
                         <a
                             href={work.cta.href}
                             {...(work.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 transition-all"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-sm font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 transition-all shadow-md"
                         >
                             {work.cta.label}
                             {work.cta.external ? <ExternalLinkIcon className="w-4 h-4" /> : <span aria-hidden="true">→</span>}
@@ -1929,7 +1929,7 @@ const WorkDetailModal: React.FC<{
                         <Button
                             variant="bare"
                             onClick={onContactSales}
-                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-slate-700 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-sm font-semibold text-sm text-slate-700 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all"
                         >
                             Ask us about a system like this
                         </Button>
@@ -1981,7 +1981,7 @@ const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onContactSal
                                 {/* Text side — alternates sides so the page breathes */}
                                 <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
                                     <div className="flex items-center gap-3 mb-4">
-                                        <span className={`w-11 h-11 rounded-xl flex items-center justify-center ${w.iconClass}`}>
+                                        <span className={`w-11 h-11 rounded-md flex items-center justify-center ${w.iconClass}`}>
                                             <w.Icon className="w-5 h-5" />
                                         </span>
                                         <span className={`text-2xs font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-full ${w.badgeClass}`}>

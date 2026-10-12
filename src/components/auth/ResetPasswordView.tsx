@@ -91,12 +91,12 @@ const ResetPasswordView: React.FC = () => {
                     <p className="text-xs text-slate-400 mt-1">Set a new password — no code needed</p>
                 </div>
 
-                <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 p-6 sm:p-8">
+                <div className="bg-white dark:bg-zinc-900 rounded-md shadow-md border border-slate-200 dark:border-zinc-800 p-6 sm:p-8">
 
                     {!token && !done && (
                         <div className="text-center space-y-4">
-                            <div className="w-14 h-14 mx-auto rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
-                                <svg className="w-7 h-7 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <div className="w-14 h-14 mx-auto rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                                <svg className="w-7 h-7 text-primary-600 dark:text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                                 </svg>
                             </div>
@@ -105,7 +105,7 @@ const ResetPasswordView: React.FC = () => {
                                 Open the newest PracticePro reset email and tap{' '}
                                 <span className="font-bold text-slate-700 dark:text-zinc-200">“Set a new password now”</span>.
                             </p>
-                            <a href={loginHref} className="inline-block px-5 py-2.5 rounded-lg bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold hover:opacity-90 transition-opacity">
+                            <a href={loginHref} className="inline-block px-5 py-2.5 rounded-sm bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold hover:opacity-90 transition-opacity">
                                 Go to Log in
                             </a>
                         </div>
@@ -133,7 +133,7 @@ const ResetPasswordView: React.FC = () => {
                                         onChange={(e) => setPassword(e.target.value)}
                                         autoComplete="new-password"
                                         placeholder="At least 8 characters"
-                                        className="w-full px-3.5 py-2.5 pr-16 rounded-lg border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 outline-none"
+                                        className="w-full px-3.5 py-2.5 pr-16 rounded-sm border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500/40 focus:border-primary-500 outline-none"
                                     />
                                     <button
                                         type="button"
@@ -167,7 +167,7 @@ const ResetPasswordView: React.FC = () => {
                             </div>
 
                             {error && (
-                                <div className="rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-900/40 px-3.5 py-3">
+                                <div className="rounded-sm bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-900/40 px-3.5 py-3">
                                     <p className="text-xs text-rose-700 dark:text-rose-300 leading-relaxed">{error}</p>
                                     <a href={loginHref} className="inline-block mt-2 text-2xs font-bold text-rose-700 dark:text-rose-300 underline">
                                         Request a fresh link via “Forgot password?”
@@ -178,9 +178,9 @@ const ResetPasswordView: React.FC = () => {
                             <button
                                 type="submit"
                                 disabled={!canSubmit}
-                                className={`w-full py-3 rounded-xl text-sm font-bold transition-all ${
+                                className={`w-full py-3 rounded-sm text-sm font-bold transition-all ${
                                     canSubmit
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25 active:scale-[0.99]'
+                                        ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-sm active:scale-[0.99]'
                                         : 'bg-slate-200 dark:bg-zinc-700 text-slate-400 dark:text-zinc-500 cursor-not-allowed'
                                 }`}
                             >
@@ -206,7 +206,7 @@ const ResetPasswordView: React.FC = () => {
                                 )}
                             </div>
                             <div className="space-y-2.5">
-                                <a href={loginHref} className="block w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-lg shadow-emerald-600/25 transition-colors">
+                                <a href={loginHref} className="block w-full py-3 rounded-sm bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold shadow-sm transition-colors">
                                     Log in now
                                 </a>
                                 {done.role === 'Founder' && (

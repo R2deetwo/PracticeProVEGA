@@ -278,15 +278,15 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  };
 
  // inputLarge is now imported at top level
- const commonInputClass = inputLarge + " min-h-[52px] rounded-lg transition-all placeholder:text-slate-400";
+ const commonInputClass = inputLarge + " min-h-[52px] transition-all placeholder:text-slate-400";
 
  // ─── STEP 3: RESTORE REQUEST (migration users only) ───────────────────────
  if (step === 'restore') {
   return (
    <div className="animate-fade-in space-y-5">
     <div className="text-center">
-     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-      <ZapIcon className="w-8 h-8 text-blue-600" />
+     <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
+      <ZapIcon className="w-8 h-8 text-primary-600" />
      </div>
      <h3 className="text-xl font-bold text-slate-900 ">Almost there!</h3>
      <p className="text-sm text-slate-500 mt-1 max-w-xs mx-auto">
@@ -296,7 +296,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
     {!restoreSubmitted ? (
      <form onSubmit={handleRestoreSubmit} className="space-y-3">
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-sm">
        <p className="text-xs text-blue-700 ">
         <strong>New account:</strong> {email}
        </p>
@@ -332,14 +332,14 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         onChange={e => setRestoreNotes(e.target.value)}
         rows={3}
         placeholder="Anything that helps us locate your workspace..."
-        className="w-full text-slate-900 bg-white border border-slate-300 rounded-lg shadow-sm p-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-slate-400 resize-none text-sm"
+        className="w-full text-slate-900 bg-white border border-slate-300 rounded-sm shadow-sm p-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-slate-400 resize-none text-sm"
        />
       </div>
 
       <button
        type="submit"
        disabled={isSubmittingRestore}
-       className="w-full py-3 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+       className="w-full py-3 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
       >
        {isSubmittingRestore
         ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Sending Request...</>
@@ -372,7 +372,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       </div>
       <button
        onClick={() => closeModal()}
-       className="w-full py-3 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-all shadow-md"
+       className="w-full py-3 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm"
       >
        Continue to App
       </button>
@@ -402,7 +402,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       value={verificationCode}
       onChange={e => setVerificationCode(e.target.value)}
       placeholder="Enter 6-digit Code"
-      className="text-center text-2xl tracking-widest font-mono w-full bg-white border-2 border-slate-200 rounded-lg p-4 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
+      className="text-center text-2xl tracking-widest font-mono w-full bg-white border-2 border-slate-200 rounded-sm p-4 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all"
       maxLength={6}
       autoFocus
      />
@@ -410,7 +410,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <button
       type="submit"
       disabled={isLoading || verificationCode.length < 6}
-      className="w-full py-3 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full py-3 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
      >
       {isLoading ? (
        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -447,10 +447,10 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      {/* Vega — Legal — amber glow */}
      <button
       onClick={() => { setSelectedProduct('legal'); productRef.current = 'legal'; setStep('form'); }}
-      style={{ '--glow-color': 'rgba(245, 158, 11, 0.12)', '--glow-border': 'rgba(245, 158, 11, 0.25)' } as React.CSSProperties}
-      className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-amber-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
+      style={{ '--glow-color': 'rgba(217, 119, 6, 0.12)', '--glow-border': 'rgba(217, 119, 6, 0.25)' } as React.CSSProperties}
+      className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-amber-600 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-lg bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
+      <div className="p-2.5 rounded-md bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div>
@@ -459,13 +459,13 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       </div>
      </button>
 
-     {/* Atrium — Property — blue glow */}
+     {/* Atrium — Property — emerald glow (registered identity #059669; was mis-registered as blue) */}
      <button
       onClick={() => { setSelectedProduct('property'); productRef.current = 'property'; setStep('form'); }}
-      style={{ '--glow-color': 'rgba(59, 130, 246, 0.12)', '--glow-border': 'rgba(59, 130, 246, 0.25)' } as React.CSSProperties}
-      className="product-glow-pulse product-glow-pulse-delay-2 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-blue-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
+      style={{ '--glow-color': 'rgba(5, 150, 105, 0.12)', '--glow-border': 'rgba(5, 150, 105, 0.25)' } as React.CSSProperties}
+      className="product-glow-pulse product-glow-pulse-delay-2 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-emerald-600 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
+      <div className="p-2.5 rounded-md bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div>
@@ -474,17 +474,17 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       </div>
      </button>
 
-     {/* Komplet — Unified — indigo glow */}
+     {/* Komplete — Unified — violet glow (registered identity #7C3AED; was mis-registered as indigo) */}
      <button
       onClick={() => { setSelectedProduct('unified'); productRef.current = 'unified'; setStep('form'); }}
-      style={{ '--glow-color': 'rgba(99, 102, 241, 0.12)', '--glow-border': 'rgba(99, 102, 241, 0.25)' } as React.CSSProperties}
-      className="product-glow-pulse product-glow-pulse-delay-3 w-full p-4 text-left border-2 rounded-2xl transition-all flex items-start gap-3 hover:border-indigo-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
+      style={{ '--glow-color': 'rgba(124, 58, 237, 0.12)', '--glow-border': 'rgba(124, 58, 237, 0.25)' } as React.CSSProperties}
+      className="product-glow-pulse product-glow-pulse-delay-3 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-violet-500 bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors relative">
+      <div className="p-2.5 rounded-md bg-violet-50 text-violet-600 group-hover:bg-violet-100 transition-colors relative">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div className="w-full relative">
-       <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-3xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Premium</div>
+       <div className="absolute top-0 right-0 bg-violet-100 text-violet-700 text-3xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Premium</div>
        <div className="font-black text-lg text-slate-900 ">Komplet <span className="text-2xs uppercase font-bold text-slate-400 ml-1">Unified</span></div>
        <div className="text-xs text-slate-500 mt-1 pr-10">Unified workspace for both legal (Vega) and property (Atrium).</div>
       </div>
@@ -506,13 +506,13 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
        <div className="flex gap-2 justify-center">
         <button
          onClick={() => window.location.href = '/portal/tenant/login'}
-         className="active-press touch-target text-xs font-bold text-emerald-600 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
+         className="active-press touch-target text-xs font-bold text-primary-600 px-3 py-1.5 rounded-sm bg-primary-50 hover:bg-primary-100 transition-colors"
         >
          Resident Portal
         </button>
         <button
          onClick={() => window.location.href = '/portal/client/login'}
-         className="active-press touch-target text-xs font-bold text-blue-600 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors"
+         className="active-press touch-target text-xs font-bold text-primary-600 px-3 py-1.5 rounded-sm bg-primary-50 hover:bg-primary-100 transition-colors"
         >
          Client Portal
         </button>
@@ -568,7 +568,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     </div>
 
     {isMigrationUser && (
-     <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+     <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-sm">
       <ZapIcon className="w-4 h-4 text-blue-600 shrink-0" />
       <p className="text-xs text-blue-700 ">
        Restoring workspace for <strong>{migrationOldEmail}</strong>. Your email has been pre-filled below.
@@ -632,7 +632,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
      <button
       type="submit"
-      className="w-full py-4 bg-primary-600 text-white rounded-lg font-bold text-lg hover:bg-primary-700 transition-all shadow-lg active:scale-[0.98] disabled:opacity-50"
+      className="w-full py-4 bg-primary-600 text-white rounded-sm font-bold text-lg hover:bg-primary-700 transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
       disabled={isLoading}
      >
       {isLoading ? 'Processing...' : isMigrationUser ? 'Create Account & Restore →' : 'Create Account'}
