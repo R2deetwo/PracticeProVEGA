@@ -276,12 +276,18 @@ describe('Offline shell purity (index.html / admin.html / index.css)', () => {
         expect(offenders, `admin.html still loads ${host}`).toEqual([]);
     });
 
-    it('fonts are self-hosted via @fontsource for all three families', () => {
-        expect(indexCss).toContain("@fontsource/inter/400.css");
-        expect(indexCss).toContain("@fontsource/inter/700.css");
+    it('fonts are self-hosted via @fontsource for all brand families', () => {
+        // Brand overhaul (docs/design/brand.md §4.2): Figtree replaces Inter
+        // as the body face; IBM Plex Mono joins as the ledger register. The
+        // pin's intent is unchanged — every family is @fontsource-bundled so
+        // the APKs boot pixel-identical with zero network.
+        expect(indexCss).toContain("@fontsource/figtree/400.css");
+        expect(indexCss).toContain("@fontsource/figtree/700.css");
         expect(indexCss).toContain("@fontsource/space-grotesk/400.css");
         expect(indexCss).toContain("@fontsource/space-grotesk/700.css");
+        expect(indexCss).toContain("@fontsource/ibm-plex-mono/400.css");
         expect(indexCss).toContain("@fontsource/dancing-script/700.css");
+        expect(indexCss).not.toContain('@fontsource/inter');
         expect(indexCss).not.toContain('fonts.googleapis.com');
     });
 

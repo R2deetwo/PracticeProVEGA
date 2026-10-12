@@ -1,15 +1,24 @@
 /* SELF-HOSTED FONTS (Task 62) — the app (and both APKs) must render
-   pixel-identical with ZERO network. Previously the three families below
-   were fetched from a remote font CDN, which meant every offline boot fell
-   back to system fonts. Same families, same weights, now bundled. */
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
+   pixel-identical with ZERO network. Previously these families were
+   fetched from a remote font CDN, which meant every offline boot fell
+   back to system fonts. Same discipline, now bundled.
+
+   BRAND OVERHAUL (docs/design/brand.md §4.2) — three registers:
+   Space Grotesk (display, the engineer's voice) · Figtree (body, the
+   human hand — replaces Inter, which reads "default") · IBM Plex Mono
+   (the ledger — kickers, IDs, prices). Dancing Script stays as a
+   signature-rendering UTILITY only (SignDocumentModal), never brand
+   typography. */
+@import '@fontsource/figtree/400.css';
+@import '@fontsource/figtree/500.css';
+@import '@fontsource/figtree/600.css';
+@import '@fontsource/figtree/700.css';
 @import '@fontsource/space-grotesk/400.css';
 @import '@fontsource/space-grotesk/500.css';
 @import '@fontsource/space-grotesk/600.css';
 @import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
 @import '@fontsource/dancing-script/700.css';
 
 @tailwind base;
@@ -88,6 +97,25 @@
   --color-amber: #D97706;
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
+
+  /* ===== Brand Overhaul Tokens (docs/design/brand.md §4) ============== */
+  /* Type roles — three registers, theme-agnostic (fonts don't change per
+     theme; the families are the brand). font-display/font-sans/font-mono
+     utilities map here via tailwind.config.ts. */
+  --font-display: 'Space Grotesk', 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* The Green Ramp — the promise palette. Sanctioned for exactly two
+     gradients (brand.md §4.1): the scaling-promise headline and the
+     primary CTA fill. Flat-colour use (borders, dots, rules) is fine;
+     any other gradient use is a brand violation. */
+  --ramp-mint: #6EE7B7;
+  --ramp-emerald: #34D399;
+  --ramp-green: #4ADE80;
+  /* Deep ink — the hero's base and the darkest stage surfaces. */
+  --ink-deep: #070D18;
 
   /* ===== Tailwind Color Scale Defaults (Light Theme) ===== */
   /* These CSS variables are referenced by tailwind.config.js so themes can
@@ -724,7 +752,7 @@ html.theme-city-lights {
 
 body {
   margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -1023,7 +1051,7 @@ html.font-size-lg .line-clamp-2 {
   align-items: center;
   justify-content: center;
   color: #64748b;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Figtree', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -1763,7 +1791,7 @@ span[data-type="legal-placeholder"] {
 
 /* Display type — Space Grotesk for headlines + stats */
 .font-display {
-  font-family: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-display);
   font-feature-settings: 'ss01', 'ss02';
 }
 /* Tabular numerals — for stats strip, pricing */

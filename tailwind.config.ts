@@ -12,6 +12,17 @@ const config: Config = {
   ],
   theme: {
         extend: {
+                // ─── TYPE ROLES (brand overhaul, docs/design/brand.md §4.2) ──
+                // Three registers: Space Grotesk (display — the engineer's
+                // voice), Figtree (body — the human hand, replaces Inter),
+                // IBM Plex Mono (the ledger — kickers, IDs, prices).
+                // var()-backed so src/index.css :root stays the single
+                // source of truth (same philosophy as the color scales).
+                fontFamily: {
+                        display: ['var(--font-display)'],
+                        sans: ['var(--font-sans)'],
+                        mono: ['var(--font-mono)'],
+                },
                 colors: {
                         background: 'hsl(var(--background))',
                         foreground: 'hsl(var(--foreground))',
