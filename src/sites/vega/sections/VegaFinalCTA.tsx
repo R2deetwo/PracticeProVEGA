@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button } from '../../ui';
+import { Button } from '../../../components/ui';
 
 /**
  * VegaFinalCTA — /vega's replacement for the shared final-CTA band.

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '../../ui';
+import { Button } from '../../../components/ui';
 
 /**
  * VegaMattersLedger — /vega's replacement for the shared hover-expand

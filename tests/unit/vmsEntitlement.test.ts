@@ -86,7 +86,7 @@ describe('VMS / Sentry Pass entitlement gate (source-scanned contract)', () => {
     it('5. pricing promise copy and gate stay in sync ("included at no extra cost on Komplete")', () => {
         // Pass B: the Sentry Pass promise copy lives in the Atrium-owned
         // FAQ band (the pricing/FAQ surface of /atrium).
-        const faq = read('src/components/marketing/atrium/AtriumFAQ.tsx');
+        const faq = read('src/sites/atrium/sections/AtriumFAQ.tsx');
         expect(faq).toContain('included at no extra cost on Komplete');
     });
 });

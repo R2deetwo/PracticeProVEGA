@@ -1,3 +1,4 @@
+<!-- LEGACY historical audit artifact — the #4A694C moss palette recorded here was retired; see docs/brand/ -->
 # PracticePro — Remaining Items from 6-Pillar Audit
 
 ## Context for Another LLM

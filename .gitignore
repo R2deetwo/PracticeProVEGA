@@ -32,3 +32,5 @@ dist/
 
 # TS incremental build artifact (never commit)
 tsconfig.tsbuildinfo
+docs/brand/p0-after/
+docs/brand/p0-selftest/

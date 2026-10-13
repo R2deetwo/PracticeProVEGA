@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button } from '../../ui';
+import { Button } from '../../../components/ui';
 
 /**
  * VegaFAQInk — /vega's replacement for the shared white FAQ card stack.

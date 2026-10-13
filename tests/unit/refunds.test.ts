@@ -257,10 +257,10 @@ describe("wording consistency (the four promise surfaces)", () => {
     // both pages must keep carrying the refund promise verbatim.
     // R21: the pricing tier sections are retired (owner direction) — the
     // guarantee promise now lives in each product page's FAQ cost answer.
-    expect(read("src/components/marketing/vega/VegaFAQInk.tsx")).toContain(
+    expect(read("src/sites/vega/sections/VegaFAQInk.tsx")).toContain(
       "30-day money-back guarantee"
     );
-    expect(read("src/components/marketing/atrium/AtriumFAQ.tsx")).toContain(
+    expect(read("src/sites/atrium/sections/AtriumFAQ.tsx")).toContain(
       "30-day money-back guarantee"
     );
   });
