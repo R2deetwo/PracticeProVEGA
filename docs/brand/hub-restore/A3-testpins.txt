@@ -1,0 +1,43 @@
+$ grep -n 'hub' tests/unit/websiteRepositioning.test.ts | head -40
+73:// src/sites/{hub,vega,atrium}. The hub branch is now three files (the
+74:// moved sections, the shell, the composition); `hub` is their union —
+75:// the faithful equivalent of the old single-file hub branch.
+76:// P1: HubSections.tsx was replaced by per-section files.
+77:const hubHeroSection = read("src", "sites", "hub", "sections", "HeroSection.tsx");
+78:const hubProducts = read("src", "sites", "hub", "sections", "ProductsSection.tsx");
+79:const hubWhatWeBuild = read("src", "sites", "hub", "sections", "WhatWeBuildSection.tsx");
+80:const hubWork = read("src", "sites", "hub", "sections", "WorkSection.tsx");
+81:const hubSoundFamiliar = read("src", "sites", "hub", "sections", "SoundFamiliarSection.tsx");
+82:const hubProcess = read("src", "sites", "hub", "sections", "ProcessSections.tsx");
+83:const hubShell = read("src", "sites", "hub", "HubShell.tsx");
+84:const hubIndex = read("src", "sites", "hub", "index.tsx");
+85:const hub = [hubShell, hubIndex, hubHeroSection, hubProducts, hubWhatWeBuild,
+86:  hubWork, hubSoundFamiliar, hubProcess].join("\n");
+93:const surfaces = landing + "\n" + hub + "\n" + productPages;
+117:    expect(hub).toContain("We build the systems your business runs on.");
+118:    expect(hub).toContain("PracticePro Systems designs, builds and runs business software from Lagos.");
+119:    expect(hub).toContain("Two products of our own, Vega for law firms and Atrium for property");
+120:    expect(hub).toContain("plus custom systems for clients.");
+121:    expect(hub).not.toContain("SCALE_NOUNS");
+122:    expect(hub).not.toContain("ScalingNoun");
+124:    expect(hub).toContain("Talk to us");
+125:    expect(hub).toContain("See our work");
+127:    expect(hub).toContain("WhatsApp order");
+128:    expect(hub).toContain("One queue");
+129:    expect(hub).toContain("Ledger");
+130:    expect(hub).toContain("Receipt");
+131:    expect(hub).not.toContain("MorphScene");
+132:    expect(hub).not.toContain("SystemCoreScene");
+141:    expect(hub).not.toContain("#F59E0B");
+143:    expect(hub).not.toContain("bg-amber-500/10 blur-[110px]");
+144:    expect(hub).not.toContain("bg-amber-500/[0.07]");
+145:    expect(hub).not.toContain("bg-amber-400/70");
+147:    // their colour contracts — the hub has no WebGL at all.
+157:    expect(hub).toContain("PracticePro Systems designs, builds and runs");
+158:    expect(hub).not.toContain("is a Lagos software company");
+162:    expect(hub).not.toContain("PracticePro Systems · Lagos, Nigeria");
+166:    expect(hub).toContain("Products");
+167:    expect(hub).toContain("Work");
+168:    expect(hub).toContain("How we work");
+
+$ grep -n 'hub\|LandingPage' tests/unit/corporateIdentity.test.ts

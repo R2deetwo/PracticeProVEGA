@@ -1,0 +1,12 @@
+=== CHUNK REPORT (acceptance 4) ===
+BEFORE (main @ 5366af3e, P1 systems-studio hub):
+  three.module: ABSENT — nothing imported three; no three chunk emitted
+  index:      3,031.73 kB (index-CtAm91I3.js)
+AFTER-RESTORE (Phase B):
+  three.module: 732.83 kB (three.module-4xNEFFrG.js) — restored with the W18 scenes
+  index:      3,082.29 kB (index-D4TJRp8b.js)
+AFTER-3D (Phase C):
+  three.module: 732.83 kB (three.module-4xNEFFrG.js, lazy-loaded on scroll into view)
+  index-DV1iCuDK.js: 3004.20 kB
+  index-BRLcjD3Y.js: 392.58 kB
+  index-CRlenKEx.js: 0.77 kB

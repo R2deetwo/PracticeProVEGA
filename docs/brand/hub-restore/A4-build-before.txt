@@ -1,0 +1,35 @@
+dist/assets/vendor-convex-CQJX0U6N.js                                81.84 kB │ gzip:  22.27 kB
+dist/assets/module-research-DusRPz1D.js                             115.22 kB │ gzip:  33.92 kB
+dist/assets/vendor-animation-XoWDvZcM.js                            125.65 kB │ gzip:  41.25 kB
+dist/assets/index.es-DnT3qnbV.js                                    150.74 kB │ gzip:  51.57 kB
+dist/assets/vendor-react-COY0iz7A.js                                151.34 kB │ gzip:  49.14 kB
+dist/assets/module-documents-DZqYod73.js                            261.33 kB │ gzip:  77.35 kB
+dist/assets/vendor-ai-BEB5csrM.js                                   322.36 kB │ gzip:  62.20 kB
+dist/assets/module-atrium-C-430Afc.js                               323.97 kB │ gzip:  82.88 kB
+dist/assets/index-aKmt-nus.js                                       398.13 kB │ gzip: 100.90 kB
+dist/assets/vendor-editor-D0UdsnC7.js                               476.98 kB │ gzip: 149.61 kB
+dist/assets/vendor-pdf-DV50Rgi_.js                                1,078.37 kB │ gzip: 322.24 kB
+dist/assets/module-settings-BRZJG50S.js                           1,156.87 kB │ gzip: 326.95 kB
+dist/assets/index-CtAm91I3.js                                     3,031.73 kB │ gzip: 742.58 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 21.71s
+[cache-bust] Rotated 1 CSS asset URL(s) with deploy id 5366af3e: index-JeOzqAnQ.css -> index-JeOzqAnQ-5366af3e.css  (3 file reference(s) patched)
+[mark-healthy] public/version.json marked healthy at 2026-10-13T17:14:18.482Z
+[mark-healthy] dist/version.json marked healthy at 2026-10-13T17:14:18.482Z
+[mark-healthy]   sha:     5366af3e3d45b717020b163e3311898c844046a8
+[mark-healthy]   branch:  brand/hub-restore-3d
+[mark-healthy]   builtAt: 2026-10-13T17:13:56.301Z
+$ ls dist/assets | grep -i three (before)
+(no output = no three.js chunk in the before build)
+
+$ three chunk + index chunk BEFORE:
+three.module: ABSENT (not requested by any module; nothing imports 'three' in src/)
+index-4dDj2IHR.js 774
+index-BZ3FTdjx.js 786
+index-BesYXZCm.js 762
+index-CtAm91I3.js 3035111
+index-aKmt-nus.js 402005

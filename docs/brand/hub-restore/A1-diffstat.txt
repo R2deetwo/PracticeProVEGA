@@ -1,0 +1,6 @@
+$ git diff --stat 9d6f11e7 HEAD -- src/components/LandingPage.tsx src/components/marketing/MorphScene.tsx src/components/marketing/SystemCoreScene.tsx src/index.css
+ src/components/LandingPage.tsx               | 4123 +-------------------------
+ src/components/marketing/MorphScene.tsx      |  744 -----
+ src/components/marketing/SystemCoreScene.tsx |  719 -----
+ src/index.css                                |  612 +++-
+ 4 files changed, 625 insertions(+), 5573 deletions(-)

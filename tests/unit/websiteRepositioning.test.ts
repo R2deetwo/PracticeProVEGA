@@ -75,15 +75,20 @@ const landing = read("src", "components", "LandingPage.tsx");
 // the faithful equivalent of the old single-file hub branch.
 // P1: HubSections.tsx was replaced by per-section files.
 const hubHeroSection = read("src", "sites", "hub", "sections", "HeroSection.tsx");
-const hubProducts = read("src", "sites", "hub", "sections", "ProductsSection.tsx");
-const hubWhatWeBuild = read("src", "sites", "hub", "sections", "WhatWeBuildSection.tsx");
-const hubWork = read("src", "sites", "hub", "sections", "WorkSection.tsx");
-const hubSoundFamiliar = read("src", "sites", "hub", "sections", "SoundFamiliarSection.tsx");
-const hubProcess = read("src", "sites", "hub", "sections", "ProcessSections.tsx");
+const hubMarquee = read("src", "sites", "hub", "sections", "MarqueeSection.tsx");
+const hubPainMirror = read("src", "sites", "hub", "sections", "PainMirrorSection.tsx");
+const hubWhatWeDo = read("src", "sites", "hub", "sections", "WhatWeDoSection.tsx");
+const hubWork = read("src", "sites", "hub", "sections", "OurWorkSection.tsx");
+const hubHowWeWork = read("src", "sites", "hub", "sections", "HowWeWorkSection.tsx");
+const hubAbout = read("src", "sites", "hub", "sections", "AboutSection.tsx");
+const hubFinalCTA = read("src", "sites", "hub", "sections", "HubFinalCTASection.tsx");
 const hubShell = read("src", "sites", "hub", "HubShell.tsx");
 const hubIndex = read("src", "sites", "hub", "index.tsx");
-const hub = [hubShell, hubIndex, hubHeroSection, hubProducts, hubWhatWeBuild,
-  hubWork, hubSoundFamiliar, hubProcess].join("\n");
+const hubHooks = read("src", "sites", "hub", "hooks.ts");
+const hubScenes = read("src", "sites", "hub", "scenes", "SystemCoreScene.tsx") + "\n" +
+  read("src", "sites", "hub", "scenes", "HubScene.tsx");
+const hub = [hubShell, hubIndex, hubHooks, hubScenes, hubHeroSection, hubMarquee,
+  hubPainMirror, hubWhatWeDo, hubWork, hubHowWeWork, hubAbout, hubFinalCTA].join("\n");
 const vegaSite = read("src", "sites", "vega", "index.tsx");
 const vegaShell = read("src", "sites", "vega", "VegaShell.tsx");
 const atriumSite = read("src", "sites", "atrium", "index.tsx");
@@ -112,24 +117,21 @@ const atriumFinalCTA = read("src", "sites", "atrium", "sections", "AtriumFinalCT
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    // P1 (owner direction): the scaling-noun promise is retired. The hero
-    // opens with the company's plain promise, exact copy.
-    expect(hub).toContain("We build the systems your business runs on.");
-    expect(hub).toContain("PracticePro Systems designs, builds and runs business software from Lagos.");
-    expect(hub).toContain("Two products of our own, Vega for law firms and Atrium for property");
-    expect(hub).toContain("plus custom systems for clients.");
-    expect(hub).not.toContain("SCALE_NOUNS");
-    expect(hub).not.toContain("ScalingNoun");
-    // The hero CTAs: one primary (moss) + one text link (P1 C1).
+    // Phase C: plain language, relatable at a glance. The abstract lattice
+    // is retired; the hero now tells one order's story in the scene.
+    expect(hub).toContain("Your orders, payments and customers, finally in one place.");
+    expect(hub).toContain("We design, build &amp; run business software");
+    expect(hub).toContain("Vega for law firms, Atrium for property managers, and custom systems for businesses like yours");
+    // The hero CTAs.
     expect(hub).toContain("Talk to us");
-    expect(hub).toContain("See our work");
-    // The static system diagram — four labelled nodes, no WebGL.
-    expect(hub).toContain("WhatsApp order");
-    expect(hub).toContain("One queue");
-    expect(hub).toContain("Ledger");
-    expect(hub).toContain("Receipt");
+    expect(hub).toContain("See what we&apos;ve built");
+    // The relatable scene replaces the abstract polyhedron in the hero.
+    expect(hub).toContain("HubScene");
+    expect(hub).not.toContain("ScalingNoun");
+    expect(hub).not.toContain("SCALE_NOUNS");
+    // The system core (What we do) keeps its scene; MorphScene is retired.
+    expect(hub).toContain("SystemCoreScene");
     expect(hub).not.toContain("MorphScene");
-    expect(hub).not.toContain("SystemCoreScene");
   });
 
   it("W17 — the page decorates in the brand's green, not amber (owner: “quite a cry from my colors”)", () => {
@@ -143,8 +145,8 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     expect(hub).not.toContain("bg-amber-500/10 blur-[110px]");
     expect(hub).not.toContain("bg-amber-500/[0.07]");
     expect(hub).not.toContain("bg-amber-400/70");
-    // P1: the 3D scenes (MorphScene, SystemCoreScene) are deleted with
-    // their colour contracts — the hub has no WebGL at all.
+    // hub-restore: the scenes are back; their colour contracts are the
+    // W17+ green era (mint ignition, emerald fresnel) — never amber.
     // The hero's structural fallback cloud is mint too.
     expect(css).not.toContain("rgba(217, 119, 6, 0.15)");
     expect(css).not.toContain("linear-gradient(135deg, #F59E0B, #16A34A)");
@@ -153,8 +155,9 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     expect(css).toContain("--color-amber: #D97706");
   });
 
-  it("the hero positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
-    expect(hub).toContain("PracticePro Systems designs, builds and runs");
+  it("the hub positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
+    expect(hub).toContain("We design, build &amp; run business software");
+    expect(hub).toContain("We build business software in Lagos");
     expect(hub).not.toContain("is a Lagos software company");
   });
 
@@ -170,13 +173,13 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
   });
 
   it("the services section presents builder capabilities", () => {
-    // P1 C3: the card grid is now a ruled index table; the seven
-    // capabilities and their copy survive.
-    expect(hub).toContain("WHAT_WE_BUILD");
-    expect(hub).toContain("Custom business systems");
-    expect(hub).toContain("Custom integrations");
-    expect(hub).toContain("Payments & revenue operations");
-    expect(hub).toContain("Hosting, security & compliance");
+    // hub-restore: the W18 bento card grid + iso shapes are back; C4 moved
+    // the card titles to customer outcomes (see the Phase C test above).
+    expect(hub).toContain("WHAT_WE_DO");
+    expect(hub).toContain("Software shaped around how your business already runs");
+    expect(hub).toContain("Your tools, wired into one workflow");
+    expect(hub).toContain("Money recorded the moment it lands");
+    expect(hub).toContain("Your system stays up and your data stays yours");
   });
 
   it("the engagement process is presented", () => {
@@ -260,28 +263,64 @@ describe("W7 — the wow site: real screens, stack, and the preview system", () 
   });
 
   it("the hero carries the morphing system with a structural CSS fallback", () => {
-    // RETIRED (P1): MorphScene is deleted; the hero is a static system
-    // diagram. The pins now assert the retirement holds.
+    // Phase C: the hero scene is HubScene (one order, start to finish)
+    // with the structural CSS fallback painted behind it until WebGL
+    // arrives (and permanently if WebGL never arrives).
+    expect(hub).toContain("HubScene");
+    expect(hub).toContain("w8-lattice-fallback");
     expect(hub).not.toContain("MorphScene");
-    expect(hub).not.toContain("w8-lattice-fallback");
   });
 });
 
 describe("W8 — structured fluidity: the lattice system", () => {
-  it("RETIRED (P1) — the hero shows structure that morphs — a system lattice, not a blob", () => {
-    expect(hub).not.toContain("w8-lattice");
+  it("the hero shows structure that morphs — a system lattice, not a blob (W8, restored)", () => {
+    expect(hub).toContain("w8-lattice");
   });
 
 
-  it("RETIRED (P1) — sections pour into each other through visible SVG waves that morph as you scroll (W10)", () => {
-    expect(hub).not.toContain("FluidSeam");
+  it("sections pour into each other through visible SVG waves that morph as you scroll (W10, restored)", () => {
+    expect(hub).toContain("FluidSeam");
+    expect(hubIndex).toContain('<FluidSeam from="#0A101C" to="#FFFFFF" phase={0}');
+    expect(hubIndex).toContain('<FluidSeam from="#FBFBF9" to="#0A101C" phase={3}');
   });
 
 
-  it("RETIRED (P1) — the nav carries a fluid pill that morphs between sections", () => {
-    expect(hub).not.toContain("w8-nav-pill");
+  it("the nav carries a fluid pill that morphs between sections (W8, restored)", () => {
+    expect(hub).toContain("w8-nav-pill");
   });
 
+
+  it("Phase C — the hero scene is one order, start to finish (C1/C5)", () => {
+    // The four stages and their captions.
+    expect(hub).toContain("Order arrives");
+    expect(hub).toContain("Nobody loses it");
+    expect(hub).toContain("Money recorded");
+    expect(hub).toContain("Receipt sent");
+    // Built from primitives; the naira mark is drawn as strokes, no font.
+    expect(hub).toContain("the naira mark is drawn as strokes");
+    // Performance + safety contract.
+    expect(hub).toContain("Math.min(window.devicePixelRatio || 1, 1.5)");
+    expect(hub).toContain("prefers-reduced-motion");
+    expect(hub).toContain("HubScenePoster");
+    expect(hub).toContain("renderer.dispose()");
+    // Layout: text left, scene right — the scene never sits behind text
+    // (grid columns, not an absolute overlay), and its box reserves height.
+    expect(hubHeroSection).toContain("lg:grid-cols-[1.05fr_0.95fr]");
+    expect(hub).toContain("aspect-[4/3]");
+  });
+
+  it("Phase C — What we build speaks in outcomes, not technology (C4)", () => {
+    expect(hub).toContain("Software shaped around how your business already runs");
+    expect(hub).toContain("Your tools, wired into one workflow");
+    expect(hub).toContain("Customers who help themselves, any hour, any phone");
+    expect(hub).toContain("Money recorded the moment it lands");
+    expect(hub).toContain("The repetitive work, done for you");
+    expect(hub).toContain("Nothing slips, the right person is alerted on time");
+    expect(hub).toContain("Your system stays up and your data stays yours");
+    // Honest facts stay checkable against the repo.
+    expect(hub).toContain("Paystack and bank transfer flows already in production");
+    expect(hub).toContain("NDPA 2023-aligned data handling");
+  });
 
   it("auth lives with the products, not on the company page", () => {
     // The hub hero no longer offers a sign-in…
@@ -299,23 +338,29 @@ describe("W8 — structured fluidity: the lattice system", () => {
 });
 
 describe("W9/W10/W13 — the living page, then the system core", () => {
-  it("RETIRED (P1) — the What-we-do visual is a real 3D system core (W13)", () => {
-    expect(hub).not.toContain("SystemCoreScene");
+  it("the What-we-do visual is a real 3D system core (W13, restored)", () => {
+    expect(hub).toContain("SystemCoreScene");
+    expect(hub).toContain("w13-canvas");
   });
 
 
-  it("RETIRED (P1) — each capability card carries a quiet, always-on icon chip (W13)", () => {
-    expect(hub).not.toContain("w14-chip");
+  it("each capability card carries a quiet, always-on icon chip (W13, restored)", () => {
+    expect(hub).toContain("w14-chip");
   });
 
 
-  it("RETIRED (P1) — everything renders INSIDE the canvas (W13)", () => {
-    expect(hub).not.toContain("w13-");
+  it("everything renders INSIDE the canvas (W13, restored)", () => {
+    expect(hub).toContain("w13-stage");
+    expect(hub).toContain("w13-fallback");
+    expect(hub).toContain("w13-caption");
   });
 
 
-  it("RETIRED (P1) — the scene runs on the hero's engine contract", () => {
-    expect(hub).not.toContain("w13-canvas");
+  it("the scene runs on the hero's engine contract (restored)", () => {
+    // Same lazy-chunk + pause-offscreen contract the hero scene uses.
+    expect(hubScenes).toContain("SystemCoreScene");
+    expect(hubScenes).toContain("HubScene");
+    expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1, 1.5)");
   });
 
 
@@ -324,14 +369,14 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     expect(css).not.toContain(".w9-squares-canvas");
   });
 
-  it("RETIRED (P1) — text settles in softly across the hub (w9 reveal machinery)", () => {
-    // The hub reveal is now a plain 200ms opacity fade (hub-reveal).
-    expect(hub).not.toContain("w9-reveal");
-    expect(hub).not.toContain("w9-step-node");
+  it("text settles in softly across the hub (w9 reveal machinery, restored)", () => {
+    expect(hub).toContain("w9-reveal");
+    expect(hub).toContain("w9-reveal-stagger");
+    expect(hub).toContain("w9-step-node");
   });
 
   it("a workflow & notification capability joins the builder services", () => {
-    expect(hub).toContain("Workflow & notification engines");
+    expect(hub).toContain("Nothing slips, the right person is alerted on time");
   });
 
   it("the preview goes INSIDE with REAL captures — no mocked-up UI (W10, W15)", () => {
@@ -482,28 +527,29 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
   it("the hero sells the problem, not the product catalogue", () => {
     // The "Our products" quick-links are gone from the hero — too early.
     expect(hub).not.toContain("Our products</span>");
-    // P1: the description is the owner's exact 30-word positioning; the
-    // pain lives in 04 — SOUND FAMILIAR with the PAIN_MIRROR copy.
-    expect(hubSoundFamiliar).toContain("PAIN_MIRROR");
-    expect(hubSoundFamiliar).toContain("Orders and requests arrive by WhatsApp, SMS and walk-in");
+    // hub-restore: the W18 pain-first hero description is back; the
+    // pain mirror itself is the Sound familiar? section (PAIN_MIRROR copy).
+    expect(hub).toContain("Spreadsheets, chat threads, memory and paper will get a business started");
+    expect(hubPainMirror).toContain("PAIN_MIRROR");
+    expect(hubPainMirror).toContain("Orders and requests arrive by WhatsApp, SMS and walk-in");
   });
 
   it("a mirror before the pitch: Sound familiar? names the visitor's friction", () => {
     expect(hub).toContain("PAIN_MIRROR");
-    expect(hub).toContain("04 — SOUND FAMILIAR");
+    expect(hub).toContain("Sound familiar?");
     expect(hub).toContain("just not software");
     expect(hub).toContain("You need a system");
     expect(hub).toContain("Tell us what runs your business today");
-    expect(hubIndex).toContain('<SoundFamiliarSection onContactSales');
+    expect(hubIndex).toContain('<PainMirrorSection onContactSales');
   });
 
-  it("RETIRED (P1) — MorphScene, SystemCoreScene, the descent and the Iso shapes", () => {
-    // All deleted by owner direction (P1): no WebGL on the hub, no shape
-    // watermarks, no scroll-linked descent.
-    expect(hub).not.toContain("useLandingCards");
-    expect(hub).not.toContain("w14-card");
-    expect(hub).not.toContain("CARD_SHAPES");
-    expect(hub).not.toContain("Iso");
+  it("the descent: shapes land in their cards, the Iso watermarks return (W14, restored)", () => {
+    // The scroll-linked descent is back: useLandingCards lands each card's
+    // wireframe shape; CARD_SHAPES are the iso watermarks.
+    expect(hub).toContain("useLandingCards");
+    expect(hub).toContain("w14-card");
+    expect(hub).toContain("CARD_SHAPES");
+    expect(hub).toContain("Iso");
   });
 });
 
@@ -513,8 +559,8 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
       "We design, build and run the systems businesses manage their affairs with"
     );
     expect(hub).toContain("From Lagos, for businesses anywhere");
-    // P1 B2: the footer's exact attribution line.
-    expect(hub).toContain("Vega and Atrium are built by PracticePro Systems Limited.");
+    // hub-restore: the W18 footer attribution line (bottom bar).
+    expect(hub).toContain("Vega &amp; Atrium · Built by PracticePro");
   });
 
   it("product heroes carry the Built-by attribution eyebrow", () => {

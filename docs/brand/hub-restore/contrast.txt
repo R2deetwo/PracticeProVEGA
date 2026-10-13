@@ -1,0 +1,14 @@
+=== CONTRAST REPORT (acceptance 7) — target ≥ 4.5:1 ===
+PASS   19.45:1  hero H1  [rgb(255, 255, 255)] on hero ink base rgb(7, 13, 24)
+PASS   13.10:1  hero sub  [rgba(203, 213, 225, 0.95)] on hero ink base rgb(7, 13, 24)
+PASS   10.12:1  hero eyebrow  [rgba(52, 211, 153, 0.9)] on hero ink base rgb(7, 13, 24)
+PASS   15.16:1  scene caption  [rgba(167, 243, 208, 0.9)] on hero ink base rgb(7, 13, 24)
+PASS    4.85:1  nav label 1  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS    4.85:1  nav label 2  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS    4.85:1  nav label 3  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS    4.85:1  nav label 4  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS    4.85:1  nav label 5  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS    4.85:1  nav label 6  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS    4.85:1  nav label 7  [rgb(71, 85, 105)] on glass nav over ink (rgba(255, 255, 255, 0.8) over rgb(7, 13, 24))
+PASS   11.98:1  nav "Talk to us" CTA  [rgb(11, 18, 32)] on glass nav over ink
+ALL PAIRS ≥ 4.5:1

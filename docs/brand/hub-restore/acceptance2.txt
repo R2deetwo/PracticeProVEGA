@@ -1,0 +1,9 @@
+$ git diff main --stat (this branch vs main)
+ src/sites/hub/sections/WhatWeBuildSection.tsx   |  92 ------
+ src/sites/hub/sections/WorkSection.tsx          | 374 ------------------------
+ src/sites/hub/tokens.css                        | 161 ----------
+ tests/unit/websiteRepositioning.test.ts         | 188 +++++++-----
+ 12 files changed, 475 insertions(+), 1296 deletions(-)
+
+$ git diff main | grep -n 'src/components/marketing/vega\|src/components/marketing/atrium\|theme-vega\|theme-atrium'
+(empty = acceptance 2 PASS)
