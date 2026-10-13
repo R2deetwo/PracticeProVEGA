@@ -12796,3 +12796,25 @@ Work Log:
 Stage Summary:
 - /vega is now the Night Chambers; /atrium and the hub are pixel-identical to their approved selves. Screenshots: download/vega-night/{vega,atrium}-{1440,390}-full.png.
 - Ready to push + promote.
+
+---
+Task ID: p0-foundation
+Agent: main (Super Z)
+Task: PRACTICEPRO Prompt 0 — brand source of truth + site split, no visual change, branch brand/p0-foundation.
+
+Work Log:
+- R23 mark work committed first: f14cba57 on main (pushed; promote run 38379596821 dispatched with full SHA, gates+Vercel+Convex green, Cloudflare standing token failure, live verified).
+- P0 Phase A: full component map of LandingPage.tsx (2893 lines) produced; importers = App.tsx only (others comment-refs); test pins extracted (websiteRepositioning 77 tests, corporateIdentity pins PrivacyPolicy/convex only); bundle baseline recorded (index 2990.9KB, three.module 715.7KB, module-settings 1131.2KB).
+- Baseline captures: docs/brand/baseline/ 80 screens (3 surfaces x 2 viewports), inner-div scroll, v2 determinism protocol (clock pauseAt(0), rAF kill, CSS anim pause, two-pass warm scroll).
+- Phase B split: git mv vega/atrium sections to src/sites/*/sections; ContactSalesDrawer to shared; hub sections extracted verbatim via scripts/p0_split.py; hand-narrowed HubShell/VegaShell/AtriumShell (zero activeProduct ternaries); shared hooks (useSiteChrome/useSiteScroll/useSignupOpener+useContactSales/ctas); LandingPage.tsx now a 33-line router.
+- Import-depth bugs fixed (3-level vs 4-level files; convex at repo root); HubSections needed ProductMarks import (work cards).
+- Tests: retarget scripts + manual fixes (vega/atrium branch extraction now bounds at </main>; aria-label ternary pin -> narrowed literals; on-atrium-page body-class pin -> sharedChrome parametrised form; cross-isolation path pins -> sites-relative). refunds/vmsEntitlement FAQ paths repointed. vitest 1258/1258.
+- ESLint: no-restricted-imports boundary blocks per site (regex ^(\\./)+(sibling)/); probe import verified failing then removed; clean lint 0 errors; ui-primitives ratchet 2367->2313 committed.
+- Pixel diff: 73/80 = 0.000%; 7 screens 0.7-1.7% = AT OR BELOW same-build self-diff noise floor (self-capture of identical build differs 0.7-1.75% on same screens — canvas/noun/lazy-image timing races, not regression). Scroll heights identical on all 6 surface/viewport pairs.
+- Phase C: docs/brand/{practicepro,vega,atrium}.md written (vega = shipped Night Chambers tokens; atrium = shipped emerald identity per owner note, terracotta recorded as deferred; practicepro = P1 target tokens); STYLE_GUIDE/COLOR_SCHEME colour sections retired to LEGACY pointers; archive 4A694C refs legacy-marked.
+- Phase D: @fontsource-variable/archivo + bricolage-grotesque 5.3.0 installed, imported nowhere (install-only).
+- Committed ecdc76e2 on brand/p0-foundation (139 files, +4605/-3150); pushed. NOT merged to main — awaiting owner decision (P1/P2 build on this branch).
+
+Stage Summary:
+- All 7 P0 acceptance criteria verified with raw outputs (33-line router; lint clean + boundary probe; vitest pinned files 82/82 + full 1258/1258; zero activeProduct=== in src/sites; pixel diffs at noise floor; build green with chunk sizes = baseline; brand docs exist, 4A694C legacy-only).
+- Known intentional micro-change: in-tab product->product switch now starts at top (pre-split kept stale scroll).
