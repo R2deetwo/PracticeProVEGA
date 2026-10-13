@@ -204,7 +204,7 @@ export const VegaNavBar: React.FC<{
                 <PrimaryButton
                     onClick={() => onSignup()}
                     tone="vega"
-                    className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-sm !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5 lg:!rounded-sm"
+                    className="!px-3 !py-2 sm:!px-3 sm:!py-1.5 !rounded-full !text-xs sm:!text-2xs ml-1 lg:ml-2 lg:!text-sm lg:!px-5 lg:!py-2.5"
                 >
                     Start Free Trial
                 </PrimaryButton>
@@ -252,7 +252,7 @@ export const VegaNavBar: React.FC<{
                     <button onClick={() => handleNavClick(onContactSales)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Contact</button>
                     <div className="h-px my-3 bg-white/10" />
                     <button onClick={() => handleNavClick(onLogin)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Log In</button>
-                    <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-sm !text-sm mt-2">
+                    <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-full !text-sm mt-2">
                         Start Free Trial
                     </PrimaryButton>
                     <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
@@ -290,7 +290,7 @@ export const VegaFooter: React.FC<{
                     <div className="mt-4 flex items-center gap-3">
                         <button
                             onClick={() => onOpenProduct('atrium')}
-                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all text-vega-claret hover:text-vega-claret/80 border-vega-claret/30 hover:bg-vega-claret/10"
+                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all text-vega-gilt-bright hover:text-vega-gilt border-vega-gilt/30 hover:bg-vega-gilt/10"
                         >
                             Open Atrium <span className="text-xs">↗</span>
                         </button>
@@ -336,31 +336,31 @@ export const VegaFooter: React.FC<{
     </footer>
 );
 
-/** Mobile sticky bottom CTA — the night bar with brass primary. */
+/** Mobile sticky bottom CTA — the warm bar with the orange pill. */
 export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
     <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] bg-vega-night/95 border-white/10">
         <button
             onClick={onContactSales}
-            className="flex-1 py-3 rounded-lg border text-sm font-semibold transition-colors border-white/20 text-slate-200 hover:bg-white/5 active:bg-white/10"
+            className="flex-1 py-3 rounded-full border text-sm font-semibold transition-colors border-white/20 text-slate-200 hover:bg-white/5 active:bg-white/10"
         >
             Talk to Sales
         </button>
         {/* TASK 54: no-arg invocation — never leak the click event into the
-            product override. Vega's primary is brass on the night page. */}
+            product override. Vega's primary is the orange pill (R26). */}
         <button
             onClick={() => onSignup()}
-            className="flex-[1.5] py-3 rounded-lg text-sm font-semibold transition-colors bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright active:bg-vega-gilt-bright"
+            className="flex-[1.5] py-3 rounded-full text-sm font-semibold transition-colors bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright active:bg-vega-gilt-bright"
         >
             Start Free Trial
         </button>
     </div>
 );
 
-/** Chat FAB — the gilt tile of the Night Chambers. */
+/** Chat FAB — the orange-ringed tile of the Warm Chambers. */
 export const VegaChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-none border flex items-center justify-center hover:scale-105 active:scale-95 transition-transform bg-vega-night border-vega-gilt"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center hover:scale-105 active:scale-95 transition-transform bg-vega-night border-vega-gilt"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

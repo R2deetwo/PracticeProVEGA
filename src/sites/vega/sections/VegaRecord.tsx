@@ -3,10 +3,10 @@ import React from 'react';
 /**
  * VegaRecord — /vega's trust band (the LawPavilion arrangement).
  *
- * LawPavilion carries a stats band under its products grid ("Trusted by
- * Top Legal Minds" — 29,000 practitioners, years of pioneering, team,
- * fulfilled clients). Vega's equivalent is THE RECORD: big serif numerals
- * between hairlines. Every figure is verifiable in the running product or
+ * LawPavilion carries a stats band under its products grid — big
+ * orange-OUTLINED numerals on a light ground. Vega's equivalent is THE
+ * RECORD (R26): the same outlined-figure gesture in burnt orange on the
+ * espresso ground. Every figure is verifiable in the running product or
  * the platform's published terms — no vanity metrics, no invented counts
  * (the honest-claims discipline that removed the fake WhatsApp/SSO claims).
  *
@@ -61,7 +61,7 @@ export const VegaRecord: React.FC = () => (
                 defend in a courtroom.
             </p>
 
-            {/* The figures — big serif numerals between hairlines */}
+            {/* The figures (R26) — big outlined numerals, LawPavilion's stats move */}
             <div className="border-t border-b border-white/10 grid sm:grid-cols-2 lg:grid-cols-4">
                 {RECORD.map((r, i) => (
                     <div
@@ -70,7 +70,7 @@ export const VegaRecord: React.FC = () => (
                             i % 2 === 0 ? 'sm:border-r' : ''
                         } ${i < 2 ? 'lg:border-b-0' : ''} ${i < RECORD.length - 1 ? 'lg:border-r' : ''} border-white/10`}
                     >
-                        <p className="font-vega text-4xl md:text-5xl font-semibold tracking-tight text-vega-gilt leading-none mb-4 whitespace-nowrap">
+                        <p className="vg-figure-outline font-vega text-4xl md:text-5xl font-semibold tracking-tight leading-none mb-4 whitespace-nowrap">
                             {r.figure}
                         </p>
                         <p className="font-mono text-2xs tracking-[0.18em] text-vega-parchment/90 mb-3">

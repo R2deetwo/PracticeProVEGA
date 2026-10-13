@@ -108,7 +108,11 @@
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
 
-  /* ===== Vega product-page tokens ("The Night Chambers") ============== */
+  /* ===== Vega product-page tokens (R26 "The Warm Chambers") ===================
+   Owner direction (R26): the Night Chambers (near-black + gilt) never
+   read as good. Same token NAMES (tests pin the class strings, not the
+   values) re-valued onto LawPavilion's register: deep espresso grounds,
+   warm cream type, burnt-orange accents. */
   /* Triplets (RGB space-separated) so Tailwind can alpha-modulate them
      via the same rgb(var(--x) / <alpha-value>) mapping as the scales.
      --color-amber (hex, above) stays untouched — it is pinned by
@@ -116,13 +120,13 @@
   --color-vega-claret: 123 30 30;       /* #7B1E1E — seals, stamps, ribbon   */
   --color-vega-claret-deep: 92 20 20;   /* #5C1414 — claret text on light    */
   --color-vega-claret-bright: 196 92 92;/* #C45C5C — claret legible on night */
-  --color-vega-gilt: 216 178 108;       /* #D8B26C — brass rules + fills     */
-  --color-vega-gilt-bright: 233 205 145;/* #E9CD91 — gilt text on night      */
-  --color-vega-ink: 11 18 32;           /* #0B1220 — raised band surface     */
-  --color-vega-ink-soft: 21 31 51;      /* card surfaces on ink sections     */
-  --color-vega-night: 7 9 15;           /* #07090F — the page ground         */
-  --color-vega-night-2: 13 17 27;       /* #0D111B — panels on the ground    */
-  --color-vega-parchment: 245 240 229;  /* #F5F0E5 — warm text on night      */
+  --color-vega-gilt: 224 122 63;        /* #E07A3F — burnt orange: rules + fills */
+  --color-vega-gilt-bright: 243 166 106;/* #F3A66A — orange type on espresso  */
+  --color-vega-ink: 62 43 28;           /* #3E2B1C — raised band surface     */
+  --color-vega-ink-soft: 80 57 38;      /* #503926 — card surfaces on bands    */
+  --color-vega-night: 34 23 15;         /* #22170F — the espresso ground     */
+  --color-vega-night-2: 46 32 21;       /* #2E2015 — panels on the ground    */
+  --color-vega-parchment: 247 240 231;  /* #F7F0E7 — warm cream on espresso  */
   /* R23 mark grounds — the product seals are lit from the top-left and
      fall into a deep corner; flat saturated tiles read as emoji. */
   --color-vega-claret-lift: 143 42 56;  /* #8F2A38 — the seal's lit corner   */
@@ -1995,7 +1999,7 @@ span[data-type="legal-placeholder"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VEGA PRODUCT PAGE — "The Night Chambers" (.theme-vega scope)
+   VEGA PRODUCT PAGE — R26 "The Warm Chambers" (.theme-vega scope)
    ─────────────────────────────────────────────────────────────────────────
    Owner direction (R22): the light paper page read "super bland" — Vega
    now runs the dark editorial register of a law library at night. The
@@ -2008,59 +2012,86 @@ span[data-type="legal-placeholder"] {
    may ever match an element outside a Vega page.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Scope: the night remap ───────────────────────────────────────────────
-   The page's two master vars flip: paper becomes the night ground and ink
-   becomes warm parchment, so every surface that paints var(--color-paper)
-   and every heading set in var(--color-ink) joins the night system
-   without touching that code. The slate remap keeps the shared dark
-   surfaces on Vega's own ink family. */
-.theme-vega {
-  --color-paper: #07090F;       /* the night ground — page + bands */
-  --color-ink: #F5F0E5;         /* parchment — display type        */
-  --color-slate-900: 11 18 32;  /* ink — raised bands              */
-  --color-slate-800: 21 31 51;  /* ink-soft — panels               */
+/* ── Scope: the espresso remap (R26) ─────────────────────────────────────
+   The page's two master vars flip: paper becomes the espresso ground and
+   ink becomes warm cream. The full slate scale warms in-place (cool
+   blue-grays → bone/taupe) so secondary type, hairlines, the pleading
+   exhibits' ink and the deep footer all join the warm system without
+   touching that code.
+   .site-vega (body) carries the same remap to the App-level chrome the
+   theme root cannot reach — the cookie banner and any portal modals —
+   so nothing navy survives while /vega is shown (R26). */
+.theme-vega,
+.site-vega {
+  --color-paper: #22170F;       /* the espresso ground — page + bands */
+  --color-ink: #F7F0E7;        /* warm cream — display type        */
+  --color-slate-200: 224 209 190;  /* warm ledger borders on paper   */
+  --color-slate-300: 205 189 168;  /* warm margin rules               */
+  --color-slate-400: 181 164 143;  /* warm bone — secondary type      */
+  --color-slate-500: 152 134 114;  /* warm taupe — muted notes        */
+  --color-slate-600: 124 106 88;   /* faint labels                    */
+  --color-slate-700: 92 76 60;     /* document secondary on paper     */
+  --color-slate-800: 80 57 38;     /* ink-soft — panels               */
+  --color-slate-900: 62 43 28;     /* ink — raised bands + doc ink    */
+  --color-slate-950: 22 15 10;     /* the deep footer                 */
 }
 
-/* ── Vega display serif ──────────────────────────────────────────────────── */
+/* ── Vega display type (R26) ──────────────────────────────────────────────
+   Display flips to the grotesk (LawPavilion's bold sans register); the
+   italic accent stays Fraunces — ONE serif flourish per headline, the
+   signature of the house. The --font-vega-display VARIABLE stays Fraunces
+   (the seal § and the og cards keep the serif). */
 .theme-vega .font-vega {
-  font-family: var(--font-vega-display);
-  font-optical-sizing: auto;
-  font-variation-settings: 'SOFT' 0, 'WONK' 0;
+  font-family: 'Space Grotesk', 'Figtree', system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 .theme-vega .font-vega-italic {
-  font-family: var(--font-vega-display);
+  font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
   font-style: italic;
   font-optical-sizing: auto;
   font-variation-settings: 'SOFT' 0, 'WONK' 0;
 }
 
-/* ── Square the shared marketing surfaces inside Vega only ────────────────
-   Document register: square corners, hairline borders, no lift shadows. */
+/* ── The shared marketing surfaces inside Vega (R26) ───────────────────
+   LawPavilion register: rounded corners, a warm lift shadow — floating
+   cards. The Record figures render as outlined burnt-orange stats. */
 .theme-vega .landing-card {
-  border-radius: 0;
-  box-shadow: none;
+  border-radius: 1rem;
+  box-shadow: 0 18px 36px -18px rgb(0 0 0 / 0.45);
   border-color: rgb(255 255 255 / 0.12);
 }
 .theme-vega .landing-card:hover {
-  transform: none;
-  box-shadow: none;
+  box-shadow: 0 26px 48px -20px rgb(0 0 0 / 0.55);
   border-color: rgb(var(--color-vega-gilt) / 0.45);
 }
 .theme-vega .feature-card.is-expanded {
-  box-shadow: none;
+  box-shadow: 0 18px 36px -18px rgb(0 0 0 / 0.45);
   border-color: rgb(var(--color-vega-gilt));
 }
 .theme-vega .feature-card.is-expanded .feature-card__desc {
   max-height: 320px; /* legal copy runs longer than the 240px default */
 }
 .theme-vega .trust-badge-icon {
-  border-radius: 0;
+  border-radius: 9999px;
 }
 .theme-vega .pricing-card {
-  border-radius: 0;
+  border-radius: 1rem;
+  box-shadow: 0 18px 36px -18px rgb(0 0 0 / 0.45);
 }
 .theme-vega .pricing-card:hover {
   transform: none;
+}
+
+/* ── The Record figures (R26) — LawPavilion's outlined stats. Big numerals
+   drawn as burnt-orange OUTLINES on the espresso ground; the @supports
+   fallback paints them solid orange where text-stroke is unavailable. */
+.theme-vega .vg-figure-outline {
+  color: transparent;
+  -webkit-text-stroke: 2.5px rgb(var(--color-vega-gilt));
+}
+@supports not (-webkit-text-stroke: 1px black) {
+  .theme-vega .vg-figure-outline { color: rgb(var(--color-vega-gilt)); }
 }
 
 /* ── Vega exhibits — bright paper on the night ground ─────────────────────
@@ -2237,17 +2268,17 @@ span[data-type="legal-placeholder"] {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Hero — the lamp over the desk: a warm pool where the exhibit sits, a
-   claret aura low-left, a vignette closing the corners. */
+/* Hero (R26) — the lamp warms: a burnt-orange pool where the exhibit
+   sits, a soft claret aura low-left, a vignette closing the corners. */
 .vg-hero-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(46rem 34rem at 74% 20%, rgb(var(--color-vega-gilt) / 0.11), transparent 68%),
-    radial-gradient(38rem 26rem at 6% 88%, rgb(var(--color-vega-claret) / 0.20), transparent 72%),
-    radial-gradient(64rem 46rem at 50% 124%, rgb(0 0 0 / 0.55), transparent 70%),
-    linear-gradient(to bottom, rgb(0 0 0 / 0.28), transparent 16%, transparent 84%, rgb(0 0 0 / 0.32));
+    radial-gradient(46rem 34rem at 74% 20%, rgb(var(--color-vega-gilt) / 0.16), transparent 68%),
+    radial-gradient(38rem 26rem at 6% 88%, rgb(var(--color-vega-claret) / 0.14), transparent 72%),
+    radial-gradient(64rem 46rem at 50% 124%, rgb(0 0 0 / 0.50), transparent 70%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.22), transparent 16%, transparent 84%, rgb(0 0 0 / 0.26));
 }
 
 /* Final CTA — the colophon bookend: the same lights, mirrored. */
@@ -2256,9 +2287,9 @@ span[data-type="legal-placeholder"] {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(40rem 28rem at 16% 14%, rgb(var(--color-vega-claret) / 0.18), transparent 70%),
-    radial-gradient(46rem 32rem at 88% 84%, rgb(var(--color-vega-gilt) / 0.10), transparent 68%),
-    linear-gradient(to bottom, rgb(0 0 0 / 0.28), transparent 20%, transparent 82%, rgb(0 0 0 / 0.36));
+    radial-gradient(40rem 28rem at 16% 14%, rgb(var(--color-vega-claret) / 0.14), transparent 70%),
+    radial-gradient(46rem 32rem at 88% 84%, rgb(var(--color-vega-gilt) / 0.14), transparent 68%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.24), transparent 20%, transparent 82%, rgb(0 0 0 / 0.32));
 }
 
 /* The watermark — an oversized seriffed mark at the edge of sight. */

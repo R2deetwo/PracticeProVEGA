@@ -1,17 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Vega — the Night Chambers mark (R25, owner direction:
-       "just choose yourself"): the same constructed V monogram with the
-       star (Vega, brightest in Lyra) cut into its point as a diamond
-       void, re-grounded in the live /vega page's design language — a
-       gilt letterform on the night ground, the exact register of the
-       page (gilt rules on near-black), replacing the garnet tile. -->
+  <!-- PracticePro Vega — the Seal mark (R26, owner direction:
+       "just do new logos, choose yourself"). Vega is the brightest star
+       in Lyra — the star navigators steered by. A solid coin (a notary
+       seal — the page's own device) with the four-point steer-star cut
+       through it in TRUE negative space: the disc carries 16px by mass,
+       the star void carries the meaning. Burnt orange on the espresso
+       ground — the register of the live /vega page (R26 The Warm Chambers). -->
   <defs>
     <linearGradient id="vg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0D111B"/>
-      <stop offset="1" stop-color="#07090F"/>
+      <stop offset="0" stop-color="#2E2015"/>
+      <stop offset="1" stop-color="#22170F"/>
+    </linearGradient>
+    <linearGradient id="vsl" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E07A3F"/>
+      <stop offset="1" stop-color="#F3A66A"/>
     </linearGradient>
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#vg)"/>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#D8B26C" stroke-opacity="0.5" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z" fill="#E9CD91"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#E07A3F" stroke-opacity="0.5" stroke-width="1.5"/>
+  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M24 12 L28.55 19.45 L36 24 L28.55 28.55 L24 36 L19.45 28.55 L12 24 L19.45 19.45 Z" fill="url(#vsl)"/>
 </svg>

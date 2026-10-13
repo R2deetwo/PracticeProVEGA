@@ -707,8 +707,12 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaFinalCTA).toContain("Are you a Real Estate Lawyer?");
     expect(vegaFinalCTA).toContain("Explore Komplete");
     expect(vegaFinalCTA).toContain("Custom Automations");
+    // R26 The Warm Chambers: pill CTAs (LawPavilion's capsule buttons),
+    // rounded-2xl cross-sell cards — never the old square/radius-3 looks.
+    expect(vegaFinalCTA).toContain("rounded-full");
+    expect(vegaFinalCTA).toContain("rounded-2xl");
     expect(vegaFinalCTA).not.toContain("rounded-3xl");
-    expect(vegaFinalCTA).not.toContain("rounded-full");
+    expect(vegaFinalCTA).not.toContain("rounded-sm");
   });
 
   it("how-it-works is a procedure schedule with plain numerals", () => {

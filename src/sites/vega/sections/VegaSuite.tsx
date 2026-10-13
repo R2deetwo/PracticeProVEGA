@@ -6,15 +6,11 @@ import { Button } from '../../../components/ui';
  *
  * LawPavilion opens with a grid of its products (Prime, AI, Elite, MOJ,
  * Primsol) — name, one line, an Explore link. Vega's equivalent: the six
- * instruments of the practice, laid out as a ruled catalogue on the night
- * ground. Each entry: mono numeral, serif title, one honest line, and an
- * Explore link that walks the visitor down to the matching deep-dive band
- * — the same "products first, detail below" arrangement.
- *
- * "The Night Chambers" register: a ruled table of a law report, not a
- * floating card grid — hairline cell borders, square corners, no shadows.
- * Copy is the shipped capability copy, verbatim (honest marketing, P8).
- * Interactive entries use the ui/Button primitive (ADR-0004).
+ * instruments of the practice. R26 "The Warm Chambers": LawPavilion's
+ * register — each entry is a floating CREAM card on the espresso ground
+ * (rounded, warm shadow, espresso type, orange numerals) that lifts on
+ * hover. Copy is the shipped capability copy, verbatim (honest marketing,
+ * P8). Interactive entries use the ui/Button primitive (ADR-0004).
  */
 
 type Instrument = {
@@ -100,26 +96,26 @@ export const VegaSuite: React.FC = () => {
                     the detail bands that follow.
                 </p>
 
-                {/* The catalogue — a ruled table, hairline cell borders, square corners */}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-white/10">
+                {/* The catalogue (R26) — floating cream cards on the espresso ground */}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
                     {INSTRUMENTS.map((ins) => (
                         <div
                             key={ins.num}
-                            className="group flex flex-col border-r border-b border-white/10 p-7 sm:p-8 transition-colors hover:bg-white/[0.03]"
+                            className="group flex flex-col rounded-2xl bg-vega-parchment p-7 sm:p-8 transition-all duration-300 hover:-translate-y-1 shadow-[0_18px_36px_-18px_rgb(0_0_0/0.5)] hover:shadow-[0_26px_48px_-20px_rgb(0_0_0/0.6)]"
                         >
-                            <p className="font-mono text-xs tracking-widest text-vega-gilt-bright mb-5">
+                            <p className="font-mono text-xs tracking-widest text-vega-gilt mb-5">
                                 {ins.num}
                             </p>
-                            <h3 className="font-vega text-xl font-semibold text-vega-parchment leading-snug mb-3">
+                            <h3 className="font-vega text-xl font-semibold text-vega-night leading-snug mb-3 tracking-tight">
                                 {ins.title}
                             </h3>
-                            <p className="text-sm leading-[1.7] text-slate-400 mb-6 flex-1">
+                            <p className="text-sm leading-[1.7] text-vega-ink-soft mb-6 flex-1">
                                 {ins.line}
                             </p>
                             <Button
                                 variant="bare"
                                 onClick={() => explore(ins.exploreTarget)}
-                                className="self-start px-0 py-1 text-sm font-semibold text-vega-gilt-bright hover:text-vega-gilt transition-colors focus-visible:ring-vega-gilt"
+                                className="self-start px-0 py-1 text-sm font-bold text-vega-gilt hover:text-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
                             >
                                 {ins.exploreLabel}
                                 <span aria-hidden="true" className="ml-2 inline-block transition-transform group-hover:translate-x-1">

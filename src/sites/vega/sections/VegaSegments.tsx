@@ -12,10 +12,11 @@ import { Button } from '../../../components/ui';
  * real library entries, and every capability row is grounded in the
  * shipped behaviour of that entry — no invented segments.
  *
- * "The Night Chambers" register: square tab row with a gilt underline on
- * the active entry, the panel below as a two-column ruled spread — serif
- * framing copy left, mono-numbered capability rows right. Interactive tabs
- * use the ui/Button primitive (ADR-0004).
+ * "The Warm Chambers" register (R26): LawPavilion's pill tab navigator —
+ * the active entry is an orange PILL, the inactive entries are quiet
+ * outline pills — with the panel below as a two-column spread: grotesk
+ * framing copy left, mono-numbered capability rows right. Interactive
+ * tabs use the ui/Button primitive (ADR-0004).
  */
 
 type Segment = {
@@ -105,11 +106,11 @@ export const VegaSegments: React.FC = () => {
                     the OnboardingWizard applies when a firm picks its areas of law.
                 </p>
 
-                {/* The tab row — square, gilt underline on the active entry */}
+                {/* The tab row (R26) — LawPavilion's pill navigator */}
                 <div
                     role="tablist"
                     aria-label="Practice areas"
-                    className="flex flex-wrap gap-x-8 gap-y-2 border-b border-white/10 mb-10 md:mb-14"
+                    className="flex flex-wrap gap-2.5 mb-10 md:mb-14"
                 >
                     {SEGMENTS.map((s, i) => {
                         const on = i === active;
@@ -122,17 +123,11 @@ export const VegaSegments: React.FC = () => {
                 aria-selected={on}
                 aria-controls="vg-segment-panel"
                 onClick={() => setActive(i)}
-                className={`relative px-0 pb-4 pt-2 text-sm font-semibold tracking-tight transition-colors focus-visible:ring-vega-gilt ${
-                    on ? 'text-vega-gilt-bright' : 'text-slate-400 hover:text-vega-parchment'
+                className={`rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-all focus-visible:ring-vega-gilt ${
+                    on ? 'bg-vega-gilt text-vega-night' : 'border border-white/15 text-slate-400 hover:text-vega-parchment hover:border-white/30'
                 }`}
             >
                 {s.tab}
-                {on && (
-                    <span
-                        aria-hidden="true"
-                        className="absolute left-0 right-0 -bottom-px h-0.5 bg-vega-gilt"
-                    />
-                )}
             </Button>
                         );
                     })}

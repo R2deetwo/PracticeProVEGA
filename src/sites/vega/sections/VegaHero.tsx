@@ -209,7 +209,7 @@ export const VegaHero: React.FC<{
                         className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-6"
                         data-vg-reveal
                     >
-                        <span className="inline-block w-1.5 h-1.5 bg-vega-claret-bright" aria-hidden="true" />
+                        <span className="inline-block w-1.5 h-1.5 bg-vega-gilt-bright" aria-hidden="true" />
                         {eyebrow}
                     </p>
 

@@ -1,24 +1,31 @@
 import React, { useId } from 'react';
 
 /**
- * ProductMarks — PracticePro product identity marks (R23).
+ * ProductMarks — PracticePro product identity marks (R26).
  *
- * Owner direction: the literal marks (a sparkle-star seal, a doorway arch
- * with a floating keystone) "look like emojis — absolutely far from SaaS
- * level quality". The emoji formula is: a flat saturated tile + a literal
- * drawn object + a cute floating detail. The R23 marks replace all three:
+ * Owner direction (R26, after two rounds of monogram tiles that never
+ * read right): NEW MARKS, chosen autonomously — objects with meaning,
+ * not letterforms. Both are constructed as single solid paths on the
+ * R23 quiet grounds (one clean diagonal gradient, squircle tile, one
+ * hairline) — flat, engineered, never bevelled.
  *
- *   1. GEOMETRIC MONOGRAMS, not objects. Vega is one solid constructed
- *      "V" — the star is cut INTO the letterform as a diamond void at its
- *      point (negative space, the most premium trick in the book — the
- *      FedEx arrow move), never a bauble floating in a notch. Atrium is
- *      one solid constructed "A" whose apex is domed — the atrium
- *      cupola in a single architectural gesture, no floor line, no
- *      floating keystone.
+ *   1. VEGA — THE SEAL. Vega is the brightest star in Lyra; the star
+ *      navigators steered by, the zero-point brightness was calibrated
+ *      against. The mark is a solid coin (a notary seal — the page's
+ *      own device) with the four-point steer-star cut through it in
+ *      TRUE negative space (evenodd): the disc carries 16px by mass,
+ *      the star void carries the meaning at 24px+. Burnt orange on the
+ *      espresso ground, the exact register of the live /vega page
+ *      (R26 The Warm Chambers).
  *
- *   2. QUIET GROUNDS, not stickers. One clean diagonal gradient (lit
- *      corner → deep corner) on a squircle, no inner rings, no bevels,
- *      no sheens — the flatness of Stripe/Slack app icons.
+ *   2. ATRIUM — THE COIN, IN THE ROUND. Twin of the Vega coin: one
+ *      solid emerald disc (the estate) with the square open court cut
+ *      through its heart (the void that names the building — the
+ *      atrium IS its court). A square void in a round coin: the shape
+ *      of a classical coin of trade, for the product that collects the
+ *      rent. Mass carries 16px; the void carries the meaning; the pair
+ *      read as a set — two coins, two hearts. Emerald on the estate's
+ *      cream, the register of the live /atrium page.
  *
  * Both marks draw EXCLUSIVELY from design tokens (rgb(var(--x))) so the
  * token gate stays green — no hardcoded hexes in components. The
@@ -34,8 +41,9 @@ type MarkProps = {
     title?: string;
 };
 
-/** Vega — gilt V monogram with the star cut into its point, on the night
- *  ground (R25): the live /vega page's own register — gilt on near-black. */
+/** Vega — the Seal: a solid coin with the steer-star cut through it in
+ *  true negative space (evenodd), burnt orange on the espresso ground
+ *  (R26): the live /vega page's own register. */
 export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -52,35 +60,41 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
                     <stop offset="0" stopColor="rgb(var(--color-vega-night-2))" />
                     <stop offset="1" stopColor="rgb(var(--color-vega-night))" />
                 </linearGradient>
+                <linearGradient id={`vgsl${uid}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="rgb(var(--color-vega-gilt))" />
+                    <stop offset="1" stopColor="rgb(var(--color-vega-gilt-bright))" />
+                </linearGradient>
             </defs>
-            {/* The quiet ground — the night ground the /vega page runs on */}
+            {/* The quiet ground — the espresso ground the /vega page runs on */}
             <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#vgmk${uid})`} />
-            {/* A gilt hairline so the dark tile holds its edge on dark tab
-                bars and dark UI rows — the page's gilt rules, at mark scale. */}
+            {/* An orange hairline so the dark tile holds its edge on dark tab
+                bars and dark UI rows — the page's orange rules, at mark scale. */}
             <rect
                 x="1" y="1" width="46" height="46" rx="11.5"
                 fill="none"
                 stroke="rgb(var(--color-vega-gilt) / 0.5)"
                 strokeWidth="1.5"
             />
-            {/* The V — one solid constructed path, parallel arms, and a
-                chisel-flat point (a needle vertex anti-aliases to mud at
-                16px); the star (Vega, brightest in Lyra) is a diamond
-                void cut into the point, sized to the point's optical
-                centre. Gilt-bright, like the page's gilt type on night. */}
+            {/* The Seal — one solid coin (a notary seal) with the four-point
+                steer-star cut through it in TRUE negative space (evenodd): the
+                disc carries 16px by mass, the star void carries the meaning.
+                The star is opened wide (waist ~3px at 16px) so the cutout
+                never clogs on cheap displays. The coin is gilt-lit toward its
+                bright corner. */}
             <path
                 fillRule="evenodd"
-                d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z
-                   M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z"
-                fill="rgb(var(--color-vega-gilt-bright))"
+                d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z
+                   M24 12 L28.55 19.45 L36 24 L28.55 28.55 L24 36 L19.45 28.55 L12 24 L19.45 19.45 Z"
+                fill={`url(#vgsl${uid})`}
             />
         </svg>
     );
 };
 
-/** Atrium — emerald A monogram with a domed apex, on the estate's cream
- *  (R25): the live /atrium page's own register — cream surfaces, emerald
- *  as the single accent. */
+/** Atrium — the Coin, in the round: a solid emerald disc with the
+ *  square open court cut through its heart, emerald on the estate's
+ *  cream (R26): the live /atrium page's own register. Twin of the Vega
+ *  coin — the pair read as a set. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -108,16 +122,14 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                 stroke="rgb(var(--color-atrium-jade) / 0.4)"
                 strokeWidth="1.5"
             />
-            {/* The A — one solid path: domed apex (the cupola), open
-                doorway between the legs, slender counter above a HIGH
-                crossbar (optical rule: the bar rides the counter's
-                centre, not the glyph's); evenodd carves both apertures.
-                Emerald, the page's single accent, on the cream ground. */}
+            {/* The Coin — twin of the Vega coin: one solid emerald disc
+                (the estate) with the square open court cut through its
+                heart in TRUE negative space (evenodd). Mass carries 16px;
+                the void carries the meaning; the pair read as a set. */}
             <path
                 fillRule="evenodd"
-                d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z
-                   M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z
-                   M24 14.5 L26.6 24.5 H21.4 Z"
+                d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z
+                   M19.5 17 H28.5 A2.5 2.5 0 0 1 31 19.5 V28.5 A2.5 2.5 0 0 1 28.5 31 H19.5 A2.5 2.5 0 0 1 17 28.5 V19.5 A2.5 2.5 0 0 1 19.5 17 Z"
                 fill={`url(#atmk${uid})`}
             />
         </svg>

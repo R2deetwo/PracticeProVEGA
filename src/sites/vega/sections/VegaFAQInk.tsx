@@ -4,12 +4,12 @@ import { Button } from '../../../components/ui';
 /**
  * VegaFAQInk — /vega's replacement for the shared white FAQ card stack.
  *
- * "The Night Chambers" register: the FAQs read as INTERROGATORIES on
- * the page's second (and last) raised ink band — question rows divided
- * by white hairlines, mono numbering in gilt, questions in the serif,
- * answers in the body face. The accordion is square: a hairline
- * plus/minus, never a circular badge. Atrium carries no dark band
- * anywhere.
+ * "The Warm Chambers" register (R26): the FAQs read as INTERROGATORIES on
+ * the page's second (and last) raised band, inside LawPavilion's dashed
+ * quote frame — question rows divided by white hairlines, mono numbering
+ * in orange, questions in the grotesk, answers in the body face. The
+ * accordion indicator stays a hairline plus/minus. Atrium carries no dark
+ * band anywhere.
  *
  * Copy is the shipped FAQ copy (shared + vega sets), verbatim.
  * Interactive rows use the ui/Button primitive (ADR-0004).
@@ -79,7 +79,8 @@ export const VegaFAQInk: React.FC = () => {
                     Everything you need to know about PracticePro Vega for law firms.
                 </p>
 
-                {/* The interrogatories — ruled accordion on ink */}
+                {/* The interrogatories (R26) — ruled accordion inside the dashed frame */}
+                <div className="rounded-3xl border-2 border-dashed border-white/15 px-5 sm:px-8 py-2">
                 <div className="border-t border-white/10">
                     {FAQ_ITEMS.map((item, i) => {
                         const open = openIndex === i;
@@ -115,6 +116,7 @@ export const VegaFAQInk: React.FC = () => {
                             </div>
                         );
                     })}
+                </div>
                 </div>
             </div>
         </section>

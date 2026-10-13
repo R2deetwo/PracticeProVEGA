@@ -36,19 +36,25 @@ const PLEX = fontFace('IBM Plex Mono', '400', '@fontsource/ibm-plex-mono/files/i
 const PLEX5 = fontFace('IBM Plex Mono', '500', '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2');
 
 // The marks, inlined at card scale (resolved hex — self-contained card).
-// R25: the gilt-on-night Vega mark and the emerald-on-cream Atrium mark —
-// the same construction as public/brand/*/favicon.svg, at card scale.
+// R26: the Seal (Vega — a coin with the star cut out, burnt orange on
+// espresso) and the Coin (Atrium — the twin coin with the square open
+// court cut out, emerald on cream) — the same construction as
+// public/brand/*/favicon.svg, at card scale.
 const VEGA_MARK = `
 <svg width="150" height="150" viewBox="0 0 48 48" aria-hidden="true">
   <defs>
     <linearGradient id="vgcard" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0D111B"/>
-      <stop offset="1" stop-color="#07090F"/>
+      <stop offset="0" stop-color="#2E2015"/>
+      <stop offset="1" stop-color="#22170F"/>
+    </linearGradient>
+    <linearGradient id="vgseal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E07A3F"/>
+      <stop offset="1" stop-color="#F3A66A"/>
     </linearGradient>
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#vgcard)"/>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#D8B26C" stroke-opacity="0.5" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z" fill="#E9CD91"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#E07A3F" stroke-opacity="0.5" stroke-width="1.5"/>
+  <path d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M24 12 L28.55 19.45 L36 24 L28.55 28.55 L24 36 L19.45 28.55 L12 24 L19.45 19.45 Z" fill="url(#vgseal)"/>
 </svg>`;
 const VEGA_MARK_SMALL = VEGA_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
@@ -62,27 +68,27 @@ const ATRIUM_MARK = `
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z M24 14.5 L26.6 24.5 H21.4 Z" fill="url(#atcard)"/>
+  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M19.5 17 H28.5 A2.5 2.5 0 0 1 31 19.5 V28.5 A2.5 2.5 0 0 1 28.5 31 H19.5 A2.5 2.5 0 0 1 17 28.5 V19.5 A2.5 2.5 0 0 1 19.5 17 Z" fill="url(#atcard)"/>
 </svg>`;
 const ATRIUM_MARK_SMALL = ATRIUM_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
 const VEGA_CARD = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
-  ${FRAUNCES}${PLEX}${PLEX5}
+  ${GROTESK5}${GROTESK7}${PLEX}${PLEX5}
   * { margin: 0; padding: 0; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
-  body { background: #0B1220; font-family: 'Fraunces', Georgia, serif; position: relative; }
+  body { background: #22170F; font-family: 'Space Grotesk', sans-serif; position: relative; }
   /* faint pleading-paper rules, the ghost of the page */
   body::before { content: ''; position: absolute; inset: 0;
-    background: repeating-linear-gradient(to bottom, transparent 0, transparent 39px, rgba(251,251,249,0.05) 39px, rgba(251,251,249,0.05) 40px); }
+    background: repeating-linear-gradient(to bottom, transparent 0, transparent 39px, rgba(247,240,231,0.05) 39px, rgba(247,240,231,0.05) 40px); }
   .wrap { position: absolute; inset: 0; padding: 88px 96px; box-sizing: border-box; display: flex; }
   .left { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-  .kicker { font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 19px; letter-spacing: 0.32em; color: #D8B26C; text-transform: uppercase; margin-bottom: 26px; }
-  h1 { font-size: 118px; font-weight: 600; color: #FBFBF9; letter-spacing: -0.01em; line-height: 1; }
-  .rule { width: 76px; height: 2px; background: #7B1E1E; margin: 34px 0 30px; }
-  .tag { font-family: 'Fraunces', Georgia, serif; font-size: 31px; font-weight: 400; color: #94A3B8; line-height: 1.45; max-width: 560px; }
+  .kicker { font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 19px; letter-spacing: 0.32em; color: #E07A3F; text-transform: uppercase; margin-bottom: 26px; }
+  h1 { font-size: 118px; font-weight: 700; color: #F7F0E7; letter-spacing: -0.02em; line-height: 1; }
+  .rule { width: 76px; height: 4px; background: #E07A3F; border-radius: 2px; margin: 34px 0 30px; }
+  .tag { font-family: 'Space Grotesk', sans-serif; font-weight: 500; font-size: 31px; color: #B5A48F; line-height: 1.45; max-width: 560px; }
   .footer { position: absolute; left: 96px; bottom: 72px; display: flex; align-items: center; gap: 24px; }
-  .footer .by { font-family: 'IBM Plex Mono', monospace; font-size: 18px; letter-spacing: 0.28em; color: #64748B; text-transform: uppercase; }
-  .footer .url { font-family: 'IBM Plex Mono', monospace; font-size: 19px; letter-spacing: 0.22em; color: #64748B; }
+  .footer .by { font-family: 'IBM Plex Mono', monospace; font-size: 18px; letter-spacing: 0.28em; color: #7C6A58; text-transform: uppercase; }
+  .footer .url { font-family: 'IBM Plex Mono', monospace; font-size: 19px; letter-spacing: 0.22em; color: #7C6A58; }
 </style></head><body>
   <div class="wrap"><div class="left">
     <div class="kicker">PracticePro Systems</div>

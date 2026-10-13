@@ -12,11 +12,12 @@ import { Button } from '../../../components/ui';
  * hero — not a centered band.
  *
  * R21: the Komplete and bespoke-systems cross-sells were relocated here
- * from the retired rate-card section — the pricing TIERS are gone (owner
+ * from the retired rate-card band — the pricing TIERS are gone (owner
  * direction) but these PracticePro offerings stay on the page, restyled
- * as compact ruled rows beneath the colophon.
+ * as compact rounded cards beneath the colophon (R26).
  *
- * CTAs use the ui/Button primitive (ADR-0004).
+ * CTAs use the ui/Button primitive (ADR-0004); R26: pill CTAs, orange
+ * primary, warm outline ghost.
  */
 export const VegaFinalCTA: React.FC<{
     onSignup: (productOverride?: unknown) => void;
@@ -33,7 +34,7 @@ export const VegaFinalCTA: React.FC<{
         <div className="relative z-10 container mx-auto px-4 sm:px-6 max-w-7xl">
             <div className="max-w-2xl" data-vg-reveal>
                 <p className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
-                    <span className="inline-block w-1.5 h-1.5 bg-vega-claret-bright" aria-hidden="true" />
+                    <span className="inline-block w-1.5 h-1.5 bg-vega-gilt-bright" aria-hidden="true" />
                     The Chambers Standard
                 </p>
                 <h2
@@ -55,14 +56,14 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onSignup()}
-                        className="px-8 py-4 text-base font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
                     >
                         Start Free Trial
                     </Button>
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Final CTA')}
-                        className="px-8 py-4 text-base font-bold border border-vega-gilt/50 text-vega-gilt-bright hover:bg-vega-gilt/10 transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold border border-vega-gilt/50 text-vega-gilt-bright hover:bg-vega-gilt/10 transition-colors focus-visible:ring-vega-gilt"
                     >
                         Talk to Sales
                     </Button>
@@ -76,7 +77,7 @@ export const VegaFinalCTA: React.FC<{
                 Compact, subordinate, in register — night panels with a gilt
                 spine. */}
             <div className="mt-16 md:mt-20 grid md:grid-cols-2 gap-5 max-w-4xl" data-vg-reveal style={{ '--vg-d': '120ms' } as React.CSSProperties}>
-                <div className="border border-white/10 border-l-2 border-l-vega-gilt bg-vega-night-2 px-6 py-7">
+                <div className="rounded-2xl border border-white/10 border-l-2 border-l-vega-gilt bg-vega-night-2 px-6 py-7 shadow-[0_18px_36px_-18px_rgb(0_0_0/0.45)]">
                     <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-2 tracking-tight">
                         Are you a Real Estate Lawyer?
                     </h3>
@@ -88,12 +89,12 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onSignup('unified')}
-                        className="px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
                     >
                         Explore Komplete
                     </Button>
                 </div>
-                <div className="border border-white/10 bg-vega-night-2 px-6 py-7">
+                <div className="rounded-2xl border border-white/10 bg-vega-night-2 px-6 py-7 shadow-[0_18px_36px_-18px_rgb(0_0_0/0.45)]">
                     <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-2 tracking-tight">
                         Need Custom Automations or Tailored Management Tools?
                     </h3>
@@ -105,7 +106,7 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Custom Automation Pipeline')}
-                        className="px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-gilt hover:text-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-gilt hover:text-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
                     >
                         Contact Sales
                     </Button>
