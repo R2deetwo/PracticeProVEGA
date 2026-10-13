@@ -10,6 +10,9 @@ import { VegaNavBar, VegaFooter, VegaMobileStickyCTA, VegaChatFab } from './Vega
 import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaIndexLine } from './sections/VegaIndexLine';
+import { VegaSuite } from './sections/VegaSuite';
+import { VegaRecord } from './sections/VegaRecord';
+import { VegaSegments } from './sections/VegaSegments';
 import { VegaMattersLedger } from './sections/VegaMattersLedger';
 import { VegaAIDrafting } from './sections/VegaAIDrafting';
 import { VegaCourtRules } from './sections/VegaCourtRules';
@@ -20,18 +23,27 @@ import { VegaFAQInk } from './sections/VegaFAQInk';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
 
 /**
- * VegaSite — /vega, "The Chambers Standard" (P0 split). 10 bands, this
- * exact order: hero → index line → matters ledger → ink AI band →
- * court-rule chronology → Scale of Charges ledger → procedure schedule →
- * attestations → ink FAQ → colophon CTA. Zero shared marketing sections
- * below the nav. Behaviour-identical to the pre-split vega branch.
+ * VegaSite — /vega, "The Chambers Standard" (P0 split), rearranged to the
+ * LawPavilion composition (owner direction: "let us have it looking like
+ * LawPavilion in terms of arrangement"). Their order — products grid first,
+ * then the trust band, then the segment switch, then the alternating
+ * feature deep-dives — maps onto Vega as:
+ *
+ *   hero → index line → THE SUITE (six instruments, the products grid) →
+ *   THE RECORD (the trust band) → PRACTICE AREAS (the segment tabs) →
+ *   the four deep-dive bands in alternating rhythm (matters ledger → ALOA
+ *   ink band → court-rule chronology → scale of charges, flipped) →
+ *   procedure → attestations → ink FAQ → colophon CTA.
+ *
+ * Same Night Chambers visual language as R22; only the ARRANGEMENT is
+ * LawPavilion's. Zero shared marketing sections below the nav.
  */
 export const VegaSite: React.FC = () => {
     const navigate = useNavigate();
     const { openModal } = useUI();
     useSiteChrome('vega');
     const { scrollRef, activeSection, scrollTo } = useSiteScroll(
-        ['home', 'features', 'howItWorks']
+        ['home', 'suite', 'practice-areas', 'features', 'howItWorks']
     );
     const openSignup = useSignupOpener('vega');
     const {
@@ -138,6 +150,11 @@ export const VegaSite: React.FC = () => {
                     )}
                 />
                 <VegaIndexLine />
+                {/* The LawPavilion arrangement: products grid, trust band,
+                    segment tabs — then the deep-dives. */}
+                <VegaSuite />
+                <VegaRecord />
+                <VegaSegments />
                 <VegaMattersLedger />
                 <VegaAIDrafting />
                 <VegaCourtRules />

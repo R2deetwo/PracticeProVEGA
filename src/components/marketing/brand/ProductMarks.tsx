@@ -34,7 +34,8 @@ type MarkProps = {
     title?: string;
 };
 
-/** Vega — solid V monogram with the star cut into its point, on claret. */
+/** Vega — gilt V monogram with the star cut into its point, on the night
+ *  ground (R25): the live /vega page's own register — gilt on near-black. */
 export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -48,28 +49,38 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
             {title && <title>{title}</title>}
             <defs>
                 <linearGradient id={`vgmk${uid}`} x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="rgb(var(--color-vega-claret-lift))" />
-                    <stop offset="1" stopColor="rgb(var(--color-vega-oxblood))" />
+                    <stop offset="0" stopColor="rgb(var(--color-vega-night-2))" />
+                    <stop offset="1" stopColor="rgb(var(--color-vega-night))" />
                 </linearGradient>
             </defs>
-            {/* The quiet ground */}
+            {/* The quiet ground — the night ground the /vega page runs on */}
             <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#vgmk${uid})`} />
+            {/* A gilt hairline so the dark tile holds its edge on dark tab
+                bars and dark UI rows — the page's gilt rules, at mark scale. */}
+            <rect
+                x="1" y="1" width="46" height="46" rx="11.5"
+                fill="none"
+                stroke="rgb(var(--color-vega-gilt) / 0.5)"
+                strokeWidth="1.5"
+            />
             {/* The V — one solid constructed path, parallel arms, and a
                 chisel-flat point (a needle vertex anti-aliases to mud at
                 16px); the star (Vega, brightest in Lyra) is a diamond
                 void cut into the point, sized to the point's optical
-                centre. */}
+                centre. Gilt-bright, like the page's gilt type on night. */}
             <path
                 fillRule="evenodd"
                 d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z
                    M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z"
-                fill="rgb(var(--color-vega-parchment))"
+                fill="rgb(var(--color-vega-gilt-bright))"
             />
         </svg>
     );
 };
 
-/** Atrium — solid A monogram with a domed apex, on pine. */
+/** Atrium — emerald A monogram with a domed apex, on the estate's cream
+ *  (R25): the live /atrium page's own register — cream surfaces, emerald
+ *  as the single accent. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -87,18 +98,27 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                     <stop offset="1" stopColor="rgb(var(--color-atrium-pine))" />
                 </linearGradient>
             </defs>
-            {/* The quiet ground */}
-            <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#atmk${uid})`} />
+            {/* The quiet ground — the estate's cream, the page's surface */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill="rgb(var(--color-cream))" />
+            {/* An emerald hairline so the light tile holds its edge on light
+                UI rows — the page's emerald accent, at mark scale. */}
+            <rect
+                x="1" y="1" width="46" height="46" rx="11.5"
+                fill="none"
+                stroke="rgb(var(--color-atrium-jade) / 0.4)"
+                strokeWidth="1.5"
+            />
             {/* The A — one solid path: domed apex (the cupola), open
                 doorway between the legs, slender counter above a HIGH
                 crossbar (optical rule: the bar rides the counter's
-                centre, not the glyph's); evenodd carves both apertures. */}
+                centre, not the glyph's); evenodd carves both apertures.
+                Emerald, the page's single accent, on the cream ground. */}
             <path
                 fillRule="evenodd"
                 d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z
                    M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z
                    M24 14.5 L26.6 24.5 H21.4 Z"
-                fill="rgb(var(--color-cream))"
+                fill={`url(#atmk${uid})`}
             />
         </svg>
     );

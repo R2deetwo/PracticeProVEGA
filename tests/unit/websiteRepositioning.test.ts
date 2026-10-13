@@ -86,7 +86,7 @@ const hubShell = read("src", "sites", "hub", "HubShell.tsx");
 const hubIndex = read("src", "sites", "hub", "index.tsx");
 const hubHooks = read("src", "sites", "hub", "hooks.ts");
 const hubScenes = read("src", "sites", "hub", "scenes", "SystemCoreScene.tsx") + "\n" +
-  read("src", "sites", "hub", "scenes", "HubScene.tsx");
+  read("src", "sites", "hub", "scenes", "MorphScene.tsx");
 const hub = [hubShell, hubIndex, hubHooks, hubScenes, hubHeroSection, hubMarquee,
   hubPainMirror, hubWhatWeDo, hubWork, hubHowWeWork, hubAbout, hubFinalCTA].join("\n");
 const vegaSite = read("src", "sites", "vega", "index.tsx");
@@ -117,21 +117,24 @@ const atriumFinalCTA = read("src", "sites", "atrium", "sections", "AtriumFinalCT
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    // Phase C: plain language, relatable at a glance. The abstract lattice
-    // is retired; the hero now tells one order's story in the scene.
+    // hub-revert-rubbish (owner verdict on the Phase C diorama: "particularly
+    // rubbish and not well done"): the hero is the W14 living orb again —
+    // MorphScene full-bleed behind centred text. The plain-language copy
+    // (C3) and both CTAs stay; the diorama is retired.
     expect(hub).toContain("Your orders, payments and customers, finally in one place.");
     expect(hub).toContain("We design, build &amp; run business software");
     expect(hub).toContain("Vega for law firms, Atrium for property managers, and custom systems for businesses like yours");
     // The hero CTAs.
     expect(hub).toContain("Talk to us");
     expect(hub).toContain("See what we&apos;ve built");
-    // The relatable scene replaces the abstract polyhedron in the hero.
-    expect(hub).toContain("HubScene");
+    // The living orb is back in the hero; the diorama is retired.
+    expect(hub).toContain("MorphScene");
     expect(hub).not.toContain("ScalingNoun");
     expect(hub).not.toContain("SCALE_NOUNS");
-    // The system core (What we do) keeps its scene; MorphScene is retired.
+    // The system core (What we do) keeps its scene; the Phase C diorama
+    // (HubScene) is retired with the owner's verdict.
     expect(hub).toContain("SystemCoreScene");
-    expect(hub).not.toContain("MorphScene");
+    expect(hub).not.toContain("HubScene");
   });
 
   it("W17 — the page decorates in the brand's green, not amber (owner: “quite a cry from my colors”)", () => {
@@ -263,12 +266,12 @@ describe("W7 — the wow site: real screens, stack, and the preview system", () 
   });
 
   it("the hero carries the morphing system with a structural CSS fallback", () => {
-    // Phase C: the hero scene is HubScene (one order, start to finish)
+    // hub-revert-rubbish: the hero scene is the W14 living orb (MorphScene)
     // with the structural CSS fallback painted behind it until WebGL
     // arrives (and permanently if WebGL never arrives).
-    expect(hub).toContain("HubScene");
+    expect(hub).toContain("MorphScene");
     expect(hub).toContain("w8-lattice-fallback");
-    expect(hub).not.toContain("MorphScene");
+    expect(hub).not.toContain("HubScene");
   });
 });
 
@@ -290,23 +293,28 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 
 
-  it("Phase C — the hero scene is one order, start to finish (C1/C5)", () => {
-    // The four stages and their captions.
-    expect(hub).toContain("Order arrives");
-    expect(hub).toContain("Nobody loses it");
-    expect(hub).toContain("Money recorded");
-    expect(hub).toContain("Receipt sent");
-    // Built from primitives; the naira mark is drawn as strokes, no font.
-    expect(hub).toContain("the naira mark is drawn as strokes");
-    // Performance + safety contract.
-    expect(hub).toContain("Math.min(window.devicePixelRatio || 1, 1.5)");
+  it("the hero is the living orb, full-bleed behind centred text (W14 restored)", () => {
+    // hub-revert-rubbish: the diorama is retired; the living orb is back —
+    // full-bleed (absolute inset-0) behind the centred copy, the W14-era
+    // presentation the owner originally asked to restore. The plain C3
+    // copy and both CTAs stay.
+    expect(hubHeroSection).toContain("MorphScene");
+    expect(hubHeroSection).toContain("w8-scene-enter");
+    expect(hubHeroSection).toContain("w7-headline-shadow");
+    expect(hubHeroSection).toContain("flex flex-col items-center text-center");
+    expect(hubHeroSection).toContain("absolute inset-0 w8-scene-enter");
+    expect(hubHeroSection).not.toContain("aspect-[4/3]");
+    // The diorama's stage machinery is gone with it. ("Money recorded" is
+    // NOT asserted here — it is also a legitimate What-we-do capability
+    // title: "Money recorded the moment it lands".)
+    expect(hub).not.toContain("Order arrives");
+    expect(hub).not.toContain("Nobody loses it");
+    expect(hub).not.toContain("Receipt sent");
+    expect(hub).not.toContain("HubScenePoster");
+    // Performance + safety contract (MorphScene, verbatim W14).
+    expect(hub).toContain("Math.min(window.devicePixelRatio || 1");
     expect(hub).toContain("prefers-reduced-motion");
-    expect(hub).toContain("HubScenePoster");
     expect(hub).toContain("renderer.dispose()");
-    // Layout: text left, scene right — the scene never sits behind text
-    // (grid columns, not an absolute overlay), and its box reserves height.
-    expect(hubHeroSection).toContain("lg:grid-cols-[1.05fr_0.95fr]");
-    expect(hub).toContain("aspect-[4/3]");
   });
 
   it("Phase C — What we build speaks in outcomes, not technology (C4)", () => {
@@ -359,8 +367,8 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
   it("the scene runs on the hero's engine contract (restored)", () => {
     // Same lazy-chunk + pause-offscreen contract the hero scene uses.
     expect(hubScenes).toContain("SystemCoreScene");
-    expect(hubScenes).toContain("HubScene");
-    expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1, 1.5)");
+    expect(hubScenes).toContain("MorphScene");
+    expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1");
   });
 
 
@@ -602,14 +610,19 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     ]) {
       expect(body).not.toContain(`<${s}`);
     }
-    // The vega composition: 10 bands, this exact order (R21: the rate-card
-    // band was removed by owner direction — pricing is sales-led now).
+    // The vega composition (LawPavilion arrangement): products grid first,
+    // then the trust band, then the segment tabs, then the deep-dives in
+    // alternating rhythm — the owner direction "looking like LawPavilion in
+    // terms of arrangement".
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
     expect(order).toEqual([
       "VegaHero",
       "VegaIndexLine",
+      "VegaSuite",
+      "VegaRecord",
+      "VegaSegments",
       "VegaMattersLedger",
       "VegaAIDrafting",
       "VegaCourtRules",

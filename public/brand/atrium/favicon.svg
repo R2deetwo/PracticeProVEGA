@@ -1,12 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Atrium — the R23 mark: a solid A monogram with a domed
-       apex (the cupola), an open doorway and a high crossbar. -->
+  <!-- PracticePro Atrium — the Well-Kept Estate mark (R25, owner direction:
+       "just choose yourself"): the same constructed A monogram with the
+       domed apex (the cupola), open doorway and high crossbar, re-grounded
+       in the live /atrium page's design language — an emerald letterform
+       on the estate's cream, the exact register of the page (cream
+       surfaces, emerald as the single accent), replacing the emerald tile. -->
   <defs>
     <linearGradient id="at" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C7A57"/>
       <stop offset="1" stop-color="#053D2C"/>
     </linearGradient>
   </defs>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#at)"/>
-  <path fill-rule="evenodd" d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z M24 14.5 L26.6 24.5 H21.4 Z" fill="#FAF7F2"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
+  <path fill-rule="evenodd" d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z M24 14.5 L26.6 24.5 H21.4 Z" fill="url(#at)"/>
 </svg>

@@ -143,15 +143,26 @@ export const VegaNavBar: React.FC<{
                     )}
                 </div>
                 <button
-                    onClick={() => scrollTo('features')}
-                    data-nav-id="features"
+                    onClick={() => scrollTo('suite')}
+                    data-nav-id="suite"
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        activeSection === 'features'
+                        activeSection === 'suite'
                             ? navLinkActiveCls
                             : navLinkCls
                     }`}
                 >
-                    Features
+                    The Suite
+                </button>
+                <button
+                    onClick={() => scrollTo('practice-areas')}
+                    data-nav-id="practice-areas"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        activeSection === 'practice-areas'
+                            ? navLinkActiveCls
+                            : navLinkCls
+                    }`}
+                >
+                    Practice Areas
                 </button>
                 <button
                     onClick={() => scrollTo('howItWorks')}
@@ -234,7 +245,8 @@ export const VegaNavBar: React.FC<{
                             <AtriumMark className="w-5 h-5" /> Atrium — For Property Managers <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
                     </div>
-                    <button onClick={() => handleNavClick(() => scrollTo('features'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Features</button>
+                    <button onClick={() => handleNavClick(() => scrollTo('suite'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>The Suite</button>
+                    <button onClick={() => handleNavClick(() => scrollTo('practice-areas'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Practice Areas</button>
                     <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>How It Works</button>
                     <button onClick={() => handleNavClick(onResources)} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Contact</button>

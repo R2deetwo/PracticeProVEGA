@@ -16,10 +16,12 @@ import { useEffect } from 'react';
  * og:/twitter: metas and the stock title/theme-color tags are edited
  * IN PLACE (a duplicate og:title would be ignored by some scrapers —
  * the first node in the document wins), with their original contents
- * captured on first edit and restored afterwards. Product favicon links
- * are APPENDED after the company favicon (browsers use the last icon
- * they support) and removed again when the visitor returns to the
- * company page, leaving the original PracticePro favicon untouched.
+ * captured on first edit and restored afterwards. The stock favicon and
+ * apple-touch-icon links are REMOVED from the head while a product page
+ * is active and re-inserted on return (R25): appending the product links
+ * after the company icon left the company icon FIRST in the list, and
+ * browsers kept showing the PracticePro icon on /vega and /atrium — the
+ * owner never saw a product favicon at all.
  */
 
 type ProductBrand = {
@@ -78,6 +80,31 @@ export const PRODUCT_BRANDS: Record<'vega' | 'atrium', ProductBrand> = {
 const ORIGINALS = new Map<string, string>();
 
 const MANAGED_ATTR = 'data-pp-brand';
+
+/** The company icon links, stashed off the head while a product identity
+ *  is active. R25: while the company link stayed in the head, engines kept
+ *  resolving the tab icon to it (first link in document order wins for a
+ *  large share of browsers) — the product favicon never showed. */
+const STASHED_COMPANY_LINKS: HTMLLinkElement[] = [];
+
+function stashCompanyIconLinks() {
+    if (STASHED_COMPANY_LINKS.length > 0) return; // already stashed
+    document.head
+        .querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]')
+        .forEach((el) => {
+            if (el.hasAttribute(MANAGED_ATTR)) return;
+            STASHED_COMPANY_LINKS.push(el);
+            el.remove();
+        });
+}
+
+function restoreCompanyIconLinks() {
+    if (STASHED_COMPANY_LINKS.length === 0) return;
+    STASHED_COMPANY_LINKS.forEach((el) => {
+        if (!el.isConnected) document.head.appendChild(el);
+    });
+    STASHED_COMPANY_LINKS.length = 0;
+}
 
 /** Metas edited in place (selector → brand key). */
 const META_TARGETS: Array<{ find: string; attr: 'content' }> = [
@@ -138,8 +165,10 @@ function applyProductIdentity(b: ProductBrand) {
     }
     if (!ORIGINALS.has('og:url')) ORIGINALS.set('og:url', ogUrl.getAttribute('content') || '');
     ogUrl.setAttribute('content', b.url);
-    // Favicon: PNG first, then SVG — appended AFTER the company favicon
-    // so engines that support SVG take it and Safari falls back to PNG.
+    // Favicon: the company icon links leave the head entirely for the
+    // duration (R25) — then the PNG + SVG product links are the ONLY icon
+    // links in the document, so every engine resolves the product mark.
+    stashCompanyIconLinks();
     const png = ensureLink('icon', 'image/png');
     png.setAttribute('sizes', '48x48');
     png.setAttribute('href', b.faviconPng);
@@ -151,8 +180,10 @@ function applyProductIdentity(b: ProductBrand) {
 }
 
 function applyCompanyIdentity() {
-    // Product favicon links leave the document entirely.
+    // Product favicon links leave the document entirely; the company icon
+    // links return to the head (R25).
     document.head.querySelectorAll(`link[${MANAGED_ATTR}]`).forEach((el) => el.remove());
+    restoreCompanyIconLinks();
     document.title = ORIGINAL_TITLE;
     META_TARGETS.forEach((target) => {
         const el = document.head.querySelector(target.find);

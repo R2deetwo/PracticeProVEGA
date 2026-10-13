@@ -36,23 +36,33 @@ const PLEX = fontFace('IBM Plex Mono', '400', '@fontsource/ibm-plex-mono/files/i
 const PLEX5 = fontFace('IBM Plex Mono', '500', '@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2');
 
 // The marks, inlined at card scale (resolved hex — self-contained card).
+// R25: the gilt-on-night Vega mark and the emerald-on-cream Atrium mark —
+// the same construction as public/brand/*/favicon.svg, at card scale.
 const VEGA_MARK = `
 <svg width="150" height="150" viewBox="0 0 48 48" aria-hidden="true">
-  <rect x="2" y="2" width="44" height="44" rx="10" fill="#7B1E1E"/>
-  <path d="M14.5 17 L24 35.5" fill="none" stroke="#FBFBF9" stroke-width="4"/>
-  <path d="M33.5 17 L24 35.5" fill="none" stroke="#FBFBF9" stroke-width="4"/>
-  <path d="M11.5 16.8 H17" stroke="#FBFBF9" stroke-width="3"/>
-  <path d="M31 16.8 H36.5" stroke="#FBFBF9" stroke-width="3"/>
-  <path d="M24 5.5 C24.85 8.1 25.4 8.65 28 9.5 C25.4 10.35 24.85 10.9 24 13.5 C23.15 10.9 22.6 10.35 20 9.5 C22.6 8.65 23.15 8.1 24 5.5 Z" fill="#D8B26C"/>
+  <defs>
+    <linearGradient id="vgcard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0D111B"/>
+      <stop offset="1" stop-color="#07090F"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#vgcard)"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#D8B26C" stroke-opacity="0.5" stroke-width="1.5"/>
+  <path fill-rule="evenodd" d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z" fill="#E9CD91"/>
 </svg>`;
 const VEGA_MARK_SMALL = VEGA_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
 const ATRIUM_MARK = `
 <svg width="150" height="150" viewBox="0 0 48 48" aria-hidden="true">
-  <rect x="2" y="2" width="44" height="44" rx="10" fill="#059669"/>
-  <path d="M16 36.5 V22 C16 14 32 14 32 22 V36.5" fill="none" stroke="#FAF7F2" stroke-width="4"/>
-  <path d="M11.5 36.5 H36.5" stroke="#FAF7F2" stroke-width="3.5"/>
-  <path d="M24 8 L27.2 11.7 L24 15.4 L20.8 11.7 Z" fill="#FAF7F2"/>
+  <defs>
+    <linearGradient id="atcard" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C7A57"/>
+      <stop offset="1" stop-color="#053D2C"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
+  <path fill-rule="evenodd" d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z M24 14.5 L26.6 24.5 H21.4 Z" fill="url(#atcard)"/>
 </svg>`;
 const ATRIUM_MARK_SMALL = ATRIUM_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 

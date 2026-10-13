@@ -64,6 +64,7 @@ const CHRONOLOGY: ChronoEntry[] = [
 
 export const VegaCourtRules: React.FC = () => (
     <section
+        id="court-rules"
         aria-labelledby="vega-court-rules-heading"
         className="py-20 md:py-28 border-t border-white/10"
         style={{ background: 'var(--color-paper)' }}
