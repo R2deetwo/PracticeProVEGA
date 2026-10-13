@@ -8,7 +8,11 @@ import React from 'react';
  * VEGA — a serif "V" beneath a four-pointed star. Vega is the brightest
  * star in Lyra; the star sits in the notch of the V like a star over a
  * letter. The V carries typographic serifs (the legal tradition), set on
- * a claret seal — the register of a law-report cover. Reads at 16px.
+ * a claret seal — the register of a law-report cover. The strokes use
+ * the STABLE parchment token (not --color-paper) because the Night
+ * Chambers page remaps --color-paper to the dark ground; the mark must
+ * read identically on the light hub, the dark /vega page and the dark
+ * footer. Reads at 16px.
  *
  * ATRIUM — a doorway arch on a floor line, crowned by a keystone. The
  * atrium is the entrance hall; the arch is the property mark. Set on an
@@ -39,11 +43,11 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
         {title && <title>{title}</title>}
         {/* Claret seal */}
         <rect x="2" y="2" width="44" height="44" rx="10" style={{ fill: 'rgb(var(--color-vega-claret))' }} />
-        {/* Serif V — arms + top serifs, in paper */}
-        <path d="M14.5 17 L24 35.5" fill="none" style={{ stroke: 'rgb(var(--color-paper))' }} strokeWidth="4" />
-        <path d="M33.5 17 L24 35.5" fill="none" style={{ stroke: 'rgb(var(--color-paper))' }} strokeWidth="4" />
-        <path d="M11.5 16.8 H17" style={{ stroke: 'rgb(var(--color-paper))' }} strokeWidth="3" />
-        <path d="M31 16.8 H36.5" style={{ stroke: 'rgb(var(--color-paper))' }} strokeWidth="3" />
+        {/* Serif V — arms + top serifs, in parchment */}
+        <path d="M14.5 17 L24 35.5" fill="none" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="4" />
+        <path d="M33.5 17 L24 35.5" fill="none" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="4" />
+        <path d="M11.5 16.8 H17" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="3" />
+        <path d="M31 16.8 H36.5" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="3" />
         {/* The star — Vega, brightest in Lyra, in gilt */}
         <path
             d="M24 5.5 C24.85 8.1 25.4 8.65 28 9.5 C25.4 10.35 24.85 10.9 24 13.5 C23.15 10.9 22.6 10.35 20 9.5 C22.6 8.65 23.15 8.1 24 5.5 Z"

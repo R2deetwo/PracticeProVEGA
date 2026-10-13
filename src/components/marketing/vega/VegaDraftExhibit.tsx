@@ -4,17 +4,20 @@ import React from 'react';
  * VegaDraftExhibit — the "drafting" signature moment for /vega.
  *
  * DraftPro/ALOA shown as tracked-changes annotations on a settlement
- * clause — not a chat screenshot. A white sheet on the ink ALOA band:
- * amber-underlined insertions, struck deletions, and mono margin notes
+ * clause — not a chat screenshot. A lit sheet on the ink ALOA band:
+ * claret-underlined insertions, struck deletions, and mono margin notes
  * (one ALOA drafting suggestion, one PII Shield receipt) joined to the
- * clause by hairline leaders.
+ * clause by hairline leaders. On the night page the sheet carries ALOA's
+ * READING SCAN (a gilt band sweeping the paper) and the drafting CARET
+ * blinking after the last insertion — the exhibit reads as live work,
+ * not a static screenshot.
  *
  * Presentational only — zero buttons (ADR-0004), zero hardcoded hexes.
  */
 
 export const VegaDraftExhibit: React.FC = () => (
     <figure
-        className="vg-doc px-5 py-6 sm:px-7 sm:py-7 m-0"
+        className="vg-doc vg-scan px-5 py-6 sm:px-7 sm:py-7 m-0"
         aria-label="Exhibit — a settlement clause with DraftPro tracked changes and ALOA annotations"
     >
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4 mb-5">
@@ -32,7 +35,8 @@ export const VegaDraftExhibit: React.FC = () => (
         </div>
 
         {/* The clause — set in Times New Roman, the register of the
-            instrument itself */}
+            instrument itself. The caret at the foot of the clause is
+            ALOA's drafting cursor, still blinking. */}
         <div className="vg-pleading text-sm sm:text-base leading-[1.7] text-slate-800">
             <p className="vg-doc__line vg-doc__body">
                 3. The Defendant shall pay the Claimant the sum of &#8358;2,450,000.00 (Two
@@ -40,7 +44,8 @@ export const VegaDraftExhibit: React.FC = () => (
                 <span className="vg-ins">within 21 days of the date of this Order</span>,{' '}
                 <span className="vg-del">failing which interest shall accrue</span>{' '}
                 <span className="vg-ins">together with interest at 10% per annum from the date of
-                this Order until final payment</span>.
+                this Order until final payment</span>
+                <span className="vg-caret" aria-hidden="true" />.
             </p>
         </div>
 

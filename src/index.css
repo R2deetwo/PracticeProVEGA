@@ -108,16 +108,21 @@
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
 
-  /* ===== Vega product-page tokens ("The Chambers Standard") =========== */
+  /* ===== Vega product-page tokens ("The Night Chambers") ============== */
   /* Triplets (RGB space-separated) so Tailwind can alpha-modulate them
      via the same rgb(var(--x) / <alpha-value>) mapping as the scales.
      --color-amber (hex, above) stays untouched — it is pinned by
      tests/unit/websiteRepositioning.test.ts. */
-  --color-vega-claret: 123 30 30;       /* #7B1E1E — rules, numerals, marks */
-  --color-vega-claret-deep: 92 20 20;   /* #5C1414 — claret text on light   */
-  --color-vega-gilt: 216 178 108;       /* #D8B26C — numerals + rules on ink */
-  --color-vega-ink: 11 18 32;           /* #0B1220 — mirrors --color-ink   */
-  --color-vega-ink-soft: 21 31 51;      /* card surfaces on ink sections   */
+  --color-vega-claret: 123 30 30;       /* #7B1E1E — seals, stamps, ribbon   */
+  --color-vega-claret-deep: 92 20 20;   /* #5C1414 — claret text on light    */
+  --color-vega-claret-bright: 196 92 92;/* #C45C5C — claret legible on night */
+  --color-vega-gilt: 216 178 108;       /* #D8B26C — brass rules + fills     */
+  --color-vega-gilt-bright: 233 205 145;/* #E9CD91 — gilt text on night      */
+  --color-vega-ink: 11 18 32;           /* #0B1220 — raised band surface     */
+  --color-vega-ink-soft: 21 31 51;      /* card surfaces on ink sections     */
+  --color-vega-night: 7 9 15;           /* #07090F — the page ground         */
+  --color-vega-night-2: 13 17 27;       /* #0D111B — panels on the ground    */
+  --color-vega-parchment: 245 240 229;  /* #F5F0E5 — warm text on night      */
   --font-vega-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
   /* Real Nigerian court documents are set in Times New Roman — the drafting
      exhibits use it verbatim so the demo drafts are super accurate. */
@@ -1982,21 +1987,30 @@ span[data-type="legal-placeholder"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VEGA PRODUCT PAGE — "The Chambers Standard" (.theme-vega scope)
+   VEGA PRODUCT PAGE — "The Night Chambers" (.theme-vega scope)
    ─────────────────────────────────────────────────────────────────────────
-   Every rule below is scoped under .theme-vega (applied to the landing
-   root ONLY while the /vega product page is shown) so the hub, /atrium
-   and every other surface render pixel-identically. No global rule in
-   this block may ever match an element outside a Vega page.
+   Owner direction (R22): the light paper page read "super bland" — Vega
+   now runs the dark editorial register of a law library at night. The
+   page ground is near-black ink; brass/gilt carries the accents; display
+   type is warm parchment Fraunces; and the pleading exhibits stay bright
+   paper so they read like the one lit desk in a dark chambers. Every rule
+   below is scoped under .theme-vega (applied to the landing root ONLY
+   while the /vega product page is shown) so the hub, /atrium and every
+   other surface render pixel-identically. No global rule in this block
+   may ever match an element outside a Vega page.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Scope: neutral remap to the ink/paper world ──────────────────────────
-   slate-900 (the dark AI/footer surfaces) becomes Vega ink #0B1220 and
-   slate-800 (dark card fills) becomes the ink-soft card surface. Light-
-   theme text colors are untouched, so nothing on paper shifts. */
+/* ── Scope: the night remap ───────────────────────────────────────────────
+   The page's two master vars flip: paper becomes the night ground and ink
+   becomes warm parchment, so every surface that paints var(--color-paper)
+   and every heading set in var(--color-ink) joins the night system
+   without touching that code. The slate remap keeps the shared dark
+   surfaces on Vega's own ink family. */
 .theme-vega {
-  --color-slate-900: 11 18 32;   /* ink   — dark sections, strong text  */
-  --color-slate-800: 21 31 51;   /* ink-soft — cards on ink sections    */
+  --color-paper: #07090F;       /* the night ground — page + bands */
+  --color-ink: #F5F0E5;         /* parchment — display type        */
+  --color-slate-900: 11 18 32;  /* ink — raised bands              */
+  --color-slate-800: 21 31 51;  /* ink-soft — panels               */
 }
 
 /* ── Vega display serif ──────────────────────────────────────────────────── */
@@ -2017,16 +2031,16 @@ span[data-type="legal-placeholder"] {
 .theme-vega .landing-card {
   border-radius: 0;
   box-shadow: none;
-  border-color: rgb(var(--color-slate-200));
+  border-color: rgb(255 255 255 / 0.12);
 }
 .theme-vega .landing-card:hover {
   transform: none;
   box-shadow: none;
-  border-color: rgb(var(--color-vega-claret) / 0.45);
+  border-color: rgb(var(--color-vega-gilt) / 0.45);
 }
 .theme-vega .feature-card.is-expanded {
   box-shadow: none;
-  border-color: rgb(var(--color-vega-claret));
+  border-color: rgb(var(--color-vega-gilt));
 }
 .theme-vega .feature-card.is-expanded .feature-card__desc {
   max-height: 320px; /* legal copy runs longer than the 240px default */
@@ -2041,23 +2055,28 @@ span[data-type="legal-placeholder"] {
   transform: none;
 }
 
-/* ── Vega hero — the pleading-paper document ─────────────────────────────── */
+/* ── Vega exhibits — bright paper on the night ground ─────────────────────
+   The pleading sheets are the page's light source: warm-white stock with
+   a deep two-layer shadow stack, so they float above the night ground
+   like papers under a desk lamp. */
 .vg-doc {
   position: relative;
-  background: #FFFFFF;
-  border: 1px solid rgb(var(--color-slate-200));
+  background: #FCFAF3;
+  border: 1px solid rgb(0 0 0 / 0.35);
   box-shadow:
-    0 1px 2px 0 rgb(11 18 32 / 0.06),
-    24px 24px 0 -1px rgb(var(--color-sage));
-  /* the second "sheet" is painted by ::after to keep markup clean */
+    0 1px 2px 0 rgb(0 0 0 / 0.25),
+    0 24px 48px -12px rgb(0 0 0 / 0.55),
+    0 56px 110px -28px rgb(0 0 0 / 0.40);
 }
+/* the sheet beneath — a second page, slightly turned */
 .vg-doc::after {
   content: '';
   position: absolute;
   inset: 12px -12px -12px 12px;
   z-index: -1;
-  background: #FFFFFF;
-  border: 1px solid rgb(var(--color-slate-200));
+  background: #F1ECDF;
+  border: 1px solid rgb(0 0 0 / 0.22);
+  transform: rotate(0.35deg);
 }
 .vg-doc__paper {
   /* the ruled body: left margin rule + numbered lines, like pleading paper */
@@ -2120,7 +2139,7 @@ span[data-type="legal-placeholder"] {
   letter-spacing: 0.02em;
 }
 
-/* ── Vega chronology (court-rule calendar) ──────────────────────────────── */
+/* ── Vega chronology (court-rule calendar, on the paper sheet) ──────────── */
 .vg-chronology {
   position: relative;
 }
@@ -2153,7 +2172,7 @@ span[data-type="legal-placeholder"] {
   background: rgb(var(--color-vega-claret));
 }
 
-/* ── Vega ledger (Scale of Charges) ─────────────────────────────────────── */
+/* ── Vega ledger (Scale of Charges, on the paper sheet) ─────────────────── */
 .vg-ledger {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -2169,7 +2188,7 @@ span[data-type="legal-placeholder"] {
   border-top: 1px solid rgb(var(--color-slate-900));
 }
 
-/* ── Vega hairline section heads ("01 — Matters") ───────────────────────── */
+/* ── Vega hairline section heads ("I — Matters & Drafting") ─────────────── */
 .vg-rule-h {
   display: flex;
   align-items: baseline;
@@ -2179,43 +2198,178 @@ span[data-type="legal-placeholder"] {
   content: '';
   flex: 1;
   height: 1px;
-  background: rgb(var(--color-slate-300));
+  background: rgb(var(--color-vega-gilt) / 0.30);
   transform: translateY(-4px);
 }
-/* Ink-band variant — the rule goes white-hairline on the ink ground */
+/* Ink-band variant — identical gilt hairline on the raised ink band */
 .theme-vega .vg-rule-h[data-ink='true']::after {
-  background: rgb(255 255 255 / 0.2);
+  background: rgb(var(--color-vega-gilt) / 0.30);
+}
+
+/* The fluid nav pill — on the night page it becomes a quiet gilt wash
+   (the moss-green pill never appears on /vega). */
+.theme-vega .w8-nav-pill {
+  background: rgb(var(--color-vega-gilt) / 0.10);
+  border-color: rgb(var(--color-vega-gilt) / 0.22);
+}
+
+/* ── The night atmosphere ────────────────────────────────────────────────── */
+/* Film grain — one tiled feTurbulence layer over a showcase band. */
+.vg-grain {
+  position: relative;
+}
+.vg-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Hero — the lamp over the desk: a warm pool where the exhibit sits, a
+   claret aura low-left, a vignette closing the corners. */
+.vg-hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(46rem 34rem at 74% 20%, rgb(var(--color-vega-gilt) / 0.11), transparent 68%),
+    radial-gradient(38rem 26rem at 6% 88%, rgb(var(--color-vega-claret) / 0.20), transparent 72%),
+    radial-gradient(64rem 46rem at 50% 124%, rgb(0 0 0 / 0.55), transparent 70%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.28), transparent 16%, transparent 84%, rgb(0 0 0 / 0.32));
+}
+
+/* Final CTA — the colophon bookend: the same lights, mirrored. */
+.vg-cta-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(40rem 28rem at 16% 14%, rgb(var(--color-vega-claret) / 0.18), transparent 70%),
+    radial-gradient(46rem 32rem at 88% 84%, rgb(var(--color-vega-gilt) / 0.10), transparent 68%),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.28), transparent 20%, transparent 82%, rgb(0 0 0 / 0.36));
+}
+
+/* The watermark — an oversized seriffed mark at the edge of sight. */
+.vg-watermark {
+  position: absolute;
+  font-family: var(--font-vega-display);
+  font-weight: 600;
+  line-height: 0.72;
+  user-select: none;
+  pointer-events: none;
+  color: rgb(var(--color-vega-parchment) / 0.045);
+}
+
+/* ── The claret seal — a notary roundel for the hero exhibit ─────────────── */
+.vg-seal {
+  color: rgb(var(--color-vega-claret-bright));
+  filter: drop-shadow(0 6px 16px rgb(0 0 0 / 0.45));
+}
+
+/* ── Motion — reveal, caret, scan ──────────────────────────────────────────
+   Reveals are opt-in per element via [data-vg-reveal]; LandingPage mounts
+   ONE IntersectionObserver for the page and adds .vg-in when a marked
+   element enters the viewport. The 'vg:reveal-all' document event force-
+   reveals everything (used by the audit/screenshot scripts before a
+   full-page capture, and a safe fallback for anchor jumps). */
+[data-vg-reveal] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--vg-d, 0ms);
+  will-change: opacity, transform;
+}
+[data-vg-reveal].vg-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* ALOA's caret — the drafting cursor, blinking at the end of the clause. */
+.vg-caret {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.02em;
+  margin-left: 0.12em;
+  transform: translateY(0.16em);
+  background: rgb(var(--color-vega-claret-deep));
+  animation: vg-caret-blink 1.15s steps(1) infinite;
+}
+
+/* The scan — a reading band sweeping the exhibit paper while ALOA works. */
+.vg-scan {
+  position: relative;
+  overflow: hidden;
+}
+.vg-scan::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -18%;
+  height: 16%;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgb(var(--color-vega-gilt) / 0.16), transparent);
+  animation: vg-scan-sweep 7s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes vg-caret-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+@keyframes vg-scan-sweep {
+  0% { top: -18%; }
+  55% { top: 104%; }
+  100% { top: 104%; }
 }
 
 /* ── Global compliance bars while on /vega only ──────────────────────────
    The cookie bar and terms gate are App-level surfaces (fixed, outside
    the landing root), so .theme-vega cannot reach them. LandingPage sets
    body.on-vega-page while /vega is shown; these hooks re-tint ONLY there.
+   On the night page the accept actions are brass and the links gilt.
    Hook classes (.cookie-ack/.cookie-link/.terms-accept/.terms-link) are
    inert everywhere else — zero effect on any other page. */
 .on-vega-page .cookie-ack,
 .on-vega-page .terms-accept {
-  background: rgb(var(--color-vega-ink));
+  background: rgb(var(--color-vega-gilt));
+  color: rgb(var(--color-vega-night));
 }
-.on-vega-page .cookie-ack:hover {
-  background: rgb(var(--color-vega-ink-soft));
-}
+.on-vega-page .cookie-ack:hover,
 .on-vega-page .terms-accept:hover {
-  background: rgb(var(--color-vega-ink-soft));
+  background: rgb(var(--color-vega-gilt-bright));
 }
 .on-vega-page .cookie-link,
 .on-vega-page .terms-link {
-  color: rgb(var(--color-vega-claret));
+  color: rgb(var(--color-vega-gilt-bright));
 }
 .on-vega-page .cookie-link:hover,
 .on-vega-page .terms-link:hover {
-  color: rgb(var(--color-vega-claret-deep));
+  color: rgb(255 255 255 / 0.92);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .theme-vega .landing-card,
   .theme-vega .pricing-card {
     transition: none;
+  }
+  [data-vg-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .vg-caret {
+    animation: none;
+    opacity: 1;
+  }
+  .vg-scan::after {
+    animation: none;
+    opacity: 0;
   }
 }
 

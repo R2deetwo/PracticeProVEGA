@@ -7,6 +7,8 @@ import React from 'react';
  * computed under the Scale of Charges (Remuneration Order 2023), set in
  * IBM Plex Mono with tabular numerals, hairline row rules and the classic
  * accounting double-rule under the total. Naira amounts in tabular mono.
+ * On the night page the ledger stays a lit paper sheet — the fee note on
+ * the desk — while the framing copy runs on the dark ground.
  *
  * Presentational only — zero buttons (ADR-0004), zero hardcoded hexes.
  */
@@ -31,27 +33,26 @@ const LEDGER_TOTAL = '1,090,000.00';
 export const VegaScaleOfCharges: React.FC = () => (
     <section
         aria-labelledby="vega-scale-heading"
-        className="py-20 md:py-28 border-t border-slate-200"
+        className="py-20 md:py-28 border-t border-white/10"
         style={{ background: 'var(--color-paper)' }}
     >
-        <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
+        <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-                {/* Left — framing copy */}
+                {/* Left — framing copy on the night ground */}
                 <div className="lg:col-span-4">
-                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
-                        04 — Scale of Charges
+                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
+                        IV — Scale of Charges
                     </p>
                     <h2
                         id="vega-scale-heading"
-                        className="font-vega text-3xl md:text-4xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6"
-                        style={{ color: 'var(--color-ink)' }}
+                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6 text-vega-parchment"
                     >
                         Fees that follow the{' '}
-                        <span className="font-vega-italic font-medium">
+                        <span className="font-vega-italic text-vega-gilt-bright">
                             Remuneration Order.
                         </span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-600">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-400">
                         When Vega bills a matter, every line item is computed on the Scale of
                         Charges under the Remuneration Order 2023 — the schedule your clients
                         and the profession expect to see. Track billable work, apply the right

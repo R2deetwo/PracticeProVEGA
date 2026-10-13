@@ -697,11 +697,11 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     }
   });
 
-  it("the hero is document-forward with NO accent-word / gradient headline", () => {
-    // The h1 is all ink serif — the amber-italic accent span is retired.
-    // (The ban is on gradient TEXT: bg-clip-text / transparent glyphs. The
-    // hero's pleading-paper texture may still use a repeating hairline
-    // pattern — that is a paper rule, not type.)
+  it("the hero is document-forward — night ground, no gradient headline", () => {
+    // R22 "The Night Chambers": the h1 is parchment Fraunces at law-report
+    // scale with ONE gilt-italic accent phrase — a SOLID colour span.
+    // (The ban is on gradient TEXT: bg-clip-text / transparent glyphs.
+    // The hero's night atmosphere is painted behind the type, never on it.)
     expect(vegaHero).not.toContain("bg-clip-text");
     expect(vegaHero).not.toContain("text-transparent");
     expect(vegaHero).not.toContain("font-vega-italic font-medium text-vega-amber-deep");
@@ -716,9 +716,14 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).toContain("The grounds for this application are");
     expect(vegaHero).toContain("vg-pleading");
     expect(vegaHero).toContain("vg-doc__line");
-    // The title-page devices: serif display + thin claret rule.
+    // The title-page devices: serif display + the gilt accent + the thin
+    // gilt rule + the night atmosphere + the notary seal.
     expect(vegaHero).toContain("font-vega");
-    expect(vegaHero).toContain("h-px w-16 bg-vega-claret");
+    expect(vegaHero).toContain("font-vega-italic text-vega-gilt-bright");
+    expect(vegaHero).toContain("h-px w-24 bg-vega-gilt");
+    expect(vegaHero).toContain("vg-hero-bg");
+    expect(vegaHero).toContain("vg-grain");
+    expect(vegaHero).toContain("vg-seal");
   });
 
   it("the stat-chip row is replaced by a mono index line", () => {
@@ -732,7 +737,11 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaMatters).not.toContain("rounded-");
     expect(vegaMatters).not.toContain("shadow-");
     expect(vegaMatters).toContain("MATTERS_INDEX");
-    expect(vegaMatters).toContain("border-b border-slate-200");
+    // R22: the night register — white hairlines on the dark ground, gilt
+    // numerals, parchment titles.
+    expect(vegaMatters).toContain("border-b border-white/10");
+    expect(vegaMatters).toContain("text-vega-gilt-bright");
+    expect(vegaMatters).toContain("text-vega-parchment");
   });
 
   it("pricing tiers are retired from the product pages (owner direction, R21)", () => {

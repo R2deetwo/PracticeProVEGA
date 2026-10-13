@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
- * r21-verify.cjs — browser verification of the R21 owner-direction changes:
+ * r21-verify.cjs — browser verification of the R21 owner-direction changes
+ * (re-run for R22 "The Night Chambers": screenshots now land in
+ * download/vega-night/ and captures force-reveal scroll-reveal sections):
  *   1. Product selection opens the product page in a NEW TAB (dropdown,
  *      work card, footer link).
  *   2. Per-product favicon + title swap (and company restore on hub).
@@ -14,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 const BASE = process.env.AUDIT_URL || 'http://localhost:4173';
-const OUT = '/home/z/my-project/download/r21';
+const OUT = '/home/z/my-project/download/vega-night';
 fs.mkdirSync(OUT, { recursive: true });
 
 const results = [];
@@ -121,6 +123,16 @@ const bad = (name, detail = '') => { results.push(`✗ ${name} ${detail}`); cons
     // Desktop full-page screenshot.
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(800);
+    // Dismiss the cookie consent bar so it does not paint over the hero in
+    // full-page captures (it is a fixed overlay until acknowledged).
+    const cookieAck = page.locator('.cookie-ack').first();
+    if (await cookieAck.count() > 0) {
+        await cookieAck.click({ timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(400);
+    }
+    // R22: force-reveal scroll-reveal sections before the full-page capture.
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('vg:reveal-all')));
+    await page.waitForTimeout(1200);
     await page.screenshot({ path: path.join(OUT, `${product}-1440-full.png`), fullPage: true });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(400);
@@ -136,8 +148,16 @@ const bad = (name, detail = '') => { results.push(`✗ ${name} ${detail}`); cons
     const overflow = await mpage.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if (overflow <= 1) ok(`${product}: no 390px horizontal overflow`);
     else bad(`${product}: 390px overflow`, `${overflow}px`);
+    // Dismiss the cookie bar on mobile too (fixed overlay over the hero).
+    const mCookieAck = mpage.locator('.cookie-ack').first();
+    if (await mCookieAck.count() > 0) {
+        await mCookieAck.click({ timeout: 3000 }).catch(() => {});
+        await mpage.waitForTimeout(400);
+    }
     await mpage.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await mpage.waitForTimeout(800);
+    await mpage.evaluate(() => document.dispatchEvent(new CustomEvent('vg:reveal-all')));
+    await mpage.waitForTimeout(1200);
     await mpage.screenshot({ path: path.join(OUT, `${product}-390-full.png`), fullPage: true });
     await mpage.evaluate(() => window.scrollTo(0, 0));
     ok(`${product}: 390 full-page screenshot`);
@@ -146,7 +166,7 @@ const bad = (name, detail = '') => { results.push(`✗ ${name} ${detail}`); cons
 
   await browser.close();
 
-  console.log('\n════ R21 VERIFICATION ════');
+  console.log('\n════ R22 VERIFICATION (R21 behaviors + Night Chambers) ════');
   const failed = results.filter((r) => r.startsWith('✗')).length;
   results.forEach((r) => console.log(r));
   console.log(`\n${results.length - failed}/${results.length} checks passed`);

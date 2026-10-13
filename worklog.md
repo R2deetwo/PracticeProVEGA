@@ -12773,3 +12773,26 @@ Stage Summary:
 - R21 LIVE in CI: product identity (marks, favicons, titles, OG cards), new-tab product selection, tier-free marketing pages, claret/gilt Vega with accurate Times New Roman pleadings. Atrium untouched stylistically.
 - Screenshots: download/r21/{vega,atrium}-{1440,390}-full.png.
 - Awaiting promote completion; verify version.json = 50114874 healthy + live markers after.
+
+---
+Task ID: r22-night-chambers
+Agent: main (Super Z)
+Task: Owner feedback — "the vega site looks terrible... super bland... could be 10x better in quality and style". Full visual overhaul of /vega.
+
+Work Log:
+- VLM critique of the R21 page confirmed: flat white template, weak type contrast, static 50/50 grid, zero depth, dead static document.
+- Design direction: "The Night Chambers" — the dark editorial register of a law library at night (the Harvey AI / Luminance class of legaltech). Maximum differentiation from the rejected light page AND from Atrium's warm-light estate.
+- New tokens (--color-vega-night #07090F, night-2 #0D111B, parchment #F5F0E5, gilt-bright #E9CD91, claret-bright #C45C5C) + Tailwind mappings; .theme-vega now remaps --color-paper/--color-ink so every band joins the night system.
+- Hero rebuilt: law-report-scale Fraunces (up to ~78px) with ONE gilt-italic accent phrase, thin gilt rule, warm lamp/claret glows + film grain + vignette (vg-hero-bg), oversized § watermark, and the Motion on Notice exhibit as a lit paper sheet (deep shadow stack, second sheet, 0.4° turn) with a claret notary seal roundel (SVG textPath "PRACTICEPRO · VEGA · LAGOS", § center).
+- All bands converted to the night register: IndexLine (gilt hairlines), MattersLedger (gilt numerals, parchment titles, white/10 rules), AIDrafting (raised ink band, ALOA reading-scan sweep + blinking drafting caret in the exhibit), CourtRules/ScaleOfCharges (dark framing copy, paper exhibits untouched), Procedure (large gilt numerals), Credentials, FAQInk (roman numeral heads), FinalCTA (colophon bookend with mirrored glows + grain, brass CTAs, night-2 cross-sell panels with gilt spine).
+- Section heads now law-report roman numerals (I–VII) with gilt hairlines.
+- Shared chrome on /vega: dark glass nav (conditional onVega classes + hoisted consts so the test's branch-extraction marker isn't hijacked), gilt PrimaryButton tone, night-hairline ghost, dark MobileStickyCTA, gilt chat FAB, gilt cookie/terms hooks, dark colorScheme, gilt skip-link focus, moss nav pill → gilt wash scoped to .theme-vega.
+- Scroll-reveal machinery: [data-vg-reveal] opt-in markers, ONE IntersectionObserver in LandingPage (staggered via --vg-d), 'vg:reveal-all' document event for the capture scripts, full prefers-reduced-motion bypass.
+- VegaMark strokes moved from --color-paper to the stable --color-vega-parchment token (the night remap would have turned the V dark).
+- themeColor #07090F; audit scripts dispatch vg:reveal-all + dismiss the cookie bar before every capture (desktop + mobile).
+- Gates: tsc 127 (= baseline, none in changed files), vitest 1258/1258, tokens gray=0, ui-primitives ratchet improved 2367→2353, product audits vega 27/0/3 + atrium 20/0/2 (exact baselines), r21-verify 21/21 (new tabs, favicons, zero tiers, no 390px overflow both pages).
+- VLM art review: 8.5/10 "premium, award-entry level" — fixed the two findings (seal ring text overflow → shortened+respaced; cookie bar in captures → dismissed). Final VLM pass: 4/4 PASS desktop, mobile clean (programmatic overflow ≤1px authoritative).
+
+Stage Summary:
+- /vega is now the Night Chambers; /atrium and the hub are pixel-identical to their approved selves. Screenshots: download/vega-night/{vega,atrium}-{1440,390}-full.png.
+- Ready to push + promote.

@@ -4,12 +4,12 @@ import { Button } from '../../ui';
 /**
  * VegaFAQInk — /vega's replacement for the shared white FAQ card stack.
  *
- * "The Chambers Standard" register: the FAQs read as INTERROGATORIES on
- * the page's second (and last) ink band — question rows divided by white
- * hairlines, mono numbering in amber, questions in the serif, answers in
- * the body face. The accordion is square: a hairline plus/minus, never a
- * circular badge. This is the dark band the testimonial/FAQ zone is
- * allowed to use; Atrium carries no dark band anywhere.
+ * "The Night Chambers" register: the FAQs read as INTERROGATORIES on
+ * the page's second (and last) raised ink band — question rows divided
+ * by white hairlines, mono numbering in gilt, questions in the serif,
+ * answers in the body face. The accordion is square: a hairline
+ * plus/minus, never a circular badge. Atrium carries no dark band
+ * anywhere.
  *
  * Copy is the shipped FAQ copy (shared + vega sets), verbatim.
  * Interactive rows use the ui/Button primitive (ADR-0004).
@@ -61,17 +61,17 @@ export const VegaFAQInk: React.FC = () => {
             aria-labelledby="vega-faq-heading"
             className="py-20 md:py-28 bg-vega-ink text-white"
         >
-            <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
-                {/* Numbered hairline section head — ink variant */}
+            <div className="container mx-auto px-4 sm:px-6 max-w-4xl" data-vg-reveal>
+                {/* Roman-numeral hairline section head — ink variant */}
                 <p
-                    className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt mb-7"
+                    className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7"
                     data-ink="true"
                 >
-                    07 — Questions
+                    VII — Questions
                 </p>
                 <h2
                     id="vega-faq-heading"
-                    className="font-vega text-3xl md:text-4xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5"
+                    className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 text-vega-parchment"
                 >
                     Questions? Answered.
                 </h2>
@@ -93,21 +93,21 @@ export const VegaFAQInk: React.FC = () => {
                                     onClick={() => setOpenIndex(open ? null : i)}
                                     className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors hover:bg-white/5 focus-visible:ring-vega-gilt"
                                 >
-                                    <span className="font-mono text-2xs tracking-widest text-vega-gilt flex-shrink-0">
+                                    <span className="font-mono text-2xs tracking-widest text-vega-gilt-bright flex-shrink-0">
                                         Q.{i + 1}
                                     </span>
-                                    <span className="font-vega text-base sm:text-lg font-semibold text-white flex-1 leading-snug">
+                                    <span className="font-vega text-base sm:text-lg font-semibold text-vega-parchment flex-1 leading-snug">
                                         {item.q}
                                     </span>
                                     <span className="relative inline-block w-3 h-3 flex-shrink-0 translate-y-[-2px]" aria-hidden="true">
-                                        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-gilt -translate-y-1/2" />
-                                        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-gilt -translate-x-1/2" />}
+                                        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-gilt-bright -translate-y-1/2" />
+                                        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-gilt-bright -translate-x-1/2" />}
                                     </span>
                                 </Button>
                                 {open && (
                                     <p
                                         id={`vg-faq-panel-${i}`}
-                                        className="pl-[3.25rem] pr-4 pb-7 -mt-1 text-sm leading-[1.75] text-slate-300 max-w-2xl"
+                                        className="pl-[3.25rem] pr-4 pb-7 -mt-1 text-sm leading-[1.75] text-slate-400 max-w-2xl"
                                     >
                                         {item.a}
                                     </p>

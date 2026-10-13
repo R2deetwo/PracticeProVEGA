@@ -246,6 +246,17 @@ const PRODUCT = process.env.AUDIT_PRODUCT || 'vega'; // 'vega' or 'atrium'
 
     // ─── Screenshot ──────────────────────────────────────────────────────
     console.log('\n── Screenshot ───────────────────────────────────────────────');
+    // Dismiss the cookie consent bar so it does not paint over the hero in
+    // full-page captures (it is a fixed overlay until acknowledged).
+    const cookieAck = page.locator('.cookie-ack').first();
+    if (await cookieAck.count() > 0) {
+        await cookieAck.click({ timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(400);
+    }
+    // R22: force-reveal any scroll-reveal elements (Night Chambers) before
+    // the full-page capture — sections below the fold must not be hidden.
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('vg:reveal-all')));
+    await page.waitForTimeout(1200);
     const screenshotDir = path.join(__dirname, '..', 'audit-results', 'landing-screenshots');
     if (!fs.existsSync(screenshotDir)) fs.mkdirSync(screenshotDir, { recursive: true });
 

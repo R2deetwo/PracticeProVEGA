@@ -1,32 +1,68 @@
 import React from 'react';
 
 /**
- * VegaHero — "The Chambers Standard" editorial hero for /vega.
+ * VegaHero — "The Night Chambers" editorial hero for /vega (R22).
  *
- * A left-aligned serif headline set like the title page of a law report,
- * a thin claret rule, and ONE art-directed visual — a Motion on Notice
- * rendered EXACTLY as a Lagos practitioner would file it (owner
- * direction: "the demo drafts should be super accurate and it should
- * draft as such naturally"):
+ * Owner direction: the light paper page read "super bland" — Vega now
+ * runs the dark register of a law library at night. The hero is the
+ * chambers after hours:
  *
- *   - set in Times New Roman — the face Nigerian courts require;
- *   - full caption: court, judicial division, holden-at, suit number,
- *     parties with right-aligned roles (LIMITED, not LTD);
- *   - the enabling clause citing the High Court of Lagos State (Civil
- *     Procedure) Rules 2019 + inherent jurisdiction;
- *   - "BY THIS MOTION … prays this Honourable Court for:" with numbered
- *     reliefs, numbered grounds, affidavit reference;
- *   - execution block — counsel signature line, firm, address for
- *     service — with the date in words at the foot, as filed.
+ *   - a near-black ground with a warm gilt pool where the exhibit sits
+ *     (the desk lamp), a claret aura low-left, film grain and a vignette;
+ *   - display Fraunces at law-report scale — much larger than the old
+ *     page — in warm parchment, with ONE gilt-italic accent phrase (solid
+ *     colour, never gradient/clip text);
+ *   - ONE art-directed visual — the Motion on Notice rendered EXACTLY as
+ *     a Lagos practitioner would file it (owner direction: "the demo
+ *     drafts should be super accurate and it should draft as such
+ *     naturally"): Times New Roman, full caption, prayers, numbered
+ *     grounds, affidavit reference, execution block with the date in
+ *     words — floating above the night ground on a deep shadow stack,
+ *     with a claret notary seal roundel at its corner.
  *
- * The product's voice (mono microlabels) lives OUTSIDE the paper — the
- * exhibit caption and the rev footer. The document itself carries zero
- * marketing chrome: it is the real thing, drafted naturally.
+ * The product's voice (mono microlabels) lives OUTSIDE the paper. The
+ * document itself carries zero marketing chrome: it is the real thing,
+ * drafted naturally.
  *
  * No green anywhere on this page. No gradient text — the serif carries
  * the emphasis. No raw form elements (ADR-0004): the CTA is passed in
- * as a render node by LandingPage.
+ * as a render node by LandingPage. Reveals are opt-in
+ * [data-vg-reveal] markers; LandingPage mounts the observer.
  */
+
+/** The notary seal — a claret roundel stamped over the exhibit's corner. */
+const VegaSeal: React.FC = () => (
+    <svg
+        className="vg-seal w-16 h-16 md:w-24 md:h-24"
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+        focusable="false"
+    >
+        <defs>
+            <path
+                id="vg-seal-ring"
+                d="M 50,50 m -36,0 a 36,36 0 1,1 72,0 a 36,36 0 1,1 -72,0"
+            />
+        </defs>
+        <circle cx="50" cy="50" r="48.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="50" cy="50" r="25.5" fill="none" stroke="currentColor" strokeWidth="0.9" />
+        <text fontSize="8" letterSpacing="3.2" fill="currentColor" style={{ fontFamily: 'var(--font-mono)' }}>
+            <textPath href="#vg-seal-ring">PRACTICEPRO · VEGA · LAGOS ·</textPath>
+        </text>
+        {/* the section mark — the lawyer's glyph, in the serif face */}
+        <text
+            x="50"
+            y="52"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize="26"
+            fill="currentColor"
+            style={{ fontFamily: 'var(--font-vega-display)' }}
+        >
+            §
+        </text>
+    </svg>
+);
 
 const VegaMotionDocument: React.FC = () => (
     <article
@@ -151,63 +187,92 @@ export const VegaHero: React.FC<{
     /** The primary CTA node (Vega-styled button), passed in by LandingPage. */
     cta: React.ReactNode;
 }> = ({ eyebrow, cta }) => (
-    <section id="home" className="relative overflow-hidden" style={{ background: 'var(--color-paper)' }}>
-        {/* Faint ruled texture — the ghost of a pleading sheet, not a grid */}
-        <div
-            className="absolute inset-0 pointer-events-none opacity-40"
-            style={{
-                backgroundImage: 'repeating-linear-gradient(to bottom, transparent 0, transparent 31px, rgb(var(--color-slate-200) / 0.5) 31px, rgb(var(--color-slate-200) / 0.5) 32px)',
-                maskImage: 'linear-gradient(to bottom, transparent, black 12%, black 82%, transparent)',
-                WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 12%, black 82%, transparent)',
-            }}
-            aria-hidden="true"
-        />
+    <section id="home" className="relative overflow-hidden vg-grain" style={{ background: 'var(--color-paper)' }}>
+        {/* The night atmosphere — the lamp over the desk, the claret aura,
+            the vignette. Painted before the content, never above it. */}
+        <div className="vg-hero-bg" aria-hidden="true" />
 
-        <div className="relative z-10 pt-24 pb-20 sm:pb-24 px-4 sm:px-6 lg:pt-40 lg:pb-32">
-            <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-                {/* Left — the title page */}
+        {/* The watermark — a seriffed section mark at the edge of sight */}
+        <span
+            className="vg-watermark hidden lg:block text-[26rem] right-[-3.5rem] top-1/2 -translate-y-1/2"
+            aria-hidden="true"
+        >
+            §
+        </span>
+
+        <div className="relative z-10 pt-28 pb-28 sm:pb-24 lg:pt-44 lg:pb-32 px-4 sm:px-6">
+            <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-14 lg:gap-16 items-center">
+                {/* Left — the title page of the volume */}
                 <div className="lg:col-span-7">
-                    {/* Attribution eyebrow — mono micro-label with a claret mark */}
-                    <p className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
-                        <span className="inline-block w-1.5 h-1.5 bg-vega-claret" aria-hidden="true" />
+                    {/* Attribution eyebrow — mono micro-label with the claret mark */}
+                    <p
+                        className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-8"
+                        data-vg-reveal
+                    >
+                        <span className="inline-block w-1.5 h-1.5 bg-vega-claret-bright" aria-hidden="true" />
                         {eyebrow}
                     </p>
 
-                    {/* Headline — set like the title page of a law report.
-                        All ink, no accent span, no gradient word: the serif
-                        carries the emphasis; the claret rule beneath is the
-                        only accent this page's headline gets. */}
+                    {/* Headline — set like the title page of a law report, at
+                        law-report scale. Parchment Fraunces; ONE gilt-italic
+                        accent phrase (solid colour — never gradient text). */}
                     <h1
-                        className="font-vega text-4xl sm:text-5xl lg:text-6xl font-semibold leading-[1.08] tracking-[-0.01em] mb-0"
-                        style={{ color: 'var(--color-ink)' }}
+                        className="font-vega text-[2.65rem] sm:text-6xl lg:text-7xl xl:text-[4.9rem] font-semibold leading-[1.05] tracking-[-0.015em] mb-0 text-vega-parchment"
+                        data-vg-reveal
+                        style={{ '--vg-d': '90ms' } as React.CSSProperties}
                     >
-                        Practice Management
+                        Practice management
                         <br />
-                        for Nigerian Law Firms
+                        for{' '}
+                        <span className="font-vega-italic text-vega-gilt-bright">
+                            Nigerian law firms.
+                        </span>
                     </h1>
 
-                    {/* Thin claret rule */}
-                    <div className="h-px w-16 bg-vega-claret mt-8 mb-8" aria-hidden="true" />
+                    {/* Thin gilt rule — the page's only accent bar */}
+                    <div
+                        className="h-px w-24 bg-vega-gilt mt-9 mb-9"
+                        aria-hidden="true"
+                        data-vg-reveal
+                        style={{ '--vg-d': '180ms' } as React.CSSProperties}
+                    />
 
                     {/* Sub-copy — existing product copy, verbatim */}
-                    <p className="text-lg max-w-xl leading-[1.7] text-slate-600 mb-10">
+                    <p
+                        className="text-lg md:text-xl max-w-xl leading-[1.7] text-slate-300 mb-11"
+                        data-vg-reveal
+                        style={{ '--vg-d': '240ms' } as React.CSSProperties}
+                    >
                         Case management, AI-assisted drafting, and billing that respects Nigerian court
                         practice — from intake to judgment, in one workspace.
                     </p>
 
-                    {/* CTA — rendered by LandingPage (Vega: ink primary). Hidden on
-                        mobile: the MobileStickyCTA bar carries the same action. */}
-                    <div className="hidden md:flex items-center gap-4 mb-6">{cta}</div>
+                    {/* CTA — rendered by LandingPage (Vega: brass on night).
+                        Hidden on mobile: the MobileStickyCTA bar carries the
+                        same action. */}
+                    <div className="hidden md:flex items-center gap-4 mb-7" data-vg-reveal style={{ '--vg-d': '320ms' } as React.CSSProperties}>
+                        {cta}
+                    </div>
 
-                    <p className="hidden md:block font-mono text-2xs tracking-widest text-slate-400">
+                    <p
+                        className="hidden md:block font-mono text-2xs tracking-widest text-slate-500"
+                        data-vg-reveal
+                        style={{ '--vg-d': '400ms' } as React.CSSProperties}
+                    >
                         NO CREDIT CARD · 30-DAY TRIAL · CANCEL ANYTIME
                     </p>
                 </div>
 
-                {/* Right — the document-forward composition */}
-                <div className="lg:col-span-5 relative">
-                    <VegaMotionDocument />
-                    <p className="font-mono text-2xs tracking-widest text-slate-500 mt-5 text-center lg:text-left lg:pl-4">
+                {/* Right — the document under the lamp */}
+                <div className="lg:col-span-5 relative" data-vg-reveal style={{ '--vg-d': '200ms' } as React.CSSProperties}>
+                    <div className="relative rotate-[0.4deg]">
+                        <VegaMotionDocument />
+                        {/* The notary seal — stamped over the exhibit's corner */}
+                        <div className="absolute -top-6 -right-3 sm:-right-5 md:-top-7 md:-right-6 rotate-[-12deg]">
+                            <VegaSeal />
+                        </div>
+                    </div>
+                    <p className="font-mono text-2xs tracking-widest text-slate-500 mt-6 text-center lg:text-left lg:pl-4">
                         EXHIBIT — MOTION ON NOTICE, DRAFTED IN DRAFTPRO
                     </p>
                 </div>

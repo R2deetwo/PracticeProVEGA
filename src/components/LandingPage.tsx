@@ -200,8 +200,9 @@ function useSectionProgress<T extends HTMLElement = HTMLDivElement>(onProgress: 
 
 /** Primary CTA button — the ramp fill (brand.md §4.1 sanctioned gradient
  *  #2) on the 6px interactive radius, neutral elevation only.
- *  tone='vega' swaps in the Chambers Standard register: a flat ink fill,
- *  no gradient — amber is reserved for rules, numerals and small marks.
+ *  tone='vega' is the Night Chambers register: a brass fill with night
+ *  text — the plaque on the dark page (amber-family gilt is the Vega
+ *  product accent, not page decoration).
  *  tone='atrium' is the Well-Kept Estate register: a flat emerald fill
  *  (the Atrium accent #059669), never a gradient, never moss. */
 const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' | 'atrium' }> = ({ onClick, children, className = '', tone = 'green' }) => (
@@ -209,7 +210,7 @@ const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
         onClick={onClick}
         className={`relative inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm transition-all duration-300 active:scale-[0.97] ${
             tone === 'vega'
-                ? 'bg-vega-ink text-white hover:bg-vega-ink-soft shadow-sm'
+                ? 'bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright shadow-sm'
                 : tone === 'atrium'
                 ? 'bg-atrium-emerald text-white hover:bg-emerald-700 shadow-sm'
                 : 'text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-md'
@@ -219,14 +220,15 @@ const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
     </button>
 );
 
-/** Ghost/secondary button — tone='vega' is the amber-outline variant;
+/** Ghost/secondary button — tone='vega' is the night-hairline variant
+ *  (a quiet white rule that warms to gilt on hover);
  *  tone='atrium' is the warm emerald-outline variant for the photo hero. */
 const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' | 'atrium' }> = ({ onClick, children, className = '', tone = 'green' }) => (
     <button
         onClick={onClick}
         className={`inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-sm font-semibold text-sm transition-all duration-300 active:scale-[0.97] ${
             tone === 'vega'
-                ? 'bg-white/60 text-vega-claret-deep border border-vega-claret-deep/40 backdrop-blur-sm hover:border-vega-claret-deep hover:bg-vega-claret/5'
+                ? 'bg-transparent text-vega-parchment border border-white/25 hover:border-vega-gilt hover:text-vega-gilt-bright'
                 : tone === 'atrium'
                 ? 'bg-white/85 text-emerald-700 border border-emerald-600/40 backdrop-blur-sm hover:border-emerald-600 hover:bg-white'
                 : 'bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white'
@@ -257,6 +259,27 @@ const NavBar: React.FC<{
     onBackToHub: () => void;
 }> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, activeProduct, onOpenProduct, productChosen, onBackToHub }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+    // R22 "The Night Chambers": while /vega is shown, the shared light nav
+    // chrome flips to a dark glass register — night surface, parchment
+    // text, gilt accents. The hub and /atrium keep the light chrome.
+    const onVega = productChosen && activeProduct === 'vega';
+    const navLinkCls = onVega
+        ? 'text-slate-300 hover:text-white hover:bg-white/5'
+        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100';
+    const navLinkActiveCls = onVega ? 'text-vega-gilt-bright' : 'text-primary-700';
+    const menuItemCls = onVega
+        ? 'text-slate-300 hover:bg-white/5 hover:text-white'
+        : 'text-slate-700 hover:bg-slate-50';
+    // Products dropdown/menu item classes — hoisted out of the JSX so the
+    // NavBar adds NO brace-then-vega-ternary marker sequence: the
+    // websiteRepositioning test extracts the /vega RENDER BRANCH by that
+    // exact marker; a NavBar copy would hijack the match.
+    const vegaItemCls = activeProduct === 'vega'
+        ? (onVega ? 'bg-white/10 text-vega-gilt-bright' : 'bg-primary-50 text-primary-700')
+        : (onVega ? 'text-slate-300 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900');
+    const atriumItemCls = activeProduct === 'atrium'
+        ? 'bg-emerald-50 text-emerald-700'
+        : (onVega ? 'text-slate-300 hover:bg-white/5 hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900');
     // Products dropdown — click-toggle (not hover) so iPad/tablet touch users
     // can open it. Hover is unreliable on iPadOS Safari.
     const [productsOpen, setProductsOpen] = React.useState(false);
@@ -313,8 +336,10 @@ const NavBar: React.FC<{
 
     return (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
-        {/* Glass layer — always light on landing page */}
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-colors duration-500" />
+        {/* Glass layer — light on the hub + /atrium, night glass on /vega */}
+        <div className={`absolute inset-0 backdrop-blur-xl border-b transition-colors duration-500 ${
+            onVega ? 'bg-vega-night/85 border-white/10' : 'bg-white/80 border-slate-200/60'
+        }`} />
 
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Logo + back-to-hub breadcrumb */}
@@ -340,10 +365,10 @@ const NavBar: React.FC<{
                             ? <VegaMark className="h-8 w-8 group-hover:scale-105 transition-transform" />
                             : <AtriumMark className="h-8 w-8 group-hover:scale-105 transition-transform" />}
                         <span className="flex flex-col items-start leading-none">
-                            <span className={`text-lg font-bold tracking-tight text-slate-900 ${activeProduct === 'vega' ? 'font-vega' : 'font-display'}`}>
+                            <span className={`text-lg font-bold tracking-tight ${activeProduct === 'vega' ? 'font-vega text-vega-parchment' : activeProduct === 'atrium' ? 'font-display text-slate-900' : 'font-display text-slate-900'}`}>
                                 {activeProduct === 'vega' ? 'Vega' : 'Atrium'}
                             </span>
-                            <span className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-1">BY PRACTICEPRO</span>
+                            <span className={`font-mono text-2xs tracking-[0.18em] mt-1 ${onVega ? 'text-slate-500' : 'text-slate-400'}`}>BY PRACTICEPRO</span>
                         </span>
                     </button>
                 ) : (
@@ -361,7 +386,11 @@ const NavBar: React.FC<{
                 {productChosen && (
                     <button
                         onClick={onBackToHub}
-                        className="hidden md:flex items-center gap-1 pl-3 border-l border-slate-200 h-7 text-2xs font-black uppercase tracking-wide text-slate-400 hover:text-primary-500 transition-colors"
+                        className={`hidden md:flex items-center gap-1 pl-3 border-l h-7 text-2xs font-black uppercase tracking-widest transition-colors ${
+                            onVega
+                                ? 'border-white/15 text-slate-400 hover:text-vega-gilt-bright'
+                                : 'border-slate-200 text-slate-400 hover:text-primary-500'
+                        }`}
                         aria-label="Back to all products"
                     >
                         <ArrowLeftIcon className="w-3 h-3" />
@@ -386,17 +415,17 @@ const NavBar: React.FC<{
                         onClick={() => setProductsOpen(o => !o)}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
-                        className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200"
+                        className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all duration-200 ${navLinkCls}`}
                     >
                         Products
                         <svg className={`w-4 h-4 ml-0.5 opacity-60 transition-transform ${productsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {productsOpen && (
                         <div className="absolute top-full left-0 pt-1 w-[210px]">
-                            <div className="bg-white border border-slate-200 rounded-lg shadow-xl flex flex-col p-1">
+                            <div className={`border rounded-lg shadow-xl flex flex-col p-1 ${onVega ? 'bg-vega-night-2 border-white/10' : 'bg-white border-slate-200'}`}>
                                 <button
                                     onClick={() => { onOpenProduct('vega'); setProductsOpen(false); }}
-                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${vegaItemCls}`}
                                 >
                                     <VegaMark className="w-4 h-4" />
                                     <span className="flex-1">Vega</span>
@@ -404,7 +433,7 @@ const NavBar: React.FC<{
                                 </button>
                                 <button
                                     onClick={() => { onOpenProduct('atrium'); setProductsOpen(false); }}
-                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${atriumItemCls}`}
                                 >
                                     <AtriumMark className="w-4 h-4" />
                                     <span className="flex-1">Atrium</span>
@@ -421,8 +450,8 @@ const NavBar: React.FC<{
                         data-nav-id="features"
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'features'
-                                ? 'text-primary-700'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                ? navLinkActiveCls
+                                : navLinkCls
                         }`}
                     >
                         Features
@@ -432,8 +461,8 @@ const NavBar: React.FC<{
                         data-nav-id="howItWorks"
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                             activeSection === 'howItWorks'
-                                ? 'text-primary-700'
-                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                                ? navLinkActiveCls
+                                : navLinkCls
                         }`}
                     >
                         How It Works
@@ -497,13 +526,13 @@ const NavBar: React.FC<{
                 )}
                 <button
                     onClick={onResources}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${navLinkCls}`}
                 >
                     Resources
                 </button>
                 <button
                     onClick={onContactSales}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${navLinkCls}`}
                 >
                     Contact
                 </button>
@@ -514,13 +543,15 @@ const NavBar: React.FC<{
                 instead; Log In / Start Free Trial render only on the product
                 pages, next to the systems they open. */}
             <div className="flex items-center gap-2">
-                <div className="hidden lg:block h-4 w-px bg-slate-200 mx-1" />
+                <div className={`hidden lg:block h-4 w-px mx-1 ${onVega ? 'bg-white/15' : 'bg-slate-200'}`} />
 
                 {productChosen ? (
                     <>
                         <button
                             onClick={onLogin}
-                            className="hidden lg:block px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors"
+                            className={`hidden lg:block px-4 py-2 text-sm font-semibold transition-colors ${
+                                onVega ? 'text-slate-300 hover:text-vega-gilt-bright' : 'text-slate-700 hover:text-primary-600'
+                            }`}
                         >
                             Log In
                         </button>
@@ -550,7 +581,9 @@ const NavBar: React.FC<{
                     desktop nav. */}
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                    className={`lg:hidden flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
+                        onVega ? 'text-slate-300 hover:bg-white/5' : 'text-slate-700 hover:bg-slate-100'
+                    }`}
                     aria-label="Toggle menu"
                     aria-expanded={mobileMenuOpen}
                 >
@@ -566,7 +599,7 @@ const NavBar: React.FC<{
         {/* Mobile overlay menu — shown below lg (1024px). Raised from md:
             so iPad portrait uses this instead of the overflowed desktop nav. */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] bg-white overflow-y-auto">
+            <div className={`lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto ${onVega ? 'bg-vega-night' : 'bg-white'}`}>
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     {/* Back-to-hub affordance — mobile users on /vega or /atrium
                         need a way to get back to the hub page. Previously this
@@ -575,24 +608,24 @@ const NavBar: React.FC<{
                     {productChosen && (
                         <button
                             onClick={() => handleNavClick(onBackToHub)}
-                            className="w-full text-left px-4 py-3 mb-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3"
+                            className={`w-full text-left px-4 py-3 mb-2 rounded-lg text-sm font-semibold flex items-center gap-3 ${menuItemCls}`}
                         >
                             <ArrowLeftIcon className="w-5 h-5 opacity-70" /> All Products
                         </button>
                     )}
                     <div className="mb-2">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
-                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'vega' ? 'bg-primary-50 text-primary-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${vegaItemCls}`}>
                             <VegaMark className="w-5 h-5" /> Vega — For Law Firms <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
-                        <button onClick={() => handleNavClick(() => onOpenProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${activeProduct === 'atrium' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}>
+                        <button onClick={() => handleNavClick(() => onOpenProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${atriumItemCls}`}>
                             <AtriumMark className="w-5 h-5" /> Atrium — For Property Managers <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
                     </div>
                     {productChosen && (
                         <>
-                        <button onClick={() => handleNavClick(() => scrollTo('features'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Features</button>
-                        <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">How It Works</button>
+                        <button onClick={() => handleNavClick(() => scrollTo('features'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Features</button>
+                        <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>How It Works</button>
                         </>
                     )}
                     {!productChosen && (
@@ -603,12 +636,12 @@ const NavBar: React.FC<{
                         <Button variant="bare" onClick={() => handleNavClick(() => scrollTo('about'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">About</Button>
                         </>
                     )}
-                    <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
-                    <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-sm text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
-                    <div className="h-px bg-slate-200 my-3" />
+                    <button onClick={() => handleNavClick(onResources)} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Resources</button>
+                    <button onClick={() => handleNavClick(onContactSales)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Contact</button>
+                    <div className={`h-px my-3 ${onVega ? 'bg-white/10' : 'bg-slate-200'}`} />
                     {productChosen ? (
                         <>
-                            <button onClick={() => handleNavClick(onLogin)} className="w-full text-left px-4 py-3 rounded-sm text-sm font-semibold text-slate-700 hover:bg-slate-50">Log In</button>
+                            <button onClick={() => handleNavClick(onLogin)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Log In</button>
                             <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-sm !text-sm mt-2">
                                 Start Free Trial
                             </PrimaryButton>
@@ -2342,21 +2375,29 @@ const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo: (id: 
 // scrolling behind it stays partially visible rather than fully occluded.
 // (Hero text already gets pb-28 padding on mobile to clear this bar + FAB.)
 const MobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void; activeProduct: 'vega' | 'atrium' }> = ({ onSignup, onContactSales, activeProduct }) => (
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] bg-white/95 backdrop-blur-md border-t border-slate-200 px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+    <div className={`md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] ${
+        activeProduct === 'vega'
+            ? 'bg-vega-night/95 border-white/10'
+            : 'bg-white/95 border-slate-200'
+    }`}>
         <button
             onClick={onContactSales}
-            className="flex-1 py-3 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 active:bg-slate-100 transition-colors"
+            className={`flex-1 py-3 rounded-lg border text-sm font-semibold transition-colors ${
+                activeProduct === 'vega'
+                    ? 'border-white/20 text-slate-200 hover:bg-white/5 active:bg-white/10'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+            }`}
         >
             Talk to Sales
         </button>
         {/* TASK 54: no-arg invocation — never leak the click event into the
-            product override. Vega's primary is ink; Atrium's is its own
-            emerald — never the moss brand ramp. */}
+            product override. Vega's primary is brass on the night page;
+            Atrium's is its own emerald — never the moss brand ramp. */}
         <button
             onClick={() => onSignup()}
-            className={`flex-[1.5] py-3 rounded-lg text-white text-sm font-semibold transition-colors ${activeProduct === 'vega'
-                ? 'bg-vega-ink hover:bg-vega-ink-soft active:bg-vega-ink-soft'
-                : 'bg-atrium-emerald hover:bg-emerald-700 active:bg-emerald-800'}`}
+            className={`flex-[1.5] py-3 rounded-lg text-sm font-semibold transition-colors ${activeProduct === 'vega'
+                ? 'bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright active:bg-vega-gilt-bright'
+                : 'bg-atrium-emerald hover:bg-emerald-700 active:bg-emerald-800 text-white'}`}
         >
             Start Free Trial
         </button>
@@ -2381,12 +2422,12 @@ const WhatsAppFAB: React.FC<{ onContactSales: () => void; activeProduct: 'vega' 
     <button
         onClick={onContactSales}
         className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform ${activeProduct === 'vega'
-            ? 'bg-vega-ink'
+            ? 'bg-vega-gilt'
             : 'bg-atrium-emerald'}`}
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >
-        <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <svg className={`w-7 h-7 ${activeProduct === 'vega' ? 'text-vega-night' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
         </svg>
     </button>
@@ -2451,6 +2492,47 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
     // and the og:/twitter: card swap with the page's product and restore
     // the PracticePro company identity on the hub.
     useProductBranding(activeProduct, productChosen);
+
+    // R22 "The Night Chambers" — scroll-reveal machinery for /vega. Sections
+    // opt in with [data-vg-reveal]; ONE observer reveals them as they enter
+    // the viewport (staggered via each element's --vg-d delay custom prop).
+    // A 'vg:reveal-all' document event force-reveals everything — used by
+    // the audit/screenshot scripts before full-page captures and a safe
+    // fallback for anchor jumps. Reduced-motion users get everything
+    // visible immediately via CSS (no observer needed).
+    useEffect(() => {
+        if (!(productChosen && activeProduct === 'vega')) return;
+        const root = scrollRef.current;
+        if (!root) return;
+        const revealAll = () => {
+            root.querySelectorAll('[data-vg-reveal]:not(.vg-in)').forEach((el) => {
+                el.classList.add('vg-in');
+            });
+        };
+        document.addEventListener('vg:reveal-all', revealAll);
+        const els = Array.from(root.querySelectorAll('[data-vg-reveal]'));
+        if (els.length === 0) return;
+        if (!('IntersectionObserver' in window)) {
+            revealAll();
+            return () => document.removeEventListener('vg:reveal-all', revealAll);
+        }
+        const io = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((e) => {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('vg-in');
+                        io.unobserve(e.target);
+                    }
+                });
+            },
+            { threshold: 0.06, rootMargin: '0px 0px -6% 0px' }
+        );
+        els.forEach((el) => io.observe(el));
+        return () => {
+            io.disconnect();
+            document.removeEventListener('vg:reveal-all', revealAll);
+        };
+    }, [productChosen, activeProduct]);
 
     // TASK 14: Sync productChosen + activeProduct with initialProduct when it
     // changes (SPA navigation). Without this, navigating from /vega back to /
@@ -2634,7 +2716,7 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
             className={`h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth md:[scrollbar-gutter:stable]${
                 productChosen ? (activeProduct === 'vega' ? ' theme-vega' : ' theme-atrium') : ''
             }`}
-            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', colorScheme: 'light' }}
+            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', colorScheme: productChosen && activeProduct === 'vega' ? 'dark' : 'light' }}
             data-public-page
         >
             <NavBar
@@ -2655,12 +2737,12 @@ export const LandingPage: React.FC<{ initialProduct?: 'vega' | 'atrium' }> = ({ 
                 free of the other product's accent. */}
             <a
                 href="#main-content"
-                className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold ${
+                className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg ${
                     productChosen && activeProduct === 'vega'
-                        ? 'focus:bg-vega-ink'
+                        ? 'focus:bg-vega-gilt focus:text-vega-night'
                         : productChosen && activeProduct === 'atrium'
-                        ? 'focus:bg-atrium-emerald'
-                        : 'focus:bg-primary-600'
+                        ? 'focus:bg-atrium-emerald focus:text-white'
+                        : 'focus:bg-primary-600 focus:text-white'
                 }`}
             >
                 Skip to content

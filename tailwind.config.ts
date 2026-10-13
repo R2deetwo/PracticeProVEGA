@@ -169,17 +169,23 @@ const config: Config = {
                                 2: 'rgb(var(--bg-surface-2) / <alpha-value>)',       // = slate-100
                         },
                         // ─── PRODUCT PAGE ACCENTS (product-page rebrand) ─────
-                        // Vega ("The Chambers Standard"): claret as rules/
-                        // numerals/small marks on paper (the deep variant is
-                        // text-on-light), gilt for the same on ink bands —
-                        // the register of a law-report cover. NEVER a bright
-                        // decorative fill.
+                        // Vega ("The Night Chambers"): the page runs on a
+                        // near-black night ground; gilt is the brass accent
+                        // (rules, numerals, CTA fills), gilt-bright the text
+                        // register on night, parchment the display type, and
+                        // claret the seals/ribbon marks. night/night-2 are
+                        // the ground + panel surfaces.
                         vega: {
                                 claret: 'rgb(var(--color-vega-claret) / <alpha-value>)',
                                 'claret-deep': 'rgb(var(--color-vega-claret-deep) / <alpha-value>)',
+                                'claret-bright': 'rgb(var(--color-vega-claret-bright) / <alpha-value>)',
                                 gilt: 'rgb(var(--color-vega-gilt) / <alpha-value>)',
+                                'gilt-bright': 'rgb(var(--color-vega-gilt-bright) / <alpha-value>)',
                                 ink: 'rgb(var(--color-vega-ink) / <alpha-value>)',
                                 'ink-soft': 'rgb(var(--color-vega-ink-soft) / <alpha-value>)',
+                                night: 'rgb(var(--color-vega-night) / <alpha-value>)',
+                                'night-2': 'rgb(var(--color-vega-night-2) / <alpha-value>)',
+                                parchment: 'rgb(var(--color-vega-parchment) / <alpha-value>)',
                         },
                         // Atrium ("The Well-Kept Estate"): emerald + a warm
                         // clay supporting tone + cream base surface.

@@ -6,10 +6,12 @@ import React from 'react';
  * Court-rule-aware calendaring rendered as a PROCEDURAL TIMELINE — a legal
  * chronology, not a feature card: mono dates, court names, and deadlines
  * the Court Rules Agent computes from the Civil Procedure Rules of the
- * matter's court. Computed deadlines carry the amber node; filed events
- * carry the neutral node. Grounded in the shipped behaviour the marketing
- * copy already claims (reminders 7/3/1 days before each date; rules for
- * Federal and State High Courts across 36 states + FCT).
+ * matter's court. Computed deadlines carry the claret node; filed events
+ * carry the neutral node. On the night page the framing copy runs on the
+ * dark ground while the chronology stays a lit paper sheet. Grounded in
+ * the shipped behaviour the marketing copy already claims (reminders
+ * 7/3/1 days before each date; rules for Federal and State High Courts
+ * across 36 states + FCT).
  *
  * Presentational only — zero buttons (ADR-0004), zero hardcoded hexes.
  */
@@ -63,27 +65,26 @@ const CHRONOLOGY: ChronoEntry[] = [
 export const VegaCourtRules: React.FC = () => (
     <section
         aria-labelledby="vega-court-rules-heading"
-        className="py-20 md:py-28 border-t border-slate-200"
+        className="py-20 md:py-28 border-t border-white/10"
         style={{ background: 'var(--color-paper)' }}
     >
-        <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
+        <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-                {/* Left — framing copy */}
+                {/* Left — framing copy on the night ground */}
                 <div className="lg:col-span-5 lg:sticky lg:top-24">
-                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-deep mb-7">
-                        03 — Court-Rule Calendaring
+                    <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
+                        III — Court-Rule Calendaring
                     </p>
                     <h2
                         id="vega-court-rules-heading"
-                        className="font-vega text-3xl md:text-4xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6"
-                        style={{ color: 'var(--color-ink)' }}
+                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6 text-vega-parchment"
                     >
                         The firm diary that{' '}
-                        <span className="font-vega-italic font-medium">
+                        <span className="font-vega-italic text-vega-gilt-bright">
                             keeps itself.
                         </span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-8">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-400 mb-8">
                         Vega computes every filing and service deadline from the Civil Procedure
                         Rules of the court your matter sits in — Federal and State High Courts,
                         36 states and the FCT — then reminds the assigned lawyer 7, 3 and 1 days
@@ -91,13 +92,13 @@ export const VegaCourtRules: React.FC = () => (
                     </p>
 
                     {/* Legend — the chronology's key, in the ledger's voice */}
-                    <div className="border-t border-slate-200 pt-5 space-y-2">
+                    <div className="border-t border-white/10 pt-5 space-y-2">
                         <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
-                            <span className="inline-block w-2 h-2 rounded-full bg-vega-claret" aria-hidden="true" />
+                            <span className="inline-block w-2 h-2 rounded-full bg-vega-claret-bright" aria-hidden="true" />
                             DEADLINE COMPUTED BY THE COURT RULES AGENT
                         </p>
                         <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
-                            <span className="inline-block w-2 h-2 rounded-full border border-slate-400 bg-white" aria-hidden="true" />
+                            <span className="inline-block w-2 h-2 rounded-full border border-slate-500 bg-transparent" aria-hidden="true" />
                             EVENT RECORDED FROM THE MATTER FILE
                         </p>
                     </div>
