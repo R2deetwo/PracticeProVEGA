@@ -112,8 +112,13 @@ const bad = (name, detail = '') => { results.push(`✗ ${name} ${detail}`); cons
 
     // Product lockup present; tier copy absent.
     const bodyText = (await page.locator('body').textContent()) || '';
-    if (bodyText.includes('BY PRACTICEPRO')) ok(`${product}: product lockup renders`);
-    else bad(`${product}: product lockup missing`);
+    const headerText = (await page.locator('header').first().textContent()) || '';
+    // R24 (owner, 2026-10-13): the header lockup is mark + wordmark only —
+    // no visible "BY PRACTICEPRO" line; the attribution lives in the footer.
+    if (!headerText.includes('BY PRACTICEPRO')) ok(`${product}: header lockup is mark + wordmark only (R24)`);
+    else bad(`${product}: header still renders BY PRACTICEPRO`);
+    if (bodyText.includes('BY PRACTICEPRO')) ok(`${product}: footer attribution renders`);
+    else bad(`${product}: footer attribution missing`);
     const tiers = ['Most Popular', 'Start Growth', 'Save 20%', 'Growth+'].filter((m) => bodyText.includes(m));
     if (tiers.length === 0) ok(`${product}: zero tier copy`);
     else bad(`${product}: tier copy leaked`, tiers.join(', '));

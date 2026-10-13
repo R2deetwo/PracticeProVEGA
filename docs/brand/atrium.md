@@ -63,8 +63,9 @@ never on Atrium.
   high crossbar, on a jade→pine lit squircle — SaaS-grade geometric
   monogram, replacing the old doorway-arch tile (owner: the old marks
   "looked like emojis").
-- Nav/footer lockups: mark + "Atrium" wordmark (Space Grotesk) +
-  "BY PRACTICEPRO".
+- Header lockup: mark + "Atrium" wordmark (Space Grotesk) only. Footer
+  lockup: mark + "Atrium" + "BY PRACTICEPRO" (R24: no byline in the
+  header).
 - Favicons: `/brand/atrium/favicon.svg` + `favicon-48.png` + `apple-touch-icon.png`.
 
 ## Considered and deferred (owner note, 2026-10-13)

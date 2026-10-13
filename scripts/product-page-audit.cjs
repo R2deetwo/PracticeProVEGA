@@ -179,13 +179,24 @@ const PRODUCT = process.env.AUDIT_PRODUCT || 'vega'; // 'vega' or 'atrium'
         warnings.push(`✗ Product favicon not applied: ${iconHref}`);
         console.log(`  ✗ Favicon: ${iconHref}`);
     }
-    const lockupCount = await page.locator('text=BY PRACTICEPRO').count();
-    if (lockupCount > 0) {
-        passes.push('✓ Product lockup with "BY PRACTICEPRO" attribution renders');
-        console.log('  ✓ Product lockup renders');
+    // R24 (owner, 2026-10-13): the header lockup is mark + product name
+    // only — no visible "BY PRACTICEPRO"; the attribution lives in the
+    // footer brand column.
+    const headerByline = await page.locator('header').first().locator('text=BY PRACTICEPRO').count();
+    if (headerByline === 0) {
+        passes.push('✓ Header lockup is mark + product name only (no BY PRACTICEPRO, R24)');
+        console.log('  ✓ Header lockup: mark + product name only (R24)');
     } else {
-        warnings.push('✗ Product lockup (BY PRACTICEPRO) not found');
-        console.log('  ✗ Product lockup not found');
+        errors.push('✗ Header still renders BY PRACTICEPRO (R24: header is mark + name only)');
+        console.log('  ✗ Header still renders BY PRACTICEPRO');
+    }
+    const footerLockup = await page.locator('footer').locator('text=BY PRACTICEPRO').count();
+    if (footerLockup > 0) {
+        passes.push('✓ Footer brand lockup keeps "BY PRACTICEPRO" attribution');
+        console.log('  ✓ Footer attribution renders');
+    } else {
+        warnings.push('✗ Footer attribution (BY PRACTICEPRO) not found');
+        console.log('  ✗ Footer attribution not found');
     }
 
     // ─── Draft Accuracy (R21: super-accurate Nigerian pleadings) ─────────

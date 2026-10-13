@@ -64,5 +64,7 @@ button hover.
 
 - The PracticePro `Logo` mark + "Practice**Pro**" wordmark (green accent on
   "Pro") appears in the hub nav and footer.
-- Product pages carry the PRODUCT mark with "BY PRACTICEPRO" attribution —
-  PracticePro stays the parent, never the co-brand on a product page.
+- Product pages carry the PRODUCT mark in the header (mark + wordmark
+  only — no "BY PRACTICEPRO" line, owner R24); the "BY PRACTICEPRO"
+  attribution lives in the footer brand column — PracticePro stays the
+  parent, never the co-brand on a product page.

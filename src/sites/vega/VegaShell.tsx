@@ -93,7 +93,6 @@ export const VegaNavBar: React.FC<{
                         <span className="text-lg font-bold tracking-tight font-vega text-vega-parchment">
                             Vega
                         </span>
-                        <span className="font-mono text-xs tracking-[0.18em] mt-1 text-slate-400">BY PRACTICEPRO</span>
                     </span>
                 </button>
                 <button

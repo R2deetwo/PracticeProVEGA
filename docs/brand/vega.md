@@ -51,8 +51,10 @@ Square. `rounded-` classes are banned on /vega (enforced by test:
 - Hero: H1 `clamp(2.75rem, 6.2vw, 5.25rem)`, tightened spacing — H1, sub
   and both CTAs fit the first viewport at 1440x900 and 390x844 (the
   hero CTAs are visible on mobile; the exhibit sits below them).
-- Nav labels: "ALL PRODUCTS" and "BY PRACTICEPRO" are 12px minimum,
-  slate-300/400 on the night glass (>= 4.5:1).
+- Nav label: "ALL PRODUCTS" is 12px minimum, slate-300 on the night glass
+  (>= 4.5:1). The header lockup is mark + "Vega" wordmark only — no
+  "BY PRACTICEPRO" line in the header (owner, R24); the attribution
+  lives in the footer.
 - Chat button: a square gilt-bordered tile on the night ground.
 - Claims: the index line reads COURT RULES · 36 STATES + FCT (code-
   verifiable) instead of the unverifiable 99.9% uptime; "Sign up in
@@ -81,5 +83,6 @@ Square. `rounded-` classes are banned on /vega (enforced by test:
   solid parchment "V" with the star cut into its point as a diamond void,
   on a claret-lift→oxblood lit squircle. SaaS-grade geometric monogram —
   never the old sparkle-star seal.
-- Nav/footer lockups: mark + "Vega" wordmark (Fraunces) + "BY PRACTICEPRO".
+- Header lockup: mark + "Vega" wordmark (Fraunces) only. Footer lockup:
+  mark + "Vega" + "BY PRACTICEPRO" (R24: no byline in the header).
 - Favicons: `/brand/vega/favicon.svg` + `favicon-48.png` + `apple-touch-icon.png`.

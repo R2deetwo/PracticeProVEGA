@@ -444,18 +444,23 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
 describe("W14 — navigation truth, the pulse, the descent and the pitch", () => {
   it("the logo and All Products carry you home from any product page", () => {
     // R21: on a product page the brand is the PRODUCT lockup (mark +
-    // wordmark + BY PRACTICEPRO) and it navigates back to the hub; on the
+    // wordmark) and it navigates back to the hub; on the
     // hub the PracticePro logo scrolls to the top. The two are separate
     // buttons now — no conditional handler.
     // P0: the ternary is gone by design — each product shell carries its
     // own narrowed literal lockup aria-label.
+    // R24 (owner, 2026-10-13): no visible "BY PRACTICEPRO" line in the
+    // header lockup — the header is mark + wordmark only. The company
+    // attribution lives in the footer brand column (one occurrence per
+    // shell source).
     expect(vegaShell).toContain('aria-label="Vega — a PracticePro product, back to all products"');
     expect(atriumShell).toContain('aria-label="Atrium — a PracticePro product, back to all products"');
     expect(productPages).toContain("onClick={onBackToHub}");
     expect(hub).toContain("onClick={() => scrollTo('home')}");
     expect(productPages).toContain("pathname !== '/'");
     expect(productPages).toContain("navigate('/')");
-    expect(productPages).toContain("BY PRACTICEPRO");
+    expect((vegaShell.match(/BY PRACTICEPRO/g) || []).length).toBe(1);
+    expect((atriumShell.match(/BY PRACTICEPRO/g) || []).length).toBe(1);
   });
 
   it("selecting a product opens its own page in a NEW TAB (owner direction, R21)", () => {

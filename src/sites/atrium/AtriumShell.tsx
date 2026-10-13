@@ -92,7 +92,6 @@ export const AtriumNavBar: React.FC<{
                         <span className="text-lg font-bold tracking-tight font-display text-slate-900">
                             Atrium
                         </span>
-                        <span className="font-mono text-2xs tracking-[0.18em] mt-1 text-slate-400">BY PRACTICEPRO</span>
                     </span>
                 </button>
                 <button
