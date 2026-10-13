@@ -12818,3 +12818,54 @@ Work Log:
 Stage Summary:
 - All 7 P0 acceptance criteria verified with raw outputs (33-line router; lint clean + boundary probe; vitest pinned files 82/82 + full 1258/1258; zero activeProduct=== in src/sites; pixel diffs at noise floor; build green with chunk sizes = baseline; brand docs exist, 4A694C legacy-only).
 - Known intentional micro-change: in-tab product->product switch now starts at top (pre-split kept stale scroll).
+
+---
+Task ID: p1-hub
+Agent: main (Super Z)
+Task: PRACTICEPRO Prompt 1 — hub redesign (branch brand/p1-hub, on top of p0).
+
+Work Log:
+- Phase A: removal-target grep (49 hits), before screenshots (docs/brand/p1/before/ = 28), contrast-before.txt (hero headline 1.04:1 FAIL, hero para 1.76:1 FAIL, marquee 1.02:1 FAIL on old hub), JS baseline 2075.7KB incl. three.module 185.2KB.
+- Built: tokens.css (paper/ink/rule/mute/signal + Archivo Variable wdth 115/w800 + hub-container/grid/section/label/cta/link/reveal/diagram classes + body.site-hub cookie+chat restyle); HubShell v2 (solid paper nav w/ 1px rule, 4-ruled-column ink footer, ink-circle WhatsApp chat w/ moss dot, mobile sticky CTA); HeroSection (exact owner H1 + 30-word sub + static 4-node SVG diagram, strokes draw once 900ms, reduced-motion safe); ProductsSection (2 ruled rows + Komplete line); WhatWeBuildSection (7-row index table); WorkSection (OUR_WORK verbatim incl. all 34 screens, WorkDetailModal + SystemTour kept and restyled, no blur); SoundFamiliarSection (PAIN_MIRROR copy, two-column ruled); ProcessSections (HowWeWork strip + About w/ pinned honest copy + Contact ink band).
+- Removed: HubSections.tsx, MorphScene.tsx, SystemCoreScene.tsx (files deleted — no other importers), ScalingNoun, FluidSeam, MarqueeStrip, Iso shapes, w9/w14 machinery, backdrop-blur, gradient hero.
+- Tests: websiteRepositioning updated — 5 machinery blocks retired to NOT-assertions with reasons, hub pins retargeted to the 7 new section files, exact-copy pins added (H1, sub, diagram labels, section numbers, Komplete line, footer attribution). 1253/1253 green.
+- Fixes during gates: import depths, Logo/CheckIcon style-prop wraps, comment mentions tripping NOT-pins, moss wordmark failed axe (18px bold < 4.5:1) -> wordmark all-ink, moss stays on the logo icon.
+- Acceptance: AC1 zero hits; AC2 all pairs >= 4.5:1 (15.80 / 5.52 / 5.46 / 5.52...); AC3 three.module NOT requested, JS 2075.7 -> 1876.5KB; AC4 hero H1/CTAs inside 900px + 844px, no 390px overflow; AC5 lint 0 errors + build + pinned tests green; AC6 axe-core 0 violations (Lighthouse unavailable in sandbox — stated); AC7 moss confined to logo icon/links/CTA/bullets (3 CTA + 10 small elements).
+- VLM design review: 8.5/10 "strong, high-fidelity execution... credible, opinionated systems studio". /vega + /atrium smoke: 200, correct H1s, zero page errors.
+- Committed 7ea270b2 on brand/p1-hub; pushed. NOT merged — owner decision.
+
+Stage Summary:
+- The hub is now the systems-studio register: paper/ink/1px rules/one moss signal/Archivo. Branch chain: main -> p0-foundation -> p1-hub.
+
+---
+Task ID: p2-vega
+Agent: main (Super Z)
+Task: PRACTICEPRO Prompt 2 — Vega refinement (branch brand/p2-vega, on top of p1).
+
+Work Log:
+- Phase A: hero fit measured (old: CTAs y=974/975 below 900; H1 78.4px/4 lines; ALL PRODUCTS 10px slate-400); shared phrase = "Get started in 3 steps" (vega+atrium); claims: 99.9% UPTIME (c), "Sign up in 2 minutes" (c), 21 days/10% per annum (b illustrative), 36 states + FCT (a verifiable), 7/3/1 days (a verifiable); routes: hub navigate('/'), portal href, legal x4, resources.
+- B1: H1 clamp(2.75rem,6.2vw,5.25rem) w/ 3-line structure, pt-44->pt-28, tightened margins, CTAs visible on mobile, exhibit below CTAs. Measured after: H1/sub/CTAs 670/783/868-869 @1440x900; 271/407/492-493 @390x844 — ALL PASS.
+- B2: ALL PRODUCTS + BY PRACTICEPRO at 12px slate-300/400 on night glass.
+- B3: chat = square gilt-bordered tile; body.site-vega added (mirrors the 9 on-vega-page CSS selectors).
+- B4: headline -> "Open your chambers in three steps".
+- B5: index line 99.9% UPTIME -> COURT RULES · 36 STATES + FCT; "Sign up in minutes"; exhibits labelled ILLUSTRATIVE (hero caption).
+- B6: siteConfig.ts (full interface + portal extension); index + shell routes read from it; product cross-links remain explicit window.open (documented exception).
+- B7: docs/brand/vega.md P2 section added.
+- Gates: tsc 127, vitest 1253/1253, lint 0 errors, exhibits byte-untouched, vega audit 27/0/3 + r21-verify 21/21 (exact baselines), zero shared phrases, screenshots docs/brand/p2/after/.
+- Committed + pushed brand/p2-vega. NOT merged — owner decision.
+
+Stage Summary:
+- Vega: hero fits the fold on both viewports, nav legible, claims honest, seam ready for the standalone domain. Branch chain: main -> p0 -> p1 -> p2.
+
+---
+Task ID: p3-atrium (reduced scope)
+Agent: main (Super Z)
+Task: Prompt 3 REDUCED by owner note ("i kind of like how atrium is at the moment... change the iconography in terms of the logo for atrium; other than that, i'm okay with atrium").
+
+Work Log:
+- The logo/iconography change shipped in R23 (commit f14cba57, live on main): the Atrium mark is the solid domed-A geometric monogram on a jade->pine lit squircle, with matching favicons (SVG + 48px + 180px). VLM judged the family SaaS-grade.
+- docs/brand/atrium.md documents the SHIPPED emerald identity as source of truth; the terracotta/Bricolage direction is recorded as CONSIDERED AND DEFERRED.
+- Deferred (listed per the prompt): Android + in-app Atrium colours (still emerald in-app — unchanged), Atrium OG image, standalone domain, Komplete page, remaining property photos.
+
+Stage Summary:
+- No further Atrium work needed beyond R23; all P3 acceptance criteria that remain applicable are satisfied by the shipped state.
