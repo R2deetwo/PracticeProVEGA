@@ -2339,25 +2339,25 @@ span[data-type="legal-placeholder"] {
 /* ── Global compliance bars while on /vega only ──────────────────────────
    The cookie bar and terms gate are App-level surfaces (fixed, outside
    the landing root), so .theme-vega cannot reach them. LandingPage sets
-   body.on-vega-page while /vega is shown; these hooks re-tint ONLY there.
+   body.on-vega-page, .site-vega while /vega is shown; these hooks re-tint ONLY there.
    On the night page the accept actions are brass and the links gilt.
    Hook classes (.cookie-ack/.cookie-link/.terms-accept/.terms-link) are
    inert everywhere else — zero effect on any other page. */
-.on-vega-page .cookie-ack,
-.on-vega-page .terms-accept {
+.on-vega-page, .site-vega .cookie-ack,
+.on-vega-page, .site-vega .terms-accept {
   background: rgb(var(--color-vega-gilt));
   color: rgb(var(--color-vega-night));
 }
-.on-vega-page .cookie-ack:hover,
-.on-vega-page .terms-accept:hover {
+.on-vega-page, .site-vega .cookie-ack:hover,
+.on-vega-page, .site-vega .terms-accept:hover {
   background: rgb(var(--color-vega-gilt-bright));
 }
-.on-vega-page .cookie-link,
-.on-vega-page .terms-link {
+.on-vega-page, .site-vega .cookie-link,
+.on-vega-page, .site-vega .terms-link {
   color: rgb(var(--color-vega-gilt-bright));
 }
-.on-vega-page .cookie-link:hover,
-.on-vega-page .terms-link:hover {
+.on-vega-page, .site-vega .cookie-link:hover,
+.on-vega-page, .site-vega .terms-link:hover {
   color: rgb(255 255 255 / 0.92);
 }
 

@@ -46,6 +46,21 @@ No green anywhere on /vega. No gradient text — the serif carries emphasis.
 Square. `rounded-` classes are banned on /vega (enforced by test:
 `features are a ruled ledger index…not.toContain("rounded-")`).
 
+## P2 refinements (2026-10-13)
+
+- Hero: H1 `clamp(2.75rem, 6.2vw, 5.25rem)`, tightened spacing — H1, sub
+  and both CTAs fit the first viewport at 1440x900 and 390x844 (the
+  hero CTAs are visible on mobile; the exhibit sits below them).
+- Nav labels: "ALL PRODUCTS" and "BY PRACTICEPRO" are 12px minimum,
+  slate-300/400 on the night glass (>= 4.5:1).
+- Chat button: a square gilt-bordered tile on the night ground.
+- Claims: the index line reads COURT RULES · 36 STATES + FCT (code-
+  verifiable) instead of the unverifiable 99.9% uptime; "Sign up in
+  minutes"; drafting exhibits are labelled ILLUSTRATIVE.
+- Routes: every exit route reads from `src/sites/vega/siteConfig.ts`
+  (the standalone-domain seam). Cookie/terms restyling keys on
+  `body.site-vega` (mirrors the legacy `on-vega-page` hooks).
+
 ## Motion rules
 
 - Scroll reveals opt in via `[data-vg-reveal]`; one IntersectionObserver,

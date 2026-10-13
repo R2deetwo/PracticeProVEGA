@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowLeftIcon, ExternalLinkIcon } from '../../constants';
 import { VegaMark, AtriumMark } from '../../components/marketing/brand/ProductMarks';
 import { PrimaryButton } from '../shared/ctas';
+import { vegaSiteConfig } from './siteConfig';
 
 /**
  * VegaShell — /vega's chrome (P0 split). A copy of the shared
@@ -92,12 +93,12 @@ export const VegaNavBar: React.FC<{
                         <span className="text-lg font-bold tracking-tight font-vega text-vega-parchment">
                             Vega
                         </span>
-                        <span className="font-mono text-2xs tracking-[0.18em] mt-1 text-slate-500">BY PRACTICEPRO</span>
+                        <span className="font-mono text-xs tracking-[0.18em] mt-1 text-slate-400">BY PRACTICEPRO</span>
                     </span>
                 </button>
                 <button
                     onClick={onBackToHub}
-                    className="hidden md:flex items-center gap-1 pl-3 border-l h-7 text-2xs font-black uppercase tracking-widest transition-colors border-white/15 text-slate-400 hover:text-vega-gilt-bright"
+                    className="hidden md:flex items-center gap-1 pl-3 border-l h-7 text-xs font-black uppercase tracking-widest transition-colors border-white/15 text-slate-300 hover:text-vega-gilt-bright"
                     aria-label="Back to all products"
                 >
                     <ArrowLeftIcon className="w-3 h-3" />
@@ -298,7 +299,7 @@ export const VegaFooter: React.FC<{
                 <div>
                     <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Portals</p>
                     <div className="flex flex-col gap-2.5">
-                        <a href="/portal/client/login" className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
+                        <a href={vegaSiteConfig.portal.client} className="text-slate-500 hover:text-slate-300 text-sm transition-colors">Client Portal</a>
                     </div>
                 </div>
                 {/* Company */}
@@ -348,11 +349,11 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
 export const VegaChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform bg-vega-gilt"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-none border flex items-center justify-center hover:scale-105 active:scale-95 transition-transform bg-vega-night border-vega-gilt"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >
-        <svg className="w-7 h-7 text-vega-night" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <svg className="w-7 h-7 text-vega-gilt" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
         </svg>
     </button>

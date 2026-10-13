@@ -200,30 +200,31 @@ export const VegaHero: React.FC<{
             §
         </span>
 
-        <div className="relative z-10 pt-28 pb-28 sm:pb-24 lg:pt-44 lg:pb-32 px-4 sm:px-6">
-            <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-14 lg:gap-16 items-center">
+        <div className="relative z-10 pt-24 pb-20 sm:pb-20 lg:pt-28 lg:pb-24 px-4 sm:px-6">
+            <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 lg:gap-14 items-center">
                 {/* Left — the title page of the volume */}
                 <div className="lg:col-span-7">
                     {/* Attribution eyebrow — mono micro-label with the claret mark */}
                     <p
-                        className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-8"
+                        className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-6"
                         data-vg-reveal
                     >
                         <span className="inline-block w-1.5 h-1.5 bg-vega-claret-bright" aria-hidden="true" />
                         {eyebrow}
                     </p>
 
-                    {/* Headline — set like the title page of a law report, at
-                        law-report scale. Parchment Fraunces; ONE gilt-italic
-                        accent phrase (solid colour — never gradient text). */}
+                    {/* Headline — law-report scale, THREE lines at 1440 (P2
+                        B1: clamp 2.75rem→5.25rem; the exhibit column stays
+                        right; H1 + sub + both CTAs fit the first viewport). */}
                     <h1
-                        className="font-vega text-[2.65rem] sm:text-6xl lg:text-7xl xl:text-[4.9rem] font-semibold leading-[1.05] tracking-[-0.015em] mb-0 text-vega-parchment"
+                        className="font-vega text-[2.75rem] sm:text-6xl lg:text-[clamp(2.75rem,6.2vw,5.25rem)] font-semibold leading-[1.04] tracking-[-0.015em] mb-0 text-vega-parchment"
                         data-vg-reveal
                         style={{ '--vg-d': '90ms' } as React.CSSProperties}
                     >
-                        Practice management
+                        Practice
+                        <br className="hidden lg:block" />
+                        management for
                         <br />
-                        for{' '}
                         <span className="font-vega-italic text-vega-gilt-bright">
                             Nigerian law firms.
                         </span>
@@ -231,33 +232,32 @@ export const VegaHero: React.FC<{
 
                     {/* Thin gilt rule — the page's only accent bar */}
                     <div
-                        className="h-px w-24 bg-vega-gilt mt-9 mb-9"
+                        className="h-px w-24 bg-vega-gilt mt-7 mb-7"
                         aria-hidden="true"
                         data-vg-reveal
-                        style={{ '--vg-d': '180ms' } as React.CSSProperties}
+                        style={{ '--vg-d': '150ms' } as React.CSSProperties}
                     />
 
                     {/* Sub-copy — existing product copy, verbatim */}
                     <p
-                        className="text-lg md:text-xl max-w-xl leading-[1.7] text-slate-300 mb-11"
+                        className="text-base md:text-lg max-w-xl leading-[1.65] text-slate-300 mb-8"
                         data-vg-reveal
-                        style={{ '--vg-d': '240ms' } as React.CSSProperties}
+                        style={{ '--vg-d': '210ms' } as React.CSSProperties}
                     >
                         Case management, AI-assisted drafting, and billing that respects Nigerian court
                         practice — from intake to judgment, in one workspace.
                     </p>
 
                     {/* CTA — rendered by LandingPage (Vega: brass on night).
-                        Hidden on mobile: the MobileStickyCTA bar carries the
-                        same action. */}
-                    <div className="hidden md:flex items-center gap-4 mb-7" data-vg-reveal style={{ '--vg-d': '320ms' } as React.CSSProperties}>
+                        P2 B1: visible on mobile too, with the exhibit below. */}
+                    <div className="flex flex-wrap items-center gap-4 mb-5" data-vg-reveal style={{ '--vg-d': '280ms' } as React.CSSProperties}>
                         {cta}
                     </div>
 
                     <p
-                        className="hidden md:block font-mono text-2xs tracking-widest text-slate-500"
+                        className="font-mono text-2xs tracking-widest text-slate-500"
                         data-vg-reveal
-                        style={{ '--vg-d': '400ms' } as React.CSSProperties}
+                        style={{ '--vg-d': '340ms' } as React.CSSProperties}
                     >
                         NO CREDIT CARD · 30-DAY TRIAL · CANCEL ANYTIME
                     </p>
@@ -273,7 +273,7 @@ export const VegaHero: React.FC<{
                         </div>
                     </div>
                     <p className="font-mono text-2xs tracking-widest text-slate-500 mt-6 text-center lg:text-left lg:pl-4">
-                        EXHIBIT — MOTION ON NOTICE, DRAFTED IN DRAFTPRO
+                        EXHIBIT — MOTION ON NOTICE, DRAFTED IN DRAFTPRO · ILLUSTRATIVE
                     </p>
                 </div>
             </div>

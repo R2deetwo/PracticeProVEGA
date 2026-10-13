@@ -18,7 +18,7 @@ const STEPS = [
     {
         num: '1',
         title: 'Create your firm workspace',
-        body: 'Sign up in 2 minutes. No credit card required for trial. Choose Vega and invite your team.',
+        body: 'Sign up in minutes — no credit card required for trial. Choose Vega and invite your team.',
     },
     {
         num: '2',
@@ -48,7 +48,7 @@ export const VegaProcedure: React.FC = () => (
                 id="vega-procedure-heading"
                 className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 text-vega-parchment"
             >
-                Get started in 3 steps
+                Open your chambers in three steps
             </h2>
             <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-12 md:mb-16">
                 From sign-up to your first legal draft — in minutes, not weeks.

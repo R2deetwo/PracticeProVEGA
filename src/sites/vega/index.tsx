@@ -7,6 +7,7 @@ import { useSignupOpener, useContactSales } from '../shared/useSignupOpener';
 import { PrimaryButton, GhostButton } from '../shared/ctas';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
 import { VegaNavBar, VegaFooter, VegaMobileStickyCTA, VegaChatFab } from './VegaShell';
+import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaIndexLine } from './sections/VegaIndexLine';
 import { VegaMattersLedger } from './sections/VegaMattersLedger';
@@ -48,6 +49,11 @@ export const VegaSite: React.FC = () => {
     // fallback for anchor jumps. Reduced-motion users get everything
     // visible immediately via CSS (no observer needed).
     useEffect(() => {
+        document.body.classList.add('site-vega');
+        return () => document.body.classList.remove('site-vega');
+    }, []);
+
+    useEffect(() => {
         const root = scrollRef.current;
         if (!root) return;
         const revealAll = () => {
@@ -82,7 +88,7 @@ export const VegaSite: React.FC = () => {
 
     // W14 (navigation truth): from a product page, the mark is the way HOME.
     const handleBackToHub = () => {
-        if (window.location.pathname !== '/') navigate('/');
+        if (window.location.pathname !== vegaSiteConfig.hubUrl) navigate(vegaSiteConfig.hubUrl);
     };
 
     // R21 (owner direction): selecting a product OPENS ITS OWN PAGE IN A
@@ -103,7 +109,7 @@ export const VegaSite: React.FC = () => {
                 scrollTo={scrollTo}
                 onLogin={() => openModal('login')}
                 onSignup={openSignup}
-                onResources={() => navigate('/resources')}
+                onResources={() => navigate(vegaSiteConfig.resourcesPath)}
                 onContactSales={() => openContactSales('Nav')}
                 onOpenProduct={openProductPage}
                 onBackToHub={handleBackToHub}
@@ -153,11 +159,11 @@ export const VegaSite: React.FC = () => {
 
             <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={closeContactSales} source={contactDrawerSource} />
             <VegaFooter
-                onPrivacyClick={() => navigate('/privacy-policy')}
-                onTermsClick={() => navigate('/terms-of-service')}
-                onCookieClick={() => navigate('/cookie-policy')}
-                onUsageClick={() => navigate('/usage-policy')}
-                onResources={() => navigate('/resources')}
+                onPrivacyClick={() => navigate(vegaSiteConfig.legal.privacy)}
+                onTermsClick={() => navigate(vegaSiteConfig.legal.terms)}
+                onCookieClick={() => navigate(vegaSiteConfig.legal.cookies)}
+                onUsageClick={() => navigate(vegaSiteConfig.legal.usage)}
+                onResources={() => navigate(vegaSiteConfig.resourcesPath)}
                 onContactSales={() => openContactSales('Footer')}
                 onOpenProduct={openProductPage}
             />
