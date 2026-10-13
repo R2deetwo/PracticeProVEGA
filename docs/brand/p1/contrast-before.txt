@@ -1,0 +1,23 @@
+P1 A3 — contrast BEFORE (current hub, 1440x900)
+hero headline (h1 span): 1.04:1 (fg rgb(255, 255, 255) on rgb(251, 251, 249), 80px/700) — FAIL (need 3)
+hero paragraph: 1.76:1 (fg rgba(52, 211, 153, 0.9) on rgb(251, 251, 249), 14px/500) — FAIL (need 4.5)
+nav links: 7.31:1 (fg rgb(71, 85, 105) on rgb(251, 251, 249), 14px/500) — PASS
+marquee text: 1.02:1 (fg rgb(11, 18, 32) on rgb(10, 16, 28), 16px/400) — FAIL (need 4.5)
+card body text: 7.58:1 (fg rgb(71, 85, 105) on rgb(255, 255, 255), 14px/400) — PASS
+
+P1 A5 — network log for / (JS chunks)
+  module-shared-DmoBghBT.js  0.0 KB
+  vendor-react-COY0iz7A.js  0.0 KB
+  vendor-convex-CQJX0U6N.js  0.0 KB
+  vendor-animation-XoWDvZcM.js  0.0 KB
+  vendor-icons-CVA6SdVQ.js  0.0 KB
+  module-research-51mTrwQO.js  0.0 KB
+  vendor-pdf-Dn63txZ1.js  0.0 KB
+  vendor-ai-BEB5csrM.js  0.0 KB
+  module-atrium-BuFtNRuq.js  0.0 KB
+  vendor-editor-D0UdsnC7.js  0.0 KB
+  module-settings-DEDBydOO.js  0.0 KB
+  module-documents-tBErf4OP.js  0.0 KB
+  index-8OyteMvM.js  0.0 KB
+  three.module-4xNEFFrG.js  0.0 KB
+  TOTAL JS: 0.0 KB across 14 chunks

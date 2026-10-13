@@ -1,36 +1,35 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUI } from '../../contexts/UIContext';
 import { useSiteChrome } from '../shared/useSiteChrome';
 import { useSiteScroll } from '../shared/useSiteScroll';
 import { useContactSales } from '../shared/useSignupOpener';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
-import { HubNavBar, HubFooter, HubChatFab } from './HubShell';
-import {
-    HubHero,
-    MarqueeStrip,
-    PainMirrorSection,
-    FluidSeam,
-    WhatWeDoSection,
-    OurWorkSection,
-    HowWeWorkSection,
-    AboutSection,
-    HubFinalCTASection,
-} from './sections/HubSections';
+import { HubNavBar, HubFooter, HubChatFab, HubMobileStickyCTA } from './HubShell';
+import { HubHero } from './sections/HeroSection';
+import { ProductsSection } from './sections/ProductsSection';
+import { WhatWeBuildSection } from './sections/WhatWeBuildSection';
+import { WorkSection } from './sections/WorkSection';
+import { SoundFamiliarSection } from './sections/SoundFamiliarSection';
+import { HowWeWorkSection, AboutSection, ContactSection } from './sections/ProcessSections';
+import './tokens.css';
 
 /**
- * HubSite — the PracticePro corporate home (/), moved from LandingPage.tsx
- * (P0 split). The company page: hero → pain mirror → what we do → our work
- * → how we work → about → contact CTA. No signup CTA lives here — trials
- * start on the product pages (W14). Behaviour-identical to the pre-split
- * hub branch.
+ * HubSite v2 — the PracticePro systems studio home (/), P1 redesign.
+ * Paper ground, ink type, 1px rules, one moss signal, Archivo display —
+ * the company register (docs/brand/practicepro.md). Section order:
+ * hero → 01 PRODUCTS → 02 WHAT WE BUILD → 03 WORK → 04 SOUND FAMILIAR →
+ * 05 HOW WE WORK → 06 ABOUT → 07 CONTACT. No WebGL, no marquee, no
+ * glass — the WebGL hero era is retired on the hub.
  */
 export const HubSite: React.FC = () => {
     const navigate = useNavigate();
-    const { openModal } = useUI();
     useSiteChrome(null);
+    useEffect(() => {
+        document.body.classList.add('site-hub');
+        return () => document.body.classList.remove('site-hub');
+    }, []);
     const { scrollRef, activeSection, scrollTo } = useSiteScroll(
-        ['home', 'whatWeDo', 'ourWork', 'howWeWork', 'about']
+        ['home', 'products', 'work', 'howWeWork', 'about']
     );
     const {
         isContactDrawerOpen,
@@ -48,7 +47,7 @@ export const HubSite: React.FC = () => {
     return (
         <div
             ref={scrollRef}
-            className="h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth md:[scrollbar-gutter:stable]"
+            className="theme-hub h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth md:[scrollbar-gutter:stable]"
             style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', colorScheme: 'light' }}
             data-public-page
         >
@@ -63,36 +62,27 @@ export const HubSite: React.FC = () => {
             {/* Skip to content link for accessibility. */}
             <a
                 href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-primary-600 focus:text-white"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-[2px] focus:bg-[#14171A] focus:text-[#F3F0E8]"
             >
                 Skip to content
             </a>
 
-            {/* W6: the corporate hub — the company's own home page. */}
-            <main id="main-content" className="animate-swap-in">
+            <main id="main-content">
                 <HubHero
                     onContactSales={() => openContactSales('Hub Hero')}
                     scrollTo={scrollTo}
                 />
-                <MarqueeStrip />
-                {/* W14: the mirror before the pitch. */}
-                <PainMirrorSection onContactSales={() => openContactSales('Sound Familiar')} />
-                {/* W8: liquid seams — each section pours into the next. */}
-                <FluidSeam from="#0A101C" to="#FFFFFF" phase={0} />
-                <WhatWeDoSection scrollTo={scrollTo} />
-                <FluidSeam from="#FFFFFF" to="#0A101C" phase={1} />
-                <OurWorkSection onContactSales={() => openContactSales('Our Work')} />
-                <FluidSeam from="#0A101C" to="#FFFFFF" phase={2} />
+                <ProductsSection onOpenProduct={openProductPage} />
+                <WhatWeBuildSection />
+                <WorkSection onContactSales={() => openContactSales('Our Work')} />
+                <SoundFamiliarSection onContactSales={() => openContactSales('Sound Familiar')} />
                 <HowWeWorkSection />
-                <AboutSection onContactSales={() => openContactSales('About')} />
-                <FluidSeam from="#FBFBF9" to="#0A101C" phase={3} />
-                <HubFinalCTASection
-                    onContactSales={() => openContactSales('Hub Final CTA')}
-                    scrollTo={scrollTo}
-                />
+                <AboutSection />
+                <ContactSection onContactSales={() => openContactSales('Contact')} />
             </main>
 
-            {/* Chat floating action button */}
+            {/* Mobile sticky CTA + chat button */}
+            <HubMobileStickyCTA onContactSales={() => openContactSales('Mobile Sticky CTA')} />
             <HubChatFab onContactSales={() => openContactSales('WhatsApp FAB')} />
 
             <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={closeContactSales} source={contactDrawerSource} />

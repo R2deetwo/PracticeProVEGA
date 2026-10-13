@@ -1,0 +1,33 @@
+P1 AC2 — contrast AFTER (redesigned hub, 1440x900)
+hero headline: 15.80:1 (fg rgb(20, 23, 26) on rgb(243, 240, 232)) — PASS
+hero paragraph: 5.52:1 (fg rgb(92, 98, 88) on rgb(243, 240, 232)) — PASS
+nav link: 15.80:1 (fg rgb(20, 23, 26) on rgb(243, 240, 232)) — PASS
+mono section label: 5.52:1 (fg rgb(92, 98, 88) on rgb(243, 240, 232)) — PASS
+index body text: 5.52:1 (fg rgb(92, 98, 88) on rgb(243, 240, 232)) — PASS
+work body text: 5.52:1 (fg rgb(92, 98, 88) on rgb(243, 240, 232)) — PASS
+primary CTA: 5.46:1 (fg rgb(20, 23, 26) on rgb(22, 163, 74)) — PASS
+text link: 15.80:1 (fg rgb(20, 23, 26) on rgb(243, 240, 232)) — PASS
+
+AC7 moss usage in #main-content: {"mossCtaElements":3,"mossOtherElements":10} (CTA fills + fact bullets + diagram dots — the signal never paints large surfaces)
+
+AC3 network log for / (after):
+  vendor-pdf-D96jt_xC.js                    315 KB
+  index-vx3UWDs_.js                       725.3 KB
+  module-shared-DmoBghBT.js                 1.8 KB
+  vendor-animation-XoWDvZcM.js             40.6 KB
+  vendor-convex-CQJX0U6N.js                  22 KB
+  vendor-react-COY0iz7A.js                 48.3 KB
+  vendor-icons-CVA6SdVQ.js                  6.1 KB
+  module-research-De508m2r.js              33.4 KB
+  module-atrium-BRibuUk-.js                81.2 KB
+  module-settings-DXn9pS0y.js             319.6 KB
+  vendor-ai-BEB5csrM.js                      61 KB
+  module-documents-DK5YyhAD.js             75.8 KB
+  vendor-editor-D0UdsnC7.js               146.4 KB
+  TOTAL JS: 1876.5 KB (before: 2075.7 KB) — three.module requested: NO — PASS
+
+AC4 screenshots: hub-desktop-00..07.png in docs/brand/p1/after/
+AC4 hero fit @390x844: {"h1Bottom":275,"ctas":[52,515,503,11192,844],"overflowX":false} (both CTA bottoms must be <= 844)
+
+AC6 axe-core (WCAG 2.0/2.1 A+AA) — Lighthouse unavailable in sandbox:
+  0 violations — PASS
