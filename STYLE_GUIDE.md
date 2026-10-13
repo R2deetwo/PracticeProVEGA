@@ -6,10 +6,20 @@ This style guide defines the visual identity, spacing scales, and layout rules f
 
 ## 1. Brand & Semantic Color System
 
-### Primary Corporate Palette
-- **Dark Moss Green:** `#4A694C` (RGB 74, 105, 76) — Used for main brand accents, headers, and primary actions.
-- **Backgrounds:** Clean White (`#FFFFFF`) or Off-white (`#F9FAFB`).
-- **Text & Accents:** True Black (`#000000`) and Deep Slate/Charcoal (`#1F2937`).
+> **RETIRED (P0 brand source-of-truth split, 2026-10-13).** The colour
+> sections of this guide are superseded by the per-surface brand records:
+>
+> - The company/hub identity: `docs/brand/practicepro.md`
+> - Vega (legal, /vega): `docs/brand/vega.md` — shipped night/gilt tokens
+> - Atrium (property, /atrium): `docs/brand/atrium.md` — shipped emerald tokens
+>
+> The historical "Dark Moss Green `#4A694C`" palette below is **LEGACY** —
+> it never described the shipped product surfaces and is retained for
+> archaeology only.
+
+### LEGACY — Primary Corporate Palette (superseded)
+- **Dark Moss Green:** `#4A694C` (RGB 74, 105, 76) — *legacy, unused on the
+  shipped marketing surfaces.*
 
 ### ALOA / ARIA Semantic State Colors
 To prevent brand confusion with Dark Moss Green, use these desaturated, soft semantic background and text pairings for warning and alert states:

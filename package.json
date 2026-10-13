@@ -44,6 +44,8 @@
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/push-notifications": "^8.1.2",
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/fraunces": "^5.3.0",
     "@fontsource/dancing-script": "^5.3.0",
     "@fontsource/figtree": "^5.3.0",

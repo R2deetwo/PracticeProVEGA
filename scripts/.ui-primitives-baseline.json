@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-12T14:44:55.935Z",
+  "generatedAt": "2026-10-13T10:38:09.704Z",
   "totals": {
-    "button": 1737,
-    "input": 425,
+    "button": 1689,
+    "input": 420,
     "select": 143,
-    "textarea": 62
+    "textarea": 61
   },
-  "total": 2367,
+  "total": 2313,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -122,10 +122,6 @@
     },
     "src/components/InlineMatterReview.tsx": {
       "button": 9,
-      "input": 1
-    },
-    "src/components/LandingPage.tsx": {
-      "button": 45,
       "input": 1
     },
     "src/components/LinkAutocomplete.tsx": {
@@ -659,11 +655,6 @@
     },
     "src/components/layout/SplitMasterDetail.tsx": {
       "button": 1
-    },
-    "src/components/marketing/ContactSalesDrawer.tsx": {
-      "button": 3,
-      "input": 4,
-      "textarea": 1
     },
     "src/components/messaging/AutomationWorkflows.tsx": {
       "button": 12,

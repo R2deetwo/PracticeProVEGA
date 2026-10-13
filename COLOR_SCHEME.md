@@ -1,10 +1,22 @@
 # Color Scheme — PracticePro Brand Palette
 
+> **COLOUR SECTIONS RETIRED (P0 brand source-of-truth split, 2026-10-13).**
+> Product-surface colour truth now lives in the per-surface brand records:
+>
+> - `docs/brand/practicepro.md` — the company/hub identity
+> - `docs/brand/vega.md` — Vega's SHIPPED Night Chambers tokens (this file's
+>   "Vega amber" row was stale: /vega ships night/gilt, not amber)
+> - `docs/brand/atrium.md` — Atrium's shipped emerald tokens
+>
+> The tables below are retained as **LEGACY** reference for the in-app
+> (non-marketing) token system, which remains defined in `src/index.css` +
+> `tailwind.config.ts`.
+
 The design system is **CSS-variable driven** (Tailwind reads `rgb(var(--…) / <alpha>)`), which gives us runtime-switchable light/dark palettes and per-product accent theming without class swaps. Source of truth: `src/index.css` (variables) + `tailwind.config.ts` (mapping).
 
 ---
 
-## 1. Core neutrals (both products)
+## LEGACY 1. Core neutrals (both products)
 
 | Token | Light value | Meaning |
 |-------|-------------|---------|

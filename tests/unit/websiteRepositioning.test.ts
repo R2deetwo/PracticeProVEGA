@@ -69,30 +69,45 @@ import { join } from "node:path";
 const repoRoot = join(__dirname, "..", "..");
 const read = (...p: string[]) => readFileSync(join(repoRoot, ...p), "utf-8");
 const landing = read("src", "components", "LandingPage.tsx");
+// P0 sites split: the three surfaces moved out of LandingPage.tsx into
+// src/sites/{hub,vega,atrium}. The hub branch is now three files (the
+// moved sections, the shell, the composition); `hub` is their union —
+// the faithful equivalent of the old single-file hub branch.
+const hubSections = read("src", "sites", "hub", "sections", "HubSections.tsx");
+const hubShell = read("src", "sites", "hub", "HubShell.tsx");
+const hubIndex = read("src", "sites", "hub", "index.tsx");
+const hub = hubSections + "\n" + hubShell + "\n" + hubIndex;
+const vegaSite = read("src", "sites", "vega", "index.tsx");
+const vegaShell = read("src", "sites", "vega", "VegaShell.tsx");
+const atriumSite = read("src", "sites", "atrium", "index.tsx");
+const atriumShell = read("src", "sites", "atrium", "AtriumShell.tsx");
+const productPages = vegaSite + "\n" + vegaShell + "\n" + atriumSite + "\n" + atriumShell;
+const sharedChrome = read("src", "sites", "shared", "useSiteChrome.ts");
+const surfaces = landing + "\n" + hub + "\n" + productPages;
 const index = read("index.html");
 const scene = read("src", "components", "marketing", "MorphScene.tsx");
 const coreScene = read("src", "components", "marketing", "SystemCoreScene.tsx");
 const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 // Vega Pass A — the page-specific rebuild files under marketing/vega/.
-const vegaHero = read("src", "components", "marketing", "vega", "VegaHero.tsx");
-const vegaMatters = read("src", "components", "marketing", "vega", "VegaMattersLedger.tsx");
-const vegaProcedure = read("src", "components", "marketing", "vega", "VegaProcedure.tsx");
-const vegaCredentials = read("src", "components", "marketing", "vega", "VegaCredentials.tsx");
-const vegaFAQ = read("src", "components", "marketing", "vega", "VegaFAQInk.tsx");
-const vegaFinalCTA = read("src", "components", "marketing", "vega", "VegaFinalCTA.tsx");
-const atriumStats = read("src", "components", "marketing", "atrium", "AtriumStats.tsx");
-const atriumFeatures = read("src", "components", "marketing", "atrium", "AtriumFeatures.tsx");
-const atriumTrust = read("src", "components", "marketing", "atrium", "AtriumTrust.tsx");
-const atriumAI = read("src", "components", "marketing", "atrium", "AtriumAI.tsx");
-const atriumHowItWorks = read("src", "components", "marketing", "atrium", "AtriumHowItWorks.tsx");
-const atriumWhyRunOn = read("src", "components", "marketing", "atrium", "AtriumWhyRunOn.tsx");
-const atriumFAQ = read("src", "components", "marketing", "atrium", "AtriumFAQ.tsx");
-const atriumFinalCTA = read("src", "components", "marketing", "atrium", "AtriumFinalCTA.tsx");
+const vegaHero = read("src", "sites", "vega", "sections", "VegaHero.tsx");
+const vegaMatters = read("src", "sites", "vega", "sections", "VegaMattersLedger.tsx");
+const vegaProcedure = read("src", "sites", "vega", "sections", "VegaProcedure.tsx");
+const vegaCredentials = read("src", "sites", "vega", "sections", "VegaCredentials.tsx");
+const vegaFAQ = read("src", "sites", "vega", "sections", "VegaFAQInk.tsx");
+const vegaFinalCTA = read("src", "sites", "vega", "sections", "VegaFinalCTA.tsx");
+const atriumStats = read("src", "sites", "atrium", "sections", "AtriumStats.tsx");
+const atriumFeatures = read("src", "sites", "atrium", "sections", "AtriumFeatures.tsx");
+const atriumTrust = read("src", "sites", "atrium", "sections", "AtriumTrust.tsx");
+const atriumAI = read("src", "sites", "atrium", "sections", "AtriumAI.tsx");
+const atriumHowItWorks = read("src", "sites", "atrium", "sections", "AtriumHowItWorks.tsx");
+const atriumWhyRunOn = read("src", "sites", "atrium", "sections", "AtriumWhyRunOn.tsx");
+const atriumFAQ = read("src", "sites", "atrium", "sections", "AtriumFAQ.tsx");
+const atriumFinalCTA = read("src", "sites", "atrium", "sections", "AtriumFinalCTA.tsx");
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    expect(landing).toContain("Build systems that help");
+    expect(hub).toContain("Build systems that help");
     // W17: the promise is “Build systems that help scale your X”. X is a
     // single noun the owner recognises, and ONLY the noun ever changes.
     // W16 padded every noun into a box as wide as “organization” — a dead
@@ -101,41 +116,41 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     // reserve, no trailing gap, no full stop, and the line count is
     // locked (below sm the noun owns its own line; from sm up the final
     // line is sized for the widest noun).
-    expect(landing).toContain("scale your");
-    expect(landing).toContain("SCALE_NOUNS");
-    expect(landing).not.toContain("SCALE_NOUN_RESERVE");
-    expect(landing).toContain("getBoundingClientRect().width");
-    expect(landing).toContain("ResizeObserver");
-    expect(landing).toContain("document.fonts.ready");
+    expect(hub).toContain("scale your");
+    expect(hub).toContain("SCALE_NOUNS");
+    expect(hub).not.toContain("SCALE_NOUN_RESERVE");
+    expect(hub).toContain("getBoundingClientRect().width");
+    expect(hub).toContain("ResizeObserver");
+    expect(hub).toContain("document.fonts.ready");
     // No full stop riding the cycling word.
-    expect(landing).not.toContain("{SCALE_NOUNS[i]}.");
+    expect(hub).not.toContain("{SCALE_NOUNS[i]}.");
     // The noun owns its line below sm — no noun can change the wrap.
-    expect(landing).not.toContain("scale your{' '}<ScalingNoun />");
-    expect(landing).toContain('<br className="sm:hidden" />');
-    expect(landing).toContain("'business'");
-    expect(landing).toContain("'practice'");
-    expect(landing).toContain("'firm'");
-    expect(landing).toContain("'clinic'");
-    expect(landing).toContain("'pharmacy'");
-    expect(landing).toContain("'school'");
-    expect(landing).toContain("'restaurant'");
-    expect(landing).toContain("'organization'");
-    expect(landing).not.toContain("scale with.");
-    expect(landing).not.toContain("SCALE_VERTICALS");
-    expect(landing).not.toContain("businesses run on.");
+    expect(hub).not.toContain("scale your{' '}<ScalingNoun />");
+    expect(hub).toContain('<br className="sm:hidden" />');
+    expect(hub).toContain("'business'");
+    expect(hub).toContain("'practice'");
+    expect(hub).toContain("'firm'");
+    expect(hub).toContain("'clinic'");
+    expect(hub).toContain("'pharmacy'");
+    expect(hub).toContain("'school'");
+    expect(hub).toContain("'restaurant'");
+    expect(hub).toContain("'organization'");
+    expect(hub).not.toContain("scale with.");
+    expect(hub).not.toContain("SCALE_VERTICALS");
+    expect(hub).not.toContain("businesses run on.");
   });
 
   it("W17 — the page decorates in the brand's green, not amber (owner: “quite a cry from my colors”)", () => {
     // Gradient type: mint → emerald → green, never amber-led. W18: the
     // ramp is painted per span — “scale your” wears mint → emerald, the
     // cycling noun wears emerald → green (see the W18 test below).
-    expect(landing).toContain("linear-gradient(to right, #6EE7B7, #34D399)");
-    expect(landing).toContain("linear-gradient(to right, #34D399, #4ADE80)");
-    expect(landing).not.toContain("#F59E0B");
+    expect(hub).toContain("linear-gradient(to right, #6EE7B7, #34D399)");
+    expect(hub).toContain("linear-gradient(to right, #34D399, #4ADE80)");
+    expect(hub).not.toContain("#F59E0B");
     // The clouds/aurora glows are green.
-    expect(landing).not.toContain("bg-amber-500/10 blur-[110px]");
-    expect(landing).not.toContain("bg-amber-500/[0.07]");
-    expect(landing).not.toContain("bg-amber-400/70");
+    expect(hub).not.toContain("bg-amber-500/10 blur-[110px]");
+    expect(hub).not.toContain("bg-amber-500/[0.07]");
+    expect(hub).not.toContain("bg-amber-400/70");
     // The 3D scenes kiss their crests and rims in mint, not amber.
     expect(scene).not.toContain("#D97706");
     expect(scene).toContain("#6EE7B7");
@@ -156,57 +171,57 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     // descendants from the ancestor's text clip — the noun inherited
     // colour:transparent and vanished. Every text-bearing span is now
     // self-sufficient.
-    expect(landing).toContain(
+    expect(hub).toContain(
       'className="inline-block align-baseline text-transparent bg-clip-text pb-1"',
     );
-    expect(landing).toContain(
+    expect(hub).toContain(
       "backgroundImage: 'linear-gradient(to right, #34D399, #4ADE80)'",
     );
     // At rest the slot carries NO transform/filter — it must never sit
     // in its own stacking context (none still transitions to value, so
     // the exchange stays fluid).
-    expect(landing).toContain("transform: on ? 'none' : 'translateY(-0.22em)'");
-    expect(landing).toContain("filter: on ? 'none' : 'blur(5px)'");
+    expect(hub).toContain("transform: on ? 'none' : 'translateY(-0.22em)'");
+    expect(hub).toContain("filter: on ? 'none' : 'blur(5px)'");
     // The wrapper around the noun must never itself clip text — only
     // the word spans do.
-    expect(landing).not.toContain("bg-clip-text inline sm:inline-block");
+    expect(hub).not.toContain("bg-clip-text inline sm:inline-block");
   });
 
   it("the hero positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
-    expect(landing).toContain("PracticePro Systems designs, builds and runs");
-    expect(landing).not.toContain("is a Lagos software company");
+    expect(hub).toContain("PracticePro Systems designs, builds and runs");
+    expect(hub).not.toContain("is a Lagos software company");
   });
 
   it("the company-and-location eyebrow is retired from the top of the page", () => {
-    expect(landing).not.toContain("PracticePro Systems · Lagos, Nigeria");
+    expect(hub).not.toContain("PracticePro Systems · Lagos, Nigeria");
   });
 
   it("the corporate nav walks the company sections", () => {
-    expect(landing).toContain("What We Do");
-    expect(landing).toContain("Our Work");
-    expect(landing).toContain("How We Work");
-    expect(landing).toContain("About");
+    expect(hub).toContain("What We Do");
+    expect(hub).toContain("Our Work");
+    expect(hub).toContain("How We Work");
+    expect(hub).toContain("About");
   });
 
   it("the services section presents builder capabilities", () => {
-    expect(landing).toContain("WHAT_WE_DO");
-    expect(landing).toContain("What we can build for you");
-    expect(landing).toContain("Custom business systems");
-    expect(landing).toContain("Custom integrations");
-    expect(landing).toContain("Payments & revenue operations");
-    expect(landing).toContain("Hosting, security & compliance");
+    expect(hub).toContain("WHAT_WE_DO");
+    expect(hub).toContain("What we can build for you");
+    expect(hub).toContain("Custom business systems");
+    expect(hub).toContain("Custom integrations");
+    expect(hub).toContain("Payments & revenue operations");
+    expect(hub).toContain("Hosting, security & compliance");
   });
 
   it("the engagement process is presented", () => {
-    expect(landing).toContain("HOW_WE_WORK");
-    expect(landing).toContain("From first conversation to a system you scale with");
-    expect(landing).toContain("Understand your operations");
-    expect(landing).toContain("Launch, train & run with you");
+    expect(hub).toContain("HOW_WE_WORK");
+    expect(hub).toContain("From first conversation to a system you scale with");
+    expect(hub).toContain("Understand your operations");
+    expect(hub).toContain("Launch, train & run with you");
   });
 
   it("the about section grounds the company in Lagos honestly", () => {
-    expect(landing).toContain("Run in production.");
-    expect(landing).toContain(
+    expect(hub).toContain("Run in production.");
+    expect(hub).toContain(
       "PracticePro Systems is a software company based in Lagos, Nigeria."
     );
   });
@@ -214,79 +229,79 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
 
 describe("W6 — the portfolio: products + client commissions", () => {
   it("presents the systems the company has built", () => {
-    expect(landing).toContain("OUR_WORK");
-    expect(landing).toContain("Systems we&apos;ve built");
+    expect(hub).toContain("OUR_WORK");
+    expect(hub).toContain("Systems we&apos;ve built");
   });
 
   it("Vega and Atrium link to their product pages", () => {
-    expect(landing).toContain("Vega — Legal Practice OS");
-    expect(landing).toContain("Atrium — Property Management OS");
-    expect(landing).toContain('href="/vega"');
-    expect(landing).toContain('href="/atrium"');
+    expect(hub).toContain("Vega — Legal Practice OS");
+    expect(hub).toContain("Atrium — Property Management OS");
+    expect(hub).toContain('href="/vega"');
+    expect(hub).toContain('href="/atrium"');
   });
 
   it("Kozy Care is presented as a client commission, live at kozycare.ng", () => {
-    expect(landing).toContain("Kozy Care");
-    expect(landing).toContain("Built for a client");
-    expect(landing).toContain("https://kozycare.ng");
+    expect(hub).toContain("Kozy Care");
+    expect(hub).toContain("Built for a client");
+    expect(hub).toContain("https://kozycare.ng");
   });
 
   it("every work card carries the Built-by mark", () => {
-    expect(landing).toContain("Built by PracticePro");
+    expect(hub).toContain("Built by PracticePro");
   });
 
   it("the hub footer sells the custom-systems line of business", () => {
-    expect(landing).toContain("Custom systems — built to order");
-    expect(landing).toContain("Kozy Care — a client build");
+    expect(hub).toContain("Custom systems — built to order");
+    expect(hub).toContain("Kozy Care — a client build");
   });
 });
 
 describe("W7 — the wow site: real screens, stack, and the preview system", () => {
   it("the capabilities marquee carries the builder vocabulary", () => {
-    expect(landing).toContain("MARQUEE_ITEMS");
-    expect(landing).toContain("Custom Integrations");
-    expect(landing).toContain("AI & Automation");
+    expect(hub).toContain("MARQUEE_ITEMS");
+    expect(hub).toContain("Custom Integrations");
+    expect(hub).toContain("AI & Automation");
   });
 
   it("every project showcases REAL SCREENS captured from the live systems", () => {
     // Vega — product page + real mobile-app screens + client portal
-    expect(landing).toContain("/assets/landing/work/vega-page.jpg");
-    expect(landing).toContain("/assets/landing/work/vega-calendar.jpg");
-    expect(landing).toContain("/assets/landing/work/vega-messages.jpg");
-    expect(landing).toContain("/assets/landing/work/vega-portal.jpg");
+    expect(hub).toContain("/assets/landing/work/vega-page.jpg");
+    expect(hub).toContain("/assets/landing/work/vega-calendar.jpg");
+    expect(hub).toContain("/assets/landing/work/vega-messages.jpg");
+    expect(hub).toContain("/assets/landing/work/vega-portal.jpg");
     // Atrium — product page + the financials app screen + residents' portal
-    expect(landing).toContain("/assets/landing/work/atrium-page.jpg");
-    expect(landing).toContain("/assets/landing/work/atrium-financials.jpg");
-    expect(landing).toContain("/assets/landing/work/atrium-portal.jpg");
+    expect(hub).toContain("/assets/landing/work/atrium-page.jpg");
+    expect(hub).toContain("/assets/landing/work/atrium-financials.jpg");
+    expect(hub).toContain("/assets/landing/work/atrium-portal.jpg");
     // Kozy Care — the client's live customer-facing system
-    expect(landing).toContain("/assets/landing/work/kozy-home.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-services.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-memberships.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-home.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-services.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-memberships.jpg");
   });
 
   it("each project presents its stack and what's inside it", () => {
-    expect(landing).toContain("Built with");
-    expect(landing).toContain("Inside the system");
+    expect(hub).toContain("Built with");
+    expect(hub).toContain("Inside the system");
     // Stack chips for all three systems (honest — verified against the repos)
-    expect(landing).toContain("'React + TypeScript', 'Convex'");
-    expect(landing).toContain("'Gemini AI'");
-    expect(landing).toContain("'Next.js', 'Prisma + Supabase'");
-    expect(landing).toContain("'Paystack'");
+    expect(hub).toContain("'React + TypeScript', 'Convex'");
+    expect(hub).toContain("'Gemini AI'");
+    expect(hub).toContain("'Next.js', 'Prisma + Supabase'");
+    expect(hub).toContain("'Paystack'");
     // What's inside
-    expect(landing).toContain("'AI drafting — DraftPro & ALOA'");
-    expect(landing).toContain("'GPS rider dispatch — 12 zones'");
+    expect(hub).toContain("'AI drafting — DraftPro & ALOA'");
+    expect(hub).toContain("'GPS rider dispatch — 12 zones'");
   });
 
   it("the preview modal opens per project and offers the live system + contact", () => {
-    expect(landing).toContain("WorkDetailModal");
-    expect(landing).toContain("Preview the system");
-    expect(landing).toContain("Ask us about a system like this");
+    expect(hub).toContain("WorkDetailModal");
+    expect(hub).toContain("Preview the system");
+    expect(hub).toContain("Ask us about a system like this");
   });
 
   it("the hero carries the morphing system with a structural CSS fallback", () => {
-    expect(landing).toContain("MorphScene");
-    expect(landing).toContain("w8-lattice-fallback");
-    expect(landing).toContain("w8-scene-enter");
+    expect(hub).toContain("MorphScene");
+    expect(hub).toContain("w8-lattice-fallback");
+    expect(hub).toContain("w8-scene-enter");
   });
 });
 
@@ -302,50 +317,51 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 
   it("sections pour into each other through visible SVG waves that morph as you scroll (W10)", () => {
-    expect(landing).toContain("FluidSeam");
+    expect(hub).toContain("FluidSeam");
     // W10: the seam is a true SVG wave — the curve reshapes with scroll.
-    expect(landing).toContain("w10-seam");
-    expect(landing).toContain("path.setAttribute");
+    expect(hub).toContain("w10-seam");
+    expect(hub).toContain("path.setAttribute");
     expect(css).toContain(".w10-seam");
     // Each seam carries its own phase so no two curves match.
-    expect(landing).toContain("phase={0}");
-    expect(landing).toContain("phase={1}");
-    expect(landing).toContain("phase={2}");
-    expect(landing).toContain("phase={3}");
+    expect(hub).toContain("phase={0}");
+    expect(hub).toContain("phase={1}");
+    expect(hub).toContain("phase={2}");
+    expect(hub).toContain("phase={3}");
     // Every tonal shift on the hub is seamed: dark→light, light→dark,
     // dark→light again, and paper→dark into the closing CTA.
-    expect(landing).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
-    expect(landing).toContain('<FluidSeam from="#FFFFFF" to="#0A101C"');
-    expect(landing).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
-    expect(landing).toContain('<FluidSeam from="#FBFBF9" to="#0A101C"');
+    expect(hub).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
+    expect(hub).toContain('<FluidSeam from="#FFFFFF" to="#0A101C"');
+    expect(hub).toContain('<FluidSeam from="#0A101C" to="#FFFFFF"');
+    expect(hub).toContain('<FluidSeam from="#FBFBF9" to="#0A101C"');
   });
 
   it("the nav carries a fluid pill that morphs between sections", () => {
-    expect(landing).toContain("w8-nav-pill");
-    expect(landing).toContain("data-nav-id");
+    expect(hub).toContain("w8-nav-pill");
+    expect(hub).toContain("data-nav-id");
     expect(css).toContain(".w8-nav-pill");
   });
 
   it("auth lives with the products, not on the company page", () => {
     // The hub hero no longer offers a sign-in…
-    expect(landing).not.toContain("Already have an account?");
-    // …the NavBar gates Log In / Start Free Trial behind productChosen and
-    // offers a quiet conversation on the company page instead.
-    expect(landing).toContain("auth lives with the products");
-    expect(landing).toContain("Talk to us");
-    expect(landing).toContain("Talk to us about your system");
+    expect(hub).not.toContain("Already have an account?");
+    // …the shell gates Log In / Start Free Trial to the product pages and
+    // offers a quiet conversation on the company page instead. (P0: the
+    // ternary NavBar is gone — each shell states its own register.)
+    expect(productPages).toContain("Right Actions — Log In / Start Free Trial on product pages");
+    expect(hub).toContain("Talk to us");
+    expect(hub).toContain("Talk to us about your system");
     // The product pages keep their conversion machinery.
-    expect(landing).toContain("Start Free Trial");
-    expect(landing).toContain("Log In");
+    expect(productPages).toContain("Start Free Trial");
+    expect(productPages).toContain("Log In");
   });
 });
 
 describe("W9/W10/W13 — the living page, then the system core", () => {
   it("the What-we-do visual is a real 3D system core — and the mark is nowhere in it (W13)", () => {
-    expect(landing).toContain('<SystemCoreScene className="w13-canvas" />');
+    expect(hub).toContain('<SystemCoreScene className="w13-canvas" />');
     // The old mark-in-a-box scene is gone from the page for good.
-    expect(landing).not.toContain("LogoScene");
-    expect(landing).not.toContain("w10-logo-box");
+    expect(hub).not.toContain("LogoScene");
+    expect(hub).not.toContain("w10-logo-box");
     // Seven modules — one per capability card below.
     expect(coreScene).toContain("MODULE_COUNT = 7");
     // The mark may never be disassembled (W10/W12 standing rule), and the
@@ -356,10 +372,10 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     expect(coreScene).not.toContain("disassembl");
     expect(coreScene).not.toContain("w10-logo");
     expect(coreScene).not.toContain("P_PATH");
-    expect(landing).not.toContain("LOGO_SHARDS");
+    expect(hub).not.toContain("LOGO_SHARDS");
     // The old facet machinery stays gone from the page for good (W10).
-    expect(landing).not.toContain("data-shard");
-    expect(landing).not.toContain("shard-socket");
+    expect(hub).not.toContain("data-shard");
+    expect(hub).not.toContain("shard-socket");
     expect(css).not.toContain(".shard-socket");
     expect(css).not.toContain(".w10-shard-overlay");
   });
@@ -368,8 +384,8 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     // The orbiting modules above carry the motion now; the cards stay calm
     // and legible — no dashed ports waiting for a trace that no longer
     // exists. Each card shows its own icon (briefcase, link, payments…).
-    expect(landing).toContain('<c.Icon className="w-6 h-6" />');
-    expect(landing).toContain("rounded-md bg-emerald-50 border border-emerald-100");
+    expect(hub).toContain('<c.Icon className="w-6 h-6" />');
+    expect(hub).toContain("rounded-md bg-emerald-50 border border-emerald-100");
   });
 
   it("everything renders INSIDE the canvas — no line may ever cross the text (W13)", () => {
@@ -380,20 +396,20 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
     expect(coreScene).not.toContain("createPortal");
     expect(coreScene).not.toContain("position: fixed");
     expect(coreScene).not.toContain("getPointAtLength");
-    expect(landing).not.toContain("data-trace-grid");
-    expect(landing).not.toContain("data-trace-slot");
-    expect(landing).not.toContain("data-trace-socket");
-    expect(landing).not.toContain("trace-port");
+    expect(hub).not.toContain("data-trace-grid");
+    expect(hub).not.toContain("data-trace-slot");
+    expect(hub).not.toContain("data-trace-socket");
+    expect(hub).not.toContain("trace-port");
     expect(css).not.toContain(".w12-trace-overlay");
     expect(css).not.toContain(".trace-port");
     // The scene still arrives with craft: a stage, an ambient CSS fallback
     // if WebGL is missing, and a caption that ties it to the cards.
-    expect(landing).toContain('className="w13-stage"');
-    expect(landing).toContain('className="w13-canvas"');
+    expect(hub).toContain('className="w13-stage"');
+    expect(hub).toContain('className="w13-canvas"');
     // W14: the owner's own words replace the jargon — "seven modules" never
     // meant anything to a layman; "making your systems one" is the promise.
-    expect(landing).toContain("Making your systems one.");
-    expect(landing).not.toContain("Seven modules. One system.");
+    expect(hub).toContain("Making your systems one.");
+    expect(hub).not.toContain("Seven modules. One system.");
     expect(css).toContain(".w13-stage");
     expect(css).toContain(".w13-fallback");
     expect(css).toContain(".w13-caption");
@@ -407,35 +423,35 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
   });
 
   it("the riding-squares layer is retired — no stray floaters (W10)", () => {
-    expect(landing).not.toContain("SystemSquares");
+    expect(hub).not.toContain("SystemSquares");
     expect(css).not.toContain(".w9-squares-canvas");
   });
 
   it("text settles in softly across the hub — never a hard cut", () => {
     expect(css).toContain(".w9-reveal");
     expect(css).toContain(".w9-reveal-stagger");
-    expect(landing).toContain("w9-reveal text-center");
-    expect(landing).toContain("w9-reveal-stagger grid");
+    expect(hub).toContain("w9-reveal text-center");
+    expect(hub).toContain("w9-reveal-stagger grid");
   });
 
   it("the process walks itself — steps light up in sequence", () => {
-    expect(landing).toContain("w9-step-node");
-    expect(landing).toContain("w9-step-card");
-    expect(landing).toContain("w9-spine-pulse");
-    expect(landing).toContain("WALKS ITSELF");
+    expect(hub).toContain("w9-step-node");
+    expect(hub).toContain("w9-step-card");
+    expect(hub).toContain("w9-spine-pulse");
+    expect(hub).toContain("WALKS ITSELF");
     expect(css).toContain(".w9-step-node.is-active");
   });
 
   it("a workflow & notification capability joins the builder services", () => {
-    expect(landing).toContain("Workflow & notification engines");
-    expect(landing).toContain("Workflow Automation");
+    expect(hub).toContain("Workflow & notification engines");
+    expect(hub).toContain("Workflow Automation");
   });
 
   it("the preview goes INSIDE with REAL captures — no mocked-up UI (W10, W15)", () => {
-    expect(landing).toContain("SystemTour");
-    expect(landing).toContain("tourSystem: 'vega'");
-    expect(landing).toContain("tourSystem: 'atrium'");
-    expect(landing).toContain("tourSystem: 'kozy'");
+    expect(hub).toContain("SystemTour");
+    expect(hub).toContain("tourSystem: 'vega'");
+    expect(hub).toContain("tourSystem: 'atrium'");
+    expect(hub).toContain("tourSystem: 'kozy'");
     // W15: every stop is a feature story with a Desktop ⇄ Mobile toggle
     // wherever both real captures exist. The owner's review removed the
     // notifications panel (the stop is Messages, the real outbox) and
@@ -478,16 +494,16 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
   });
 
   it("Kozy Care's live gallery grows — booking, portal sign-in, partner network", () => {
-    expect(landing).toContain("/assets/landing/work/kozy-book.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-login.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-partners.jpg");
-    expect(landing).toContain("Payments, receipts & invoices — Paystack");
+    expect(hub).toContain("/assets/landing/work/kozy-book.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-login.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-partners.jpg");
+    expect(hub).toContain("Payments, receipts & invoices — Paystack");
   });
 });
 
 describe("W11 — the interiors go real, and our own tool joins the portfolio", () => {
   it("Kozy Care quotes its real tagline on the card", () => {
-    expect(landing).toContain("Uncompromising care. Exceptional convenience.");
+    expect(hub).toContain("Uncompromising care. Exceptional convenience.");
   });
 
   it("the Kozy tour goes INSIDE — ordering, portal, invoice, membership, admin", () => {
@@ -509,20 +525,20 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
   });
 
   it("the Kozy gallery carries the interiors too", () => {
-    expect(landing).toContain("/assets/landing/work/kozy-order-service.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-portal-order.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-invoice.jpg");
-    expect(landing).toContain("/assets/landing/work/kozy-admin-crm.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-order-service.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-portal-order.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-invoice.jpg");
+    expect(hub).toContain("/assets/landing/work/kozy-admin-crm.jpg");
   });
 
   it("Woosh — our own free tool — joins the portfolio as a fourth entry", () => {
-    expect(landing).toContain("name: 'Woosh'");
-    expect(landing).toContain("Our tool");
-    expect(landing).toContain("https://woosh.dpdns.org");
-    expect(landing).toContain("tourSystem: 'woosh'");
+    expect(hub).toContain("name: 'Woosh'");
+    expect(hub).toContain("Our tool");
+    expect(hub).toContain("https://woosh.dpdns.org");
+    expect(hub).toContain("tourSystem: 'woosh'");
     // The stack story is capability-honest (no invented framework).
-    expect(landing).toContain("REST API + webhooks");
-    expect(landing).toContain("Verification-code extraction");
+    expect(hub).toContain("REST API + webhooks");
+    expect(hub).toContain("Verification-code extraction");
   });
 
   it("the Woosh tour shows the real tool in action, including Kozy mail", () => {
@@ -534,7 +550,7 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
   });
 
   it("the footer lists Woosh alongside the products and the client build", () => {
-    expect(landing).toContain("Woosh — free temp email");
+    expect(hub).toContain("Woosh — free temp email");
   });
 });
 
@@ -544,44 +560,47 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     // wordmark + BY PRACTICEPRO) and it navigates back to the hub; on the
     // hub the PracticePro logo scrolls to the top. The two are separate
     // buttons now — no conditional handler.
-    expect(landing).toContain("aria-label={activeProduct === 'vega' ? 'Vega — a PracticePro product, back to all products'");
-    expect(landing).toContain("onClick={onBackToHub}");
-    expect(landing).toContain("onClick={() => scrollTo('home')}");
-    expect(landing).toContain("pathname !== '/'");
-    expect(landing).toContain("navigate('/')");
-    expect(landing).toContain("BY PRACTICEPRO");
+    // P0: the ternary is gone by design — each product shell carries its
+    // own narrowed literal lockup aria-label.
+    expect(vegaShell).toContain('aria-label="Vega — a PracticePro product, back to all products"');
+    expect(atriumShell).toContain('aria-label="Atrium — a PracticePro product, back to all products"');
+    expect(productPages).toContain("onClick={onBackToHub}");
+    expect(hub).toContain("onClick={() => scrollTo('home')}");
+    expect(productPages).toContain("pathname !== '/'");
+    expect(productPages).toContain("navigate('/')");
+    expect(productPages).toContain("BY PRACTICEPRO");
   });
 
   it("selecting a product opens its own page in a NEW TAB (owner direction, R21)", () => {
     // The in-tab SPA product switch is retired: openProductPage opens
     // /vega or /atrium in a new tab and leaves this tab where it is.
-    expect(landing).toContain("window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer')");
-    expect(landing).not.toContain("navigate(target)");
+    expect(surfaces).toContain("window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer')");
+    expect(surfaces).not.toContain("navigate(target)");
     // Every product-selection surface opens the new tab.
-    expect(landing).toContain("onOpenProduct('vega')");
-    expect(landing).toContain("onOpenProduct('atrium')");
+    expect(hub).toContain("onOpenProduct('vega')");
+    expect(hub).toContain("onOpenProduct('atrium')");
     // The footer's product entries are real anchors that open in new tabs.
-    expect(landing).toContain('href="/vega" target="_blank" rel="noopener noreferrer"');
-    expect(landing).toContain('href="/atrium" target="_blank" rel="noopener noreferrer"');
+    expect(hub).toContain('href="/vega" target="_blank" rel="noopener noreferrer"');
+    expect(hub).toContain('href="/atrium" target="_blank" rel="noopener noreferrer"');
     // The work cards' Explore CTAs are external links now.
-    expect(landing).toContain("label: 'Explore Vega', href: '/vega', external: true");
-    expect(landing).toContain("label: 'Explore Atrium', href: '/atrium', external: true");
+    expect(hub).toContain("label: 'Explore Vega', href: '/vega', external: true");
+    expect(hub).toContain("label: 'Explore Atrium', href: '/atrium', external: true");
   });
 
   it("the hero sells the problem, not the product catalogue", () => {
     // The "Our products" quick-links are gone from the hero — too early.
-    expect(landing).not.toContain("Our products</span>");
+    expect(hub).not.toContain("Our products</span>");
     // The description plants the pain instead of listing the portfolio.
-    expect(landing).toContain("arrive on WhatsApp to the receipts that leave with every job");
+    expect(hub).toContain("arrive on WhatsApp to the receipts that leave with every job");
   });
 
   it("a mirror before the pitch: Sound familiar? names the visitor's friction", () => {
-    expect(landing).toContain("PAIN_MIRROR");
-    expect(landing).toContain("Sound familiar?");
-    expect(landing).toContain("just not software");
-    expect(landing).toContain("You need a system");
-    expect(landing).toContain("Tell us what runs your business today");
-    expect(landing).toContain('<PainMirrorSection onContactSales');
+    expect(hub).toContain("PAIN_MIRROR");
+    expect(hub).toContain("Sound familiar?");
+    expect(hub).toContain("just not software");
+    expect(hub).toContain("You need a system");
+    expect(hub).toContain("Tell us what runs your business today");
+    expect(hub).toContain('<PainMirrorSection onContactSales');
   });
 
   it("the orb zips a point toward the pointer — wave out, echo back (MorphScene)", () => {
@@ -609,52 +628,53 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
   });
 
   it("each capability card receives its own shape on landing", () => {
-    expect(landing).toContain("useLandingCards");
-    expect(landing).toContain("w14-card");
-    expect(landing).toContain("w14-shape");
-    expect(landing).toContain("w14-chip");
-    expect(landing).toContain('id="whatWeDoGrid"');
-    expect(landing).toContain("CARD_SHAPES");
+    expect(hub).toContain("useLandingCards");
+    expect(hub).toContain("w14-card");
+    expect(hub).toContain("w14-shape");
+    expect(hub).toContain("w14-chip");
+    expect(hub).toContain('id="whatWeDoGrid"');
+    expect(hub).toContain("CARD_SHAPES");
     expect(css).toContain(".w14-card.w14-landed .w14-shape");
     expect(css).toContain(".w14-card.w14-landed .w14-chip::after");
     // The cue under the scene continues the descent to the cards.
-    expect(landing).toContain("scrollTo('whatWeDoGrid')");
+    expect(hub).toContain("scrollTo('whatWeDoGrid')");
   });
 });
 
 describe("W1/W2 — company-behind-products framing on the website", () => {
   it("the footer names the company's role and carries the Built-by mark", () => {
-    expect(landing).toContain(
+    expect(hub).toContain(
       "We design, build and run the systems businesses manage their affairs with"
     );
-    expect(landing).toContain("From Lagos, for businesses anywhere");
-    expect(landing).toContain("Vega &amp; Atrium · Built by PracticePro");
+    expect(hub).toContain("From Lagos, for businesses anywhere");
+    expect(hub).toContain("Vega &amp; Atrium · Built by PracticePro");
   });
 
   it("product heroes carry the Built-by attribution eyebrow", () => {
     // Pass A: Vega's eyebrow moves to its own register ("The Chambers
     // Standard") so it no longer mirrors Atrium's "Product · Built by…"
     // pattern; the Built-by attribution itself survives on both pages.
-    expect(landing).toContain("'The Chambers Standard — Built by PracticePro'");
-    expect(landing).toContain("'Atrium · Built by PracticePro'");
+    expect(vegaSite).toContain("'The Chambers Standard — Built by PracticePro'");
+    expect(atriumSite).toContain("'Atrium · Built by PracticePro'");
   });
 
   it("sections name the product, never 'run on PracticePro'", () => {
     // Pass B: both attestations live in the product-owned files.
     expect(vegaCredentials).toContain("Why firms run on Vega");
     expect(atriumWhyRunOn).toContain("Why portfolios run on Atrium");
-    expect(landing).not.toContain("run on PracticePro");
+    expect(surfaces).not.toContain("run on PracticePro");
   });
 });
 
 describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections", () => {
   it("/vega renders ONLY Vega-owned sections — zero shared sections, different inventory + order", () => {
-    // Extract the vega branch of the product-page render.
-    const branch = landing.match(
-      /\{activeProduct === 'vega' \? \(([\s\S]*?)\n {20}\) : \(/
+    // P0 split: the vega render branch moved verbatim into its own file,
+    // src/sites/vega/index.tsx — the <main> element IS the branch (the
+    // shell chrome below it is the site's own, not shared sections).
+    const body = vegaSite.slice(
+      vegaSite.indexOf("<VegaHero"),
+      vegaSite.indexOf("</main>")
     );
-    expect(branch).not.toBeNull();
-    const body = branch![1];
     // None of the shared template sections render on /vega.
     for (const s of [
       "StatsDemarcator",
@@ -691,7 +711,8 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
   it("the vega branch never imports an atrium component and vice versa", () => {
     // Cross-page isolation: vega files import no atrium components.
     for (const src of [vegaHero, vegaMatters, vegaProcedure, vegaCredentials, vegaFAQ, vegaFinalCTA]) {
-      expect(src).not.toContain("marketing/atrium/");
+      expect(src).not.toContain("sites/atrium/");
+      expect(src).not.toContain("../../atrium/");
       expect(src).not.toContain("AtriumHero");
       expect(src).not.toContain("AtriumReceipt");
     }
@@ -727,7 +748,7 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
   });
 
   it("the stat-chip row is replaced by a mono index line", () => {
-    expect(landing).toContain("import { VegaIndexLine }");
+    expect(vegaSite).toContain("import { VegaIndexLine }");
     // No rounded stat cards on /vega — the shared chip row is atrium-only.
     expect(vegaMatters).not.toContain("VEGA_STATS");
   });
@@ -746,14 +767,14 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
 
   it("pricing tiers are retired from the product pages (owner direction, R21)", () => {
     // The rate-card sections are deleted outright.
-    expect(landing).not.toContain("VegaPricingLedger");
-    expect(landing).not.toContain("AtriumPricing");
-    expect(landing).not.toContain("getDisplayTiersForProduct");
-    expect(landing).not.toContain('scrollTo(\'pricing\')');
-    expect(landing).not.toContain("id=\"pricing\"");
+    expect(surfaces).not.toContain("VegaPricingLedger");
+    expect(surfaces).not.toContain("AtriumPricing");
+    expect(surfaces).not.toContain("getDisplayTiersForProduct");
+    expect(surfaces).not.toContain('scrollTo(\'pricing\')');
+    expect(surfaces).not.toContain("id=\"pricing\"");
     // No tier names leak anywhere on the marketing surface.
     for (const tier of ["Most Popular", "Start Growth", "Start Pro Trial", "Save 20%"]) {
-      expect(landing).not.toContain(tier);
+      expect(hub).not.toContain(tier);
     }
     // The Komplete + bespoke cross-sells survive, relocated to the
     // colophon CTA band with the same verbatim copy.
@@ -794,28 +815,30 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
 
 describe("Atrium rebrand — 'The Well-Kept Estate' register on /atrium", () => {
   it("the photography-led hero and signature sections are wired in", () => {
-    expect(landing).toContain("import { AtriumHero } from './marketing/atrium/AtriumHero'");
-    expect(landing).toContain("import { AtriumReceipt } from './marketing/atrium/AtriumReceipt'");
-    expect(landing).toContain("import { AtriumEstate } from './marketing/atrium/AtriumEstate'");
-    expect(landing).toContain("import { AtriumSentryPass } from './marketing/atrium/AtriumSentryPass'");
-    expect(landing).toContain("<AtriumEstate />");
-    expect(landing).toContain("<AtriumReceipt />");
-    expect(landing).toContain("<AtriumSentryPass />");
+    expect(atriumSite).toContain("import { AtriumHero } from './sections/AtriumHero'");
+    expect(atriumSite).toContain("import { AtriumReceipt } from './sections/AtriumReceipt'");
+    expect(atriumSite).toContain("import { AtriumEstate } from './sections/AtriumEstate'");
+    expect(atriumSite).toContain("import { AtriumSentryPass } from './sections/AtriumSentryPass'");
+    expect(atriumSite).toContain("<AtriumEstate />");
+    expect(atriumSite).toContain("<AtriumReceipt />");
+    expect(atriumSite).toContain("<AtriumSentryPass />");
   });
 
   it("hero CTAs carry the atrium emerald tone, not the moss ramp", () => {
-    expect(landing).toContain('tone="atrium"');
-    expect(landing).toContain("eyebrow={'Atrium · Built by PracticePro'}");
+    expect(atriumSite).toContain('tone="atrium"');
+    expect(atriumSite).toContain("eyebrow={'Atrium · Built by PracticePro'}");
   });
 
   it("the old cycling-screenshot hero is retired", () => {
-    expect(landing).not.toContain("const HomeSection");
-    expect(landing).not.toContain("atrium-hero-1.jpg");
+    expect(surfaces).not.toContain("const HomeSection");
+    expect(surfaces).not.toContain("atrium-hero-1.jpg");
   });
 
   it("the AI band is anchorable and the body carries the atrium hook", () => {
     expect(atriumAI).toContain('id="ai-capabilities"');
-    expect(landing).toContain("body.classList.toggle('on-atrium-page', onAtrium)");
+    // P0: the body-class machinery moved to shared/useSiteChrome.ts, parametrised
+    // by the site's product instead of the old onAtrium boolean.
+    expect(sharedChrome).toContain("body.classList.toggle('on-atrium-page', product === 'atrium')");
   });
 
   it("no dark bands on /atrium: AI capabilities and the final CTA go light", () => {
@@ -831,7 +854,7 @@ describe("Atrium rebrand — 'The Well-Kept Estate' register on /atrium", () => 
     expect(atriumFinalCTA).not.toContain("bg-vega-ink");
     expect(atriumFinalCTA).toContain("var(--color-sage)");
     // The old bg-primary-600 band stays retired.
-    expect(landing).not.toContain("'bg-primary-600'");
+    expect(hub).not.toContain("'bg-primary-600'");
   });
 });
 
@@ -849,14 +872,16 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
       "FAQSection",
       "FinalCTASection",
     ]) {
-      expect(landing).not.toContain(`<${s}`);
-      expect(landing).not.toContain(`const ${s}`);
+      expect(hub).not.toContain(`<${s}`);
+      expect(hub).not.toContain(`const ${s}`);
     }
     // The atrium composition: 12 bands, this exact order (R21: the SCE
     // pricing band was removed by owner direction — pricing is sales-led).
-    const marker = landing.indexOf("<AtriumHero");
+    // P0 split: the atrium render branch moved verbatim into its own file;
+    // bound to the <main> element exactly as the vega pin above.
+    const marker = atriumSite.indexOf("<AtriumHero");
     expect(marker).toBeGreaterThan(-1);
-    const tail = landing.slice(marker);
+    const tail = atriumSite.slice(marker, atriumSite.indexOf("</main>"));
     const order = (tail.match(/<(Atrium[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
@@ -878,7 +903,8 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
 
   it("the atrium files never import a vega component (cross-page isolation)", () => {
     for (const src of [atriumStats, atriumFeatures, atriumTrust, atriumAI, atriumHowItWorks, atriumWhyRunOn, atriumFAQ, atriumFinalCTA]) {
-      expect(src).not.toContain("marketing/vega/");
+      expect(src).not.toContain("sites/vega/");
+      expect(src).not.toContain("../../vega/");
       expect(src).not.toContain("VegaHero");
       expect(src).not.toContain("font-vega");
       expect(src).not.toContain("bg-vega-ink");
@@ -932,13 +958,13 @@ describe("W3 — honest social proof (P8)", () => {
       "Emeka Obi",
     ];
     for (const name of personas) {
-      expect(landing).not.toContain(name);
+      expect(hub).not.toContain(name);
     }
   });
 
   it("no five-star testimonial markup; capability cards instead", () => {
-    expect(landing).not.toContain("Star rating");
-    expect(landing).not.toContain("M9.049 2.927"); // the deleted star SVG path
+    expect(hub).not.toContain("Star rating");
+    expect(hub).not.toContain("M9.049 2.927"); // the deleted star SVG path
     // Pass B: the capability attestations live in the product-owned
     // files — Vega's credentials section, Atrium's why-run-on band.
     expect(vegaCredentials).toContain("Drafted for Nigerian courts");

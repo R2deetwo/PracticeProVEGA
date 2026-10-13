@@ -98,6 +98,45 @@ const eslintConfig = [
     },
   },
   {
+    // ── P0 sites split — surface boundaries (owner direction) ───────────
+    // Each site may import from its own tree, src/sites/shared/**, and the
+    // non-site code (components/, constants/, convex/, utils/…). It may NOT
+    // import a sibling site — Vega, Atrium and the hub are independent
+    // surfaces (the seam for standalone product domains). Relative imports
+    // climbing out of one site into another are matched at any depth.
+    files: ["src/sites/vega/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          regex: "^(\\.\\./)+(atrium|hub)/",
+          message: "Boundary violation: src/sites/vega/** may not import from src/sites/atrium/** or src/sites/hub/**. Only src/sites/shared/** is shared.",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["src/sites/atrium/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          regex: "^(\\.\\./)+(vega|hub)/",
+          message: "Boundary violation: src/sites/atrium/** may not import from src/sites/vega/** or src/sites/hub/**. Only src/sites/shared/** is shared.",
+        }],
+      }],
+    },
+  },
+  {
+    files: ["src/sites/hub/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          regex: "^(\\.\\./)+(vega|atrium)/",
+          message: "Boundary violation: src/sites/hub/** may not import from src/sites/vega/** or src/sites/atrium/**. Only src/sites/shared/** is shared.",
+        }],
+      }],
+    },
+  },
+  {
     // 41 pre-existing disable comments reference rules that are off (mostly
     // react-hooks/exhaustive-deps). They were inert while the config crashed;
     // keep them inert now that lint actually runs.
