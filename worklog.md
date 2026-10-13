@@ -12912,3 +12912,5 @@ Work Log:
 
 Stage Summary:
 - The hub is back to its pre-restyle look and its 3D now tells an order's story. Commit 94a934d3 on brand/hub-restore-3d. Rollback: promote any older full SHA.
+
+**LIVE (2026-10-13 17:46Z):** hub-restore-3d promoted to production at c60c685a (run 38440753815: typecheck/tests ✅, Vercel+Convex ✅, live-verify ✅; Cloudflare mirror ❌ at the standing expired CLOUDFLARE_API_TOKEN check — mirror-only, owner action). version.json healthy at c60c685a; live bundle index-BWvcTeC8.js carries the Phase C H1, the stage captions and the C4 titles (1/1/1 hits). Rollback: promote any older full SHA.
