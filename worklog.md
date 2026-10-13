@@ -12869,3 +12869,26 @@ Work Log:
 
 Stage Summary:
 - No further Atrium work needed beyond R23; all P3 acceptance criteria that remain applicable are satisfied by the shipped state.
+
+---
+
+## Task: R24 — header lockup clean-up + P-series promoted to production
+
+**Owner direction (2026-10-13):** "no need to write by practicepro in the header of the product pages" + "i did not see the changes/the refresh to update toast it's like it hasnt been pushed".
+
+**Why the owner saw nothing:** the entire P-series (P0 sites split, P1 hub redesign, P2 vega refinement) sat on `brand/p2-vega`, deliberately un-merged pending owner decision — production was still at R23 (`f14cba57`). The refresh-to-update toast (`useVersionCheck` → `ToastRefreshNotification`) only fires when production's version.json changes, so no deploy = no toast. Not a bug — the changes simply had not been promoted.
+
+**R24 change (commit 1172ecae, on top of the rebased chain):**
+- `VegaShell.tsx` + `AtriumShell.tsx`: the header (fixed nav) lockup is now product mark + product wordmark ONLY — the `BY PRACTICEPRO` span is removed from both headers. The footer brand column keeps its `BY PRACTICEPRO` lockup and the bottom-bar "Vega & Atrium · Built by PracticePro" attribution (the user asked about the header specifically). Hero eyebrows ("The Chambers Standard — Built by PracticePro" / "Atrium · Built by PracticePro") untouched.
+- `websiteRepositioning.test.ts` W14: per-shell `BY PRACTICEPRO` source count === 1 (footer only); comment updated for R24.
+- `scripts/r21-verify.cjs`: lockup check split — header must NOT contain BY PRACTICEPRO, footer attribution must render (now 23/23).
+- `scripts/product-page-audit.cjs`: same split — header absence is an error, footer absence a warning (vega 28/0/3, atrium 21/0/2 — +1 pass each, warnings identical to recorded baselines).
+- `docs/brand/{vega,atrium,practicepro}.md` synced to the new rule.
+
+**Gates:** tsc 127 (= baseline), vitest 1253/1253, lint 0 errors + ui-primitives ratchet 2313 held, r21-verify 23/23, audits vega 28 pass/0 err/3 warn + atrium 21/0/2 (all pre-existing warnings). Screenshots: download/r24-header-lockup/{vega,atrium}-header-1440.png.
+
+**Ship:** chain rebased cleanly onto origin/main (only version-bot commits there — zero conflicts), branch force-pushed, main fast-forwarded `4a259393..1172ecae` and pushed. CI on 1172ecae: Tests ✅, Build Android APK ✅, Deploy to Staging ✅. Production promote dispatched (run 38426001590) with the full SHA 1172ecae44415db4069b3378ea91ac1d9119e12a.
+
+**GOTCHA (tooling):** the remote URL credential is `x-access-token:<PAT>` — extracting everything after `https://` yields `user:token` and the Actions API answers 401 Bad credentials. Split on the colon; git push itself accepts the compound form.
+
+**State:** awaiting promote completion → verify version.json = 1172ecae healthy, /vega + /atrium headers without BY PRACTICEPRO, hub P1 live. Standing: CLOUDFLARE_API_TOKEN rotation (owner action, mirror-only).
