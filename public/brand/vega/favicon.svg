@@ -1,9 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Vega — serif V + the star (Vega, brightest in Lyra) on a claret seal. -->
-  <rect x="2" y="2" width="44" height="44" rx="10" fill="#7B1E1E"/>
-  <path d="M14.5 17 L24 35.5" fill="none" stroke="#FBFBF9" stroke-width="4"/>
-  <path d="M33.5 17 L24 35.5" fill="none" stroke="#FBFBF9" stroke-width="4"/>
-  <path d="M11.5 16.8 H17" stroke="#FBFBF9" stroke-width="3"/>
-  <path d="M31 16.8 H36.5" stroke="#FBFBF9" stroke-width="3"/>
-  <path d="M24 5.5 C24.85 8.1 25.4 8.65 28 9.5 C25.4 10.35 24.85 10.9 24 13.5 C23.15 10.9 22.6 10.35 20 9.5 C22.6 8.65 23.15 8.1 24 5.5 Z" fill="#D8B26C"/>
+  <!-- PracticePro Vega — the R23 mark: a solid V monogram with the star
+       (Vega, brightest in Lyra) cut into its point as a diamond void. -->
+  <defs>
+    <linearGradient id="vg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8F2A38"/>
+      <stop offset="1" stop-color="#4A0E19"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#vg)"/>
+  <path fill-rule="evenodd" d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z" fill="#F5F0E5"/>
 </svg>

@@ -1,7 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Atrium — doorway arch + floor + keystone on an emerald tile. -->
-  <rect x="2" y="2" width="44" height="44" rx="10" fill="#059669"/>
-  <path d="M16 36.5 V22 C16 14 32 14 32 22 V36.5" fill="none" stroke="#FAF7F2" stroke-width="4"/>
-  <path d="M11.5 36.5 H36.5" stroke="#FAF7F2" stroke-width="3.5"/>
-  <path d="M24 8 L27.2 11.7 L24 15.4 L20.8 11.7 Z" fill="#FAF7F2"/>
+  <!-- PracticePro Atrium — the R23 mark: a solid A monogram with a domed
+       apex (the cupola), an open doorway and a high crossbar. -->
+  <defs>
+    <linearGradient id="at" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C7A57"/>
+      <stop offset="1" stop-color="#053D2C"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#at)"/>
+  <path fill-rule="evenodd" d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z M24 14.5 L26.6 24.5 H21.4 Z" fill="#FAF7F2"/>
 </svg>

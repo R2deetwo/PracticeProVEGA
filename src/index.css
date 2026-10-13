@@ -123,6 +123,10 @@
   --color-vega-night: 7 9 15;           /* #07090F — the page ground         */
   --color-vega-night-2: 13 17 27;       /* #0D111B — panels on the ground    */
   --color-vega-parchment: 245 240 229;  /* #F5F0E5 — warm text on night      */
+  /* R23 mark grounds — the product seals are lit from the top-left and
+     fall into a deep corner; flat saturated tiles read as emoji. */
+  --color-vega-claret-lift: 143 42 56;  /* #8F2A38 — the seal's lit corner   */
+  --color-vega-oxblood: 74 14 25;       /* #4A0E19 — the seal's deep corner  */
   --font-vega-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
   /* Real Nigerian court documents are set in Times New Roman — the drafting
      exhibits use it verbatim so the demo drafts are super accurate. */
@@ -130,6 +134,10 @@
 
   /* ===== Atrium product-page tokens ("The Well-Kept Estate") ========== */
   --color-atrium-emerald: 5 150 105;    /* #059669 — Atrium's accent       */
+  /* R23 mark grounds — lit corner → deep corner, like the vega seal. */
+  --color-atrium-jade: 12 122 87;       /* #0C7A57 — the tile's lit corner */
+  --color-atrium-pine: 5 61 44;         /* #053D2C — the tile's deep corner*/
+  --color-atrium-mint: 110 231 183;     /* #6EE7B7 — the tile's inner ring */
   --color-clay: 180 132 108;            /* #B4846C — warm supporting tone  */
   --color-cream: 250 247 242;           /* #FAF7F2 — warm base surface     */
 

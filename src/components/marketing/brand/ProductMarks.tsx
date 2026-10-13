@@ -1,27 +1,30 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /**
- * ProductMarks — PracticePro product identity marks (owner direction:
- * "they should have some iconography that represents that product and we
- * retain the practicepro for main company that owns the products").
+ * ProductMarks — PracticePro product identity marks (R23).
  *
- * VEGA — a serif "V" beneath a four-pointed star. Vega is the brightest
- * star in Lyra; the star sits in the notch of the V like a star over a
- * letter. The V carries typographic serifs (the legal tradition), set on
- * a claret seal — the register of a law-report cover. The strokes use
- * the STABLE parchment token (not --color-paper) because the Night
- * Chambers page remaps --color-paper to the dark ground; the mark must
- * read identically on the light hub, the dark /vega page and the dark
- * footer. Reads at 16px.
+ * Owner direction: the literal marks (a sparkle-star seal, a doorway arch
+ * with a floating keystone) "look like emojis — absolutely far from SaaS
+ * level quality". The emoji formula is: a flat saturated tile + a literal
+ * drawn object + a cute floating detail. The R23 marks replace all three:
  *
- * ATRIUM — a doorway arch on a floor line, crowned by a keystone. The
- * atrium is the entrance hall; the arch is the property mark. Set on an
- * emerald tile — the register of the well-kept estate. Reads at 16px.
+ *   1. GEOMETRIC MONOGRAMS, not objects. Vega is one solid constructed
+ *      "V" — the star is cut INTO the letterform as a diamond void at its
+ *      point (negative space, the most premium trick in the book — the
+ *      FedEx arrow move), never a bauble floating in a notch. Atrium is
+ *      one solid constructed "A" whose apex is domed — the atrium
+ *      cupola in a single architectural gesture, no floor line, no
+ *      floating keystone.
+ *
+ *   2. QUIET GROUNDS, not stickers. One clean diagonal gradient (lit
+ *      corner → deep corner) on a squircle, no inner rings, no bevels,
+ *      no sheens — the flatness of Stripe/Slack app icons.
  *
  * Both marks draw EXCLUSIVELY from design tokens (rgb(var(--x))) so the
  * token gate stays green — no hardcoded hexes in components. The
  * standalone favicon SVGs under public/brand/ are self-contained static
- * assets (like the index.html data-URI favicon) and carry resolved hex.
+ * assets and carry resolved hex. Gradient ids are uniquified with useId —
+ * several instances render on one page (nav, dropdown, footer).
  *
  * Presentational only — zero buttons (ADR-0004).
  */
@@ -31,56 +34,75 @@ type MarkProps = {
     title?: string;
 };
 
-/** Vega — serif V + four-pointed star on a claret seal. */
-export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => (
-    <svg
-        viewBox="0 0 48 48"
-        className={className}
-        role={title ? 'img' : undefined}
-        aria-hidden={title ? undefined : true}
-        focusable="false"
-    >
-        {title && <title>{title}</title>}
-        {/* Claret seal */}
-        <rect x="2" y="2" width="44" height="44" rx="10" style={{ fill: 'rgb(var(--color-vega-claret))' }} />
-        {/* Serif V — arms + top serifs, in parchment */}
-        <path d="M14.5 17 L24 35.5" fill="none" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="4" />
-        <path d="M33.5 17 L24 35.5" fill="none" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="4" />
-        <path d="M11.5 16.8 H17" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="3" />
-        <path d="M31 16.8 H36.5" style={{ stroke: 'rgb(var(--color-vega-parchment))' }} strokeWidth="3" />
-        {/* The star — Vega, brightest in Lyra, in gilt */}
-        <path
-            d="M24 5.5 C24.85 8.1 25.4 8.65 28 9.5 C25.4 10.35 24.85 10.9 24 13.5 C23.15 10.9 22.6 10.35 20 9.5 C22.6 8.65 23.15 8.1 24 5.5 Z"
-            style={{ fill: 'rgb(var(--color-vega-gilt))' }}
-        />
-    </svg>
-);
+/** Vega — solid V monogram with the star cut into its point, on claret. */
+export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
+    const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+    return (
+        <svg
+            viewBox="0 0 48 48"
+            className={className}
+            role={title ? 'img' : undefined}
+            aria-hidden={title ? undefined : true}
+            focusable="false"
+        >
+            {title && <title>{title}</title>}
+            <defs>
+                <linearGradient id={`vgmk${uid}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="rgb(var(--color-vega-claret-lift))" />
+                    <stop offset="1" stopColor="rgb(var(--color-vega-oxblood))" />
+                </linearGradient>
+            </defs>
+            {/* The quiet ground */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#vgmk${uid})`} />
+            {/* The V — one solid constructed path, parallel arms, and a
+                chisel-flat point (a needle vertex anti-aliases to mud at
+                16px); the star (Vega, brightest in Lyra) is a diamond
+                void cut into the point, sized to the point's optical
+                centre. */}
+            <path
+                fillRule="evenodd"
+                d="M11 13 H17.8 L24 26.03 L30.2 13 H37 L25.2 37.8 H22.8 Z
+                   M24 28.3 L26.9 31.9 L24 35.5 L21.1 31.9 Z"
+                fill="rgb(var(--color-vega-parchment))"
+            />
+        </svg>
+    );
+};
 
-/** Atrium — doorway arch + floor + keystone on an emerald tile. */
-export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => (
-    <svg
-        viewBox="0 0 48 48"
-        className={className}
-        role={title ? 'img' : undefined}
-        aria-hidden={title ? undefined : true}
-        focusable="false"
-    >
-        {title && <title>{title}</title>}
-        {/* Emerald tile */}
-        <rect x="2" y="2" width="44" height="44" rx="10" style={{ fill: 'rgb(var(--color-atrium-emerald))' }} />
-        {/* The arch — the entrance hall, in cream */}
-        <path
-            d="M16 36.5 V22 C16 14 32 14 32 22 V36.5"
-            fill="none"
-            style={{ stroke: 'rgb(var(--color-cream))' }}
-            strokeWidth="4"
-        />
-        {/* The floor line */}
-        <path d="M11.5 36.5 H36.5" style={{ stroke: 'rgb(var(--color-cream))' }} strokeWidth="3.5" />
-        {/* The keystone — the estate kept, in cream */}
-        <path d="M24 8 L27.2 11.7 L24 15.4 L20.8 11.7 Z" style={{ fill: 'rgb(var(--color-cream))' }} />
-    </svg>
-);
+/** Atrium — solid A monogram with a domed apex, on pine. */
+export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
+    const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+    return (
+        <svg
+            viewBox="0 0 48 48"
+            className={className}
+            role={title ? 'img' : undefined}
+            aria-hidden={title ? undefined : true}
+            focusable="false"
+        >
+            {title && <title>{title}</title>}
+            <defs>
+                <linearGradient id={`atmk${uid}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="rgb(var(--color-atrium-jade))" />
+                    <stop offset="1" stopColor="rgb(var(--color-atrium-pine))" />
+                </linearGradient>
+            </defs>
+            {/* The quiet ground */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#atmk${uid})`} />
+            {/* The A — one solid path: domed apex (the cupola), open
+                doorway between the legs, slender counter above a HIGH
+                crossbar (optical rule: the bar rides the counter's
+                centre, not the glyph's); evenodd carves both apertures. */}
+            <path
+                fillRule="evenodd"
+                d="M21.9 11 A2.55 2.55 0 0 1 26.1 11 L35 38.5 H13 Z
+                   M20.3 38.5 L22.3 28.9 H25.7 L27.7 38.5 Z
+                   M24 14.5 L26.6 24.5 H21.4 Z"
+                fill="rgb(var(--color-cream))"
+            />
+        </svg>
+    );
+};
 
 /** The product mark for a given product id (used where the page already
  *  knows which product it is rendering — nav, footer, dropdowns). */
