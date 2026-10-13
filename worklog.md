@@ -12954,3 +12954,5 @@ Stage Summary:
 - /vega is a visibly different page: warm espresso/cream/orange, grotesk display with Fraunces italic accents, pills, floating cream cards, outlined stats — the full LawPavilion register on the R25 arrangement.
 - New marks shipped end-to-end: in-app (nav/dropdown/footer), favicons (SVG+PNG+apple-touch), og cards.
 - Owner captures: download/r26-warm-chambers/.
+
+**LIVE (2026-10-13 21:53Z):** R26 promoted to production at 1c7edbcc (run 38473576228: quality gate ✅ tsc 127 / vitest 1255 / token gate / ratchet 2313; Vercel+Convex ✅; live-verify ✅ — prod healthy at 1c7edbcc since 21:53; confirmed live: espresso ground #22170F, Space Grotesk display, pill CTAs, vega favicon links active, nav coin rendering. Cloudflare mirror ❌ at the standing expired CLOUDFLARE_API_TOKEN — mirror-only, owner action.) Rollback: promote any older full SHA.
