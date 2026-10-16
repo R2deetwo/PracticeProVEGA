@@ -119,7 +119,7 @@ export const VegaSite: React.FC = () => {
             <VegaNavBar
                 activeSection={activeSection}
                 scrollTo={scrollTo}
-                onLogin={() => openModal('login')}
+                onLogin={() => openModal('login', null, { productTheme: 'vega' })}
                 onSignup={openSignup}
                 onResources={() => navigate(vegaSiteConfig.resourcesPath)}
                 onContactSales={() => openContactSales('Nav')}

@@ -644,33 +644,38 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     }
   });
 
-  it("the hero is document-forward — night ground, no gradient headline", () => {
-    // R22 "The Night Chambers": the h1 is parchment Fraunces at law-report
-    // scale with ONE gilt-italic accent phrase — a SOLID colour span.
-    // (The ban is on gradient TEXT: bg-clip-text / transparent glyphs.
-    // The hero's night atmosphere is painted behind the type, never on it.)
+  it("the hero is conversation-forward — the evening exchange, not a filing", () => {
+    // R27 (owner direction: "a document as the landing page is IMPERSONAL"):
+    // the h1 stays parchment at law-report scale with ONE gilt-italic accent
+    // phrase — a SOLID colour span. (The ban is on gradient TEXT:
+    // bg-clip-text / transparent glyphs.) The right column is a personal
+    // chat exchange — the same practitioner the exhibit used to belong to,
+    // her file carried conversationally by ALOA, closing on the promise
+    // the document could never make.
     expect(vegaHero).not.toContain("bg-clip-text");
     expect(vegaHero).not.toContain("text-transparent");
     expect(vegaHero).not.toContain("font-vega-italic font-medium text-vega-amber-deep");
-    // The signature object: a rendered motion on pleading paper — R21:
-    // the demo drafts are SUPER ACCURATE, set in Times New Roman
-    // (vg-pleading), with real prayers, grounds and execution block.
-    expect(vegaHero).toContain("In the High Court of Lagos State");
-    expect(vegaHero).toContain("In the Ikeja Judicial Division");
-    expect(vegaHero).toContain("IKD/1287/2026");
+    // The filing is GONE from the hero — no pleading paper, no court
+    // caption, no execution block. The drafting-paper story lives in the
+    // AI band's tracked-changes exhibit instead.
+    expect(vegaHero).not.toContain("vg-pleading");
+    expect(vegaHero).not.toContain("vg-doc__line");
+    expect(vegaHero).not.toContain("In the High Court of Lagos State");
+    // The exchange: thread header, the suit, the drafting claim, the
+    // court-rule deadline, and the personal promise.
+    expect(vegaHero).toContain("ALOA · Online");
+    expect(vegaHero).toContain("IKD/1287/2026 — Okafor v Meridian Logistics");
     expect(vegaHero).toContain("Motion on Notice");
-    expect(vegaHero).toContain("prays this Honourable Court for");
-    expect(vegaHero).toContain("The grounds for this application are");
-    expect(vegaHero).toContain("vg-pleading");
-    expect(vegaHero).toContain("vg-doc__line");
+    expect(vegaHero).toContain("two clear days before hearing");
+    expect(vegaHero).toContain("Nothing. You&rsquo;re home for dinner by 6:15.");
+    expect(vegaHero).toContain("THE EVENING EXCHANGE — CHIOMA OKAFOR");
     // The title-page devices: serif display + the gilt accent + the thin
-    // gilt rule + the night atmosphere + the notary seal.
+    // gilt rule + the night atmosphere.
     expect(vegaHero).toContain("font-vega");
     expect(vegaHero).toContain("font-vega-italic text-vega-gilt-bright");
     expect(vegaHero).toContain("h-px w-24 bg-vega-gilt");
     expect(vegaHero).toContain("vg-hero-bg");
     expect(vegaHero).toContain("vg-grain");
-    expect(vegaHero).toContain("vg-seal");
   });
 
   it("the stat-chip row is replaced by a mono index line", () => {

@@ -957,7 +957,10 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     placeholder — the fill modal will format it correctly.
     `;
 
-    const modelsToTry = AI_CONFIG.gemini.fallbackPlan;
+    // R27 DraftPro strengthening: long-form legal drafting runs the
+    // draftingPlan (pro-first) — see AI_CONFIG.gemini.draftingPlan. Chat and
+    // everything else keep the flash-first fallbackPlan.
+    const modelsToTry = (AI_CONFIG.gemini as any).draftingPlan || AI_CONFIG.gemini.fallbackPlan;
     let lastError = null;
 
     // Use firm-level key if available, fall back to client-side key.
@@ -994,7 +997,10 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
                     // Token budget: longer completions for Pro-class models
                     // (agreements/conveyances easily exceed 8k output tokens).
                     // Flash-class models cap lower on their own.
-                    generationConfig: { temperature: 0.7, maxOutputTokens: modelToTest.includes('pro') ? 32768 : 8192 },
+                    // R27: 0.45 — drafting precision. The ALOA precision protocol demands
+                        // real citations only and no invented structure; the old 0.7 (a chat
+                        // temperature) let draft hallucinations through at the margins.
+                        generationConfig: { temperature: 0.45, maxOutputTokens: modelToTest.includes('pro') ? 32768 : 8192 },
                     safetySettings: [
                         { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
                         { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },

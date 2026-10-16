@@ -2,6 +2,7 @@ import React from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Modal } from './Modal';
+import { resolveAuthThemeId, AUTH_THEMES } from '../auth/authTheme';
 import { useUI } from '../../contexts/UIContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
@@ -224,12 +225,30 @@ const ModalManager: React.FC = () => {
 
   let content = null;
 
+  // R27 product-themed auth surfaces: resolve once, before the switch —
+  // the theme decides the modal chrome (hideHeader + overlay/card/bar
+  // overrides) AND is re-threaded through the login↔signup switch so the
+  // user never falls back to the generic modal mid-funnel. The switch
+  // also seeds selectedProduct from the resolved theme, so a user who
+  // opened LOGIN on /vega and then taps "switch to signup" lands on the
+  // Vega form (not the chooser) — the page they came from decides.
+  const authThemeId = (modal === 'login' || modal === 'signup')
+    ? resolveAuthThemeId(modalContext)
+    : null;
+  const authSwitchContext = () => {
+    if (!modalContext) return { productTheme: 'hub' as const };
+    const merged: Record<string, unknown> = { ...modalContext };
+    if (authThemeId === 'vega' && merged.selectedProduct == null) merged.selectedProduct = 'legal';
+    if (authThemeId === 'atrium' && merged.selectedProduct == null) merged.selectedProduct = 'property';
+    return merged;
+  };
+
   switch (modal) {
     case 'login':
-      content = <Login onSwitchToSignup={() => { closeModal(); setTimeout(() => openModal('signup'), 10); }} forClient={modalContext?.forClient} />;
+      content = <Login onSwitchToSignup={() => { closeModal(); setTimeout(() => openModal('signup', null, authSwitchContext()), 10); }} forClient={modalContext?.forClient} />;
       break;
     case 'signup':
-      content = <Signup onSwitchToLogin={() => { closeModal(); setTimeout(() => openModal('login'), 10); }} />;
+      content = <Signup onSwitchToLogin={() => { closeModal(); setTimeout(() => openModal('login', null, authSwitchContext()), 10); }} />;
       break;
     case 'collectRent': {
       const propertyId = editingId;
@@ -748,7 +767,18 @@ const ModalManager: React.FC = () => {
     : 'md';
 
   return (
-    <Modal isOpen={!!modal} onClose={() => closeModal()} title={modalTitle} size={modalSize} hideHeader={modal === 'deleteConfirmation'}>
+    <Modal
+      isOpen={!!modal}
+      onClose={() => closeModal()}
+      title={modalTitle}
+      size={modalSize}
+      hideHeader={modal === 'deleteConfirmation' || !!(authThemeId && authThemeId !== 'hub')}
+      {...(authThemeId && authThemeId !== 'hub' && AUTH_THEMES[authThemeId].chrome ? {
+        overlayClass: AUTH_THEMES[authThemeId].chrome!.overlayClass,
+        cardClass: AUTH_THEMES[authThemeId].chrome!.cardClass,
+        accentBarClass: AUTH_THEMES[authThemeId].chrome!.accentBarClass,
+      } : {})}
+    >
       {content}
     </Modal>
   );

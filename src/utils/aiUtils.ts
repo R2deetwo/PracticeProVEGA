@@ -60,6 +60,20 @@ export const AI_CONFIG = {
             'gemini-2.0-flash',
             'gemini-2.0-flash-lite',
             'gemini-2.5-pro'
+        ],
+        // 2026-10-16 (R27, owner direction: "take another look at DraftPro in
+        // the light of improved models... strengthen the product so that it
+        // has a solid tool"): long-form LEGAL DRAFTING (DraftPro/ALOA document
+        // generation) now runs PRO-FIRST — 2.5-pro's deeper reasoning and
+        // 32k output budget are the right tier for full documents with
+        // captions, prayers and attestation blocks; the flash chain remains
+        // as fallback so a pro outage degrades gracefully, never blocks.
+        draftingPlan: [
+            'gemini-2.5-pro',
+            'gemini-2.5-flash',
+            'gemini-flash-latest',
+            'gemini-2.0-flash',
+            'gemini-2.0-flash-lite'
         ]
     },
     embeddingModel: 'text-embedding-004'

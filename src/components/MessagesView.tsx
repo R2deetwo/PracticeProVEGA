@@ -829,15 +829,10 @@ const MessagesView: React.FC = () => {
     // ── Inbox: portal message reply mutations ──
     const replyToPortal = useMutation(api.portals.replyToPortalMessage);
     const sendAdminReply = useMutation(api.portals.sendAdminReply);
-    const markPortalRead = useMutation(api.portals.markPortalMessageRead);
     const markConvReadByAdmin = useMutation(api.portals.markConversationReadByAdmin);
-    // BADGE FIX (2026-09-14): the Messages badge also counts notifications
-    // rows (link.view === 'messaging') created by notifyFirmAdmins — opening
-    // a thread never cleared them ("24 messages but the badge stays at 24").
-    // markMessagingNotificationsRead clears them all when the page opens;
-    // markConversationNotificationsRead clears the ones linked to a specific
-    // thread when that thread is clicked.
-    const markMessagingNotifsRead = useMutation(api.myFunctions.markMessagingNotificationsRead);
+    // R27: per-thread clearing only — markConversationNotificationsRead
+    // drops the notifyFirmAdmins rows linked to ONE thread when that thread
+    // is clicked (the page-open mass clear was removed with the old model).
     const markConversationNotifsRead = useMutation(api.myFunctions.markConversationNotificationsRead);
 
     // ── Team Chat: server-side message + notification mutation ──
@@ -1065,69 +1060,23 @@ const MessagesView: React.FC = () => {
         }
     };
 
-    // Mark ALL inbound messages as read (clears the sidebar badge)
-    const handleMarkAllInboundRead = async () => {
-        const unreadInbound = (atriumInbound as any[]).filter((m: any) => !m.isRead);
-        if (unreadInbound.length === 0) {
-            addToast('No unread inbound messages.', { type: 'info', duration: 2000 });
-            return;
-        }
-        for (const msg of unreadInbound) {
-            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }).catch(() => {});
-        }
-        addToast(`Marked ${unreadInbound.length} message${unreadInbound.length > 1 ? 's' : ''} as read.`, { type: 'success', duration: 2000 });
-    };
-
-    // TASK 15+19: Auto-mark ALL unread messages as read when the MessagesView
-    // is first opened. This clears the sidebar badge intuitively — the admin
-    // is "viewing" the messages, so they should be marked as read.
+    // R27 MESSAGES READ MODEL (owner report: "I could see on the left panel
+    // — Messages — that there were 4 messages, but when I clicked Messages,
+    // the notification badges disappeared and it was not clear which
+    // messages were newly received; the badge should only disappear once
+    // the message is OPENED").
     //
-    // The sidebar badge counts THREE things:
-    //   1. chatNotificationCount (from coreState.notifications)
-    //   2. inboundUnread (atrium_inbound_messages where !isRead)
-    //   3. portalUnread (portal_messages where status === 'unread')
-    //
-    // Previously we only marked #2 as read. The badge stayed at 1 because
-    // #3 (portal_messages) was never marked as read. Now we mark BOTH #2
-    // and #3 as read when the MessagesView mounts.
-    const hasAutoMarkedRead = useRef(false);
-    useEffect(() => {
-        if (hasAutoMarkedRead.current) return;
-        // FIX: Previously checked `!atriumInbound && !portalMessages` which was
-        // always falsy because both are `result || []` (always truthy arrays).
-        // Now we check the RAW query results for undefined (loading state).
-        if (atriumInboundResult === undefined || portalMessagesResult === undefined) return;
-        hasAutoMarkedRead.current = true;
-
-        // Mark all unread atrium_inbound_messages as read
-        const unreadInbound = (atriumInbound as any[] || []).filter((m: any) => !m.isRead);
-        for (const msg of unreadInbound) {
-            markInboundRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }).catch(() => {});
-        }
-
-        // TASK 19: Also mark all unread portal_messages as read.
-        // The sidebar badge counts portal_messages where status === 'unread'.
-        // Use the existing markPortalMessageRead mutation for each one.
-        const unreadPortal = (portalMessages as any[] || []).filter((m: any) => m.status === 'unread' || !m.isRead);
-        for (const msg of unreadPortal) {
-            markPortalRead({ messageId: msg._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined }).catch(() => {});
-        }
-
-        // Also mark all conversations as read (unreadByAdmin → 0)
-        const unreadConversations = (portalConversations as any[] || []).filter((c: any) => (c.unreadByAdmin || 0) > 0);
-        for (const conv of unreadConversations) {
-            markConvReadByAdmin({ conversationId: String(conv._id) }).catch(() => {});
-        }
-
-        // BADGE FIX: the badge ALSO counts notifications rows where
-        // link.view === 'messaging' (created by notifyFirmAdmins for every
-        // portal message/ticket/service request). Opening the Messages page
-        // IS viewing them — mark them all read so the badge actually drops.
-        markMessagingNotifsRead({
-            userEmail: currentUser?.email,
-            sessionToken: (bearerToken ?? undefined) || undefined,
-        }).catch(() => {});
-    }, [atriumInbound, portalMessages, portalConversations]);
+    // The old model auto-marked EVERYTHING read the moment the page opened,
+    // which destroyed the signal before the admin ever saw it. Opening the
+    // page now changes NOTHING. Read state only changes when a specific
+    // thread is opened, via the row handlers that already exist:
+    //   • flat inbound rows  → markInboundRead (line ~1590)
+    //   • portal conversations → markConvReadByAdmin + markConversationNotifsRead
+    //   • team DMs           → handleMarkNotificationsRead(notifIds)
+    // The per-section unread counts + per-row bold/badges (already rendered
+    // by SectionHeader and the row markup) now actually persist until each
+    // thread is opened, and the sidebar badge (Sidebar, computed live from
+    // the same queries) drops one thread at a time.
 
     // ── Sub-thread state ──
     // When the admin taps "Reply" on a specific ticket's inline controls,

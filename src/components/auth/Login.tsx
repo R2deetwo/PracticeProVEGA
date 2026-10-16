@@ -5,6 +5,7 @@ import { inputLarge } from '../../utils/formStyles';
 import { useUI } from '../../contexts/UIContext';
 import { isNativePlatform } from '../../utils/capacitor';
 import { EyeIcon, EyeOffIcon, MailIcon, ShieldCheckIcon, WarningIcon, ZapIcon } from '../../constants';
+import { AuthHeader, AUTH_THEMES, resolveAuthThemeId } from './authTheme';
 import { useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { biometricAuth } from '../../utils/biometric';
@@ -31,7 +32,13 @@ const getPasswordStrength = (pw: string): { score: number; label: string; color:
 
 const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
  const { login, resendConfirmation } = useAuth();
- const { closeModal, addToast, setIsSessionLocked } = useUI();
+ const { closeModal, addToast, setIsSessionLocked, modalContext } = useUI();
+
+ // R27: the auth modal carries the identity of the page that opened it
+ // (owner: "the modals have not been made to match the products"). Hub,
+ // native and portal logins resolve to 'hub' and stay pixel-identical.
+ const authThemeId = resolveAuthThemeId(modalContext);
+ const authTheme = AUTH_THEMES[authThemeId];
 
  const [email, setEmail] = React.useState('');
  const [password, setPassword] = React.useState('');
@@ -277,15 +284,22 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
  };
 
  // inputLarge is now imported at top level
- const commonInputClass = inputLarge + " transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+ // R27: themed focus ring — the shared inputLarge's emerald ring belongs
+ // to the hub register; vega/atrium modals get their product's ring.
+ const commonInputClass = inputLarge
+  + ` ${authTheme.inputFocus}`
+  + " transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
  return (
   <div className="flex flex-col h-full">
    <div className="flex-grow space-y-6">
     <div className="text-center -mt-2 mb-6">
-     <h3 className="text-lg font-medium text-slate-900 ">
-      {(requiresMfa || requiresInitialPassword) ? "Two-Factor Authentication" : isRecovering ? "Reset Security Key" : "Welcome Back"}
-     </h3>
+     {authThemeId !== 'hub' && <AuthHeader theme={authTheme} mode="login" />}
+     {authThemeId === 'hub' && (
+      <h3 className="text-lg font-medium text-slate-900 ">
+       {(requiresMfa || requiresInitialPassword) ? "Two-Factor Authentication" : isRecovering ? "Reset Security Key" : "Welcome Back"}
+      </h3>
+     )}
      <p className="text-sm text-slate-500 mt-1">
       {(requiresMfa || requiresInitialPassword) ? (requiresInitialPassword ? "Enter the code we emailed you to finish setting your password." : "Enhancing your account security.") : isRecovering ? "Enter your new password below." : forClient ? "Access your secure client portal." : "Please enter your details to sign in."}
      </p>
@@ -416,7 +430,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
          type="button"
          onClick={handleResetPassword}
          disabled={isLoading || pwStrength.score < 4}
-         className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+         className={`flex-1 px-4 py-2 ${authTheme.primaryBtn} text-white rounded-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
         >
          {isLoading ? 'Resetting...' : 'Save Password'}
         </button>
@@ -464,7 +478,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
         <button
          type="button"
          onClick={handleForgotPassword}
-         className="text-primary-600 hover:underline font-medium flex items-center gap-1"
+         className={`${authTheme.linkBtn} hover:underline font-medium flex items-center gap-1`}
          disabled={isLoading || sendingReset}
         >
          {sendingReset ? <><div className="w-3 h-3 border-2 border-primary-400 border-t-transparent rounded-full animate-spin"></div> Sending...</> : 'Forgot password?'}
@@ -501,7 +515,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
        <button
         type="submit"
         disabled={isLoading}
-        className="w-full px-4 py-2.5 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className={`w-full px-4 py-2.5 ${authTheme.primaryBtn} text-white rounded-sm font-bold transition-all shadow-sm disabled:bg-slate-400 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
        >
         {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
         {isLoading ? 'Verifying...' : 'Sign In'}
@@ -519,7 +533,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
       <button
        type="submit"
        disabled={isLoading}
-       className="w-full mt-4 px-4 py-2.5 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm flex items-center justify-center gap-2 disabled:bg-slate-400"
+       className={`w-full mt-4 px-4 py-2.5 ${authTheme.primaryBtn} text-white rounded-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 disabled:bg-slate-400`}
       >
        {isLoading && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
        {isLoading ? 'Verifying Code...' : (requiresInitialPassword ? 'Verify & Set Password' : 'Verify & Sign In')}
@@ -558,7 +572,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     {!forClient && !isLoading && !requiresMfa && !requiresInitialPassword && !isRecovering && (
      <p className="text-center text-sm text-dim-600 ">
       Don't have an account?{' '}
-      <button onClick={onSwitchToSignup} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
+      <button onClick={onSwitchToSignup} className={`font-bold ${authTheme.linkBtn} hover:underline`}>
        Sign up for free
       </button>
      </p>
@@ -567,7 +581,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToSignup, forClient }) => {
     {(requiresMfa || requiresInitialPassword) && (
      <p className="text-center text-sm text-dim-500 mt-6">
       Need help?{' '}
-      <button type="button" onClick={() => { setRequiresMfa(false); setRequiresInitialPassword(false); setMCode(''); setCodeHint(null); }} className="font-bold text-primary-600 hover:underline hover:text-primary-700 transition-colors">
+      <button type="button" onClick={() => { setRequiresMfa(false); setRequiresInitialPassword(false); setMCode(''); setCodeHint(null); }} className={`font-bold ${authTheme.linkBtn} hover:underline transition-colors`}>
        Use a different account
       </button>
      </p>

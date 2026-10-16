@@ -45,8 +45,8 @@ export const PRODUCT_DISPLAY_NAMES: Record<InternalProduct, string> = {
  * mirrors the glow colors of the three chooser cards (amber / blue / indigo).
  */
 export const PRODUCT_ACCENT_COLORS: Record<InternalProduct, string> = {
-  legal: '#D97706', // amber-600 — Vega
-  property: '#2563EB', // blue-600 — Atrium
+  legal: '#E07A3F', // burnt orange — Vega's gilt (R27; was mis-registered as amber)
+  property: '#059669', // emerald — Atrium's registered identity (R27; was mis-registered as blue)
   unified: '#4F46E5', // indigo-600 — Komplete
 };
 

@@ -22,6 +22,7 @@ import {
  PRODUCT_DISPLAY_NAMES,
  PRODUCT_ACCENT_COLORS,
 } from '../../utils/signupProduct';
+import { AuthHeader, AUTH_THEMES, resolveAuthThemeId } from './authTheme';
 
 interface SignupProps {
  onSwitchToLogin: () => void;
@@ -30,6 +31,11 @@ interface SignupProps {
 const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  const { signup, verifyEmail } = useAuth();
  const { closeModal, addToast, navigateTo, modalContext } = useUI();
+
+ // R27: themed to the page that opened the funnel (owner: "the modals
+ // have not been made to match the products"). Hub/native stay 'hub'.
+ const authThemeId = resolveAuthThemeId(modalContext);
+ const authTheme = AUTH_THEMES[authThemeId];
 
  const [step, setStep] = React.useState<'product_selection' | 'form' | 'verify' | 'restore'>('product_selection');
  // FIX: Default to null instead of 'legal' (Vega). This ensures the user MUST
@@ -278,7 +284,11 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  };
 
  // inputLarge is now imported at top level
- const commonInputClass = inputLarge + " min-h-[52px] transition-all placeholder:text-slate-400";
+ // R27: themed focus ring — the shared inputLarge's emerald ring belongs
+ // to the hub register; vega/atrium modals get their product's ring.
+ const commonInputClass = inputLarge
+  + ` ${authTheme.inputFocus}`
+  + " min-h-[52px] transition-all placeholder:text-slate-400";
 
  // ─── STEP 3: RESTORE REQUEST (migration users only) ───────────────────────
  if (step === 'restore') {
@@ -339,7 +349,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       <button
        type="submit"
        disabled={isSubmittingRestore}
-       className="w-full py-3 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+       className={`w-full py-3 ${authTheme.primaryBtn} text-white rounded-sm font-bold transition-all shadow-sm disabled:opacity-50 flex items-center justify-center gap-2`}
       >
        {isSubmittingRestore
         ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Sending Request...</>
@@ -372,7 +382,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
       </div>
       <button
        onClick={() => closeModal()}
-       className="w-full py-3 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-all shadow-sm"
+       className={`w-full py-3 ${authTheme.primaryBtn} text-white rounded-sm font-bold transition-all shadow-sm`}
       >
        Continue to App
       </button>
@@ -410,7 +420,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <button
       type="submit"
       disabled={isLoading || verificationCode.length < 6}
-      className="w-full py-3 bg-primary-600 text-white rounded-sm font-bold hover:bg-primary-700 transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+      className={`w-full py-3 ${authTheme.primaryBtn} text-white rounded-sm font-bold transition-colors shadow-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
      >
       {isLoading ? (
        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -447,10 +457,10 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      {/* Vega — Legal — amber glow */}
      <button
       onClick={() => { setSelectedProduct('legal'); productRef.current = 'legal'; setStep('form'); }}
-      style={{ '--glow-color': 'rgba(217, 119, 6, 0.12)', '--glow-border': 'rgba(217, 119, 6, 0.25)' } as React.CSSProperties}
-      className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-amber-600 bg-white border-slate-100 shadow-sm hover:shadow-md group"
+      style={{ '--glow-color': 'rgba(224, 122, 63, 0.12)', '--glow-border': 'rgba(224, 122, 63, 0.25)' } as React.CSSProperties}
+      className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-vega-gilt bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
-      <div className="p-2.5 rounded-md bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
+      <div className="p-2.5 rounded-md bg-vega-gilt/10 text-vega-gilt group-hover:bg-vega-gilt/20 transition-colors">
        <CheckCircleIcon className="w-6 h-6" />
       </div>
       <div>
@@ -494,7 +504,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     <div className="mt-auto pt-4 pb-2 text-center text-sm text-slate-600 space-y-2">
      <div>
       Already have an account?{' '}
-      <button onClick={onSwitchToLogin} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
+      <button onClick={onSwitchToLogin} className={`font-bold ${authTheme.linkBtn} hover:underline`}>
        Log in
       </button>
      </div>
@@ -532,6 +542,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
      <button onClick={() => setStep('product_selection')} className="text-xs font-bold text-slate-400 hover:text-slate-600">← Back</button>
     </div>
     <div className="text-center mb-6">
+    {authThemeId !== 'hub' && <AuthHeader theme={authTheme} mode="signup" />}
      {/* TASK 54 — product clarity chip: the user must SEE which product
          workspace they are creating BEFORE they type anything. This is the
          "where am I going?" answer — a user who intended Atrium but landed
@@ -554,7 +565,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
        <button
         type="button"
         onClick={() => setStep('product_selection')}
-        className="text-2xs font-bold text-primary-600 hover:text-primary-700 hover:underline ml-1"
+        className={`text-2xs font-bold ${authTheme.linkBtn} hover:underline ml-1`}
        >
         Change
        </button>
@@ -632,7 +643,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
      <button
       type="submit"
-      className="w-full py-4 bg-primary-600 text-white rounded-sm font-bold text-lg hover:bg-primary-700 transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
+      className={`w-full py-4 ${authTheme.primaryBtn} text-white rounded-sm font-bold text-lg transition-all shadow-md active:scale-[0.98] disabled:opacity-50`}
       disabled={isLoading}
      >
       {isLoading ? 'Processing...' : isMigrationUser ? 'Create Account & Restore →' : 'Create Account'}
@@ -641,7 +652,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
 
     <p className="text-center text-sm text-slate-600 mt-4">
      Already have an account?{' '}
-     <button onClick={onSwitchToLogin} className="font-bold text-primary-600 hover:text-primary-700 hover:underline">
+     <button onClick={onSwitchToLogin} className={`font-bold ${authTheme.linkBtn} hover:underline`}>
       Log in
      </button>
     </p>

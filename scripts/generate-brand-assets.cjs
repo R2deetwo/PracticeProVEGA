@@ -37,9 +37,10 @@ const PLEX5 = fontFace('IBM Plex Mono', '500', '@fontsource/ibm-plex-mono/files/
 
 // The marks, inlined at card scale (resolved hex — self-contained card).
 // R26: the Seal (Vega — a coin with the star cut out, burnt orange on
-// espresso) and the Coin (Atrium — the twin coin with the square open
-// court cut out, emerald on cream) — the same construction as
-// public/brand/*/favicon.svg, at card scale.
+// espresso). R27: the Coin of the Arch (Atrium — the twin coin with the
+// court arch cut out, shoulders narrowed so shoulder width equals leg
+// height) — the same construction as public/brand/*/favicon.svg, at
+// card scale.
 const VEGA_MARK = `
 <svg width="150" height="150" viewBox="0 0 48 48" aria-hidden="true">
   <defs>
@@ -68,7 +69,7 @@ const ATRIUM_MARK = `
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M19.5 17 H28.5 A2.5 2.5 0 0 1 31 19.5 V28.5 A2.5 2.5 0 0 1 28.5 31 H19.5 A2.5 2.5 0 0 1 17 28.5 V19.5 A2.5 2.5 0 0 1 19.5 17 Z" fill="url(#atcard)"/>
+  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M19.4 30.4 V20.8 A4.6 4.6 0 0 1 28.6 20.8 V30.4 A1.4 1.4 0 0 1 27.2 31.8 H20.8 A1.4 1.4 0 0 1 19.4 30.4 Z" fill="url(#atcard)"/>
 </svg>`;
 const ATRIUM_MARK_SMALL = ATRIUM_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 

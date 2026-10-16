@@ -153,9 +153,14 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
     const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
 
-    // Fetch portal messages for unified badge count
-    const portalMsgs = useQuery(api.portals.getPortalMessagesByFirm, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId } : 'skip') || [];
-    const portalUnread = (portalMsgs as any[]).filter((m: any) => m.status === 'unread').length;
+    // R27: the Messages badge must count what the admin can actually OPEN —
+    // conversation threads with unread admin-side messages (unreadByAdmin).
+    // The old formula counted legacy flat portal_messages rows (status
+    // 'unread') that never render as list rows, so the badge could never be
+    // cleared by opening anything. Conversations drop one thread at a time
+    // as each is opened (markConversationReadByAdmin on click).
+    const portalConvs = useQuery(api.portals.getPortalConversationsByFirm, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId } : 'skip') || [];
+    const portalUnread = (portalConvs as any[]).reduce((sum: number, c: any) => sum + (c.unreadByAdmin || 0), 0);
 
     const chatNotificationCount = (coreState.notifications || []).filter(n => n.userId === currentUser.id && !n.isRead && n.link?.view === 'messaging').length;
 
@@ -163,7 +168,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
         updatedMatters: (matterState.clientMessages || []).filter(m => !m.isRead && m.authorId !== currentUser.id).length,
         tasks: (executionState.tasks || []).filter(t => t && t.assignedUsers && t.assignedUsers.includes(currentUser.id) && t.status !== 'done').length,
         // Use hasPropertyFeatures (not isProperty) so Komplete firms also
-        // see unread resident/portal messages in the badge count.
+        // see unread resident/portal messages in the badge count. The count
+        // is computed LIVE from the queries — it drops as threads are opened,
+        // never on page entry (R27 messages read model).
         messages: chatNotificationCount + (hasPropertyFeatures ? inboundUnread + portalUnread : 0),
     };
 

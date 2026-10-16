@@ -18,14 +18,16 @@ import React, { useId } from 'react';
  *      espresso ground, the exact register of the live /vega page
  *      (R26 The Warm Chambers).
  *
- *   2. ATRIUM — THE COIN, IN THE ROUND. Twin of the Vega coin: one
- *      solid emerald disc (the estate) with the square open court cut
- *      through its heart (the void that names the building — the
- *      atrium IS its court). A square void in a round coin: the shape
- *      of a classical coin of trade, for the product that collects the
- *      rent. Mass carries 16px; the void carries the meaning; the pair
- *      read as a set — two coins, two hearts. Emerald on the estate's
- *      cream, the register of the live /atrium page.
+ *   2. ATRIUM — THE COIN OF THE ARCH (R27). Twin of the Vega coin: one
+ *      solid emerald disc (the estate) with THE COURT ARCH cut through
+ *      its heart — a tall Roman arch, shoulders narrowed until shoulder
+ *      width equals leg height, so the void reads as an elegant portal,
+ *      never a keyhole or a tombstone (two VLM design rounds). The
+ *      atrium IS its court; the arch is the first span of every great
+ *      hall. Sibling to the Vega star: the star is aspiration, the arch
+ *      is foundation. Mass carries 16px; the void carries the meaning;
+ *      the pair read as a set — two coins, two hearts. Emerald on the
+ *      estate's cream, the register of the live /atrium page.
  *
  * Both marks draw EXCLUSIVELY from design tokens (rgb(var(--x))) so the
  * token gate stays green — no hardcoded hexes in components. The
@@ -91,10 +93,11 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Coin, in the round: a solid emerald disc with the
- *  square open court cut through its heart, emerald on the estate's
- *  cream (R26): the live /atrium page's own register. Twin of the Vega
- *  coin — the pair read as a set. */
+/** Atrium — the Coin of the Arch (R27): a solid emerald disc with the
+ *  court arch cut through its heart — a tall Roman arch whose shoulder
+ *  width equals its leg height — emerald on the estate's cream: the live
+ *  /atrium page's own register. Twin of the Vega coin — the pair read as
+ *  a set: the star is aspiration, the arch is foundation. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -122,14 +125,16 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                 stroke="rgb(var(--color-atrium-jade) / 0.4)"
                 strokeWidth="1.5"
             />
-            {/* The Coin — twin of the Vega coin: one solid emerald disc
-                (the estate) with the square open court cut through its
-                heart in TRUE negative space (evenodd). Mass carries 16px;
-                the void carries the meaning; the pair read as a set. */}
+            {/* The Coin of the Arch — twin of the Vega coin: one solid
+                emerald disc (the estate) with the court arch cut through
+                its heart in TRUE negative space (evenodd). Shoulders
+                narrowed so shoulder width equals leg height — an elegant
+                portal, never a keyhole. Mass carries 16px; the void
+                carries the meaning; the pair read as a set. */}
             <path
                 fillRule="evenodd"
                 d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z
-                   M19.5 17 H28.5 A2.5 2.5 0 0 1 31 19.5 V28.5 A2.5 2.5 0 0 1 28.5 31 H19.5 A2.5 2.5 0 0 1 17 28.5 V19.5 A2.5 2.5 0 0 1 19.5 17 Z"
+                   M19.4 30.4 V20.8 A4.6 4.6 0 0 1 28.6 20.8 V30.4 A1.4 1.4 0 0 1 27.2 31.8 H20.8 A1.4 1.4 0 0 1 19.4 30.4 Z"
                 fill={`url(#atmk${uid})`}
             />
         </svg>

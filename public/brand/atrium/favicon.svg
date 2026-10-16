@@ -1,11 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Atrium — the Coin, in the round (R26, owner direction:
-       "just do new logos, choose yourself"). Twin of the Vega coin: one
-       solid emerald disc (the estate) with the square open court cut
-       through its heart — the atrium IS its court. A square void in a
-       round coin: the shape of a classical coin of trade, for the
-       product that collects the rent. Emerald on the estate's cream,
-       the register of the live /atrium page. -->
+  <!-- PracticePro Atrium — the Coin of the Arch (R27, owner direction:
+       "the square in the middle is a very generic shape — do something
+       like the Vega one"). The Vega Seal ships as-is (owner: "IT IS
+       GREAT"); Atrium v2 keeps the coin formula that carried it — mass
+       carries 16px, the void carries the meaning — and swaps the generic
+       square court for THE COURT ARCH: a tall Roman arch cut through the
+       heart of the emerald disc, shoulders narrowed so shoulder width
+       equals leg height (VLM design round: "an elegant arch/portal, not
+       a keyhole, not a tombstone"). The atrium IS its court; the arch is
+       the first span of every great hall. Sibling to the Vega star: the
+       star is aspiration, the arch is foundation. Emerald on the
+       estate's cream, the register of the live /atrium page. -->
   <defs>
     <linearGradient id="at" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C7A57"/>
@@ -14,5 +19,5 @@
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M19.5 17 H28.5 A2.5 2.5 0 0 1 31 19.5 V28.5 A2.5 2.5 0 0 1 28.5 31 H19.5 A2.5 2.5 0 0 1 17 28.5 V19.5 A2.5 2.5 0 0 1 19.5 17 Z" fill="url(#at)"/>
+  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M19.4 30.4 V20.8 A4.6 4.6 0 0 1 28.6 20.8 V30.4 A1.4 1.4 0 0 1 27.2 31.8 H20.8 A1.4 1.4 0 0 1 19.4 30.4 Z" fill="url(#at)"/>
 </svg>

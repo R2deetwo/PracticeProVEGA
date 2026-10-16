@@ -64,7 +64,7 @@ export const AtriumSite: React.FC = () => {
             <AtriumNavBar
                 activeSection={activeSection}
                 scrollTo={scrollTo}
-                onLogin={() => openModal('login')}
+                onLogin={() => openModal('login', null, { productTheme: 'atrium' })}
                 onSignup={openSignup}
                 onResources={() => navigate('/resources')}
                 onContactSales={() => openContactSales('Nav')}

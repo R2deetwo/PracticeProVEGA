@@ -9,9 +9,18 @@ interface ModalProps {
  children: React.ReactNode;
  size?: 'sm' | 'md' | 'lg' | 'xl';
  hideHeader?: boolean;
+ /** R27 product-themed auth surfaces: when provided, these REPLACE the
+  *  default overlay / card / accent-bar classes (authTheme). Never set
+  *  by any other modal — every other surface keeps the shipped chrome. */
+ overlayClass?: string;
+ cardClass?: string;
+ accentBarClass?: string;
 }
 
-export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md', hideHeader = false }) => {
+export const Modal: React.FC<ModalProps> = ({
+ isOpen, onClose, title, children, size = 'md', hideHeader = false,
+ overlayClass, cardClass, accentBarClass,
+}) => {
  const [isMounted, setIsMounted] = useState(false);
  const [isAnimatingIn, setIsAnimatingIn] = useState(false);
  const modalRef = useRef<HTMLDivElement>(null);
@@ -182,14 +191,14 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
    aria-modal="true"
   >
    <div
-    className={`fixed inset-0 bg-slate-900/60 sm:backdrop-blur-sm transition-opacity duration-150 ease-out ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
+    className={`fixed inset-0 transition-opacity duration-150 ease-out ${overlayClass ?? 'bg-slate-900/60 sm:backdrop-blur-sm'} ${isAnimatingIn ? 'opacity-100' : 'opacity-0'}`}
     aria-hidden="true"
     onClick={() => onClose()}
    />
    
    <div
     ref={modalRef}
-    className={`relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden border border-slate-200 dark:border-zinc-700 ${modalWidthClass} ${modalAnimation}`}
+    className={`relative rounded-t-2xl sm:rounded-2xl shadow-xl transform transition-all duration-150 ease-out flex flex-col overflow-hidden ${cardClass ?? 'bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700'} ${modalWidthClass} ${modalAnimation}`}
     onClick={(e) => e.stopPropagation()}
     style={keyboardHeight > 0 ? {
      // When keyboard is open on mobile, cap the modal height so it stays
@@ -200,8 +209,9 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
      paddingBottom: `${Math.min(keyboardHeight, 40)}px`,
     } : undefined}
    >
-    {/* Brand Accent Bar */}
-    <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600"></div>
+    {/* Brand Accent Bar — the product's rule when themed, the shipped
+        gradient for every other modal. */}
+    <div className={`h-1 sm:h-1.5 w-full ${accentBarClass ?? 'bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600'}`}></div>
 
     {!hideHeader && (
     <div className="flex-shrink-0 flex justify-between items-center px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 sm:backdrop-blur-md z-10">

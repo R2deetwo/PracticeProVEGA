@@ -23,6 +23,9 @@ export function useSignupOpener(product: 'vega' | 'atrium' | null) {
         openModal('signup', null, {
             selectedProduct: selected,
             forceProductSelection: !selected,
+            // R27: the modal carries the opening page's identity — a signup
+            // started on /vega or /atrium renders in that product's register.
+            productTheme: product ?? 'hub',
         });
     };
 }
