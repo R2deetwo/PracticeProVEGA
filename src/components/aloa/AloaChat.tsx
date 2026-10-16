@@ -20,6 +20,7 @@ import { tools } from '../../services/geminiService';
 import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
+import { Button } from '../ui';
 import { buildAccountContext as buildAccountContextPure } from '../../utils/aloaAccountContext';
 import { handleCleanCopy } from '../../utils/copyUtils';
 import { formatNairaInText } from '../../utils/formatting';
@@ -2710,6 +2711,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         setTimeout(() => setCopiedMessageId(null), 2000);
     };
 
+    // ─── R28 — Regenerate ──────────────────────────────────────────────
+    // Modern AI-chat affordance: on the LAST model message, drop the turn
+    // (the model reply and everything after it) and re-send the same user
+    // prompt — ALOA takes another pass at the question. No-ops while a
+    // response is streaming.
+    const handleRegenerate = (modelMsgId: string) => {
+        if (isLoading) return;
+        const idx = messages.findIndex(m => m.id === modelMsgId);
+        if (idx === -1) return;
+        let userIdx = idx - 1;
+        while (userIdx >= 0 && messages[userIdx].role !== 'user') userIdx--;
+        if (userIdx === -1) return;
+        const prompt = messages[userIdx].content;
+        if (typeof prompt !== 'string' || !prompt.trim()) return;
+        setMessages(prev => prev.slice(0, userIdx));
+        // Let the truncation commit before re-sending the same turn.
+        setTimeout(() => { handleSend(prompt); }, 50);
+    };
+
     // ─── Draft in DraftPro ────────────────────────────────────────────────
     // When ALOA generates a formal document/letter in the chat (instead of
     // calling start_drafting), the user can click "Draft in DraftPro" to
@@ -3635,9 +3655,14 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 emptyState={null}
                                 bubbleClassName={(m) => {
                                     const msg = m.raw;
-                                    if (msg.role === 'user') return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-primary-600 text-white rounded-tr-none shadow-lg shadow-primary-500/10';
-                                    if (msg.isError) return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
-                                    return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl text-slate-800 dark:text-zinc-200 border border-slate-200/40 dark:border-zinc-800/60 shadow-xl group-hover:border-primary-400/50 dark:group-hover:border-primary-500/50';
+                                    // R28 — MODERN AI-CHAT REGISTER: the assistant speaks in
+                                    // FLAT full-width blocks (ChatGPT/Claude/Gemini pattern)
+                                    // — no bubble card, no border, no shadow; the user keeps
+                                    // their raised bubble. Trust chrome (review header,
+                                    // confidence chip) rides above the flat block.
+                                    if (msg.role === 'user') return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-primary-600 text-white rounded-tr-md shadow-lg shadow-primary-500/10';
+                                    if (msg.isError) return 'px-5 py-4 rounded-2xl text-sm leading-relaxed break-words shadow-sm transition-all bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
+                                    return 'px-1 py-2 text-sm leading-relaxed break-words bg-transparent';
                                 }}
                                 renderAboveBubble={(m) => {
                                     // ── AI TRUST SIGNALS (Item 3) ──
@@ -3820,6 +3845,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                 </>
                                             )}
                                         </button>
+                                        )}
+
+                                        {/* ─── R28 — Regenerate ──────────────────────────
+                                            Modern AI-chat affordance: on the LAST model
+                                            message only — drops the turn and re-sends the
+                                            same prompt so ALOA takes another pass. */}
+                                        {msg.role === 'model' && !msg.isError && !msg.toolAction &&
+                                         idx === messages.length - 1 && !isLoading && (msg.content || '').trim().length > 0 && (
+                                            <Button
+                                                variant="bare"
+                                                onClick={() => handleRegenerate(msg.id)}
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5"
+                                                title="Regenerate this response"
+                                            >
+                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                Regenerate
+                                            </Button>
                                         )}
 
                                         {/* ─── Draft in DraftPro ──────────────────────────

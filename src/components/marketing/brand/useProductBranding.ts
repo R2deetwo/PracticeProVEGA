@@ -46,7 +46,7 @@ type ProductBrand = {
     ogImageAlt: string;
 };
 
-export const PRODUCT_BRANDS: Record<'vega' | 'atrium', ProductBrand> = {
+export const PRODUCT_BRANDS: Record<'vega' | 'atrium' | 'komplete', ProductBrand> = {
     vega: {
         title: 'Vega — Legal Practice OS for Nigerian Law Firms | PracticePro',
         description:
@@ -72,6 +72,23 @@ export const PRODUCT_BRANDS: Record<'vega' | 'atrium', ProductBrand> = {
         themeColor: '#059669',
         ogImage: '/assets/landing/og-atrium.png',
         ogImageAlt: 'PracticePro Atrium — the property management OS for Nigerian portfolios',
+    },
+    komplete: {
+        // R28: Komplete's own identity for the IN-APP document chrome (owner:
+        // "there should be a favicon for complete"). There is no Komplete
+        // landing page yet (the /komplet route serves the hub), so this
+        // brand is consumed by the app shell, not by a marketing page.
+        title: 'Komplete — Legal & Property in One Workspace | PracticePro',
+        description:
+            'Vega and Atrium on one workspace — matters, drafting, court-rule calendaring, properties, rent and residents — for firms that run both sides of the practice.',
+        url: 'https://practicepro.ng/komplet',
+        faviconSvg: '/brand/komplete/favicon.svg',
+        faviconPng: '/brand/komplete/favicon-48.png',
+        appleTouch: '/brand/komplete/apple-touch-icon.png',
+        appleTitle: 'Komplete',
+        themeColor: '#0B1220',
+        ogImage: '/assets/landing/og-vega.png',
+        ogImageAlt: 'PracticePro Komplete — legal and property in one workspace',
     },
 };
 
@@ -228,4 +245,39 @@ export function useProductBranding(activeProduct: 'vega' | 'atrium', productChos
         // On unmount, always hand the document back to the company brand.
         return () => applyCompanyIdentity();
     }, [activeProduct, productChosen]);
+}
+
+/**
+ * useAppProductIdentity — the IN-APP document identity (R28, owner
+ * direction: "now I'm inside the app and I'm not seeing Atrium, I'm
+ * seeing the Practice Pro favicon — there's still some mix-up there").
+ *
+ * The marketing pages swap identity via useSiteChrome; the APP never
+ * did, so every logged-in surface carried the company favicon whatever
+ * product the firm runs. This hook closes that gap: while the user is
+ * inside the workspace, the tab carries THEIR product —
+ *   'vega'    → the Seal (Warm Chambers)
+ *   'atrium'  → the Coin of the House
+ *   'unified' → the Komplete Twin Coins (Komplete gets its own mark)
+ * — and the title reads "<Product> — … | PracticePro". On unmount the
+ * company identity is restored (same contract as the marketing hook),
+ * so logging out lands back on the PracticePro company brand.
+ *
+ * Resolves from the ProductContext (the firm/user record) — NEVER from
+ * the URL (APP_UI_SEPARATION.md guardrail #4). Rendered only for
+ * signed-in, non-portal users; portals keep the company identity.
+ */
+export function useAppProductIdentity(product: 'vega' | 'atrium' | 'unified' | 'legal' | 'property', active: boolean) {
+    useEffect(() => {
+        if (!active) return;
+        // ProductContext canonicalizes to 'vega' | 'atrium' | 'unified', but
+        // the wider Product union ('legal' | 'property' aliases) is accepted
+        // defensively — same resolution the rest of the app uses.
+        const p = product === 'legal' ? 'vega' : product === 'property' ? 'atrium' : product;
+        const brand = p === 'vega' ? PRODUCT_BRANDS.vega
+            : p === 'atrium' ? PRODUCT_BRANDS.atrium
+            : PRODUCT_BRANDS.komplete;
+        applyProductIdentity(brand);
+        return () => applyCompanyIdentity();
+    }, [product, active]);
 }

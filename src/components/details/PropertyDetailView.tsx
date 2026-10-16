@@ -158,6 +158,7 @@ const PropertyDetailViewContent: React.FC = () => {
     //   3. Auto-expands the target unit's drawer + scrolls to it
     const [highlightTarget, setHighlightTarget] = useState<string | null>(null);
     const [targetUnitId, setTargetUnitId] = useState<string | null>(null);
+    const [deepLinkReason, setDeepLinkReason] = useState<string | null>(null);
     const [dismissTick, setDismissTick] = useState(0);
     useEffect(() => {
         const ctx = currentHistoryEntry?.context as any;
@@ -172,6 +173,15 @@ const PropertyDetailViewContent: React.FC = () => {
         // check for undefined/null instead.
         if (ctx?.targetUnit != null) {
             setTargetUnitId(ctx.targetUnit || null);
+        }
+        // R28: the deep link's reason ('lease_expired' | 'lease_expiry' |
+        // 'overdue') tells the auto-expander which fallback unit is the
+        // RIGHT one when the id match fails — a lease_expired banner must
+        // never land the user on the first unit with an unpaid service
+        // charge (owner report: "it didn't open the exact one that I was
+        // supposed to open").
+        if (ctx?.reason) {
+            setDeepLinkReason(String(ctx.reason));
         }
         if (ctx?.highlight) {
             setHighlightTarget(ctx.highlight);
@@ -373,8 +383,25 @@ const PropertyDetailViewContent: React.FC = () => {
             );
         }
 
-        // Fallback: if no specific unit found, find the first unit with
-        // unpaid/partial rent (overdue indicator)
+        // Fallback: if no specific unit found, pick the unit the banner is
+        // actually ABOUT. R28: reason-aware — a lease_expired / lease_expiry
+        // deep link expands the unit with the LEAST lease time remaining
+        // (the most elapsed tenancy — exactly the unit the banner names);
+        // overdue / no-reason links keep the legacy unpaid-service-charge
+        // fallback. This closes the mismatch where an expired-tenancy
+        // banner opened an unrelated unit that merely owed service charge.
+        const leaseEndOf = (u: Property): number => {
+            const rd = (u.rentalDetails || u) as any;
+            const raw = rd?.leaseEnd ?? (u as any).leaseEnd;
+            if (!raw) return NaN;
+            const t = new Date(raw).getTime();
+            return isNaN(t) ? NaN : t;
+        };
+        if (!targetUnit && (deepLinkReason === 'lease_expired' || deepLinkReason === 'lease_expiry')) {
+            targetUnit = [...allUnits]
+                .filter((u: Property) => !isNaN(leaseEndOf(u)))
+                .sort((a: Property, b: Property) => leaseEndOf(a) - leaseEndOf(b))[0];
+        }
         if (!targetUnit && (highlightTarget === 'overdue' || !targetUnitId)) {
             targetUnit = allUnits.find((u: Property) => {
                 const rd = (u.rentalDetails || u) as any;
@@ -400,8 +427,9 @@ const PropertyDetailViewContent: React.FC = () => {
             }, 300);
             // Clear after expansion so it doesn't re-trigger
             setTargetUnitId(null);
+            setDeepLinkReason(null);
         }
-    }, [targetUnitId, activeTab, allUnits, highlightTarget]);
+    }, [targetUnitId, activeTab, allUnits, highlightTarget, deepLinkReason]);
 
     // Reset active tab if the current tab's render condition becomes false
     // (e.g., user was on 'units' tab but property lost its leased status)
@@ -1381,8 +1409,19 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 const uType = (unit as any).propertyType || (unit as any).unitType || '';
 
                                                 // ── Visual status — contextual tooltips replace static labels ──
+                                                // R28 — EXPIRED TENANCY: a distinct at-a-glance cue, separate from
+                                                // the solid red already used for overdue rent / service charge.
+                                                // Striped rose wash + solid rose keyline + an EXPIRED badge with
+                                                // days overstayed, so the Units tab answers "whose tenancy has
+                                                // expired?" without opening anything (owner round 2026-10-17).
+                                                const leaseEndMs = d.leaseEnd ? new Date(d.leaseEnd).getTime() : NaN;
+                                                const tenancyExpired = uStatus === 'Occupied' && !isNaN(leaseEndMs) && leaseEndMs < Date.now();
+                                                const daysOverstayed = tenancyExpired ? Math.max(0, Math.floor((Date.now() - leaseEndMs) / (24 * 60 * 60 * 1000))) : 0;
                                                 let statusBorder = '#94A3B8';
                                                 let statusBadge: { label: string; cls: string; tooltip: string } | null = null;
+                                                if (tenancyExpired) {
+                                                    statusBorder = '#9F1239'; // rose-800 — the expired keyline
+                                                }
                                                 if (uStatus === 'Occupied') {
                                                     const hasTier1 = !!(d.tenantName && d.leaseEnd);
                                                     const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
@@ -1490,7 +1529,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                                         style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
                                                         className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${
                                                             isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'
-                                                        } ${
+                                                        } ${tenancyExpired ? 'unit-tenancy-expired' : ''} ${
                                                             // EMERALD GLOW HIGHLIGHT — when this unit is the target of a
                                                             // critical lease notification deep-link, apply a high-visibility
                                                             // emerald glow + pulse animation for 3 seconds to draw focus.
@@ -1507,6 +1546,22 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             <div className="min-w-0 flex-1 pr-2">
                                                                 <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
                                                                 {d.floor && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
+                                                                {/* R28 — the EXPIRED badge: WHO overstayed and by how long,
+                                                                    visible without expanding the card. */}
+                                                                {tenancyExpired && (
+                                                                    <div
+                                                                        className="unit-expired-badge mt-1.5"
+                                                                        title={`Tenancy expired ${daysOverstayed === 0 ? 'today' : `${daysOverstayed} day(s) ago`} — statutory notice windows apply`}
+                                                                    >
+                                                                        <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                                                        </svg>
+                                                                        <span>Tenancy Expired</span>
+                                                                        <span className="unit-expired-days">
+                                                                            {daysOverstayed === 0 ? 'ended today' : `+${daysOverstayed}d overstayed`}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             {/* DIRECT STATUS BADGE — clickable to open a quick status
                                                                 selector without expanding the card or opening edit modal. */}

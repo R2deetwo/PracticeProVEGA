@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Task, TaskStatus, TaskPriority, Document, Matter } from '../../types';
+import { Task, TaskStatus, TaskPriority, Document, Matter, CourtType } from '../../types';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
+import { PROCEDURAL_RULES } from '../../utils/proceduralRules';
 import { ProceduralComplianceReport } from './ProceduralComplianceReport';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,6 +75,56 @@ const PriorityDot: React.FC<{ priority?: TaskPriority }> = ({ priority }) => {
             ? 'bg-amber-400'
             : 'bg-slate-400 dark:bg-zinc-500';
     return <span className={`w-2 h-2 rounded-full shrink-0 ${cls}`} />;
+};
+
+// ─── R28 — COURT RULE BASIS (claims-audit V-2) ─────────────────────────────
+// "The deadline engine computes correctly but its REASONING is only visible
+// in the compliance report." This block surfaces the governing procedural
+// rule stack inline on the matter's statutory timeline: the originating
+// process, the court, and the registry's own deadline entries, plus the
+// day-counting basis (business days under 6; Interpretation Act shift).
+const CourtRuleBasis: React.FC<{ matter: Matter }> = ({ matter }) => {
+    const rule = useMemo(() => {
+        const courtStr = String(matter.court || '');
+        const ct: CourtType = /federal/i.test(courtStr)
+            ? CourtType.FederalHighCourt
+            : /magistrate/i.test(courtStr)
+            ? CourtType.MagistrateCourt
+            : /industrial/i.test(courtStr)
+            ? CourtType.NationalIndustrialCourt
+            : CourtType.StateHighCourt;
+        const proc = matter.originatingProcess;
+        if (!proc) return null;
+        const stack = (PROCEDURAL_RULES as Record<string, Partial<Record<CourtType, any>>>)[proc];
+        if (!stack) return null;
+        return stack[ct] || Object.values(stack)[0] || null;
+    }, [matter.court, matter.originatingProcess]);
+
+    if (!rule) return null;
+    const deadlineEntries = Object.entries(rule.deadlines || {}).slice(0, 4) as [string, string][];
+    return (
+        <div className="rounded-lg border border-sky-200/70 dark:border-sky-900/40 bg-sky-50/60 dark:bg-sky-950/20 px-4 py-3">
+            <p className="text-2xs font-black uppercase tracking-widest text-sky-700 dark:text-sky-400 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+                Court Rules Basis — {rule.action} · {matter.court}
+            </p>
+            {deadlineEntries.length > 0 && (
+                <ul className="mt-2 grid sm:grid-cols-2 gap-x-6 gap-y-1">
+                    {deadlineEntries.map(([step, basis]) => (
+                        <li key={step} className="text-xs text-slate-600 dark:text-zinc-300 flex gap-1.5">
+                            <span className="text-sky-500 mt-0.5">•</span>
+                            <span><span className="font-semibold text-slate-700 dark:text-zinc-200">{step}</span> — {basis}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <p className="mt-2 text-2xs text-slate-400 dark:text-zinc-500 leading-snug">
+                Periods under 6 days count business days; deadlines falling on a weekend or public holiday shift to the next working day (Interpretation Act). Always confirm against the current rules of your division.
+            </p>
+        </div>
+    );
 };
 
 const StatusPill: React.FC<{
@@ -324,6 +375,9 @@ export const StatutoryTaskTimeline: React.FC<StatutoryTaskTimelineProps> = ({
                 tasks={tasks}
                 documents={documents}
             />
+
+            {/* R28 (V-2) — the governing rule stack, inline on the timeline */}
+            <CourtRuleBasis matter={matter} />
 
             {/* Header */}
             <div className="flex items-center justify-between">

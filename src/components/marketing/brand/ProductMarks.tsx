@@ -18,16 +18,17 @@ import React, { useId } from 'react';
  *      espresso ground, the exact register of the live /vega page
  *      (R26 The Warm Chambers).
  *
- *   2. ATRIUM — THE COIN OF THE ARCH (R27). Twin of the Vega coin: one
- *      solid emerald disc (the estate) with THE COURT ARCH cut through
- *      its heart — a tall Roman arch, shoulders narrowed until shoulder
- *      width equals leg height, so the void reads as an elegant portal,
- *      never a keyhole or a tombstone (two VLM design rounds). The
- *      atrium IS its court; the arch is the first span of every great
- *      hall. Sibling to the Vega star: the star is aspiration, the arch
- *      is foundation. Mass carries 16px; the void carries the meaning;
- *      the pair read as a set — two coins, two hearts. Emerald on the
- *      estate's cream, the register of the live /atrium page.
+ *   2. ATRIUM — THE COIN OF THE HOUSE (R28). Twin of the Vega coin: one
+ *      solid emerald disc (the estate) with THE HOUSE cut through its
+ *      heart — a Monopoly-style silhouette: pitched roof overhanging
+ *      square walls (owner direction: "I don't like the Roman arch —
+ *      we can have a Monopoly style house there instead"). The roof
+ *      reads as property at a glance; the house is what Atrium manages,
+ *      the coin is the estate it sits on. Sibling to the Vega star: the
+ *      star is aspiration, the house is the estate. Mass carries 16px;
+ *      the void carries the meaning; the pair read as a set — two
+ *      coins, two hearts. Emerald on the estate's cream, the register
+ *      of the live /atrium page.
  *
  * Both marks draw EXCLUSIVELY from design tokens (rgb(var(--x))) so the
  * token gate stays green — no hardcoded hexes in components. The
@@ -93,11 +94,11 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Coin of the Arch (R27): a solid emerald disc with the
- *  court arch cut through its heart — a tall Roman arch whose shoulder
- *  width equals its leg height — emerald on the estate's cream: the live
- *  /atrium page's own register. Twin of the Vega coin — the pair read as
- *  a set: the star is aspiration, the arch is foundation. */
+/** Atrium — the Coin of the House (R28): a solid emerald disc with a
+ *  Monopoly-style house cut through its heart — pitched roof
+ *  overhanging square walls — emerald on the estate's cream: the live
+ *  /atrium page's own register. Twin of the Vega coin — the pair read
+ *  as a set: the star is aspiration, the house is the estate. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -125,16 +126,18 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                 stroke="rgb(var(--color-atrium-jade) / 0.4)"
                 strokeWidth="1.5"
             />
-            {/* The Coin of the Arch — twin of the Vega coin: one solid
-                emerald disc (the estate) with the court arch cut through
-                its heart in TRUE negative space (evenodd). Shoulders
-                narrowed so shoulder width equals leg height — an elegant
-                portal, never a keyhole. Mass carries 16px; the void
-                carries the meaning; the pair read as a set. */}
+            {/* The Coin of the House — twin of the Vega coin: one solid
+                emerald disc (the estate) with a Monopoly-style house cut
+                through its heart in TRUE negative space (evenodd) — a
+                shallow pitched roof overhanging square walls with a
+                chimney notch on the right slope (VLM round 2: the steep
+                first cut read as an arrow at 16px; this geometry locks
+                the house read). Mass carries 16px; the void carries
+                the meaning; the pair read as a set. */}
             <path
                 fillRule="evenodd"
                 d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z
-                   M19.4 30.4 V20.8 A4.6 4.6 0 0 1 28.6 20.8 V30.4 A1.4 1.4 0 0 1 27.2 31.8 H20.8 A1.4 1.4 0 0 1 19.4 30.4 Z"
+                   M24 15.5 L27 17.6 L27 15.9 L30.5 15.9 L30.5 20.45 L34.5 23.5 L31 23.5 L31 34.5 L17 34.5 L17 23.5 L13.5 23.5 Z"
                 fill={`url(#atmk${uid})`}
             />
         </svg>

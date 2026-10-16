@@ -16,7 +16,10 @@ import MorphScene from '../scenes/MorphScene';
  *
  * Kept from Phase C (owner-approved content, no complaint):
  *   - C3 copy: "Your orders, payments and customers, finally in one place."
- *     + the Lagos line (Vega / Atrium / custom systems, 21 words).
+ *     + the systems line (R28: "We build software and custom systems for
+ *     businesses like yours" — the owner retired the Lagos/Vega/Atrium
+ *     enumeration: "what we're really trying to hammer is we build
+ *     software and custom systems for businesses like yours").
  *   - CTAs: "Talk to us" (drawer) + "See what we've built" (scrolls to work).
  *   - The emerald breath blobs, vignette and grain stage furniture.
  *
@@ -59,7 +62,7 @@ export const HubHero: React.FC<{
                 </h1>
 
                 <p className="text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-[1.75] text-slate-300/95">
-                    We build business software in Lagos: Vega for law firms, Atrium for property managers, and custom systems for businesses like yours.
+                    We build software and custom systems for businesses like yours — designed, built and run end to end.
                 </p>
 
                 {/* CTAs — ui/Button (bare) per ADR-0004. */}

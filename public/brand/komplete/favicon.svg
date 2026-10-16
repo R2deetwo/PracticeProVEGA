@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- PracticePro Komplete — the Twin Coins (R28, owner direction: "there
+       should be a favicon for complete"). Komplete is Vega and Atrium on
+       one workspace, so its mark IS the two product coins together: the
+       burnt-orange Vega disc and the emerald Atrium disc, overlapping —
+       and where they overlap, a fused lens (the shared workspace). The
+       pair read at 16px by mass alone; no voids (they would clog at
+       coin-overlap scale). Deep-ink ground with an indigo hairline —
+       Komplete's own accent — tying the mark to the PracticePro company
+       register. -->
+  <defs>
+    <linearGradient id="kcbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#101A30"/>
+      <stop offset="1" stop-color="#070D18"/>
+    </linearGradient>
+    <linearGradient id="kcvega" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#E07A3F"/>
+      <stop offset="1" stop-color="#F3A66A"/>
+    </linearGradient>
+    <linearGradient id="kcatrium" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0C7A57"/>
+      <stop offset="1" stop-color="#053D2C"/>
+    </linearGradient>
+  </defs>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="url(#kcbg)"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#818CF8" stroke-opacity="0.5" stroke-width="1.5"/>
+  <!-- The Vega coin (left) -->
+  <circle cx="18.5" cy="24.5" r="10.5" fill="url(#kcvega)"/>
+  <!-- The Atrium coin (right) -->
+  <circle cx="29.5" cy="24.5" r="10.5" fill="url(#kcatrium)"/>
+  <!-- The fused lens where the two coins overlap — the one workspace -->
+  <path d="M24 15.56 A10.5 10.5 0 0 1 24 33.44 A10.5 10.5 0 0 1 24 15.56 Z" fill="#3D5A3A"/>
+</svg>

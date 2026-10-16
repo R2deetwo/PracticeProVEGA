@@ -66,6 +66,36 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
 
     const [isFixedFeeSelected, setIsFixedFeeSelected] = useState(!!fixedFeeItem);
 
+    // ─── R28 — SCALE / PERCENTAGE FEE ITEM (claims-audit V-3) ──────────────
+    // "Fee notes show figures; add the derivation note." A percentage-billed
+    // matter (billingPercentage + billingBase) now gets a pre-built line item
+    // whose DESCRIPTION carries the full derivation — "₦X = {p}% of {base}
+    // assessed at ₦{value}" — so the narrative rides the line item onto the
+    // invoice detail, the fee-note PDF and the client portal unchanged.
+    // The assessed value comes from the matter's transaction/property value
+    // (billingBase 'Rent'/'Value'); without a value the item is not offered
+    // (never invent an assessment basis).
+    const scaleFeeItem = useMemo(() => {
+        if (matter.billingModel === 'Percentage' && matter.billingPercentage && matter.billingPercentage > 0) {
+            const assessedValue =
+                matter.billingBase === 'Rent' || matter.billingBase === 'Value'
+                    ? (matter as any).transactionValue || matter.propertyValue || 0
+                    : 0;
+            if (assessedValue > 0) {
+                const pct = matter.billingPercentage;
+                const fee = Math.round(assessedValue * (pct / 100));
+                const baseLabel = matter.billingBase === 'Rent' ? 'annual rent' : matter.billingBase === 'Value' ? 'transaction value' : 'assessed value';
+                return {
+                    id: `scale_${matter.id}`,
+                    description: `Scale fee — ${pct}% of ${baseLabel} assessed at ${(assessedValue).toLocaleString('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 })} (basis: ${matter.billingBase}; matter: ${matter.title})`,
+                    amount: fee,
+                };
+            }
+        }
+        return null;
+    }, [matter]);
+    const [isScaleFeeSelected, setIsScaleFeeSelected] = useState(!!scaleFeeItem);
+
     useEffect(() => {
         setSelectedTimeEntryIds(new Set(unbilledTimeEntries.map(e => e.id)));
         setSelectedExpenseIds(new Set(unbilledExpenses.map(e => e.id)));
@@ -88,8 +118,9 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const timeTotal = selectedTimeItems.reduce((sum, entry) => sum + (entry.duration * entry.rate), 0);
     const expenseTotal = selectedExpenseItems.reduce((sum, entry) => sum + entry.amount, 0);
     const fixedFeeTotal = isFixedFeeSelected && fixedFeeItem ? fixedFeeItem.amount : 0;
+    const scaleFeeTotal = isScaleFeeSelected && scaleFeeItem ? scaleFeeItem.amount : 0;
 
-    const subTotal = timeTotal + expenseTotal + fixedFeeTotal;
+    const subTotal = timeTotal + expenseTotal + fixedFeeTotal + scaleFeeTotal;
     const taxAmount = applyVat ? subTotal * vatRate : 0;
     const totalAmount = subTotal + taxAmount;
 
@@ -122,6 +153,17 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                 hours: 0,
                 rate: 0,
                 total: fixedFeeItem.amount,
+            });
+        }
+
+        // R28 (V-3) — the Scale/percentage fee line, derivation in the description.
+        if (isScaleFeeSelected && scaleFeeItem) {
+            finalLineItems.push({
+                id: `li_${scaleFeeItem.id}`,
+                description: scaleFeeItem.description,
+                hours: 0,
+                rate: 0,
+                total: scaleFeeItem.amount,
             });
         }
 
@@ -159,6 +201,16 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                                 <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={isFixedFeeSelected} onChange={() => setIsFixedFeeSelected(p => !p)} className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
                                 <div className="flex-grow text-sm text-slate-800 dark:text-dim-200">{fixedFeeItem.description}</div>
                                 <div className="text-sm font-semibold w-24 text-right text-slate-900 dark:text-dim-100"><NairaSymbol />{formatNaira(fixedFeeItem.amount)}</div>
+                            </div>
+                        </>
+                    )}
+                    {scaleFeeItem && (
+                        <>
+                            <div className="text-xs font-bold uppercase text-slate-500 dark:text-dim-400 pt-2 border-t border-slate-200 dark:border-dim-700">Scale / Percentage Fee</div>
+                            <div className="flex items-center gap-2 p-1 rounded-md hover:bg-slate-100 dark:hover:bg-dim-700/50">
+                                <input autoComplete="off" data-lpignore="true"  type="checkbox" checked={isScaleFeeSelected} onChange={() => setIsScaleFeeSelected(p => !p)} className="h-4 w-4 rounded border-dim-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500" />
+                                <div className="flex-grow text-sm text-slate-800 dark:text-dim-200">{scaleFeeItem.description}</div>
+                                <div className="text-sm font-semibold w-24 text-right text-slate-900 dark:text-dim-100"><NairaSymbol />{formatNaira(scaleFeeItem.amount)}</div>
                             </div>
                         </>
                     )}

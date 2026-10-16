@@ -1,4 +1,5 @@
 import React from 'react';
+import { VegaAppShot } from './VegaAppShot';
 
 /**
  * VegaCourtRules — the "court rules" signature moment for /vega.
@@ -105,45 +106,16 @@ export const VegaCourtRules: React.FC = () => (
                     </div>
                 </div>
 
-                {/* Right — the chronology exhibit */}
+                {/* Right — R28: a LIVE CAPTURE of the court-rule-aware
+                    calendar in the real workspace (owner: "use stuff from
+                    the app"). The designed chronology it replaced was an
+                    illustration; this is the shipping deadline engine. */}
                 <div className="lg:col-span-7">
-                    <div className="vg-doc px-5 py-6 sm:px-8 sm:py-8">
-                        <div className="flex items-baseline justify-between border-b border-slate-200 pb-4 mb-6">
-                            <p className="font-mono text-2xs tracking-widest text-slate-800">
-                                PROVISIONAL TIMELINE
-                            </p>
-                            <p className="font-mono text-2xs tracking-widest text-slate-400">
-                                MATTER IKD/1287/2026 · COMPUTED 12 OCT 2026
-                            </p>
-                        </div>
-
-                        <ol className="vg-chronology space-y-7">
-                            {CHRONOLOGY.map((entry) => (
-                                <li
-                                    key={entry.date + entry.title}
-                                    className="vg-chrono-node"
-                                    data-computed={entry.computed ? 'true' : 'false'}
-                                >
-                                    <p
-                                        className={`font-mono text-xs tracking-widest mb-1.5 ${
-                                            entry.computed ? 'text-vega-claret-deep' : 'text-slate-500'
-                                        }`}
-                                    >
-                                        {entry.date}
-                                    </p>
-                                    <h3 className="font-vega text-lg font-semibold leading-snug text-slate-900">
-                                        {entry.title}
-                                    </h3>
-                                    <p className="font-mono text-2xs tracking-wider text-slate-400 mt-1.5">
-                                        {entry.detail}
-                                    </p>
-                                </li>
-                            ))}
-                        </ol>
-                    </div>
-                    <p className="font-mono text-2xs tracking-widest text-slate-500 mt-5">
-                        EXHIBIT — DEADLINES COMPUTED UNDER THE CIVIL PROCEDURE RULES OF THE MATTER&rsquo;S COURT
-                    </p>
+                    <VegaAppShot
+                        src="/assets/landing/app/calendar.jpg"
+                        alt="Vega calendar — hearings and statutory deadlines computed from the matter's court rules"
+                        caption="LIVE CAPTURE — DEADLINES COMPUTED UNDER THE CIVIL PROCEDURE RULES OF THE MATTER'S COURT"
+                    />
                 </div>
             </div>
         </div>

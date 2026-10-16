@@ -95,6 +95,61 @@ en/en_US/en_GB locales.
    thread is actually opened; the badge counts live per-thread state
    (`unreadByAdmin`) instead of legacy flat rows nothing could ever clear.
 
+## 4b. Improvements made R28 (2026-10-17 — the backlog round)
+
+Owner direction: *"You mentioned worth a look next; do the claims-audit
+backlog as well please."* Six of the seven backlog items shipped:
+
+1. **V-1 Drafting citations pass — SHIPPED (as the ALOA self-review).**
+   `reviewDraft()` in `geminiService.ts` runs after every draft: a
+   deterministic layer cross-checks every citation-shaped string in the
+   draft against the researched source set (fabricated citations are
+   flagged as errors before the user files), plus spacing/date/placeholder
+   hygiene; a best-effort model layer re-reads the draft against the
+   quality bar. DraftPro surfaces the verdict in a Self-Review card
+   ("passed" / "N issues" with an itemized list).
+2. **V-2 Court Rules surfacing — SHIPPED.** `CourtRuleBasis` on the
+   matter's statutory timeline: the governing rule stack for the matter's
+   originating process + court (from `PROCEDURAL_RULES`), the registry's
+   deadline entries, and the day-counting basis (business days under 6;
+   Interpretation Act shift) — inline, not buried in the compliance report.
+3. **V-3 Scale of Charges narrative — SHIPPED.** Percentage-billed matters
+   now generate a Scale fee line item whose description carries the full
+   derivation ("{p}% of {base} assessed at value") — it rides the line
+   item onto the invoice detail, the fee-note PDF and the client portal
+   unchanged. Never offered without an assessed value on the matter.
+4. **A-1 WhatsApp template health — SHIPPED.** A Template Health summary
+   on Integration Settings: N/M automation types send-ready at a glance,
+   with itemized issues — unmapped types, mappings whose name+language
+   pair no longer resolves in the synced registry, and templates not
+   APPROVED in Meta. The "approved but failed" class is now visible
+   before sends.
+5. **A-2 Revenue Monitor projections — SHIPPED.** The Service Charge
+   Monitor header now projects 30/60/90-day billings (each charge billed
+   forward from its next due date at its cycle) alongside current
+   outstanding — scheduled revenue, explicitly labelled as not a
+   collection promise.
+6. **S-1 Per-product app skins — SHIPPED (owner-directed).** The Vega app
+   skin (`app-skin-vega`, Warm Chambers burnt-orange accent ramp) — see
+   APP_UI_SEPARATION.md Stage 3. Marketing imagery on /vega now comes from
+   the real app.
+7. **A-3 Amenity booking calendar view — DEFERRED.** The month-grid admin
+   view needs role-aware booking queries plumbed into the Estate tab
+   (`getBookingsForFirm` is admin-authenticated; the shared Estate view
+   has no role context today). Next round.
+
+Also this round (owner round 2026-10-17, beyond the backlog): the Atrium
+mark v3 (the Coin of the House — Monopoly-style house void, two VLM design
+rounds), the Komplete Twin Coins mark + per-product favicon/title inside
+the app, the tenancy-expiry banner rebuild (tenant + unit + building named
+in the message; reason-aware deep link that opens the EXPIRED unit, never
+an unrelated one; embedded units now scanned by the cron), the distinct
+striped EXPIRED treatment on unit cards and the sidebar, ALOA's
+institutional roll call (per-matter filings, deadlines, assignments in
+every legal chat prompt), the flat-message modern chat register with
+Regenerate, and the hub hero copy ("We build software and custom systems
+for businesses like yours").
+
 ## 5. Further development — prioritized backlog
 
 **Vega (V):**

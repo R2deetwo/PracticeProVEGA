@@ -198,7 +198,7 @@ export const getSystemInstruction = (
                 const matterTasks = (appState.tasks || []).filter(t => t.matterId === activeMatter.id && t.status !== TaskStatus.Done);
                 const matterEvents = (appState.events || []).filter(e => e.matterId === activeMatter.id);
                 const matterDocs = (appState.documents || []).filter(d => d.matterId === activeMatter.id);
-                
+
                 contextualMatterInsight = `
     **ACTIVE CONTEXT - OPEN MATTER DETAIL:**
     You are currently assisting the user while they are viewing the Matter: "${activeMatter.title}" (Status: ${activeMatter.status}).
@@ -209,6 +209,53 @@ export const getSystemInstruction = (
     `;
             }
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // R28 — INSTITUTIONAL ROLL CALL (legal mode). Owner direction: ALOA must
+    // have "institutional knowledge of the office, all documents, filings,
+    // pending or otherwise, assignments, dates, reminders". The dashboard
+    // summary above carries counts; this block carries the actual FILE —
+    // per-matter filings status, next dates, open work and who is on it —
+    // so ALOA answers "where is the Okafor file?" or "what's pending in
+    // court this week?" from memory instead of asking the user.
+    // ─────────────────────────────────────────────────────────────────────
+    let institutionalRollCall = "";
+    if (appState && !isAtriumMode) {
+        try {
+            const nowMs = new Date().getTime();
+            const activeMatters = (appState.matters || [])
+                .filter(m => m.status === 'Active')
+                .slice(0, 12);
+            const userNameOf = (uid: string) => appState.users?.find(u => u.id === uid)?.name;
+            const rollLines = activeMatters.map(m => {
+                const docs = (appState.documents || []).filter(d => d.matterId === m.id);
+                const docStatus = (d: any) => String(d.litigationStatus || d.status || 'Draft');
+                const servedFiled = docs.filter(d => ['Served', 'Filed', 'Filed at Court', 'Registered'].includes(docStatus(d)));
+                const pendingDrafts = docs.filter(d => ['Draft', 'Drafted', 'Under Review'].includes(docStatus(d)));
+                const nextEvent = (appState.events || [])
+                    .filter(e => e.matterId === m.id && new Date(e.date).getTime() >= nowMs)
+                    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+                const openTasks = (appState.tasks || []).filter(t => t.matterId === m.id && t.status !== TaskStatus.Done);
+                const team = (m.assignedUsers || []).map(userNameOf).filter(Boolean) as string[];
+                const parts = [
+                    `- ${m.title}${m.suitNumber ? ` [${m.suitNumber}]` : ''}${m.court ? ` (${m.court})` : ''}:`,
+                    `${pendingDrafts.length} pending draft(s)${pendingDrafts.slice(0, 3).map(d => ` — "${d.title}"`).join('')}`,
+                    `${servedFiled.length} filed/served`,
+                    nextEvent ? `next: ${nextEvent.title} on ${new Date(nextEvent.date).toLocaleDateString('en-GB')}` : 'no upcoming dates',
+                    `${openTasks.length} open task(s)`,
+                    team.length ? `team: ${team.join(', ')}` : 'unassigned',
+                ];
+                return parts.join(' ');
+            });
+            if (rollLines.length > 0) {
+                institutionalRollCall = `
+    **OFFICE ROLL CALL — MATTERS, FILINGS & DATES (your institutional memory of the practice):**
+    ${rollLines.join('\n    ')}
+    Use this to answer filing/assignment/deadline questions directly ("what's pending in the Okafor matter?", "who is on the Adebayo file?", "what dates do we have this month?"). If the answer is not here, say what the record does not show — never invent a filing, date or assignment.
+    `;
+            }
+        } catch { /* the roll call is an enhancement — never block the prompt on it */ }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -339,6 +386,7 @@ ${accountContext}
     ${dashboardContext}
     ${proactiveInsightsBlock}
     ${contextualMatterInsight}
+    ${institutionalRollCall}
     ${teamScheduleContext}
     `;
 

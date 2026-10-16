@@ -1195,6 +1195,235 @@ const buildTranscriptionPrompt = (domain: 'legal' | 'property', continuationTail
 - If the audio is inaudible or contains no speech, return an empty string.${continuationBlock}`;
 };
 
+// ═══════════════════════════════════════════════════════════════════════════
+// R28 — DRAFT SELF-REVIEW PASS (owner direction: "can we have a deeper thing
+// that allows itself to see what it has thought of produced and whether
+// there are changes necessary"). After a draft completes, ALOA re-reads its
+// own output in two layers:
+//   1. DETERMINISTIC checks (local, instant): citation cross-check against
+//      the researched set (claims-audit V-1 — fabricated citations are the
+//      trust-killer), empty paragraphs, doubled <br>, missing [DATE] on
+//      letters, lazy placeholders, markdown fences.
+//   2. MODEL pass (best-effort, flash tier): re-reads the draft against a
+//      condensed quality bar and reports residual structural issues.
+// The result powers DraftPro's Self-Review card — the assistant visibly
+// checked its own work, and the user sees exactly what passed or failed.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface DraftReviewFinding {
+    severity: 'error' | 'warning' | 'info';
+    check: string;
+    message: string;
+}
+
+export interface DraftReviewResult {
+    status: 'clean' | 'issues' | 'unavailable';
+    findings: DraftReviewFinding[];
+    summary: string;
+}
+
+/** Extract citation-shaped strings from a draft: Nigerian law-report and
+ *  LPELR patterns, plus statute references. Used by the cross-check. */
+export const extractCitationsFromText = (text: string): string[] => {
+    const patterns = [
+        /\((?:19|20)\d{2}\)\s*\d*\s*(?:N?WLR|SC|NWLR|NSC|NCC|Q?LR)\s*(?:\(Pt\.?\s*\d+\))?[^<\n.;]{0,40}/g,
+        /\[(?:19|20)\d{2}\]\s*(?:SC|CA|LPELR|NWLR)[^\s<]{0,30}/g,
+        /LPELR-\d{4,6}-[A-Z]{0,3}\d{0,2}/g,
+    ];
+    const found: string[] = [];
+    for (const p of patterns) {
+        const m = text.match(p);
+        if (m) found.push(...m);
+    }
+    return [...new Set(found.map(s => s.trim()))];
+};
+
+/** Layer 1 — deterministic checks. Always runs; never throws. */
+const deterministicReview = (
+    draftHtml: string,
+    verifiedCitations: string[] | undefined
+): DraftReviewFinding[] => {
+    const findings: DraftReviewFinding[] = [];
+    const text = draftHtml || '';
+    const plain = text.replace(/<[^>]+>/g, ' ');
+
+    // Citation cross-check (V-1): every case-law citation in the draft must
+    // come from the researched set when one exists.
+    const citations = extractCitationsFromText(plain);
+    if (citations.length > 0) {
+        if (verifiedCitations && verifiedCitations.length > 0) {
+            const verifiedBlob = ' ' + verifiedCitations.join(' ').replace(/\s+/g, ' ') + ' ';
+            const unmatched = citations.filter(c => {
+                const core = c.replace(/\(Pt\.?\s*/i, '(Pt. ').replace(/\s+/g, ' ').trim();
+                return !verifiedBlob.includes(core.slice(0, Math.min(24, core.length)));
+            });
+            if (unmatched.length > 0) {
+                findings.push({
+                    severity: 'error',
+                    check: 'Citations',
+                    message: `${unmatched.length} citation${unmatched.length === 1 ? '' : 's'} in the draft ${unmatched.length === 1 ? 'was' : 'were'} NOT in the researched source set: ${unmatched.slice(0, 3).map(c => `"${c}"`).join(', ')}${unmatched.length > 3 ? '…' : ''}. Verify before filing — these may be fabricated.`,
+                });
+            }
+        } else {
+            findings.push({
+                severity: 'warning',
+                check: 'Citations',
+                message: `${citations.length} citation${citations.length === 1 ? '' : 's'} found but no researched source set was attached to this draft — they could not be verified. Run Research mode first, or confirm each citation manually.`,
+            });
+        }
+    }
+
+    // Empty paragraphs / doubled breaks — a FAILED draft per the quality bar.
+    if (/<p>(?:\s|&nbsp;)*<\/p>/.test(text) || /<br\s*\/?>\s*<br\s*\/?>/.test(text)) {
+        findings.push({
+            severity: 'warning',
+            check: 'Spacing',
+            message: 'Empty paragraphs or doubled line breaks detected — the editor adds its own paragraph spacing. These should be removed before print.',
+        });
+    }
+
+    // Markdown fences must never survive into a DraftPro document.
+    if (/```/.test(text)) {
+        findings.push({
+            severity: 'warning',
+            check: 'Format',
+            message: 'Markdown code fences (```) found in the output — these render as literal characters in the document.',
+        });
+    }
+
+    // Letters/notices: a [DATE] near the top is mandatory.
+    const looksLikeLetter = /Dear\s+(?:Sir|Madam)|We act as|Yours faithfully/i.test(plain);
+    const hasDate = /\[DATE\]|\[\d{1,2}\s+\w+\s+\d{4}\]|\d{1,2}(?:st|nd|rd|th)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}/i.test(plain.slice(0, 600));
+    if (looksLikeLetter && !hasDate) {
+        findings.push({
+            severity: 'error',
+            check: 'Structure',
+            message: 'Letter/notice without a date at the top — the mandatory [DATE] line is missing.',
+        });
+    }
+
+    // Lazy placeholders.
+    const lazy = plain.match(/\[(?:X|XX|NAME|DETAILS?)\]/g);
+    if (lazy && lazy.length > 0) {
+        findings.push({
+            severity: 'warning',
+            check: 'Placeholders',
+            message: `${lazy.length} non-actionable placeholder(s) like [X]/[NAME] — every placeholder must tell the user exactly what to insert.`,
+        });
+    }
+
+    return findings;
+};
+
+/** Layer 2 — the model re-reads its own draft. Best-effort: any failure
+ *  returns no findings (the deterministic layer still reported). */
+const modelReview = async (
+    draftHtml: string,
+    documentTitle: string | undefined,
+    isProperty: boolean | undefined,
+    apiKey: string
+): Promise<DraftReviewFinding[]> => {
+    const prompt = `You are ALOA's self-review pass. Re-read your own draft below against this condensed quality bar and report ONLY real, actionable deficiencies — no praise, no style opinions.
+
+CHECK:
+1. Structural completeness for its type (letter: date top-right, recipient block, centred subject, closing, signature; court process: centred caption, suit number line, parties block, signature block; agreement: parties, recitals, numbered clauses, execution blocks; affidavit: numbered paragraphs, jurat, Commissioner for Oaths block).
+2. Numbered operative paragraphs (never bullets in binding documents).
+3. Placeholders are actionable (they tell the user exactly what to insert).
+4. No fabricated facts masquerading as given facts.
+5. Statutory anchors cited by name (section numbers only if certain).
+6. Nothing the document type does not require (no court caption on a letter, no decorative recitals).
+
+Return STRICT JSON only: {"findings":[{"severity":"error"|"warning"|"info","check":"<area>","message":"<one line, imperative>"}]}. Empty findings array if the draft clears the bar.
+
+DOCUMENT TITLE: ${documentTitle || '(untitled)'}
+DOMAIN: ${isProperty ? 'Nigerian property/tenancy practice' : 'Nigerian legal practice'}
+
+DRAFT (HTML):
+${draftHtml.slice(0, 60000)}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+    try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.gemini.flashModel}:generateContent?key=${apiKey}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' },
+            }),
+        });
+        if (!response.ok) return [];
+        const data = await response.json();
+        const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const jsonStart = raw.indexOf('{');
+        const jsonEnd = raw.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) return [];
+        const parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+        if (!Array.isArray(parsed.findings)) return [];
+        return parsed.findings
+            .filter((f: any) => f && f.message)
+            .slice(0, 8)
+            .map((f: any) => ({
+                severity: f.severity === 'error' ? 'error' : f.severity === 'warning' ? 'warning' : 'info',
+                check: String(f.check || 'Review').slice(0, 40),
+                message: String(f.message).slice(0, 400),
+            }));
+    } catch {
+        return [];
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};
+
+export const reviewDraft = async (
+    draftHtml: string,
+    context: {
+        documentTitle?: string;
+        /** The researched source set (Research mode citations). When present,
+         *  draft citations are cross-checked against it (claims-audit V-1). */
+        verifiedCitations?: string[];
+        isProperty?: boolean;
+        apiKey?: string;
+    } = {},
+    signal?: AbortSignal
+): Promise<DraftReviewResult> => {
+    if (!draftHtml || draftHtml.trim().length < 40) {
+        return { status: 'unavailable', findings: [], summary: 'Draft too short to review.' };
+    }
+
+    const findings = deterministicReview(draftHtml, context.verifiedCitations);
+
+    const apiKey = context.apiKey || getGeminiApiKey();
+    if (apiKey && !signal?.aborted) {
+        const modelFindings = await modelReview(draftHtml, context.documentTitle, context.isProperty, apiKey);
+        // Merge: deterministic findings first, then model-only findings.
+        const seen = new Set(findings.map(f => f.check + f.message.slice(0, 30)));
+        for (const f of modelFindings) {
+            if (!seen.has(f.check + f.message.slice(0, 30))) findings.push(f);
+        }
+    }
+
+    findings.sort((a, b) => {
+        const rank = { error: 0, warning: 1, info: 2 } as const;
+        return rank[a.severity] - rank[b.severity];
+    });
+
+    if (findings.length === 0) {
+        return {
+            status: 'clean',
+            findings,
+            summary: 'Self-review passed — structure, citations and placeholders cleared the quality bar.',
+        };
+    }
+    const errors = findings.filter(f => f.severity === 'error').length;
+    return {
+        status: 'issues',
+        findings,
+        summary: `${errors > 0 ? `${errors} critical issue${errors === 1 ? '' : 's'}` : 'No critical issues'}, ${findings.length - errors} improvement point${findings.length - errors === 1 ? '' : 's'} — review below before filing.`,
+    };
+};
+
 export const transcribeAudio = async (
     audioBase64: string,
     mimeType: string = 'audio/wav',

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-10-13T10:38:09.704Z",
+  "generatedAt": "2026-10-16T17:31:28.000Z",
   "totals": {
     "button": 1689,
-    "input": 420,
+    "input": 421,
     "select": 143,
     "textarea": 61
   },
-  "total": 2313,
+  "total": 2314,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -551,7 +551,7 @@
     },
     "src/components/forms/InvoiceGeneratorForm.tsx": {
       "button": 2,
-      "input": 7,
+      "input": 8,
       "select": 1
     },
     "src/components/forms/LinkMatterToContactForm.tsx": {
@@ -1045,5 +1045,6 @@
     "src/components/toolkit/Select.tsx": {
       "select": 1
     }
-  }
+  },
+  "note": "R28: +1 input (InvoiceGeneratorForm Scale-fee checkbox, mirrors the adjacent fixed-fee checkbox markup exactly; no Checkbox primitive in ui/ yet). New buttons this round used ui/Button (AloaChat Regenerate, DraftPro Self-Review card)."
 }

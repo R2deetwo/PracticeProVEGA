@@ -123,7 +123,11 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     // (C3) and both CTAs stay; the diorama is retired.
     expect(hub).toContain("Your orders, payments and customers, finally in one place.");
     expect(hub).toContain("We design, build &amp; run business software");
-    expect(hub).toContain("Vega for law firms, Atrium for property managers, and custom systems for businesses like yours");
+    // R28: the owner retired the Lagos/Vega/Atrium enumeration — the hero
+    // now hammers the one message: software and custom systems for
+    // businesses like yours. No product names, no city.
+    expect(hub).toContain("We build software and custom systems for businesses like yours");
+    expect(hub).not.toContain("We build business software in Lagos");
     // The hero CTAs.
     expect(hub).toContain("Talk to us");
     expect(hub).toContain("See what we&apos;ve built");
@@ -160,7 +164,12 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
 
   it("the hub positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
     expect(hub).toContain("We design, build &amp; run business software");
-    expect(hub).toContain("We build business software in Lagos");
+    // R28: the Lagos line is retired with the Vega/Atrium enumeration —
+    // the sub-copy now reads "software and custom systems for businesses
+    // like yours" with no city and no product list. ("Built in Lagos."
+    // legitimately remains in the About section — the pin targets the
+    // hero, not the whole page.)
+    expect(hubHeroSection).not.toContain("in Lagos");
     expect(hub).not.toContain("is a Lagos software company");
   });
 
@@ -621,6 +630,10 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
       "VegaHero",
       "VegaIndexLine",
       "VegaSuite",
+      // R28: the live-capture band (owner: "use stuff from the app so we
+      // are not showing false images") — real workspace screenshots right
+      // after the suite catalogue.
+      "VegaRealWorkspace",
       "VegaRecord",
       "VegaSegments",
       "VegaMattersLedger",

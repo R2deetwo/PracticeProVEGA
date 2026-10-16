@@ -11,6 +11,7 @@ import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaIndexLine } from './sections/VegaIndexLine';
 import { VegaSuite } from './sections/VegaSuite';
+import { VegaRealWorkspace } from './sections/VegaRealWorkspace';
 import { VegaRecord } from './sections/VegaRecord';
 import { VegaSegments } from './sections/VegaSegments';
 import { VegaMattersLedger } from './sections/VegaMattersLedger';
@@ -153,6 +154,7 @@ export const VegaSite: React.FC = () => {
                 {/* The LawPavilion arrangement: products grid, trust band,
                     segment tabs — then the deep-dives. */}
                 <VegaSuite />
+                <VegaRealWorkspace />
                 <VegaRecord />
                 <VegaSegments />
                 <VegaMattersLedger />

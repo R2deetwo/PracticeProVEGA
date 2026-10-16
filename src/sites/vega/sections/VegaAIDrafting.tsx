@@ -1,5 +1,5 @@
 import React from 'react';
-import { VegaDraftExhibit } from './VegaDraftExhibit';
+import { VegaAppShot } from './VegaAppShot';
 
 /**
  * VegaAIDrafting — /vega's replacement for the shared 3-block AI
@@ -64,9 +64,15 @@ export const VegaAIDrafting: React.FC = () => (
             </p>
 
             <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-start max-w-6xl">
-                {/* The exhibit — tracked changes on a settlement clause,
-                    with ALOA's reading scan sweeping the sheet */}
-                <VegaDraftExhibit />
+                {/* R28 — the exhibit is now a LIVE CAPTURE of ALOA in the
+                    real workspace (owner: "use stuff from the app so we are
+                    not showing false images"). The tracked-changes sheet it
+                    replaced was an illustration; this is the product. */}
+                <VegaAppShot
+                    src="/assets/landing/app/aloa.jpg"
+                    alt="ALOA chat in the live Vega workspace — drafting and research carried in conversation"
+                    caption="LIVE CAPTURE — ALOA IN THE WORKSPACE"
+                />
 
                 {/* The capability index — ruled, not carded */}
                 <div>

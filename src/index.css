@@ -289,6 +289,42 @@
   --border-strong: var(--color-slate-300);   /* emphasized borders          */
 }
 
+/* ─── R28: PRODUCT APP SKIN — VEGA (The Warm Chambers) ────────────────────
+ * Owner direction (2026-10-17): "I would like a theme for the app that
+ * matches the Vega site. This way we have realistic images that match how
+ * the app actually works." The /vega marketing register is espresso +
+ * cream + burnt orange (R26 The Warm Chambers); the app skin carries that
+ * register at TINT LEVEL: every primary-* accent (nav active states,
+ * buttons, FAB, focus rings, selected rows, badges) re-resolves to the
+ * burnt-orange ramp. Surfaces, typography, layout and components are
+ * untouched — this is the APP_UI_SEPARATION.md Stage-3 "tint-level"
+ * pattern: a scope class on the app container, zero component edits,
+ * default path byte-identical when the class is absent.
+ *
+ * Cascade: the class sits on the app-container DIV, so for every element
+ * inside the workspace it is a CLOSER variable ancestor than html/:root
+ * and even html.theme-* user themes — the product identity wins for the
+ * primary accent inside the product's app, while the user's theme keeps
+ * governing everything else (backgrounds, text, radii).
+ * Applies when: product === 'vega' (pure legal firms, always) or a
+ * Komplete firm working on a legal-side view (matters, documents,
+ * research, DraftPro) — the "two distinct apps in one workspace" feel. */
+.app-skin-vega {
+  --color-primary-50:  253 244 235;
+  --color-primary-100: 250 228 208;
+  --color-primary-200: 244 205 172;
+  --color-primary-300: 240 173 127;
+  --color-primary-400: 232 141 82;
+  --color-primary-500: 224 122 63;   /* #E07A3F — the Vega gilt */
+  --color-primary-600: 201 96 43;    /* darker for hover/active */
+  --color-primary-700: 172 78 32;
+  --color-primary-800: 148 68 32;
+  --color-primary-900: 124 58 30;
+  --color-primary-950: 68 30 13;
+  --primary-accent: 224, 122, 63;    /* match primary-500 */
+  --primary-light:  250, 228, 208;   /* match primary-100 */
+}
+
 /* ===== Smooth Theme Transitions ===== */
 /* Only apply theme transitions to root elements — not every DOM node */
 html,
@@ -2897,6 +2933,78 @@ nav,
 .unit-card-highlight {
   animation: emerald-pulse 2.5s ease-in-out;
   border-color: #10b981 !important;
+}
+
+/* ─── R28: EXPIRED TENANCY cue (Atrium units grid) ────────────────────────
+ * Owner round 2026-10-17: "there should be some other visual cue that lets
+ * the user know at a glance that that unit's tenancy has expired, rather
+ * than just the small 100% elapsed". Solid red is already taken by overdue
+ * rent / service charge — so EXPIRED carries its own grammar: a diagonal
+ * STRIPED rose wash (hatching reads as "terminated/void" at a glance, not
+ * just "attention") + a solid rose-800 keyline, plus the badge below. */
+.unit-tenancy-expired {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(159, 18, 57, 0.06) 0,
+    rgba(159, 18, 57, 0.06) 9px,
+    transparent 9px,
+    transparent 18px
+  );
+  box-shadow: inset 0 3px 0 0 rgb(159 18 57);
+}
+.unit-tenancy-expired:hover {
+  box-shadow: inset 0 3px 0 0 rgb(159 18 57);
+}
+.dark .unit-tenancy-expired {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(244, 63, 94, 0.09) 0,
+    rgba(244, 63, 94, 0.09) 9px,
+    transparent 9px,
+    transparent 18px
+  );
+}
+.unit-expired-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #9f1239;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  line-height: 1.35;
+}
+.unit-expired-badge .unit-expired-days {
+  font-weight: 700;
+  font-size: 9px;
+  opacity: 0.85;
+  letter-spacing: 0.03em;
+}
+/* Sidebar (PropertyManagerView) companion: the small Expired chip gets the
+ * same striped grammar so both surfaces answer "whose expired?" alike. */
+.prop-expired-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+  background: repeating-linear-gradient(
+    -45deg,
+    #9f1239 0,
+    #9f1239 5px,
+    #be123c 5px,
+    #be123c 10px
+  );
 }
 
 /* ─── BRIEF #1a: Interactive Target Highlighting ──────────────────────────

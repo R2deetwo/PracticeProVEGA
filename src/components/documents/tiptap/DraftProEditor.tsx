@@ -603,6 +603,22 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const draftingPromptRef = useRef<string | null>(null);
     const persistDraftRef = useRef<((content: string, title: string, prompt?: string) => void) | null>(null);
 
+    // ─── R28 — SELF-REVIEW PASS ───────────────────────────────────────────
+    // Owner direction: "can we have a deeper thing that allows itself to see
+    // what it has thought of produced and whether there are changes
+    // necessary". After every ALOA draft completes, ALOA re-reads its own
+    // output (deterministic checks + a model pass) and the result surfaces
+    // in the Self-Review card in the editor — the assistant visibly checks
+    // its own work: structure, citations (against the researched set —
+    // claims-audit V-1), spacing and placeholders.
+    const [draftReview, setDraftReview] = useState<{
+        status: 'clean' | 'issues' | 'unavailable';
+        findings: { severity: string; check: string; message: string }[];
+        summary: string;
+    } | null>(null);
+    const [draftReviewOpen, setDraftReviewOpen] = useState(false);
+    const [draftReviewRunning, setDraftReviewRunning] = useState(false);
+
     // ─── Citation Registry ──────────────────────────────────────────────
     // Hydrated from the `citations` prop (passed from ALOA when sending
     // content from research mode to DraftPro). When the drafting AI runs,
@@ -1225,6 +1241,38 @@ ${sourceList}
                         addToast('Drafting complete', { type: 'success' });
 
                         persistDraftRef.current?.(processedDraft, title || 'Untitled Draft', activeDraftPrompt);
+
+                        // ─── R28 — SELF-REVIEW PASS ──────────────────────
+                        // ALOA re-reads its own finished draft: deterministic
+                        // checks (citation cross-check vs the researched set,
+                        // spacing, date placement, placeholder hygiene) plus
+                        // a best-effort model re-read. Non-blocking — the
+                        // draft is already on the page; the Self-Review card
+                        // fills in when the pass returns.
+                        setDraftReview(null);
+                        setDraftReviewOpen(false);
+                        setDraftReviewRunning(true);
+                        (async () => {
+                            try {
+                                const { reviewDraft } = await import('../../../services/geminiService');
+                                const verifiedSet = (citationRegistry.getAll() || []).map((c: any) =>
+                                    String(c.citation || c.title || '')
+                                ).filter(Boolean);
+                                const result = await reviewDraft(processedDraft, {
+                                    documentTitle: title || 'Untitled Draft',
+                                    verifiedCitations: verifiedSet.length > 0 ? verifiedSet : undefined,
+                                    isProperty: (appState.firmDetails as any)?.product === 'property' || (appState.firmDetails as any)?.product === 'atrium',
+                                });
+                                if (!isCancelled) {
+                                    setDraftReview(result);
+                                    setDraftReviewOpen(true);
+                                }
+                            } catch (revErr) {
+                                console.warn('[DraftPro] Self-review pass failed (non-fatal):', revErr);
+                            } finally {
+                                if (!isCancelled) setDraftReviewRunning(false);
+                            }
+                        })();
 
                         // ─── Parse citations from the draft output ──────
                         // The AI may include a "## Sources" block at the end
@@ -3110,6 +3158,88 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
             {/* citationVersion is referenced here so React re-renders when
                 citations are parsed from the draft output after completion.
                 Without this, the floater wouldn't appear until a full remount. */}
+
+            {/* ─── R28 — SELF-REVIEW CARD ──────────────────────────────────
+                ALOA re-read its own draft; this card reports the verdict.
+                Mirrors the Sources floater (bottom-right) from the left so
+                the two draft-quality surfaces never collide. */}
+            {(draftReviewRunning || draftReview) && (
+                <div className="fixed bottom-20 left-4 z-[70] w-80 max-w-[calc(100vw-2rem)] no-print">
+                    <Button
+                        variant="bare"
+                        onClick={() => draftReview && setDraftReviewOpen(!draftReviewOpen)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-full shadow-lg transition-colors text-xs font-bold text-left ${
+                            draftReviewRunning
+                                ? 'bg-slate-700 text-white'
+                                : draftReview?.status === 'clean'
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : draftReview?.status === 'issues'
+                                ? 'bg-amber-600 text-white hover:bg-amber-700'
+                                : 'bg-slate-600 text-white hover:bg-slate-700'
+                        }`}
+                        title="ALOA self-review of this draft"
+                    >
+                        {draftReviewRunning ? (
+                            <>
+                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                ALOA is reviewing its draft…
+                            </>
+                        ) : (
+                            <>
+                                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                                    {draftReview!.status === 'clean' ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    ) : (
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                                    )}
+                                </svg>
+                                <span className="truncate">
+                                    {draftReview!.status === 'clean'
+                                        ? 'Self-review passed'
+                                        : draftReview!.status === 'issues'
+                                        ? `Self-review: ${draftReview!.findings.filter(f => f.severity === 'error').length} issue${draftReview!.findings.filter(f => f.severity === 'error').length === 1 ? '' : 's'}`
+                                        : 'Self-review unavailable'}
+                                </span>
+                                <span className="ml-auto opacity-70 text-[10px]">{draftReviewOpen ? 'Hide' : 'Details'}</span>
+                            </>
+                        )}
+                    </Button>
+
+                    {draftReviewOpen && draftReview && (
+                        <div className="mt-2 rounded-2xl bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
+                            <div className="px-4 py-3 border-b border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-800/50">
+                                <p className="text-xs font-bold text-slate-900 dark:text-white">ALOA Self-Review</p>
+                                <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5 leading-snug">{draftReview.summary}</p>
+                            </div>
+                            <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-zinc-800">
+                                {draftReview.findings.length === 0 ? (
+                                    <p className="px-4 py-3 text-2xs text-slate-500 dark:text-zinc-400">
+                                        Structure, citations, spacing and placeholders all cleared the quality bar.
+                                    </p>
+                                ) : (
+                                    draftReview.findings.map((f, i) => (
+                                        <div key={i} className="px-4 py-2.5 flex gap-2.5">
+                                            <span
+                                                className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                                    f.severity === 'error' ? 'bg-rose-500' : f.severity === 'warning' ? 'bg-amber-500' : 'bg-sky-500'
+                                                }`}
+                                            />
+                                            <div className="min-w-0">
+                                                <p className="text-2xs font-bold uppercase tracking-wide text-slate-400 dark:text-zinc-500">{f.check}</p>
+                                                <p className="text-xs text-slate-700 dark:text-zinc-300 leading-snug">{f.message}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {citationVersion >= 0 && citationRegistry.getAll().length > 0 && (
                 <>
                     {/* Floating "Sources" button — always visible when citations exist */}

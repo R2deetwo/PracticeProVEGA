@@ -94,7 +94,7 @@ const NavItemLink: React.FC<{
                 group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
                 ${locked ? 'opacity-60 cursor-not-allowed' : ''}
                 ${isActive
-                    ? 'bg-emerald-600 text-white dark:bg-emerald-500 font-bold shadow-md shadow-emerald-600/20'
+                    ? 'bg-primary-600 text-white dark:bg-primary-500 font-bold shadow-md shadow-primary-600/20'
                     : locked
                     ? 'text-slate-400 dark:text-zinc-500'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/50 dark:hover:bg-zinc-800/50'
@@ -102,7 +102,7 @@ const NavItemLink: React.FC<{
             `}
             aria-label={item.text} title={item.text}
         >
-            <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300'}`}>
+            <div className={`flex-shrink-0 ${isSidebarRetracted ? '' : 'mr-3'} ${isActive ? 'text-primary-200' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300'}`}>
                 {React.cloneElement(item.icon, {
                     className: `w-5 h-5`
                 })}

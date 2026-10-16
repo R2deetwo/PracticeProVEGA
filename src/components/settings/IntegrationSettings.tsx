@@ -450,6 +450,53 @@ const IntegrationSettings: React.FC = () => {
               />
             </div>
 
+            {/* ─── R28 — TEMPLATE HEALTH SUMMARY (claims-audit A-1) ───────
+                "The 'approved but failed' class becomes visible before
+                sends." One glance: how many automation types are mapped,
+                whether each mapped template still EXISTS in the synced
+                registry (name+language exact match), and whether it is
+                APPROVED in Meta. Computed purely from the synced registry
+                + firm mappings — no extra API calls. */}
+            {(() => {
+                if (!mappings) return null;
+                const rows = MAPPABLE_TYPES.map((type) => {
+                    const saved = mappings.find((m) => m.messageType === type);
+                    if (!saved) return { type, state: 'unmapped' as const, detail: 'no template mapped — automated sends fall back to free-form (rejected outside the 24h window)' };
+                    const exact = templates?.find(
+                        (t) => t.name === saved.templateName && t.language === saved.templateLanguage
+                    );
+                    if (!exact) return { type, state: 'missing' as const, detail: `mapped to "${saved.templateName}" (${saved.templateLanguage}) but that name+language pair is NOT in the synced registry — Meta will reject the send` };
+                    if (String(exact.status).toUpperCase() !== 'APPROVED') return { type, state: 'pending' as const, detail: `"${saved.templateName}" is ${String(exact.status).toUpperCase()} in Meta — sends will fail until approved` };
+                    return { type, state: 'healthy' as const, detail: `"${saved.templateName}" (${saved.templateLanguage}) approved` };
+                });
+                const healthy = rows.filter(r => r.state === 'healthy').length;
+                const issues = rows.filter(r => r.state !== 'healthy');
+                return (
+                    <div className={`rounded-lg border p-3 ${issues.length === 0 ? 'border-emerald-800/60 bg-emerald-950/30' : 'border-amber-800/60 bg-amber-950/20'}`}>
+                        <p className="text-2xs font-black uppercase tracking-widest flex items-center gap-2 mb-2">
+                            <span className={issues.length === 0 ? 'text-emerald-400' : 'text-amber-400'}>Template health</span>
+                            <span className="font-mono text-slate-300 font-normal normal-case tracking-normal">{healthy}/{MAPPABLE_TYPES.length} automation types send-ready</span>
+                        </p>
+                        {issues.length > 0 ? (
+                            <ul className="space-y-1">
+                                {issues.map(r => (
+                                    <li key={r.type} className="text-2xs leading-snug flex gap-1.5">
+                                        <span className={r.state === 'missing' ? 'text-red-400' : r.state === 'pending' ? 'text-amber-400' : 'text-slate-500'}>
+                                            {r.state === 'missing' ? '✗' : r.state === 'pending' ? '⚠' : '·'}
+                                        </span>
+                                        <span className="text-slate-300">
+                                            <span className="font-bold text-slate-200">{MSG_TYPE_LABELS[r.type as keyof typeof MSG_TYPE_LABELS]}</span> — {r.detail}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-2xs text-emerald-300/80">Every mapped template is approved and resolves by exact name + language. Re-sync after approving new templates in Meta.</p>
+                        )}
+                    </div>
+                );
+            })()}
+
             <div className="space-y-2">
               {MAPPABLE_TYPES.map((type) => {
                 const saved = mappings?.find((m) => m.messageType === type);

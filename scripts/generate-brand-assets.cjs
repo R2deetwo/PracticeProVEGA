@@ -37,10 +37,10 @@ const PLEX5 = fontFace('IBM Plex Mono', '500', '@fontsource/ibm-plex-mono/files/
 
 // The marks, inlined at card scale (resolved hex — self-contained card).
 // R26: the Seal (Vega — a coin with the star cut out, burnt orange on
-// espresso). R27: the Coin of the Arch (Atrium — the twin coin with the
-// court arch cut out, shoulders narrowed so shoulder width equals leg
-// height) — the same construction as public/brand/*/favicon.svg, at
-// card scale.
+// espresso). R28: the Coin of the House (Atrium — the twin coin with a
+// Monopoly-style house cut out: pitched roof overhanging square walls,
+// owner direction after the arch) — the same construction as
+// public/brand/*/favicon.svg, at card scale.
 const VEGA_MARK = `
 <svg width="150" height="150" viewBox="0 0 48 48" aria-hidden="true">
   <defs>
@@ -69,7 +69,7 @@ const ATRIUM_MARK = `
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M19.4 30.4 V20.8 A4.6 4.6 0 0 1 28.6 20.8 V30.4 A1.4 1.4 0 0 1 27.2 31.8 H20.8 A1.4 1.4 0 0 1 19.4 30.4 Z" fill="url(#atcard)"/>
+  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M24 15.5 L27 17.6 L27 15.9 L30.5 15.9 L30.5 20.45 L34.5 23.5 L31 23.5 L31 34.5 L17 34.5 L17 23.5 L13.5 23.5 Z" fill="url(#atcard)"/>
 </svg>`;
 const ATRIUM_MARK_SMALL = ATRIUM_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
@@ -148,15 +148,22 @@ async function shootCard(page, html, outPath) {
 }
 
 (async () => {
-  const browser = await chromium.launch({ headless: true });
+  // PLAYWRIGHT_CHROMIUM_PATH lets the script run in environments where the
+  // playwright package version doesn't match the ms-playwright cache build
+  // (CI pins its own; local sandboxes can point at any cached chromium).
+  const launchOpts = { headless: true };
+  if (process.env.PLAYWRIGHT_CHROMIUM_PATH) launchOpts.executablePath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
+  const browser = await chromium.launch(launchOpts);
   const context = await browser.newContext({ deviceScaleFactor: 2 });
   const page = await context.newPage();
 
   console.log('Rendering product favicon PNGs (deviceScaleFactor 2 → crisp):');
   await shootSvg(page, path.join(PUBLIC, 'brand/vega/favicon.svg'), 24, path.join(PUBLIC, 'brand/vega/favicon-48.png'));
   await shootSvg(page, path.join(PUBLIC, 'brand/atrium/favicon.svg'), 24, path.join(PUBLIC, 'brand/atrium/favicon-48.png'));
+  await shootSvg(page, path.join(PUBLIC, 'brand/komplete/favicon.svg'), 24, path.join(PUBLIC, 'brand/komplete/favicon-48.png'));
   await shootSvg(page, path.join(PUBLIC, 'brand/vega/favicon.svg'), 90, path.join(PUBLIC, 'brand/vega/apple-touch-icon.png'));
   await shootSvg(page, path.join(PUBLIC, 'brand/atrium/favicon.svg'), 90, path.join(PUBLIC, 'brand/atrium/apple-touch-icon.png'));
+  await shootSvg(page, path.join(PUBLIC, 'brand/komplete/favicon.svg'), 90, path.join(PUBLIC, 'brand/komplete/apple-touch-icon.png'));
 
   console.log('Rendering OG social cards:');
   fs.mkdirSync(path.join(PUBLIC, 'assets/landing'), { recursive: true });

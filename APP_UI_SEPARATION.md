@@ -50,11 +50,20 @@ strategy is a **variant table** at every layer:
   (authTheme). Zero app-shell changes.
 - **Stage 2 — Portals.** Portal login/dashboard headers adopt the same
   resolver. Small, contained, user-facing surfaces only.
-- **Stage 3 — In-app accents (flagged).** A `PRACTICEPRO_PRODUCT_SKINS`
-  feature flag (firm-level setting, default OFF) allows *tint-level* change
-  inside the app: nav rail tint, active-tab color, FAB color — drawn from
-  the existing token palettes. With the flag off, the app is byte-identical
-  to today. No layout changes, no typography changes, no component swaps.
+- **Stage 3 — DONE (R28, owner-directed).** The Vega app skin shipped:
+  `app-skin-vega` (a CSS-variable scope on the app container) re-resolves
+  the primary accent ramp to the Warm Chambers burnt orange — nav active
+  states, buttons, FAB, focus rings, selected rows. Owner direction
+  2026-10-17: *"I would like a theme for the app that matches the Vega
+  site. This way we have realistic images that match how the app actually
+  works"* — the marketing site's screenshots now come from the real app.
+  Scope: pure Vega firms (always) + Komplete firms on legal-side views
+  (matters/documents/research/DraftPro/indexer) so one workspace feels
+  like two distinct apps; the property side keeps today's emerald
+  register; Atrium-only firms and logged-out surfaces byte-identical.
+  No `PRACTICEPRO_PRODUCT_SKINS` flag was needed: the class is derived
+  from the firm's product record (the resolver layer), so the default
+  path is structurally the same code with the class absent.
 - **Stage 4 — Full product skins (owner sign-off required).** Real per-app
   look-and-feel for Vega and Atrium shells (spacing rhythm, type accents,
   motion). **This stage starts with a design prototype on STAGING, reviewed

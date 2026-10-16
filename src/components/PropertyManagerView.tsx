@@ -103,7 +103,10 @@ const PropertyListItem: React.FC<{
                                 </span>
                             )}
                             {leaseExpired && isOccupied && (
-                                <span className="text-3xs font-black px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">
+                                // R28 — the striped EXPIRED chip: distinct at-a-glance
+                                // grammar (hatched rose) vs the solid reds of overdue
+                                // rent / service charge, matching the Units-tab badge.
+                                <span className="prop-expired-chip" title="Tenancy has expired — statutory notice windows apply">
                                     Expired
                                 </span>
                             )}

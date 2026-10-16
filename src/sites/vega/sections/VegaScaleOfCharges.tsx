@@ -1,4 +1,5 @@
 import React from 'react';
+import { VegaAppShot } from './VegaAppShot';
 
 /**
  * VegaScaleOfCharges — the "Scale of Charges" signature moment for /vega.
@@ -45,56 +46,17 @@ export const VegaScaleOfCharges: React.FC = () => (
                     feature panels (Elite / AI / Prime / Primsol). */}
                 {/* Left — the ledger exhibit (wide, first on reading order) */}
                 <div className="lg:col-span-8">
-                    <div className="vg-doc px-5 py-6 sm:px-8 sm:py-8 overflow-x-auto">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-200 pb-4 mb-2">
-                            <p className="font-mono text-2xs tracking-widest text-slate-800">
-                                FEE NOTE — OKAFOR v. MERIDIAN LOGISTICS LTD
-                            </p>
-                            <p className="font-mono text-2xs tracking-widest text-slate-400">
-                                SUIT NO. IKD/1287/2026
-                            </p>
-                        </div>
-
-                        <table className="vg-ledger w-full text-left text-xs sm:text-sm">
-                            <thead>
-                                <tr className="text-slate-500">
-                                    <th scope="col" className="font-normal text-2xs tracking-widest py-3 pr-2">ITEM</th>
-                                    <th scope="col" className="font-normal text-2xs tracking-widest py-3 pr-2">PARTICULARS</th>
-                                    <th scope="col" className="font-normal text-2xs tracking-widest py-3 pr-2 hidden sm:table-cell">BASIS</th>
-                                    <th scope="col" className="font-normal text-2xs tracking-widest py-3 text-right">AMOUNT (&#8358;)</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {LEDGER_ROWS.map((row) => (
-                                    <tr key={row.item}>
-                                        <td className="py-3.5 pr-2 text-slate-400 align-baseline">{row.item}</td>
-                                        <td className="py-3.5 pr-2 text-slate-800 align-baseline">{row.particulars}</td>
-                                        <td className="py-3.5 pr-2 text-slate-400 align-baseline hidden sm:table-cell">{row.basis}</td>
-                                        <td className="py-3.5 text-right text-slate-900 align-baseline">{row.amount}</td>
-                                    </tr>
-                                ))}
-                                <tr data-total="true">
-                                    <td colSpan={2} className="py-4 pr-2 text-slate-900 font-medium">
-                                        TOTAL FEES
-                                    </td>
-                                    <td className="py-4 pr-2 hidden sm:table-cell" />
-                                    <td className="py-4 text-right text-vega-claret-deep font-medium">
-                                        {LEDGER_TOTAL}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-
-                        <div className="flex flex-wrap items-center justify-between gap-2 mt-5">
-                            <p className="font-mono text-2xs tracking-widest text-slate-400">
-                                VAT &amp; DISBURSEMENTS BILLED SEPARATELY
-                            </p>
-                            <p className="font-mono text-2xs tracking-widest text-slate-400">
-                                COMPUTED IN VEGA BILLING · 12 OCT 2026
-                            </p>
-                        </div>
-                    </div>
+                    {/* R28 — a LIVE CAPTURE of the billing workspace (owner:
+                        "use stuff from the app so we are not showing false
+                        images"). The designed fee-note ledger it replaced was
+                        an illustration; this is the shipping fee surface. */}
+                    <VegaAppShot
+                        src="/assets/landing/app/billing.jpg"
+                        alt="Vega billing — invoices and fee notes in the live workspace"
+                        caption="LIVE CAPTURE — FEE NOTES IN THE WORKSPACE, COMPUTED ON THE SCALE OF CHARGES (REMUNERATION ORDER 2023)"
+                    />
                 </div>
+
                 {/* Right — framing copy on the night ground (narrow) */}
                 <div className="lg:col-span-4">
                     <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">

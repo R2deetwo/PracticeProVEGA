@@ -55,7 +55,7 @@ const AloaFAB: React.FC = () => {
     const isSpeaking = aloaState === 'speaking';
     const isThinking = aloaState === 'thinking' || aloaState === 'connecting';
 
-    let bgClass = isAiActive ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-700 hover:bg-slate-600';
+    let bgClass = isAiActive ? 'bg-primary-600 hover:bg-primary-700' : 'bg-slate-700 hover:bg-slate-600';
     if (isListening) bgClass = 'bg-red-600 hover:bg-red-700 shadow-red-500/50';
 
     let animationClass = '';
@@ -85,7 +85,7 @@ const AloaFAB: React.FC = () => {
                 >
                     {isAiActive && !isListening && (
                         <span
-                            className="absolute inset-0 rounded-full bg-green-500 opacity-75 group-hover:animate-ping group-active:animate-ping"
+                            className="absolute inset-0 rounded-full bg-primary-500 opacity-75 group-hover:animate-ping group-active:animate-ping"
                             style={{ animationDuration: '2.5s' }}
                         ></span>
                     )}

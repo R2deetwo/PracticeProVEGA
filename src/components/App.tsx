@@ -107,6 +107,7 @@ import BottomNav from './BottomNav';
 import FullScreenSearch from './FullScreenSearch';
 import AloaPanel from './aloa/AloaPanel';
 import AloaFAB from './aloa/AloaFAB';
+import { useAppProductIdentity } from './marketing/brand/useProductBranding';
 import { useAloa } from '../contexts/AloaProvider';
 import { MatterList } from './MatterList';
 
@@ -186,6 +187,15 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const isClient = currentUser?.role === UserRole.Client;
     const isTenant = currentUser?.role === UserRole.Tenant;
     const isPortalUser = isClient || isTenant;
+
+    // R28 — IN-APP PRODUCT IDENTITY: while the user is inside the
+    // workspace, the tab carries their product's favicon + title
+    // (Vega the Seal / Atrium the Coin of the House / Komplete the Twin
+    // Coins). Owner report: "now I'm inside the app... I'm seeing the
+    // Practice Pro favicon" — the swap previously existed only on the
+    // marketing pages. Portals keep the company identity. NOTE: must run
+    // after isPortalUser is derived (above) — it is a TDZ dependency.
+    useAppProductIdentity(product, !!currentUser && !isPortalUser);
 
 
 
@@ -621,6 +631,20 @@ export const App: React.FC = () => {
     const { startTour } = useOnboarding();
     const ui = useUI();
     const { isSessionLocked, setIsSessionLocked, goBack } = ui;
+    // R28 — PRODUCT APP SKIN (APP_UI_SEPARATION.md Stage 3, owner direction
+    // 2026-10-17: "I would like a theme for the app that matches the Vega
+    // site"). Pure Vega firms run the Warm Chambers skin everywhere; a
+    // Komplete firm gets it on the LEGAL-side views (matters, documents,
+    // research, DraftPro, ALOA indexer) — the property side and every
+    // shared surface keep today's emerald register, so one workspace
+    // legitimately feels like two distinct apps. Atrium-only firms and
+    // logged-out surfaces are untouched (class absent → byte-identical).
+    const { product: firmProduct } = useProduct();
+    const LEGAL_SIDE_VIEWS: string[] = ['matters', 'matterDetail', 'documents', 'documentDetail', 'research', 'indexer', 'editor'];
+    const appSkinClass =
+        firmProduct === 'vega' || (firmProduct === 'unified' && LEGAL_SIDE_VIEWS.includes(view))
+            ? 'app-skin-vega'
+            : '';
     // 2026-09-23 DraftPro-ambush fix: the auto-starting product tour was
     // firing inside dedicated DraftPro tabs (opened by ALOA start_drafting)
     // 5 seconds into drafting, covering the editor with a "Welcome to Vega"
@@ -1748,7 +1772,7 @@ export const App: React.FC = () => {
     })();
 
     return (
-        <div className={`app-container font-sans text-base ${theme} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
+        <div className={`app-container font-sans text-base ${theme} ${appSkinClass} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
             <SplashScreen 
                 isVisible={!hasInitialSplashFinished && (hasSavedSession || flowState === 'splash')} 
                 statusMessage={loadingMessage} 

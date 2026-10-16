@@ -550,9 +550,15 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
                                     {renderAboveBubble?.(msg)}
 
                                     {/* Bubble — fully replaceable for interactive bubbles
-                                        (team ChatMessageBubble with edit/delete menu). */}
+                                        (team ChatMessageBubble with edit/delete menu).
+                                        R28: in the AI variant, MODEL messages render FLAT
+                                        (the modern assistant register — ChatGPT/Claude/
+                                        Gemini): the baked card chrome (rounded, padding,
+                                        shadow) is applied only to user bubbles and human
+                                        threads, so a bubbleClassName of 'bg-transparent'
+                                        truly produces a flat block. */}
                                     {renderBubble ? renderBubble(msg) : (
-                                        <div className={`rounded-2xl px-3.5 py-2.5 shadow-sm min-w-0 box-border ${
+                                        <div className={`${variant === 'ai' && !msg.isMe ? '' : 'rounded-2xl px-3.5 py-2.5 shadow-sm'} min-w-0 box-border ${
                                             bubbleClassName ? bubbleClassName(msg) : defaultBubbleClassName(msg, variant)
                                         } ${failed ? 'border border-red-300 dark:border-red-700' : ''}`}>
                                             {msg.subject && (

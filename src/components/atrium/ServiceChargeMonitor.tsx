@@ -519,6 +519,41 @@ const ServiceChargeMonitor: React.FC<{
     return allCharges;
   }, [allCharges, filter]);
 
+  // ── R28 — PROJECTIONS (claims-audit A-2): "the defaulter dashboard is
+  // present-tense; add 30/60/90-day projections (data already in the
+  // charges)". For each active charge, count how many cycle occurrences
+  // fall inside each window from its nextDueDate (Monthly ≈ every 30d,
+  // Quarterly ≈ every 91d, Annually ≈ 365d) and sum occurrences × amount.
+  // Billed-forward, not a promise: overdue balances are shown separately
+  // as "outstanding now" so the two never blur.
+  const projections = useMemo(() => {
+    const DAY = 86400000;
+    const cycleDays: Record<string, number> = { Monthly: 30, Quarterly: 91, Annually: 365 };
+    const windows = [30, 60, 90];
+    const totals = windows.map(() => 0);
+    const now = Date.now();
+    for (const c of allCharges as any[]) {
+      const amount = Number(c.amount) || 0;
+      if (amount <= 0) continue;
+      const step = cycleDays[String(c.cycle || 'Annually')] || 365;
+      let due = Number(c.nextDueDate);
+      if (!due || isNaN(due)) due = now;
+      // Occurrences strictly inside each window, counting forward from the
+      // next due date (a due date in the past bills on the next cycle).
+      while (due < now) due += step * DAY;
+      for (let w = 0; w < windows.length; w++) {
+        let d = due;
+        let count = 0;
+        while (d <= now + windows[w] * DAY && count < 40) { count++; d += step * DAY; }
+        totals[w] += count * amount;
+      }
+    }
+    const outstandingNow = (allCharges as any[]).reduce(
+      (sum, c) => sum + (Number(c.outstandingBalance) || 0), 0
+    );
+    return { windows, totals, outstandingNow };
+  }, [allCharges]);
+
   // ── Lease bridge (round 5): units with a lease-declared service charge
   // that have no enforcement row here. Hidden in demo mode (mutations are
   // firm-authenticated and would fail for the demo user) and behind the
@@ -760,6 +795,35 @@ const ServiceChargeMonitor: React.FC<{
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Active Charges</p>
           <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(allCharges || []).filter(c => !c.isDefaulter).length}</p>
           <p className="text-2xs text-slate-600 mt-1">on-time payments</p>
+        </div>
+      </div>
+
+      {/* R28 (A-2) — 30/60/90-day projections, billed forward from each
+          charge's next due date. Distinct from the at-risk card above:
+          this is SCHEDULED revenue, not overdue balances. */}
+      <div className="flex-shrink-0 px-4 sm:px-6 pb-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Projected billings</p>
+          </div>
+          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            {projections.windows.map((w, i) => (
+              <span key={w} className="text-sm">
+                <span className="font-black text-sky-300">₦{formatLargeNumber(projections.totals[i])}</span>
+                <span className="text-2xs text-slate-500 ml-1">next {w}d</span>
+              </span>
+            ))}
+            <span className="text-sm">
+              <span className="font-black text-amber-300">₦{formatLargeNumber(projections.outstandingNow)}</span>
+              <span className="text-2xs text-slate-500 ml-1">outstanding now</span>
+            </span>
+          </div>
+          <p className="text-2xs text-slate-600 sm:ml-auto max-w-xs">
+            Billed forward from each charge's next due date at its cycle — scheduled revenue, not a collection promise.
+          </p>
         </div>
       </div>
 

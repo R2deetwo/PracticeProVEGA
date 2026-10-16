@@ -432,10 +432,15 @@ export const BroadcastBanner: React.FC = () => {
                 const context = link.context || {};
                 const targetUnit = context.targetUnit || n.unitId || propertyId;
                 const highlight = context.highlight || n.unitId || propertyId;
+                // R28: the notification's reason flows into the deep link so
+                // PropertyDetailView can pick the RIGHT fallback unit when
+                // the id match fails — a lease_expired banner must never
+                // expand the first unit with an unpaid service charge.
+                const reason = context.reason || (String(n.type).includes('expired') ? 'lease_expired' : '');
                 // Deep-link route matching the carousel's deepLink parser:
-                // properties/<id>?tab=units&targetUnit=…&highlight=…
+                // properties/<id>?tab=units&targetUnit=…&highlight=…&reason=…
                 const deepLink = propertyId
-                    ? `properties/${propertyId}?tab=units&targetUnit=${targetUnit || ''}&highlight=${highlight || ''}`
+                    ? `properties/${propertyId}?tab=units&targetUnit=${targetUnit || ''}&highlight=${highlight || ''}${reason ? `&reason=${reason}` : ''}`
                     : null;
 
                 banners.push({
