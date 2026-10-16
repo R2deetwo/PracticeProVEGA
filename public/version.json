@@ -6,10 +6,10 @@
   "commitTime": "2026-10-08T13:09:45Z",
   "status": "healthy",
   "stableSince": "2026-10-08T14:32:41.313Z",
-  "apkVersion": "1.0.709",
-  "apkVersionCode": 10709,
-  "apkUrl": "https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-1099/PracticePro-v1.0.709.apk",
+  "apkVersion": "1.0.710",
+  "apkVersionCode": 10710,
+  "apkUrl": "https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-1101/PracticePro-v1.0.710.apk",
   "apkBuildStatus": "healthy",
-  "apkBuiltAt": "2026-10-16T17:35:51.787Z",
+  "apkBuiltAt": "2026-10-16T17:45:39.142Z",
   "markedHealthyAt": "2026-10-08T14:32:41.313Z"
 }
