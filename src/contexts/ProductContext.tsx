@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useMemo, ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useMemo, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { useDataState } from "./DataContext";
+import { setActiveAppProduct } from "../utils/appProductSignal";
 
 import { Product as ProductType } from '../types';
 
@@ -244,6 +245,15 @@ export function ProductProvider({ children }: { children?: ReactNode }) {
 
     return { product, isLegal, isProperty, isUnified, isVega, isAtrium, hasPropertyFeatures, hasLegalFeatures, terminology, signerContext, isProductResolved };
   }, [currentUser, isDataLoaded, appState?.firmDetails]);
+
+  // R29: publish the resolved product for logout routing (see
+  // utils/appProductSignal.ts). AuthContext lives ABOVE this provider, so
+  // it cannot consume the context — the signal gives logout() a
+  // synchronous read of what this provider resolved, without a module
+  // cycle. Publishing in an effect keeps the memo pure.
+  useEffect(() => {
+    setActiveAppProduct(value.product);
+  }, [value.product]);
 
   return (
     <ProductContext.Provider value={value}>

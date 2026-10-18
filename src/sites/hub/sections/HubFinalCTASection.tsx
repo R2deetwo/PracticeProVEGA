@@ -29,7 +29,7 @@ export const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo
             </h2>
             <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto">
                 Tell us how your business works today — we&apos;ll show you what its system could
-                look like. If one of our products already fits, we&apos;ll say so. If it
+                look like. If one of the two products already fits, we&apos;ll say so. If it
                 doesn&apos;t, we&apos;ll build the one that does.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
@@ -45,7 +45,7 @@ export const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo
                     onClick={() => scrollTo('ourWork')}
                     className="bg-transparent border-2 border-white/20 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/30 transition-all"
                 >
-                    Explore our products
+                    Explore both products
                 </Button>
             </div>
             <p className="text-sm text-slate-500 mt-6">

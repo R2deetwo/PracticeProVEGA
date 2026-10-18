@@ -8,6 +8,7 @@ import { identifyUser, resetUser as resetAnalyticsUser } from '../utils/analytic
 import { removeAllBeforeUnloadGuards } from '../utils/tabNavigation';
 import { setInMemoryApiKey } from '../utils/aiUtils';
 import { bootGraceMs, buildOfflineFallbackUser, readCachedUserRecord } from '../utils/offlineBoot';
+import { getActiveAppProduct, productLandingPath } from '../utils/appProductSignal';
 
 const LOCAL_STORAGE_USER_KEY = 'practicepro_user_session';
 const PORTAL_SESSION_KEY = 'practicepro_portal_session';
@@ -1039,13 +1040,22 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // We also null out window.onbeforeunload right before navigating
         // to suppress any "Leave site?" dialog that might fire from
         // the browser's default behavior during navigation.
+        // R29 (owner direction): a workspace sign-out lands on the user's
+        // OWN product page — a Vega firm goes to /vega, an Atrium firm to
+        // /atrium — not the company hub. Komplete (unified) firms keep the
+        // hub: Komplete IS the whole workspace, and there is no separate
+        // Komplete landing page yet (the /komplet route serves the hub).
+        // Source order: the ProductProvider signal (the fully resolved
+        // product — demo switcher, firm record, Komplete safety net) → the
+        // user record's own product field → the hub.
+        const appProduct = getActiveAppProduct() ?? currentUser?.product ?? null;
         const redirectUrl = isPortalUser
             ? (portalType === 'client' || currentUser?.role === 'Client'
                 ? '/portal/client/login'
                 : portalType === 'tenant' || currentUser?.role === 'Tenant'
                     ? '/portal/tenant/login'
                     : '/')
-            : '/';
+            : productLandingPath(appProduct);
 
         // Suppress beforeunload dialog
         window.onbeforeunload = null;

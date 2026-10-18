@@ -52,7 +52,7 @@ const WHAT_WE_DO: Array<{
     },
     {
         title: 'Your system stays up and your data stays yours',
-        body: 'Deployment, monitoring, backups and NDPA 2023-aligned data handling, so your system stays up and your data stays yours. We run the infrastructure on our own products every day — we can run yours too.',
+        body: 'Deployment, monitoring, backups and NDPA 2023-aligned data handling, so your system stays up and your data stays yours. We run the infrastructure on both products every day — we can run yours too.',
         Icon: ShieldCheckIcon,
     },
 ];

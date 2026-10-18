@@ -54,7 +54,7 @@ const OUR_WORK: Array<{
     {
         name: 'Vega',
         tagline: 'Legal Practice OS',
-        badge: 'Our product',
+        badge: 'A product',
         badgeClass: 'bg-amber-500/10 text-amber-300 border border-amber-500/30',
         Icon: ScalesIcon,
         iconClass: 'bg-amber-500/10 text-amber-400',
@@ -110,7 +110,7 @@ const OUR_WORK: Array<{
     {
         name: 'Atrium',
         tagline: 'Property Management OS',
-        badge: 'Our product',
+        badge: 'A product',
         badgeClass: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30',
         Icon: OfficeBuildingIcon,
         iconClass: 'bg-emerald-500/10 text-emerald-400',
@@ -271,7 +271,7 @@ const OUR_WORK: Array<{
     {
         name: 'Woosh',
         tagline: 'Free temporary email — for humans and test rigs',
-        badge: 'Our tool',
+        badge: 'A free tool',
         badgeClass: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30',
         Icon: MailIcon,
         iconClass: 'bg-indigo-500/10 text-indigo-400',

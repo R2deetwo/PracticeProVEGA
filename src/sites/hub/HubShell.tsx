@@ -246,7 +246,7 @@ export const HubFooter: React.FC<{
                             Practice<span className="text-primary-500">Pro</span>
                         </span>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — our products Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
                 </div>
                 {/* Products & work — real anchors, new tabs (R21 routing keep). */}
                 <div>

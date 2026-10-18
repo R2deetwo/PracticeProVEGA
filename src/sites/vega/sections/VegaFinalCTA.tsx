@@ -82,8 +82,8 @@ export const VegaFinalCTA: React.FC<{
                         Are you a Real Estate Lawyer?
                     </h3>
                     <p className="text-sm text-slate-400 leading-relaxed mb-5">
-                        Discover <strong className="text-vega-gilt-bright">Komplete</strong> — our specialized, unified workspace designed
-                        exclusively for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy
+                        Discover <strong className="text-vega-gilt-bright">Komplete</strong> — Vega and Atrium in one workspace, built
+                        for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy
                         portfolios, and track chamber matters from a single secure terminal.
                     </p>
                     <Button

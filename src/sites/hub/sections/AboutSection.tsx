@@ -59,11 +59,11 @@ export const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onConta
                                 keeps the records straight.
                             </p>
                             <p className="text-slate-600 leading-[1.75] mb-5">
-                                We don&apos;t just build systems for other people — we run our own, every
-                                working day. Vega serves Nigerian law firms and Atrium serves property
-                                portfolios. That means the foundations a client system stands on — payments,
-                                messaging, portals, automation, security — are already in production, not on
-                                a roadmap.
+                                We don&apos;t just build systems for other people — we run two products
+                                of our own, every working day. Vega serves Nigerian law firms and
+                                Atrium serves property portfolios. That means the foundations a
+                                client system stands on — payments, messaging, portals, automation,
+                                security — are already in production, not on a roadmap.
                             </p>
                             <p className="text-slate-600 leading-[1.75]">
                                 That is the difference between a software vendor and a software partner:

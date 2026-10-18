@@ -286,7 +286,7 @@ export const VegaFooter: React.FC<{
                             <span className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-1">BY PRACTICEPRO</span>
                         </span>
                     </div>
-                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — our products Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
                     <div className="mt-4 flex items-center gap-3">
                         <button
                             onClick={() => onOpenProduct('atrium')}

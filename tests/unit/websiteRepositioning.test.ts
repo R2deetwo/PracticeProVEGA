@@ -480,9 +480,11 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
     expect(hub).toContain("/assets/landing/work/kozy-admin-crm.jpg");
   });
 
-  it("Woosh — our own free tool — joins the portfolio as a fourth entry", () => {
+  it("Woosh — a free tool we run — joins the portfolio as a fourth entry", () => {
     expect(hub).toContain("name: 'Woosh'");
-    expect(hub).toContain("Our tool");
+    // R29: the possessive register is retired — 'A free tool', not 'Our tool'.
+    expect(hub).toContain("A free tool");
+    expect(hub).not.toContain("Our tool");
     expect(hub).toContain("https://woosh.dpdns.org");
     expect(hub).toContain("tourSystem: 'woosh'");
     // The stack story is capability-honest (no invented framework).
@@ -548,7 +550,15 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     // pain mirror itself is the Sound familiar? section (PAIN_MIRROR copy).
     expect(hub).toContain("Spreadsheets, chat threads, memory and paper will get a business started");
     expect(hubPainMirror).toContain("PAIN_MIRROR");
-    expect(hubPainMirror).toContain("Orders and requests arrive by WhatsApp, SMS and walk-in");
+    // R29: the mirror is Ada's week now — five DIFFERENT moments (a lost
+    // order, an unplaced payment, the away key-man, the receipt hunt, the
+    // owner's 11pm shift), each with its own illustration. No shared
+    // tangle grammar, no repeated points.
+    expect(hubPainMirror).toContain("A customer sends her measurements for two outfits on WhatsApp");
+    expect(hubPainMirror).toContain("The payment you can\\u2019t place");
+    expect(hubPainMirror).toContain("The one who knows is away");
+    expect(hubPainMirror).toContain("The receipt hunt");
+    expect(hubPainMirror).toContain("The owner\\u2019s shift");
   });
 
   it("a mirror before the pitch: Sound familiar? names the visitor's friction", () => {
@@ -593,6 +603,44 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
     expect(vegaCredentials).toContain("Why firms run on Vega");
     expect(atriumWhyRunOn).toContain("Why portfolios run on Atrium");
     expect(surfaces).not.toContain("run on PracticePro");
+  });
+
+  it("R29 — 'a product', not 'our product'; and exactly two products", () => {
+    // Owner direction: the site must stop saying "our product" — the
+    // register is the indefinite "a product" — and it must be clear the
+    // company has exactly TWO products, Vega and Atrium.
+    expect(hubWork).toContain("badge: 'A product'");
+    expect(hubWork).not.toContain("badge: 'Our product'");
+    expect(hubWork).toContain("badge: 'A free tool'");
+    // The closing CTA counts them and points at both.
+    expect(hubFinalCTA).toContain("If one of the two products already fits");
+    expect(hubFinalCTA).toContain("Explore both products");
+    // All three footers (hub, vega, atrium) name the pair, not possess it.
+    expect(hubShell).toContain("two products, Vega and Atrium");
+    expect(vegaShell).toContain("two products, Vega and Atrium");
+    expect(atriumShell).toContain("two products, Vega and Atrium");
+    // No possessive product phrasing survives anywhere on the surfaces.
+    expect(surfaces).not.toContain("our product");
+    expect(surfaces).not.toContain("Our product");
+    expect(surfaces).not.toContain("our products");
+    expect(surfaces).not.toContain("Our products");
+    // Komplete is framed as the two together, never a third product.
+    expect(vegaFinalCTA).toContain("Vega and Atrium in one workspace");
+  });
+
+  it("R29 — logging out of the workspace lands on the user's own product page", () => {
+    // Owner direction: sign-out from the app goes to the product's landing
+    // page (/vega or /atrium), not the company hub. AuthContext consumes
+    // the ProductProvider signal via the appProductSignal module bridge.
+    const auth = read("src", "contexts", "AuthContext.tsx");
+    const signal = read("src", "utils", "appProductSignal.ts");
+    const productCtx = read("src", "contexts", "ProductContext.tsx");
+    expect(signal).toContain("export function productLandingPath");
+    expect(signal).toContain("return '/vega'");
+    expect(signal).toContain("return '/atrium'");
+    expect(auth).toContain("getActiveAppProduct()");
+    expect(auth).toContain("productLandingPath(appProduct)");
+    expect(productCtx).toContain("setActiveAppProduct");
   });
 });
 
