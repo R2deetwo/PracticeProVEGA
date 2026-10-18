@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 
 const BASE = process.env.BASE_URL || 'http://localhost:4173';
-const OUT_ROOT = path.join(__dirname, '..', 'docs', 'brand', 'r29');
+const OUT_ROOT = process.env.OUT_DIR || path.join(__dirname, '..', 'docs', 'brand', 'r29');
 
 const viewports = [
     { name: '1440', width: 1440, height: 900 },
