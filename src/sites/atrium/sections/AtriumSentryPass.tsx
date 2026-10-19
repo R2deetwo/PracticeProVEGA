@@ -8,8 +8,8 @@ import React from 'react';
  * exhibit sliding over its corner — a 6-digit pass code being checked at
  * the terminal. Copy is the shipped Sentry Pass feature copy (kept
  * verbatim); the band only art-directs it. Rounded-2xl frames, soft
- * shadows, clay warmth, emerald only for the verified state — never a
- * dark section. Presentational only, zero raw form elements.
+ * shadows, clay warmth throughout — never a dark section. Presentational
+ * only, zero raw form elements.
  */
 
 export const AtriumSentryPass: React.FC = () => {
@@ -46,8 +46,8 @@ export const AtriumSentryPass: React.FC = () => {
                                     48 29 17
                                 </p>
                                 <div className="flex items-center gap-2 mt-3">
-                                    <span className="w-2 h-2 rounded-full bg-atrium-emerald" aria-hidden="true" />
-                                    <p className="font-mono text-2xs font-semibold uppercase tracking-wider text-emerald-700">
+                                    <span className="w-2 h-2 rounded-full bg-atrium-clay" aria-hidden="true" />
+                                    <p className="font-mono text-2xs font-semibold uppercase tracking-wider text-atrium-clay-deep">
                                         Pass valid · expires 6:00 PM
                                     </p>
                                 </div>
@@ -63,7 +63,7 @@ export const AtriumSentryPass: React.FC = () => {
 
                     {/* Right — framing copy (feature copy kept verbatim) */}
                     <div className="lg:col-span-5">
-                        <p className="text-2xs font-bold uppercase tracking-[0.3em] text-atrium-emerald mb-5">
+                        <p className="text-2xs font-bold uppercase tracking-[0.3em] text-atrium-clay mb-5">
                             Sentry Pass
                         </p>
                         <h2
@@ -71,7 +71,7 @@ export const AtriumSentryPass: React.FC = () => {
                             className="font-display text-3xl md:text-4xl font-bold tracking-tight leading-[1.15] mb-6"
                             style={{ color: 'var(--color-ink)' }}
                         >
-                            Every visitor, <span className="text-atrium-emerald">expected</span>.
+                            Every visitor, <span className="text-atrium-clay">expected</span>.
                         </h2>
                         <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-8">
                             Generate 6-digit visitor access codes for guests, contractors, and delivery
@@ -81,13 +81,13 @@ export const AtriumSentryPass: React.FC = () => {
                         </p>
                         <div className="flex flex-wrap gap-6">
                             <div>
-                                <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-emerald">
+                                <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-clay-deep">
                                     100
                                 </p>
                                 <p className="text-sm text-slate-500 mt-1">visitors cached offline</p>
                             </div>
                             <div>
-                                <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-emerald">
+                                <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-clay-deep">
                                     30 days
                                 </p>
                                 <p className="text-sm text-slate-500 mt-1">free trial, then &#8358;7,500/mo</p>

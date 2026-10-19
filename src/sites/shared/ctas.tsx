@@ -5,8 +5,9 @@ import React from 'react';
  *  tone='vega' is the Warm Chambers register (R26): a burnt-orange PILL
  *  with espresso text — LawPavilion's capsule CTA on the dark page
  *  (orange is the Vega product accent, not page decoration).
- *  tone='atrium' is the Well-Kept Estate register: a flat emerald fill
- *  (the Atrium accent #059669), never a gradient, never moss. */
+ *  tone='atrium' is the Terracotta Estate register (R32): a flat clay
+ *  fill PILL (#B4532A, never a gradient, never moss) — the friendly
+ *  capsule that matches the page's rounded register. */
 export const PrimaryButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' | 'atrium' }> = ({ onClick, children, className = '', tone = 'green' }) => (
     <button
         onClick={onClick}
@@ -14,7 +15,7 @@ export const PrimaryButton: React.FC<{ onClick: () => void; children: React.Reac
             tone === 'vega'
                 ? 'bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright shadow-sm !rounded-full'
                 : tone === 'atrium'
-                ? 'bg-atrium-emerald text-white hover:bg-emerald-700 shadow-sm'
+                ? 'bg-atrium-clay text-white hover:bg-atrium-clay-bright shadow-sm !rounded-full'
                 : 'text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-md'
         } ${className}`}
     >
@@ -24,7 +25,7 @@ export const PrimaryButton: React.FC<{ onClick: () => void; children: React.Reac
 
 /** Ghost/secondary button — tone='vega' is the warm-outline pill variant
  *  (a quiet cream rule that warms to orange on hover — R26);
- *  tone='atrium' is the warm emerald-outline variant for the photo hero. */
+ *  tone='atrium' is the warm clay-outline capsule for the estate page. */
 export const GhostButton: React.FC<{ onClick: () => void; children: React.ReactNode; className?: string; tone?: 'green' | 'vega' | 'atrium' }> = ({ onClick, children, className = '', tone = 'green' }) => (
     <button
         onClick={onClick}
@@ -32,7 +33,7 @@ export const GhostButton: React.FC<{ onClick: () => void; children: React.ReactN
             tone === 'vega'
                 ? 'bg-transparent text-vega-parchment border border-white/25 hover:border-vega-gilt hover:text-vega-gilt-bright !rounded-full'
                 : tone === 'atrium'
-                ? 'bg-white/85 text-emerald-700 border border-emerald-600/40 backdrop-blur-sm hover:border-emerald-600 hover:bg-white'
+                ? 'bg-white/85 text-atrium-clay-deep border border-atrium-clay/40 backdrop-blur-sm hover:border-atrium-clay hover:bg-white !rounded-full'
                 : 'bg-white/70 text-slate-800 border border-slate-200 backdrop-blur-sm hover:bg-white'
         } ${className}`}
     >

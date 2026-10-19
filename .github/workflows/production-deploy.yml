@@ -197,6 +197,26 @@ jobs:
       - name: Deploy Convex production backend
         run: npx convex deploy --cmd "echo 'Convex production deployed'"
 
+      # R32: the demo key rotation path. The demo user's chat (and every
+      # server-side AI surface for demo traffic) authenticates with
+      # GEMINI_DEMO_KEY from the Convex environment. When the key expires,
+      # rotate it as a GitHub secret (same name) and re-run this workflow —
+      # no dashboard surgery, no code change.
+      - name: Ensure GEMINI_DEMO_KEY is set (demo ALOA/ARIA replies)
+        continue-on-error: true
+        env:
+          DEMO_KEY: ${{ secrets.GEMINI_DEMO_KEY }}
+        run: |
+          if [ -z "$DEMO_KEY" ]; then
+            echo "::warning::GEMINI_DEMO_KEY GitHub secret is not set — demo chat will fall back to GEMINI_API_KEY (and error if that is also unset)."
+            exit 0
+          fi
+          if npx convex env set GEMINI_DEMO_KEY "$DEMO_KEY"; then
+            echo "✓ GEMINI_DEMO_KEY rotated onto production (picked up by the deployed functions above on next invoke)."
+          else
+            echo "::warning::Could not set GEMINI_DEMO_KEY (the deploy key may lack env permissions). Set it once in the Convex dashboard (gregarious-malamute-537 → Settings → Environment Variables)."
+          fi
+
       - name: Point SITE_URL at production on the Convex deployment
         continue-on-error: true
         env:

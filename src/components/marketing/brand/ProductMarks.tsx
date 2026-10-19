@@ -94,11 +94,11 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Coin of the House (R28): a solid emerald disc with a
- *  Monopoly-style house cut through its heart — pitched roof
- *  overhanging square walls — emerald on the estate's cream: the live
- *  /atrium page's own register. Twin of the Vega coin — the pair read
- *  as a set: the star is aspiration, the house is the estate. */
+/** Atrium — the Coin of the House (R28, re-tinted R32): a solid
+ *  TERRACOTTA disc with a Monopoly-style house cut through its heart —
+ *  pitched roof overhanging square walls — clay on the estate's cream:
+ *  the live /atrium page's own register. Twin of the Vega coin — the pair
+ *  read as a set: the star is aspiration, the house is the estate. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -112,22 +112,22 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
             {title && <title>{title}</title>}
             <defs>
                 <linearGradient id={`atmk${uid}`} x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="rgb(var(--color-atrium-jade))" />
-                    <stop offset="1" stopColor="rgb(var(--color-atrium-pine))" />
+                    <stop offset="0" stopColor="rgb(var(--color-atrium-rust))" />
+                    <stop offset="1" stopColor="rgb(var(--color-atrium-umber))" />
                 </linearGradient>
             </defs>
             {/* The quiet ground — the estate's cream, the page's surface */}
-            <rect x="1" y="1" width="46" height="46" rx="11.5" fill="rgb(var(--color-cream))" />
-            {/* An emerald hairline so the light tile holds its edge on light
-                UI rows — the page's emerald accent, at mark scale. */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill="rgb(var(--color-atrium-cream))" />
+            {/* A clay hairline so the light tile holds its edge on light
+                UI rows — the page's terracotta accent, at mark scale. */}
             <rect
                 x="1" y="1" width="46" height="46" rx="11.5"
                 fill="none"
-                stroke="rgb(var(--color-atrium-jade) / 0.4)"
+                stroke="rgb(var(--color-atrium-clay) / 0.4)"
                 strokeWidth="1.5"
             />
             {/* The Coin of the House — twin of the Vega coin: one solid
-                emerald disc (the estate) with a Monopoly-style house cut
+                terracotta disc (the estate) with a Monopoly-style house cut
                 through its heart in TRUE negative space (evenodd) — a
                 shallow pitched roof overhanging square walls with a
                 chimney notch on the right slope (VLM round 2: the steep

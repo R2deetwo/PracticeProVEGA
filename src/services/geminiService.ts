@@ -1140,6 +1140,8 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
             return; // Success
         } catch (error: any) {
             lastError = error;
+            // R32: key-invalid fails every model — fail fast with the clear error.
+            if (String(error?.message || '').includes('API key not valid')) throw error;
             console.warn(`[Drafting Proxy] Model ${modelToTest} failed via Convex:`, error.message);
         }
     }
@@ -1440,10 +1442,12 @@ export const transcribeAudio = async (
     const prompt = buildTranscriptionPrompt(domain, options?.continuationTail);
 
     // Models to try in order, sourced from the central registry.
+    // R32: the 2.0 models are retired by Google (404 for new keys) —
+    // the chain now runs 2.5-flash → flash-latest → 3.8-flash.
     const modelsToTry = [
         AI_CONFIG.gemini.defaultModel,        // 'gemini-2.5-flash'
-        'gemini-2.0-flash',
-        'gemini-2.0-flash-lite',
+        'gemini-flash-latest',
+        'gemini-3.8-flash',
     ];
     // Deduplicate
     const uniqueModels = [...new Set(modelsToTry)];

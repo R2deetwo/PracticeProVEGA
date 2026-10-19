@@ -37,7 +37,7 @@ const WHY_RUN_ON: Array<{
 ];
 
 export const AtriumWhyRunOn: React.FC = () => {
-    // ATRIUM REGISTER: sage section break — the warm page never drops
+    // ATRIUM REGISTER: sand section break — the warm page never drops
     // to a cold gray.
     return (
         <section
@@ -46,20 +46,20 @@ export const AtriumWhyRunOn: React.FC = () => {
         >
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-12 md:mb-16 text-center">
-                    <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                    <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-atrium-ink">
                         Why portfolios run on Atrium
                     </h2>
-                    <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto">
+                    <p className="text-lg text-slate-600 mt-4 max-w-2xl mx-auto">
                         How Atrium helps Nigerian property managers and owners keep collections on schedule.
                     </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-8 max-w-5xl mx-auto">
                     {WHY_RUN_ON.map((c, i) => (
-                        <div key={i} className="p-8 transition-shadow bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md">
-                            <div className="w-11 h-11 flex items-center justify-center mb-5 rounded-xl bg-emerald-50 text-emerald-600">
+                        <div key={i} className="p-8 transition-all duration-150 bg-white rounded-2xl border border-atrium-sand shadow-sm hover:shadow-md hover:-translate-y-1 active:scale-[0.98]">
+                            <div className="w-11 h-11 flex items-center justify-center mb-5 rounded-xl bg-atrium-clay/10 text-atrium-clay-deep">
                                 <c.Icon className="w-5 h-5" />
                             </div>
-                            <h3 className="font-display font-bold text-lg text-slate-900 mb-2.5 tracking-tight">{c.title}</h3>
+                            <h3 className="font-display font-bold text-lg text-atrium-ink mb-2.5 tracking-tight">{c.title}</h3>
                             <p className="text-slate-600 text-sm leading-[1.7]">{c.body}</p>
                         </div>
                     ))}

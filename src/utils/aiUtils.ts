@@ -60,11 +60,16 @@ export const AI_CONFIG = {
         // 2026-10-06: 2.0-flash inserted before lite — if a key/region
         // cannot serve 2.5 yet, 2.0-flash (still fully supported) is the
         // most compatible wide fallback.
+        // 2026-10-19 (R32, live probe with the fresh demo key): the 2.0 era
+        // is OVER — gemini-2.0-flash and 2.0-flash-lite now return 404
+        // "no longer available" for new keys (Google points at
+        // gemini-3.8-flash). Both are retired from every ladder; 3.8-flash
+        // takes the wide-fallback slot. 2.5-pro / 3-pro-preview are also
+        // retired and must not reappear.
         fallbackPlan: [
             'gemini-2.5-flash',
             'gemini-flash-latest',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite',
+            'gemini-3.8-flash',
             'gemini-3.1-pro-preview'
         ],
         // 2026-10-16 (R27, owner direction: "take another look at DraftPro in
@@ -78,11 +83,104 @@ export const AI_CONFIG = {
             'gemini-3.1-pro-preview',
             'gemini-2.5-flash',
             'gemini-flash-latest',
-            'gemini-2.0-flash',
-            'gemini-2.0-flash-lite'
+            'gemini-3.8-flash'
         ]
     },
     embeddingModel: 'text-embedding-004'
+};
+
+/** ─── API key health (R32) ──────────────────────────────────────────────────
+ * The owner asked: "is there a way for ordinary users to know if their key
+ * has expired?" — yes, now there is. A REAL probe against Google (the
+ * models.list endpoint — free, consumes zero generation tokens) that
+ * classifies the key's state in plain language, surfaced in AI Settings
+ * and in the chat's authentication-error card.
+ */
+export type ApiKeyHealth =
+    | { status: 'valid'; checkedAt: number; note?: string }
+    | { status: 'invalid'; checkedAt: number; note?: string }   // expired / revoked / malformed
+    | { status: 'quota'; checkedAt: number; note?: string }     // authenticates, but quota exhausted
+    | { status: 'region'; checkedAt: number; note?: string }    // authenticates, region-restricted on this network
+    | { status: 'network'; checkedAt: number; note?: string };  // could not reach Google
+
+let cachedKeyHealth: { keyMaterial: string; health: ApiKeyHealth } | null = null;
+
+/**
+ * Probe a Gemini API key's real health with ONE free call
+ * (GET /v1beta/models?pageSize=1 — no generation tokens are consumed).
+ * Results are cached per key material so opening Settings or the chat
+ * error card does not spam the probe.
+ */
+export const checkGeminiKeyHealth = async (
+    apiKey: string | undefined | null,
+    opts: { force?: boolean } = {}
+): Promise<ApiKeyHealth> => {
+    const now = Date.now();
+    if (!apiKey || apiKey.trim().length < 20) {
+        return { status: 'invalid', checkedAt: now, note: 'No API key is set on this account yet.' };
+    }
+    const material = apiKey.trim();
+    if (!opts.force && cachedKeyHealth && cachedKeyHealth.keyMaterial === material) {
+        return cachedKeyHealth.health;
+    }
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12_000);
+        const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${encodeURIComponent(material)}`,
+            { signal: controller.signal }
+        );
+        clearTimeout(timer);
+        if (res.ok) {
+            const health: ApiKeyHealth = { status: 'valid', checkedAt: now, note: 'Key is active and accepted by Google.' };
+            cachedKeyHealth = { keyMaterial: material, health };
+            return health;
+        }
+        const bodyText = await res.text().catch(() => '');
+        const msg = bodyText.toLowerCase();
+        if (res.status === 400 && (msg.includes('api key not valid') || msg.includes('api_key_invalid'))) {
+            const health: ApiKeyHealth = { status: 'invalid', checkedAt: now, note: 'Google rejected this key — it has expired, been revoked, or was pasted incorrectly.' };
+            cachedKeyHealth = { keyMaterial: material, health };
+            return health;
+        }
+        if (res.status === 403 && msg.includes('location is not supported')) {
+            const health: ApiKeyHealth = { status: 'region', checkedAt: now, note: 'The key is valid, but the Gemini API is not available from this network location (common on some Nigerian ISPs and VPNs).' };
+            cachedKeyHealth = { keyMaterial: material, health };
+            return health;
+        }
+        if (res.status === 429 || msg.includes('quota') || msg.includes('resource_exhausted')) {
+            const health: ApiKeyHealth = { status: 'quota', checkedAt: now, note: 'The key is valid but its quota is exhausted — the free tier resets daily, or billing needs to be enabled on the Google account.' };
+            cachedKeyHealth = { keyMaterial: material, health };
+            return health;
+        }
+        if (res.status === 403) {
+            const health: ApiKeyHealth = { status: 'invalid', checkedAt: now, note: 'Google denied access for this key (403). It may have been revoked or restricted.' };
+            cachedKeyHealth = { keyMaterial: material, health };
+            return health;
+        }
+        const health: ApiKeyHealth = { status: 'network', checkedAt: now, note: `Unexpected response from Google (HTTP ${res.status}).` };
+        cachedKeyHealth = { keyMaterial: material, health };
+        return health;
+    } catch (e: any) {
+        return {
+            status: 'network',
+            checkedAt: now,
+            note: e?.name === 'AbortError'
+                ? 'The health check timed out reaching Google.'
+                : 'Could not reach Google to verify the key (network or firewall).',
+        };
+    }
+};
+
+/** Human-readable one-liner for a health state (used by Settings + chat). */
+export const apiKeyHealthLabel = (h: ApiKeyHealth): string => {
+    switch (h.status) {
+        case 'valid': return 'Key active';
+        case 'invalid': return 'Key expired or invalid';
+        case 'quota': return 'Quota exhausted';
+        case 'region': return 'Region-restricted';
+        default: return 'Could not verify';
+    }
 };
 
 /**

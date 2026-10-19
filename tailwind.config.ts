@@ -187,12 +187,19 @@ const config: Config = {
                                 'night-2': 'rgb(var(--color-vega-night-2) / <alpha-value>)',
                                 parchment: 'rgb(var(--color-vega-parchment) / <alpha-value>)',
                         },
-                        // Atrium ("The Well-Kept Estate"): emerald + a warm
-                        // clay supporting tone + cream base surface.
+                        // Atrium ("The Terracotta Estate", R32): clay is the
+                        // primary accent (replaces emerald — the green sat one
+                        // hue from the hub's moss), sand the section break,
+                        // ink the warm headline ground, cream the base
+                        // surface, tan the old warm neutral (vacant units).
                         atrium: {
-                                emerald: 'rgb(var(--color-atrium-emerald) / <alpha-value>)',
-                                clay: 'rgb(var(--color-clay) / <alpha-value>)',
-                                cream: 'rgb(var(--color-cream) / <alpha-value>)',
+                                clay: 'rgb(var(--color-atrium-clay) / <alpha-value>)',
+                                'clay-bright': 'rgb(var(--color-atrium-clay-bright) / <alpha-value>)',
+                                'clay-deep': 'rgb(var(--color-atrium-clay-deep) / <alpha-value>)',
+                                sand: 'rgb(var(--color-atrium-sand) / <alpha-value>)',
+                                ink: 'rgb(var(--color-atrium-ink) / <alpha-value>)',
+                                cream: 'rgb(var(--color-atrium-cream) / <alpha-value>)',
+                                tan: 'rgb(var(--color-clay) / <alpha-value>)',
                         },
                 },
                 // ─── BORDER RADIUS (3 tokens, enforced) ─────────────────────────

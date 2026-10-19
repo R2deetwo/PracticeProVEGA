@@ -11,11 +11,14 @@ import React from 'react';
  * are styled divs inside an aria-hidden exhibit).
  */
 
-/** 24 units, Phase 2 — true = occupied (emerald), false = vacant (clay). */
+/** 24 units, Phase 2 — true = occupied (clay), false = vacant (tan).
+ * R32: 22 occupied · 2 vacant (B3, D4) — matching the hero's master plan
+ * and the displayed 22/24 · 91.7% (the old array had 3 vacant, a count
+ * bug the rebrand's one-estate story surfaced). */
 const UNITS: boolean[] = [
     true, true, true, true, true, true,
     true, true, false, true, true, true,
-    true, true, true, true, true, false,
+    true, true, true, true, true, true,
     true, true, true, false, true, true,
 ];
 
@@ -27,8 +30,8 @@ const ResidentsPortalPhone: React.FC = () => (
             {/* Status bar */}
             <div className="flex items-center justify-between px-5 pt-3 pb-2">
                 <span className="font-mono text-2xs text-slate-400">9:41</span>
-                <span className="w-16 h-4 rounded-full bg-slate-900/90 flex items-center justify-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-atrium-emerald" />
+                <span className="w-16 h-4 rounded-full bg-atrium-ink/90 flex items-center justify-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-atrium-clay" />
                 </span>
             </div>
             {/* Greeting */}
@@ -53,21 +56,21 @@ const ResidentsPortalPhone: React.FC = () => (
             <div className="px-5 py-4 space-y-3">
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-600">Rent (annual) 2026</span>
-                    <span className="font-mono text-2xs font-semibold text-atrium-emerald uppercase tracking-wider">
+                    <span className="font-mono text-2xs font-semibold text-atrium-clay-deep uppercase tracking-wider">
                         Paid
                     </span>
                 </div>
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-600">Service charge Q3</span>
-                    <span className="font-mono text-2xs font-semibold text-atrium-emerald uppercase tracking-wider">
+                    <span className="font-mono text-2xs font-semibold text-atrium-clay-deep uppercase tracking-wider">
                         Paid
                     </span>
                 </div>
             </div>
             {/* Maintenance */}
-            <div className="mx-4 mb-4 rounded-xl bg-atrium-clay/10 border border-atrium-clay/25 p-3.5 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-atrium-clay/20 flex items-center justify-center">
-                    <span className="w-2 h-2 rounded-full bg-atrium-clay" />
+            <div className="mx-4 mb-4 rounded-xl bg-atrium-tan/10 border border-atrium-tan/30 p-3.5 flex items-center gap-3">
+                <span className="w-8 h-8 rounded-full bg-atrium-tan/20 flex items-center justify-center">
+                    <span className="w-2 h-2 rounded-full bg-atrium-tan" />
                 </span>
                 <div className="flex-1">
                     <p className="text-xs font-semibold text-slate-800">Leaking kitchen tap</p>
@@ -76,8 +79,8 @@ const ResidentsPortalPhone: React.FC = () => (
             </div>
             {/* Visitor pass */}
             <div className="mx-4 mb-5 rounded-xl bg-white border border-slate-200/70 p-3.5 flex items-center gap-3">
-                <span className="w-8 h-8 rounded-full bg-atrium-emerald/10 flex items-center justify-center">
-                    <span className="w-2 h-2 rounded-full bg-atrium-emerald" />
+                <span className="w-8 h-8 rounded-full bg-atrium-clay/10 flex items-center justify-center">
+                    <span className="w-2 h-2 rounded-full bg-atrium-clay" />
                 </span>
                 <div className="flex-1">
                     <p className="text-xs font-semibold text-slate-800">Visitor pass #2231</p>
@@ -97,7 +100,7 @@ export const AtriumEstate: React.FC = () => (
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             {/* Section head — warm, human, unhurried */}
             <div className="max-w-2xl mb-12 md:mb-16">
-                <p className="text-2xs font-bold uppercase tracking-[0.3em] text-atrium-emerald mb-5">
+                <p className="text-2xs font-bold uppercase tracking-[0.3em] text-atrium-clay mb-5">
                     Revenue Monitor
                 </p>
                 <h2
@@ -145,33 +148,36 @@ export const AtriumEstate: React.FC = () => (
                         <div className="flex flex-wrap items-center justify-between gap-4 mt-7">
                             <div className="flex items-center gap-5">
                                 <span className="flex items-center gap-2 text-xs text-slate-500">
-                                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-atrium-emerald/20 border border-atrium-emerald/40" />
+                                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-atrium-clay/20 border border-atrium-clay/45" />
                                     Occupied
                                 </span>
                                 <span className="flex items-center gap-2 text-xs text-slate-500">
-                                    <span className="inline-block w-2.5 h-2.5 rounded-sm bg-atrium-clay/15 border border-dashed border-atrium-clay/60" />
+                                    <span className="inline-block w-2.5 h-2.5 rounded-sm border border-dashed border-atrium-tan/70" />
                                     Vacant
                                 </span>
                             </div>
                             <p className="font-mono nums-tabular text-sm text-slate-700">
-                                22 / 24 OCCUPIED · <span className="font-semibold text-atrium-emerald">91.7%</span>
+                                22 / 24 OCCUPIED · <span className="font-semibold text-atrium-clay-deep">91.7%</span>
                             </p>
                         </div>
                     </div>
 
-                    {/* Numbers that matter — large tabular mono on cream */}
+                    {/* Numbers that matter — large tabular mono on cream.
+                        R32: the 98.2% collection figure lives once, in the
+                        hero's register card; this band carries the estate's
+                        own occupancy + collections story. */}
                     <div className="grid grid-cols-2 gap-6 mt-8 px-2">
                         <div>
-                            <p className="font-mono nums-tabular text-3xl md:text-4xl font-semibold text-atrium-emerald">
-                                98.2%
-                            </p>
-                            <p className="text-sm text-slate-500 mt-1.5">collection rate this quarter</p>
-                        </div>
-                        <div>
-                            <p className="font-mono nums-tabular text-3xl md:text-4xl font-semibold text-atrium-emerald">
+                            <p className="font-mono nums-tabular text-3xl md:text-4xl font-semibold text-atrium-clay-deep">
                                 91.7%
                             </p>
-                            <p className="text-sm text-slate-500 mt-1.5">portfolio occupancy</p>
+                            <p className="text-sm text-slate-500 mt-1.5">portfolio occupancy, live</p>
+                        </div>
+                        <div>
+                            <p className="font-mono nums-tabular text-3xl md:text-4xl font-semibold text-atrium-clay-deep">
+                                &#8358;48.6M
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1.5">collected YTD, demo estate</p>
                         </div>
                     </div>
                 </div>

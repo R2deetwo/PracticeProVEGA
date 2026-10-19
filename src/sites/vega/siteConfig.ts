@@ -28,7 +28,9 @@ export const vegaSiteConfig: VegaSiteConfig = {
     hubUrl: '/',
     signupPath: '/signup',
     loginPath: '/login',
-    resourcesPath: '/resources',
+    // R32: resources live IN the product page — /vega/resources carries the
+    // Vega-themed set (the hub-level /resources stays as the company index).
+    resourcesPath: '/vega/resources',
     legal: {
         privacy: '/privacy-policy',
         terms: '/terms-of-service',

@@ -8,11 +8,12 @@
 
 import { LegalDocType } from './indexerTypes';
 
+// R32: the 2.0 era and 2.5-pro are retired by Google (404 for new
+// keys) — the chain now runs 2.5-flash → flash-latest → 3.8-flash.
 const GEMINI_MODEL_CHAIN = [
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.5-pro',
-  'gemini-2.0-flash-lite',
+  'gemini-flash-latest',
+  'gemini-3.8-flash',
 ];
 const TIMEOUT_MS = 90000;
 

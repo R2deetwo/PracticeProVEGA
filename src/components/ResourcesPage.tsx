@@ -100,7 +100,7 @@ The transition to a unified property management system is no longer a luxury; it
     {
         id: 'atrium-tenant-retention',
         tag: 'Strategy',
-        tagColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        tagColor: 'bg-atrium-clay/10 text-atrium-clay-deep border-atrium-clay/25',
         title: 'Maximizing Tenant Retention Through Digital Experience',
         summary: 'Explore how providing a seamless, digital-first experience for tenants leads to higher retention rates, lower turnover costs, and improved property yields in competitive urban markets like Lagos and Abuja.',
         readTime: '8 min read',
@@ -132,7 +132,7 @@ Investing in a digital property management system is not just about making the m
     {
         id: 'digital-property-agency',
         tag: 'PropTech',
-        tagColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        tagColor: 'bg-atrium-clay/10 text-atrium-clay-deep border-atrium-clay/25',
         title: 'The Digital Property Agency: A Transformation Roadmap',
         summary: 'A strategic guide to digitizing a Nigerian property agency — covering the five stages of digital maturity, how to build a business case for technology investment, and a practical implementation framework that minimizes disruption to active operations.',
         readTime: '10 min read',
@@ -470,7 +470,7 @@ NDPA compliance is an operational discipline, not a one-time project. Law firms 
     {
         id: 'digital-roadmap',
         tag: 'Legal Tech',
-        tagColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        tagColor: 'bg-atrium-clay/10 text-atrium-clay-deep border-atrium-clay/25',
         title: 'The Digital Law Firm: A Transformation Roadmap',
         summary: 'A strategic guide to digitizing a Nigerian law firm — covering the five stages of digital maturity, how to build a business case for technology investment, and a practical implementation framework that minimizes disruption to active practice.',
         readTime: '10 min read',
@@ -566,15 +566,15 @@ const COMPLIANCE_DOCS = [
     {
         icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600" />,
         title: 'ISO 27001 Alignment Statement',
-        description: 'PracticePro VEGA is built against the ISO 27001:2022 information security framework. This document outlines our security controls across access management, incident response, encryption, and audit logging.',
-        badge: 'Security',
+        description: 'The PracticePro platform is built against the ISO 27001:2022 information security framework. This document outlines our security controls across access management, incident response, encryption, and audit logging.',
+        badge: 'Platform',
         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
     {
         icon: <DocumentIcon className="w-6 h-6 text-blue-600" />,
         title: 'NDPA 2023 Data Processing Statement',
         description: 'Our formal statement of data processing activities, lawful bases, retention schedules, and data subject rights procedures as required by the Nigeria Data Protection Act 2023.',
-        badge: 'Compliance',
+        badge: 'Platform',
         badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
     },
 ];
@@ -629,7 +629,7 @@ ALOA is your dedicated Legal AI Copilot, designed for legal reasoning tasks. Get
 ### Principles of Good Prompting
 The way you ask a question determines the quality of the answer. Use the "Context + Task + Format" framework:
 
-- **Context:** Provide the background. *"We act for a landlord with a property in Lagos who wishes to evict a commercial tenant for non-payment of rent for 6 months."* (Replace "Lagos" with the state where your property is located — ALOA applies the tenancy law of that state.)
+- **Context:** Provide the background. *"We act for a landlord in a recovery-of-premises proceeding in Lagos — the commercial tenant has not paid rent for 6 months."* (Replace "Lagos" with the state where the property is located — ALOA applies the tenancy and recovery-of-premises law of that state.)
 - **Task:** State exactly what you need. *"Draft a 7-day statutory notice of owner's intention to recover premises."*
 - **Format:** Specify how you want it delivered. *"Format this as a formal legal letter with placeholders for names."*
 
@@ -1108,7 +1108,7 @@ const WhatsNewFilter: React.FC<{
     const filters: { key: 'all' | 'vega' | 'atrium' | 'komplete'; label: string; color: string }[] = [
         { key: 'all', label: 'All', color: 'bg-slate-900 text-white' },
         { key: 'vega', label: 'Vega', color: 'bg-amber-500 text-white' },
-        { key: 'atrium', label: 'Atrium', color: 'bg-emerald-500 text-white' },
+        { key: 'atrium', label: 'Atrium', color: 'bg-atrium-clay text-white' },
         { key: 'komplete', label: 'Komplete', color: 'bg-violet-500 text-white' },
     ];
     return (
@@ -1132,7 +1132,7 @@ const WhatsNewFilter: React.FC<{
 
 const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
     const categoryColors: Record<string, string> = {
-        feature: 'bg-emerald-100 text-emerald-700',
+        feature: 'bg-atrium-clay/15 text-atrium-clay-deep',
         improvement: 'bg-blue-100 text-blue-700',
         fix: 'bg-amber-100 text-amber-700',
         security: 'bg-rose-100 text-rose-700',
@@ -1151,7 +1151,7 @@ const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
                     {entry.products.map(p => (
                         <span key={p} className={`text-2xs font-bold uppercase px-1.5 py-0.5 rounded ${
                             p === 'vega' ? 'bg-amber-100 text-amber-600' :
-                            p === 'atrium' ? 'bg-emerald-100 text-emerald-600' :
+                            p === 'atrium' ? 'bg-atrium-clay/15 text-atrium-clay-deep' :
                             'bg-violet-100 text-violet-600'
                         }`}>{p}</span>
                     ))}
@@ -1186,7 +1186,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
         : WHATS_NEW_ENTRIES.filter(e => e.products.includes(whatsNewFilter as any));
     const productBadge = isVega
         ? 'bg-amber-100 text-amber-700'
-        : 'bg-emerald-100 text-emerald-700';
+        : 'bg-atrium-clay/15 text-atrium-clay-deep';
 
     const tabs = [
         { key: 'whatsnew' as const, label: "What's New" },
@@ -1244,7 +1244,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                                     aria-selected={activeTab === tab.key}
                                     className={`px-4 py-3 text-sm font-bold whitespace-nowrap border-b-2 transition-colors ${
                                         activeTab === tab.key
-                                            ? `${isVega ? 'border-amber-500 text-amber-600' : 'border-emerald-500 text-emerald-600'}`
+                                            ? `${isVega ? 'border-amber-500 text-amber-600' : 'border-atrium-clay text-atrium-clay-deep'}`
                                             : 'border-transparent text-slate-500 hover:text-slate-900'
                                     }`}
                                 >
@@ -1283,7 +1283,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             </button>
                             <button
                                 onClick={() => setActiveProduct('atrium')}
-                                className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-atrium-clay text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Property Managers
                             </button>
@@ -1362,7 +1362,11 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         </div>
                     </div>
                     <div className="grid md:grid-cols-2 gap-4">
-                        {(isVega ? COMPLIANCE_DOCS : ATRIUM_COMPLIANCE_DOCS).map((doc, i) => (
+                        {/* R32: the two PLATFORM-level docs (ISO 27001, NDPA
+                            DPA) render under BOTH products' Security tabs —
+                            they were previously Vega-only, which misfiled
+                            the company's compliance posture. */}
+                        {(isVega ? COMPLIANCE_DOCS : [...COMPLIANCE_DOCS, ...ATRIUM_COMPLIANCE_DOCS]).map((doc, i) => (
                             <div key={i} className="bg-white border border-slate-200 rounded-2xl p-6 flex gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0">
                                     {doc.icon}
@@ -1384,7 +1388,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 {activeTab === 'guides' && (
                 <section className="mb-16">
                     <div className="flex items-center gap-3 mb-8">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-lg bg-atrium-clay flex items-center justify-center">
                             <SparklesIcon className="w-4 h-4 text-white" />
                         </div>
                         <div>
@@ -1482,8 +1486,8 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                             className="text-left bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-300 group"
                         >
                             <div className="flex items-start gap-4">
-                                <div className="w-10 h-10 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg>
+                                <div className="w-10 h-10 rounded-lg bg-atrium-clay/10 border border-atrium-clay/20 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-5 h-5 text-atrium-clay-deep" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" /></svg>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2 mb-1">

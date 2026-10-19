@@ -66,17 +66,17 @@ export const AtriumSite: React.FC = () => {
                 scrollTo={scrollTo}
                 onLogin={() => openModal('login', null, { productTheme: 'atrium' })}
                 onSignup={openSignup}
-                onResources={() => navigate('/resources')}
+                onResources={() => navigate('/atrium/resources')}
                 onContactSales={() => openContactSales('Nav')}
                 onOpenProduct={openProductPage}
                 onBackToHub={handleBackToHub}
             />
 
             {/* Skip to content link — Atrium's focus state lands on its
-                emerald. */}
+                clay. */}
             <a
                 href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-atrium-emerald focus:text-white"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-atrium-clay focus:text-white"
             >
                 Skip to content
             </a>
@@ -123,7 +123,7 @@ export const AtriumSite: React.FC = () => {
                 onTermsClick={() => navigate('/terms-of-service')}
                 onCookieClick={() => navigate('/cookie-policy')}
                 onUsageClick={() => navigate('/usage-policy')}
-                onResources={() => navigate('/resources')}
+                onResources={() => navigate('/atrium/resources')}
                 onContactSales={() => openContactSales('Footer')}
                 onOpenProduct={openProductPage}
             />

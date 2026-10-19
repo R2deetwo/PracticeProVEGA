@@ -719,7 +719,7 @@ export const App: React.FC = () => {
     // effectiveness and conversion signals.
     const trackPageView = React.useCallback((pathname: string) => {
         try {
-            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/reset-password', '/gatehouse', '/apply'];
+            const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/vega/resources', '/atrium/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/reset-password', '/gatehouse', '/apply'];
             // /apply/<propertyId> is a public route — the exact-match list only
             // contains the bare '/apply' prefix, so match the prefix here too.
             if (!publicPaths.includes(pathname) && !pathname.startsWith('/apply/') && !pathname.startsWith('/gatehouse')) return;
@@ -774,6 +774,16 @@ export const App: React.FC = () => {
     const [resourcesProduct, setResourcesProduct] = useState<'vega' | 'atrium'>(() => {
         try { return window.location.pathname.startsWith('/atrium') ? 'atrium' : 'vega'; } catch { return 'vega'; }
     });
+    // R32: resources moved INTO the product pages (/vega/resources,
+    // /atrium/resources). The product seed follows the URL — SPA
+    // navigations between the two re-seed the page's content set.
+    React.useEffect(() => {
+        try {
+            const p = window.location.pathname;
+            if (p.startsWith('/atrium')) setResourcesProduct('atrium');
+            else if (p.startsWith('/vega')) setResourcesProduct('vega');
+        } catch { /* noop */ }
+    }, [location.pathname]);
     const { confirm: confirmAction, ConfirmDialog: confirmDialogNode } = useConfirm();
     const { product } = useProduct();
     const [forceEntry, setForceEntry] = useState(false);
@@ -918,7 +928,7 @@ export const App: React.FC = () => {
     // during the brief window while auth is loading. We detect this by checking
     // sessionStorage for a stored portal type.
     useEffect(() => {
-        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/reset-password', '/gatehouse', '/apply'];
+        const publicPaths = ['/', '/vega', '/atrium', '/komplet', '/privacy-policy', '/terms-of-service', '/data-processing-agreement', '/cookie-policy', '/usage-policy', '/portal-terms-of-use', '/resources', '/vega/resources', '/atrium/resources', '/portal/client/login', '/portal/tenant/login', '/portal/client', '/portal/tenant', '/setup-password', '/reset-password', '/gatehouse', '/apply'];
 
         // TASK 15: Redirect authenticated users away from landing-page routes
         // (/vega, /atrium, /komplet) to the dashboard. These routes are for

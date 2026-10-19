@@ -29,6 +29,11 @@
 @import '@fontsource/dancing-script/700.css';
 @import '@fontsource-variable/fraunces';
 @import '@fontsource-variable/fraunces/wght-italic.css';
+/* R32 Atrium rebrand — Bricolage Grotesque is Atrium's own display face
+   (installed since P1, unused until now). Warm, slightly quirky, geometric
+   with humanist corners — the opposite register of Vega's Fraunces serif
+   and distinct from the hub's Space Grotesk. */
+@import '@fontsource-variable/bricolage-grotesque';
 
 @tailwind base;
 @tailwind components;
@@ -136,14 +141,29 @@
      exhibits use it verbatim so the demo drafts are super accurate. */
   --font-vega-document: 'Times New Roman', Times, Georgia, serif;
 
-  /* ===== Atrium product-page tokens ("The Well-Kept Estate") ========== */
-  --color-atrium-emerald: 5 150 105;    /* #059669 — Atrium's accent       */
-  /* R23 mark grounds — lit corner → deep corner, like the vega seal. */
-  --color-atrium-jade: 12 122 87;       /* #0C7A57 — the tile's lit corner */
-  --color-atrium-pine: 5 61 44;         /* #053D2C — the tile's deep corner*/
-  --color-atrium-mint: 110 231 183;     /* #6EE7B7 — the tile's inner ring */
-  --color-clay: 180 132 108;            /* #B4846C — warm supporting tone  */
-  --color-cream: 250 247 242;           /* #FAF7F2 — warm base surface     */
+  /* ===== Atrium product-page tokens ("The Terracotta Estate", R32) =====
+     Owner re-opened the brand (2026-10-19: "we still need to sort out
+     atrium — i am still not happy with it"). Atrium leaves the emerald
+     family entirely (it sat one hue from the hub's moss and forced three
+     green ramps into one chrome) and takes the deferred terracotta
+     direction: the register of roof tiles, laterite dust and estate
+     maps — clay on cream and sand. */
+  --color-atrium-clay: 180 83 42;         /* #B4532A — the primary accent  */
+  --color-atrium-clay-bright: 201 106 66; /* #C96A42 — hover / lit accent  */
+  --color-atrium-clay-deep: 122 52 25;    /* #7A3419 — pressed / deep text */
+  /* R23 mark grounds — lit corner → deep corner, like the vega seal
+     (re-tinted R32: rust → umber, the terracotta coin). */
+  --color-atrium-rust: 158 64 32;         /* #9E4020 — the tile's lit corner */
+  --color-atrium-umber: 74 34 16;         /* #4A2210 — the tile's deep corner */
+  --color-atrium-sand: 232 220 198;       /* #E8DCC6 — section band surface */
+  --color-atrium-ink: 43 33 24;           /* #2B2118 — headline ink        */
+  --color-atrium-cream: 247 241 230;      /* #F7F1E6 — base surface        */
+  --color-clay: 180 132 108;              /* #B4846C — warm neutral (vacant) */
+  --color-cream: 250 247 242;             /* #FAF7F2 — legacy shared cream */
+  /* Atrium's own display face — resolved via --font-display inside
+     .theme-atrium so every font-display class on /atrium re-skins. */
+  --font-atrium-display: 'Bricolage Grotesque Variable', 'Space Grotesk',
+    'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
 
   /* ===== Brand Overhaul Tokens (docs/design/brand.md §4) ============== */
   /* Type roles — three registers, theme-agnostic (fonts don't change per
@@ -2174,6 +2194,21 @@ span[data-type="legal-placeholder"] {
   .theme-vega .vg-figure-outline { color: rgb(var(--color-vega-gilt)); }
 }
 
+/* ── The Seal band (R32) — the certification ring around the 3D coin. ────
+   A slow mono micro-caption circling the gilt seal, the register of a
+   notary's certification stamp. One rotation per ~90s — presence, not
+   performance. */
+.vg-seal-ring {
+  animation: vg-seal-ring-spin 90s linear infinite;
+  transform-origin: center;
+}
+@keyframes vg-seal-ring-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vg-seal-ring { animation: none; }
+}
+
 /* ── Vega exhibits — bright paper on the night ground ─────────────────────
    The pleading sheets are the page's light source: warm-white stock with
    a deep two-layer shadow stack, so they float above the night ground
@@ -2502,9 +2537,16 @@ span[data-type="legal-placeholder"] {
    opposite of Vega's square, hairline-ruled world. Scoped to /atrium only.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Scope: the warm base surface ────────────────────────────────────────── */
+/* ── Scope: the terracotta base surface + Atrium's own display face ──────
+   R32: three scoped overrides do the heavy lifting — every section that
+   already paints --color-paper lands on the estate's cream parchment,
+   every sage break warms to sand, every font-display heading becomes
+   Bricolage Grotesque. No section file needs a font class to rebrand. */
 .theme-atrium {
-  --color-paper: #FAF7F2; /* cream — warmer than the parent page */
+  --color-paper: #F7F1E6; /* cream parchment — warmer than the parent page */
+  --color-sage: #E8DCC6;  /* sand — the section break, in scope            */
+  --color-ink: #2B2118;   /* warm ink — headings carry the estate's ground */
+  --font-display: var(--font-atrium-display);
 }
 
 /* ── Resident receipt (the signature object) ────────────────────────────── */
@@ -2529,11 +2571,12 @@ span[data-type="legal-placeholder"] {
   transform: translateY(-4px);
 }
 .at-stamp {
-  border: 3px solid rgb(5 150 105 / 0.55);
-  color: rgb(4 120 85);
+  /* Terracotta ink — the estate manager's rubber stamp. */
+  border: 3px solid rgb(180 83 42 / 0.55);
+  color: rgb(122 52 25);
   border-radius: 6px;
   transform: rotate(-8deg);
-  box-shadow: inset 0 0 0 1.5px rgb(5 150 105 / 0.25);
+  box-shadow: inset 0 0 0 1.5px rgb(180 83 42 / 0.25);
   opacity: 0.9;
 }
 
@@ -2543,12 +2586,12 @@ span[data-type="legal-placeholder"] {
   transition: transform 400ms var(--ease-out);
 }
 .at-unit--occupied {
-  background: rgb(var(--color-atrium-emerald) / 0.08);
-  border: 1px solid rgb(var(--color-atrium-emerald) / 0.22);
-  color: rgb(4 120 85);
+  background: rgb(var(--color-atrium-clay) / 0.09);
+  border: 1px solid rgb(var(--color-atrium-clay) / 0.28);
+  color: rgb(var(--color-atrium-clay-deep));
 }
 .at-unit--vacant {
-  background: rgb(var(--color-clay) / 0.12);
+  background: rgb(var(--color-clay) / 0.10);
   border: 1px dashed rgb(var(--color-clay) / 0.5);
   color: rgb(var(--color-clay));
 }
@@ -2559,7 +2602,7 @@ span[data-type="legal-placeholder"] {
 /* ── Residents' portal phone mockup ─────────────────────────────────────── */
 .at-phone {
   border-radius: 24px;            /* the 3xl hero-card radius */
-  background: rgb(30 35 44);
+  background: rgb(43 33 24);      /* the estate's warm ink, not slate */
   padding: 10px;
   box-shadow:
     0 1px 3px 0 rgb(75 50 35 / 0.10),
@@ -2572,32 +2615,74 @@ span[data-type="legal-placeholder"] {
 }
 .at-phone__btn {
   border-radius: 6px;
-  background: rgb(var(--color-atrium-emerald));
+  background: rgb(var(--color-atrium-clay));
   color: #fff;
+}
+
+/* ── The plan-view estate map (the hero's signature object, R32) ─────────
+   An architectural site plan that lives: occupied units breathe in a slow
+   wave (each unit's delay set inline), a resident's car traces the estate
+   loop (SMIL animateMotion), and the gatehouse beacon pings like a lighthouse.
+   The whole board tilts a few degrees toward the pointer — a physical model
+   on the estate office table, not a flat diagram. */
+.at-plan-board {
+  /* Board physics — the model rests tilted on the estate office table
+     (a fixed 10° draft), the pointer adds a few degrees of lean, and the
+     release springs home (Kowalski curve). */
+  transform: rotateX(calc(10deg + var(--at-tilt-x, 0deg))) rotateY(var(--at-tilt-y, 0deg));
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.at-plan-board__frame {
+  perspective: 1400px;
+}
+@keyframes at-plan-breathe {
+  /* A unit's quiet pulse — barely there; the wave is what reads. */
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.at-plan-unit--occupied {
+  animation: at-plan-breathe 5.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes at-plan-beacon {
+  /* The gatehouse lighthouse — one soft ring every 4s. */
+  0% { transform: scale(0.6); opacity: 0.8; }
+  70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+.at-plan-beacon {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: at-plan-beacon 4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+@keyframes at-plan-draw {
+  /* The master-plan title block rules drawing themselves on scroll-in. */
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
 }
 
 /* ── Global compliance bars while on /atrium only ────────────────────────
    Same mechanism as Vega: LandingPage toggles body.on-atrium-page; the
    hook classes are inert on every other page. The bar container itself
    is shared global chrome (dark on /vega too) — only the accents move
-   to Atrium's emerald, never the moss ramp. */
+   to Atrium's clay, never the moss ramp. */
 .on-atrium-page .cookie-ack,
 .on-atrium-page .terms-accept {
-  background: rgb(var(--color-atrium-emerald));
+  background: rgb(var(--color-atrium-clay));
 }
 .on-atrium-page .cookie-ack:hover {
-  background: rgb(4 120 85);
+  background: rgb(var(--color-atrium-clay-deep));
 }
 .on-atrium-page .terms-accept:hover {
-  background: rgb(4 120 85);
+  background: rgb(var(--color-atrium-clay-deep));
 }
 .on-atrium-page .cookie-link,
 .on-atrium-page .terms-link {
-  color: rgb(110 231 183); /* emerald-300 — legible on the dark chrome bar */
+  color: rgb(244 199 178); /* clay-tinted cream — legible on the dark chrome bar */
 }
 .on-atrium-page .cookie-link:hover,
 .on-atrium-page .terms-link:hover {
-  color: rgb(167 243 208); /* emerald-200 */
+  color: rgb(249 224 212); /* the lit end of the tint */
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2609,6 +2694,20 @@ span[data-type="legal-placeholder"] {
   .theme-atrium .at-receipt,
   .theme-atrium .at-stamp {
     transform: none;
+  }
+  /* The estate plan holds a single static frame — no breathing, no car,
+     no beacon. The board still tilts on pointer (it is input feedback,
+     not decoration) but snaps without the spring. */
+  .at-plan-unit--occupied,
+  .at-plan-beacon {
+    animation: none;
+  }
+  .at-plan-car,
+  .at-plan-car-track {
+    display: none;
+  }
+  .at-plan-board {
+    transition: none;
   }
 }
 

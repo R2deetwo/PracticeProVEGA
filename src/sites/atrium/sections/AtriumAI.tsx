@@ -41,9 +41,9 @@ const ARIA_CONFIG = {
 
 export const AtriumAI: React.FC = () => {
     const config = ARIA_CONFIG;
-    const accentColor = 'text-emerald-600';
-    const accentBg = 'bg-emerald-50';
-    const accentBorder = 'hover:border-emerald-300';
+    const accentColor = 'text-atrium-clay-deep';
+    const accentBg = 'bg-atrium-clay/10';
+    const accentBorder = 'hover:border-atrium-clay/40';
 
     return (
         <section
@@ -53,11 +53,11 @@ export const AtriumAI: React.FC = () => {
         >
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-12 md:mb-16 text-center">
-                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 ${accentBg} rounded-full mb-4 border border-emerald-200/70`}>
+                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 ${accentBg} rounded-full mb-4 border border-atrium-clay/25`}>
                         <svg className={`w-4 h-4 ${accentColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
                         <span className={`text-sm font-bold ${accentColor}`}>{config.assistantName} — {config.assistantFull}</span>
                     </div>
-                    <h2 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                    <h2 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-atrium-ink">
                         {config.headline}
                     </h2>
                     <p className="text-lg mt-4 text-slate-600 max-w-2xl mx-auto">

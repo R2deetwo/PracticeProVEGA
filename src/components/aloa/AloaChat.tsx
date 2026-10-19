@@ -2625,6 +2625,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                 let errorMessage = "I encountered an issue processing your request.";
                 let isAuthError = false;
+                let isQuotaError = false;
                 let helpText = "Please try again later.";
 
                 if (error.message) {
@@ -2639,6 +2640,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     }
                     else if (error.message.includes('quota') || error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
                         errorMessage = "Quota Exceeded: Your AI usage limit has been reached.";
+                        isQuotaError = true;
                         helpText = "**Solutions:**\n\n1. **Wait**: Free tier quotas reset daily\n2. **Upgrade**: Get higher limits at [Google AI Studio](https://ai.google.dev/pricing)\n3. **Monitor Usage**: Check your quota at [AI Dev Console](https://ai.dev/rate-limit)\n4. **Alternative**: Try switching to DeepSeek in Settings (if configured)";
                     }
                     else if (error.message.includes('network') || error.message.includes('fetch')) {
@@ -2655,8 +2657,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     }
                 }
 
+                const errorId = uuidv4();
                 const errorMsgObj: AloaMessage = {
-                    id: uuidv4(),
+                    id: errorId,
                     role: 'model',
                     content: `**${errorMessage}**\n\n${isAuthError ? "Please check your AI Settings." : "Please try again later."}`,
                     isError: true,
@@ -2664,6 +2667,28 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 };
 
                 setMessages(prev => [...prev.filter(m => m.id !== streamMsgId), errorMsgObj]);
+
+                // R32 — key health in the chat: when the failure smells like
+                // the KEY (auth or quota), probe Google's free models.list
+                // endpoint and append the classified verdict to the error
+                // card — the ordinary-user answer to "has my key expired?",
+                // right where the failure happened.
+                if (isAuthError || isQuotaError) {
+                    void (async () => {
+                        try {
+                            const { checkGeminiKeyHealth, getGeminiApiKey } = await import('../../utils/aiUtils');
+                            const key = getGeminiApiKey();
+                            if (!key) return; // no key to probe — the pre-flight card covers it
+                            const h = await checkGeminiKeyHealth(key);
+                            const verdict = h.note ? `\n\n> **Key check:** ${h.note}` : '';
+                            setMessages(prev => prev.map(m => m.id === errorId ? {
+                                ...m,
+                                content: `**${errorMessage}**${verdict}\n\n${helpText}`,
+                                actions: [{ type: 'navigate', target: '/settings?tab=agents', label: 'Open AI Settings →' }],
+                            } : m));
+                        } catch { /* keep the original card */ }
+                    })();
+                }
             },
         }).catch(() => {
             // Silently swallow promise rejection — onError handler already
@@ -3599,16 +3624,24 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             )}
 
                             <div className="mt-6 flex flex-wrap gap-2 justify-center max-w-[300px]">
+                                {/* R32: per-product capability suggestions — each chip maps to a real tool
+                                    surface (revenue queries, lease alerts, drafting, court-rule
+                                    computation, research) so the first tap demonstrates what the
+                                    assistant can actually DO for THIS product's user. */}
                                 {(isAtrium ? [
-                                    'Show revenue summary',
-                                    'List defaulting tenants',
-                                    'Draft a rent demand',
+                                    'Who are my defaulters this month?',
+                                    'Summarise my portfolio collections',
+                                    'Which leases expire in the next 90 days?',
+                                    'Draft a rent demand notice',
                                     'What units are vacant?',
+                                    'Draft a tenancy agreement for a Lagos property',
                                 ] : [
-                                    'Draft a Notice to Quit',
-                                    'Create a new matter',
+                                    'What are my court dates this week?',
+                                    'Compute filing deadlines for a Lagos High Court matter',
+                                    'Draft a Motion on Notice',
                                     'Summarize my active cases',
-                                    'What are my pending tasks?',
+                                    'Create a new matter',
+                                    'Research recent Nigerian case law',
                                 ]).map(suggestion => (
                                     <button
                                         key={suggestion}

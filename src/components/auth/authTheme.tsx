@@ -98,14 +98,14 @@ const ATRIUM_THEME: AuthThemeDef = {
     microlabel: 'THE WELL-KEPT ESTATE',
     chrome: {
         overlayClass: 'bg-zinc-900/70 sm:backdrop-blur-md',
-        cardClass: 'bg-atrium-cream border-atrium-emerald/30',
-        accentBarClass: 'bg-atrium-emerald',
+        cardClass: 'bg-atrium-cream border-atrium-clay/30',
+        accentBarClass: 'bg-atrium-clay',
     },
     Mark: AtriumMark,
     primaryBtn:
-        'bg-atrium-emerald text-white hover:bg-atrium-emerald/90 shadow-sm',
-    linkBtn: 'text-atrium-emerald hover:text-atrium-emerald/80',
-    inputFocus: 'focus:ring-atrium-emerald/60 focus:border-atrium-emerald',
+        'bg-atrium-clay text-white hover:bg-atrium-clay-bright shadow-sm',
+    linkBtn: 'text-atrium-clay-deep hover:text-atrium-clay',
+    inputFocus: 'focus:ring-atrium-clay/60 focus:border-atrium-clay',
 };
 
 export const AUTH_THEMES: Record<AuthThemeId, AuthThemeDef> = {

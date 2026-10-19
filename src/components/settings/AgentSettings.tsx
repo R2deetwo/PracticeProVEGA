@@ -6,7 +6,7 @@ import { api } from '../../../convex/_generated/api';
 import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeIcon, EyeOffIcon, BrainIcon, SearchIcon, ScalesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { setCustomApiKey, getCustomApiKey, setInMemoryApiKey } from '../../utils/aiUtils';
+import { setCustomApiKey, getCustomApiKey, setInMemoryApiKey, checkGeminiKeyHealth, apiKeyHealthLabel, type ApiKeyHealth } from '../../utils/aiUtils';
 import { getAssistantName } from '../../utils/assistantIdentity';
 import { useProduct } from '../../contexts/ProductContext';
 
@@ -304,7 +304,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
             return;
         }
         if (cleanKey.length < 30) {
-            addToast("That key looks too short. Gemini keys are usually 39 characters starting with 'AIza'.", { type: 'error' });
+            addToast("That key looks too short. Gemini keys are usually 39 characters starting with 'AIza' (newer keys start with 'AQ.').", { type: 'error' });
             return;
         }
         try {
@@ -330,6 +330,10 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
             }
             addToast("Gemini Key saved successfully.", { type: 'success' });
             setCustomKey('••••••••••••••••');
+            // R32: verify the freshly-saved key against Google immediately —
+            // a typo'd or already-expired key surfaces HERE, not as a chat
+            // failure later.
+            runKeyHealthCheck({ force: true, toast: true });
         } catch (err: any) {
             addToast("Failed to save key: " + (err.message || "Unknown error"), { type: 'error' });
         }
@@ -343,6 +347,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         setInMemoryApiKey(null);
         setHasKey(false);
         setCustomKey('');
+        setKeyHealth(null);
         // Also clear from server (save empty string)
         if (currentUser?.email) {
             saveApiKeyMutation({
@@ -360,6 +365,44 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
             setCustomKey('');
         }
     };
+
+    // ── KEY HEALTH (R32) ───────────────────────────────────────────────────
+    // The owner asked: "is there a way for ordinary users to know if their
+    // key has expired?" — the panel now probes Google directly (one FREE
+    // models.list call, zero generation tokens) and shows a classified
+    // status chip: active / expired-or-invalid / quota exhausted /
+    // region-restricted / unreachable. Runs automatically once a key is
+    // known (device or server copy) and after every save.
+    const [keyHealth, setKeyHealth] = useState<ApiKeyHealth | null>(null);
+    const [keyHealthChecking, setKeyHealthChecking] = useState(false);
+
+    const runKeyHealthCheck = async (opts: { force?: boolean; toast?: boolean } = {}) => {
+        const savedKey = getCustomApiKey() || (typeof serverKey === 'string' && serverKey.length > 0 ? serverKey : undefined);
+        const candidate = (customKey && customKey !== '••••••••••••••••') ? customKey.trim() : savedKey;
+        if (!candidate) return;
+        setKeyHealthChecking(true);
+        try {
+            const h = await checkGeminiKeyHealth(candidate, { force: opts.force });
+            setKeyHealth(h);
+            if (opts.toast) {
+                const label = apiKeyHealthLabel(h);
+                addToast(
+                    h.status === 'valid' ? 'Key active — AI is ready.' : `${label}. ${h.note ?? ''}`,
+                    { type: h.status === 'valid' ? 'success' : h.status === 'quota' || h.status === 'region' ? 'warning' : 'error' }
+                );
+            }
+        } finally {
+            setKeyHealthChecking(false);
+        }
+    };
+
+    // Auto-check once a key is visible to the panel (device or server copy).
+    useEffect(() => {
+        if (hasKey || hasServerKey) {
+            runKeyHealthCheck();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasKey, hasServerKey]);
 
     // Build the agent list dynamically based on product (Vega vs Atrium).
     // All of these run automatically when AI is enabled — no per-agent toggles.
@@ -430,29 +473,18 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                             Save Key
                         </button>
                         <button
-                            onClick={async () => {
-                                try {
-                                    addToast("Testing connection...", { type: 'info' });
-                                    const { streamGemini, AI_CONFIG, getGeminiApiKey } = await import('../../utils/aiUtils');
-                                    // Device copy first, else the in-memory server key
-                                    // (covers the synced-from-account case).
-                                    const savedKey = getCustomApiKey() || getGeminiApiKey();
-                                    let rawKey = (customKey && customKey !== '••••••••••••••••') ? customKey : savedKey;
-                                    const keyToTest = rawKey ? rawKey.replace(/[^ -~]/g, '').trim() : null;
-
-                                    if (!keyToTest) throw new Error("No Gemini Key found.");
-                                    await streamGemini("Test", { model: AI_CONFIG.gemini.fallbackPlan[0], apiKeyOverride: keyToTest });
-
-                                    addToast("Connection Successful! AI is ready.", { type: 'success' });
-                                } catch (e: any) {
-                                    console.error("AI Connection Test Failed:", e);
-                                    addToast(`Connection Failed: ${e.message}`, { type: 'error' });
-                                }
-                            }}
+                            onClick={() => runKeyHealthCheck({ force: true, toast: true })}
                             className="px-4 py-2.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-lg font-bold text-sm hover:bg-emerald-200 dark:hover:bg-emerald-900/50 transition-colors"
-                            title="Test Connection"
+                            title="Check key health (free — verifies the key with Google)"
                         >
-                            <ZapIcon className="w-5 h-5" />
+                            {keyHealthChecking ? (
+                                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                            ) : (
+                                <ZapIcon className="w-5 h-5" />
+                            )}
                         </button>
                         {hasKey && (
                             <button
@@ -464,6 +496,48 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                         )}
                     </div>
                 </div>
+
+                {/* ── Key health status (R32) — the ordinary-user answer to
+                    "has my key expired?" Classified chip, auto-checked. */}
+                {hasKey && (keyHealthChecking || keyHealth) && (
+                    <div className={`mt-3 flex items-start gap-2.5 rounded-xl border p-3 text-xs leading-relaxed ${
+                        keyHealth?.status === 'invalid'
+                            ? 'border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-900/20'
+                            : 'border-slate-200 bg-slate-50 dark:border-zinc-700 dark:bg-zinc-800/60'
+                    }`}>
+                        {keyHealthChecking ? (
+                            <>
+                                <svg className="w-4 h-4 mt-0.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                <span className="text-slate-500 dark:text-zinc-400">Checking your key with Google…</span>
+                            </>
+                        ) : keyHealth && (
+                            <>
+                                <span className={`mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                                    keyHealth.status === 'valid' ? 'bg-emerald-500' :
+                                    keyHealth.status === 'invalid' ? 'bg-red-500' :
+                                    keyHealth.status === 'quota' ? 'bg-amber-500' :
+                                    keyHealth.status === 'region' ? 'bg-sky-500' : 'bg-slate-400'
+                                }`} aria-hidden="true" />
+                                <span>
+                                    <b className={
+                                        keyHealth.status === 'invalid' ? 'text-red-700 dark:text-red-400' :
+                                        'text-slate-800 dark:text-zinc-200'
+                                    }>{apiKeyHealthLabel(keyHealth)}</b>
+                                    <span className="text-slate-500 dark:text-zinc-400"> — {keyHealth.note}</span>
+                                    {keyHealth.status === 'invalid' && (
+                                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="ml-1 font-bold text-primary-600 dark:text-primary-400 underline">Create a new free key →</a>
+                                    )}
+                                    <span className="block text-2xs text-slate-400 dark:text-zinc-500 mt-1">
+                                        Checked {new Date(keyHealth.checkedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · re-check any time with the ⚡ button
+                                    </span>
+                                </span>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 text-xs text-slate-500">

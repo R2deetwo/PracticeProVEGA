@@ -64,24 +64,27 @@ export const AtriumFAQ: React.FC = () => {
         <section className="py-20 md:py-28 bg-white">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
                 <div className="mb-12 md:mb-16 text-center">
-                    <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                    <p className="font-mono text-2xs font-bold uppercase tracking-[0.3em] text-atrium-clay mb-4">
+                        The notice board
+                    </p>
+                    <h2 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-atrium-ink">
                         Questions? Answered.
                     </h2>
-                    <p className="text-lg text-slate-500 mt-4">
+                    <p className="text-lg text-slate-600 mt-4">
                         Everything you need to know about PracticePro Atrium for property managers.
                     </p>
                 </div>
                 <div className="space-y-3">
                     {allFaqs.map((item, i) => (
-                        <div key={i} className="border border-slate-200 overflow-hidden bg-white rounded-lg">
+                        <div key={i} className="border border-atrium-sand overflow-hidden bg-white rounded-lg">
                             <button
                                 onClick={() => setOpenIndex(openIndex === i ? null : i)}
-                                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-emerald-50 transition-colors"
+                                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-atrium-clay/5 transition-colors duration-150 active:scale-[0.99]"
                                 aria-expanded={openIndex === i}
                             >
-                                <span className="font-semibold text-slate-900 text-sm md:text-base">{item.q}</span>
+                                <span className="font-semibold text-atrium-ink text-sm md:text-base">{item.q}</span>
                                 <svg
-                                    className={`w-5 h-5 text-slate-400 flex-shrink-0 ml-3 transition-transform ${openIndex === i ? 'rotate-180' : ''}`}
+                                    className={`w-5 h-5 text-atrium-clay flex-shrink-0 ml-3 transition-transform duration-200 ${openIndex === i ? 'rotate-180' : ''}`}
                                     fill="none" stroke="currentColor" viewBox="0 0 24 24"
                                 >
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />

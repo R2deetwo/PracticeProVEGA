@@ -12,14 +12,15 @@
  *                      handling of Nigerian legal terminology and names.
  *   BACKGROUND_MODEL — scheduled, high-volume, cost-sensitive surfaces
  *                      (proactive morning briefings, nightly conversation
- *                      summarization). Deliberately kept on 2.0 Flash:
- *                      still fully supported by Google, materially cheaper
- *                      at cron volume, and nobody is waiting on the reply.
- *                      Revisit when 2.5-flash-lite pricing settles.
+ *                      summarization). R32: gemini-2.0-flash is RETIRED by
+ *                      Google (404 for new keys) — the background tier
+ *                      moves to gemini-3.8-flash, the current
+ *                      recommended flash model. Nobody is waiting on the
+ *                      reply, so a fallback to QUALITY_MODEL is fine.
  *
  * gemini-1.5-flash is RETIRED by Google (404s since early 2026) — it must
  * never reappear in any URL in this directory.
  */
 
 export const QUALITY_MODEL = "gemini-2.5-flash";
-export const BACKGROUND_MODEL = "gemini-2.0-flash";
+export const BACKGROUND_MODEL = "gemini-3.8-flash";

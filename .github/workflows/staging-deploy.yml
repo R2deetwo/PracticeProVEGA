@@ -142,6 +142,22 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
         run: npx convex deploy --cmd "echo 'staging functions deployed'"
 
+      # R32: keep the demo AI key in sync on staging too (see the fuller
+      # note in production-deploy.yml). continue-on-error: staging may not
+      # have env permissions on its deploy key.
+      - name: Ensure GEMINI_DEMO_KEY is set (demo ALOA/ARIA replies)
+        if: steps.staging_cfg.outputs.configured == 'true'
+        continue-on-error: true
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+          DEMO_KEY: ${{ secrets.GEMINI_DEMO_KEY }}
+        run: |
+          if [ -z "$DEMO_KEY" ]; then
+            echo "::warning::GEMINI_DEMO_KEY GitHub secret is not set — skipping."
+            exit 0
+          fi
+          npx convex env set GEMINI_DEMO_KEY "$DEMO_KEY" || echo "::warning::Could not set GEMINI_DEMO_KEY on staging."
+
       - name: Install Vercel CLI
         if: steps.staging_cfg.outputs.configured == 'true'
         # PINNED — see the note in production-deploy.yml (vercel@latest 62.x

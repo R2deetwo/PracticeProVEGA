@@ -535,7 +535,8 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         const isPublicRoute = pathname === '/' || pathname === '/login' || pathname === '/signup' ||
                            pathname === '/vega' || pathname === '/atrium' || pathname === '/komplet' ||
                            pathname.startsWith('/portal/') || pathname.startsWith('/legal/') ||
-                           pathname.startsWith('/resources') || pathname.startsWith('/privacy') ||
+                           pathname.startsWith('/resources') || pathname.startsWith('/vega/resources') ||
+                           pathname.startsWith('/atrium/resources') || pathname.startsWith('/privacy') ||
                            pathname.startsWith('/terms') || pathname.startsWith('/cookie') ||
                            pathname.startsWith('/usage') || pathname.startsWith('/data-processing');
 
@@ -666,7 +667,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         // users saw NotFoundView and unauthenticated users got the LandingPage
         // instead of the actual terms document.
         if (location.pathname === '/portal-terms-of-use') mappedView = 'portalTermsOfUse' as any;
-        if (location.pathname === '/resources') mappedView = 'resources' as any;
+        if (location.pathname === '/resources' || location.pathname === '/vega/resources' || location.pathname === '/atrium/resources') mappedView = 'resources' as any;
         // SIMPLIFY FIX: the standalone 'atriumEngine' view was removed (its
         // tabs were duplicates of Financials). Old bookmarks/links redirect.
         if (location.pathname === '/atriumEngine') mappedView = 'billing';
