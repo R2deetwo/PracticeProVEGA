@@ -13019,3 +13019,16 @@ Stage Summary:
 - R29 shipped: product-aware logout (Vega→/vega, Atrium→/atrium, Komplete→hub), the 'a product'/two-products register across every marketing surface, and Ada's week — five distinct, everyday, clearly-illustrated moments replacing the repetitive tangle workshop.
 - LIVE (2026-10-18 18:00Z): promoted at 08120f35 (run 39151893915: typecheck/tests ✅, Vercel+Convex ✅; Cloudflare mirror ❌ at the standing expired CLOUDFLARE_API_TOKEN — owner action). version.json healthy at 08120f35; live-verified: all five moments render on production at both beats (tight-timing capture, tall viewport), badges/CTA/footer copy confirmed in the served bundle, zero page errors at 1440+390. Rollback: promote any older main SHA.
 - Standing owner actions unchanged: rotate CLOUDFLARE_API_TOKEN (mirror stuck); renew practicepro.ng (NXDOMAIN — app on practice-pro-vega.vercel.app); rotate the GitHub PAT now that this session's pushes are done.
+
+---
+Task ID: r30-motion-pass
+Agent: main (Super Z)
+Task: Agency-grade motion & surface pass on the hub + vega marketing surfaces (Kowalski micro-interaction rules, shadow discipline, de-purple).
+
+Outcome: LIVE in production at 3ada518d (Vercel+Convex green; Cloudflare mirror blocked by standing expired token).
+
+- index.css: .menu-in/.menu-in-top/.panel-in origin-aware reveals (150/200/180ms, cubic-bezier(0.16,1,0.3,1)), reduced-motion guarded.
+- VegaShell/HubShell: dropdown origin reveals, press feedback on all chrome, FAB press-down physics, mobile menu entrances.
+- HubFinalCTA/VegaFinalCTA/VegaSuite/WhatWeDo/OurWork: shadow discipline (xl→lg), press states, hover-scale inversions removed, Woosh accent indigo→sky, modal reveal 0.8s→150ms.
+- VegaMattersLedger/VegaFAQInk/VegaSegments: row press states + panel mount reveals (VegaSegments panel keyed per tab).
+- Gates: tsc 127 baseline (0 new), ratchet 2314 held, build green; VLM-verified captures in tmp/r30-shots/.
