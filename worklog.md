@@ -13051,3 +13051,40 @@ Stage Summary:
 - R31 shipped: the full ALOA/ARIA chat stack on the R30 design language (flat model register everywhere incl. ResearchChat via the shared default, deterministic single-source bubble frames, primary-ramp coherence under the per-product skin, Kowalski press physics, hairline surface discipline), plus the Gemini pro-tier migration off the retired 2.5-pro.
 - Standing owner actions: rotate the demo user's Gemini key (chat replies error on demo); rotate CLOUDFLARE_API_TOKEN (mirror stuck); renew practicepro.ng (NXDOMAIN); rotate the GitHub PAT when this session's pushes are done.
 - LIVE (2026-10-19): R31 promoted — CI on 111f4c5c green (Tests + Deploy to Staging + Android APK all success); production-deploy run 39257916261 (head c1584832 = R31 + auto-bumps): Typecheck+tests success, Vercel+Convex DEPLOY SUCCESS, Cloudflare mirror failure at the standing expired CLOUDFLARE_API_TOKEN (mirror-only, owner action — same as R27-R30). version.json healthy at c1584832 on practice-pro-vega.vercel.app; live bundle carries the R31 model-migration marker (gemini-3.1-pro-preview in module-settings chunk). Rollback: promote any older main SHA.
+
+---
+## R32 — The Terracotta Estate + the Seal (2026-10-19)
+
+Owner asks: rebuild/reimagine with 3D, resources into product pages, sort
+Atrium out, key-expiry visibility for ordinary users, use the provided
+Gemini key to revive/improve ALOA/ARIA.
+
+- ATRIUM: full rebrand — clay/cream/sand, Bricolage Grotesque, plan-view
+  estate-map hero (one-estate story), light footer, radius + press-physics
+  discipline, count-bug fix. Mark + favicons re-tinted. Brand doc rewritten.
+- VEGA: VegaSealScene (lazy three.js) — the notary coin in bevelled gilt,
+  procedural PMREM studio, gold dust, pointer parallax; VegaRecord rebuilt
+  with the rotating certification ring.
+- RESOURCES: /vega/resources + /atrium/resources (public, themed,
+  URL-seeded); platform compliance docs under both Security tabs.
+- KEY HEALTH: checkGeminiKeyHealth (free models.list probe) — auto-chip in
+  AI Settings, verdicts appended to chat auth/quota error cards, AQ.*
+  format, fast-exit ladders on invalid keys.
+- MODEL ERA: 2.0-flash/-lite + 2.5-pro retired by Google (live-probed);
+  ladders now 2.5-flash → flash-latest → 3.8-flash → 3.1-pro-preview
+  everywhere incl. Convex BACKGROUND_MODEL.
+- DEMO KEY: GEMINI_DEMO_KEY GitHub secret + `convex env set` steps in both
+  deploy workflows. NOTE: the provided key authenticated during early
+  probes, then Google flagged it "reported as leaked" (their scanner
+  detects keys shared in chats/public text). Forensics: never committed,
+  never in workflow logs. Demo chat needs a FRESH key from AI Studio —
+  set it as the GEMINI_DEMO_KEY secret and re-run the promote workflow.
+- Gates: tsc 127=baseline · eslint 0 · ratchet 2314 · vitest 1257/1257 ·
+  build green. VLM SHIP: atrium hero/full/footer/resources, vega
+  seal/full, both PROD pages.
+
+Deploy: 8d977d41 promoted (run 39269549124). Vercel + Convex + gates ✅;
+GEMINI_DEMO_KEY rotated onto Convex ✅; live-verified (version.json
+healthy at 8d977d41, all 5 routes 200, Bricolage/at-plan/vg-seal classes
+in the served CSS). Cloudflare mirror ❌ at the standing expired
+CLOUDFLARE_API_TOKEN (owner action, pre-existing).
