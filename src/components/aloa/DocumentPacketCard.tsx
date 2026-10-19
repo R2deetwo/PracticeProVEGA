@@ -158,9 +158,9 @@ export const DocumentPacketCard: React.FC<DocumentPacketCardProps> = ({
     const progressPct = n > 0 ? Math.round((doneCount / n) * 100) : 0;
 
     return (
-        <div className="mt-2 rounded-3xl border border-white/40 dark:border-zinc-700 bg-white/60 dark:bg-zinc-800/60 backdrop-blur-sm shadow-xl overflow-hidden">
+        <div className="mt-2 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
             {/* Header */}
-            <div className="px-4 sm:px-5 pt-4 pb-3 bg-gradient-to-br from-primary-50/80 to-transparent dark:from-primary-900/20">
+            <div className="px-4 sm:px-5 pt-4 pb-3 bg-slate-50 dark:bg-zinc-800/60">
                 <div className="text-2xs text-primary-600 dark:text-primary-400 mb-1.5 font-bold uppercase tracking-widest flex items-center gap-1.5">
                     <ClipboardListIcon className="w-2.5 h-2.5" />
                     Document Packet
@@ -202,7 +202,7 @@ export const DocumentPacketCard: React.FC<DocumentPacketCardProps> = ({
 
             {/* Process + legal requirements (collapsible) */}
             {showProcess && (packet.processSummary || packet.legalRequirements) && (
-                <div className="px-4 sm:px-5 pb-3 space-y-2 animate-in slide-in-from-top-1 duration-300">
+                <div className="px-4 sm:px-5 pb-3 space-y-2 animate-in slide-in-from-top-1 duration-200">
                     {packet.processSummary && (
                         <div className="p-3 rounded-2xl bg-slate-50 dark:bg-zinc-900/60 border border-slate-100 dark:border-zinc-700/60">
                             <p className="text-2xs font-black uppercase tracking-wider text-slate-400 dark:text-zinc-500 mb-1">The process</p>
@@ -365,7 +365,7 @@ export const DocumentPacketCard: React.FC<DocumentPacketCardProps> = ({
                             {showSources ? 'Hide' : 'Show'} research sources ({packet.sources.length})
                         </Button>
                         {showSources && (
-                            <ul className="mt-2 space-y-1 animate-in slide-in-from-top-1 duration-300">
+                            <ul className="mt-2 space-y-1 animate-in slide-in-from-top-1 duration-200">
                                 {packet.sources.map((s, i) => (
                                     <li key={i} className="text-3xs text-slate-500 dark:text-zinc-400 leading-relaxed flex gap-1.5">
                                         <span className="text-primary-400 font-bold">[{i + 1}]</span>

@@ -14,7 +14,7 @@ export const NoteDetails: React.FC<NoteDetailsProps> = ({ note, onEdit, onBack }
     if (!note) return null;
     
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-zinc-950 overflow-hidden animate-in fade-in slide-in-from-right duration-500">
+        <div className="flex flex-col h-full bg-white dark:bg-zinc-950 overflow-hidden animate-in fade-in slide-in-from-right duration-200">
             <div className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-6 custom-scrollbar">
                 <div className="space-y-4">
                     <div className="flex items-center gap-3">
@@ -51,13 +51,13 @@ export const NoteDetails: React.FC<NoteDetailsProps> = ({ note, onEdit, onBack }
             <footer className="p-6 bg-slate-50 dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800 flex gap-3">
                 <button 
                     onClick={onEdit}
-                    className="flex-1 py-4 bg-primary-600 text-white rounded-2xl text-sm font-bold shadow-xl shadow-primary-500/20 hover:bg-primary-700 transition-all flex items-center justify-center gap-2"
+                    className="flex-1 py-4 bg-primary-600 text-white rounded-xl text-sm font-bold hover:bg-primary-700 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                     <EditIcon className="w-4 h-4" /> Edit
                 </button>
                 <button 
                     onClick={onBack}
-                    className="px-6 py-4 bg-white dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-700 rounded-2xl text-sm font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all"
+                    className="px-6 py-4 bg-white dark:bg-zinc-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-zinc-700 rounded-xl text-sm font-bold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-all duration-150 active:scale-[0.98]"
                 >
                     Close
                 </button>

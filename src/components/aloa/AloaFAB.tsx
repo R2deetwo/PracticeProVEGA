@@ -60,36 +60,29 @@ const AloaFAB: React.FC = () => {
 
     let animationClass = '';
     if (isListening) animationClass = 'animate-pulse ring-4 ring-red-400/50';
-    else if (isSpeaking) animationClass = 'animate-bounce';
-    else if (isThinking) animationClass = 'animate-pulse';
+    else if (isSpeaking || isThinking) animationClass = 'animate-pulse';
 
-    // Apply visibility transition
+    // Apply visibility transition — 200ms so the FAB settles with the
+    // sheet reveal, not a slow float (Kowalski: snappier in, never sluggish).
     const visibilityClass = isHidden
-        ? 'opacity-0 translate-y-10 pointer-events-none'
+        ? 'opacity-0 translate-y-4 pointer-events-none'
         : 'opacity-100 translate-y-0 pointer-events-auto';
 
     return (
-        <div className={`fixed bottom-20 md:bottom-8 right-6 z-[1001] transition-all duration-500 ease-in-out ${visibilityClass}`}>
+        <div className={`fixed bottom-20 md:bottom-8 right-6 z-[1001] transition-all duration-200 ease-out ${visibilityClass}`}>
             <Tooltip text={isAiActive ? `Open ${assistantName}®` : `Unlock ${assistantName}® AI`}>
                 <button
                     onClick={handleClick}
                     data-tour-id="aloa-fab"
                     className={`
-                        relative w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center
-                        transition-all transform hover:scale-105 active:scale-95 focus:outline-none
-                        focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-50 dark:focus:ring-offset-zinc-900 focus:ring-primary-500 group
+                        relative w-14 h-14 rounded-full text-white shadow-lg flex items-center justify-center
+                        transition-all duration-150 active:scale-[0.98] focus:outline-none
+                        focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-50 dark:focus:ring-offset-zinc-900 focus:ring-primary-500
                         ${bgClass}
                         ${animationClass}
                     `}
                     aria-label={`Open AI Assistant ${assistantName}`}
                 >
-                    {isAiActive && !isListening && (
-                        <span
-                            className="absolute inset-0 rounded-full bg-primary-500 opacity-75 group-hover:animate-ping group-active:animate-ping"
-                            style={{ animationDuration: '2.5s' }}
-                        ></span>
-                    )}
-
                     <div className="relative z-10">
                         {isListening ? (
                             <MicrophoneIcon className="w-7 h-7" />
@@ -99,7 +92,7 @@ const AloaFAB: React.FC = () => {
                     </div>
 
                     {!isAiActive && (
-                        <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full p-1 shadow-sm border border-white z-20">
+                        <div className="absolute -top-1 -right-1 bg-amber-500 text-white rounded-full p-1 shadow-sm border border-white z-20">
                             <LockClosedIcon className="w-3 h-3" />
                         </div>
                     )}

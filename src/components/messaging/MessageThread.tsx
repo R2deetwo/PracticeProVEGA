@@ -154,12 +154,16 @@ const AttachmentGrid: React.FC<{ msg: UnifiedMessage; isMe: boolean }> = ({ msg,
 const defaultBubbleClassName = (msg: UnifiedMessage, variant: ThreadVariant): string => {
     if (variant === 'ai') {
         if (msg.sender.role === 'user') {
-            return 'bg-primary-600 text-white rounded-2xl rounded-tr-sm shadow-sm';
+            return 'bg-primary-600 text-white rounded-2xl rounded-tr-md shadow-sm';
         }
         if (msg.deliveryStatus === 'failed') {
-            return 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/40 rounded-2xl rounded-tl-sm';
+            return 'px-4 py-3 rounded-2xl text-sm leading-relaxed break-words bg-red-50/80 dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
         }
-        return 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200 rounded-2xl rounded-tl-sm shadow-sm';
+        // R31 — the ai variant's model register is FLAT (the modern assistant
+        // pattern, ChatGPT/Claude/Gemini): no card, no border, no shadow. The
+        // SAME default applies to every ai consumer (AloaChat, ResearchChat),
+        // so one assistant product renders one surface across both modes.
+        return 'px-1 py-2 text-sm leading-relaxed break-words bg-transparent';
     }
     // team + client_tenant share the same bubble language
     return msg.isMe
@@ -551,14 +555,15 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
 
                                     {/* Bubble — fully replaceable for interactive bubbles
                                         (team ChatMessageBubble with edit/delete menu).
-                                        R28: in the AI variant, MODEL messages render FLAT
-                                        (the modern assistant register — ChatGPT/Claude/
-                                        Gemini): the baked card chrome (rounded, padding,
-                                        shadow) is applied only to user bubbles and human
-                                        threads, so a bubbleClassName of 'bg-transparent'
-                                        truly produces a flat block. */}
+                                        R28/R31: in the AI variant the bubble frame
+                                        (bubbleClassName / defaultBubbleClassName)
+                                        OWNS all chrome for EVERY message — the baked
+                                        wrapper card is skipped for the whole variant,
+                                        so there is exactly one source of padding,
+                                        radius and shadow (no CSS-cascade wars
+                                        between wrapper and frame classes). */}
                                     {renderBubble ? renderBubble(msg) : (
-                                        <div className={`${variant === 'ai' && !msg.isMe ? '' : 'rounded-2xl px-3.5 py-2.5 shadow-sm'} min-w-0 box-border ${
+                                        <div className={`${variant === 'ai' ? '' : 'rounded-2xl px-3.5 py-2.5 shadow-sm'} min-w-0 box-border ${
                                             bubbleClassName ? bubbleClassName(msg) : defaultBubbleClassName(msg, variant)
                                         } ${failed ? 'border border-red-300 dark:border-red-700' : ''}`}>
                                             {msg.subject && (

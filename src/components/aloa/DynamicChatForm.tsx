@@ -235,8 +235,8 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
     // ── Submitted / locked view ──────────────────────────────────────────────
     if (submitted) {
         return (
-            <div className="mt-3 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-900/10 flex items-start gap-3 animate-in fade-in duration-300">
-                <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm shadow-emerald-500/30">
+            <div className="mt-3 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 bg-emerald-50/60 dark:bg-emerald-900/10 flex items-start gap-3 animate-in fade-in duration-200">
+                <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <CheckIcon className="w-4 h-4 text-white" />
                 </div>
                 <div>
@@ -251,13 +251,13 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
     return (
         <form
             onSubmit={handleSubmit}
-            className="mt-3 rounded-2xl border border-slate-200 dark:border-zinc-700/80 bg-slate-50/80 dark:bg-zinc-900/80 backdrop-blur-sm overflow-hidden shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-300"
+            className="mt-3 rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
             onClick={e => e.stopPropagation()} // prevent message list click-through
         >
             {/* Header */}
             <div className="px-5 py-4 border-b border-slate-200 dark:border-zinc-700/80 bg-white/70 dark:bg-zinc-800/70">
                 <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-emerald-500/20">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center flex-shrink-0">
                         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                         </svg>
@@ -294,7 +294,7 @@ export const DynamicChatForm: React.FC<DynamicChatFormProps> = ({ schema, onSubm
             <div className="px-5 py-3 border-t border-slate-200 dark:border-zinc-700/80 bg-white/50 dark:bg-zinc-800/50 flex justify-end">
                 <button
                     type="submit"
-                    className="px-5 py-2 rounded-lg text-sm font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2"
+                    className="px-5 py-2 rounded-xl text-sm font-bold bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white transition-all duration-150 flex items-center gap-2"
                 >
                     <CheckIcon className="w-4 h-4" />
                     {schema.submitLabel || 'Confirm'}

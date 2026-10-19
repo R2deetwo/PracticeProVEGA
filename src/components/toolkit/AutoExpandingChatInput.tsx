@@ -314,7 +314,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                     onClick={handleSendClick}
                     disabled={disabled || sendDisabled}
                     aria-label={sendAriaLabel || (sendLabel ? `${sendLabel}` : 'Send message')}
-                    className={`flex-shrink-0 ${sendLabel ? 'px-3 min-w-10 h-10' : 'w-10 h-10'} bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${sendButtonClassName}`}
+                    className={`flex-shrink-0 ${sendLabel ? 'px-3 min-w-10 h-10' : 'w-10 h-10'} bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-all duration-150 active:scale-[0.98] text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 ${sendButtonClassName}`}
                 >
                     {sendIcon || (
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

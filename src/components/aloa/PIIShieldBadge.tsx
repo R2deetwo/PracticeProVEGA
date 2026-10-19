@@ -33,7 +33,7 @@ const PIIShieldBadge: React.FC<PIIShieldBadgeProps> = ({ result, onDismiss }) =>
     };
 
     return (
-        <div className="mb-2 animate-in fade-in slide-in-from-top-2 duration-300">
+        <div className="mb-2 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="inline-flex flex-col w-full sm:w-auto sm:max-w-md">
                 {/* Collapsed badge */}
                 <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-700/40 rounded-lg px-3 py-1.5">

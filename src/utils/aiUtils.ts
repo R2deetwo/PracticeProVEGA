@@ -43,9 +43,15 @@ export const AI_CONFIG = {
         //   orphan every existing embedding — do not change without a
         //   re-index migration.
         defaultModel: 'gemini-2.5-flash',
-        proModel: 'gemini-2.5-pro',
+        // 2026-10-19 (R31): Google retired 2.5-pro for new accounts (the API
+        // returns "no longer available to new users — update to use
+        // models/gemini-3.1-pro-preview"). Pro/Research and the pro-first
+        // drafting entry migrate to 3.1-pro-preview; the flash chain is
+        // untouched (2.5-flash still serves). If 3.1-pro-preview is ever
+        // unavailable on an account, the ladders degrade to flash as before.
+        proModel: 'gemini-3.1-pro-preview',
         flashModel: 'gemini-2.5-flash',
-        researchModel: 'gemini-2.5-pro', // Same model as Pro but with different system prompt + thinking budget
+        researchModel: 'gemini-3.1-pro-preview', // Same tier as Pro but with different system prompt + thinking budget
         // 2026-09-23 ALOA audit: reordered — try the modern flash tier first,
         // the lite tier next, and only fall back to 2.5-pro (slowest, most
         // expensive) as the last resort. The old order tried pro BEFORE
@@ -59,7 +65,7 @@ export const AI_CONFIG = {
             'gemini-flash-latest',
             'gemini-2.0-flash',
             'gemini-2.0-flash-lite',
-            'gemini-2.5-pro'
+            'gemini-3.1-pro-preview'
         ],
         // 2026-10-16 (R27, owner direction: "take another look at DraftPro in
         // the light of improved models... strengthen the product so that it
@@ -69,7 +75,7 @@ export const AI_CONFIG = {
         // captions, prayers and attestation blocks; the flash chain remains
         // as fallback so a pro outage degrades gracefully, never blocks.
         draftingPlan: [
-            'gemini-2.5-pro',
+            'gemini-3.1-pro-preview',
             'gemini-2.5-flash',
             'gemini-flash-latest',
             'gemini-2.0-flash',

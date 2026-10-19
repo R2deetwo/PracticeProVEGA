@@ -119,7 +119,7 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
         }
         className={`px-2 py-0.5 rounded-full text-3xs font-black uppercase tracking-tight transition-all border shadow-sm flex items-center gap-1 ${
             model === 'pro'
-                ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800'
+                ? 'bg-zinc-900 text-zinc-100 border-zinc-800 dark:bg-zinc-700/80 dark:text-zinc-200 dark:border-zinc-600'
                 : model === 'flash'
                 ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800'
                 : model === 'research'
@@ -3263,7 +3263,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     };
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-zinc-950 overflow-hidden shadow-2xl relative">
+        <div className="flex flex-col h-full bg-white dark:bg-zinc-950 overflow-hidden relative">
             <header className="flex-shrink-0 px-3 sm:px-4 py-3 sm:py-4 border-b border-slate-200 dark:border-zinc-800 flex items-center gap-2 bg-slate-50/50 dark:bg-zinc-900/50 relative z-10">
                 {/* Left: icon + title */}
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -3277,7 +3277,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     )}
                     <button
                         onClick={() => { setActiveView('chat'); setActiveNoteId(null); }}
-                        className={`flex-shrink-0 p-2 sm:p-2.5 rounded-2xl shadow-lg transition-all duration-500 hover:scale-105 active:scale-95 ${activeView === 'chat' ? 'bg-green-600 shadow-green-600/20' : 'bg-slate-200 dark:bg-zinc-800 text-slate-400'}`}
+                        className={`flex-shrink-0 p-2 sm:p-2.5 rounded-xl transition-all duration-150 active:scale-[0.98] ${activeView === 'chat' ? 'bg-primary-600' : 'bg-slate-200 dark:bg-zinc-800 text-slate-400'}`}
                     >
                         <AloaIcon className={`w-6 h-6 sm:w-7 sm:h-7 ${activeView === 'chat' ? 'text-white' : ''} ${aloaState === 'speaking' ? 'animate-pulse' : ''}`} />
                     </button>
@@ -3321,7 +3321,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     </button>
                     <button
                         onPointerDown={handleClose}
-                        className="touch-target p-2.5 text-slate-500 hover:text-red-600 transition-all bg-slate-100 dark:bg-zinc-800 rounded-lg active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0 relative z-30"
+                        className="touch-target p-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors duration-150 bg-slate-100 dark:bg-zinc-800 rounded-lg active:bg-slate-200 dark:active:bg-zinc-700 flex items-center gap-1.5 border border-slate-200 dark:border-zinc-700 flex-shrink-0 relative z-30"
                         title="Close"
                         aria-label="Close panel"
                     >
@@ -3371,7 +3371,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                          which unmounted ConversationList and lost the
                          subscription — causing the user to see a stale/empty
                          list and think their previous conversations were lost. */}
-                     <aside className={`absolute inset-0 z-20 border-r border-slate-200 dark:border-zinc-800 flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-300 shadow-2xl ${showHistory ? 'flex' : 'hidden'}`}>
+                     <aside className={`absolute inset-0 z-20 border-r border-slate-200 dark:border-zinc-800 flex-col bg-white dark:bg-zinc-900 animate-in slide-in-from-left duration-200 ${showHistory ? 'flex' : 'hidden'}`}>
                         <div className="p-4 border-b border-slate-200 dark:border-zinc-800 space-y-2">
                             <div className="flex items-center justify-between mb-1">
                                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">History</h3>
@@ -3395,7 +3395,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     setShowHistory(false);
                                     setActiveView('chat');
                                 }}
-                                className="w-full py-2.5 px-4 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary-500/20"
+                                className="w-full py-2.5 px-4 bg-primary-600 text-white rounded-lg text-sm font-bold hover:bg-primary-700 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
                             >
                                 <PlusIcon className="w-4 h-4" />
                                 New Search
@@ -3405,7 +3405,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     setActiveView('quickNote');
                                     setShowHistory(false);
                                 }}
-                                className="w-full py-2.5 px-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-bold text-slate-700 dark:text-white hover:border-primary-500 transition-all flex items-center justify-center gap-2"
+                                className="w-full py-2.5 px-4 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm font-bold text-slate-700 dark:text-white hover:border-primary-500 transition-all duration-150 active:scale-[0.98] flex items-center justify-center gap-2"
                             >
                                 <EditIcon className="w-4 h-4" />
                                 New Note
@@ -3442,7 +3442,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                                     setActiveView('details');
                                                     setShowHistory(false);
                                                 }}
-                                                className="w-full text-left p-3 rounded-lg hover:bg-white dark:hover:bg-zinc-800 transition-all border border-transparent hover:border-slate-100 dark:hover:border-zinc-700 pr-10"
+                                                className="w-full text-left p-3 pr-10 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/70 transition-colors duration-150 active:scale-[0.98]"
                                             >
                                                 <div className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{note.title}</div>
                                                 <div className="text-2xs text-slate-400 mt-0.5 line-clamp-1 opacity-60">{note.content}</div>
@@ -3535,8 +3535,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 >
                     {messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                            <div className={`w-20 h-20 rounded-[40px] flex items-center justify-center mb-5 shadow-lg ${isAtrium ? 'bg-emerald-600 shadow-emerald-500/20' : 'bg-green-600 shadow-green-600/20'}`}>
-                                <AloaIcon className="w-10 h-10 text-white" />
+                            <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-5 bg-primary-600">
+                                <AloaIcon className="w-8 h-8 text-white" />
                             </div>
                             <h3 className="text-lg font-extrabold text-slate-800 dark:text-white mb-1">
                                 {getAssistantName(isProperty)}
@@ -3588,7 +3588,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             onClick={() => setTextInput("Show me today's morning briefing")}
                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-2xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full border border-blue-200 dark:border-blue-800/50 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
                                         >
-                                            ☀️ Briefing Ready
+                                            <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <circle cx="12" cy="12" r="4" />
+                                                <path strokeLinecap="round" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M19.07 4.93l1.41 1.41" />
+                                            </svg>
+                                            Briefing Ready
                                         </button>
                                     )}
                                 </div>
@@ -3609,7 +3613,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     <button
                                         key={suggestion}
                                         onClick={() => setTextInput(suggestion)}
-                                        className="px-3 py-1.5 text-2xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300 transition-colors border border-slate-200 dark:border-zinc-700"
+                                        className="px-3 py-1.5 text-2xs font-semibold bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full hover:bg-primary-100 dark:hover:bg-primary-900/30 hover:text-primary-700 dark:hover:text-primary-300 transition-all duration-150 active:scale-[0.98] border border-slate-200 dark:border-zinc-700"
                                     >
                                         {suggestion}
                                     </button>
@@ -3660,8 +3664,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     // — no bubble card, no border, no shadow; the user keeps
                                     // their raised bubble. Trust chrome (review header,
                                     // confidence chip) rides above the flat block.
-                                    if (msg.role === 'user') return 'px-5 py-4 rounded-3xl text-sm leading-relaxed break-words shadow-sm transition-all bg-primary-600 text-white rounded-tr-md shadow-lg shadow-primary-500/10';
-                                    if (msg.isError) return 'px-5 py-4 rounded-2xl text-sm leading-relaxed break-words shadow-sm transition-all bg-red-50/80 backdrop-blur-sm dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
+                                    if (msg.role === 'user') return 'px-4 py-3 rounded-2xl rounded-tr-md text-sm leading-relaxed break-words shadow-sm bg-primary-600 text-white';
+                                    if (msg.isError) return 'px-4 py-3 rounded-2xl text-sm leading-relaxed break-words bg-red-50/80 dark:bg-red-900/10 text-red-700 dark:text-red-300 border border-red-100 dark:border-red-900/30';
                                     return 'px-1 py-2 text-sm leading-relaxed break-words bg-transparent';
                                 }}
                                 renderAboveBubble={(m) => {
@@ -3929,7 +3933,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {msg.role === 'user' && msg.attachments && msg.attachments.length > 0 && (
                                             <button
                                                 onClick={() => handleSendToResearch(msg)}
-                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all flex items-center gap-0.5"
+                                                className="bg-slate-100 dark:bg-zinc-700 text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 rounded-md px-1.5 py-0.5 text-3xs font-bold transition-all duration-150 active:scale-[0.98] flex items-center gap-0.5"
                                                 title="Send to Research Studio for deeper analysis"
                                             >
                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3979,7 +3983,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         {!isLoading && webFetchResults.some(r => r.success) && (
                                             <button
                                                 onClick={handlePushWebResultsToResearch}
-                                                className="flex items-center gap-1 px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 rounded-md text-3xs font-bold transition-colors border border-indigo-200 dark:border-indigo-800/50"
+                                                className="flex items-center gap-1 px-2 py-0.5 bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/60 rounded-md text-3xs font-bold transition-all duration-150 active:scale-[0.98] border border-primary-200 dark:border-primary-800/50"
                                                 title="Push these web sources to a new Research notebook"
                                             >
                                                 <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -4045,7 +4049,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 aborts the current request instantly. */}
                             <button
                                 onClick={handleStopRequest}
-                                className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-2xs font-bold transition-colors flex-shrink-0"
+                                className="flex items-center gap-1 px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded-md text-2xs font-bold transition-all duration-150 active:scale-[0.98] flex-shrink-0"
                                 title="Cancel request"
                             >
                                 <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
@@ -4069,7 +4073,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 {showInsightPanel && proactiveInsights && (
                     <div className="absolute inset-0 z-[60] bg-black/20" onClick={() => setShowInsightPanel(null)}>
                         <div
-                            className="absolute top-0 right-0 h-full w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+                            className="absolute top-0 right-0 h-full w-full max-w-md bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800 flex flex-col animate-in slide-in-from-right duration-200"
                             onClick={e => e.stopPropagation()}
                         >
                             {/* Header */}
@@ -4219,7 +4223,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         {/* Scroll to top */}
                         <button
                             onClick={scrollToTop}
-                            className="w-9 h-9 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full shadow-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-slate-900 dark:hover:text-white transition-all flex items-center justify-center group"
+                            className="w-9 h-9 bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 rounded-full shadow-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-700 hover:text-slate-900 dark:hover:text-white transition-all duration-150 active:scale-[0.98] flex items-center justify-center"
                             title="Scroll to top"
                             aria-label="Scroll to top"
                         >
@@ -4231,7 +4235,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         {!isAtBottom && (
                             <button
                                 onClick={scrollToBottom}
-                                className="w-9 h-9 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all flex items-center justify-center"
+                                className="w-9 h-9 bg-primary-600 text-white rounded-full shadow-lg hover:bg-primary-700 transition-all duration-150 active:scale-[0.98] flex items-center justify-center"
                                 title="Scroll to bottom"
                                 aria-label="Scroll to bottom"
                             >
@@ -4305,7 +4309,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             </svg>
                         )}
                     </button>
-                    <div className={`flex-1 rounded-2xl flex items-end border shadow-inner transition-all p-1 bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:ring-2 focus-within:ring-primary-500/20`}>
+                    <div className={`flex-1 rounded-2xl flex items-end border transition-all duration-150 p-1 bg-slate-50 dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 focus-within:bg-white dark:focus-within:bg-zinc-800 focus-within:border-primary-400 dark:focus-within:border-primary-700 focus-within:ring-2 focus-within:ring-primary-500/20`}>
                         <AutoExpandingChatInput
                             value={textInput}
                             onChange={setTextInput}

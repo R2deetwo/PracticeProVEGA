@@ -40,7 +40,7 @@ const AloaPanel: React.FC = () => {
                 touch events meant for the panel's buttons on mobile. */}
             {isPanelOpen && (
                 <div
-                    className={`fixed inset-0 z-[1999] transition-opacity duration-300 ${isMobile ? 'bg-black/60 backdrop-blur-md' : 'bg-black/5 backdrop-blur-[2px]'}`}
+                    className={`fixed inset-0 z-[1999] transition-opacity duration-200 ${isMobile ? 'bg-black/40' : 'bg-black/5'}`}
                     onClick={handleClose}
                 />
             )}
@@ -48,7 +48,7 @@ const AloaPanel: React.FC = () => {
             {/* Main Side Panel */}
             {isPanelOpen && (
                 <div
-                    className={`fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 shadow-[-10px_0_30px_rgba(0,0,0,0.1)] ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[520px] max-w-[calc(100vw-40px)] rounded-l-[28px] overflow-hidden'}`}
+                    className={`fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 animate-in slide-in-from-right duration-200 ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[520px] max-w-[calc(100vw-40px)] rounded-l-2xl overflow-hidden'}`}
                     style={{ right: isShifted ? '520px' : '0' }}
                     // Only stop click propagation (NOT touch) so the backdrop
                     // doesn't close the panel when clicking inside it. Touch

@@ -74,7 +74,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
             : isCompleted ? 'Action Completed' : label;
 
     return (
-        <div className={`mt-2 p-4 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-3xl border shadow-xl ${pendingOpen ? 'border-emerald-400 dark:border-emerald-600 ring-2 ring-emerald-400/30 animate-pulse' : 'border-white/40 dark:border-zinc-700'} ${isCompleted && !completedResult ? 'opacity-60' : ''}`}>
+        <div className={`mt-2 p-4 bg-white dark:bg-zinc-900 rounded-2xl border ${pendingOpen ? 'border-emerald-400 dark:border-emerald-600 ring-2 ring-emerald-400/30 animate-pulse' : 'border-slate-200 dark:border-zinc-800'} ${isCompleted && !completedResult ? 'opacity-60' : ''}`}>
             <div className="text-2xs text-primary-600 dark:text-primary-400 mb-2 font-bold uppercase tracking-widest flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                     <ZapIcon className="w-2.5 h-2.5" />
@@ -93,7 +93,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                         <button
                             key={doc}
                             onClick={() => onExecuteCustom({ ...args.context, draftTitle: doc })}
-                            className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 border border-slate-100 dark:border-zinc-700/60 rounded-2xl hover:border-primary-500 hover:shadow-md transition-all group/btn active:scale-[0.98]"
+                            className="w-full flex items-center justify-between p-3 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-xl hover:border-primary-500 transition-all duration-150 group/btn active:scale-[0.98]"
                         >
                             <div className="flex items-center gap-3">
                                 <div className="p-1.5 bg-primary-100 dark:bg-primary-900/40 text-primary-600 rounded-lg">
@@ -115,13 +115,13 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                         }
                     }}
                     disabled={isCompleted && !completedResult}
-                    className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all transform active:scale-95 shadow-lg ${
+                    className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-150 active:scale-[0.98] ${
                         isCompleted && !completedResult
                         ? 'bg-slate-200 dark:bg-zinc-700 text-slate-500 cursor-not-allowed'
                         : pendingOpen
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-300/50 text-base py-4 shadow-emerald-400/40'
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white text-base py-4'
                             : completedResult
-                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-200/50'
+                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                                 : 'bg-primary-600 hover:bg-primary-700 text-white'
                     }`}
                 >
@@ -156,7 +156,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({
                     </button>
 
                     {isExpanded && (
-                        <div className="mt-2 space-y-2 animate-in slide-in-from-top-1 duration-300">
+                        <div className="mt-2 space-y-2 animate-in slide-in-from-top-1 duration-200">
                             {displayInsights.map((hint, idx) => (
                                 <div key={idx} className={`flex gap-2 p-2 rounded-lg text-2xs font-medium leading-relaxed ${
                                     hint.type === 'error' ? 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400' :
