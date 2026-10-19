@@ -92,7 +92,7 @@ export const VegaFAQInk: React.FC = () => {
                                     aria-expanded={open}
                                     aria-controls={`vg-faq-panel-${i}`}
                                     onClick={() => setOpenIndex(open ? null : i)}
-                                    className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors hover:bg-white/5 focus-visible:ring-vega-gilt"
+                                    className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors duration-150 hover:bg-white/5 active:bg-white/10 focus-visible:ring-vega-gilt"
                                 >
                                     <span className="font-mono text-2xs tracking-widest text-vega-gilt-bright flex-shrink-0">
                                         Q.{i + 1}
@@ -108,7 +108,7 @@ export const VegaFAQInk: React.FC = () => {
                                 {open && (
                                     <p
                                         id={`vg-faq-panel-${i}`}
-                                        className="pl-[3.25rem] pr-4 pb-7 -mt-1 text-sm leading-[1.75] text-slate-400 max-w-2xl"
+                                        className="pl-[3.25rem] pr-4 pb-7 -mt-1 text-sm leading-[1.75] text-slate-400 max-w-2xl panel-in origin-top"
                                     >
                                         {item.a}
                                     </p>

@@ -101,7 +101,7 @@ export const VegaSuite: React.FC = () => {
                     {INSTRUMENTS.map((ins) => (
                         <div
                             key={ins.num}
-                            className="group flex flex-col rounded-2xl bg-vega-parchment p-7 sm:p-8 transition-all duration-300 hover:-translate-y-1 shadow-[0_18px_36px_-18px_rgb(0_0_0/0.5)] hover:shadow-[0_26px_48px_-20px_rgb(0_0_0/0.6)]"
+                            className="group flex flex-col rounded-2xl bg-vega-parchment p-7 sm:p-8 transition-all duration-200 hover:-translate-y-1 shadow-[0_14px_30px_-16px_rgb(0_0_0/0.5)] hover:shadow-[0_20px_40px_-18px_rgb(0_0_0/0.55)]"
                         >
                             <p className="font-mono text-xs tracking-widest text-vega-gilt mb-5">
                                 {ins.num}
@@ -115,7 +115,7 @@ export const VegaSuite: React.FC = () => {
                             <Button
                                 variant="bare"
                                 onClick={() => explore(ins.exploreTarget)}
-                                className="self-start px-0 py-1 text-sm font-bold text-vega-gilt hover:text-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                                className="self-start px-0 py-1 text-sm font-bold text-vega-gilt hover:text-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                             >
                                 {ins.exploreLabel}
                                 <span aria-hidden="true" className="ml-2 inline-block transition-transform group-hover:translate-x-1">

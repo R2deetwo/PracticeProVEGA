@@ -109,7 +109,7 @@ export const VegaMattersLedger: React.FC = () => {
                                     aria-expanded={open}
                                     aria-controls={`vg-matters-panel-${i}`}
                                     onClick={() => setOpenIndex(open ? null : i)}
-                                    className={`w-full flex items-baseline gap-4 sm:gap-6 py-6 px-2 sm:px-4 text-left transition-colors hover:bg-white/5 focus-visible:ring-vega-gilt ${
+                                    className={`w-full flex items-baseline gap-4 sm:gap-6 py-6 px-2 sm:px-4 text-left transition-colors duration-150 hover:bg-white/5 active:bg-white/10 focus-visible:ring-vega-gilt ${
                                         open ? 'bg-white/5' : ''
                                     }`}
                                 >
@@ -130,7 +130,7 @@ export const VegaMattersLedger: React.FC = () => {
                                 {open && (
                                     <ol
                                         id={`vg-matters-panel-${i}`}
-                                        className="px-2 sm:px-4 pb-8"
+                                        className="px-2 sm:px-4 pb-8 panel-in origin-top"
                                     >
                                         {cat.items.map((item, j) => (
                                             <li

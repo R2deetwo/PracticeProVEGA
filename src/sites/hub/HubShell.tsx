@@ -92,7 +92,7 @@ export const HubNavBar: React.FC<{
                     aria-label="PracticePro Systems — home"
                     className="flex items-center gap-2 group"
                 >
-                    <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 transition-transform drop-shadow-sm" />
+                    <Logo className="h-7 w-7 text-primary-500 group-hover:scale-105 active:scale-[0.98] transition-transform duration-150 drop-shadow-sm" />
                     <span className="text-lg font-bold tracking-tight text-slate-900 flex items-center">
                         Practice<span className="text-primary-500">Pro</span>
                     </span>
@@ -110,17 +110,17 @@ export const HubNavBar: React.FC<{
                         onClick={() => setProductsOpen(o => !o)}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
-                        className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-200"
+                        className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-all duration-150 active:scale-[0.98]"
                     >
                         Products
-                        <svg className={`w-4 h-4 ml-0.5 opacity-60 transition-transform ${productsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        <svg className={`w-4 h-4 ml-0.5 opacity-60 transition-transform duration-150 ${productsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {productsOpen && (
-                        <div className="absolute top-full left-0 pt-1 w-[210px]">
-                            <div className="bg-white border border-slate-200 rounded-lg shadow-xl flex flex-col p-1">
+                        <div className="absolute top-full left-0 pt-1.5 w-[210px] menu-in origin-top-left">
+                            <div className="bg-white border border-slate-200 rounded-xl shadow-lg shadow-slate-900/10 flex flex-col p-1">
                                 <button
                                     onClick={() => { onOpenProduct('vega'); setProductsOpen(false); }}
-                                    className="px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                    className="px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                 >
                                     <VegaMark className="w-4 h-4 opacity-80" />
                                     Vega
@@ -128,7 +128,7 @@ export const HubNavBar: React.FC<{
                                 </button>
                                 <button
                                     onClick={() => { onOpenProduct('atrium'); setProductsOpen(false); }}
-                                    className="px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                                    className="px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                                 >
                                     <AtriumMark className="w-4 h-4 opacity-80" />
                                     Atrium
@@ -143,7 +143,7 @@ export const HubNavBar: React.FC<{
                         key={s.id}
                         onClick={() => scrollTo(s.id)}
                         data-nav-id={s.id}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
                             activeSection === s.id
                                 ? 'text-primary-700'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -154,13 +154,13 @@ export const HubNavBar: React.FC<{
                 ))}
                 <button
                     onClick={onResources}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150 active:scale-[0.98]"
                 >
                     Resources
                 </button>
                 <button
                     onClick={onContactSales}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200"
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150 active:scale-[0.98]"
                 >
                     Contact
                 </button>
@@ -171,7 +171,7 @@ export const HubNavBar: React.FC<{
                 <div className="hidden lg:block h-4 w-px bg-slate-200 mx-1" />
                 <button
                     onClick={onContactSales}
-                    className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-colors min-h-[2rem]"
+                    className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-all duration-150 active:scale-[0.98] min-h-[2rem]"
                 >
                     Talk to us <span aria-hidden="true">→</span>
                 </button>
@@ -179,7 +179,7 @@ export const HubNavBar: React.FC<{
                 {/* Mobile hamburger — below lg so iPad portrait uses this menu. */}
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg text-slate-700 hover:bg-slate-100 transition-all duration-150 active:scale-[0.98]"
                     aria-label="Toggle menu"
                     aria-expanded={mobileMenuOpen}
                 >
@@ -194,28 +194,28 @@ export const HubNavBar: React.FC<{
 
         {/* Mobile overlay menu */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-16 z-[240] bg-white overflow-y-auto">
+            <div className="lg:hidden fixed inset-0 top-16 z-[240] bg-white overflow-y-auto menu-in-top origin-top">
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     <div className="mb-2">
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
-                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3">
+                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98] flex items-center gap-3">
                             <VegaMark className="w-5 h-5 opacity-80" /> Vega — For Law Firms <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
-                        <button onClick={() => handleNavClick(() => onOpenProduct('atrium'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-3">
+                        <button onClick={() => handleNavClick(() => onOpenProduct('atrium'))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98] flex items-center gap-3">
                             <AtriumMark className="w-5 h-5 opacity-80" /> Atrium — For Property Managers <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
                     </div>
                     {NAV_SECTIONS.map((s) => (
-                        <button key={s.id} onClick={() => handleNavClick(() => scrollTo(s.id))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        <button key={s.id} onClick={() => handleNavClick(() => scrollTo(s.id))} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">
                             {s.label}
                         </button>
                     ))}
-                    <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Resources</button>
-                    <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50">Contact</button>
+                    <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">Resources</button>
+                    <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">Contact</button>
                     <div className="h-px bg-slate-200 my-3" />
                     <button
                         onClick={() => handleNavClick(onContactSales)}
-                        className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600"
+                        className="w-full py-3 rounded-lg text-sm font-semibold text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 transition-all duration-150 active:scale-[0.98]"
                     >
                         Talk to us about your system
                     </button>
@@ -301,7 +301,7 @@ export const HubFooter: React.FC<{
 export const WhatsAppFAB: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-600 shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-600 flex items-center justify-center transition-all duration-150 active:scale-95 hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-600/30"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

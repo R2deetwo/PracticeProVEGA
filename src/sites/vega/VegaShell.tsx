@@ -12,11 +12,14 @@ import { vegaSiteConfig } from './siteConfig';
  * glass, parchment type, gilt accents). No activeProduct ternaries remain.
  */
 
-const navLinkCls = 'text-slate-300 hover:text-white hover:bg-white/5';
-const navLinkActiveCls = 'text-vega-gilt-bright';
-const menuItemCls = 'text-slate-300 hover:bg-white/5 hover:text-white';
+// R30 motion pass — every chrome affordance carries press feedback
+// (active:scale-[0.98] over 150ms, the Kowalski press-down) and fast
+// spring transitions. Reveals are origin-aware (.menu-in/.menu-in-top).
+const navLinkCls = 'text-slate-300 hover:text-white hover:bg-white/5 active:scale-[0.98]';
+const navLinkActiveCls = 'text-vega-gilt-bright active:scale-[0.98]';
+const menuItemCls = 'text-slate-300 hover:bg-white/5 hover:text-white active:scale-[0.98] transition-all duration-150';
 const vegaItemCls = 'bg-white/10 text-vega-gilt-bright';
-const atriumItemCls = 'text-slate-300 hover:bg-white/5 hover:text-white';
+const atriumItemCls = 'text-slate-300 hover:bg-white/5 hover:text-white active:scale-[0.98] transition-all duration-150';
 
 export const VegaNavBar: React.FC<{
     activeSection: string;
@@ -88,7 +91,7 @@ export const VegaNavBar: React.FC<{
                     aria-label="Vega — a PracticePro product, back to all products"
                     className="flex items-center gap-2.5 group"
                 >
-                    <VegaMark className="h-8 w-8 group-hover:scale-105 transition-transform" />
+                    <VegaMark className="h-8 w-8 group-hover:scale-105 active:scale-[0.98] transition-transform duration-150" />
                     <span className="flex flex-col items-start leading-none">
                         <span className="text-lg font-bold tracking-tight font-vega text-vega-parchment">
                             Vega
@@ -114,17 +117,17 @@ export const VegaNavBar: React.FC<{
                         onClick={() => setProductsOpen(o => !o)}
                         aria-expanded={productsOpen}
                         aria-haspopup="true"
-                        className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all duration-200 ${navLinkCls}`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-all duration-150 ${navLinkCls}`}
                     >
                         Products
-                        <svg className={`w-4 h-4 ml-0.5 opacity-60 transition-transform ${productsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        <svg className={`w-4 h-4 ml-0.5 opacity-60 transition-transform duration-150 ${productsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                     {productsOpen && (
-                        <div className="absolute top-full left-0 pt-1 w-[210px]">
-                            <div className="border rounded-lg shadow-xl flex flex-col p-1 bg-vega-night-2 border-white/10">
+                        <div className="absolute top-full left-0 pt-1.5 w-[210px] menu-in origin-top-left">
+                            <div className="border rounded-xl shadow-lg shadow-black/40 flex flex-col p-1 bg-vega-night-2 border-white/10">
                                 <button
                                     onClick={() => { onOpenProduct('vega'); setProductsOpen(false); }}
-                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${vegaItemCls}`}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center gap-2 ${vegaItemCls}`}
                                 >
                                     <VegaMark className="w-4 h-4" />
                                     <span className="flex-1">Vega</span>
@@ -132,7 +135,7 @@ export const VegaNavBar: React.FC<{
                                 </button>
                                 <button
                                     onClick={() => { onOpenProduct('atrium'); setProductsOpen(false); }}
-                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-colors flex items-center gap-2 ${atriumItemCls}`}
+                                    className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center gap-2 ${atriumItemCls}`}
                                 >
                                     <AtriumMark className="w-4 h-4" />
                                     <span className="flex-1">Atrium</span>
@@ -145,7 +148,7 @@ export const VegaNavBar: React.FC<{
                 <button
                     onClick={() => scrollTo('suite')}
                     data-nav-id="suite"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                         activeSection === 'suite'
                             ? navLinkActiveCls
                             : navLinkCls
@@ -156,7 +159,7 @@ export const VegaNavBar: React.FC<{
                 <button
                     onClick={() => scrollTo('practice-areas')}
                     data-nav-id="practice-areas"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                         activeSection === 'practice-areas'
                             ? navLinkActiveCls
                             : navLinkCls
@@ -167,7 +170,7 @@ export const VegaNavBar: React.FC<{
                 <button
                     onClick={() => scrollTo('howItWorks')}
                     data-nav-id="howItWorks"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
                         activeSection === 'howItWorks'
                             ? navLinkActiveCls
                             : navLinkCls
@@ -177,13 +180,13 @@ export const VegaNavBar: React.FC<{
                 </button>
                 <button
                     onClick={onResources}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${navLinkCls}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${navLinkCls}`}
                 >
                     Resources
                 </button>
                 <button
                     onClick={onContactSales}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${navLinkCls}`}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${navLinkCls}`}
                 >
                     Contact
                 </button>
@@ -194,7 +197,7 @@ export const VegaNavBar: React.FC<{
                 <div className="hidden lg:block h-4 w-px mx-1 bg-white/15" />
                 <button
                     onClick={onLogin}
-                    className="hidden lg:block px-4 py-2 text-sm font-semibold transition-colors text-slate-300 hover:text-vega-gilt-bright"
+                    className="hidden lg:block px-4 py-2 text-sm font-semibold transition-all duration-150 active:scale-[0.98] text-slate-300 hover:text-vega-gilt-bright"
                 >
                     Log In
                 </button>
@@ -212,7 +215,7 @@ export const VegaNavBar: React.FC<{
                 {/* Mobile hamburger button — shown below lg (1024px). */}
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg transition-colors text-slate-300 hover:bg-white/5"
+                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 active:scale-[0.98] text-slate-300 hover:bg-white/5"
                     aria-label="Toggle menu"
                     aria-expanded={mobileMenuOpen}
                 >
@@ -227,7 +230,7 @@ export const VegaNavBar: React.FC<{
 
         {/* Mobile overlay menu — shown below lg (1024px). */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto bg-vega-night">
+            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto bg-vega-night menu-in-top origin-top">
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     {/* Back-to-hub affordance — mobile users need a way back. */}
                     <button
@@ -238,7 +241,7 @@ export const VegaNavBar: React.FC<{
                     </button>
                     <div className="mb-2">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
-                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${vegaItemCls}`}>
+                        <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 transition-all duration-150 active:scale-[0.98] ${vegaItemCls}`}>
                             <VegaMark className="w-5 h-5" /> Vega — For Law Firms <ExternalLinkIcon className="w-3.5 h-3.5 opacity-40 ml-auto" />
                         </button>
                         <button onClick={() => handleNavClick(() => onOpenProduct('atrium'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 ${atriumItemCls}`}>
@@ -290,7 +293,7 @@ export const VegaFooter: React.FC<{
                     <div className="mt-4 flex items-center gap-3">
                         <button
                             onClick={() => onOpenProduct('atrium')}
-                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all text-vega-gilt-bright hover:text-vega-gilt border-vega-gilt/30 hover:bg-vega-gilt/10"
+                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all duration-150 active:scale-[0.98] text-vega-gilt-bright hover:text-vega-gilt border-vega-gilt/30 hover:bg-vega-gilt/10"
                         >
                             Open Atrium <span className="text-xs">↗</span>
                         </button>
@@ -341,7 +344,7 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
     <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] bg-vega-night/95 border-white/10">
         <button
             onClick={onContactSales}
-            className="flex-1 py-3 rounded-full border text-sm font-semibold transition-colors border-white/20 text-slate-200 hover:bg-white/5 active:bg-white/10"
+            className="flex-1 py-3 rounded-full border text-sm font-semibold transition-all duration-150 active:scale-[0.98] border-white/20 text-slate-200 hover:bg-white/5"
         >
             Talk to Sales
         </button>
@@ -349,7 +352,7 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
             product override. Vega's primary is the orange pill (R26). */}
         <button
             onClick={() => onSignup()}
-            className="flex-[1.5] py-3 rounded-full text-sm font-semibold transition-colors bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright active:bg-vega-gilt-bright"
+            className="flex-[1.5] py-3 rounded-full text-sm font-semibold transition-all duration-150 active:scale-[0.98] bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright"
         >
             Start Free Trial
         </button>
@@ -360,7 +363,7 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
 export const VegaChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center hover:scale-105 active:scale-95 transition-transform bg-vega-night border-vega-gilt"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center transition-all duration-150 active:scale-95 bg-vega-night border-vega-gilt hover:border-vega-gilt-bright hover:shadow-lg hover:shadow-black/30"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

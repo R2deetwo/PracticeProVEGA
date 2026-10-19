@@ -56,14 +56,14 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onSignup()}
-                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Start Free Trial
                     </Button>
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Final CTA')}
-                        className="rounded-full px-8 py-4 text-base font-bold border border-vega-gilt/50 text-vega-gilt-bright hover:bg-vega-gilt/10 transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold border border-vega-gilt/50 text-vega-gilt-bright hover:bg-vega-gilt/10 transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Talk to Sales
                     </Button>
@@ -77,7 +77,7 @@ export const VegaFinalCTA: React.FC<{
                 Compact, subordinate, in register — night panels with a gilt
                 spine. */}
             <div className="mt-16 md:mt-20 grid md:grid-cols-2 gap-5 max-w-4xl" data-vg-reveal style={{ '--vg-d': '120ms' } as React.CSSProperties}>
-                <div className="rounded-2xl border border-white/10 border-l-2 border-l-vega-gilt bg-vega-night-2 px-6 py-7 shadow-[0_18px_36px_-18px_rgb(0_0_0/0.45)]">
+                <div className="rounded-2xl border border-white/10 border-l-2 border-l-vega-gilt bg-vega-night-2 px-6 py-7 shadow-[0_12px_28px_-16px_rgb(0_0_0/0.45)]">
                     <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-2 tracking-tight">
                         Are you a Real Estate Lawyer?
                     </h3>
@@ -89,12 +89,12 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onSignup('unified')}
-                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Explore Komplete
                     </Button>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-vega-night-2 px-6 py-7 shadow-[0_18px_36px_-18px_rgb(0_0_0/0.45)]">
+                <div className="rounded-2xl border border-white/10 bg-vega-night-2 px-6 py-7 shadow-[0_12px_28px_-16px_rgb(0_0_0/0.45)]">
                     <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-2 tracking-tight">
                         Need Custom Automations or Tailored Management Tools?
                     </h3>
@@ -106,7 +106,7 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Custom Automation Pipeline')}
-                        className="rounded-full px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-gilt hover:text-vega-gilt-bright transition-colors focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-gilt hover:text-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Contact Sales
                     </Button>

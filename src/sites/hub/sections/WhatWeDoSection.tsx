@@ -229,7 +229,7 @@ export const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ 
                             key={i}
                             onMouseMove={handleSpotlight}
                             style={{ '--w14-i': i } as React.CSSProperties}
-                            className={`w14-card w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 hover:border-slate-300 transition-all duration-300 ${bentoSpan[i]}`}
+                            className={`w14-card w7-spotlight-card group relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-7 shadow-sm hover:shadow-lg hover:shadow-slate-900/[0.06] hover:border-slate-300 transition-all duration-200 ${bentoSpan[i]}`}
                         >
                             {/* W14: the card's own wireframe shape — the same
                                 geometry that orbits above — drops in when the

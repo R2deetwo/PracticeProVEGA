@@ -1850,6 +1850,43 @@ span[data-type="legal-placeholder"] {
   animation: swap-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ===== Origin-aware reveal micro-utilities (R30 motion pass) ===== */
+/* The Emil Kowalski menu physics: surface scales from its own anchor point
+   (origin-top-left for dropdowns, origin-top for full menus/panels) over a
+   fast spring-ish curve. Mount-only animations — no JS state, no logic. */
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Dropdowns — pair with `origin-top-left` (Tailwind) on the element. */
+.menu-in {
+  animation: menu-in 150ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Full-height mobile menus / drawer sheets — pair with `origin-top`. */
+.menu-in-top {
+  animation: menu-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Accordion/disclosure panels — pair with `origin-top`. */
+.panel-in {
+  animation: panel-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* ===== Landing Page Card Token System ===== */
 /* Card token VARIABLES are defined in :root above (shadow-card, border-card,
    radius-card, pad-card, etc.). This section defines the .landing-card class
@@ -2032,6 +2069,13 @@ span[data-type="legal-placeholder"] {
     max-height: none;
   }
   .animate-swap-in { animation: none; }
+  /* R30 motion pass — origin-aware reveals land instantly for reduced
+     motion users (opacity only, no scale/translate travel). */
+  .menu-in,
+  .menu-in-top,
+  .panel-in {
+    animation: menu-in 1ms linear both;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

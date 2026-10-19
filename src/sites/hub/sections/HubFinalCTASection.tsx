@@ -36,14 +36,14 @@ export const HubFinalCTASection: React.FC<{ onContactSales: () => void; scrollTo
                 <Button
                     variant="bare"
                     onClick={onContactSales}
-                    className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-semibold hover:bg-slate-100 hover:scale-[1.02] transition-all shadow-xl shadow-black/40"
+                    className="bg-white text-slate-900 px-8 py-4 rounded-2xl font-semibold hover:bg-slate-100 transition-all duration-150 active:scale-[0.98] shadow-lg shadow-black/30"
                 >
                     Tell us what you need
                 </Button>
                 <Button
                     variant="bare"
                     onClick={() => scrollTo('ourWork')}
-                    className="bg-transparent border-2 border-white/20 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/30 transition-all"
+                    className="bg-transparent border border-white/20 text-white px-8 py-4 rounded-2xl font-semibold hover:bg-white/10 hover:border-white/30 transition-all duration-150 active:scale-[0.98]"
                 >
                     Explore both products
                 </Button>

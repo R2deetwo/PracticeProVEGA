@@ -123,7 +123,7 @@ export const VegaSegments: React.FC = () => {
                 aria-selected={on}
                 aria-controls="vg-segment-panel"
                 onClick={() => setActive(i)}
-                className={`rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-all focus-visible:ring-vega-gilt ${
+                className={`rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt ${
                     on ? 'bg-vega-gilt text-vega-night' : 'border border-white/15 text-slate-400 hover:text-vega-parchment hover:border-white/30'
                 }`}
             >
@@ -135,10 +135,11 @@ export const VegaSegments: React.FC = () => {
 
                 {/* The panel — two-column ruled spread */}
                 <div
+                    key={seg.key}
                     role="tabpanel"
                     id="vg-segment-panel"
                     aria-labelledby={`vg-tab-${seg.key}`}
-                    className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start"
+                    className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start panel-in origin-top"
                 >
                     {/* Left — the framing copy */}
                     <div className="lg:col-span-5">

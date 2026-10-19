@@ -272,12 +272,12 @@ const OUR_WORK: Array<{
         name: 'Woosh',
         tagline: 'Free temporary email — for humans and test rigs',
         badge: 'A free tool',
-        badgeClass: 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/30',
+        badgeClass: 'bg-sky-500/10 text-sky-300 border border-sky-500/30',
         Icon: MailIcon,
-        iconClass: 'bg-indigo-500/10 text-indigo-400',
+        iconClass: 'bg-sky-500/10 text-sky-400',
         body: 'A free temporary-email service we built in-house: instant disposable inboxes that keep spam out of real mailboxes — plus a documented API with webhooks, revocable API keys and extracted verification codes. Our own test rigs run signup, payment and notification batteries on it, sparing our transactional email quota.',
         cta: { label: 'Visit woosh.dpdns.org', href: 'https://woosh.dpdns.org', external: true },
-        ctaClass: 'group-hover:text-indigo-400 text-indigo-400',
+        ctaClass: 'group-hover:text-sky-400 text-sky-400',
         frameUrl: 'woosh.dpdns.org',
         tourSystem: 'woosh',
         stack: ['Cloudflare edge', 'REST API + webhooks', 'Verification-code extraction', 'Free — no sign-up'],
@@ -327,14 +327,14 @@ const OUR_WORK: Array<{
                 label: 'The developer API — woosh.dpdns.org/api-docs',
             },
         ],
-        glowClass: 'bg-indigo-500/25',
-        borderGlowClass: 'group-hover:border-indigo-500/40',
+        glowClass: 'bg-sky-500/25',
+        borderGlowClass: 'group-hover:border-sky-500/40',
     },
 ];
 
 /** W7: a macOS-style browser chrome around a real screen capture. */
 const BrowserFrame: React.FC<{ url: string; src: string; alt: string; className?: string; eager?: boolean }> = ({ url, src, alt, className = '', eager = false }) => (
-    <div className={`overflow-hidden rounded-xl border border-white/10 bg-[#0E1626] shadow-2xl shadow-black/50 ${className}`}>
+    <div className={`overflow-hidden rounded-xl border border-white/10 bg-[#0E1626] shadow-xl shadow-black/40 ${className}`}>
         <div className="flex items-center gap-2 px-3 py-2 bg-[#111A2C] border-b border-white/[0.06]">
             <span className="w-2.5 h-2.5 rounded-full bg-[#FF5F57]" aria-hidden="true" />
             <span className="w-2.5 h-2.5 rounded-full bg-[#FEBC2E]" aria-hidden="true" />
@@ -350,7 +350,7 @@ const BrowserFrame: React.FC<{ url: string; src: string; alt: string; className?
 
 /** W7: a phone chrome around a real in-app screen capture. */
 const PhoneFrame: React.FC<{ src: string; alt: string; className?: string }> = ({ src, alt, className = '' }) => (
-    <div className={`overflow-hidden rounded-[1.6rem] border-[5px] border-[#1A2334] bg-black shadow-2xl shadow-black/60 ${className}`}>
+    <div className={`overflow-hidden rounded-[1.6rem] border-[5px] border-[#1A2334] bg-black shadow-xl shadow-black/40 ${className}`}>
         <div className="relative">
             <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-1.5 rounded-full bg-white/20 z-10" aria-hidden="true" />
             <img src={src} alt={alt} loading="lazy" className="w-full aspect-[9/20] object-cover object-top block" />
@@ -388,7 +388,7 @@ const WorkDetailModal: React.FC<{
         // is never obscured; the banner reappears once the modal closes.
         <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-label={`${work.name} — system preview`}>
             <div className="absolute inset-0 bg-[#070D18]/85 backdrop-blur-md" onClick={onClose} aria-hidden="true" />
-            <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col animate-swap-in">
+            <div className="relative bg-white rounded-3xl shadow-2xl shadow-black/50 w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col menu-in">
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3 min-w-0">
@@ -405,7 +405,7 @@ const WorkDetailModal: React.FC<{
                         onClick={onClose}
                         autoFocus
                         aria-label="Close preview"
-                        className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors flex-shrink-0"
+                        className="p-2 rounded-xl text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150 active:scale-[0.98] flex-shrink-0"
                     >
                         <XMarkIcon className="w-5 h-5" />
                     </Button>
@@ -447,7 +447,7 @@ const WorkDetailModal: React.FC<{
                         <a
                             href={work.cta.href}
                             {...(work.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 transition-all"
+                            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 transition-all duration-150 active:scale-[0.98]"
                         >
                             {work.cta.label}
                             {work.cta.external ? <ExternalLinkIcon className="w-4 h-4" /> : <span aria-hidden="true">→</span>}
@@ -501,7 +501,7 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
                     {OUR_WORK.map((w, i) => (
                         <div
                             key={w.name}
-                            className={`group relative rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 sm:p-10 transition-all duration-500 hover:border-white/20 hover:bg-white/[0.05] ${w.borderGlowClass}`}
+                            className={`group relative rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 sm:p-10 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.05] ${w.borderGlowClass}`}
                         >
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
                                 {/* Text side — alternates sides so the page breathes */}
@@ -548,7 +548,7 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
                                         <a
                                             href={w.cta.href}
                                             {...(w.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                                            className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-300 group-hover:gap-2.5 ${w.ctaClass}`}
+                                            className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-150 group-hover:gap-2.5 active:scale-[0.98] ${w.ctaClass}`}
                                         >
                                             {w.cta.label} {w.cta.external
                                                 ? <ExternalLinkIcon className="w-3.5 h-3.5" />
@@ -557,7 +557,7 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
                                         <Button
                                             variant="bare"
                                             onClick={() => setPreview(w)}
-                                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-colors min-h-[2rem]"
+                                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-all duration-150 active:scale-[0.98] min-h-[2rem]"
                                         >
                                             <DeviceMobileIcon className="w-4 h-4" /> Preview the system
                                         </Button>
