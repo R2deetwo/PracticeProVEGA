@@ -69,7 +69,7 @@ export const PRODUCT_BRANDS: Record<'vega' | 'atrium' | 'komplete', ProductBrand
         faviconPng: '/brand/atrium/favicon-48.png',
         appleTouch: '/brand/atrium/apple-touch-icon.png',
         appleTitle: 'Atrium',
-        themeColor: '#B4532A',
+        themeColor: '#059669',
         ogImage: '/assets/landing/og-atrium.png',
         ogImageAlt: 'PracticePro Atrium — the property management OS for Nigerian portfolios',
     },

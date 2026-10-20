@@ -94,7 +94,9 @@ export const MarqueeStrip: React.FC = () => (
                 <div key={dup} className="flex items-center gap-10" aria-hidden={dup === 1}>
                     {MARQUEE_ITEMS.map((item) => (
                         <span key={`${dup}-${item}`} className="flex items-center gap-10">
-                            <span className="font-display text-sm sm:text-base font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            {/* R33: the ticker speaks the engineering register —
+                                IBM Plex Mono caps, the system-readout voice. */}
+                            <span className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.28em] text-slate-500">
                                 {item}
                             </span>
                             <span className="w-1.5 h-1.5 rotate-45 bg-gradient-to-br from-emerald-300 to-emerald-500 opacity-70" aria-hidden="true" />

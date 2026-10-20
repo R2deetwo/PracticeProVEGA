@@ -1,15 +1,17 @@
 import React from 'react';
-import VegaSealScene from '../scenes/VegaSealScene';
+import VegaScalesScene from '../scenes/VegaScalesScene';
 
 /**
- * VegaRecord — /vega's trust band, rebuilt R32 as THE SEAL & THE RECORD.
+ * VegaRecord — /vega's trust band: THE BALANCE & THE RECORD.
  *
  * The band's verifiable figures were already the honest-claims discipline
- * (no vanity metrics, no invented counts). R32 gives them a certifying
- * body: the product's own mark, made physical — a gilt notary coin (the
- * steer-star of Lyra cut through it) turning slowly in three dimensions,
- * ringed by the Chambers' certification micro-caption. The seal answers
- * "says who?"; the figures answer "show me."
+ * (no vanity metrics, no invented counts). Its certifying body is the
+ * practice's own instrument — the scales, drafted in pure geometry: a
+ * hairline beam on a pyramid fulcrum, pans hanging level, a plumb line
+ * through the pivot, dark-bronze gimbal rings precessing around it all.
+ * The beam runs on a damped spring — it weighs the pointer, overshoots
+ * once, and settles back to equilibrium. The Balance answers "says who?";
+ * the figures answer "show me."
  *
  * Every figure is verifiable in the running product or the platform's
  * published terms. Presentational only — zero buttons (ADR-0004), zero
@@ -49,20 +51,21 @@ export const VegaRecord: React.FC = () => (
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 lg:items-center">
-                {/* Left — THE SEAL: the mark made physical. The 3D gilt coin
-                    turns inside a slowly rotating certification ring. */}
+                {/* Left — THE BALANCE: the practice's instrument. The
+                    beam weighs the pointer and settles to equilibrium,
+                    inside a slowly rotating certification ring. */}
                 <div className="lg:col-span-5 order-last lg:order-first" data-vg-reveal>
                     <div className="relative mx-auto w-full max-w-[440px] aspect-square">
                         {/* The certification ring — a mono micro-caption
-                            circling the coin, the notary's stamp. */}
+                            circling the instrument, the notary's stamp. */}
                         <svg
                             viewBox="0 0 400 400"
-                            className="vg-seal-ring absolute inset-0 w-full h-full"
+                            className="vg-cert-ring absolute inset-0 w-full h-full"
                             aria-hidden="true"
                         >
                             <defs>
                                 <path
-                                    id="vg-seal-ring-path"
+                                    id="vg-cert-ring-path"
                                     d="M200,200 m-176,0 a176,176 0 1,1 352,0 a176,176 0 1,1 -352,0"
                                 />
                             </defs>
@@ -72,16 +75,16 @@ export const VegaRecord: React.FC = () => (
                                 letterSpacing="3.5"
                                 fontFamily="'IBM Plex Mono', monospace"
                             >
-                                <textPath href="#vg-seal-ring-path" textLength="1102" lengthAdjust="spacing">
+                                <textPath href="#vg-cert-ring-path" textLength="1102" lengthAdjust="spacing">
                                     THE CHAMBERS STANDARD · PRACTICE MANAGEMENT FOR NIGERIAN LAW FIRMS · EST. LAGOS · NDPA 2023 · TLS 1.3 ·
                                 </textPath>
                             </text>
                         </svg>
-                        {/* The 3D coin (lazy three.js; SVG fallback beneath) */}
-                        <VegaSealScene className="absolute inset-[13%] rounded-full" />
+                        {/* The instrument (lazy three.js; SVG fallback beneath) */}
+                        <VegaScalesScene className="absolute inset-[6%] rounded-2xl" />
                     </div>
                     <p className="font-mono text-2xs tracking-[0.2em] text-slate-500 mt-2 text-center">
-                        THE SEAL — THE STEER-STAR OF LYRA, CUT THROUGH THE NOTARY COIN
+                        THE BALANCE — THE PRACTICE&rsquo;S OWN INSTRUMENT, HELD IN EQUILIBRIUM
                     </p>
                 </div>
 
@@ -105,7 +108,7 @@ export const VegaRecord: React.FC = () => (
                     </p>
 
                     {/* The figures (R26) — big outlined numerals, LawPavilion's
-                        stats move, now certified by the seal. */}
+                        stats move, now certified by the Balance. */}
                     <div className="border-t border-b border-white/10 grid sm:grid-cols-2">
                         {RECORD.map((r, i) => (
                             <div

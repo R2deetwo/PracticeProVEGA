@@ -11,6 +11,15 @@ import React from 'react';
  * carried are folded into the section's mono colophon line — one strip
  * of record, not three chips.
  *
+ * R33 (owner: "you have started removing human beings from the sites …
+ * we need to do a personalization so we are selling to real people"):
+ * the band carries the practice's face again — a portrait of counsel in
+ * chambers beside the attestations. It continues the hero's story (the
+ * practitioner ALOA was speaking with): the evening exchange ends, the
+ * file is drafted, the deadlines are diarised, and counsel keeps the
+ * evening. A vignette in the page's own voice — no invented star
+ * ratings, no fabricated quotes.
+ *
  * Copy is the shipped Vega capability copy, verbatim (honest marketing,
  * P8: verifiable statements only). Presentational only.
  */
@@ -29,7 +38,10 @@ const ATTESTATIONS = [
     },
 ];
 
-export const VegaCredentials: React.FC = () => (
+export const VegaCredentials: React.FC = () => {
+    // R33: cache-busted like every landing asset (VITE_BUILD_SHA).
+    const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
+    return (
     <section
         aria-labelledby="vega-credentials-heading"
         className="py-20 md:py-28"
@@ -51,24 +63,63 @@ export const VegaCredentials: React.FC = () => (
                 drafts, and billable work.
             </p>
 
-            {/* The attestations — ruled rows, no cards, no icons */}
-            <div className="border-t border-white/10">
-                {ATTESTATIONS.map((a, i) => (
-                    <div
-                        key={a.title}
-                        className="grid sm:grid-cols-12 gap-2 sm:gap-6 py-8 border-b border-white/10"
-                    >
-                        <p className="sm:col-span-1 font-mono text-xs tracking-widest text-vega-gilt-bright">
-                            {String(i + 1).padStart(2, '0')}
-                        </p>
-                        <h3 className="sm:col-span-4 font-vega text-xl font-semibold text-vega-parchment leading-snug">
-                            {a.title}
-                        </h3>
-                        <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-400">
-                            {a.body}
-                        </p>
-                    </div>
-                ))}
+            <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-start">
+                {/* The attestations — ruled rows, no cards, no icons */}
+                <div className="lg:col-span-7 border-t border-white/10">
+                    {ATTESTATIONS.map((a, i) => (
+                        <div
+                            key={a.title}
+                            className="grid sm:grid-cols-12 gap-2 sm:gap-6 py-8 border-b border-white/10"
+                        >
+                            <p className="sm:col-span-1 font-mono text-xs tracking-widest text-vega-gilt-bright">
+                                {String(i + 1).padStart(2, '0')}
+                            </p>
+                            <h3 className="sm:col-span-4 font-vega text-xl font-semibold text-vega-parchment leading-snug">
+                                {a.title}
+                            </h3>
+                            <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-400">
+                                {a.body}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* R33: the practice's face — counsel in chambers. The
+                    hero's evening exchange, closed: the portrait hangs
+                    beside the record like a photograph in chambers. */}
+                <div className="lg:col-span-5 lg:sticky lg:top-24">
+                    <figure>
+                        <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                            <img
+                                src={`/assets/landing/people/vega-counsel.jpg?v=${buildSha}`}
+                                alt="Counsel reviewing a document in warm lamplight in her chambers at dusk"
+                                loading="lazy"
+                                decoding="async"
+                                className="w-full h-[380px] sm:h-[440px] lg:h-[520px] object-cover"
+                            />
+                            {/* Espresso scrim — the caption composed ON the
+                                photograph, the Atrium hero's legibility
+                                treatment in Vega's ground. */}
+                            <div
+                                className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#22170F]/95 via-[#22170F]/45 to-transparent p-6 pt-20"
+                                aria-hidden="true"
+                            />
+                            <div className="absolute inset-x-0 bottom-0 p-6">
+                                <p className="font-mono text-2xs tracking-[0.25em] text-vega-gilt-bright mb-2">
+                                    IN CHAMBERS, IKEJA — 6:40 PM
+                                </p>
+                                <p className="font-vega text-xl text-vega-parchment leading-snug">
+                                    The draft is filed, the deadlines diarised.
+                                    The practice keeps its evening.
+                                </p>
+                            </div>
+                        </div>
+                        <figcaption className="font-mono text-2xs tracking-[0.18em] text-slate-500 mt-4 uppercase">
+                            Built for the practitioner behind the file — the same counsel ALOA
+                            was drafting with at the top of this page
+                        </figcaption>
+                    </figure>
+                </div>
             </div>
 
             {/* The colophon — the trust strip, folded into the record */}
@@ -79,4 +130,5 @@ export const VegaCredentials: React.FC = () => (
             </p>
         </div>
     </section>
-);
+    );
+};

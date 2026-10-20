@@ -112,10 +112,10 @@ export const AtriumFeatures: React.FC = () => {
     // them together. Mobile/tap is an accordion (one card at a time).
     const [expandedRow, setExpandedRow] = useState<number | null>(null);
     const [tappedCard, setTappedCard] = useState<string | null>(null);
-    // Atrium's accent is its registered clay via the token system —
-    // never the moss brand ramp (R32).
-    const accentColorValue = 'rgb(var(--color-atrium-clay))';
-    const accentShadow = 'rgb(var(--color-atrium-clay) / 0.15)';
+    // Atrium's accent is its registered emerald via the token system —
+    // never the moss brand ramp.
+    const accentColorValue = 'rgb(var(--color-atrium-emerald))';
+    const accentShadow = 'rgb(var(--color-atrium-emerald) / 0.15)';
 
     const headerRef = useScrollReveal<HTMLDivElement>();
     const sectionsRef = useScrollReveal<HTMLDivElement>();
@@ -125,15 +125,14 @@ export const AtriumFeatures: React.FC = () => {
             <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
                 {/* Header */}
                 <div ref={headerRef} className="scroll-reveal mb-10 md:mb-16 text-center">
-                    <Pill className="mb-5 bg-atrium-clay/10 text-atrium-clay-deep border-atrium-clay/25">
+                    <Pill className="mb-5 bg-emerald-50 text-emerald-700 border-emerald-200">
                         Features
                     </Pill>
-                    <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 leading-[1.12] text-atrium-ink">
-                        Everything the estate<br />runs on.
+                    <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight mb-4 leading-[1.12]" style={{ color: 'var(--color-ink)' }}>
+                        Property Management &<br />Revenue Operations
                     </h2>
                     <p className="text-lg max-w-2xl mx-auto leading-relaxed text-slate-600">
-                        From rent collection to defaulter management, Atrium runs every part of your
-                        portfolio — residents, maintenance, and financials — from one well-kept system.
+                        From rent collection to defaulter management, Atrium covers every aspect of your property portfolio — residents, maintenance, and financials.
                     </p>
                     {/* Hint for interactivity */}
                     <p className="text-xs mt-4 text-slate-400 font-medium tracking-wide">

@@ -4,11 +4,10 @@ import React from 'react';
  * AtriumReceipt — the "resident receipt" signature moment for /atrium.
  *
  * Atrium's equivalent of Vega's legal document, and its deliberate
- * opposite: a rounded 20px warm paper card with a soft shadow and a
- * TERRACOTTA PAID stamp (R32 — rubber-stamp ink is clay-red in the real
- * world) — tactile, hospitable, financially transparent. Naira amounts
- * in tabular IBM Plex Mono; dotted leaders; reference numbers in mono.
- * Presentational only — zero raw form elements.
+ * opposite: a rounded 20px warm paper card with a soft shadow and an
+ * emerald PAID stamp — tactile, hospitable, financially transparent.
+ * Naira amounts in tabular IBM Plex Mono; dotted leaders; reference
+ * numbers in mono. Presentational only — zero raw form elements.
  */
 
 const RECEIPT_LINES: Array<{ label: string; amount: string; note?: string }> = [
@@ -27,7 +26,7 @@ export const AtriumReceipt: React.FC = () => (
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
                 {/* Left — framing copy */}
                 <div className="lg:col-span-5">
-                    <p className="text-2xs font-bold uppercase tracking-[0.3em] text-atrium-clay mb-5">
+                    <p className="text-2xs font-bold uppercase tracking-[0.3em] text-atrium-emerald mb-5">
                         Rent &amp; Service-Charge Collection
                     </p>
                     <h2
@@ -36,7 +35,7 @@ export const AtriumReceipt: React.FC = () => (
                         style={{ color: 'var(--color-ink)' }}
                     >
                         Every payment,{' '}
-                        <span className="text-atrium-clay">receipted</span> — automatically.
+                        <span className="text-atrium-emerald">receipted</span> — automatically.
                     </h2>
                     <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-8">
                         Collect rent in Naira with payment reminders, receipt generation, and
@@ -46,16 +45,16 @@ export const AtriumReceipt: React.FC = () => (
                     </p>
                     <div className="flex flex-wrap gap-6">
                         <div>
-                            <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-clay-deep">
+                            <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-emerald">
+                                &#8358;48.6M
+                            </p>
+                            <p className="text-sm text-slate-500 mt-1">collected YTD, demo estate</p>
+                        </div>
+                        <div>
+                            <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-emerald">
                                 0
                             </p>
                             <p className="text-sm text-slate-500 mt-1">receipts typed by hand</p>
-                        </div>
-                        <div>
-                            <p className="font-mono nums-tabular text-2xl font-semibold text-atrium-clay-deep">
-                                1 tap
-                            </p>
-                            <p className="text-sm text-slate-500 mt-1">to share any notice to WhatsApp</p>
                         </div>
                     </div>
                 </div>

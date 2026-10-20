@@ -44,12 +44,12 @@ function useScrollReveal<T extends HTMLElement = HTMLDivElement>() {
 export const AtriumTrust: React.FC = () => {
     const ref = useScrollReveal<HTMLDivElement>();
     return (
-        <div ref={ref} className="scroll-reveal bg-white border-y border-atrium-sand py-5 px-4 sm:px-6">
+        <div ref={ref} className="scroll-reveal bg-white border-y border-slate-200/60 py-5 px-4 sm:px-6">
             <div className="container mx-auto flex flex-wrap items-center justify-center gap-4 sm:gap-6 md:gap-10">
                 {BADGES.map((b, i) => (
                     <div key={i} className="flex items-center gap-2.5">
-                        <div className="trust-badge-icon w-8 h-8 rounded-full bg-atrium-cream shadow-sm border border-atrium-sand flex items-center justify-center">
-                            <b.Icon className="w-4 h-4 text-atrium-clay-deep" />
+                        <div className="trust-badge-icon w-8 h-8 rounded-full bg-slate-50 shadow-sm border border-slate-200/60 flex items-center justify-center">
+                            <b.Icon className="w-4 h-4 text-slate-500" />
                         </div>
                         <span className="text-2xs sm:text-xs font-semibold text-slate-600 tracking-wide whitespace-nowrap">
                             {b.label}

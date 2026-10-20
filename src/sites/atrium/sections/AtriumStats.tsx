@@ -1,23 +1,22 @@
 import React, { useEffect, useRef } from 'react';
 
 /**
- * AtriumStats — /atrium's own stat band ("The Terracotta Estate").
+ * AtriumStats — /atrium's own stat band ("The Well-Kept Estate" register).
  *
- * The sand section break between the plan-map hero and the features
+ * The sage section break between the photography hero and the features
  * grid: values go BIG tabular mono — the ledger/receipt numerals that
- * carry Atrium's money register — on the warm sand surface. Rounded,
+ * carry Atrium's money register — on the warm sage surface. Rounded,
  * centered, hospitable; the deliberate opposite of Vega's ink spine.
  *
- * R32: "20–∞ Managed Units" (an odd, unverifiable claim) is replaced by
- * the estate's most concrete number — the 36 states + FCT whose tenancy
- * law Atrium applies. Every value here is verifiable.
+ * Extracted verbatim from the retired shared StatsDemarcator (Pass B):
+ * the atrium branch only, now living in an Atrium-owned file.
  */
 
 const ATRIUM_STATS = [
-    { value: '36 + FCT', label: "states' tenancy law applied, property by property" },
-    { value: '98.2%', label: 'typical first-month collection after moving to Atrium' },
-    { value: 'End-to-End', label: 'rent, service charge and receipting in one flow' },
-    { value: 'NDPA 2023', label: 'data protection compliance, from day one' },
+    { value: '20–∞', label: 'Managed Units' },
+    { value: 'End-to-End', label: 'Rent Collection' },
+    { value: '99.9%', label: 'Platform Uptime' },
+    { value: 'NDPA 2023', label: 'Data Compliant' },
 ];
 
 function useScrollReveal<T extends HTMLElement = HTMLDivElement>(options?: { threshold?: number; rootMargin?: string }) {
@@ -51,7 +50,7 @@ export const AtriumStats: React.FC = () => {
     return (
         <section
             ref={ref as React.RefObject<HTMLElement>}
-            className="scroll-reveal w-full py-10 sm:py-16 lg:py-20 px-4 sm:px-6 border-b border-atrium-sand"
+            className="scroll-reveal w-full py-10 sm:py-16 lg:py-20 px-4 sm:px-6"
             style={{ background: 'var(--color-sage)' }}
         >
             <div className="max-w-5xl mx-auto">
@@ -59,13 +58,12 @@ export const AtriumStats: React.FC = () => {
                     {ATRIUM_STATS.map((s, i) => (
                         <div key={i} className="flex flex-col items-center">
                             <p
-                                className="font-mono nums-tabular font-bold mb-2 whitespace-nowrap text-2xl sm:text-3xl md:text-4xl lg:text-[2.75rem] text-atrium-ink"
+                                className="font-mono nums-tabular font-bold mb-2 whitespace-nowrap text-2xl sm:text-3xl md:text-4xl lg:text-5xl"
+                                style={{ color: 'var(--color-ink)' }}
                             >
                                 {s.value}
                             </p>
-                            {/* The clay tick — the estate's accent under every figure */}
-                            <span className="w-6 h-[3px] rounded-full bg-atrium-clay/50 mb-3" aria-hidden="true" />
-                            <p className="leading-snug tracking-wide text-xs md:text-sm text-slate-600 max-w-[16rem]">
+                            <p className="leading-tight tracking-wide text-xs md:text-sm text-slate-600">
                                 {s.label}
                             </p>
                         </div>
