@@ -13106,3 +13106,19 @@ Stage Summary:
 - Vega's record band now sells the practice geometrically: The Balance — an interactive precision instrument that weighs the pointer and settles to justice.
 - Humans are back on the hub and vega with VLM-verified authentic photography; the hub close and marquee speak the engineering register on a blueprint stage.
 - Deploy note: GEMINI_DEMO_KEY + model-era + API-key-health work from R32 untouched (separate owner asks, already live).
+---
+Task ID: 33-deploy
+Agent: Main agent (Super Z)
+Task: Deploy R33 (owner revert + The Balance + humans restored) to production with the owner's fresh PAT.
+
+Work Log:
+- Owner supplied fresh GitHub PAT in chat; rotated into remote URL; push of 9abf0b88 accepted (c28cd978..9abf0b88).
+- CI on 9abf0b88: Tests ✓ (run #213), Deploy to Staging ✓ (#202), Build Android APK ✓ (#1108). APK automation then bumped main twice (f4537067 version bump, aaacb2b5 build-1108 release info) — main moved to aaacb2b5 = R33 + version bookkeeping only.
+- First promote dispatch (#116) failed at checkout: pinned sha input was abbreviated (9abf0b88) and actions/checkout cannot resolve short SHAs. Re-dispatched with blank sha = latest main (#117).
+- Promote #117 on aaacb2b5: quality gate (typecheck + unit tests on the promoted commit) ✓, Vercel production deploy + live verify ✓ (healthy, sha match aaacb2b5), Convex production (gregarious-malamute-537) live query ✓. Cloudflare mirror ✗ at the standing expired CLOUDFLARE_API_TOKEN (pre-existing, owner action).
+- Independent live verification (protocol: never trust the deploy step): version.json serves aaacb2b54a3ba77b2fc55499803875d7e1d29d7d, status healthy, APK 1.0.717 healthy. /atrium serves the emerald Well-Kept Estate (VLM-verified emerald palette, estate photography, zero terracotta refs in markup). /vega: The Balance scales instrument renders in the record band (VLM: beam, fulcrum, pans, plumb line + circular text), vega-counsel.jpg authentic portrait live at the credentials band, zero console errors on any probed page.
+- Note for future dispatches: the promote workflow's `sha` input must be a FULL 40-char SHA (or blank for latest main) — abbreviated SHAs fail checkout.
+
+Stage Summary:
+- R33 LIVE in production at aaacb2b5 (9abf0b88 + version bumps). Atrium is back to how it was; Vega sells the practice geometrically; humans are back on hub/vega.
+- Standing blockers: CLOUDFLARE_API_TOKEN expired (mirror deploy); GitHub PAT shared in chat — owner should rotate when the deployment session ends.
