@@ -1,7 +1,8 @@
 import { FunctionDeclaration, Type, Content, GoogleGenAI } from "@google/genai";
-import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterStatus, FirmDetails, SubscriptionPlan, FirmActivity, FileDetails, Lead, Contact, WorkflowDefinition, ArchivedItem, InvoiceLineItem, BankAccount, InvoiceStatus, AttorneyNote, Email, Property, IntakeFormTemplate, AutomationRule, TaskPriority, ExternalCounselInvite, ResearchNotebook, StudioAnalysisResult, AriaChatContext } from '../types';
+import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterStatus, FirmDetails, SubscriptionPlan, FirmActivity, FileDetails, Lead, Contact, WorkflowDefinition, ArchivedItem, InvoiceLineItem, BankAccount, InvoiceStatus, AttorneyNote, Email, Property, IntakeFormTemplate, AutomationRule, TaskPriority, ExternalCounselInvite, ResearchNotebook, StudioAnalysisResult, AriaChatContext, AiSettings } from '../types';
 import { SignerContext } from '../contexts/ProductContext';
 import { AI_CONFIG, stripPII, getGeminiApiKey } from '../utils/aiUtils';
+import { resolveProvider, resolveModelLadder, providerGenerateContent, providerStreamGenerateContent, isGeminiProvider, type ProviderConfig } from './aiProvider';
 import { getSystemInstruction } from '../agents/AgencyHub';
 import { ALOA_PRECISION_PROTOCOL, DRAFTPRO_HTML_FORMATTING_RULES, DRAFT_QUALITY_BAR, getAloaProtocol } from '../constants/aloaPrompts';
 import { validateAIResponse } from '../constants/identityGuardrails';
@@ -329,6 +330,10 @@ export const sendMessage = async (
 
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;
     const firmKey = appState.firmDetails?.aiSettings?.firmGeminiApiKey || getGeminiApiKey();
+    // A2 provider seam: firms may run ALOA/ARIA on any OpenAI-compatible
+    // endpoint (OpenRouter/Groq/vLLM) instead of Google. Gemini remains the
+    // default and sends the exact bytes it always has.
+    const providerCfg = resolveProvider(appState.firmDetails?.aiSettings);
 
     // --- ALOA BRAIN: SEMANTIC RETRIEVAL ---
     let semanticContext: string | undefined;
@@ -514,24 +519,19 @@ IMPORTANT:
         contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts });
     }
 
-    const modelsToTry = [preferredModelName, ...AI_CONFIG.gemini.fallbackPlan.filter(m => m !== preferredModelName)];
+    const modelsToTry = resolveModelLadder(providerCfg, 'chat', preferredModelName);
     let lastError = null;
 
-    // ─── STRATEGY: Direct-First when client key is available ───────────────────
+    // ─── STRATEGY: Direct-First when a provider key is available ───────────────
     // This bypasses Convex routing entirely, which avoids the issue where the
     // frontend may be pointed at a different Convex deployment than expected.
+    // A2: the seam speaks the Gemini wire format on BOTH providers — the
+    // request body below is unchanged, the transport is the provider's.
     const clientKey = firmKey || getGeminiApiKey();
-    if (clientKey) {
+    if (clientKey && providerCfg) {
         for (const modelName of modelsToTry) {
             try {
-                const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
-                const directUrl = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${clientKey}`;
-
-                const directResponse = await fetch(directUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    signal,
-                    body: JSON.stringify({
+                const directResponse = await providerGenerateContent(providerCfg, modelName, {
                         contents,
                         systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
                         tools: [{ functionDeclarations: tools }],
@@ -541,9 +541,8 @@ IMPORTANT:
                             { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
                             { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
                             { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-                        ]
-                    })
-                });
+                        ],
+                    }, signal);
 
                 if (directResponse.ok) {
                     const data = await directResponse.json();
@@ -578,8 +577,10 @@ IMPORTANT:
         }
     }
 
-    // ─── FALLBACK: Convex Proxy ────────────────────────────────────────────────
-    for (const modelName of modelsToTry) {
+    // ─── FALLBACK: Convex Proxy (Gemini-only — the server proxy speaks
+    //     Google's API; OpenAI-compatible firms rely on the direct path,
+    //     which is the primary for them) ──────────────────────────────────
+    for (const modelName of isGeminiProvider(providerCfg) ? modelsToTry : []) {
         try {
             const response = await convex.action(api.ai.generateContent, {
                 modelName,
@@ -647,6 +648,8 @@ export const streamMessage = async (
 ): Promise<{ text: string; modelUsed?: string; toolCalls?: any[]; thoughtSignature?: string }> => {
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;
     const firmKey = appState.firmDetails?.aiSettings?.firmGeminiApiKey || getGeminiApiKey();
+    // A2 provider seam — see sendMessage.
+    const providerCfg = resolveProvider(appState.firmDetails?.aiSettings);
 
     let semanticContext: string | undefined;
     if (context.isFirmSearchEnabled && appState.firmDetails?.id) {
@@ -781,29 +784,30 @@ You are operating in RESEARCH MODE. Apply these rules:
     }
 
     const clientKey = firmKey || getGeminiApiKey();
-    if (!clientKey) throw new Error('No Gemini API key configured. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration');
+    if (!providerCfg || (!clientKey && providerCfg.provider === 'gemini')) {
+        throw new Error('No AI provider key configured. Get a free Gemini key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration — or ask your admin to connect the firm’s own provider.');
+    }
 
-    const modelTag = preferredModelName.includes('models/') ? preferredModelName : `models/${preferredModelName}`;
-    const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:streamGenerateContent?alt=sse&key=${clientKey}`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal,
-        body: JSON.stringify({
-            contents,
-            systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
-            // Same tool declarations as sendMessage — the stream is now the
-            // primary path for ALL messages, tool-capable or not.
-            tools: [{ functionDeclarations: tools }],
-            generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
-            safetySettings: [
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-            ],
-        }),
-    });
+    // A2: the seam translates to the firm's provider when configured; the
+    // returned stream speaks Gemini chunk shapes either way, so the reader
+    // below is unchanged.
+    const streamModel = providerCfg.provider === 'openai-compatible'
+        ? (resolveModelLadder(providerCfg, 'chat', preferredModelName)[0] || preferredModelName)
+        : preferredModelName;
+    const response = await providerStreamGenerateContent(providerCfg, streamModel, {
+        contents,
+        systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
+        // Same tool declarations as sendMessage — the stream is now the
+        // primary path for ALL messages, tool-capable or not.
+        tools: [{ functionDeclarations: tools }],
+        generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
+        safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        ],
+    }, signal);
 
     if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
@@ -855,7 +859,7 @@ You are operating in RESEARCH MODE. Apply these rules:
     const sanitized = validateAIResponse(fullText, agent === 'ARIA');
     return {
         text: sanitized,
-        modelUsed: preferredModelName,
+        modelUsed: streamModel,
         toolCalls: collectedToolCalls.length > 0 ? collectedToolCalls : undefined,
         thoughtSignature: collectedThoughtSignature,
     };
@@ -960,7 +964,9 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     // R27 DraftPro strengthening: long-form legal drafting runs the
     // draftingPlan (pro-first) — see AI_CONFIG.gemini.draftingPlan. Chat and
     // everything else keep the flash-first fallbackPlan.
-    const modelsToTry = (AI_CONFIG.gemini as any).draftingPlan || AI_CONFIG.gemini.fallbackPlan;
+    // A2: openai-compatible firms draft on their own ladder, pro-first.
+    const providerCfg = resolveProvider(context.appState?.firmDetails?.aiSettings);
+    const modelsToTry = resolveModelLadder(providerCfg, 'draft');
     let lastError = null;
 
     // Use firm-level key if available, fall back to client-side key.
@@ -971,8 +977,8 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     // Settings → AI Settings (which stores it on the firm record).
     const firmKey = context.appState?.firmDetails?.aiSettings?.firmGeminiApiKey;
     const clientKey = firmKey || getGeminiApiKey();
-    if (!clientKey) {
-        throw new Error("No Gemini API key found. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration");
+    if (!providerCfg || (!clientKey && providerCfg.provider === 'gemini')) {
+        throw new Error("No AI provider key found. Get a free Gemini key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration — or ask your admin to connect the firm’s own provider.");
     }
 
     // ─── DIAGNOSTIC LOG ──────────────────────────────────────────────
@@ -984,14 +990,9 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     // ─── STRATEGY: Direct REST Stream (mirrors the working sendMessage pattern) ─
     for (const modelToTest of modelsToTry) {
         try {
-            const modelTag = modelToTest.includes('models/') ? modelToTest : `models/${modelToTest}`;
-            const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:streamGenerateContent?alt=sse&key=${clientKey}`;
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal,
-                body: JSON.stringify({
+            // A2: the seam sends this Gemini-shaped body over the firm's
+            // provider and hands back a Gemini-shaped SSE stream.
+            const response = await providerStreamGenerateContent(providerCfg, modelToTest, {
                     contents,
                     systemInstruction: { parts: [{ text: systemInstruction }] },
                     // Token budget: longer completions for Pro-class models
@@ -1008,8 +1009,7 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
                         { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
                         { category: 'HARM_CATEGORY_CIVIC_INTEGRITY', threshold: 'BLOCK_NONE' }
                     ]
-                })
-            });
+                }, signal);
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
@@ -1079,8 +1079,9 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
         }
     }
 
-    // ─── FALLBACK: Convex Proxy ────────────────────────────────────────────────
-    for (const modelToTest of modelsToTry) {
+    // ─── FALLBACK: Convex Proxy (Gemini-only — the server proxy speaks
+    //     Google's API; OpenAI-compatible firms rely on the direct path) ──
+    for (const modelToTest of isGeminiProvider(providerCfg) ? modelsToTry : []) {
         try {
             const streamUrl = CONVEX_URL.replace('.cloud', '.site') + '/ai/stream';
             const response = await fetch(streamUrl, {
@@ -1323,7 +1324,8 @@ const modelReview = async (
     draftHtml: string,
     documentTitle: string | undefined,
     isProperty: boolean | undefined,
-    apiKey: string
+    apiKey: string,
+    aiSettingsForReview?: AiSettings | null
 ): Promise<DraftReviewFinding[]> => {
     const prompt = `You are ALOA's self-review pass. Re-read your own draft below against this condensed quality bar and report ONLY real, actionable deficiencies — no praise, no style opinions.
 
@@ -1346,15 +1348,15 @@ ${draftHtml.slice(0, 60000)}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60_000);
     try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.gemini.flashModel}:generateContent?key=${apiKey}`;
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' },
-            }),
-        });
+        // A2: self-review runs on the firm's provider too — the flash tier
+        // of their ladder (their fastest model) reviews the draft.
+        const providerCfg: ProviderConfig =
+            resolveProvider(aiSettingsForReview) || { provider: 'gemini', apiKey };
+        const reviewModel = resolveModelLadder(providerCfg, 'flash')[0] || AI_CONFIG.gemini.flashModel;
+        const response = await providerGenerateContent(providerCfg, reviewModel, {
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: 'application/json' },
+        }, controller.signal);
         if (!response.ok) return [];
         const data = await response.json();
         const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -1387,6 +1389,9 @@ export const reviewDraft = async (
         verifiedCitations?: string[];
         isProperty?: boolean;
         apiKey?: string;
+        /** The firm's AI settings — A2: carries the provider choice so the
+         *  self-review pass runs on the firm's provider, not just Gemini. */
+        aiSettings?: AiSettings | null;
     } = {},
     signal?: AbortSignal
 ): Promise<DraftReviewResult> => {
@@ -1398,7 +1403,7 @@ export const reviewDraft = async (
 
     const apiKey = context.apiKey || getGeminiApiKey();
     if (apiKey && !signal?.aborted) {
-        const modelFindings = await modelReview(draftHtml, context.documentTitle, context.isProperty, apiKey);
+        const modelFindings = await modelReview(draftHtml, context.documentTitle, context.isProperty, apiKey, context.aiSettings);
         // Merge: deterministic findings first, then model-only findings.
         const seen = new Set(findings.map(f => f.check + f.message.slice(0, 30)));
         for (const f of modelFindings) {

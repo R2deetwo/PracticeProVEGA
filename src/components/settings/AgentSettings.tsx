@@ -6,7 +6,9 @@ import { api } from '../../../convex/_generated/api';
 import { ShieldCheckIcon, DocumentIcon, ZapIcon, LockClosedIcon, TrashIcon, EyeIcon, EyeOffIcon, BrainIcon, SearchIcon, ScalesIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { setCustomApiKey, getCustomApiKey, setInMemoryApiKey, checkGeminiKeyHealth, apiKeyHealthLabel, type ApiKeyHealth } from '../../utils/aiUtils';
+import { setCustomApiKey, getCustomApiKey, setInMemoryApiKey, apiKeyHealthLabel, type ApiKeyHealth } from '../../utils/aiUtils';
+import { Button, Input } from '../../components/ui';
+import { resolveProvider, checkProviderKeyHealth } from '../../services/aiProvider';
 import { getAssistantName } from '../../utils/assistantIdentity';
 import { useProduct } from '../../contexts/ProductContext';
 
@@ -382,7 +384,23 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
         if (!candidate) return;
         setKeyHealthChecking(true);
         try {
-            const h = await checkGeminiKeyHealth(candidate, { force: opts.force });
+            // A2: the probe follows the firm's provider — Google's models
+            // list, or the OpenAI-compatible endpoint's /models.
+            const ai = firmDetails?.aiSettings;
+            const cfg = resolveProvider(
+                ai?.aiProvider === 'openai-compatible' ? { ...ai, firmGeminiApiKey: candidate } : { firmGeminiApiKey: candidate }
+            );
+            let h: ApiKeyHealth;
+            if (!cfg) {
+                h = { status: 'invalid', checkedAt: Date.now(), note: 'Provider is not fully configured (missing key or base URL).' };
+            } else {
+                const r = await checkProviderKeyHealth(cfg);
+                h = {
+                    status: r.status === 'unknown' ? 'network' : r.status,
+                    checkedAt: Date.now(),
+                    note: r.note,
+                };
+            }
             setKeyHealth(h);
             if (opts.toast) {
                 const label = apiKeyHealthLabel(h);
@@ -566,15 +584,114 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
 
             {isFirmAdmin ? (
                 <>
-                    <SettingsCard title="Firm-Wide API Keys (Admin Only)" id="firm-keys">
+                    <SettingsCard title="Firm-Wide API Keys & Provider (Admin Only)" id="firm-keys">
                         <p className="text-xs text-slate-600 dark:text-zinc-400 mb-3">
                             Set a fallback API key for the entire firm. Used when a user hasn't set their own personal key.
                         </p>
+
+                        {/* A2 — the escape hatch: run the assistant on any
+                            OpenAI-compatible endpoint instead of Google. */}
+                        <div className="mb-3">
+                            <label className="block text-2xs font-bold text-slate-500 uppercase mb-1.5">AI Provider</label>
+                            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="AI provider">
+                                {([
+                                    { id: 'gemini', label: 'Google Gemini', hint: 'Default — aistudio.google.com key' },
+                                    { id: 'openai-compatible', label: 'OpenAI-compatible', hint: 'OpenRouter · Groq · vLLM · Ollama' },
+                                ] as const).map((opt) => {
+                                    const active = (firmDetails.aiSettings?.aiProvider || 'gemini') === opt.id;
+                                    return (
+                                        <Button
+                                            key={opt.id}
+                                            variant="bare"
+                                            role="radio"
+                                            aria-checked={active}
+                                            onClick={() => {
+                                                onUpdateFirmDetails({
+                                                    ...firmDetails,
+                                                    aiSettings: {
+                                                        ...firmDetails.aiSettings,
+                                                        enableAllAiFeatures: firmDetails.aiSettings?.enableAllAiFeatures ?? true,
+                                                        enableJurisdictionalAnalysis: firmDetails.aiSettings?.enableJurisdictionalAnalysis ?? false,
+                                                        aiProvider: opt.id,
+                                                    }
+                                                });
+                                                addToast(opt.id === 'gemini' ? 'Provider: Google Gemini.' : 'Provider: OpenAI-compatible — set the base URL, key and models below.', { type: 'info' });
+                                            }}
+                                            className={`text-left rounded-xl border px-3 py-2.5 transition-colors duration-150 active:scale-[0.98] ${
+                                                active
+                                                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/25'
+                                                    : 'border-slate-300 dark:border-zinc-700 hover:border-slate-400 dark:hover:border-zinc-500 bg-slate-50 dark:bg-zinc-800'
+                                            }`}
+                                        >
+                                            <span className="block text-sm font-bold text-slate-800 dark:text-zinc-100">{opt.label}</span>
+                                            <span className="block text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">{opt.hint}</span>
+                                        </Button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-2xs text-slate-500 dark:text-zinc-500 mt-1.5 leading-relaxed">
+                                OpenAI-compatible runs every ALOA/ARIA chat, draft and self-review through your own endpoint and key — the way out when Google retires a model for new accounts, or billing from your region fails. Server-side conveniences (proactive briefings, dictation) stay on Google.
+                            </p>
+                        </div>
+
+                        {firmDetails.aiSettings?.aiProvider === 'openai-compatible' && (
+                            <div className="mb-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <Input
+                                        label="Base URL"
+                                        type="url"
+                                        autoComplete="off"
+                                        placeholder="https://openrouter.ai/api/v1"
+                                        defaultValue={firmDetails.aiSettings?.openaiBaseUrl || ''}
+                                        onBlur={(e) => {
+                                            const val = e.target.value.trim().replace(/\/+$/, '');
+                                            if (val !== (firmDetails.aiSettings?.openaiBaseUrl || '')) {
+                                                onUpdateFirmDetails({
+                                                    ...firmDetails,
+                                                    aiSettings: {
+                                                        ...firmDetails.aiSettings,
+                                                        openaiBaseUrl: val,
+                                                    }
+                                                });
+                                                addToast("Provider base URL updated.", { type: 'success' });
+                                            }
+                                        }}
+                                        className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+                                    />
+                                </div>
+                                <div>
+                                    <Input
+                                        label="Models (fast → strong, comma-separated)"
+                                        type="text"
+                                        autoComplete="off"
+                                        placeholder="llama-3.3-70b-instruct, gpt-4o"
+                                        defaultValue={(firmDetails.aiSettings?.openaiModels || []).join(', ')}
+                                        onBlur={(e) => {
+                                            const val = e.target.value.split(',').map((m) => m.trim()).filter(Boolean);
+                                            if (val.join(',') !== (firmDetails.aiSettings?.openaiModels || []).join(',')) {
+                                                onUpdateFirmDetails({
+                                                    ...firmDetails,
+                                                    aiSettings: {
+                                                        ...firmDetails.aiSettings,
+                                                        openaiModels: val,
+                                                    }
+                                                });
+                                                addToast("Model ladder updated.", { type: 'success' });
+                                            }
+                                        }}
+                                        className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
                         <div>
-                            <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">Firm Gemini Key (Google)</label>
+                            <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">
+                                {firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? 'Firm Provider Key' : 'Firm Gemini Key (Google)'}
+                            </label>
                             <input autoComplete="off" data-lpignore="true"
                                 type="password"
-                                placeholder="AIzaSy... (Firm Fallback)"
+                                placeholder={firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? 'sk-or-... / gsk_... (Firm Fallback)' : 'AIzaSy... (Firm Fallback)'}
                                 defaultValue={firmDetails.aiSettings?.firmGeminiApiKey || ''}
                                 onBlur={(e) => {
                                     const val = e.target.value;
@@ -588,7 +705,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                                                 firmGeminiApiKey: val,
                                             }
                                         });
-                                        addToast("Firm Gemini Key updated.", { type: 'success' });
+                                        addToast(firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? "Firm provider key updated." : "Firm Gemini Key updated.", { type: 'success' });
                                     }
                                 }}
                                 className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"

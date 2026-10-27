@@ -79,7 +79,13 @@ export type SelectedId = string | null;
 // Interfaces
 export interface BankAccount { id: string; bankName: string; accountNumber: string; accountName?: string; isDefault?: boolean; firmId?: string; }
 export interface TaxSettings { vatRate: number; whtRate?: number; }
-export interface AiSettings { enableAllAiFeatures?: boolean; enableJurisdictionalAnalysis?: boolean; firmGeminiApiKey?: string; firmDeepSeekApiKey?: string; enabledAgents?: { jurisdictionScout: boolean; rpcGuardian: boolean; privacyShield: boolean; billingAuditor: boolean; draftingAssistant: boolean; }; }
+export interface AiSettings { enableAllAiFeatures?: boolean; enableJurisdictionalAnalysis?: boolean; firmGeminiApiKey?: string; firmDeepSeekApiKey?: string;
+    /** A2 provider abstraction: which AI provider the firm runs on. Default (absent) = Gemini. */
+    aiProvider?: 'gemini' | 'openai-compatible';
+    /** OpenAI-compatible base URL (OpenRouter, Groq, vLLM, Ollama…). No trailing slash. */
+    openaiBaseUrl?: string;
+    /** The firm's model ladder, flash-first (fast → strong). */
+    openaiModels?: string[]; enabledAgents?: { jurisdictionScout: boolean; rpcGuardian: boolean; privacyShield: boolean; billingAuditor: boolean; draftingAssistant: boolean; }; }
 export interface Integrations { googleCalendar: boolean; googleDrive: boolean; googleContacts: boolean; googleMeet: boolean; }
 export interface SubscriptionAddons { lawReports: boolean; }
 export interface PracticeJurisdictions { federalCourts: string[]; stateCourts: string[]; }

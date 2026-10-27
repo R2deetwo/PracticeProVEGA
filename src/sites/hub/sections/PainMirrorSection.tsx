@@ -1,562 +1,537 @@
 /**
- * PainMirrorSection (Sound familiar?) — R29: one week, one small business.
+ * PainMirrorSection (Sound familiar?) — R34: WHOSE WEEK IS THIS?
  *
- * Owner direction (R29): the R27 workshop "is not very clear — the
- * graphics and the animation" and "the points repeat themselves".
- * Fair on both counts: every scene rendered the SAME grammar (chips →
- * tangled dashed curves → overloaded destination vs. a clean pipeline),
- * at 10px, with abstract labels ("Month-end", "Your head").
+ * Owner direction (R34): "improve the sounds familiar section. consider
+ * what it is i am trying to do in that space and do it in a totally
+ * different way… drastically improved."
  *
- * The rebuild tells ONE story a person on the street already lives:
- * Ada, who runs a small fashion house, and five moments from her week —
- * Monday's buried WhatsApp order, Wednesday's unplaced payment,
- * Thursday's away key-man, Friday's receipt hunt, Sunday's 11pm shift.
- * Five genuinely different pains (capture / money / knowledge / records
- * / the owner's time), each with its OWN illustration grammar — a
- * phone, a bank alert, people, a drawer, a clock — so nothing repeats:
+ * WHAT THE SPACE IS FOR: the hub sells to three kinds of visitor at once
+ * (law practices → VEGA, property managers → ATRIUM, every other
+ * business → a custom build). The old section mirrored ONE persona —
+ * Ada, a fashion house — in abstract chip-theatre: a lawyer never saw
+ * their own week, a property manager never saw theirs, and the pivot
+ * pointed everyone at the same generic CTA. The job of this section is
+ * RECOGNITION → BELONGING → ROUTING, and it was only doing a third of
+ * it, for a third of the audience, in the least human language on the
+ * page.
  *
- *   1. The buried order      — phone + message sinking out of the scroll
- *   2. The unplaced payment  — credit alert vs. three maybe-notes
- *   3. The one who knows     — knowledge tethered to one away avatar
- *   4. The receipt hunt      — drawer, drifting papers, sweeping lens
- *   5. The owner's shift     — 11:04pm tasks converging on a tired Ada
+ * THE TOTALLY DIFFERENT WAY — the visitor declares who they are, and
+ * the band becomes THEIRS:
  *
- * Each moment plays in two beats (R27 direction, kept): TODAY first,
- * then ON A SYSTEM. Bigger chips, one idea per beat, no bezier
- * spaghetti. Pure CSS/SVG motion; prefers-reduced-motion skips to the
- * improved beat. Until the visitor interacts, the stage slowly cycles
- * through the week so the five moments introduce themselves.
+ *   1. THREE REAL PEOPLE to choose from — photographed portraits of a
+ *      barrister (Ikeja), an estate manager (Lekki) and a fashion
+ *      founder (Yaba, our Ada). "Selling to real people starts with
+ *      showing them" — the picker is the personalization.
+ *   2. THE WEEK AS OBJECTS — five artifacts from that person's actual
+ *      week, rendered as the REAL objects they are (a WhatsApp bubble,
+ *      a bank alert, an adjournment slip, a manila file, a key tag, a
+ *      phone at 11:47 pm). Not abstract chips: the visitor's own
+ *      furniture. Each flips — TODAY on the front, the system's answer
+ *      on the back — so the before/after is DIRECT manipulation, not a
+ *      timed beat to wait through.
+ *   3. THE PIVOT ROUTES — each persona's band closes on the product
+ *      built for their world (Vega / Atrium / a PracticePro build),
+ *      with that product's own mark, instead of one generic CTA.
+ *
+ * Ada's five moments (R29, owner-praised copy) survive verbatim as the
+ * "my own business" week — continuity, and the test pins hold.
+ *
+ * Motion: persona switch staggers the new week in; artifacts flip in
+ * 3D (480ms, expo-out); one artifact demonstrates the flip itself,
+ * once, when the section first fills the viewport; reduced-motion
+ * visitors get instant state changes and no demo.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '../../../components/ui';
+import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
+import { Logo } from '../../../constants';
 import { useScrollReveal } from '../hooks';
 
-// ── The stage frame ────────────────────────────────────────────────────────
-const VB_W = 560;
-const VB_H = 340;
-const pos = (x: number, y: number): React.CSSProperties => ({
-    left: `${(x / VB_W) * 100}%`,
-    top: `${(y / VB_H) * 100}%`,
-});
+// Cache-bust landing assets per build (the About section's pattern).
+const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
 
-type Tone = 'bad' | 'good' | 'dim' | 'tag' | 'paper';
+// ── The artifact kit — real objects, DOM-drawn, crisp at any DPI ───────────
 
-/** A chip on the stage — 11-12px, legible at a glance. */
-const Chip: React.FC<{
-    x: number;
-    y: number;
-    tone?: Tone;
-    rot?: number;
-    delay?: number;
-    sink?: boolean;
-    className?: string;
-    children: React.ReactNode;
-}> = ({ x, y, tone = 'dim', rot = 0, delay = 0, sink = false, className = '', children }) => {
-    const toneCls =
-        tone === 'bad'
-            ? 'bg-red-500/20 border-red-400/50 text-red-200'
-            : tone === 'good'
-                ? 'bg-emerald-400/15 border-emerald-300/45 text-emerald-100'
-                : tone === 'tag'
-                    ? 'bg-transparent border border-dashed border-red-400/50 text-red-300/80 uppercase tracking-[0.14em]'
-                    : tone === 'paper'
-                        ? 'bg-[#F5F1E6] border-slate-300/80 text-slate-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.6)]'
-                        : 'bg-white/[0.05] border-white/15 text-slate-400';
-    // Rotation rides a CSS variable so the enter/sink keyframes can carry
-    // it (an animation's transform overrides any static transform — the
-    // variable keeps the resting state and the animated state identical).
-    const style: React.CSSProperties = { ...pos(x, y), animationDelay: `${delay}ms` };
-    if (rot) {
-        (style as any)['--pm-rot'] = `${rot}deg`;
-        style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
-    }
-    return (
-        <span
-            className={`absolute -translate-x-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg border text-[11px] sm:text-xs font-semibold whitespace-nowrap ${toneCls} ${sink ? 'pm-sink' : 'pm-in'} ${className}`}
-            style={style}
-        >
-            {children}
-        </span>
-    );
-};
-
-/** A small round person on the stage (centred on its point). */
-const Avatar: React.FC<{ x: number; y: number; initials: string; name?: string; dim?: boolean; delay?: number }> = ({
-    x, y, initials, name, dim = false, delay = 0,
-}) => (
-    <span className="pm-in absolute flex flex-col items-center gap-1.5" style={{ ...pos(x, y), transform: 'translate(-50%, -50%)', animationDelay: `${delay}ms` }}>
-        <span
-            className={`w-11 h-11 rounded-full border flex items-center justify-center text-[13px] font-bold ${
-                dim ? 'bg-white/[0.04] border-white/15 text-slate-500' : 'bg-emerald-400/15 border-emerald-300/50 text-emerald-100'
-            }`}
-        >
-            {initials}
-        </span>
-        {name && <span className={`text-[11px] font-semibold ${dim ? 'text-slate-500' : 'text-slate-300'}`}>{name}</span>}
+/** A small mono label used on artifact faces. */
+const FaceTag: React.FC<{ tone: 'bad' | 'good'; children: React.ReactNode }> = ({ tone, children }) => (
+    <span className={`font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] ${tone === 'bad' ? 'text-red-300/80' : 'text-emerald-300/90'}`}>
+        {children}
     </span>
 );
 
-/** A straight (or gently curved) connector in stage coordinates. */
-const Link: React.FC<{
-    from: [number, number];
-    to: [number, number];
-    tone?: 'bad' | 'good';
-    dashed?: boolean;
-    delay?: number;
-    bow?: number;
-}> = ({ from, to, tone = 'bad', dashed = false, delay = 0, bow = 0 }) => {
-    const [x1, y1] = from;
-    const [x2, y2] = to;
-    const mx = (x1 + x2) / 2;
-    const my = (y1 + y2) / 2;
-    const nx = -(y2 - y1);
-    const ny = x2 - x1;
-    const len = Math.hypot(nx, ny) || 1;
-    const d = `M ${x1} ${y1} Q ${mx + (bow * nx) / len} ${my + (bow * ny) / len} ${x2} ${y2}`;
-    return (
-        <path
-            d={d}
-            stroke={tone === 'bad' ? 'rgba(248,113,113,0.7)' : 'rgba(110,231,183,0.85)'}
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeDasharray={dashed ? '5 6' : undefined}
-            className="pm-draw"
-            style={{ animationDelay: `${delay}ms` }}
-        />
-    );
+/** 1 · A WhatsApp bubble — the message that lives (and drowns) in chat. */
+const WhatsAppBubble: React.FC<{ sender: string; time: string; body: string; attachment?: string; tag?: string; sink?: boolean }> = ({ sender, time, body, attachment, tag, sink = false }) => (
+    <div className="flex flex-col items-start gap-1.5 w-full">
+        <div className={`w-full max-w-[92%] rounded-xl rounded-tl-sm bg-[#1f2c34] border border-white/10 px-3 py-2.5 ${sink ? 'pm-sink' : 'pm-in'}`}>
+            <p className="text-[10px] font-bold text-emerald-300/90">{sender} · <span className="text-slate-500 font-medium">{time}</span></p>
+            <p className="text-[11px] sm:text-xs text-slate-200 leading-snug mt-1">{body}</p>
+            {attachment && (
+                <span className="mt-2 flex items-center gap-1.5 rounded-md border border-red-400/40 bg-red-500/10 px-2 py-1 text-[9px] sm:text-[10px] font-bold text-red-200">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v7M6 8l-2.5-2.5M6 8l2.5-2.5M1.5 10.5h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    {attachment}
+                </span>
+            )}
+        </div>
+        {tag && <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75">{tag}</span>}
+    </div>
+);
+
+/** 2 · A bank credit alert — money landed, meaning didn't. */
+const CreditAlert: React.FC<{ amount: string; from: string; maybes?: string[] }> = ({ amount, from, maybes }) => (
+    <div className="w-full flex flex-col gap-2">
+        <div className="pm-in rounded-lg border border-slate-300/80 bg-[#F5F1E6] text-slate-800 px-3 py-2.5 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-500">Credit alert</p>
+            <p className="text-base sm:text-lg font-extrabold leading-tight">{amount}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-500">{from}</p>
+        </div>
+        {maybes && (
+            <div className="flex flex-wrap gap-1.5">
+                {maybes.map((m, i) => (
+                    <span key={m} className={`pm-in rounded-full border border-dashed border-red-400/50 bg-red-500/[0.07] px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold text-red-200/90 ${i === 0 ? '' : ''}`} style={{ animationDelay: `${240 + i * 130}ms` }}>
+                        {m}
+                    </span>
+                ))}
+            </div>
+        )}
+    </div>
+);
+
+/** 3 · A court adjournment slip — the date that lived in a text. */
+const AdjournmentSlip: React.FC<{ court: string; date: string }> = ({ court, date }) => (
+    <div className="w-full">
+        <div className="pm-in relative rounded-md border border-slate-300/80 bg-[#F5F1E6] text-slate-800 px-3 py-2.5 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Adjourned</p>
+            <p className="text-[11px] sm:text-xs font-extrabold mt-1 leading-snug">{date}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-500 mt-0.5">{court}</p>
+            <span className="absolute -right-1.5 top-2 rotate-[8deg] rounded border-[1.5px] border-red-500/60 px-1.5 py-px text-[8px] font-black uppercase tracking-[0.14em] text-red-600/80">Noted in a text</span>
+        </div>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2">nothing diarises it</p>
+    </div>
+);
+
+/** 4 · A manila file — the case only one person can find. */
+const ManilaFile: React.FC<{ tab: string; sticky: string }> = ({ tab, sticky }) => (
+    <div className="w-full">
+        <div className="pm-in rounded-md border border-amber-200/25 bg-amber-100/[0.08] px-3 pt-3.5 pb-3">
+            <span className="block rounded-t-md bg-amber-100/15 border border-amber-200/20 border-b-0 px-2.5 pt-1 pb-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-amber-100/80 w-max max-w-full truncate">{tab}</span>
+            <p className="text-[10px] sm:text-[11px] text-amber-50/70 font-medium mt-1.5 leading-snug">the paper file — not in the system</p>
+        </div>
+        <span className="pm-in mt-2 block w-max -rotate-2 rounded-sm bg-yellow-200/85 px-2 py-1 text-[9px] sm:text-[10px] font-bold text-yellow-950 shadow-sm" style={{ animationDelay: '300ms' }}>{sticky}</span>
+    </div>
+);
+
+/** 5 · A fee note that never left draft. */
+const FeeNote: React.FC<{ ref_: string; amount: string; state: string }> = ({ ref_, amount, state }) => (
+    <div className="w-full">
+        <div className="pm-in relative rounded-md border border-slate-300/80 bg-[#F5F1E6] text-slate-800 px-3 py-2.5 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)] overflow-hidden">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">{ref_}</p>
+            <p className="text-base sm:text-lg font-extrabold leading-tight mt-0.5">{amount}</p>
+            <p className="text-[9px] sm:text-[10px] font-semibold text-slate-500">{state}</p>
+            <span className="absolute inset-0 flex items-center justify-center">
+                <span className="rotate-[-14deg] text-[13px] font-black uppercase tracking-[0.3em] text-red-600/25 border-2 border-red-600/25 rounded px-2 py-0.5">Draft</span>
+            </span>
+        </div>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2">the work was done in march</p>
+    </div>
+);
+
+/** 6 · The laptop at 11:04 pm — the draft due at 9. */
+const LaptopLate: React.FC<{ clock: string; due: string; doc: string }> = ({ clock, due, doc }) => (
+    <div className="w-full flex flex-col items-center">
+        <div className="pm-in w-[88%] rounded-t-lg border border-white/20 border-b-0 bg-white/[0.05] px-2 py-1.5 flex justify-center gap-1" aria-hidden="true">
+            <span className="h-1 w-1 rounded-full bg-white/20" /><span className="h-1 w-1 rounded-full bg-white/20" /><span className="h-1 w-1 rounded-full bg-white/20" />
+        </div>
+        <div className="pm-in w-full rounded-b-lg rounded-t-sm border border-white/20 bg-white/[0.03] p-3">
+            <p className="text-[10px] font-bold text-slate-300 truncate">{doc}</p>
+            <div className="mt-2 flex flex-col gap-1.5" aria-hidden="true">
+                <span className="h-1.5 w-11/12 rounded bg-white/10" />
+                <span className="h-1.5 w-4/5 rounded bg-white/10" />
+                <span className="h-1.5 w-2/3 rounded bg-red-400/25" />
+                <span className="h-1.5 w-3/4 rounded bg-white/10" />
+            </div>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+            <span className="rounded-full border border-red-400/50 bg-red-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-red-200">{clock}</span>
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75">{due}</span>
+        </div>
+    </div>
+);
+
+/** 7 · The diary page — the date nobody wrote down. */
+const DiaryPage: React.FC<{ day: string; lines: string[]; alarm: string }> = ({ day, lines, alarm }) => (
+    <div className="w-full">
+        <div className="pm-in rounded-md border border-slate-300/80 bg-[#F5F1E6] text-slate-800 px-3 py-2.5 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500 border-b border-slate-300/70 pb-1">{day}</p>
+            <div className="mt-1.5 flex flex-col gap-1">
+                {lines.map((l) => (
+                    <p key={l} className="text-[10px] sm:text-[11px] font-semibold text-slate-700 leading-snug flex gap-1.5">
+                        <span className="text-slate-400 font-normal">—</span>{l}
+                    </p>
+                ))}
+            </div>
+            <p className="mt-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-red-600/80">{alarm}</p>
+        </div>
+    </div>
+);
+
+/** 8 · A paper receipt — the warranty proof in the shoebox. */
+const ReceiptPaper: React.FC<{ title: string; amount: string; note: string }> = ({ title, amount, note }) => (
+    <div className="w-full flex justify-center">
+        <div className="pm-in w-[86%] -rotate-1 rounded-sm border border-slate-300/80 bg-[#F5F1E6] text-slate-800 px-3 py-2.5 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)]" style={{ maskImage: 'radial-gradient(circle at 50% 100%, transparent 4px, black 4.5px)' }}>
+            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-500">Receipt</p>
+            <p className="text-[10px] sm:text-[11px] font-extrabold mt-0.5 leading-snug">{title}</p>
+            <p className="text-sm font-extrabold">{amount}</p>
+            <p className="text-[9px] font-semibold text-slate-500 mt-0.5">{note}</p>
+        </div>
+    </div>
+);
+
+/** 9 · The key tag — the unit that sat empty. */
+const KeyTag: React.FC<{ unit: string; status: string; note: string }> = ({ unit, status, note }) => (
+    <div className="w-full flex flex-col items-center">
+        <div className="pm-in flex flex-col items-center">
+            <span className="h-3 w-3 rounded-full border-2 border-red-400/60" aria-hidden="true" />
+            <span className="h-4 w-px bg-red-400/50" aria-hidden="true" />
+            <div className="rounded-md border border-slate-300/80 bg-[#F5F1E6] text-slate-800 px-3 py-2 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.7)]">
+                <p className="text-[11px] sm:text-xs font-black tracking-wide">{unit}</p>
+                <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.14em] text-red-600/80">{status}</p>
+            </div>
+        </div>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2 text-center">{note}</p>
+    </div>
+);
+
+/** 10 · The phone at midnight — the tenant's call / the personal line. */
+const PhoneLock: React.FC<{ who: string; time: string; line: string; foot?: string }> = ({ who, time, line, foot }) => (
+    <div className="w-full flex justify-center">
+        <div className="pm-in w-[80%] rounded-[1.2rem] border-2 border-white/25 bg-white/[0.04] px-3 py-3 text-center">
+            <p className="font-mono text-[10px] font-bold text-slate-400">{time}</p>
+            <p className="text-[11px] sm:text-xs font-bold text-slate-200 mt-1.5">{who}</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 leading-snug mt-0.5">{line}</p>
+            {foot && <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-red-300/75 mt-2">{foot}</p>}
+        </div>
+    </div>
+);
+
+/** 11 · The staff tag — the one who knows is away. */
+const StaffTag: React.FC<{ name: string; status: string; knows: string[] }> = ({ name, status, knows }) => (
+    <div className="w-full flex flex-col items-center">
+        <div className="pm-in rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2.5 w-[92%]">
+            <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/[0.05] text-[11px] font-bold text-slate-300" aria-hidden="true">S</span>
+                <span className="text-left">
+                    <span className="block text-[11px] sm:text-xs font-bold text-slate-200 leading-tight">{name}</span>
+                    <span className="block text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.14em] text-red-300/75">{status}</span>
+                </span>
+            </div>
+            <div className="mt-2 flex flex-wrap justify-center gap-1">
+                {knows.map((k) => (
+                    <span key={k} className="rounded border border-red-400/40 bg-red-500/[0.08] px-1.5 py-px text-[8px] sm:text-[9px] font-semibold text-red-200/90">{k}</span>
+                ))}
+            </div>
+        </div>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2">today, everyone guesses</p>
+    </div>
+);
+
+// ── The data — three weeks, five moments each ──────────────────────────────
+
+type MomentKind =
+    | { kind: 'whatsapp'; sender: string; time: string; body: string; attachment?: string; tag?: string; sink?: boolean }
+    | { kind: 'alert'; amount: string; from: string; maybes?: string[] }
+    | { kind: 'adjourn'; court: string; date: string }
+    | { kind: 'file'; tab: string; sticky: string }
+    | { kind: 'fee'; ref_: string; amount: string; state: string }
+    | { kind: 'laptop'; clock: string; due: string; doc: string }
+    | { kind: 'diary'; day: string; lines: string[]; alarm: string }
+    | { kind: 'receipt'; title: string; amount: string; note: string }
+    | { kind: 'keytag'; unit: string; status: string; note: string }
+    | { kind: 'phone'; who: string; time: string; line: string; foot?: string }
+    | { kind: 'staff'; name: string; status: string; knows: string[] };
+
+type Moment = {
+    when: string;
+    title: string;
+    aria: string;
+    front: MomentKind;
+    fix: string;
 };
 
-/** The terminal check — the "solved" beat's full stop. */
-const Check: React.FC<{ x: number; y: number; delay?: number }> = ({ x, y, delay = 0 }) => (
-    <svg
-        className="pm-pop absolute -translate-x-1/2 -translate-y-1/2"
-        style={{ ...pos(x, y), animationDelay: `${delay}ms` }}
-        width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"
-    >
-        <circle cx="13" cy="13" r="11.5" fill="rgba(110,231,183,0.15)" stroke="rgba(110,231,183,0.75)" strokeWidth="1.5" />
-        <path d="M7.5 13.5L11 17L18.5 9" stroke="#6EE7B7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
+type PersonaWeek = {
+    id: 'law' | 'property' | 'business';
+    cardLabel: string;
+    name: string;
+    role: string;
+    photo: string;
+    photoAlt: string;
+    backTag: string;
+    moments: Moment[];
+    pivot: {
+        line: string;
+        mark: 'vega' | 'atrium' | 'practicepro';
+        productName: string;
+        productTag: string;
+    };
+};
 
-/** The stage's SVG layer (connectors) + its paper-grid ground. */
-const StageSvg: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <svg className="absolute inset-0 w-full h-full" viewBox={`0 0 ${VB_W} ${VB_H}`} fill="none" aria-hidden="true">
-        {children}
-    </svg>
-);
+/** The artifact front renderer. */
+const ArtifactFront: React.FC<{ m: Moment }> = ({ m }) => {
+    const f = m.front;
+    switch (f.kind) {
+        case 'whatsapp': return <WhatsAppBubble sender={f.sender} time={f.time} body={f.body} attachment={f.attachment} tag={f.tag} sink={f.sink} />;
+        case 'alert': return <CreditAlert amount={f.amount} from={f.from} maybes={f.maybes} />;
+        case 'adjourn': return <AdjournmentSlip court={f.court} date={f.date} />;
+        case 'file': return <ManilaFile tab={f.tab} sticky={f.sticky} />;
+        case 'fee': return <FeeNote ref_={f.ref_} amount={f.amount} state={f.state} />;
+        case 'laptop': return <LaptopLate clock={f.clock} due={f.due} doc={f.doc} />;
+        case 'diary': return <DiaryPage day={f.day} lines={f.lines} alarm={f.alarm} />;
+        case 'receipt': return <ReceiptPaper title={f.title} amount={f.amount} note={f.note} />;
+        case 'keytag': return <KeyTag unit={f.unit} status={f.status} note={f.note} />;
+        case 'phone': return <PhoneLock who={f.who} time={f.time} line={f.line} foot={f.foot} />;
+        case 'staff': return <StaffTag name={f.name} status={f.status} knows={f.knows} />;
+    }
+};
 
-// ── The five moments — Ada's week ──────────────────────────────────────────
-// Beat 1 art = today (red register); beat 2 art = on a system (emerald).
-
-/** 1 · MONDAY 9:41 AM — the order sinking below the WhatsApp scroll. */
-const ArtBuriedToday: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[150, 205]} to={[294, 228]} tone="bad" dashed delay={250} />
-        </StageSvg>
-        {/* the phone */}
-        <div className="pm-in absolute rounded-[1.3rem] border-2 border-white/25 bg-white/[0.04] overflow-hidden"
-            style={{ ...pos(355, 168), width: '21%', aspectRatio: '9 / 16', transform: 'translate(-50%, -50%)', animationDelay: '60ms' }}>
-            <div className="h-[14%] border-b border-white/10 flex items-center justify-center">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-[0.18em]">WhatsApp · 312</span>
-            </div>
-            <div className="p-2 flex flex-col gap-1.5">
-                <span className="h-1.5 w-4/5 rounded bg-white/10" />
-                <span className="h-1.5 w-3/5 rounded bg-white/10" />
-                <span className="h-1.5 w-11/12 rounded bg-white/10" />
-                <span className="h-1.5 w-2/3 rounded bg-white/10" />
-                <span className="h-1.5 w-5/6 rounded bg-white/10" />
-            </div>
-        </div>
-        {/* the order, sinking out of the phone */}
-        <Chip x={355} y={288} tone="paper" rot={-5} delay={450} sink className="!text-slate-800">
-            2 outfits · measurements attached
-        </Chip>
-        <Chip x={140} y={130} tone="dim" delay={0}>Monday · 9:41 am</Chip>
-        <Chip x={140} y={205} tone="dim" delay={120}>customer sends her order</Chip>
-        <Chip x={140} y={305} tone="tag" delay={700}>buried — never seen again</Chip>
-    </>
-);
-
-/** 1 · ON A SYSTEM — the same order, landed in the queue. */
-const ArtBuriedSystem: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[185, 105]} to={[268, 140]} tone="good" delay={260} />
-        </StageSvg>
-        <Chip x={105} y={50} tone="dim" delay={0}>9:41 am — the same message</Chip>
-        <Chip x={110} y={105} tone="good" delay={120}>2 outfits · measurements attached</Chip>
-        {/* the queue card */}
-        <div className="pm-in absolute rounded-xl border border-emerald-300/40 bg-emerald-400/10 overflow-hidden"
-            style={{ ...pos(390, 165), width: '46%', transform: 'translate(-50%, -50%)', animationDelay: '380ms' }}>
-            <p className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/90 border-b border-emerald-300/20">The queue</p>
-            <div className="px-3 py-2.5 flex flex-col gap-2">
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2">
-                    <CheckInline /> #204 · Chioma · 2 gowns · due Fri
-                </p>
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2">
-                    <CheckInline /> #205 · Tunde · 1 suit · due Mon
-                </p>
-            </div>
-        </div>
-        <Chip x={390} y={285} tone="good" delay={650}>customer · item · price · due date</Chip>
-        <Check x={510} y={110} delay={800} />
-    </>
-);
-
-const CheckInline: React.FC = () => (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="flex-shrink-0" aria-hidden="true">
-        <circle cx="7" cy="7" r="6.3" fill="rgba(110,231,183,0.15)" stroke="rgba(110,231,183,0.7)" strokeWidth="1" />
-        <path d="M4.2 7.2L6 9L9.8 5" stroke="#6EE7B7" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-
-/** 2 · WEDNESDAY 4:15 PM — one credit alert, three maybes. */
-const ArtPaymentToday: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[234, 108]} to={[330, 60]} tone="bad" dashed delay={350} />
-            <Link from={[238, 140]} to={[345, 152]} tone="bad" dashed delay={430} />
-            <Link from={[230, 172]} to={[325, 260]} tone="bad" dashed delay={510} />
-        </StageSvg>
-        {/* the credit alert */}
-        <div className="pm-in absolute rounded-xl border border-slate-300/80 bg-[#F5F1E6] text-slate-800 shadow-[0_10px_26px_-10px_rgba(0,0,0,0.7)] overflow-hidden"
-            style={{ ...pos(140, 140), width: '33%', transform: 'translate(-50%, -50%)', animationDelay: '60ms' }}>
-            <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Credit alert</p>
-            <p className="px-3 pb-2.5 text-base font-extrabold">₦120,000</p>
-            <p className="px-3 pb-2.5 pt-0.5 text-[10px] font-semibold text-slate-500">Wed · 4:15 pm</p>
-        </div>
-        <Chip x={420} y={55} tone="paper" rot={-4} delay={620}>Bola — invoice #118 ?</Chip>
-        <Chip x={440} y={155} tone="paper" rot={3} delay={700}>Tunde — fabric money ?</Chip>
-        <Chip x={410} y={265} tone="paper" rot={-3} delay={780}>the paper list — two answers</Chip>
-        <Chip x={140} y={255} tone="dim" delay={200}>who paid — for what?</Chip>
-        <Chip x={140} y={305} tone="tag" delay={900}>so Ada guesses</Chip>
-    </>
-);
-
-/** 2 · ON A SYSTEM — the alert matches itself. */
-const ArtPaymentSystem: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[205, 140]} to={[290, 140]} tone="good" delay={300} />
-        </StageSvg>
-        <div className="pm-in absolute rounded-xl border border-slate-300/80 bg-[#F5F1E6] text-slate-800 shadow-[0_10px_26px_-10px_rgba(0,0,0,0.7)] overflow-hidden"
-            style={{ ...pos(140, 140), width: '33%', transform: 'translate(-50%, -50%)', animationDelay: '60ms' }}>
-            <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Credit alert</p>
-            <p className="px-3 pb-2.5 text-base font-extrabold">₦120,000</p>
-            <p className="px-3 pb-2.5 pt-0.5 text-[10px] font-semibold text-slate-500">Wed · 4:15 pm</p>
-        </div>
-        <div className="pm-in absolute rounded-xl border border-emerald-300/40 bg-emerald-400/10 overflow-hidden"
-            style={{ ...pos(405, 150), width: '46%', transform: 'translate(-50%, -50%)', animationDelay: '420ms' }}>
-            <p className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/90 border-b border-emerald-300/20">Matched — as it lands</p>
-            <div className="px-3 py-2.5 flex flex-col gap-1.5">
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> Bola · Invoice #118</p>
-                <p className="text-[11px] sm:text-xs text-emerald-100 font-bold flex items-center gap-2"><CheckInline /> ₦120,000 — PAID</p>
-            </div>
-        </div>
-        <Chip x={405} y={265} tone="good" delay={700}>balances &amp; debtors — always current</Chip>
-        <Check x={525} y={95} delay={850} />
-    </>
-);
-
-/** 3 · THURSDAY 8:00 AM — the knowledge that left with one man. */
-const ArtKeymanToday: React.FC = () => (
-    <>
-        <StageSvg>
-            {/* knowledge tethered to Sunday */}
-            <Link from={[205, 95]} to={[262, 138]} tone="bad" delay={300} />
-            <Link from={[400, 90]} to={[300, 135]} tone="bad" delay={360} />
-            <Link from={[400, 215]} to={[302, 185]} tone="bad" delay={420} />
-            {/* the others — can't reach */}
-            <Link from={[128, 205]} to={[210, 170]} tone="bad" dashed delay={620} />
-            <Link from={[432, 230]} to={[360, 195]} tone="bad" dashed delay={680} />
-        </StageSvg>
-        <Chip x={165} y={80} tone="bad" rot={-3} delay={80}>pricing</Chip>
-        <Chip x={425} y={75} tone="bad" rot={2} delay={140}>which tailor takes what</Chip>
-        <Chip x={430} y={222} tone="bad" rot={-2} delay={200}>rush-work rules</Chip>
-        <Avatar x={282} y={160} initials="S" name="Sunday" delay={0} />
-        <Chip x={282} y={228} tone="tag" delay={520}>away — till Monday</Chip>
-        <Avatar x={95} y={225} initials="A" name="Ada" dim delay={560} />
-        <Avatar x={490} y={262} initials="B" name="Bisi" dim delay={600} />
-        <Chip x={282} y={305} tone="tag" delay={900}>today, everyone guesses</Chip>
-    </>
-);
-
-/** 3 · ON A SYSTEM — the process on a page anyone can read. */
-const ArtKeymanSystem: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[110, 215]} to={[225, 175]} tone="good" delay={420} />
-            <Link from={[282, 225]} to={[282, 195]} tone="good" delay={480} />
-            <Link from={[455, 220]} to={[340, 175]} tone="good" delay={540} />
-        </StageSvg>
-        <div className="pm-in absolute rounded-xl border border-emerald-300/40 bg-emerald-400/10 overflow-hidden"
-            style={{ ...pos(282, 140), width: '44%', transform: 'translate(-50%, -50%)', animationDelay: '120ms' }}>
-            <p className="px-3 pt-2.5 pb-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-300/90 border-b border-emerald-300/20">How the shop runs</p>
-            <div className="px-3 py-2.5 flex flex-col gap-1.5">
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> pricing</p>
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> steps, in order</p>
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> who does what</p>
-            </div>
-        </div>
-        <Avatar x={95} y={255} initials="A" name="Ada" delay={520} />
-        <Avatar x={282} y={272} initials="S" name="Sunday" delay={560} />
-        <Avatar x={468} y={255} initials="B" name="Bisi" delay={600} />
-        <Chip x={282} y={320} tone="good" delay={780}>anyone can run the day</Chip>
-    </>
-);
-
-/** 4 · FRIDAY 6:30 PM — the receipt that cannot be found. */
-const ArtReceiptToday: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[240, 150]} to={[330, 80]} tone="bad" dashed delay={480} />
-            <Link from={[245, 190]} to={[340, 195]} tone="bad" dashed delay={560} />
-        </StageSvg>
-        {/* the drawer */}
-        <div className="pm-in absolute rounded-lg border-2 border-white/20 bg-white/[0.05] overflow-visible"
-            style={{ ...pos(165, 175), width: '27%', height: '38%', transform: 'translate(-50%, -50%)', animationDelay: '60ms' }}>
-            <p className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-[#0A101C] border border-white/20 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Receipts</p>
-            <span className="absolute -top-2 left-[16%] w-[22%] h-4 rounded-sm bg-[#F5F1E6]/80 rotate-[-8deg]" />
-            <span className="absolute -top-2.5 left-[46%] w-[22%] h-4 rounded-sm bg-[#F5F1E6]/70 rotate-[6deg]" />
-            <span className="absolute -top-1.5 left-[72%] w-[18%] h-4 rounded-sm bg-[#F5F1E6]/60 rotate-[-4deg]" />
-        </div>
-        <Chip x={425} y={80} tone="paper" rot={-5} delay={700}>receipt · March?</Chip>
-        <Chip x={440} y={195} tone="paper" rot={4} delay={780}>receipt · in a bag?</Chip>
-        {/* the sweeping lens */}
-        <svg className="pm-sweep absolute" style={{ ...pos(320, 275), transform: 'translate(-50%, -50%)', animationDelay: '350ms' }} width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
-            <circle cx="14" cy="14" r="9.5" stroke="rgba(248,113,113,0.75)" strokeWidth="2" />
-            <path d="M21 21 L30 30" stroke="rgba(248,113,113,0.75)" strokeWidth="2.4" strokeLinecap="round" />
-        </svg>
-        <Chip x={140} y={300} tone="dim" delay={250}>generator repair — under warranty?</Chip>
-        <Chip x={400} y={300} tone="tag" delay={950}>paid full price. again.</Chip>
-    </>
-);
-
-/** 4 · ON A SYSTEM — search 'generator', found. */
-const ArtReceiptSystem: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[282, 100]} to={[282, 145]} tone="good" delay={380} />
-        </StageSvg>
-        {/* the search bar */}
-        <div className="pm-in absolute -translate-x-1/2 -translate-y-1/2 flex items-center gap-2.5 rounded-full border border-emerald-300/40 bg-emerald-400/10 px-4 py-2.5"
-            style={{ ...pos(282, 62), animationDelay: '60ms' }}>
-            <svg width="15" height="15" viewBox="0 0 34 34" fill="none" aria-hidden="true">
-                <circle cx="14" cy="14" r="9.5" stroke="rgba(110,231,183,0.9)" strokeWidth="2.4" />
-                <path d="M21 21 L30 30" stroke="rgba(110,231,183,0.9)" strokeWidth="2.8" strokeLinecap="round" />
-            </svg>
-            <span className="text-[11px] sm:text-xs font-semibold text-slate-200">generator</span>
-        </div>
-        <div className="pm-in absolute rounded-xl border border-slate-300/80 bg-[#F5F1E6] text-slate-800 shadow-[0_10px_26px_-10px_rgba(0,0,0,0.7)] overflow-hidden"
-            style={{ ...pos(282, 205), width: '52%', transform: 'translate(-50%, -50%)', animationDelay: '480ms' }}>
-            <p className="px-3.5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Receipt · Generator repair</p>
-            <p className="px-3.5 pb-1 text-[11px] sm:text-xs font-bold">12 Jan · Warranty: 1 year</p>
-            <p className="px-3.5 pb-2.5 text-[10px] font-semibold text-slate-500">filed the day it arrived</p>
-        </div>
-        <Check x={452} y={150} delay={800} />
-        <Chip x={282} y={295} tone="good" delay={820}>found — in seconds</Chip>
-    </>
-);
-
-/** 5 · SUNDAY 11:04 PM — the business runs on Ada's eyes. */
-const ArtOwnerToday: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[125, 95]} to={[245, 150]} tone="bad" dashed delay={520} />
-            <Link from={[440, 95]} to={[320, 150]} tone="bad" dashed delay={580} />
-            <Link from={[130, 240]} to={[248, 180]} tone="bad" dashed delay={640} />
-        </StageSvg>
-        {/* the moon + hour */}
-        <svg className="pm-in absolute -translate-x-1/2 -translate-y-1/2" style={{ ...pos(282, 52), animationDelay: '0ms' }} width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z" fill="rgba(248,113,113,0.35)" stroke="rgba(248,113,113,0.8)" strokeWidth="1.4" />
-        </svg>
-        <Chip x={282} y={95} tone="dim" delay={80}>Sunday · 11:04 pm</Chip>
-        <Chip x={120} y={90} tone="bad" rot={-4} delay={300}>new order — her personal line</Chip>
-        <Chip x={445} y={90} tone="bad" rot={3} delay={380}>remind Bola — she meant to</Chip>
-        <Chip x={115} y={245} tone="bad" rot={-2} delay={460}>stock count — in her head</Chip>
-        <Avatar x={282} y={172} initials="A" name="Ada" dim delay={180} />
-        <Chip x={282} y={240} tone="tag" delay={700}>battery at 8%</Chip>
-        <Chip x={282} y={300} tone="tag" delay={900}>open whenever her eyes are</Chip>
-    </>
-);
-
-/** 5 · ON A SYSTEM — the routine leaves with the machine. */
-const ArtOwnerSystem: React.FC = () => (
-    <>
-        <StageSvg>
-            <Link from={[150, 70]} to={[215, 115]} tone="good" delay={520} />
-            <Link from={[150, 145]} to={[212, 145]} tone="good" delay={580} />
-            <Link from={[150, 220]} to={[215, 175]} tone="good" delay={640} />
-            <Link from={[350, 145]} to={[395, 145]} tone="good" delay={760} />
-        </StageSvg>
-        <Chip x={98} y={70} tone="good" delay={80}>new order</Chip>
-        <Chip x={98} y={145} tone="good" delay={140}>reminders</Chip>
-        <Chip x={98} y={220} tone="good" delay={200}>stock count</Chip>
-        {/* the system box */}
-        <div className="pm-in absolute -translate-x-1/2 -translate-y-1/2 rounded-xl border border-emerald-300/45 bg-emerald-400/10 px-5 py-3.5 flex flex-col items-center gap-1"
-            style={{ ...pos(282, 145), animationDelay: '360ms' }}>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/90">the system</span>
-            <span className="text-[11px] sm:text-xs text-slate-300 font-semibold">runs the routine</span>
-        </div>
-        <div className="pm-in absolute rounded-xl border border-emerald-300/40 bg-emerald-400/10 overflow-hidden"
-            style={{ ...pos(462, 150), width: '29%', transform: 'translate(-50%, -50%)', animationDelay: '700ms' }}>
-            <div className="px-3 py-2.5 flex flex-col gap-1.5">
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> orders queued</p>
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> reminders sent</p>
-                <p className="text-[11px] sm:text-xs text-slate-200 font-semibold flex items-center gap-2"><CheckInline /> report ready</p>
-            </div>
-        </div>
-        <Avatar x={462} y={262} initials="A" name="Ada" delay={860} />
-        <Chip x={462} y={318} tone="good" delay={920}>the evening — hers again</Chip>
-    </>
-);
-
-// ── The week ───────────────────────────────────────────────────────────────
-const PAIN_MIRROR = [
+// ── The three weeks (Ada's five R29 moments survive verbatim as the
+//    "my own business" week — the copy the owner praised, kept). ────────────
+const PAIN_MIRROR: PersonaWeek[] = [
     {
-        when: 'Monday · 9:41 am',
-        title: 'The order that got buried',
-        today: 'A customer sends her measurements for two outfits on WhatsApp. Ada replies \u2018Noted\u2019 — and the order disappears under three hundred more messages.',
-        system: 'The order lands in a queue the moment it arrives — customer, item, price, due date. Nothing important lives in a chat scroll.',
-        TodayArt: ArtBuriedToday,
-        SystemArt: ArtBuriedSystem,
-        aria: 'An order message sinks below a WhatsApp inbox and is lost. On a system, the same message lands in a queue with a number, a customer and a due date.',
+        id: 'law',
+        cardLabel: 'I run a law practice',
+        name: 'Funmi Adeyemi',
+        role: 'two-lawyer firm · Ikeja',
+        photo: 'persona-lawyer.jpg',
+        photoAlt: 'Barrister Funmi Adeyemi in her chambers in Ikeja at dusk, holding a manila case file',
+        backTag: 'On Vega',
+        moments: [
+            {
+                when: 'Mon · 9:41 pm',
+                title: 'The brief that lives in WhatsApp',
+                aria: 'Monday, 9:41 pm. A client sends documents for a land matter on WhatsApp — one of two hundred and fourteen unread. On Vega, it is filed to its matter the moment it arrives.',
+                front: { kind: 'whatsapp', sender: 'Client · land matter', time: '9:41 pm', body: 'Good evening counsel — pls see the attached for Monday', attachment: 'AFFIDAVIT_DRAFT.PDF', tag: 'one of 214 unread' },
+                fix: 'Filed to its matter the moment it arrived — chat stays chat, the file is the file.',
+            },
+            {
+                when: 'Tue · 2:15 pm',
+                title: 'The date that lived in a text',
+                aria: 'Tuesday, 2:15 pm. The case is adjourned to the fourteenth of November — the date is noted in a text message and nothing diarises it. On Vega, court dates diarise themselves with reminders for client, clerk and counsel.',
+                front: { kind: 'adjourn', court: 'High Court, Ikeja Div.', date: '14 Nov · 9:00 am' },
+                fix: 'Court dates diarise themselves — reminders to client, clerk and you.',
+            },
+            {
+                when: 'Wed · 11:00 am',
+                title: 'The file only he can find',
+                aria: 'Wednesday, 11 am. The Okafor file — only the senior partner knows where the paper file is, and he is away. On Vega, searching any name or suit number surfaces the file, the filings and the notes in seconds.',
+                front: { kind: 'file', tab: 'Okafor v. Zenith Bank · IKD/1287/2026', sticky: 'check the other room — S.' },
+                fix: 'Search any name or suit number — file, filings, notes. Seconds.',
+            },
+            {
+                when: 'Fri · 4:40 pm',
+                title: 'The fee note that never went out',
+                aria: 'Friday, 4:40 pm. Four hundred and fifty thousand naira of March work is still a draft fee note nobody sent. On Vega, fee notes go out on time and track themselves to payment.',
+                front: { kind: 'fee', ref_: 'Fees note · March', amount: '₦450,000', state: 'ref 0418 · never sent' },
+                fix: 'Fee notes go out on time — and walk themselves to payment.',
+            },
+            {
+                when: 'Sun · 11:04 pm',
+                title: 'The draft due at 9 a.m.',
+                aria: 'Sunday, 11:04 pm. A motion on notice is due at nine the next morning and the whole firm is one tired laptop. On Vega, ALOA reads every draft before it goes — a second pair of eyes, all night.',
+                front: { kind: 'laptop', clock: '11:04 pm', due: 'due 9:00 am', doc: 'MOTION ON NOTICE — 14 paras' },
+                fix: 'ALOA reads every draft before it goes — a second pair of eyes, all night. You sleep.',
+            },
+        ],
+        pivot: {
+            line: 'Her practice runs on Vega now — matters, hearings, fee notes and drafts in one place, with ALOA keeping the light on after dark.',
+            mark: 'vega',
+            productName: 'Vega',
+            productTag: 'the legal practice OS',
+        },
     },
     {
-        when: 'Wednesday · 4:15 pm',
-        title: 'The payment you can\u2019t place',
-        today: '₦120,000 lands in the account. Bola\u2019s invoice, or Tunde\u2019s fabric money? The paper list says two different things — so Ada guesses.',
-        system: 'Every payment is matched to its customer and invoice the moment it lands. Balances and debtors are always current.',
-        TodayArt: ArtPaymentToday,
-        SystemArt: ArtPaymentSystem,
-        aria: 'A credit alert of one hundred and twenty thousand naira connects by dashed lines to three uncertain notes. On a system, the alert matches itself to Bola and invoice 118, marked paid.',
+        id: 'property',
+        cardLabel: 'I manage property',
+        name: 'Chuka Obi',
+        role: '14 units · Lekki',
+        photo: 'persona-estate.jpg',
+        photoAlt: 'Estate manager Chuka Obi in the courtyard of a well-kept apartment block in Lekki at golden hour',
+        backTag: 'On Atrium',
+        moments: [
+            {
+                when: 'Mon · 4:15 pm',
+                title: 'The payment you can\u2019t place',
+                aria: 'Monday, 4:15 pm. Three hundred and fifty thousand naira lands — Unit 4 rent, service charge, or a part-payment? On Atrium, every payment is matched to its tenant, unit and ledger as it lands.',
+                front: { kind: 'alert', amount: '₦350,000', from: 'Acct ••8841 · from N. Okafor', maybes: ['Unit 4 rent?', 'Service charge?', 'Part-payment?'] },
+                fix: 'Matched to the tenant, the unit and the ledger as it lands.',
+            },
+            {
+                when: 'Tue · 9:00 am',
+                title: 'The renewal nobody diarised',
+                aria: 'Tuesday, 9 am. Unit 4\u2019s lease expired three days ago — found by a complaint, not a calendar. On Atrium, renewals, escalations and inspections are scheduled ahead.',
+                front: { kind: 'diary', day: 'Tuesday', lines: ['Unit 4 — lease expired 3 days ago'], alarm: 'found by a complaint' },
+                fix: 'Renewals, escalations, inspections — scheduled ahead, never discovered late.',
+            },
+            {
+                when: 'Thu · 6:30 pm',
+                title: 'The receipt in the shoebox',
+                aria: 'Thursday, 6:30 pm. The generator servicing should be under warranty — the receipt is in a shoebox. On Atrium, every document is filed the day it arrives and search finds it in seconds.',
+                front: { kind: 'receipt', title: 'Generator servicing', amount: '₦85,000', note: 'warranty — in the shoebox' },
+                fix: 'Filed the day it arrived — searched, found, warranty honoured.',
+            },
+            {
+                when: 'Sat · 10:00 am',
+                title: 'The unit that sat empty',
+                aria: 'Saturday, 10 am. Unit 6 has been vacant three weeks because \u2018list it\u2019 lived in his head. On Atrium, vacancy, listings and prospects sit on one board, always current.',
+                front: { kind: 'keytag', unit: 'UNIT 6', status: 'Vacant · 3 weeks', note: '\u2018list it\u2019 lived in his head' },
+                fix: 'Vacancy, listings and prospects on one board — always current.',
+            },
+            {
+                when: 'Sun · 11:47 pm',
+                title: 'The tenant\u2019s midnight call',
+                aria: 'Sunday, 11:47 pm. A tenant calls his personal line about a power fault. On Atrium, tenants log issues where they are tracked, assigned and closed — not on the manager\u2019s phone.',
+                front: { kind: 'phone', who: 'Tenant · Unit 2', time: '11:47 pm', line: '\u2018no light ooo\u2019 — on his personal line' },
+                fix: 'Tenants log issues where they\u2019re tracked, assigned and closed — not on your line.',
+            },
+        ],
+        pivot: {
+            line: 'His portfolio runs on Atrium — tenants, leases, receipts and vacancies in one place, with ARIA keeping every unit accounted for.',
+            mark: 'atrium',
+            productName: 'Atrium',
+            productTag: 'the estate manager\u2019s system',
+        },
     },
     {
-        when: 'Thursday · 8:00 am',
-        title: 'The one who knows is away',
-        today: 'Only Ada\u2019s shop assistant knows which tailor takes which job, what rush work costs, which client waits. He is away till Monday — today, everyone guesses.',
-        system: 'The process — pricing, steps, who does what — lives in the system, not in one person\u2019s head. Anyone can run the day.',
-        TodayArt: ArtKeymanToday,
-        SystemArt: ArtKeymanSystem,
-        aria: 'Pricing, tailor assignments and rush rules tether to Sunday, who is away; Ada and Bisi cannot reach them. On a system, the process sits on a card all three can read.',
-    },
-    {
-        when: 'Friday · 6:30 pm',
-        title: 'The receipt hunt',
-        today: 'The generator repair should be under warranty. The receipt is in a drawer, a bag, or a WhatsApp photo from March — so Ada pays full price, again.',
-        system: 'Every document is filed the day it arrives. Search \u2018generator\u2019 — there it is, with the date and the terms, in seconds.',
-        TodayArt: ArtReceiptToday,
-        SystemArt: ArtReceiptSystem,
-        aria: 'A lens sweeps over a drawer of receipts while two more drift away. On a system, searching generator surfaces the receipt with its date and warranty terms.',
-    },
-    {
-        when: 'Sunday · 11:04 pm',
-        title: 'The owner\u2019s shift',
-        today: 'Orders arrive on Ada\u2019s personal line at 11 pm, next to the reminders she meant to send and the numbers she keeps in her head. The business is open whenever her eyes are.',
-        system: 'Orders land in the queue, reminders go out on schedule, reports are one tap away. The business keeps running — and Ada gets her evening back.',
-        TodayArt: ArtOwnerToday,
-        SystemArt: ArtOwnerSystem,
-        aria: 'At 11:04 pm, orders, reminders and stock counts converge on a tired Ada. On a system, the routine flows through the system box and the evening is hers again.',
+        id: 'business',
+        cardLabel: 'I run my own business',
+        name: 'Ada Eze',
+        role: 'fashion house · Yaba',
+        photo: 'persona-founder.jpg',
+        photoAlt: 'Fashion founder Ada Eze in her studio in Yaba at night, one hand resting on a stack of folded fabric',
+        backTag: 'On a system',
+        moments: [
+            {
+                when: 'Mon · 9:41 am',
+                title: 'The order that got buried',
+                aria: 'Monday, 9:41 am. A customer sends her measurements for two outfits on WhatsApp — and the order disappears under three hundred more messages. On a system, orders land in a queue with customer, price and due date.',
+                front: { kind: 'whatsapp', sender: 'Customer', time: '9:41 am', body: '2 outfits · measurements attached', tag: 'one of 312 unread', sink: true },
+                fix: 'Orders land in a queue — customer, price, due date. Nothing important lives in the scroll.',
+            },
+            {
+                when: 'Wed · 4:15 pm',
+                title: 'The payment you can\u2019t place',
+                aria: 'Wednesday, 4:15 pm. One hundred and twenty thousand naira lands — Bola\u2019s invoice or Tunde\u2019s fabric money? On a system, every payment matches itself and balances stay current.',
+                front: { kind: 'alert', amount: '₦120,000', from: 'Wed · 4:15 pm', maybes: ['Bola — invoice #118?', 'Tunde — fabric money?', 'the paper list?'] },
+                fix: 'Every payment matches itself to its customer — balances always current.',
+            },
+            {
+                when: 'Thu · 8:00 am',
+                title: 'The one who knows is away',
+                aria: 'Thursday, 8 am. Pricing, rush rules and who takes what live in one shop assistant\u2019s head — and he is away till Monday. On a system, the process lives on a page anyone can run.',
+                front: { kind: 'staff', name: 'Sunday', status: 'away — till Monday', knows: ['pricing', 'rush rules', 'who takes what'] },
+                fix: 'The process lives on a page anyone can run.',
+            },
+            {
+                when: 'Fri · 6:30 pm',
+                title: 'The receipt hunt',
+                aria: 'Friday, 6:30 pm. The generator repair should be under warranty — the receipt is in a drawer, a bag, or a WhatsApp photo from March. On a system, documents are filed the day they arrive.',
+                front: { kind: 'receipt', title: 'Generator repair', amount: 'warranty?', note: 'in a drawer · a bag · March?' },
+                fix: 'Filed the day it arrives — found in seconds.',
+            },
+            {
+                when: 'Sun · 11:04 pm',
+                title: 'The owner\u2019s shift',
+                aria: 'Sunday, 11:04 pm. Orders arrive on her personal line beside the reminders she meant to send — the business is open whenever her eyes are. On a system, the routine runs without her.',
+                front: { kind: 'phone', who: 'personal line — new order', time: '11:04 pm', line: 'next to 4 reminders she meant to send', foot: 'battery 8%' },
+                fix: 'The routine runs without you — the evening is yours.',
+            },
+        ],
+        pivot: {
+            line: 'Ada\u2019s week is the reason we build. Software and custom systems for businesses like yours — designed around how you already work.',
+            mark: 'practicepro',
+            productName: 'PracticePro Systems',
+            productTag: 'software & custom systems',
+        },
     },
 ];
 
 // ── The section ────────────────────────────────────────────────────────────
 export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => {
     const ref = useScrollReveal<HTMLDivElement>();
-    const rowsRef = useScrollReveal<HTMLDivElement>();
+    const pickerRef = useScrollReveal<HTMLDivElement>();
     const closeRef = useScrollReveal<HTMLDivElement>();
     const sectionRef = useRef<HTMLElement>(null);
 
-    const [active, setActive] = useState(0);
-    const [beat, setBeat] = useState<'today' | 'system'>('today');
-    const [userTookOver, setUserTookOver] = useState(false);
-    // The cycle's kill-switch is a REF, not just state: a visitor's hover
-    // must stop the very next interval tick SYNCHRONOUSLY. State alone
-    // left one tick of runway — the tick could fire between the hover's
-    // setActive and the effect cleanup, hijacking the scene to a
-    // neighbour moment (observed live: hover Friday, stage shows Sunday).
-    const userTookRef = useRef(false);
+    // The visitor's declaration — whose week is this? Defaults to the
+    // flagship practice (law); the picker is the whole point, so no
+    // auto-cycling: switching persona is the visitor answering the
+    // question, not something the page does to them.
+    const [personaId, setPersonaId] = useState<PersonaWeek['id']>('law');
+    const [flipped, setFlipped] = useState<Set<number>>(new Set());
+    const hinted = useRef(false);
+    const touched = useRef(false);
     const timers = useRef<number[]>([]);
     const reduced = useRef(
         typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     );
 
-    // The beat machine (R27 direction, kept): selecting a moment plays
-    // today first, then the same moment on a system. The today beat gets
-    // 2.6s — its staggered entrances (up to ~0.9s delays + 0.5s each) need
-    // time to FULLY populate before the story turns (R29: at 1.7s the
-    // "today" picture barely existed complete before the swap).
-    // Reduced-motion visitors get the improved beat immediately.
-    useEffect(() => {
-        timers.current.forEach(clearTimeout);
-        timers.current = [];
-        if (reduced.current) {
-            setBeat('system');
-            return;
-        }
-        setBeat('today');
-        timers.current.push(window.setTimeout(() => setBeat('system'), 2600));
-        return () => timers.current.forEach(clearTimeout);
-    }, [active]);
+    const persona = PAIN_MIRROR.find((p) => p.id === personaId) ?? PAIN_MIRROR[0];
 
-    // Until the visitor chooses a moment themselves, the week slowly
-    // cycles on the stage — so all five DIFFERENT moments introduce
-    // themselves (the R29 fix for "the points repeat themselves" is
-    // variety; this makes sure it gets seen). Stops the moment the
-    // visitor hovers, focuses or taps a row.
+    // One-time demo: when the section first fills the viewport, flip the
+    // first artifact open and closed again — teaching the interaction
+    // without a word of instruction. Never runs for reduced-motion
+    // visitors, and never after the visitor has flipped one themselves.
     useEffect(() => {
-        if (userTookOver || reduced.current) return;
+        if (reduced.current || hinted.current) return;
         const root = sectionRef.current;
         if (!root || !('IntersectionObserver' in window)) return;
-        let visible = false;
-        let cycle: number | undefined;
         const io = new IntersectionObserver((entries) => {
             for (const en of entries) {
-                visible = en.isIntersecting;
-                if (visible && cycle === undefined) {
-                    cycle = window.setInterval(() => {
-                        if (userTookRef.current) return; // hover/tap owns the stage now
-                        setActive((a) => (a + 1) % PAIN_MIRROR.length);
-                    }, 6200);
-                } else if (!visible && cycle !== undefined) {
-                    clearInterval(cycle);
-                    cycle = undefined;
-                }
+                if (!en.isIntersecting || hinted.current) continue;
+                hinted.current = true;
+                if (touched.current) return;
+                timers.current.push(
+                    window.setTimeout(() => {
+                        if (touched.current) return;
+                        setFlipped((f) => new Set(f).add(0));
+                    }, 1500),
+                    window.setTimeout(() => {
+                        if (touched.current) return;
+                        setFlipped((f) => { const n = new Set(f); n.delete(0); return n; });
+                    }, 3600)
+                );
             }
-        }, { threshold: 0.35 });
+        }, { threshold: 0.4 });
         io.observe(root);
-        return () => {
-            io.disconnect();
-            if (cycle !== undefined) clearInterval(cycle);
-        };
-    }, [userTookOver]);
+        return () => io.disconnect();
+    }, []);
 
-    const scene = PAIN_MIRROR[active];
-    const selectScene = (i: number) => {
-        userTookRef.current = true; // synchronous — no tick can race this
-        setUserTookOver(true);
-        if (i !== active) setActive(i);
+    useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+    const selectPersona = (id: PersonaWeek['id']) => {
+        if (id !== personaId) {
+            setPersonaId(id);
+            setFlipped(new Set());
+        }
     };
 
-    const rowCls = (i: number) =>
-        `group/row w-full text-left rounded-xl border px-4 py-3.5 transition-all duration-300 ${
-            i === active
-                ? 'border-emerald-500/40 bg-emerald-400/10'
-                : 'border-white/[0.07] bg-white/[0.02] hover:border-white/[0.16] hover:bg-white/[0.045]'
-        }`;
+    const toggleFlip = (i: number) => {
+        touched.current = true;
+        setFlipped((f) => {
+            const n = new Set(f);
+            if (n.has(i)) n.delete(i); else n.add(i);
+            return n;
+        });
+    };
 
-    const Art = beat === 'today' ? scene.TodayArt : scene.SystemArt;
+    const Mark = persona.pivot.mark === 'vega' ? VegaMark : persona.pivot.mark === 'atrium' ? AtriumMark : null;
 
     return (
         <section ref={sectionRef} className="relative py-16 sm:py-24 overflow-hidden" style={{ background: '#0A101C' }}>
-            {/* the same ink stage as the hero, carried through the marquee */}
             <div className="absolute -top-32 right-1/4 w-[34rem] h-[24rem] rounded-full bg-emerald-500/[0.07] blur-[130px] pointer-events-none" aria-hidden="true" />
             <div className="absolute -bottom-40 left-1/4 w-[36rem] h-[24rem] rounded-full bg-emerald-600/[0.08] blur-[130px] pointer-events-none" aria-hidden="true" />
             <div className="absolute inset-0 w7-grain pointer-events-none" aria-hidden="true" />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative">
-                <div ref={ref} className="w9-reveal text-center mb-10 md:mb-14 max-w-3xl mx-auto">
+                <div ref={ref} className="w9-reveal text-center mb-10 md:mb-12 max-w-3xl mx-auto">
                     <p className="text-xs sm:text-xs font-bold uppercase tracking-[0.3em] mb-4 text-emerald-400/90">
                         Sound familiar?
                     </p>
@@ -570,111 +545,147 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
                     <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         Spreadsheets, chat threads, memory and paper will get a business started —
                         then quietly hold it back.{' '}
-                        <span className="text-slate-200">One small business, one week — five moments every owner knows. Watch each one twice: as it runs today, and on a system.</span>
+                        <span className="text-slate-200">Pick the week that looks like yours: five real moments from it, and the system that answers each one.</span>
                     </p>
                 </div>
 
-                {/* The week: selectable moments left, the stage right. Below
-                    lg the stage sits above the list (tap a moment, the stage
-                    above animates). */}
-                <div ref={rowsRef} className="w9-reveal-stagger max-w-6xl mx-auto grid lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 lg:gap-10 items-start">
-                    {/* ── The stage ─────────────────────────────────────── */}
-                    <div className="order-first lg:order-last lg:sticky lg:top-24">
-                        <div
-                            className="relative rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm overflow-hidden"
-                            role="img"
-                            aria-label={`${scene.title} — ${scene.aria}`}
-                        >
-                            {/* Beat caption — swaps with the beat */}
-                            <div className="flex items-center justify-between px-4 pt-3.5 pb-2">
-                                <span
-                                    key={`t-${active}-${beat}`}
-                                    className={`text-2xs font-bold uppercase tracking-[0.22em] transition-colors duration-500 ${
-                                        beat === 'today' ? 'text-red-300/90' : 'text-emerald-300/90'
-                                    }`}
-                                >
-                                    {beat === 'today' ? `Today — ${scene.when}` : 'On a system'}
-                                </span>
-                                <span className="font-mono text-2xs tracking-widest text-slate-500">
-                                    {String(active + 1).padStart(2, '0')} / {String(PAIN_MIRROR.length).padStart(2, '0')}
-                                </span>
-                            </div>
-
-                            {/* The stage surface — one shared 560x340 frame */}
-                            <div className="relative w-full" style={{ aspectRatio: `${VB_W} / ${VB_H}` }}>
-                                {/* faint grid — the workshop paper */}
-                                <div
-                                    className="absolute inset-0"
-                                    aria-hidden="true"
-                                    style={{
-                                        backgroundImage:
-                                            'linear-gradient(to right, rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.045) 1px, transparent 1px)',
-                                        backgroundSize: '56px 52px',
-                                    }}
-                                />
-                                {/* The beat's tone — a faint wash that makes the
-                                    state legible at a glance, before any art is
-                                    read: red for today, emerald for the system. */}
-                                <div
-                                    aria-hidden="true"
-                                    className={`absolute inset-0 transition-colors duration-700 ${
-                                        beat === 'today' ? 'bg-red-500/[0.07]' : 'bg-emerald-400/[0.06]'
-                                    }`}
-                                />
-                                {/* The moment's art — remounts per scene+beat so
-                                    its motion replays from the top. */}
-                                <div key={`${active}-${beat}`} className="absolute inset-0">
-                                    <Art />
-                                </div>
-                            </div>
-
-                            {/* The caption — the moment's own sentence. */}
-                            <p className="px-4 py-3 border-t border-white/[0.07] text-sm leading-[1.7] text-slate-300/95">
-                                <span className={`font-bold ${beat === 'today' ? 'text-red-300/90' : 'text-emerald-300'}`}>
-                                    {beat === 'today' ? 'Today: ' : 'On a system: '}
-                                </span>
-                                {beat === 'today' ? scene.today : scene.system}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* ── The week's moments — hover/tap selects ─────────── */}
-                    <div className="flex flex-col gap-2.5" role="listbox" aria-label="One week, five moments — select one to watch it play out">
-                        {PAIN_MIRROR.map((row, i) => (
+                {/* ── The picker — three real people. The visitor answers
+                    the question themselves; the band becomes theirs. ── */}
+                <div ref={pickerRef} className="w9-reveal-stagger max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 md:mb-10" role="radiogroup" aria-label="Whose week looks like yours?">
+                    {PAIN_MIRROR.map((p) => {
+                        const selected = p.id === personaId;
+                        return (
                             <Button
-                                key={i}
+                                key={p.id}
                                 variant="bare"
-                                role="option"
-                                aria-selected={i === active}
-                                onMouseEnter={() => selectScene(i)}
-                                onFocus={() => selectScene(i)}
-                                onClick={() => selectScene(i)}
-                                className={rowCls(i)}
+                                role="radio"
+                                aria-checked={selected}
+                                onClick={() => selectPersona(p.id)}
+                                className={`group/card relative overflow-hidden rounded-2xl border text-left transition-all duration-200 active:scale-[0.985] ${
+                                    selected
+                                        ? 'border-emerald-400/60 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_18px_40px_-18px_rgba(16,185,129,0.45)]'
+                                        : 'border-white/[0.08] hover:border-white/20'
+                                }`}
                             >
-                                <span className="flex items-start gap-3">
-                                    <span
-                                        aria-hidden="true"
-                                        className={`mt-1 flex-shrink-0 w-1.5 h-1.5 rounded-full transition-all duration-300 ${
-                                            i === active ? 'bg-emerald-400 scale-125' : 'bg-slate-600'
-                                        }`}
+                                <span className="relative block aspect-[4/3] overflow-hidden">
+                                    <img
+                                        src={`/assets/landing/people/${p.photo}?v=${buildSha}`}
+                                        alt={p.photoAlt}
+                                        loading="lazy"
+                                        decoding="async"
+                                        className={`h-full w-full object-cover object-top transition-all duration-300 ${selected ? 'scale-[1.03] saturate-100' : 'saturate-[0.82] group-hover/card:saturate-100'}`}
                                     />
-                                    <span className="min-w-0">
-                                        <span className={`block text-2xs font-bold uppercase tracking-[0.18em] transition-colors duration-300 ${i === active ? 'text-emerald-300/90' : 'text-slate-500'}`}>
-                                            {row.when}
+                                    <span className={`absolute inset-0 transition-opacity duration-300 ${selected ? 'bg-emerald-500/10 opacity-100' : 'bg-gradient-to-t from-[#0A101C]/85 via-transparent to-transparent'}`} aria-hidden="true" />
+                                    {selected && (
+                                        <span className="pm-pop absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-400 text-[#0A101C]" aria-hidden="true">
+                                            <svg width="13" height="13" viewBox="0 0 26 26" fill="none"><path d="M6 13.5L10.5 18L20 8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                         </span>
-                                        <span className={`block text-sm font-bold mt-0.5 transition-colors duration-300 ${i === active ? 'text-white' : 'text-slate-300'}`}>
-                                            {row.title}
-                                        </span>
-                                        <span className={`block text-sm leading-[1.65] mt-1 transition-colors duration-300 ${i === active ? 'text-slate-300' : 'text-slate-500'}`}>
-                                            {row.today}
-                                        </span>
-                                        <span className={`block text-xs leading-[1.6] mt-1 transition-all duration-300 ${i === active ? 'text-emerald-300/90' : 'text-slate-600'}`}>
-                                            → {row.system}
-                                        </span>
+                                    )}
+                                </span>
+                                <span className="flex items-baseline justify-between gap-2 px-4 py-3">
+                                    <span className={`text-sm font-bold transition-colors duration-200 ${selected ? 'text-white' : 'text-slate-300 group-hover/card:text-white'}`}>{p.cardLabel}</span>
+                                    <span className="text-right">
+                                        <span className={`block text-xs font-semibold ${selected ? 'text-emerald-300' : 'text-slate-500'}`}>{p.name}</span>
+                                        <span className={`block text-2xs font-semibold uppercase tracking-[0.14em] ${selected ? 'text-emerald-300/70' : 'text-slate-600'}`}>{p.role}</span>
                                     </span>
                                 </span>
                             </Button>
-                        ))}
+                        );
+                    })}
+                </div>
+
+                {/* ── The week — five artifacts from the chosen person's
+                    desk. Flip one: today on the front, the system's
+                    answer on the back. ── */}
+                <div key={persona.id} className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                    {persona.moments.map((m, i) => {
+                        const isFlipped = flipped.has(i);
+                        return (
+                            <div key={m.title} className="pm-in" style={{ animationDelay: `${i * 90}ms`, ['--pm-rot' as string]: `${((i % 2 === 0 ? -1 : 1) * (0.8 + (i % 3) * 0.35)).toFixed(2)}deg` }}>
+                                <Button
+                                    variant="bare"
+                                    aria-pressed={isFlipped}
+                                    aria-label={`${m.title} — ${m.aria}`}
+                                    onClick={() => toggleFlip(i)}
+                                    className={`pm-card w-full text-left ${isFlipped ? 'is-flipped' : ''}`}
+                                >
+                                    <span className="pm-face pm-face-front" aria-hidden="true">
+                                        <span className="flex items-center justify-between px-3.5 pt-3 pb-2">
+                                            <FaceTag tone="bad">Today · {m.when}</FaceTag>
+                                        </span>
+                                        <span className="flex flex-1 items-center justify-center px-3.5 py-2">
+                                            <ArtifactFront m={m} />
+                                        </span>
+                                        <span className="px-3.5 pb-3 pt-2">
+                                            <span className="block text-[13px] font-bold text-white leading-snug">{m.title}</span>
+                                            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">tap — see it on a system</span>
+                                        </span>
+                                    </span>
+                                    <span className="pm-face pm-face-back" aria-hidden="true">
+                                        <span className="flex flex-1 flex-col items-start justify-center gap-2.5 px-4 py-3">
+                                            <FaceTag tone="good">{persona.backTag}</FaceTag>
+                                            <svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true" className="flex-shrink-0">
+                                                <circle cx="13" cy="13" r="11.5" fill="rgba(110,231,183,0.15)" stroke="rgba(110,231,183,0.75)" strokeWidth="1.5" />
+                                                <path d="M7.5 13.5L11 17L18.5 9" stroke="#6EE7B7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                            <span className="text-[12px] sm:text-[13px] font-semibold text-emerald-50 leading-[1.55]">{m.fix}</span>
+                                        </span>
+                                        <span className="px-4 pb-3">
+                                            <span className="block text-[13px] font-bold text-white leading-snug">{m.title}</span>
+                                        </span>
+                                    </span>
+                                </Button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* ── The pivot — the system built for the week you chose. ── */}
+                <div key={`pivot-${persona.id}`} className="pm-in max-w-4xl mx-auto mt-10 md:mt-12">
+                    <div className="relative rounded-2xl border border-white/[0.09] bg-white/[0.03] backdrop-blur-sm overflow-hidden">
+                        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/40 to-transparent" aria-hidden="true" />
+                        <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-7 px-6 sm:px-8 py-6 sm:py-7">
+                            <img
+                                src={`/assets/landing/people/${persona.photo}?v=${buildSha}`}
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                className="h-20 w-20 sm:h-24 sm:w-24 flex-shrink-0 rounded-full object-cover object-top ring-2 ring-emerald-400/40"
+                            />
+                            <div className="flex-1 text-center sm:text-left min-w-0">
+                                <p className="text-2xs font-bold uppercase tracking-[0.22em] text-emerald-300/90">
+                                    {persona.name} · {persona.role}
+                                </p>
+                                <p className="mt-1.5 text-[15px] sm:text-base text-slate-300/95 leading-[1.7]">{persona.pivot.line}</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-3 flex-shrink-0">
+                                <span className="flex items-center gap-2.5">
+                                    {Mark ? <Mark className="h-8 w-8" title={persona.pivot.productName} /> : <Logo className="h-8 w-8 text-primary-500" />}
+                                    <span className="text-left">
+                                        <span className="block text-sm font-extrabold text-white leading-tight">{persona.pivot.productName}</span>
+                                        <span className="block text-2xs font-semibold uppercase tracking-[0.14em] text-slate-500">{persona.pivot.productTag}</span>
+                                    </span>
+                                </span>
+                                {persona.id === 'business' ? (
+                                    <Button
+                                        variant="bare"
+                                        onClick={onContactSales}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.98]"
+                                    >
+                                        Tell us what runs your business today
+                                    </Button>
+                                ) : (
+                                    <a
+                                        href={persona.id === 'law' ? '/vega' : '/atrium'}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.98]"
+                                    >
+                                        {persona.id === 'law' ? 'See how Vega runs a practice' : 'See how Atrium runs a portfolio'}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -684,64 +695,60 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
                         better spreadsheet. <span className="text-white font-semibold">You need a system</span> —
                         and building it is exactly what we do.
                     </p>
-                    <div className="mt-7">
-                        <Button
-                            variant="bare"
-                            onClick={onContactSales}
-                            className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.97]"
-                        >
-                            Tell us what runs your business today
-                        </Button>
-                    </div>
                 </div>
             </div>
 
             <style>{`
-                /* The stage's motion vocabulary — in, draw, pop, sink, sweep.
-                   Rotation rides --pm-rot so animated and resting transforms
-                   stay identical (an animation overrides static transforms). */
+                /* Entrance — the week staggers in when the persona changes. */
                 @keyframes pm-in-on {
-                    from { opacity: 0; transform: translate(-50%, -50%) rotate(var(--pm-rot, 0deg)) translateY(10px); }
-                    to { opacity: 1; transform: translate(-50%, -50%) rotate(var(--pm-rot, 0deg)); }
+                    from { opacity: 0; transform: rotate(var(--pm-rot, 0deg)) translateY(12px); }
+                    to { opacity: 1; transform: rotate(var(--pm-rot, 0deg)) translateY(0); }
                 }
-                .pm-in { opacity: 0; animation: pm-in-on 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-                @keyframes pm-draw-on {
-                    from { stroke-dashoffset: 300; opacity: 0.2; }
-                    to { stroke-dashoffset: 0; opacity: 1; }
-                }
-                .pm-draw {
-                    stroke-dashoffset: 300;
-                    opacity: 0.2;
-                    animation: pm-draw-on 650ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-                }
+                .pm-in { opacity: 0; animation: pm-in-on 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
                 @keyframes pm-pop-on {
-                    from { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
-                    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    from { opacity: 0; transform: scale(0.5); }
+                    to { opacity: 1; transform: scale(1); }
                 }
-                .pm-pop { opacity: 0; animation: pm-pop-on 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards; }
-                /* the buried order — sinks below the scroll and fades */
+                .pm-pop { opacity: 0; animation: pm-pop-on 300ms cubic-bezier(0.22, 1, 0.36, 1) 160ms forwards; }
+                /* The buried order — sinks below the chat and dims. */
                 @keyframes pm-sink-on {
-                    0% { opacity: 1; transform: translate(-50%, -50%) rotate(var(--pm-rot, 0deg)); }
+                    0% { opacity: 1; }
                     55% { opacity: 0.95; }
-                    100% { opacity: 0.25; transform: translate(-50%, -50%) rotate(var(--pm-rot, 0deg)) translateY(26px); }
+                    100% { opacity: 0.3; transform: translateY(14px); }
                 }
-                .pm-sink { animation: pm-sink-on 1500ms 300ms cubic-bezier(0.45, 0, 0.75, 0.35) both; }
-                /* the receipt hunt — the lens sweeps back and forth */
-                @keyframes pm-sweep-on {
-                    0% { transform: translate(-50%, -50%) translateX(-46px); }
-                    50% { transform: translate(-50%, -50%) translateX(46px); }
-                    100% { transform: translate(-50%, -50%) translateX(-46px); }
+                .pm-sink { animation: pm-sink-on 1600ms 400ms cubic-bezier(0.45, 0, 0.75, 0.35) both; }
+
+                /* The flip — today on the front, the answer on the back.
+                   The card keeps its desk-spread rotation (var) through the
+                   flip by rotating the INNER face container only. */
+                .pm-card { perspective: 1100px; display: block; }
+                .pm-card .pm-face {
+                    display: flex; flex-direction: column;
+                    position: relative; width: 100%; aspect-ratio: 3 / 4.35;
+                    border-radius: 0.95rem;
+                    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+                    transition: transform 480ms cubic-bezier(0.22, 1, 0.36, 1), border-color 300ms ease, background-color 300ms ease;
                 }
-                .pm-sweep { animation: pm-sweep-on 2600ms 500ms ease-in-out both infinite; }
+                .pm-face-front {
+                    border: 1px solid rgba(255,255,255,0.1);
+                    background: rgba(255,255,255,0.03);
+                }
+                .pm-face-back {
+                    position: absolute; inset: 0;
+                    border: 1px solid rgba(110,231,183,0.4);
+                    background: linear-gradient(160deg, rgba(16,185,129,0.14), rgba(16,185,129,0.05));
+                    transform: rotateY(180deg);
+                }
+                .pm-card.is-flipped .pm-face-front { transform: rotateY(-180deg); }
+                .pm-card.is-flipped .pm-face-back { transform: rotateY(0deg); }
+                .pm-card:hover .pm-face-front { border-color: rgba(255,255,255,0.22); }
+                .pm-card:focus-visible { outline: 2px solid rgba(110,231,183,0.8); outline-offset: 3px; border-radius: 1rem; }
+
                 @media (prefers-reduced-motion: reduce) {
-                    .pm-in, .pm-draw, .pm-pop, .pm-sink, .pm-sweep {
-                        animation: none;
-                        opacity: 1;
-                        stroke-dashoffset: 0;
-                    }
+                    .pm-in, .pm-pop, .pm-sink { animation: none; opacity: 1; }
+                    .pm-card .pm-face { transition: none; }
                 }
             `}</style>
         </section>
     );
 };
-
