@@ -1,37 +1,37 @@
 /**
- * PainMirrorSection (Sound familiar?) — R34: WHOSE WEEK IS THIS?
+ * PainMirrorSection (Sound familiar?) — R35: THE FLIP IS *THEIR* SYSTEM.
  *
- * Owner direction (R34): "improve the sounds familiar section. consider
- * what it is i am trying to do in that space and do it in a totally
- * different way… drastically improved."
+ * Owner direction (R35): "when the cards flip we are talking about
+ * vega… we are supposed to show how their system will be improved and
+ * don't necessarily have to mention our existing products… sort it out
+ * so that my icps feel like we understand the problem they have AND
+ * CAN BUILD A TOOL TO SOLVE THAT THEIR PROBLEM."
  *
- * WHAT THE SPACE IS FOR: the hub sells to three kinds of visitor at once
- * (law practices → VEGA, property managers → ATRIUM, every other
- * business → a custom build). The old section mirrored ONE persona —
- * Ada, a fashion house — in abstract chip-theatre: a lawyer never saw
- * their own week, a property manager never saw theirs, and the pivot
- * pointed everyone at the same generic CTA. The job of this section is
- * RECOGNITION → BELONGING → ROUTING, and it was only doing a third of
- * it, for a third of the audience, in the least human language on the
- * page.
+ * R34 built the band this keeps: the visitor declares who they are —
+ * a barrister (Ikeja), an estate manager (Lekki) or a fashion founder
+ * (Yaba, our Ada) — and five artifacts from that person's real week
+ * flip: TODAY on the front, the answer on the back. The recognition
+ * half was right. The answer half was in OUR voice — the back tag
+ * carried a product name, one fix named our AI assistant, and the
+ * pivot pitched an existing product as the answer. To a visitor still
+ * deciding whether anyone here understands them, that reads as a
+ * catalogue wearing an empathy costume.
  *
- * THE TOTALLY DIFFERENT WAY — the visitor declares who they are, and
- * the band becomes THEIRS:
+ * R35 re-voices every back half (and the pivot) as the VISITOR'S OWN
+ * SYSTEM, IMPROVED — no product names anywhere in the band:
  *
- *   1. THREE REAL PEOPLE to choose from — photographed portraits of a
- *      barrister (Ikeja), an estate manager (Lekki) and a fashion
- *      founder (Yaba, our Ada). "Selling to real people starts with
- *      showing them" — the picker is the personalization.
- *   2. THE WEEK AS OBJECTS — five artifacts from that person's actual
- *      week, rendered as the REAL objects they are (a WhatsApp bubble,
- *      a bank alert, an adjournment slip, a manila file, a key tag, a
- *      phone at 11:47 pm). Not abstract chips: the visitor's own
- *      furniture. Each flips — TODAY on the front, the system's answer
- *      on the back — so the before/after is DIRECT manipulation, not a
- *      timed beat to wait through.
- *   3. THE PIVOT ROUTES — each persona's band closes on the product
- *      built for their world (Vega / Atrium / a PracticePro build),
- *      with that product's own mark, instead of one generic CTA.
+ *   1. THE BACK TAG IS THEIRS — "Your practice, rebuilt" / "Your
+ *      portfolio, rebuilt" / "Your business, rebuilt." The section
+ *      head promises their business already runs on a system; the
+ *      flip shows that same system, rebuilt as software.
+ *   2. EVERY FIX SAYS WHAT *THEIR* SYSTEM NOW DOES — a system built
+ *      for her practice files the brief to its matter the moment it
+ *      arrives. The improvement is theirs; the capability to build
+ *      it is ours.
+ *   3. THE PIVOT SPEAKS AS THE BUILDER — "This is the system we build
+ *      for practices like hers…" under the PracticePro mark. The CTA
+ *      still routes to that world's product page; the DESTINATION may
+ *      name the product, the empathy band may not.
  *
  * Ada's five moments (R29, owner-praised copy) survive verbatim as the
  * "my own business" week — continuity, and the test pins hold.
@@ -43,7 +43,6 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { Button } from '../../../components/ui';
-import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
 import { Logo } from '../../../constants';
 import { useScrollReveal } from '../hooks';
 
@@ -268,7 +267,6 @@ type PersonaWeek = {
     moments: Moment[];
     pivot: {
         line: string;
-        mark: 'vega' | 'atrium' | 'practicepro';
         productName: string;
         productTag: string;
     };
@@ -302,49 +300,48 @@ const PAIN_MIRROR: PersonaWeek[] = [
         role: 'two-lawyer firm · Ikeja',
         photo: 'persona-lawyer.jpg',
         photoAlt: 'Barrister Funmi Adeyemi in her chambers in Ikeja at dusk, holding a manila case file',
-        backTag: 'On Vega',
+        backTag: 'Your practice, rebuilt',
         moments: [
             {
                 when: 'Mon · 9:41 pm',
                 title: 'The brief that lives in WhatsApp',
-                aria: 'Monday, 9:41 pm. A client sends documents for a land matter on WhatsApp — one of two hundred and fourteen unread. On Vega, it is filed to its matter the moment it arrives.',
+                aria: 'Monday, 9:41 pm. A client sends documents for a land matter on WhatsApp — one of two hundred and fourteen unread. On a system built for her practice, it is filed to its matter the moment it arrives.',
                 front: { kind: 'whatsapp', sender: 'Client · land matter', time: '9:41 pm', body: 'Good evening counsel — pls see the attached for Monday', attachment: 'AFFIDAVIT_DRAFT.PDF', tag: 'one of 214 unread' },
-                fix: 'Filed to its matter the moment it arrived — chat stays chat, the file is the file.',
+                fix: 'Filed to its matter the moment it arrives — chat stays chat, the file is the file.',
             },
             {
                 when: 'Tue · 2:15 pm',
                 title: 'The date that lived in a text',
-                aria: 'Tuesday, 2:15 pm. The case is adjourned to the fourteenth of November — the date is noted in a text message and nothing diarises it. On Vega, court dates diarise themselves with reminders for client, clerk and counsel.',
+                aria: 'Tuesday, 2:15 pm. The case is adjourned to the fourteenth of November — the date is noted in a text message and nothing diarises it. On a system built for her practice, court dates diarise themselves, with reminders for client, clerk and counsel.',
                 front: { kind: 'adjourn', court: 'High Court, Ikeja Div.', date: '14 Nov · 9:00 am' },
                 fix: 'Court dates diarise themselves — reminders to client, clerk and you.',
             },
             {
                 when: 'Wed · 11:00 am',
                 title: 'The file only he can find',
-                aria: 'Wednesday, 11 am. The Okafor file — only the senior partner knows where the paper file is, and he is away. On Vega, searching any name or suit number surfaces the file, the filings and the notes in seconds.',
+                aria: 'Wednesday, 11 am. The Okafor file — only the senior partner knows where the paper file is, and he is away. On a system built for her practice, searching any name or suit number surfaces the file, the filings and the notes in seconds.',
                 front: { kind: 'file', tab: 'Okafor v. Zenith Bank · IKD/1287/2026', sticky: 'check the other room — S.' },
                 fix: 'Search any name or suit number — file, filings, notes. Seconds.',
             },
             {
                 when: 'Fri · 4:40 pm',
                 title: 'The fee note that never went out',
-                aria: 'Friday, 4:40 pm. Four hundred and fifty thousand naira of March work is still a draft fee note nobody sent. On Vega, fee notes go out on time and track themselves to payment.',
+                aria: 'Friday, 4:40 pm. Four hundred and fifty thousand naira of March work is still a draft fee note nobody sent. On a system built for her practice, fee notes go out on time and track themselves to payment.',
                 front: { kind: 'fee', ref_: 'Fees note · March', amount: '₦450,000', state: 'ref 0418 · never sent' },
                 fix: 'Fee notes go out on time — and walk themselves to payment.',
             },
             {
                 when: 'Sun · 11:04 pm',
                 title: 'The draft due at 9 a.m.',
-                aria: 'Sunday, 11:04 pm. A motion on notice is due at nine the next morning and the whole firm is one tired laptop. On Vega, ALOA reads every draft before it goes — a second pair of eyes, all night.',
+                aria: 'Sunday, 11:04 pm. A motion on notice is due at nine the next morning and the whole firm is one tired laptop. On a system built for her practice, every draft is read before it goes — a second pair of eyes, all night.',
                 front: { kind: 'laptop', clock: '11:04 pm', due: 'due 9:00 am', doc: 'MOTION ON NOTICE — 14 paras' },
-                fix: 'ALOA reads every draft before it goes — a second pair of eyes, all night. You sleep.',
+                fix: 'Every draft gets read before it goes — a second pair of eyes, all night. You sleep.',
             },
         ],
         pivot: {
-            line: 'Her practice runs on Vega now — matters, hearings, fee notes and drafts in one place, with ALOA keeping the light on after dark.',
-            mark: 'vega',
-            productName: 'Vega',
-            productTag: 'the legal practice OS',
+            line: 'This is the system we build for practices like hers — matters, hearings, fee notes and drafts in one place, and the light stays on after dark.',
+            productName: 'PracticePro Systems',
+            productTag: 'built for law practices',
         },
     },
     {
@@ -354,49 +351,48 @@ const PAIN_MIRROR: PersonaWeek[] = [
         role: '14 units · Lekki',
         photo: 'persona-estate.jpg',
         photoAlt: 'Estate manager Chuka Obi in the courtyard of a well-kept apartment block in Lekki at golden hour',
-        backTag: 'On Atrium',
+        backTag: 'Your portfolio, rebuilt',
         moments: [
             {
                 when: 'Mon · 4:15 pm',
                 title: 'The payment you can\u2019t place',
-                aria: 'Monday, 4:15 pm. Three hundred and fifty thousand naira lands — Unit 4 rent, service charge, or a part-payment? On Atrium, every payment is matched to its tenant, unit and ledger as it lands.',
+                aria: 'Monday, 4:15 pm. Three hundred and fifty thousand naira lands — Unit 4 rent, service charge, or a part-payment? On a system built for his portfolio, every payment is matched to its tenant, unit and ledger as it lands.',
                 front: { kind: 'alert', amount: '₦350,000', from: 'Acct ••8841 · from N. Okafor', maybes: ['Unit 4 rent?', 'Service charge?', 'Part-payment?'] },
                 fix: 'Matched to the tenant, the unit and the ledger as it lands.',
             },
             {
                 when: 'Tue · 9:00 am',
                 title: 'The renewal nobody diarised',
-                aria: 'Tuesday, 9 am. Unit 4\u2019s lease expired three days ago — found by a complaint, not a calendar. On Atrium, renewals, escalations and inspections are scheduled ahead.',
+                aria: 'Tuesday, 9 am. Unit 4\u2019s lease expired three days ago — found by a complaint, not a calendar. On a system built for his portfolio, renewals, escalations and inspections are scheduled ahead.',
                 front: { kind: 'diary', day: 'Tuesday', lines: ['Unit 4 — lease expired 3 days ago'], alarm: 'found by a complaint' },
                 fix: 'Renewals, escalations, inspections — scheduled ahead, never discovered late.',
             },
             {
                 when: 'Thu · 6:30 pm',
                 title: 'The receipt in the shoebox',
-                aria: 'Thursday, 6:30 pm. The generator servicing should be under warranty — the receipt is in a shoebox. On Atrium, every document is filed the day it arrives and search finds it in seconds.',
+                aria: 'Thursday, 6:30 pm. The generator servicing should be under warranty — the receipt is in a shoebox. On a system built for his portfolio, every document is filed the day it arrives and search finds it in seconds.',
                 front: { kind: 'receipt', title: 'Generator servicing', amount: '₦85,000', note: 'warranty — in the shoebox' },
                 fix: 'Filed the day it arrived — searched, found, warranty honoured.',
             },
             {
                 when: 'Sat · 10:00 am',
                 title: 'The unit that sat empty',
-                aria: 'Saturday, 10 am. Unit 6 has been vacant three weeks because \u2018list it\u2019 lived in his head. On Atrium, vacancy, listings and prospects sit on one board, always current.',
+                aria: 'Saturday, 10 am. Unit 6 has been vacant three weeks because \u2018list it\u2019 lived in his head. On a system built for his portfolio, vacancy, listings and prospects sit on one board, always current.',
                 front: { kind: 'keytag', unit: 'UNIT 6', status: 'Vacant · 3 weeks', note: '\u2018list it\u2019 lived in his head' },
                 fix: 'Vacancy, listings and prospects on one board — always current.',
             },
             {
                 when: 'Sun · 11:47 pm',
                 title: 'The tenant\u2019s midnight call',
-                aria: 'Sunday, 11:47 pm. A tenant calls his personal line about a power fault. On Atrium, tenants log issues where they are tracked, assigned and closed — not on the manager\u2019s phone.',
+                aria: 'Sunday, 11:47 pm. A tenant calls his personal line about a power fault. On a system built for his portfolio, tenants log issues where they are tracked, assigned and closed — not on the manager\u2019s phone.',
                 front: { kind: 'phone', who: 'Tenant · Unit 2', time: '11:47 pm', line: '\u2018no light ooo\u2019 — on his personal line' },
                 fix: 'Tenants log issues where they\u2019re tracked, assigned and closed — not on your line.',
             },
         ],
         pivot: {
-            line: 'His portfolio runs on Atrium — tenants, leases, receipts and vacancies in one place, with ARIA keeping every unit accounted for.',
-            mark: 'atrium',
-            productName: 'Atrium',
-            productTag: 'the estate manager\u2019s system',
+            line: 'This is the system we build for portfolios like his — tenants, leases, receipts and vacancies in one place, every unit accounted for.',
+            productName: 'PracticePro Systems',
+            productTag: 'built for estate managers',
         },
     },
     {
@@ -406,47 +402,46 @@ const PAIN_MIRROR: PersonaWeek[] = [
         role: 'fashion house · Yaba',
         photo: 'persona-founder.jpg',
         photoAlt: 'Fashion founder Ada Eze in her studio in Yaba at night, one hand resting on a stack of folded fabric',
-        backTag: 'On a system',
+        backTag: 'Your business, rebuilt',
         moments: [
             {
                 when: 'Mon · 9:41 am',
                 title: 'The order that got buried',
-                aria: 'Monday, 9:41 am. A customer sends her measurements for two outfits on WhatsApp — and the order disappears under three hundred more messages. On a system, orders land in a queue with customer, price and due date.',
+                aria: 'Monday, 9:41 am. A customer sends her measurements for two outfits on WhatsApp — and the order disappears under three hundred more messages. On a system built for her business, orders land in a queue with customer, price and due date.',
                 front: { kind: 'whatsapp', sender: 'Customer', time: '9:41 am', body: '2 outfits · measurements attached', tag: 'one of 312 unread', sink: true },
                 fix: 'Orders land in a queue — customer, price, due date. Nothing important lives in the scroll.',
             },
             {
                 when: 'Wed · 4:15 pm',
                 title: 'The payment you can\u2019t place',
-                aria: 'Wednesday, 4:15 pm. One hundred and twenty thousand naira lands — Bola\u2019s invoice or Tunde\u2019s fabric money? On a system, every payment matches itself and balances stay current.',
+                aria: 'Wednesday, 4:15 pm. One hundred and twenty thousand naira lands — Bola\u2019s invoice or Tunde\u2019s fabric money? On a system built for her business, every payment matches itself and balances stay current.',
                 front: { kind: 'alert', amount: '₦120,000', from: 'Wed · 4:15 pm', maybes: ['Bola — invoice #118?', 'Tunde — fabric money?', 'the paper list?'] },
                 fix: 'Every payment matches itself to its customer — balances always current.',
             },
             {
                 when: 'Thu · 8:00 am',
                 title: 'The one who knows is away',
-                aria: 'Thursday, 8 am. Pricing, rush rules and who takes what live in one shop assistant\u2019s head — and he is away till Monday. On a system, the process lives on a page anyone can run.',
+                aria: 'Thursday, 8 am. Pricing, rush rules and who takes what live in one shop assistant\u2019s head — and he is away till Monday. On a system built for her business, the process lives on a page anyone can run.',
                 front: { kind: 'staff', name: 'Sunday', status: 'away — till Monday', knows: ['pricing', 'rush rules', 'who takes what'] },
                 fix: 'The process lives on a page anyone can run.',
             },
             {
                 when: 'Fri · 6:30 pm',
                 title: 'The receipt hunt',
-                aria: 'Friday, 6:30 pm. The generator repair should be under warranty — the receipt is in a drawer, a bag, or a WhatsApp photo from March. On a system, documents are filed the day they arrive.',
+                aria: 'Friday, 6:30 pm. The generator repair should be under warranty — the receipt is in a drawer, a bag, or a WhatsApp photo from March. On a system built for her business, documents are filed the day they arrive.',
                 front: { kind: 'receipt', title: 'Generator repair', amount: 'warranty?', note: 'in a drawer · a bag · March?' },
                 fix: 'Filed the day it arrives — found in seconds.',
             },
             {
                 when: 'Sun · 11:04 pm',
                 title: 'The owner\u2019s shift',
-                aria: 'Sunday, 11:04 pm. Orders arrive on her personal line beside the reminders she meant to send — the business is open whenever her eyes are. On a system, the routine runs without her.',
+                aria: 'Sunday, 11:04 pm. Orders arrive on her personal line beside the reminders she meant to send — the business is open whenever her eyes are. On a system built for her business, the routine runs without her.',
                 front: { kind: 'phone', who: 'personal line — new order', time: '11:04 pm', line: 'next to 4 reminders she meant to send', foot: 'battery 8%' },
                 fix: 'The routine runs without you — the evening is yours.',
             },
         ],
         pivot: {
             line: 'Ada\u2019s week is the reason we build. Software and custom systems for businesses like yours — designed around how you already work.',
-            mark: 'practicepro',
             productName: 'PracticePro Systems',
             productTag: 'software & custom systems',
         },
@@ -522,8 +517,6 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
         });
     };
 
-    const Mark = persona.pivot.mark === 'vega' ? VegaMark : persona.pivot.mark === 'atrium' ? AtriumMark : null;
-
     return (
         <section ref={sectionRef} className="relative py-16 sm:py-24 overflow-hidden" style={{ background: '#0A101C' }}>
             <div className="absolute -top-32 right-1/4 w-[34rem] h-[24rem] rounded-full bg-emerald-500/[0.07] blur-[130px] pointer-events-none" aria-hidden="true" />
@@ -595,8 +588,9 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
                 </div>
 
                 {/* ── The week — five artifacts from the chosen person's
-                    desk. Flip one: today on the front, the system's
-                    answer on the back. ── */}
+                    desk. Flip one: today on the front, their system
+                    improved on the back — their system, never our
+                    product. ── */}
                 <div key={persona.id} className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
                     {persona.moments.map((m, i) => {
                         const isFlipped = flipped.has(i);
@@ -640,7 +634,10 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
                     })}
                 </div>
 
-                {/* ── The pivot — the system built for the week you chose. ── */}
+                {/* ── The pivot — the builder's promise: this is the
+                    system we build for the week you chose. The CTA
+                    still routes to that world's product page; the band
+                    itself names no products. ── */}
                 <div key={`pivot-${persona.id}`} className="pm-in max-w-4xl mx-auto mt-10 md:mt-12">
                     <div className="relative rounded-2xl border border-white/[0.09] bg-white/[0.03] backdrop-blur-sm overflow-hidden">
                         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/40 to-transparent" aria-hidden="true" />
@@ -660,7 +657,7 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
                             </div>
                             <div className="flex flex-col items-center gap-3 flex-shrink-0">
                                 <span className="flex items-center gap-2.5">
-                                    {Mark ? <Mark className="h-8 w-8" title={persona.pivot.productName} /> : <Logo className="h-8 w-8 text-primary-500" />}
+                                    <Logo className="h-8 w-8 text-primary-500" />
                                     <span className="text-left">
                                         <span className="block text-sm font-extrabold text-white leading-tight">{persona.pivot.productName}</span>
                                         <span className="block text-2xs font-semibold uppercase tracking-[0.14em] text-slate-500">{persona.pivot.productTag}</span>
@@ -681,7 +678,7 @@ export const PainMirrorSection: React.FC<{ onContactSales: () => void }> = ({ on
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 font-semibold text-sm text-white bg-gradient-to-br from-primary-500 to-primary-700 hover:from-primary-400 hover:to-primary-600 shadow-lg shadow-primary-500/40 hover:shadow-[0_0_40px_-6px_rgba(22,163,74,0.7)] transition-all duration-300 active:scale-[0.98]"
                                     >
-                                        {persona.id === 'law' ? 'See how Vega runs a practice' : 'See how Atrium runs a portfolio'}
+                                        {persona.id === 'law' ? 'See the system we build for practices' : 'See the system we build for portfolios'}
                                     </a>
                                 )}
                             </div>

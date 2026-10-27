@@ -570,6 +570,38 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     expect(hubIndex).toContain('<PainMirrorSection onContactSales');
   });
 
+  it("R35: the flip shows their system improved — the band names no products", () => {
+    // Owner (R35): "when the cards flip we are talking about vega… we
+    // are supposed to show how their system will be improved and don't
+    // necessarily have to mention our existing products." The empathy
+    // band may not pitch the catalogue — the visitor's own system,
+    // improved, is the whole back half.
+    expect(hubPainMirror).not.toContain("On Vega");
+    expect(hubPainMirror).not.toContain("On Atrium");
+    expect(hubPainMirror).not.toContain("ALOA");
+    expect(hubPainMirror).not.toContain("ARIA");
+    expect(hubPainMirror).not.toContain("VegaMark");
+    expect(hubPainMirror).not.toContain("AtriumMark");
+    expect(hubPainMirror).not.toContain("See how Vega");
+    expect(hubPainMirror).not.toContain("See how Atrium");
+    // The back of every card is the visitor's own system, rebuilt —
+    // and the aria narrates it as a system built for that person.
+    expect(hubPainMirror).toContain("Your practice, rebuilt");
+    expect(hubPainMirror).toContain("Your portfolio, rebuilt");
+    expect(hubPainMirror).toContain("Your business, rebuilt");
+    expect(hubPainMirror).toContain("a system built for her practice");
+    expect(hubPainMirror).toContain("a system built for his portfolio");
+    expect(hubPainMirror).toContain("a system built for her business");
+    // The pivot speaks as the builder under the PracticePro mark.
+    expect(hubPainMirror).toContain("the system we build for practices like hers");
+    expect(hubPainMirror).toContain("the system we build for portfolios like his");
+    expect(hubPainMirror).toContain("See the system we build for practices");
+    expect(hubPainMirror).toContain("See the system we build for portfolios");
+    // The routes still route — the DESTINATION names the product.
+    expect(hubPainMirror).toContain("'/vega'");
+    expect(hubPainMirror).toContain("'/atrium'");
+  });
+
   it("the descent: shapes land in their cards, the Iso watermarks return (W14, restored)", () => {
     // The scroll-linked descent is back: useLandingCards lands each card's
     // wireframe shape; CARD_SHAPES are the iso watermarks.
