@@ -13122,3 +13122,84 @@ Work Log:
 Stage Summary:
 - R33 LIVE in production at aaacb2b5 (9abf0b88 + version bumps). Atrium is back to how it was; Vega sells the practice geometrically; humans are back on hub/vega.
 - Standing blockers: CLOUDFLARE_API_TOKEN expired (mirror deploy); GitHub PAT shared in chat — owner should rotate when the deployment session ends.
+
+
+---
+Task ID: 16
+Agent: Main agent (Super Z)
+Task: Late Rent Reminder wrongly includes Caution Deposit + Legal/Agency fees for an EXISTING tenant + "approved template failed to send" (user report 2026-09-11)
+
+Work Log:
+- Analyzed the template engine: buildMessage (messageTemplates.ts) renders fee lines only when fees > 0; the bug was upstream — resolveFinancials + auto-fill pulled caution/legal/agency from the unit record for EVERY tenant, with no new/existing distinction.
+- Data model study: rentPaymentHistory (RentPayment[]) and rentalDetails.leaseStart are the reliable "tenancy commenced" signals.
+- FIX (new vs existing scoping):
+  - usePropertyGroups.ts: UnitOption += leaseStart, isExistingTenant (computed: rent payment history non-empty, or leaseStart <= today).
+  - messageFinancials.ts resolveFinancials: for existing residents, caution/legal/agency resolve to manual-override-or-0 (typed figure still wins = deliberate fee recovery). Rent + recurring service charge unaffected. New residents keep full move-in breakdown.
+  - ComposeModal.tsx: fee fields never auto-filled for existing residents; emerald inline note explains the exclusion in the Financial Details section. Send path, per-recipient preview, bulk sends all inherit the rule via resolveFinancials.
+  - Template review: rent_reminder/late_notice/access_restriction/penalty_notice totals automatically exclude settled fees for existing residents; service_charge_alert & payment_receipt unaffected (targeted scopes); lease_renewal/welcome_note carry no figures; AutomationCenter bulk reminders already rent-only (no extraData).
+- FIX (WhatsApp send failure, "template approved but failed"): Meta matches templates by name + language exactly — a template registered under en_US/en_GB is invisible to a send requesting "en" (reported as does-not-exist / 132000-class).
+  - convex/communications.ts sendWhatsApp (+internal wrapper) take optional templateLanguage (default en).
+  - deliveryErrors.ts: sendWhatsAppWithTemplateFallback now retries the template across en → en_US → en_GB when the name+language pair isn't found (stops early on non-locale errors like quota); new isTemplateNotFoundError classifier.
+  - Result-panel guidance now names the exact template (atrium_rent_reminder) + name/language/phone-number checks.
+- Tests: +8 cases (resolveFinancials existing/new matrix, locale retry chain, end-to-end demand notice with the exact ₦1.4M/₦200k/₦280k scenario). Full suite 274/274 green. tsc 128 errors (CI baseline 131).
+- Deployed: pushed 8ac2d4f1 → main (automation bumped v1.0.569 on top → 2a12ab96). Tests ✓ Staging ✓. Production promote run 34603143211: quality gate ✓, Vercel+Convex deploy ✓ SUCCESS (Cloudflare mirror ✗ again — still the expired CLOUDFLARE_API_TOKEN). Verified live: new strings present in production bundles.
+
+Stage Summary:
+- Existing residents now get rent-only demands (move-in fees excluded unless typed deliberately); new residents keep the full breakdown; explanation surfaced in the composer UI.
+- WhatsApp template sends retry across en/en_US/en_GB locales — the most common "approved but failed" cause.
+- Remaining user action: verify in WhatsApp Business Manager that the template NAME is exactly atrium_rent_reminder, APPROVED, for the SAME phone number connected via Chakra; the result panel shows the exact provider error if it persists. Cloudflare mirror still needs CLOUDFLARE_API_TOKEN rotated.
+
+---
+## R34 — Whose week is this? + A2 (2026-10-27)
+
+Owner asks: the ALOA/ARIA follow-ups, but FIRST "improve the sounds
+familiar section… consider what it is i am trying to do in that space
+and do it in a totally different way… drastically improved."
+
+- SOUND FAMILIAR, REBUILT AS A PERSONA ROUTER. The space's job is
+  recognition → belonging → routing; the old band did a third of it for
+  a third of the audience (one persona — Ada — in abstract chip-theatre,
+  one generic CTA). The visitor now declares who they are and the band
+  becomes theirs: THREE REAL PEOPLE (Barr. Funmi Adeyemi, two-lawyer
+  firm Ikeja · Chuka Obi, 14 units Lekki · Ada Eze, fashion house Yaba —
+  the R29 moments survive verbatim as "my own business"), VLM-verified
+  authentic portraits (persona-lawyer/estate/founder.jpg, 2 rounds —
+  round-1 estate/founder flagged for key-fusion + melted-tape tells and
+  were regenerated clean). THE WEEK AS OBJECTS: five artifacts per
+  persona drawn as the real things (WhatsApp bubble, credit alert +
+  maybe-tags, adjournment slip, manila file + sticky, draft-stamped fee
+  note, 11pm laptop, diary page, receipt, vacant-unit key tag, midnight
+  lockscreen, away-till-Monday staff tag), each FLIPPING — today on the
+  front, the answer on the back — 3D flip, one-time hint, reduced-motion
+  + radiogroup/aria-pressed a11y. THE PIVOT ROUTES to the product for
+  that week: Vega mark + /vega CTA, Atrium house-coin + /atrium CTA, or
+  the PracticePro build CTA. All 76 repositioning pins hold.
+- A2 PROVIDER ABSTRACTION (the queued ALOA/ARIA follow-up — the Google
+  escape hatch): src/services/aiProvider.ts is a wire-protocol adapter
+  at the REST seam. Gemini-shaped requests translate to any
+  OpenAI-COMPATIBLE endpoint (OpenRouter/Groq/vLLM/Ollama); responses
+  and SSE streams translate back to Gemini shapes — so geminiService's
+  prompts, tool loop (incl. thoughtSignature), ladders and parsing are
+  UNTOUCHED, and the Gemini path sends the exact bytes it always has.
+  sendMessage / streamMessage / streamDraft / reviewDraft all route
+  through the seam; Convex server-side stays Gemini (documented in the
+  settings copy). Firm admins opt in: provider selector, base URL,
+  model ladder (chat fast-first, draft pro-first), provider-aware
+  zero-cost key health (GET /models). 16 new adapter tests pin the
+  wire translation (tool round-trips, SSE fragment accumulation,
+  ladders, misconfig guards).
+- Gates: tsc = the 127-error baseline with zero in touched files ·
+  gray=0 · ratchet 2314 held (2 raw inputs caught by the gate were
+  converted to ui/Input before commit) · vitest 1273/1273 · build
+  green. Visual QA (playwright+VLM): desktop law/flipped/property/
+  business + mobile ×2 ALL SHIP, zero console errors; first mobile shot
+  was a pre-scroll timing artifact, re-verified PASS.
+
+Deploy: 888cd9f9 pushed (PAT had been reverted to a dead token by the
+workspace snapshot — re-rotated the fresh one). CI Tests+Staging+APK
+green. Promote run #118 (40492018895): quality gate ✓, Vercel + Convex
+production ✓ verified. Cloudflare mirror ✗ at the standing expired
+CLOUDFLARE_API_TOKEN (owner action). Live-verified: version.json healthy
+at 888cd9f9, persona photos 200, new section + provider UI markers in
+the served bundles, VLM PASS on the production section. NOTE: the
+promote workflow's sha input must be a FULL 40-char SHA or blank.
