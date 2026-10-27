@@ -13203,3 +13203,53 @@ CLOUDFLARE_API_TOKEN (owner action). Live-verified: version.json healthy
 at 888cd9f9, persona photos 200, new section + provider UI markers in
 the served bundles, VLM PASS on the production section. NOTE: the
 promote workflow's sha input must be a FULL 40-char SHA or blank.
+## R35 — The flip is their system (2026-10-27)
+
+Owner asks: "when the cards flip we are talking about vega… we are
+supposed to show how their system will be improved and dont necessarily
+have to mention our existing products… so that my icps feel like we
+understand the problem they have AND CAN BUILD A TOOL TO SOLVE THAT
+THEIR PROBLEM."
+
+- THE FLIP RE-VOICED. R34's backs answered in OUR voice — the back tag
+  said "On Vega"/"On Atrium", one fix named ALOA, the pivot pitched
+  "her practice runs on Vega now". A visitor still deciding whether
+  anyone understands them reads that as a catalogue in an empathy
+  costume. R35 makes every back half the VISITOR'S OWN SYSTEM,
+  IMPROVED: back tags "Your practice, rebuilt" / "Your portfolio,
+  rebuilt" / "Your business, rebuilt" (the section head promises their
+  business already runs on a system — the flip shows that system,
+  rebuilt as software); all 15 arias + the ALOA fix re-voiced as "a
+  system built for her practice / his portfolio / her business does X"
+  — what THEIR system now does, never what our product does.
+- THE PIVOT SPEAKS AS THE BUILDER. Vega/Atrium marks and the "runs on
+  Vega/Atrium now" lines are gone; all three pivots now read "This is
+  the system we build for practices like hers…" under the PracticePro
+  mark (per-persona tag: built for law practices / built for estate
+  managers / software & custom systems). CTAs re-worded to "See the
+  system we build for practices/portfolios" and still route to /vega
+  and /atrium — the DESTINATION names the product, the empathy band
+  does not. Business CTA unchanged ("Tell us what runs your business
+  today").
+- PINS: new R35 test — no "On Vega"/"On Atrium"/ALOA/ARIA/marks/old
+  CTAs anywhere in the band; the three "rebuilt" tags; "a system built
+  for her/his…" arias; the two builder pivot lines; routes intact.
+  Existing R29 pins (Ada's moments) untouched. NOTE: the R29
+  "no possessive product phrasing" pin caught "our product" in the new
+  header comment — reworded; the pins see comments too.
+- Gates: tsc 127-error baseline held, zero in touched files · eslint 0
+  · ratchet 2314 held · vitest 1274/1274 · build green (NOTE: the
+  workspace snapshot had wiped node_modules entirely — restored with
+  npm ci before gates). Visual QA: DOM 14/14 on the fresh dist (backs,
+  pivots, CTAs, no product names in-section, zero console errors);
+  VLM confirms rendered backs verbatim + builder pivots; live 5-card
+  geometry mechanically verified (VLM miscounted 4 on one shot).
+- Deploy: d1456076 pushed. CI Tests + Staging + APK green. Promote run
+  40516907998: quality gate ✓, Vercel + Convex production ✓ (both
+  live-verify steps green), Cloudflare mirror ✗ at the standing
+  expired CLOUDFLARE_API_TOKEN (owner action, same as R33/R34). Live-
+  verified: version.json healthy at d1456076; production bundle carries
+  all three "rebuilt" tags + 5× "a system built for her practice" +
+  both builder pivots/CTAs, and ZERO "On Vega"/"On Atrium"/"See how
+  Vega runs"; live VLM: BACK-TAG "YOUR PRACTICE, REBUILT", product-
+  name: no, pivot readable.
