@@ -45,7 +45,7 @@ export const VegaAIDrafting: React.FC = () => (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8" data-vg-reveal>
             {/* Roman-numeral hairline section head — ink variant */}
             <p
-                className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7"
+                className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-bright mb-7"
                 data-ink="true"
             >
                 II — Drafting Intelligence
@@ -55,9 +55,9 @@ export const VegaAIDrafting: React.FC = () => (
                 className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-3xl text-vega-parchment"
             >
                 Powered by ALOA. Built for{' '}
-                <span className="font-vega-italic text-vega-gilt-bright">Nigerian law.</span>
+                <span className="font-vega-italic text-vega-claret-bright">Nigerian law.</span>
             </h2>
-            <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-12 md:mb-16">
+            <p className="text-base md:text-lg leading-[1.7] text-slate-300 max-w-2xl mb-12 md:mb-16">
                 Your AI legal copilot drafts documents, researches precedents,
                 and analyzes cases — with privacy-first architecture that keeps
                 client data safe.
@@ -76,27 +76,27 @@ export const VegaAIDrafting: React.FC = () => (
 
                 {/* The capability index — ruled, not carded */}
                 <div>
-                    <p className="font-mono text-2xs tracking-widest text-slate-500 border-b border-white/10 pb-3 mb-2">
+                    <p className="font-mono text-2xs tracking-widest text-slate-400 border-b border-white/10 pb-3 mb-2">
                         ALOA — ADVANCED LEGAL OFFICE ASSISTANT
                     </p>
                     <ol className="divide-y divide-white/10">
                         {ALOA_CAPABILITIES.map((cap, i) => (
                             <li key={cap.title} className="py-7 first:pt-6 last:pb-0">
                                 <div className="flex items-baseline gap-4 mb-3">
-                                    <span className="font-mono text-xs tracking-widest text-vega-gilt-bright">
+                                    <span className="font-mono text-xs tracking-widest text-vega-claret-bright">
                                         {String(i + 1).padStart(2, '0')}
                                     </span>
                                     <h3 className="font-vega text-xl font-semibold text-vega-parchment">
                                         {cap.title}
                                     </h3>
                                 </div>
-                                <p className="text-sm text-slate-400 leading-relaxed mb-4 pl-8">
+                                <p className="text-sm text-slate-300 leading-relaxed mb-4 pl-8">
                                     {cap.body}
                                 </p>
                                 <ul className="space-y-2 pl-8">
                                     {cap.features.map((f) => (
-                                        <li key={f} className="flex items-start gap-2.5 text-sm text-slate-500">
-                                            <span className="inline-block w-1.5 h-1.5 bg-vega-gilt mt-[7px] flex-shrink-0" aria-hidden="true" />
+                                        <li key={f} className="flex items-start gap-2.5 text-sm text-slate-400">
+                                            <span className="inline-block w-1.5 h-1.5 bg-vega-claret-bright mt-[7px] flex-shrink-0" aria-hidden="true" />
                                             <span>{f}</span>
                                         </li>
                                     ))}

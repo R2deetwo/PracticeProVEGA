@@ -67,7 +67,7 @@ export const VegaCourtRules: React.FC = () => (
     <section
         id="court-rules"
         aria-labelledby="vega-court-rules-heading"
-        className="py-20 md:py-28 border-t border-white/10"
+        className="py-20 md:py-28 border-t border-vega-night/10"
         style={{ background: 'var(--color-paper)' }}
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
@@ -79,14 +79,14 @@ export const VegaCourtRules: React.FC = () => (
                     </p>
                     <h2
                         id="vega-court-rules-heading"
-                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6 text-vega-parchment"
+                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6 text-vega-night"
                     >
                         The firm diary that{' '}
                         <span className="font-vega-italic text-vega-gilt-bright">
                             keeps itself.
                         </span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-400 mb-8">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-8">
                         Vega computes every filing and service deadline from the Civil Procedure
                         Rules of the court your matter sits in — Federal and State High Courts,
                         36 states and the FCT — then reminds the assigned lawyer 7, 3 and 1 days
@@ -94,7 +94,7 @@ export const VegaCourtRules: React.FC = () => (
                     </p>
 
                     {/* Legend — the chronology's key, in the ledger's voice */}
-                    <div className="border-t border-white/10 pt-5 space-y-2">
+                    <div className="border-t border-vega-night/10 pt-5 space-y-2">
                         <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
                             <span className="inline-block w-2 h-2 rounded-full bg-vega-claret-bright" aria-hidden="true" />
                             DEADLINE COMPUTED BY THE COURT RULES AGENT

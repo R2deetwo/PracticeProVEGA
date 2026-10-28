@@ -17,16 +17,16 @@ import { VegaAppShot } from './VegaAppShot';
 export const VegaRealWorkspace: React.FC = () => (
     <section id="workspace" aria-labelledby="vega-workspace-heading" className="py-20 md:py-28 bg-vega-night text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8" data-vg-reveal>
-            <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
+            <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-bright mb-7">
                 III — The Workspace
             </p>
             <h2
                 id="vega-workspace-heading"
                 className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-3xl text-vega-parchment"
             >
-                The workspace, <span className="font-vega-italic text-vega-gilt-bright">as it ships.</span>
+                The workspace, <span className="font-vega-italic text-vega-claret-bright">as it ships.</span>
             </h2>
-            <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-12 md:mb-16">
+            <p className="text-base md:text-lg leading-[1.7] text-slate-300 max-w-2xl mb-12 md:mb-16">
                 Live captures from the product — the same screens your team works in every
                 day. The Warm Chambers register you are reading is the register the app
                 runs: nothing on this page is staged.

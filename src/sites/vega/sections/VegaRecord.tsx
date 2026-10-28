@@ -46,7 +46,7 @@ export const VegaRecord: React.FC = () => (
     <section
         id="record"
         aria-labelledby="vega-record-heading"
-        className="py-20 md:py-28 border-t border-white/10 overflow-hidden"
+        className="py-20 md:py-28 border-t border-vega-night/10 overflow-hidden"
         style={{ background: 'var(--color-paper)' }}
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl">
@@ -70,7 +70,7 @@ export const VegaRecord: React.FC = () => (
                                 />
                             </defs>
                             <text
-                                fill="rgb(243 166 106 / 0.55)"
+                                fill="rgb(142 38 30 / 0.55)"
                                 fontSize="12.5"
                                 letterSpacing="3.5"
                                 fontFamily="'IBM Plex Mono', monospace"
@@ -96,12 +96,12 @@ export const VegaRecord: React.FC = () => (
                     </p>
                     <h2
                         id="vega-record-heading"
-                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-2xl text-vega-parchment"
+                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-2xl text-vega-night"
                     >
                         Trusted on the record,{' '}
                         <span className="font-vega-italic text-vega-gilt-bright">not on vanity.</span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-10 md:mb-12">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-10 md:mb-12">
                         Every figure below is verifiable in the running product or the
                         platform&rsquo;s published terms. We do not publish counts we cannot
                         defend in a courtroom.
@@ -109,21 +109,21 @@ export const VegaRecord: React.FC = () => (
 
                     {/* The figures (R26) — big outlined numerals, LawPavilion's
                         stats move, now certified by the Balance. */}
-                    <div className="border-t border-b border-white/10 grid sm:grid-cols-2">
+                    <div className="border-t border-b border-vega-night/10 grid sm:grid-cols-2">
                         {RECORD.map((r, i) => (
                             <div
                                 key={r.figure}
                                 className={`py-8 px-5 sm:px-7 ${i < 2 ? 'border-b sm:border-b' : ''} ${
                                     i % 2 === 0 ? 'sm:border-r' : ''
-                                } ${i >= 2 ? 'border-b-0' : 'lg:border-b-0'} border-white/10`}
+                                } ${i >= 2 ? 'border-b-0' : 'lg:border-b-0'} border-vega-night/10`}
                             >
                                 <p className="vg-figure-outline font-vega text-4xl md:text-[2.6rem] font-semibold tracking-tight leading-none mb-4 whitespace-nowrap">
                                     {r.figure}
                                 </p>
-                                <p className="font-mono text-2xs tracking-[0.18em] text-vega-parchment/90 mb-3">
+                                <p className="font-mono text-2xs tracking-[0.18em] text-vega-night/90 mb-3">
                                     {r.label}
                                 </p>
-                                <p className="text-sm leading-[1.7] text-slate-400">{r.note}</p>
+                                <p className="text-sm leading-[1.7] text-slate-600">{r.note}</p>
                             </div>
                         ))}
                     </div>

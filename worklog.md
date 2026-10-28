@@ -13253,3 +13253,82 @@ THEIR PROBLEM."
   both builder pivots/CTAs, and ZERO "On Vega"/"On Atrium"/"See how
   Vega runs"; live VLM: BACK-TAG "YOUR PRACTICE, REBUILT", product-
   name: no, pivot readable.
+
+## R36 — Sound Familiar: four worlds, bespoke sighs (2026-10-28)
+
+Owner asks: kill the repeated "YOUR BUSINESS, REBUILT" stamp on every
+back (robotic), widen the cast beyond lawyers and property managers to
+everyday service & retail businesses drowning in manual admin, and make
+each persona's relief copy punchy, bespoke and human — "a real business
+owner breathing a sigh of relief."
+
+- FOUR OPERATORS, not two professionals: e-commerce (Ada Eze, Fashion
+  House, Yaba), pharmacy (Dr. Emeka Okoro, MedPlus Pharmacy, Lekki),
+  boutique hotel / short-let (Chuka Obi, 14 units, Lekki), logistics /
+  dispatch (Tunde Baku, Express Hub, Ikeja). Two new VLM-verified
+  portraits (persona-pharmacy.jpg, persona-logistics.jpg).
+- EVERY BACK IS ITS OWN SIGH: the repeated stamp is dead; each moment
+  carries a bespoke relief headline + one line of what THEIR system now
+  does. No product names, no catalogue routes inside the band.
+- FLIP -> IN-PLACE CROSSFADE: front/back share one fixed-aspect card
+  (opacity + scale, 320ms) — zero height change, clean focus geometry,
+  no dead space. Tabs promoted: cue line, switch glyphs, checked state,
+  hover lift, arrow-key roving focus.
+- PIVOT: one builder promise across all four worlds; one CTA ("Tell us
+  what runs your business today") -> contact drawer.
+- Gates: tsc 127 baseline (zero in touched files), vitest 1274/1274,
+  eslint parity + ratchet 2314 held, build green. Visual QA 24/24 DOM
+  checks.
+
+## R37 — The Daylight Chambers + the capability band speaks for itself (2026-10-28)
+
+Owner asks (three): (1) a NEW colour scheme for /vega — the dark
+espresso register had its run; keep the logo. (2) The What-we-do
+capability band must STOP marketing our own products — "Each piece
+below already runs in production inside Vega, Atrium or Kozy Care" had
+to go; the band sells what we can build for THE VISITOR, and product
+names live only in Our Work. (3) "Making the your systems one" ->
+"Making your systems work as one." Plus the standing anti-slop
+direction: no generic AI-design defaults, warm neutral ground, one
+restrained accent, refined editorial typography, honest copy.
+
+- THE DAYLIGHT CHAMBERS: /vega flips to a warm ivory ground
+  (#F5EFE3), espresso ink (#2A2118) and ONE accent — notary claret
+  (#7B1E1E), the seals' own family. Same token names re-valued
+  in place (tests pin class strings, not values — house pattern since
+  R22). Espresso is rationed to interludes: masthead chrome, matters
+  ledger band, the two ink bands, the deep footer. Gradients demoted
+  to washes (0.04–0.05 alpha); the black vignettes and lamp pools are
+  gone. Fraunces carries the display voice outright — Space Grotesk
+  retires from /vega; the grotesk stays hub-only until its own round.
+- THE CAPABILITY BAND SPEAKS FOR ITSELF: the "already runs in
+  production inside Vega, Atrium or Kozy Care" line is gone; the
+  intro now reads "Orders, payments, customers, paperwork — every part
+  of your business, joined into one system that runs it day to day.
+  Bring us the spreadsheets, the chat threads and the notebooks; we
+  build the system around how you already work." Card bodies de-
+  catalogued (Kozy Care reference removed from the bespoke-software
+  card). Product proof stays in Our Work, where it belongs.
+- THE CAPTION: "Making your systems work as one." — the owner's exact
+  rewording, under the system core (WhatWeDoSection + SystemCoreScene
+  comment).
+- DESIGN.md: the design system is now a locked contract in the repo
+  root — exact hexes, font stacks, radius/border/shadow rules, the
+  anti-slop restrictions, copy rules, accessibility floors, and the
+  change protocol. Future rounds obey it by default.
+- QA FIXES RIDING ALONG: (a) mobile hero overflow — the eyebrow's
+  nowrap flex row forced the hero grid column to 447px on a 390px
+  viewport, clipping the headline's right edge (pre-existing since the
+  dark rounds, caught by fresh-eyes VLM); fixed with min-w-0 on both
+  hero columns + flex-wrap eyebrow + always-visible first headline
+  break + mobile hero floor 2.5rem; re-measured colRight 374/390,
+  zero scrollWidth overflow. (b) Sound-familiar chaos-card micro-
+  labels bumped red-300/75 -> red-200/90 (VLM audit: readable but
+  sub-AA; now clear).
+- Gates: vitest 1274/1274 (twice — before and after QA fixes), eslint
+  0 errors, ui-primitives ratchet 2314 held, build green. Visual QA:
+  VLM on desktop hero ("bespoke & editorial, zero AI-slop tells"),
+  full-page desktop (one consistent system, no foreign colors, no
+  product-name leakage on /vega), mobile full + hero (SHIP after the
+  overflow fix), hub WhatWeDo (no product names; intro verbatim) and
+  Sound Familiar (four personas render with distinct headlines).

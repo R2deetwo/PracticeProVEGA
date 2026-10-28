@@ -7,10 +7,11 @@ import { Button } from '../../../components/ui';
  *
  * "The Night Chambers" register: the features read as a RULED LEDGER
  * INDEX — the table of contents of a law report, not a card grid — set
- * on the night ground with gilt numerals and parchment serif titles.
- * Numbered mono category entries divided by hairlines; a category
- * expands INLINE (one open at a time) to reveal its matters as ruled
- * sub-rows (serif titles, justified descriptions).
+ * on the espresso band (R37: the page's dark interlude — a bound volume
+ * on the ivory page) with lit-claret numerals and parchment serif
+ * titles. Numbered mono category entries divided by hairlines; a
+ * category expands INLINE (one open at a time) to reveal its matters as
+ * ruled sub-rows (serif titles, justified descriptions).
  * Square corners only — no cards, no shadows, no hover-expand grid.
  *
  * Copy is the shipped Vega feature copy, verbatim. Zero hardcoded hexes;
@@ -63,8 +64,8 @@ const LedgerToggle: React.FC<{ open: boolean }> = ({ open }) => (
         className="relative inline-block w-3 h-3 flex-shrink-0"
         aria-hidden="true"
     >
-        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-gilt-bright -translate-y-1/2" />
-        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-gilt-bright -translate-x-1/2" />}
+        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-claret-bright -translate-y-1/2" />
+        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-claret-bright -translate-x-1/2" />}
     </span>
 );
 
@@ -78,11 +79,11 @@ export const VegaMattersLedger: React.FC = () => {
             id="features"
             aria-labelledby="vega-matters-heading"
             className="py-20 md:py-28"
-            style={{ background: 'var(--color-paper)' }}
+            style={{ background: 'var(--color-vega-night)' }}
         >
             <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
                 {/* Roman-numeral hairline section head — "I — Matters & Drafting" */}
-                <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
+                <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-bright mb-7">
                     I — Matters &amp; Drafting
                 </p>
                 <h2
@@ -109,17 +110,17 @@ export const VegaMattersLedger: React.FC = () => {
                                     aria-expanded={open}
                                     aria-controls={`vg-matters-panel-${i}`}
                                     onClick={() => setOpenIndex(open ? null : i)}
-                                    className={`w-full flex items-baseline gap-4 sm:gap-6 py-6 px-2 sm:px-4 text-left transition-colors duration-150 hover:bg-white/5 active:bg-white/10 focus-visible:ring-vega-gilt ${
+                                    className={`w-full flex items-baseline gap-4 sm:gap-6 py-6 px-2 sm:px-4 text-left transition-colors duration-150 hover:bg-white/5 active:bg-white/10 focus-visible:ring-vega-claret-bright ${
                                         open ? 'bg-white/5' : ''
                                     }`}
                                 >
-                                    <span className="font-mono text-xs tracking-widest text-vega-gilt-bright flex-shrink-0">
+                                    <span className="font-mono text-xs tracking-widest text-vega-claret-bright flex-shrink-0">
                                         {String(i + 1).padStart(2, '0')}
                                     </span>
                                     <span className="font-vega text-xl sm:text-2xl font-semibold text-vega-parchment flex-1">
                                         {cat.category}
                                     </span>
-                                    <span className="font-mono text-2xs tracking-widest text-slate-500 hidden sm:inline flex-shrink-0">
+                                    <span className="font-mono text-2xs tracking-widest text-slate-400 hidden sm:inline flex-shrink-0">
                                         {cat.items.length} ENTRIES
                                     </span>
                                     <span className="flex-shrink-0 translate-y-[-2px]">
@@ -138,7 +139,7 @@ export const VegaMattersLedger: React.FC = () => {
                                                 className="grid sm:grid-cols-12 gap-2 sm:gap-6 py-5 border-t border-white/10 first:border-t-0"
                                             >
                                                 <div className="sm:col-span-4 flex items-baseline gap-3">
-                                                    <span className="font-mono text-2xs tracking-widest text-slate-500 flex-shrink-0">
+                                                    <span className="font-mono text-2xs tracking-widest text-slate-400 flex-shrink-0">
                                                         {String(i + 1)}.{j + 1}
                                                     </span>
                                                     <h3 className="font-vega text-lg font-semibold text-vega-parchment leading-snug">
@@ -157,7 +158,7 @@ export const VegaMattersLedger: React.FC = () => {
                     })}
                 </div>
 
-                <p className="font-mono text-2xs tracking-widest text-slate-600 mt-6">
+                <p className="font-mono text-2xs tracking-widest text-slate-400 mt-6">
                     INDEX — 12 ENTRIES ACROSS 3 DIVISIONS OF THE PRACTICE
                 </p>
             </div>

@@ -105,7 +105,7 @@ export const VegaScalesScene: React.FC<{ className?: string }> = ({ className = 
                 envScene.add(m);
             };
             softbox(6, 7, 5, 7, 5, 0xffe7cf);    // key softbox — warm white
-            softbox(-7, 3, 3, 5, 4, 0xf3a66a);   // gilt fill
+            softbox(-7, 3, 3, 5, 4, 0xe8b48e);   // warm sand fill (R37 claret-bronze studio)
             softbox(-3, -2, -7, 6, 4, 0x5e2a1a); // claret kicker from behind
 
             const pmrem = new THREE.PMREMGenerator(renderer);
@@ -122,7 +122,7 @@ export const VegaScalesScene: React.FC<{ className?: string }> = ({ className = 
 
             // ── Materials ─────────────────────────────────────────────
             const gilt = new THREE.MeshStandardMaterial({
-                color: 0xe07a3f,        // the register's burnt-orange gilt
+                color: 0x8e3a28,        // R37: claret bronze — the instrument's metal
                 metalness: 0.92,
                 roughness: 0.26,
                 envMapIntensity: 1.45,
@@ -134,7 +134,7 @@ export const VegaScalesScene: React.FC<{ className?: string }> = ({ className = 
                 envMapIntensity: 1.15,
             });
             const hairMat = new THREE.MeshStandardMaterial({
-                color: 0xf3a66a,        // bright gilt for chains + plumb
+                color: 0xd08a62,        // bright bronze for chains + plumb
                 metalness: 0.85,
                 roughness: 0.35,
                 envMapIntensity: 1.3,
@@ -297,8 +297,8 @@ export const VegaScalesScene: React.FC<{ className?: string }> = ({ className = 
             shadowCanvas.width = shadowCanvas.height = 128;
             const sctx = shadowCanvas.getContext('2d')!;
             const sgrad = sctx.createRadialGradient(64, 64, 4, 64, 64, 62);
-            sgrad.addColorStop(0, 'rgba(10, 5, 2, 0.55)');
-            sgrad.addColorStop(1, 'rgba(10, 5, 2, 0)');
+            sgrad.addColorStop(0, 'rgba(42, 33, 24, 0.38)');
+            sgrad.addColorStop(1, 'rgba(42, 33, 24, 0)');
             sctx.fillStyle = sgrad;
             sctx.fillRect(0, 0, 128, 128);
             const shadowTex = new THREE.CanvasTexture(shadowCanvas);
@@ -510,8 +510,8 @@ export const VegaScalesScene: React.FC<{ className?: string }> = ({ className = 
             >
                 <defs>
                     <linearGradient id="vgscalesfb" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stopColor="#F3A66A" />
-                        <stop offset="1" stopColor="#B4532A" />
+                        <stop offset="0" stopColor="#C4745A" />
+                        <stop offset="1" stopColor="#7B2E1E" />
                     </linearGradient>
                 </defs>
                 <g stroke="url(#vgscalesfb)" fill="none" strokeLinecap="round">

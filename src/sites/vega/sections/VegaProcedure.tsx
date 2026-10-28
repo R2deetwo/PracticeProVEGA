@@ -36,7 +36,7 @@ export const VegaProcedure: React.FC = () => (
     <section
         id="howItWorks"
         aria-labelledby="vega-procedure-heading"
-        className="py-20 md:py-28 border-t border-white/10"
+        className="py-20 md:py-28 border-t border-vega-night/10"
         style={{ background: 'var(--color-paper)' }}
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
@@ -46,25 +46,25 @@ export const VegaProcedure: React.FC = () => (
             </p>
             <h2
                 id="vega-procedure-heading"
-                className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 text-vega-parchment"
+                className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 text-vega-night"
             >
                 Open your chambers in three steps
             </h2>
-            <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-12 md:mb-16">
+            <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-12 md:mb-16">
                 From sign-up to your first legal draft — in minutes, not weeks.
             </p>
 
             {/* The schedule — columns divided by hairlines, never boxed */}
-            <div className="grid md:grid-cols-3 md:divide-x md:divide-white/10 border-t border-white/10 md:border-t-0">
+            <div className="grid md:grid-cols-3 md:divide-x md:divide-vega-night/10 border-t border-vega-night/10 md:border-t-0">
                 {STEPS.map((step) => (
-                    <div key={step.num} className="py-8 md:py-4 md:px-8 first:md:pl-0 last:md:pr-0 border-b md:border-b-0 border-white/10 last:border-b-0">
+                    <div key={step.num} className="py-8 md:py-4 md:px-8 first:md:pl-0 last:md:pr-0 border-b md:border-b-0 border-vega-night/10 last:border-b-0">
                         <p className="font-vega text-6xl font-semibold text-vega-gilt leading-none mb-5">
                             {step.num}
                         </p>
-                        <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-3">
+                        <h3 className="font-vega text-xl font-semibold text-vega-night mb-3">
                             {step.title}
                         </h3>
-                        <p className="text-sm leading-[1.7] text-slate-400">
+                        <p className="text-sm leading-[1.7] text-slate-600">
                             {step.body}
                         </p>
                     </div>

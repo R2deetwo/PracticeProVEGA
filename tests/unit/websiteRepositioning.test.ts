@@ -798,10 +798,12 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaMatters).not.toContain("rounded-");
     expect(vegaMatters).not.toContain("shadow-");
     expect(vegaMatters).toContain("MATTERS_INDEX");
-    // R22: the night register — white hairlines on the dark ground, gilt
-    // numerals, parchment titles.
+    // R37 Daylight Chambers: the ledger is the page's espresso interlude —
+    // white hairlines and parchment titles on the dark band; the accent
+    // register there is the LIT claret (gilt-bright is the ivory-ground
+    // register, re-valued with the R37 re-theme).
     expect(vegaMatters).toContain("border-b border-white/10");
-    expect(vegaMatters).toContain("text-vega-gilt-bright");
+    expect(vegaMatters).toContain("text-vega-claret-bright");
     expect(vegaMatters).toContain("text-vega-parchment");
   });
 

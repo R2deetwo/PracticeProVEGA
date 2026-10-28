@@ -64,7 +64,7 @@ export const VegaFAQInk: React.FC = () => {
             <div className="container mx-auto px-4 sm:px-6 max-w-4xl" data-vg-reveal>
                 {/* Roman-numeral hairline section head — ink variant */}
                 <p
-                    className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7"
+                    className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-claret-bright mb-7"
                     data-ink="true"
                 >
                     VII — Questions
@@ -92,23 +92,23 @@ export const VegaFAQInk: React.FC = () => {
                                     aria-expanded={open}
                                     aria-controls={`vg-faq-panel-${i}`}
                                     onClick={() => setOpenIndex(open ? null : i)}
-                                    className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors duration-150 hover:bg-white/5 active:bg-white/10 focus-visible:ring-vega-gilt"
+                                    className="w-full flex items-baseline gap-4 sm:gap-6 py-6 text-left transition-colors duration-150 hover:bg-white/5 active:bg-white/10 focus-visible:ring-vega-claret-bright"
                                 >
-                                    <span className="font-mono text-2xs tracking-widest text-vega-gilt-bright flex-shrink-0">
+                                    <span className="font-mono text-2xs tracking-widest text-vega-claret-bright flex-shrink-0">
                                         Q.{i + 1}
                                     </span>
                                     <span className="font-vega text-base sm:text-lg font-semibold text-vega-parchment flex-1 leading-snug">
                                         {item.q}
                                     </span>
                                     <span className="relative inline-block w-3 h-3 flex-shrink-0 translate-y-[-2px]" aria-hidden="true">
-                                        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-gilt-bright -translate-y-1/2" />
-                                        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-gilt-bright -translate-x-1/2" />}
+                                        <span className="absolute top-1/2 left-0 w-3 h-px bg-vega-claret-bright -translate-y-1/2" />
+                                        {!open && <span className="absolute left-1/2 top-0 h-3 w-px bg-vega-claret-bright -translate-x-1/2" />}
                                     </span>
                                 </Button>
                                 {open && (
                                     <p
                                         id={`vg-faq-panel-${i}`}
-                                        className="pl-[3.25rem] pr-4 pb-7 -mt-1 text-sm leading-[1.75] text-slate-400 max-w-2xl panel-in origin-top"
+                                        className="pl-[3.25rem] pr-4 pb-7 -mt-1 text-sm leading-[1.75] text-slate-300 max-w-2xl panel-in origin-top"
                                     >
                                         {item.a}
                                     </p>

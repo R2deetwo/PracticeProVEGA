@@ -28,16 +28,16 @@ import React from 'react';
  * [data-vg-reveal]; the site index mounts the observer.
  */
 
-/** ALOA's roundel — the gilt notary seal at avatar scale. The § is the
+/** ALOA's roundel — the claret notary seal at avatar scale. The § is the
  *  lawyer's glyph in the serif face; the ring text is dropped at this
  *  size (it was the exhibit seal's device — R22). */
 const AloaRoundel: React.FC = () => (
     <span
-        className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-vega-gilt/40 bg-vega-gilt/10 flex-shrink-0"
+        className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-vega-gilt/50 bg-vega-gilt/15 flex-shrink-0"
         aria-hidden="true"
     >
         <span
-            className="text-vega-gilt-bright text-lg leading-none"
+            className="text-vega-claret-bright text-lg leading-none"
             style={{ fontFamily: 'var(--font-vega-display)' }}
         >
             §
@@ -118,10 +118,13 @@ export const VegaHero: React.FC<{
         <div className="relative z-10 pt-24 pb-20 sm:pb-20 lg:pt-28 lg:pb-24 px-4 sm:px-6">
             <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-12 lg:gap-14 items-center">
                 {/* Left — the title page of the volume */}
-                <div className="lg:col-span-7">
+                {/* R37 mobile-overflow fix: min-w-0 lets the implicit mobile
+                    grid track size to the container instead of the eyebrow's
+                    max-content — the column can no longer push past the viewport. */}
+                <div className="lg:col-span-7 min-w-0">
                     {/* Attribution eyebrow — mono micro-label with the gilt mark */}
                     <p
-                        className="flex items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-6"
+                        className="flex flex-wrap items-center gap-2.5 font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-6"
                         data-vg-reveal
                     >
                         <span className="inline-block w-1.5 h-1.5 bg-vega-gilt-bright" aria-hidden="true" />
@@ -130,12 +133,12 @@ export const VegaHero: React.FC<{
 
                     {/* Headline — law-report scale, THREE lines at 1440. */}
                     <h1
-                        className="font-vega text-[2.75rem] sm:text-6xl lg:text-[clamp(2.75rem,6.2vw,5.25rem)] font-semibold leading-[1.04] tracking-[-0.015em] mb-0 text-vega-parchment"
+                        className="font-vega text-[2.5rem] sm:text-6xl lg:text-[clamp(2.75rem,6.2vw,5.25rem)] font-semibold leading-[1.04] tracking-[-0.015em] mb-0 text-vega-night"
                         data-vg-reveal
                         style={{ '--vg-d': '90ms' } as React.CSSProperties}
                     >
                         Practice
-                        <br className="hidden lg:block" />
+                        <br />
                         management for
                         <br />
                         <span className="font-vega-italic text-vega-gilt-bright">
@@ -153,7 +156,7 @@ export const VegaHero: React.FC<{
 
                     {/* Sub-copy — shipped capability copy, verbatim */}
                     <p
-                        className="text-base md:text-lg max-w-xl leading-[1.65] text-slate-300 mb-8"
+                        className="text-base md:text-lg max-w-xl leading-[1.65] text-slate-600 mb-8"
                         data-vg-reveal
                         style={{ '--vg-d': '210ms' } as React.CSSProperties}
                     >
@@ -176,15 +179,15 @@ export const VegaHero: React.FC<{
                 </div>
 
                 {/* Right — the evening exchange (R27: the personal landing) */}
-                <div className="lg:col-span-5 relative" data-vg-reveal style={{ '--vg-d': '200ms' } as React.CSSProperties}>
-                    <div className="relative rotate-[0.4deg] rounded-2xl border border-white/10 bg-vega-night/40 backdrop-blur-sm px-4 sm:px-5 py-5 sm:py-6">
+                <div className="lg:col-span-5 relative min-w-0" data-vg-reveal style={{ '--vg-d': '200ms' } as React.CSSProperties}>
+                    <div className="relative rotate-[0.4deg] rounded-2xl border border-vega-night/70 bg-vega-night-2 px-4 sm:px-5 py-5 sm:py-6 shadow-[0_24px_48px_-22px_rgb(42_33_24/0.45)]">
                         {/* Thread header — a working Thursday, live at 18:42 */}
                         <div className="flex items-center justify-between border-b border-white/10 pb-3.5 mb-4">
-                            <p className="font-mono text-2xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                            <p className="font-mono text-2xs font-medium uppercase tracking-[0.2em] text-slate-300">
                                 Thursday · 18:42
                             </p>
-                            <span className="flex items-center gap-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-vega-gilt-bright">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-vega-gilt-bright" aria-hidden="true" />
+                            <span className="flex items-center gap-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-vega-claret-bright">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-vega-claret-bright" aria-hidden="true" />
                                 ALOA · Online
                             </span>
                         </div>
@@ -233,7 +236,7 @@ export const VegaHero: React.FC<{
                             </ChatRow>
                         </div>
                     </div>
-                    <p className="font-mono text-2xs tracking-widest text-slate-500 mt-6 text-center lg:text-left lg:pl-4">
+                    <p className="font-mono text-2xs tracking-widest text-slate-600 mt-6 text-center lg:text-left lg:pl-4">
                         THE EVENING EXCHANGE — CHIOMA OKAFOR, SOLE PRACTITIONER, IKEJA · ILLUSTRATIVE
                     </p>
                 </div>

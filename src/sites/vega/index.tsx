@@ -114,7 +114,7 @@ export const VegaSite: React.FC = () => {
         <div
             ref={scrollRef}
             className="h-[100dvh] w-full overflow-y-auto font-sans scroll-smooth md:[scrollbar-gutter:stable] theme-vega"
-            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', colorScheme: 'dark' }}
+            style={{ background: 'var(--color-paper)', color: 'var(--color-ink)', colorScheme: 'light' }}
             data-public-page
         >
             <VegaNavBar
@@ -131,7 +131,7 @@ export const VegaSite: React.FC = () => {
             {/* Skip to content link — Vega's focus state lands on ink. */}
             <a
                 href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-vega-gilt focus:text-vega-night"
+                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-vega-gilt focus:text-vega-parchment"
             >
                 Skip to content
             </a>

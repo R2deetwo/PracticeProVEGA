@@ -9,7 +9,7 @@ import React, { useEffect, useRef } from 'react';
  * they should react when the mouse rises too ("it mainly reacts left and
  * right"); and on scroll the shapes "should go down into" the capability
  * cards. The caption jargon "Seven modules. One system." is replaced with
- * the owner's own phrase: "Making your systems one."
+ * the owner's own phrase: "Making your systems work as one."
  *
  * The scene: a faceted engine core with seven GLASS SHAPES orbiting it —
  * one per capability card below. Each shape lives on a superellipsoid

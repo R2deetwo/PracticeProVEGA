@@ -108,11 +108,17 @@
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
 
-  /* ===== Vega product-page tokens (R26 "The Warm Chambers") ===================
-   Owner direction (R26): the Night Chambers (near-black + gilt) never
-   read as good. Same token NAMES (tests pin the class strings, not the
-   values) re-valued onto LawPavilion's register: deep espresso grounds,
-   warm cream type, burnt-orange accents. */
+  /* ===== Vega product-page tokens (R37 "The Daylight Chambers") ==============
+   Owner direction (R37): a NEW colour scheme for /vega — the page flips
+   to a warm ivory ground with espresso ink and ONE restrained accent:
+   notary claret. Same token NAMES (tests pin the class strings, not the
+   values) re-valued in place, the house re-theme pattern since R22:
+     - gilt/gilt-bright (was burnt orange) -> the claret accent register
+     - parchment (was cream-on-dark type) -> cream CARD STOCK on ivory
+     - night/night-2 stay espresso: the chrome, the ledger band, the
+       dark interludes and raised panels
+     - ink/ink-soft (was band surfaces) -> the ink bands + taupe body
+   "gilt" reads as "the accent"; "claret" stays the seals' own family. */
   /* Triplets (RGB space-separated) so Tailwind can alpha-modulate them
      via the same rgb(var(--x) / <alpha-value>) mapping as the scales.
      --color-amber (hex, above) stays untouched — it is pinned by
@@ -120,13 +126,13 @@
   --color-vega-claret: 123 30 30;       /* #7B1E1E — seals, stamps, ribbon   */
   --color-vega-claret-deep: 92 20 20;   /* #5C1414 — claret text on light    */
   --color-vega-claret-bright: 196 92 92;/* #C45C5C — claret legible on night */
-  --color-vega-gilt: 224 122 63;        /* #E07A3F — burnt orange: rules + fills */
-  --color-vega-gilt-bright: 243 166 106;/* #F3A66A — orange type on espresso  */
-  --color-vega-ink: 62 43 28;           /* #3E2B1C — raised band surface     */
-  --color-vega-ink-soft: 80 57 38;      /* #503926 — card surfaces on bands    */
-  --color-vega-night: 34 23 15;         /* #22170F — the espresso ground     */
-  --color-vega-night-2: 46 32 21;       /* #2E2015 — panels on the ground    */
-  --color-vega-parchment: 247 240 231;  /* #F7F0E7 — warm cream on espresso  */
+  --color-vega-gilt: 123 30 30;         /* #7B1E1E — R37 notary claret: rules, fills, rings, CTAs */
+  --color-vega-gilt-bright: 142 38 30;  /* #8E261E — R37 claret type register on the ivory ground */
+  --color-vega-ink: 42 31 22;           /* #2A1F16 — R37 the ink bands (drafting, interrogatories) */
+  --color-vega-ink-soft: 110 92 74;     /* #6E5C4A — R37 taupe body type on cream stock */
+  --color-vega-night: 34 23 15;         /* #22170F — the espresso side: chrome, the ledger band */
+  --color-vega-night-2: 56 42 28;       /* #382A1C — R37 raised dark panels (dropdown, cross-sells, the evening exchange) */
+  --color-vega-parchment: 251 246 236;  /* #FBF6EC — R37 cream card stock on the ivory ground */
   /* R23 mark grounds — the product seals are lit from the top-left and
      fall into a deep corner; flat saturated tiles read as emoji. */
   --color-vega-claret-lift: 143 42 56;  /* #8F2A38 — the seal's lit corner   */
@@ -2079,52 +2085,55 @@ span[data-type="legal-placeholder"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VEGA PRODUCT PAGE — R26 "The Warm Chambers" (.theme-vega scope)
+   VEGA PRODUCT PAGE — R37 "The Daylight Chambers" (.theme-vega scope)
    ─────────────────────────────────────────────────────────────────────────
-   Owner direction (R22): the light paper page read "super bland" — Vega
-   now runs the dark editorial register of a law library at night. The
-   page ground is near-black ink; brass/gilt carries the accents; display
-   type is warm parchment Fraunces; and the pleading exhibits stay bright
-   paper so they read like the one lit desk in a dark chambers. Every rule
-   below is scoped under .theme-vega (applied to the landing root ONLY
-   while the /vega product page is shown) so the hub, /atrium and every
-   other surface render pixel-identically. No global rule in this block
-   may ever match an element outside a Vega page.
+   Owner direction (R37): a NEW colour scheme — the law library by DAY.
+   The page ground flips to warm ivory with espresso ink; ONE restrained
+   accent (notary claret, the seals' own colour) carries every rule,
+   numeral, ring and CTA fill. The espresso side survives in measured
+   interludes — the masthead chrome, the ledger band, the two ink bands
+   and the deep footer — so the drama of the old register is rationed,
+   not lost. Display type is Fraunces throughout; the exhibits stay
+   bright paper. Every rule below is scoped under .theme-vega (applied to
+   the landing root ONLY while the /vega product page is shown) so the
+   hub, /atrium and every other surface render pixel-identically. No
+   global rule in this block may ever match an element outside a Vega page.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Scope: the espresso remap (R26) ─────────────────────────────────────
-   The page's two master vars flip: paper becomes the espresso ground and
-   ink becomes warm cream. The full slate scale warms in-place (cool
-   blue-grays → bone/taupe) so secondary type, hairlines, the pleading
-   exhibits' ink and the deep footer all join the warm system without
-   touching that code.
+   The page's two master vars flip (R37): paper becomes warm ivory and
+   ink becomes espresso. The slate scale re-values onto the light register
+   — warm hairlines at 200, bone secondary for the dark interludes at
+   300/400, taupe/espresso for the ivory ground at 500+ — so secondary
+   type, hairlines, the exhibits' ink and the deep footer all join the
+   warm system without touching that code.
    .site-vega (body) carries the same remap to the App-level chrome the
    theme root cannot reach — the cookie banner and any portal modals —
    so nothing navy survives while /vega is shown (R26). */
 .theme-vega,
 .site-vega {
-  --color-paper: #22170F;       /* the espresso ground — page + bands */
-  --color-ink: #F7F0E7;        /* warm cream — display type        */
-  --color-slate-200: 224 209 190;  /* warm ledger borders on paper   */
-  --color-slate-300: 205 189 168;  /* warm margin rules               */
-  --color-slate-400: 181 164 143;  /* warm bone — secondary type      */
-  --color-slate-500: 152 134 114;  /* warm taupe — muted notes        */
-  --color-slate-600: 124 106 88;   /* faint labels                    */
-  --color-slate-700: 92 76 60;     /* document secondary on paper     */
-  --color-slate-800: 80 57 38;     /* ink-soft — panels               */
-  --color-slate-900: 62 43 28;     /* ink — raised bands + doc ink    */
-  --color-slate-950: 22 15 10;     /* the deep footer                 */
+  --color-paper: #F5EFE3;       /* R37: the daylight ground — warm ivory */
+  --color-ink: #2A2118;        /* R37: espresso ink — display + body  */
+  --color-slate-200: 224 213 192;  /* warm hairlines on ivory          */
+  --color-slate-300: 200 186 162;  /* bone — secondary on the dark side */
+  --color-slate-400: 138 122 100;  /* mid bone — micro labels, both grounds */
+  --color-slate-500: 122 106 87;   /* taupe — muted notes on ivory     */
+  --color-slate-600: 95 81 64;     /* secondary body on ivory           */
+  --color-slate-700: 74 62 50;     /* document secondary               */
+  --color-slate-800: 58 47 35;     /* panels                           */
+  --color-slate-900: 42 33 24;     /* espresso ink surfaces            */
+  --color-slate-950: 32 25 16;     /* the deep footer                  */
 }
 
 /* ── Vega display type (R26) ──────────────────────────────────────────────
-   Display flips to the grotesk (LawPavilion's bold sans register); the
-   italic accent stays Fraunces — ONE serif flourish per headline, the
-   signature of the house. The --font-vega-display VARIABLE stays Fraunces
-   (the seal § and the og cards keep the serif). */
+   Fraunces carries the display voice outright (R37) — the warm editorial
+   serif the brand runs on; the grotesk retires from /vega entirely. The
+   italic accent stays Fraunces italic: ONE flourish per headline, the
+   signature of the house, now in claret. */
 .theme-vega .font-vega {
-  font-family: 'Space Grotesk', 'Figtree', system-ui, sans-serif;
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  font-family: var(--font-vega-display);
+  font-weight: 600;
+  letter-spacing: -0.012em;
 }
 .theme-vega .font-vega-italic {
   font-family: 'Fraunces Variable', 'Fraunces', Georgia, serif;
@@ -2196,11 +2205,11 @@ span[data-type="legal-placeholder"] {
 .vg-doc {
   position: relative;
   background: #FCFAF3;
-  border: 1px solid rgb(0 0 0 / 0.35);
+  border: 1px solid rgb(42 33 24 / 0.26);
   box-shadow:
-    0 1px 2px 0 rgb(0 0 0 / 0.25),
-    0 24px 48px -12px rgb(0 0 0 / 0.55),
-    0 56px 110px -28px rgb(0 0 0 / 0.40);
+    0 1px 2px 0 rgb(42 33 24 / 0.10),
+    0 18px 40px -14px rgb(42 33 24 / 0.28),
+    0 44px 90px -30px rgb(42 33 24 / 0.20);
 }
 /* the sheet beneath — a second page, slightly turned */
 .vg-doc::after {
@@ -2209,7 +2218,7 @@ span[data-type="legal-placeholder"] {
   inset: 12px -12px -12px 12px;
   z-index: -1;
   background: #F1ECDF;
-  border: 1px solid rgb(0 0 0 / 0.22);
+  border: 1px solid rgb(42 33 24 / 0.16);
   transform: rotate(0.35deg);
 }
 .vg-doc__paper {
@@ -2335,16 +2344,16 @@ span[data-type="legal-placeholder"] {
   background: rgb(var(--color-vega-gilt) / 0.30);
   transform: translateY(-4px);
 }
-/* Ink-band variant — identical gilt hairline on the raised ink band */
+/* Ink-band variant — the lit claret hairline, visible on the dark band */
 .theme-vega .vg-rule-h[data-ink='true']::after {
-  background: rgb(var(--color-vega-gilt) / 0.30);
+  background: rgb(var(--color-vega-claret-bright) / 0.40);
 }
 
-/* The fluid nav pill — on the night page it becomes a quiet gilt wash
-   (the moss-green pill never appears on /vega). */
+/* The fluid nav pill — on the espresso masthead it becomes a quiet lit-
+   claret wash (the moss-green pill never appears on /vega). */
 .theme-vega .w8-nav-pill {
-  background: rgb(var(--color-vega-gilt) / 0.10);
-  border-color: rgb(var(--color-vega-gilt) / 0.22);
+  background: rgb(var(--color-vega-claret-bright) / 0.14);
+  border-color: rgb(var(--color-vega-claret-bright) / 0.30);
 }
 
 /* ── The night atmosphere ────────────────────────────────────────────────── */
@@ -2358,33 +2367,33 @@ span[data-type="legal-placeholder"] {
   inset: 0;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.05;
-  mix-blend-mode: overlay;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Hero (R26) — the lamp warms: a burnt-orange pool where the exhibit
-   sits, a soft claret aura low-left, a vignette closing the corners. */
+/* Hero (R37) — daylight paper: a whisper of claret behind the exchange,
+   a warm breath low-left, the barest ink tint closing the edges. No
+   black vignettes, no glow — a wash, not a lamp. */
 .vg-hero-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(46rem 34rem at 74% 20%, rgb(var(--color-vega-gilt) / 0.16), transparent 68%),
-    radial-gradient(38rem 26rem at 6% 88%, rgb(var(--color-vega-claret) / 0.14), transparent 72%),
-    radial-gradient(64rem 46rem at 50% 124%, rgb(0 0 0 / 0.50), transparent 70%),
-    linear-gradient(to bottom, rgb(0 0 0 / 0.22), transparent 16%, transparent 84%, rgb(0 0 0 / 0.26));
+    radial-gradient(46rem 34rem at 74% 20%, rgb(var(--color-vega-claret) / 0.05), transparent 68%),
+    radial-gradient(38rem 26rem at 6% 88%, rgb(var(--color-vega-ink) / 0.05), transparent 72%),
+    linear-gradient(to bottom, rgb(var(--color-vega-ink) / 0.035), transparent 14%, transparent 86%, rgb(var(--color-vega-ink) / 0.05));
 }
 
-/* Final CTA — the colophon bookend: the same lights, mirrored. */
+/* Final CTA — the colophon bookend: the daylight washes, mirrored. */
 .vg-cta-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(40rem 28rem at 16% 14%, rgb(var(--color-vega-claret) / 0.14), transparent 70%),
-    radial-gradient(46rem 32rem at 88% 84%, rgb(var(--color-vega-gilt) / 0.14), transparent 68%),
-    linear-gradient(to bottom, rgb(0 0 0 / 0.24), transparent 20%, transparent 82%, rgb(0 0 0 / 0.32));
+    radial-gradient(40rem 28rem at 16% 14%, rgb(var(--color-vega-claret) / 0.05), transparent 70%),
+    radial-gradient(46rem 32rem at 88% 84%, rgb(var(--color-vega-ink) / 0.05), transparent 68%),
+    linear-gradient(to bottom, rgb(var(--color-vega-ink) / 0.03), transparent 18%, transparent 84%, rgb(var(--color-vega-ink) / 0.05));
 }
 
 /* The watermark — an oversized seriffed mark at the edge of sight. */
@@ -2395,7 +2404,7 @@ span[data-type="legal-placeholder"] {
   line-height: 0.72;
   user-select: none;
   pointer-events: none;
-  color: rgb(var(--color-vega-parchment) / 0.045);
+  color: rgb(var(--color-vega-night) / 0.055);
 }
 
 /* ── The claret seal — a notary roundel for the hero exhibit ─────────────── */
@@ -2472,7 +2481,7 @@ span[data-type="legal-placeholder"] {
 .on-vega-page, .site-vega .cookie-ack,
 .on-vega-page, .site-vega .terms-accept {
   background: rgb(var(--color-vega-gilt));
-  color: rgb(var(--color-vega-night));
+  color: rgb(var(--color-vega-parchment));
 }
 .on-vega-page, .site-vega .cookie-ack:hover,
 .on-vega-page, .site-vega .terms-accept:hover {
@@ -2480,7 +2489,7 @@ span[data-type="legal-placeholder"] {
 }
 .on-vega-page, .site-vega .cookie-link,
 .on-vega-page, .site-vega .terms-link {
-  color: rgb(var(--color-vega-gilt-bright));
+  color: rgb(var(--color-vega-claret-bright));
 }
 .on-vega-page, .site-vega .cookie-link:hover,
 .on-vega-page, .site-vega .terms-link:hover {
@@ -3443,7 +3452,7 @@ nav,
 
 /* ── W14 — the descent lands, the pitch mirrors, the cue continues ──────
    Owner direction: the orbiting shapes "should go down into" the capability
-   cards; the caption jargon is gone ("Making your systems one." now); and
+   cards; the caption jargon is gone ("Making your systems work as one." now); and
    a cue under the scene walks visitors down to the cards. When a card
    crosses into the viewport its wireframe shape DROPS IN (the moment its
    module above "arrives"), the icon chip pings emerald and the border

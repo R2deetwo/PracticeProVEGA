@@ -54,30 +54,30 @@ export const VegaCredentials: React.FC = () => {
             </p>
             <h2
                 id="vega-credentials-heading"
-                className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-3xl text-vega-parchment"
+                className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-3xl text-vega-night"
             >
                 Why firms run on Vega
             </h2>
-            <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-12 md:mb-16">
+            <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-12 md:mb-16">
                 How Vega helps Nigerian law firms stay on top of matters,
                 drafts, and billable work.
             </p>
 
             <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-start">
                 {/* The attestations — ruled rows, no cards, no icons */}
-                <div className="lg:col-span-7 border-t border-white/10">
+                <div className="lg:col-span-7 border-t border-vega-night/10">
                     {ATTESTATIONS.map((a, i) => (
                         <div
                             key={a.title}
-                            className="grid sm:grid-cols-12 gap-2 sm:gap-6 py-8 border-b border-white/10"
+                            className="grid sm:grid-cols-12 gap-2 sm:gap-6 py-8 border-b border-vega-night/10"
                         >
                             <p className="sm:col-span-1 font-mono text-xs tracking-widest text-vega-gilt-bright">
                                 {String(i + 1).padStart(2, '0')}
                             </p>
-                            <h3 className="sm:col-span-4 font-vega text-xl font-semibold text-vega-parchment leading-snug">
+                            <h3 className="sm:col-span-4 font-vega text-xl font-semibold text-vega-night leading-snug">
                                 {a.title}
                             </h3>
-                            <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-400">
+                            <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-600">
                                 {a.body}
                             </p>
                         </div>
@@ -105,7 +105,7 @@ export const VegaCredentials: React.FC = () => {
                                 aria-hidden="true"
                             />
                             <div className="absolute inset-x-0 bottom-0 p-6">
-                                <p className="font-mono text-2xs tracking-[0.25em] text-vega-gilt-bright mb-2">
+                                <p className="font-mono text-2xs tracking-[0.25em] text-vega-claret-bright mb-2">
                                     IN CHAMBERS, IKEJA — 6:40 PM
                                 </p>
                                 <p className="font-vega text-xl text-vega-parchment leading-snug">

@@ -11,9 +11,11 @@ import SystemCoreScene from '../scenes/SystemCoreScene';
 import { BellIcon, BrainIcon, BriefcaseIcon, ChevronDownIcon, LinkIcon, NairaCircleIcon, ShieldCheckIcon, UsersIcon } from '../../../constants';
 
 // ─── WHAT WE DO (corporate hub) ─────────────────────────────────────────────
-// The services PracticePro Systems sells. Each card is a capability already
-// running in production inside Vega, Atrium or Kozy Care — the pitch to a
-// prospective client is "this exact engineering, applied to your business".
+// The services PracticePro Systems sells. R37 owner direction: this
+// section sells the CAPABILITY, not the catalogue — no product names
+// live here (they belong to Our Work, the systems we've built); each
+// card answers one question only: "what could this look like in MY
+// business?"
 
 const WHAT_WE_DO: Array<{
     title: string;
@@ -22,12 +24,12 @@ const WHAT_WE_DO: Array<{
 }> = [
     {
         title: 'Software shaped around how your business already runs',
-        body: 'A system shaped around your operations, not your operations reshaped around software. We study how your business actually runs — the paperwork, the phone calls, the spreadsheets — then build the software that runs it. Kozy Care, a complete dry-cleaning operations platform, was built exactly this way.',
+        body: 'A system shaped around your operations, not your operations reshaped around software. We study how your business actually runs — the paperwork, the phone calls, the spreadsheets — then build the software that runs it, piece by piece.',
         Icon: BriefcaseIcon,
     },
     {
         title: 'Your tools, wired into one workflow',
-        body: 'The tools you already use, wired into one workflow: WhatsApp and SMS messaging, Paystack payments, email, calendars and document tools. Vega and Atrium ship with integrations like these — we can build yours into whatever your business runs on.',
+        body: 'The tools you already use, wired into one workflow: WhatsApp and SMS messaging, Paystack payments, email, calendars and document tools. Your customers keep the apps they know; everything behind them starts working together.',
         Icon: LinkIcon,
     },
     {
@@ -42,7 +44,7 @@ const WHAT_WE_DO: Array<{
     },
     {
         title: 'The repetitive work, done for you',
-        body: 'AI drafting, deadline computation, smart reminders and workflow automation that take over the repetitive work — the same engine that drafts court documents in Vega and applies tenancy law across 36 states and the FCT in Atrium.',
+        body: 'AI drafting, deadline computation, smart reminders and workflow automation that take over the repetitive work — from the document your team retypes every week to the follow-ups that always slip.',
         Icon: BrainIcon,
     },
     {
@@ -52,7 +54,7 @@ const WHAT_WE_DO: Array<{
     },
     {
         title: 'Your system stays up and your data stays yours',
-        body: 'Deployment, monitoring, backups and NDPA 2023-aligned data handling, so your system stays up and your data stays yours. We run the infrastructure on both products every day — we can run yours too.',
+        body: 'Deployment, monitoring, backups and NDPA 2023-aligned data handling, so your system stays up and your data stays yours. We run this infrastructure every day; we can run yours too.',
         Icon: ShieldCheckIcon,
     },
 ];
@@ -185,7 +187,7 @@ export const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ 
                     </div>
                     {/* W14: the owner's own words replace "Seven modules. One
                         system." — a promise a layman can feel, not jargon. */}
-                    <p className="w13-caption">Making your systems one.</p>
+                    <p className="w13-caption">Making your systems work as one.</p>
                     {/* W14: the descent continues — a cue under the scene walks
                         the visitor down to the parts of the business, the way
                         the hero cue walks them into this scene. */}
@@ -206,9 +208,10 @@ export const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ 
                         What we can build for you
                     </h2>
                     <p className="text-lg text-slate-500 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
-                        Every part of a business — orders, payments, customers, paperwork — becomes
-                        one system. Each piece below already runs in production inside Vega, Atrium
-                        or Kozy Care; the same engineering can run yours.
+                        Orders, payments, customers, paperwork — every part of your business,
+                        joined into one system that runs it day to day. Bring us the spreadsheets,
+                        the chat threads and the notebooks; we build the system around how you
+                        already work.
                     </p>
                 </div>
                 {/* Both reveal and landing hooks watch the SAME grid: one

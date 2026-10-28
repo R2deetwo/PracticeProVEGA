@@ -6,10 +6,9 @@ import { Button } from '../../../components/ui';
  *
  * LawPavilion opens with a grid of its products (Prime, AI, Elite, MOJ,
  * Primsol) — name, one line, an Explore link. Vega's equivalent: the six
- * instruments of the practice. R26 "The Warm Chambers": LawPavilion's
- * register — each entry is a floating CREAM card on the espresso ground
- * (rounded, warm shadow, espresso type, orange numerals) that lifts on
- * hover. Copy is the shipped capability copy, verbatim (honest marketing,
+ * instruments of the practice. R37 "The Daylight Chambers": each entry
+ * is a floating CREAM card on the ivory ground (rounded, hairline edge,
+ * warm shadow, espresso type, claret numerals) that lifts on hover. Copy is the shipped capability copy, verbatim (honest marketing,
  * P8). Interactive entries use the ui/Button primitive (ADR-0004).
  */
 
@@ -75,7 +74,7 @@ export const VegaSuite: React.FC = () => {
         <section
             id="suite"
             aria-labelledby="vega-suite-heading"
-            className="py-20 md:py-28 border-t border-white/10"
+            className="py-20 md:py-28 border-t border-vega-night/10"
             style={{ background: 'var(--color-paper)' }}
         >
             <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
@@ -85,12 +84,12 @@ export const VegaSuite: React.FC = () => {
                 </p>
                 <h2
                     id="vega-suite-heading"
-                    className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-3xl text-vega-parchment"
+                    className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-5 max-w-3xl text-vega-night"
                 >
                     One system,{' '}
                     <span className="font-vega-italic text-vega-gilt-bright">six instruments.</span>
                 </h2>
-                <p className="text-base md:text-lg leading-[1.7] text-slate-400 max-w-2xl mb-12 md:mb-16">
+                <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-12 md:mb-16">
                     Everything a Nigerian practice runs on, in one workspace. Each
                     instrument below is live in the running product — explore it in
                     the detail bands that follow.
@@ -101,7 +100,7 @@ export const VegaSuite: React.FC = () => {
                     {INSTRUMENTS.map((ins) => (
                         <div
                             key={ins.num}
-                            className="group flex flex-col rounded-2xl bg-vega-parchment p-7 sm:p-8 transition-all duration-200 hover:-translate-y-1 shadow-[0_14px_30px_-16px_rgb(0_0_0/0.5)] hover:shadow-[0_20px_40px_-18px_rgb(0_0_0/0.55)]"
+                            className="group flex flex-col rounded-2xl bg-vega-parchment p-7 sm:p-8 transition-all duration-200 hover:-translate-y-1 border border-vega-night/10 shadow-[0_14px_30px_-18px_rgb(42_33_24/0.22)] hover:shadow-[0_20px_40px_-20px_rgb(42_33_24/0.28)]"
                         >
                             <p className="font-mono text-xs tracking-widest text-vega-gilt mb-5">
                                 {ins.num}

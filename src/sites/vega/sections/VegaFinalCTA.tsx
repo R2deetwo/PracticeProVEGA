@@ -25,7 +25,7 @@ export const VegaFinalCTA: React.FC<{
 }> = ({ onSignup, onContactSales }) => (
     <section
         aria-labelledby="vega-final-cta-heading"
-        className="relative overflow-hidden vg-grain py-20 md:py-28 border-t border-white/10"
+        className="relative overflow-hidden vg-grain py-20 md:py-28 border-t border-vega-night/10"
         style={{ background: 'var(--color-paper)' }}
     >
         {/* The colophon lights — the hero's glows, mirrored */}
@@ -39,14 +39,14 @@ export const VegaFinalCTA: React.FC<{
                 </p>
                 <h2
                     id="vega-final-cta-heading"
-                    className="font-vega text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.08] tracking-[-0.015em] mb-8 text-vega-parchment"
+                    className="font-vega text-4xl sm:text-5xl md:text-6xl font-semibold leading-[1.08] tracking-[-0.015em] mb-8 text-vega-night"
                 >
                     Ready to run a{' '}
                     <span className="font-vega-italic text-vega-gilt-bright">sharper practice?</span>
                 </h2>
                 {/* The hero's gilt rule, returned */}
                 <div className="h-px w-24 bg-vega-gilt mb-8" aria-hidden="true" />
-                <p className="text-base md:text-lg leading-[1.7] text-slate-300 mb-10">
+                <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-10">
                     Join Nigerian law firms who have already switched to
                     PracticePro Vega — matter management, AI drafting, and
                     court-rule-aware calendaring built for the way you actually
@@ -56,7 +56,7 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onSignup()}
-                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-parchment hover:bg-vega-claret-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Start Free Trial
                     </Button>
@@ -82,14 +82,14 @@ export const VegaFinalCTA: React.FC<{
                         Are you a Real Estate Lawyer?
                     </h3>
                     <p className="text-sm text-slate-400 leading-relaxed mb-5">
-                        Discover <strong className="text-vega-gilt-bright">Komplete</strong> — Vega and Atrium in one workspace, built
+                        Discover <strong className="text-vega-claret-bright">Komplete</strong> — Vega and Atrium in one workspace, built
                         for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy
                         portfolios, and track chamber matters from a single secure terminal.
                     </p>
                     <Button
                         variant="bare"
                         onClick={() => onSignup('unified')}
-                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-parchment hover:bg-vega-claret-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Explore Komplete
                     </Button>
@@ -106,7 +106,7 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Custom Automation Pipeline')}
-                        className="rounded-full px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-gilt hover:text-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-claret-bright hover:text-vega-claret-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-claret-bright"
                     >
                         Contact Sales
                     </Button>

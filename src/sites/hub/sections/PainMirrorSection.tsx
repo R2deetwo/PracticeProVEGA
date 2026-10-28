@@ -47,7 +47,7 @@ const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
 
 /** A small mono label used on artifact faces. */
 const FaceTag: React.FC<{ tone: 'bad' | 'good'; children: React.ReactNode }> = ({ tone, children }) => (
-    <span className={`font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] ${tone === 'bad' ? 'text-red-300/80' : 'text-emerald-300/90'}`}>
+    <span className={`font-mono text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.18em] ${tone === 'bad' ? 'text-red-200/95' : 'text-emerald-300/90'}`}>
         {children}
     </span>
 );
@@ -65,7 +65,7 @@ const WhatsAppBubble: React.FC<{ sender: string; time: string; body: string; att
                 </span>
             )}
         </div>
-        {tag && <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75">{tag}</span>}
+        {tag && <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-200/90">{tag}</span>}
     </div>
 );
 
@@ -105,7 +105,7 @@ const ShelfTag: React.FC<{ drug: string; count: string; shelf: string; found: st
                 ))}
             </span>
         </div>
-        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2">{found}</p>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-200/90 mt-2">{found}</p>
     </div>
 );
 
@@ -131,7 +131,7 @@ const FeeNote: React.FC<{ ref_: string; amount: string; state: string; stamp?: s
                 <span className="rotate-[-14deg] text-[13px] font-black uppercase tracking-[0.3em] text-red-600/25 border-2 border-red-600/25 rounded px-2 py-0.5">{stamp}</span>
             </span>
         </div>
-        {foot && <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2">{foot}</p>}
+        {foot && <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-200/90 mt-2">{foot}</p>}
     </div>
 );
 
@@ -152,7 +152,7 @@ const LaptopLate: React.FC<{ clock: string; due: string; doc: string }> = ({ clo
         </div>
         <div className="mt-2 flex items-center gap-2">
             <span className="rounded-full border border-red-400/50 bg-red-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-red-200">{clock}</span>
-            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75">{due}</span>
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-200/90">{due}</span>
         </div>
     </div>
 );
@@ -193,7 +193,7 @@ const PhoneLock: React.FC<{ who: string; time: string; line: string; foot?: stri
             <p className="font-mono text-[10px] font-bold text-slate-400">{time}</p>
             <p className="text-[11px] sm:text-xs font-bold text-slate-200 mt-1.5">{who}</p>
             <p className="text-[10px] sm:text-[11px] text-slate-400 leading-snug mt-0.5">{line}</p>
-            {foot && <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-red-300/75 mt-2">{foot}</p>}
+            {foot && <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-red-200/90 mt-2">{foot}</p>}
         </div>
     </div>
 );
@@ -206,7 +206,7 @@ const StaffTag: React.FC<{ name: string; status: string; knows: string[] }> = ({
                 <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/[0.05] text-[11px] font-bold text-slate-300" aria-hidden="true">S</span>
                 <span className="text-left">
                     <span className="block text-[11px] sm:text-xs font-bold text-slate-200 leading-tight">{name}</span>
-                    <span className="block text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.14em] text-red-300/75">{status}</span>
+                    <span className="block text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.14em] text-red-200/90">{status}</span>
                 </span>
             </div>
             <div className="mt-2 flex flex-wrap justify-center gap-1">
@@ -215,7 +215,7 @@ const StaffTag: React.FC<{ name: string; status: string; knows: string[] }> = ({
                 ))}
             </div>
         </div>
-        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-300/75 mt-2">today, everyone guesses</p>
+        <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.16em] text-red-200/90 mt-2">today, everyone guesses</p>
     </div>
 );
 

@@ -35,7 +35,7 @@ export const VegaScaleOfCharges: React.FC = () => (
     <section
         id="scale-of-charges"
         aria-labelledby="vega-scale-heading"
-        className="py-20 md:py-28 border-t border-white/10"
+        className="py-20 md:py-28 border-t border-vega-night/10"
         style={{ background: 'var(--color-paper)' }}
     >
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
@@ -64,14 +64,14 @@ export const VegaScaleOfCharges: React.FC = () => (
                     </p>
                     <h2
                         id="vega-scale-heading"
-                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6 text-vega-parchment"
+                        className="font-vega text-3xl md:text-4xl lg:text-5xl font-semibold leading-[1.12] tracking-[-0.01em] mb-6 text-vega-night"
                     >
                         Fees that follow the{' '}
                         <span className="font-vega-italic text-vega-gilt-bright">
                             Remuneration Order.
                         </span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-400">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-600">
                         When Vega bills a matter, every line item is computed on the Scale of
                         Charges under the Remuneration Order 2023 — the schedule your clients
                         and the profession expect to see. Track billable work, apply the right
