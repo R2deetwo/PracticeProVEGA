@@ -13419,3 +13419,114 @@ worse."
   2 due / 1 partial / 2 vacant), C4 default, C5 partial state renders
   (₦270,000 + Partial chip). Live VLM: SHIP — "sophisticated, warm, and
   highly legible… authoritative and approachable."
+
+## R39 — The practice at work + the estate, deepened (2026-10-29)
+
+Owner direction (voice feedback on the R38 state): Vega — "move the
+product mockup out of the hero, put real people there; the mockup I
+like goes into the Powered-by band in its proper form with the actual
+product beside it; the openable form demos should sit a little further
+down that band, not on the graphic; real people through the page (top,
+middle, bottom), product screens still present; two images in the
+firm-grade-secure band so nothing hangs empty." Atrium — "blue is
+prepaid (advance payment), never partial; vacant-unit events are gray,
+not warning colours; smaller info cards with more clickable options and
+dropdowns; the phone should look and behave like a real phone (camera
+pill where modern phones carry it, scrollable, tappable) and show which
+months were paid on time, which are due, how many are prepaid; the
+receipt band should show the app's own invoice — never 'Estate
+Receipt', never Sentry Pass on the resident's paper (that is the
+manager's add-on), no ₦48.6M demo-estate figures, no receipts-typed-
+by-hand; 'Paid' manifests as the receipt SENT to email/phone; pay-
+ahead is a first-class option; the Atrium logo iconography changes
+(the two products' logo typography must differ — verified: Space
+Grotesk vs Vega's Fraunces, already distinct)." App — "A1–A6/B1–B6
+unit numbering should be just a flick of a switch."
+
+- VEGA — THE PRACTICE AT WORK (R39): the hero's right column is a
+  cycling gallery of three real photographs of the practice (counsel +
+  associate review, the draft in chambers, the hearing attended) in the
+  cream exhibit chrome — crossfade 6s (reduced-motion holds frame one),
+  pagination dots, per-scene mono captions. THE EVENING EXCHANGE moves
+  verbatim into the Powered-by ALOA band beside the live ALOA capture
+  (the promise and the product on one spread), and LOWER in that band
+  sit three expandable PULLOUT demos on ui/Button + ui/Select: the
+  deadline computer (court select → defence due date computed with
+  proceduralRules.ts's own 42/30/14-day windows, anchored on the
+  chronology's 09 Nov service), the drafting studio (document select →
+  DraftPro caption block with the guardrail note), the 7·3·1 cadence
+  (hearing select → the three reminder dates). VegaSegments carries
+  the practitioner's portrait under the framing copy (people at top /
+  middle / bottom), and VegaCredentials carries TWO frames where the
+  single tall portrait hung — the file reviewed + chambers at dusk.
+- ATRIUM — COLOUR SEMANTICS (R39): PARTIAL moves to violet; PREPAID is
+  blue and only prepaid (grid tiles, legend swatches, chips, accents,
+  copy). Vacant-unit events (turnover cleaning, renovation quotes) read
+  NEUTRAL GRAY (.at-chip--neutral) — operations, not money trouble.
+- ATRIUM — THE LIVE ESTATE, DEEPENED (R39): filter chips (All / Paid /
+  Due / Partial / Prepaid / Overdue / Vacant, with counts) dim the grid
+  (opacity .is-dimmed, hover softens); the two giant stat figures
+  become compact dropdown-driven cards (collection rate by period,
+  occupancy by scope). The phone is a modern handset: time left,
+  Dynamic-Island camera pill centred with the lens inside, camera-in-
+  use green dot beside it, signal/wi-fi/battery right, bottom nav
+  rails, home indicator — and a SCROLLABLE portal body with tappable
+  Balance / Months / Notices tabs. Months is the resident's year,
+  month by month with status chips; A3 (Folake Adeyemi) demonstrates
+  prepaid: 2026 settled, Jan–Mar 2027 in hand, blue. The band's counts:
+  16 paid / 2 due / 1 partial / 1 prepaid / 2 overdue / 2 vacant.
+- ATRIUM — THE APP'S OWN INVOICE (R39): the receipt band re-renders as
+  the invoice the resident actually receives — Ashford Property
+  Managers Ltd. letterhead (the manager's paper, never Atrium's name,
+  never "Estate Receipt"), INV-APM-0147 (the invoiceHelpers.ts
+  INV-initials-sequence format), billed to Mrs. Folake Adeyemi, Unit
+  A3, line items rent + service charge ONLY (Sentry Pass removed — the
+  estate manager's add-on never bills the resident), per-line status
+  chips in the R39 colours, GTB transfer details, and the confirmed
+  payment manifesting as RECEIPT SENT — email + phone + portal (the
+  rubber stamp retired). Payment options On time / In part / Ahead are
+  tappable and re-render the invoice; "In part" shows the ₦120k-of-
+  ₦360k partial line + balance; "Ahead" adds the prepaid Q1 2027 line.
+  The ₦48.6M collected-YTD and receipts-typed-by-hand figures are gone.
+- ATRIUM — THE COIN OF THE COURTYARD (R39): new mark iconography — the
+  atrium itself cut from the emerald disc: square estate walls around a
+  central court, open at one controlled gate (south). Mass carries
+  16px, the void carries the meaning; VLM variant review picked this
+  geometry (A) over deeper-gate and wider-court cuts for 16px
+  legibility. favicon.svg rewritten; favicon-48.png + apple-touch-
+  icon.png regenerated (cairosvg). Wordmark check: Atrium = Space
+  Grotesk, Vega = Fraunces — already distinct, untouched.
+- APP — THE UNIT-NUMBERING SWITCH (R39): src/utils/unitNaming.ts —
+  'sequential' (Unit 1, 2, 3…) vs 'blocks' (A1–A6, B1–B6…, bijective
+  letters past Z, 6 per block by default). PropertyForm gains an
+  editable Unit Name / Number field per unit (A1, B14, Flat 3, Shop 2
+  all valid — the schema was already free-form end to end) plus a
+  Numbering select that re-labels every unit tab; Add Unit, auto-add
+  and the units-sync effect all generate under the active scheme;
+  block-style estates auto-detect on edit (isBlockStyleLabel).
+  SmartMatterModal gets the same Numbering select beside Total Units.
+  Both forms use the ui/Select + ui/Input primitives (ADR-0004).
+- Tests: websiteRepositioning re-pinned per the intentional moves (the
+  hero sells to real people — photographs, not a mockup; the evening
+  exchange lives in the Powered-by band beside the live capture; the
+  pullout demos pinned with HCCPR 2019) — file, old expectation, new
+  expectation and why documented in the test body. New suite
+  tests/unit/unitNaming.test.ts (6 cases: sequential, block wrap at 6,
+  letters past Z, custom per-block, negative guard, block-style
+  detection). Gates: tsc 127 (baseline held, zero new in touched
+  files), vitest 1281/1281 (1274 + 7), eslint 0 errors, ui-primitives
+  ratchet 2314 held (raw input count actually -1), build green (twice).
+- Visual QA (local dist, scripts/r39-visual-qa.cjs — the sites scroll
+  in an inner container, so the script scrolls that container and
+  stitches): desktop full pages both routes; band-level shots of the
+  Vega hero (photographs PASS), AI band (exchange + LIVE CAPTURE side
+  by side PASS), pullouts (deadline computer expanded with the 21 Dec
+  2026 readout PASS; drafting studio expansion PASS), segments
+  (portrait PASS), credentials (two frames PASS); Atrium estate
+  default/prepaid/months/vacant (all PASS — prepaid chip + "3 months of
+  2027 in hand", Months ledger with green Paid / blue Prepaid chips,
+  vacant notice in neutral gray), receipt ahead/part (letterhead,
+  INV-APM-0147, prepaid line blue, Receipt-sent strip PASS), logo zoom
+  (courtyard coin crisp, doubles as a stylized A). Mobile 390px:
+  scrollWidth 390 both routes (no overflow); estate + hero crops clean.
+  VLM verdicts: SHIP.
