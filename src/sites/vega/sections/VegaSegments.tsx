@@ -12,6 +12,12 @@ import { Button } from '../../../components/ui';
  * real library entries, and every capability row is grounded in the
  * shipped behaviour of that entry — no invented segments.
  *
+ * R39 (owner direction: "put real people through the middle of the page,
+ * not only at the bottom"): the panel's left column carries the
+ * practice's face — a portrait of counsel beneath the framing copy, in
+ * the page's cream exhibit chrome. The person the segments are named
+ * for, whichever desk she is running this week.
+ *
  * "The Warm Chambers" register (R26): LawPavilion's pill tab navigator —
  * the active entry is an orange PILL, the inactive entries are quiet
  * outline pills — with the panel below as a two-column spread: grotesk
@@ -81,6 +87,8 @@ const SEGMENTS: Segment[] = [
 export const VegaSegments: React.FC = () => {
     const [active, setActive] = useState(0);
     const seg = SEGMENTS[active];
+    // R39: cache-busted like every landing asset (VITE_BUILD_SHA).
+    const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
 
     return (
         <section
@@ -141,12 +149,45 @@ export const VegaSegments: React.FC = () => {
                     aria-labelledby={`vg-tab-${seg.key}`}
                     className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-start panel-in origin-top"
                 >
-                    {/* Left — the framing copy */}
+                    {/* Left — the framing copy, and the practice's face */}
                     <div className="lg:col-span-5">
                         <h3 className="font-vega text-2xl md:text-3xl font-semibold leading-[1.15] tracking-[-0.01em] text-vega-night mb-5">
                             {seg.title}
                         </h3>
-                        <p className="text-base leading-[1.75] text-slate-700">{seg.body}</p>
+                        <p className="text-base leading-[1.75] text-slate-700 mb-8">{seg.body}</p>
+
+                        {/* R39 — the practitioner behind the segment: a
+                            portrait in the cream exhibit chrome, the same
+                            treatment the hero's photographs carry. */}
+                        <figure>
+                            <div className="relative rounded-[16px] overflow-hidden border border-vega-night/12 shadow-[0_18px_36px_-20px_rgb(42_33_24/0.35)]">
+                                <img
+                                    src={`/assets/landing/people/persona-lawyer.jpg?v=${buildSha}`}
+                                    alt="Counsel in her chambers — the practitioner behind the practice area"
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="w-full h-[300px] sm:h-[340px] object-cover object-top"
+                                />
+                                {/* The espresso scrim — the hero's legibility
+                                    treatment, for the caption composed on the
+                                    photograph. */}
+                                <div
+                                    className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#22170F]/90 via-[#22170F]/40 to-transparent p-5 pt-16"
+                                    aria-hidden="true"
+                                />
+                                <div className="absolute inset-x-0 bottom-0 p-5">
+                                    <p className="font-mono text-2xs tracking-[0.25em] text-vega-claret-bright mb-1.5">
+                                        THE PRACTITIONER — {seg.tab.toUpperCase()}
+                                    </p>
+                                    <p className="font-vega text-lg text-vega-parchment leading-snug">
+                                        One workspace, whichever desk she runs.
+                                    </p>
+                                </div>
+                            </div>
+                            <figcaption className="font-mono text-2xs tracking-[0.18em] text-slate-600 mt-3.5 uppercase">
+                                The blueprints ship from the OnboardingWizard — the segments name real library entries
+                            </figcaption>
+                        </figure>
                     </div>
 
                     {/* Right — the capability rows */}

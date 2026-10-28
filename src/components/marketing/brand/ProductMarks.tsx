@@ -94,11 +94,16 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Coin of the House (R28): a solid emerald disc with a
- *  Monopoly-style house cut through its heart — pitched roof
- *  overhanging square walls — emerald on the estate's cream: the live
- *  /atrium page's own register. Twin of the Vega coin — the pair read
- *  as a set: the star is aspiration, the house is the estate. */
+/** Atrium — the Coin of the Courtyard (R39): a solid emerald disc with
+ *  THE ATRIUM cut through its heart — the courtyard plan: square estate
+ *  walls around a central court, open at one controlled entrance (the
+ *  gate, south). The name drawn as geometry — the product IS the
+ *  well-kept estate around a common heart, and everything that enters
+ *  comes through one gate (access control's own echo). Emerald on the
+ *  estate's cream: the live /atrium page's own register. Sibling to the
+ *  Vega coin: the star is aspiration, the courtyard is the estate.
+ *  (R28's Monopoly house retired by owner direction: "change the
+ *  Atrium iconography.") */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -126,18 +131,19 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                 stroke="rgb(var(--color-atrium-jade) / 0.4)"
                 strokeWidth="1.5"
             />
-            {/* The Coin of the House — twin of the Vega coin: one solid
-                emerald disc (the estate) with a Monopoly-style house cut
-                through its heart in TRUE negative space (evenodd) — a
-                shallow pitched roof overhanging square walls with a
-                chimney notch on the right slope (VLM round 2: the steep
-                first cut read as an arrow at 16px; this geometry locks
-                the house read). Mass carries 16px; the void carries
+            {/* The Coin of the Courtyard — twin of the Vega coin: one solid
+                emerald disc (the estate) with the ATRIUM cut through it in
+                TRUE negative space (evenodd): the square wall, the central
+                court, and the south gate — the single controlled entrance,
+                its flanking posts reading as the gatehouse. The void is one
+                enclosed shape plus the gate breach, so nothing clogs at
+                16px on cheap displays. Mass carries 16px; the void carries
                 the meaning; the pair read as a set. */}
             <path
                 fillRule="evenodd"
                 d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z
-                   M24 15.5 L27 17.6 L27 15.9 L30.5 15.9 L30.5 20.45 L34.5 23.5 L31 23.5 L31 34.5 L17 34.5 L17 23.5 L13.5 23.5 Z"
+                   M15 15 H33 V33 H15 Z
+                   M20.5 20.5 H27.5 V33.5 H20.5 Z"
                 fill={`url(#atmk${uid})`}
             />
         </svg>

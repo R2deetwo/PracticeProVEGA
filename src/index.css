@@ -2588,7 +2588,7 @@ body.on-vega-page .cookie-copy {
 /* ── Occupancy grid (the portfolio as a warm grid of units) ─────────────── */
 .at-unit {
   border-radius: 6px;
-  transition: transform 400ms var(--ease-out), box-shadow 200ms ease;
+  transition: transform 400ms var(--ease-out), box-shadow 200ms ease, opacity 200ms ease;
 }
 .at-unit--occupied,
 .at-unit--paid {
@@ -2596,17 +2596,21 @@ body.on-vega-page .cookie-copy {
   border: 1px solid rgb(var(--color-atrium-emerald) / 0.22);
   color: rgb(4 120 85);
 }
-/* R38: the app's own colour coding, mirrored on the site — amber DUE,
-   blue PARTIAL, rose OVERDUE (the unit ledger's language), clay dashed
-   VACANT (the estate's own register). */
+/* R39 (owner direction): blue is RESERVED for prepaid — advance payment.
+   Partial moves to violet so the two states can never be confused. */
 .at-unit--due {
   background: rgb(245 158 11 / 0.10);
   border: 1px solid rgb(245 158 11 / 0.45);
   color: rgb(180 83 9);
 }
 .at-unit--partial {
+  background: rgb(124 58 237 / 0.08);
+  border: 1px solid rgb(124 58 237 / 0.35);
+  color: rgb(109 40 217);
+}
+.at-unit--prepaid {
   background: rgb(37 99 235 / 0.08);
-  border: 1px solid rgb(37 99 235 / 0.35);
+  border: 1px solid rgb(37 99 235 / 0.40);
   color: rgb(29 78 216);
 }
 .at-unit--overdue {
@@ -2633,8 +2637,18 @@ body.on-vega-page .cookie-copy {
     0 0 0 2px var(--color-paper, #FAF7F2),
     0 0 0 4px rgb(var(--color-clay) / 0.7);
 }
+/* R39: filter dim — units outside the active filter recede (owner: the
+   grid should feel like the app's monitor, where a filter focuses the
+   eye). Hover softens the dim so exploration stays inviting. */
+.at-unit.is-dimmed {
+  opacity: 0.28;
+}
+@media (hover: hover) {
+  .at-unit:hover { transform: translateY(-2px); }
+  .at-unit.is-dimmed:hover { opacity: 0.55; }
+}
 
-/* The legend swatches — the same five states, at 10px. */
+/* The legend swatches — the same six states, at 10px. */
 .at-swatch {
   display: inline-block;
   width: 10px;
@@ -2650,6 +2664,10 @@ body.on-vega-page .cookie-copy {
   border: 1px solid rgb(245 158 11 / 0.6);
 }
 .at-swatch--partial {
+  background: rgb(124 58 237 / 0.12);
+  border: 1px solid rgb(124 58 237 / 0.5);
+}
+.at-swatch--prepaid {
   background: rgb(37 99 235 / 0.12);
   border: 1px solid rgb(37 99 235 / 0.5);
 }
@@ -2664,22 +2682,61 @@ body.on-vega-page .cookie-copy {
 
 /* ── Residents' portal phone mockup ─────────────────────────────────────── */
 .at-phone {
-  border-radius: 24px;            /* the 3xl hero-card radius */
-  background: rgb(30 35 44);
-  padding: 10px;
+  border-radius: 36px;            /* the modern-handset radius */
+  background: rgb(18 22 28);      /* near-black bezel */
+  padding: 9px;
   box-shadow:
     0 1px 3px 0 rgb(75 50 35 / 0.10),
     0 18px 30px -8px rgb(75 50 35 / 0.22);
 }
 .at-phone__screen {
-  border-radius: 16px;
+  border-radius: 28px;
   background: var(--color-paper);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+/* R39: the scrollable portal body - a real scroll region inside the
+   mockup (owner: "make it feel like a real phone - scrollable, with
+   menus you can tap"). Slim warm scrollbar; momentum carries on touch. */
+.at-phone__scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-clay) / 0.35) transparent;
+}
+.at-phone__scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.at-phone__scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--color-clay) / 0.35);
+  border-radius: 999px;
 }
 .at-phone__btn {
   border-radius: 6px;
   background: rgb(var(--color-atrium-emerald));
   color: #fff;
+}
+/* The Dynamic Island - the modern handset's centered camera pill
+   (owner: "if the black pill is the camera, place it where a modern
+   phone carries it"). */
+.at-phone__island {
+  width: 74px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgb(8 10 13);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-right: 8px;
+}
+/* Neutral event chip - vacant-unit events (turnover cleans, renovation
+   quotes) are OPERATIONS, not money trouble: they read slate/gray, never
+   the amber/rose of the payment states (owner direction R39). */
+.at-chip--neutral {
+  background: rgb(100 116 139 / 0.07);
+  border: 1px solid rgb(100 116 139 / 0.22);
 }
 
 /* ── Global compliance bars while on /atrium only ────────────────────────

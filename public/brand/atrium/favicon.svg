@@ -1,17 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Atrium — the Coin of the House (R28, owner direction:
-       "I don't like the Roman arch — I think we can have a Monopoly
-       style house there instead"). Keeps the coin formula the owner
-       loved on Vega (mass carries 16px, the void carries the meaning)
-       and cuts THE HOUSE through the heart of the emerald disc: a
-       Monopoly-style silhouette — pitched roof overhanging square
-       walls, the roofline reading instantly as property/home. The
-       house is what Atrium manages; the coin is the estate it sits
-       on. Sibling to the Vega star: the star is aspiration, the house
-       is the estate. VLM round 2: the first cut's steep roof read as
-       an arrow at 16px — the shallower pitch, wider body and the
-       chimney notch on the right slope lock the house read. Emerald
-       on the estate's cream, the register of the live /atrium page. -->
+  <!-- PracticePro Atrium — the Coin of the Courtyard (R39, owner direction:
+       "change the Atrium iconography"). Keeps the coin formula the owner
+       loved on Vega (mass carries 16px, the void carries the meaning) and
+       cuts THE ATRIUM through the heart of the emerald disc: the courtyard
+       plan — square estate walls around a central court, open at one
+       controlled entrance (the gate, south, its flanking posts reading as
+       the gatehouse). The name drawn as geometry: the product IS the
+       well-kept estate around a common heart, and everything that enters
+       comes through one gate (access control's own echo). Sibling to the
+       Vega star: the star is aspiration, the courtyard is the estate.
+       Emerald on the estate's cream, the register of the live /atrium
+       page. -->
   <defs>
     <linearGradient id="at" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0C7A57"/>
@@ -20,5 +19,5 @@
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M24 15.5 L27 17.6 L27 15.9 L30.5 15.9 L30.5 20.45 L34.5 23.5 L31 23.5 L31 34.5 L17 34.5 L17 23.5 L13.5 23.5 Z" fill="url(#at)"/>
+  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M15 15 H33 V33 H15 Z M20.5 20.5 H27.5 V33.5 H20.5 Z" fill="url(#at)"/>
 </svg>

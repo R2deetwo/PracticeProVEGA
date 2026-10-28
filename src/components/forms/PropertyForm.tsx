@@ -25,9 +25,11 @@ import {
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { Select, Input } from '../ui';
 import { OnboardUnitLedgerModal } from '../modals/OnboardUnitLedgerModal';
 import { ServiceChargePeriod } from '../../types';
 import { matchResidentContact, planContactSync } from '../../utils/residentContactSync';
+import { unitLabelForIndex, isBlockStyleLabel, type UnitNamingScheme } from '../../utils/unitNaming';
 
 // ─── AccordionSection (MODULE-LEVEL — outside PropertyForm) ──────────
 // CRITICAL: This component MUST be defined outside the PropertyForm render
@@ -182,6 +184,15 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [vmsEnabled, setVmsEnabled] = useState(propertyToEdit?.automationSettings?.vmsEnabled ?? true);
     const [activeUnitIndex, setActiveUnitIndex] = useState(0);
     const [autoSyncUnits, setAutoSyncUnits] = useState(true);
+    // R39 — the unit-numbering switch (owner: "A1–A6 / B1–B6 … should be
+    // just a flick of a switch"). Auto-detects an estate being edited
+    // that already runs block-style labels; new units and a re-label of
+    // the tabs follow the selected scheme.
+    const [unitNaming, setUnitNaming] = useState<UnitNamingScheme>(() => {
+        const first = (propertyToEdit as any)?.rentalDetails?.unitName
+            || (propertyToEdit as any)?.units?.[0]?.unitName;
+        return isBlockStyleLabel(first) ? 'blocks' : 'sequential';
+    });
     const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
     const formTouched = React.useRef(false);
 
@@ -308,10 +319,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     // Runs once on mount after unitsData is initialized.
     useEffect(() => {
         if (!autoAddUnit) return;
-        const newUnitNum = unitsData.length + 1;
+        const newUnitNum = unitsData.length;
         const newUnit: UnitRentalInput = {
             id: `unit-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-            unitName: `Unit ${newUnitNum}`,
+            unitName: unitLabelForIndex(newUnitNum, unitNaming),
             unitDescription: '',
             rentAmount: 0,
             rentFrequency: 'Annually',
@@ -405,7 +416,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 for (let i = prev.length; i < numberOfUnits; i++) {
                     added.push({
                         id: uuidv4(),
-                        unitName: `Unit ${i + 1}`,
+                        unitName: unitLabelForIndex(i, unitNaming),
                         unitDescription: '',
                         rentAmount: 0,
                         rentFrequency: 'Monthly' as const,
@@ -442,7 +453,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 return prev.slice(0, numberOfUnits);
             }
         });
-    }, [numberOfUnits]);
+        // R39: unitNaming in deps so units added AFTER a scheme flip carry
+        // the new labels (the effect no-ops when lengths already match).
+    }, [numberOfUnits, unitNaming]);
 
     // Dispute Specifics
     const [caseNumber, setCaseNumber] = useState(propertyToEdit?.disputeDetails?.caseNumber || '');
@@ -463,6 +476,16 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const isEditing = !!propertyToEdit;
+
+    // R39 — the numbering switch flipped: re-label every unit tab under
+    // the chosen scheme. Immediate and visible in the tabs above; the
+    // form is not saved until submit, so an accidental flip is undone by
+    // flipping back (or cancelling the form).
+    const applyNamingScheme = (scheme: UnitNamingScheme) => {
+        setUnitNaming(scheme);
+        setUnitsData(prev => prev.map((u, i) => ({ ...u, unitName: unitLabelForIndex(i, scheme) })));
+        formTouched.current = true;
+    };
 
     // Generic unit update helper with auto lease-end calculation and percentage calculation
     const updateUnit = (index: number, field: keyof UnitRentalInput, value: any) => {
@@ -1560,10 +1583,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <button
                                 type="button"
                                 onClick={() => {
-                                    const newUnitNum = unitsData.length + 1;
+                                    const newUnitNum = unitsData.length;
                                     const newUnit: UnitRentalInput = {
                                         id: `unit-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-                                        unitName: `Unit ${newUnitNum}`,
+                                        unitName: unitLabelForIndex(newUnitNum, unitNaming),
                                         unitDescription: '',
                                         rentAmount: 0,
                                         rentFrequency: 'Annually',
@@ -1605,6 +1628,28 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             >
                                 <PlusIcon className="w-3 h-3" /> Add Unit
                             </button>
+
+                            {/* R39 — the unit-numbering switch (owner: “A1–A6 /
+                                B1–B6 … should be just a flick of a switch”):
+                                flip the scheme, every tab re-labels; new units
+                                follow it. Unit names stay editable one by one
+                                in the field below. */}
+                            <div className="flex items-center gap-1.5 ml-auto pl-2">
+                                <span className="text-3xs font-black uppercase tracking-widest text-slate-400 dark:text-zinc-500">Numbering</span>
+                                <div className="w-[132px]">
+                                    <Select
+                                        styleVariant="bare"
+                                        selectClassName="w-full rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 py-1 text-xs font-bold text-slate-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                                        aria-label="Unit numbering scheme"
+                                        value={unitNaming}
+                                        onChange={(e) => applyNamingScheme(e.target.value as UnitNamingScheme)}
+                                        options={[
+                                            { value: 'sequential', label: 'Unit 1, 2, 3…' },
+                                            { value: 'blocks', label: 'A1–A6, B1–B6…' },
+                                        ]}
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {unitsData.length > 1 && (
@@ -1624,6 +1669,24 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         )}
 
                         <div className="space-y-3 sm:space-y-4 pt-1 animate-fade-in" key={unitsData[activeUnitIndex]?.id || activeUnitIndex}>
+                            {/* R39 — the unit's own name/number, editable at last
+                                (owner: letters + numbers like A1 / B14 "should be
+                                just a flick of a switch"). Drives the tab label, the
+                                ledgers, the residents' bills and the portals. */}
+                            <div className="space-y-2 group">
+                                <label className={labelClass}>Unit Name / Number</label>
+                                <Input
+                                    autoComplete="off"
+                                    data-lpignore="true"
+                                    type="text"
+                                    styleVariant="bare"
+                                    inputClassName={commonInputClass}
+                                    value={unitsData[activeUnitIndex].unitName || ''}
+                                    onChange={e => updateUnit(activeUnitIndex, 'unitName', e.target.value)}
+                                    placeholder="e.g. A1, B14, Flat 3, Shop 2"
+                                />
+                                <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Letters and numbers both welcome — this label is what the ledger, the bills and the resident&rsquo;s portal show. Prefer block numbering? Use the Numbering switch above.</p>
+                            </div>
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Unit Description <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(structural notes — not the unit number)</span></label>
                                 <input autoComplete="off" data-lpignore="true"
@@ -1633,7 +1696,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     className={commonInputClass}
                                     placeholder="e.g. Ground Floor Corner Unit with Terrace"
                                 />
-                                <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Structural features or notes (e.g. "Penthouse Suite", "3-Bedroom with BQ"). The unit tab label ({unitsData[activeUnitIndex].unitName}) is separate and won't change.</p>
+                                <p className="text-3xs text-slate-400 dark:text-zinc-500 px-1">Structural features or notes (e.g. "Penthouse Suite", "3-Bedroom with BQ"). The unit&rsquo;s name/number is set in the field above.</p>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 {/* BRIEF #2: Management-Only Unit Validation

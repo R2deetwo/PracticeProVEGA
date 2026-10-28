@@ -16,6 +16,8 @@ import {
     MatterProcessConfig,
 } from '../../config/matterProcessConfig';
 import { v4 as uuidv4 } from 'uuid';
+import { unitLabelForIndex, type UnitNamingScheme } from '../../utils/unitNaming';
+import { Select } from '../ui';
 import {
     autoFormatSuitTitle,
     formatNumberWithCommas,
@@ -220,6 +222,9 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
 
     // Multi-unit support
     const [numberOfUnits, setNumberOfUnits]       = useState(1);
+    // R39 — the unit-numbering switch, same as PropertyForm: units generated
+    // after a flip carry the scheme's labels; each unit name stays editable.
+    const [unitNaming, setUnitNaming] = useState<UnitNamingScheme>('sequential');
     const [activeUnitIndex, setActiveUnitIndex]   = useState(0);
     const [unitsData, setUnitsData] = useState<RealEstateUnit[]>([{
         id: uuidv4(),
@@ -240,7 +245,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 for (let i = prev.length; i < numberOfUnits; i++) {
                     added.push({
                         id: uuidv4(),
-                        unitName: `Unit ${i + 1}`,
+                        unitName: unitLabelForIndex(i, unitNaming),
                         rentAmount: 0,
                         rentFrequency: 'Annually',
                         leaseStart: '',
@@ -253,7 +258,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                 return prev.slice(0, numberOfUnits);
             }
         });
-    }, [numberOfUnits]);
+    }, [numberOfUnits, unitNaming]);
 
     // Auto-calculate Percentage Fee
     React.useEffect(() => {
@@ -784,6 +789,27 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                                                 value={numberOfUnits}
                                                 onChange={e => setNumberOfUnits(Math.max(1, parseInt(e.target.value) || 1))}
                                                 placeholder="1"
+                                            />
+                                        </div>
+                                        <div>
+                                            {/* R39 — the numbering switch: same options as the
+                                                full PropertyForm; flips the labels of every unit
+                                                tab below (each stays editable inline). */}
+                                            <label className={lbl}>Unit Numbering</label>
+                                            <Select
+                                                styleVariant="bare"
+                                                selectClassName={inp}
+                                                aria-label="Unit numbering scheme"
+                                                value={unitNaming}
+                                                onChange={(e) => {
+                                                    const scheme = e.target.value as UnitNamingScheme;
+                                                    setUnitNaming(scheme);
+                                                    setUnitsData(prev => prev.map((u, i) => ({ ...u, unitName: unitLabelForIndex(i, scheme) })));
+                                                }}
+                                                options={[
+                                                    { value: 'sequential', label: 'Unit 1, 2, 3…' },
+                                                    { value: 'blocks', label: 'A1–A6, B1–B6…' },
+                                                ]}
                                             />
                                         </div>
                                     </div>

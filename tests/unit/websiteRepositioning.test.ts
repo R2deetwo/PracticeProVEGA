@@ -101,6 +101,7 @@ const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 // Vega Pass A — the page-specific rebuild files under marketing/vega/.
 const vegaHero = read("src", "sites", "vega", "sections", "VegaHero.tsx");
+const vegaAIDrafting = read("src", "sites", "vega", "sections", "VegaAIDrafting.tsx");
 const vegaSuite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
 const vegaProcedure = read("src", "sites", "vega", "sections", "VegaProcedure.tsx");
 const vegaCredentials = read("src", "sites", "vega", "sections", "VegaCredentials.tsx");
@@ -750,14 +751,11 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     }
   });
 
-  it("the hero is conversation-forward — the evening exchange, not a filing", () => {
-    // R27 (owner direction: "a document as the landing page is IMPERSONAL"):
-    // the h1 stays parchment at law-report scale with ONE gilt-italic accent
-    // phrase — a SOLID colour span. (The ban is on gradient TEXT:
-    // bg-clip-text / transparent glyphs.) The right column is a personal
-    // chat exchange — the same practitioner the exhibit used to belong to,
-    // her file carried conversationally by ALOA, closing on the promise
-    // the document could never make.
+  it("the hero sells to real people — photographs of the practice, not a product mockup (R39)", () => {
+    // R39 (owner direction: "take the mockup out of the hero — put real
+    // people there; the mockup I like goes down into the Powered-by
+    // band"): the right column is a cycling gallery of the practice at
+    // work; the evening exchange moved to VegaAIDrafting (pinned below).
     expect(vegaHero).not.toContain("bg-clip-text");
     expect(vegaHero).not.toContain("text-transparent");
     expect(vegaHero).not.toContain("font-vega-italic font-medium text-vega-amber-deep");
@@ -767,14 +765,17 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).not.toContain("vg-pleading");
     expect(vegaHero).not.toContain("vg-doc__line");
     expect(vegaHero).not.toContain("In the High Court of Lagos State");
-    // The exchange: thread header, the suit, the drafting claim, the
-    // court-rule deadline, and the personal promise.
-    expect(vegaHero).toContain("ALOA · Online");
-    expect(vegaHero).toContain("IKD/1287/2026 — Okafor v Meridian Logistics");
-    expect(vegaHero).toContain("Motion on Notice");
-    expect(vegaHero).toContain("two clear days before hearing");
-    expect(vegaHero).toContain("Nothing. You&rsquo;re home for dinner by 6:15.");
-    expect(vegaHero).toContain("THE EVENING EXCHANGE — CHIOMA OKAFOR");
+    // R39: the product mockup is GONE from the hero too — no chat rows,
+    // no thread header. Real people instead.
+    expect(vegaHero).not.toContain("ChatRow");
+    expect(vegaHero).not.toContain("ALOA · Online");
+    // The gallery: three real photographs of the practice at work,
+    // cycling with pagination dots.
+    expect(vegaHero).toContain("/assets/landing/vega-hero-1.jpg");
+    expect(vegaHero).toContain("/assets/landing/vega-hero-2.jpg");
+    expect(vegaHero).toContain("/assets/landing/vega-hero-3.jpg");
+    expect(vegaHero).toContain("The practice, at work");
+    expect(vegaHero).toContain("View scene");
     // The title-page devices: serif display + the gilt accent + the thin
     // gilt rule + the night atmosphere.
     expect(vegaHero).toContain("font-vega");
@@ -782,6 +783,30 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).toContain("h-px w-24 bg-vega-gilt");
     expect(vegaHero).toContain("vg-hero-bg");
     expect(vegaHero).toContain("vg-grain");
+  });
+
+  it("the evening exchange lives on in the Powered-by band, beside the live ALOA capture (R39)", () => {
+    // R39: the graphic the owner likes, kept in its formal form — moved
+    // from the hero into VegaAIDrafting, where it sits beside the live
+    // workspace capture it always described.
+    expect(vegaAIDrafting).toContain("ALOA · Online");
+    expect(vegaAIDrafting).toContain("IKD/1287/2026 — Okafor v Meridian Logistics");
+    expect(vegaAIDrafting).toContain("Motion on Notice");
+    expect(vegaAIDrafting).toContain("two clear days before hearing");
+    expect(vegaAIDrafting).toContain("Nothing. You&rsquo;re home for dinner by 6:15.");
+    expect(vegaAIDrafting).toContain("THE EVENING EXCHANGE — CHIOMA OKAFOR");
+    // The live capture stays beside it.
+    expect(vegaAIDrafting).toContain("/assets/landing/app/aloa.jpg");
+    expect(vegaAIDrafting).toContain("LIVE CAPTURE");
+    // The pullout demos — openable working forms, placed LOWER in the
+    // band (owner: "the demos should appear a little further down, not
+    // on the graphic"): the deadline computer, the drafting studio,
+    // the 7·3·1 cadence, on the shared ui primitives.
+    expect(vegaAIDrafting).toContain("The Instruments, in Miniature");
+    expect(vegaAIDrafting).toContain("The deadline computer");
+    expect(vegaAIDrafting).toContain("The drafting studio");
+    expect(vegaAIDrafting).toContain("7 · 3 · 1 cadence");
+    expect(vegaAIDrafting).toContain("HCCPR 2019");
   });
 
   it("the stat-chip row is replaced by a mono index line", () => {
