@@ -13408,3 +13408,14 @@ worse."
   Atrium family pattern the owner is happy with).
 - Deploy (R38): see below — promote workflow dispatched with the sha
   read from git; verified via /version.json.
+  Deploy (R38) result: f40143fa pushed; CI Tests + Staging + APK all
+  green; promote run 40692616863 dispatched with the sha read from git —
+  quality gate ✓, Vercel + Convex production ✓, Cloudflare mirror ✗ on
+  the standing expired CLOUDFLARE_API_TOKEN (owner action, unchanged
+  since R33). Live-verified: version.json healthy at f40143fa; live DOM
+  serves the cream masthead (rgba(251,246,236,0.9)), #suite present,
+  #features and the "runs in production" line gone, mobile scrollWidth
+  390 (no overflow). Live Atrium estate: 24 unit buttons (2 overdue /
+  2 due / 1 partial / 2 vacant), C4 default, C5 partial state renders
+  (₦270,000 + Partial chip). Live VLM: SHIP — "sophisticated, warm, and
+  highly legible… authoritative and approachable."
