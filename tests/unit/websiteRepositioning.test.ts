@@ -570,12 +570,12 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     expect(hubIndex).toContain('<PainMirrorSection onContactSales');
   });
 
-  it("R35: the flip shows their system improved — the band names no products", () => {
-    // Owner (R35): "when the cards flip we are talking about vega… we
-    // are supposed to show how their system will be improved and don't
-    // necessarily have to mention our existing products." The empathy
-    // band may not pitch the catalogue — the visitor's own system,
-    // improved, is the whole back half.
+  it("R36: four worlds, bespoke sighs — the band names no products", () => {
+    // Owner (R36): every back repeated the same "rebuilt" stamp and the
+    // cast was only lawyers and property managers, which "boxes us in".
+    // The band now speaks to four real operators — e-commerce,
+    // pharmacy, hospitality and logistics — and every back carries its
+    // own sigh of relief, in the operator's voice.
     expect(hubPainMirror).not.toContain("On Vega");
     expect(hubPainMirror).not.toContain("On Atrium");
     expect(hubPainMirror).not.toContain("ALOA");
@@ -584,22 +584,38 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     expect(hubPainMirror).not.toContain("AtriumMark");
     expect(hubPainMirror).not.toContain("See how Vega");
     expect(hubPainMirror).not.toContain("See how Atrium");
-    // The back of every card is the visitor's own system, rebuilt —
-    // and the aria narrates it as a system built for that person.
-    expect(hubPainMirror).toContain("Your practice, rebuilt");
-    expect(hubPainMirror).toContain("Your portfolio, rebuilt");
-    expect(hubPainMirror).toContain("Your business, rebuilt");
-    expect(hubPainMirror).toContain("a system built for her practice");
-    expect(hubPainMirror).toContain("a system built for his portfolio");
-    expect(hubPainMirror).toContain("a system built for her business");
-    // The pivot speaks as the builder under the PracticePro mark.
-    expect(hubPainMirror).toContain("the system we build for practices like hers");
-    expect(hubPainMirror).toContain("the system we build for portfolios like his");
-    expect(hubPainMirror).toContain("See the system we build for practices");
-    expect(hubPainMirror).toContain("See the system we build for portfolios");
-    // The routes still route — the DESTINATION names the product.
-    expect(hubPainMirror).toContain("'/vega'");
-    expect(hubPainMirror).toContain("'/atrium'");
+    // The repeated back stamp is dead — every back is its own headline.
+    expect(hubPainMirror).not.toContain("backTag");
+    expect(hubPainMirror).not.toContain(", rebuilt");
+    // Four worlds the visitor can declare from the tabs.
+    expect(hubPainMirror).toContain("I run an e-commerce brand");
+    expect(hubPainMirror).toContain("I run a pharmacy / medical retail");
+    expect(hubPainMirror).toContain("I manage a boutique hotel / short-let");
+    expect(hubPainMirror).toContain("I run a logistics / dispatch service");
+    expect(hubPainMirror).toContain("Ada Eze");
+    expect(hubPainMirror).toContain("Dr. Emeka Okoro");
+    expect(hubPainMirror).toContain("Chuka Obi");
+    expect(hubPainMirror).toContain("Tunde Baku");
+    // Every back is a bespoke sigh of relief — one per moment, never a
+    // shared stamp — plus one line of what THEIR system now does.
+    expect(hubPainMirror).toContain("Nothing important lives in the scroll.");
+    expect(hubPainMirror).toContain("The shelf counts itself.");
+    expect(hubPainMirror).toContain("One calendar. One truth.");
+    expect(hubPainMirror).toContain("Tracking without the phone call.");
+    // The aria narrates each world's system in that world's terms.
+    expect(hubPainMirror).toContain("On a system built for her business");
+    expect(hubPainMirror).toContain("On a system built for his pharmacy");
+    expect(hubPainMirror).toContain("On a system built for his flats");
+    expect(hubPainMirror).toContain("On a system built for his hub");
+    // The pivot speaks as the builder for all four worlds.
+    expect(hubPainMirror).toContain("the system we build for brands like hers");
+    expect(hubPainMirror).toContain("the system we build for pharmacies like his");
+    expect(hubPainMirror).toContain("the system we build for hosts like him");
+    expect(hubPainMirror).toContain("the system we build for hubs like his");
+    // One CTA for every world — the empathy band routes no catalogues.
+    expect(hubPainMirror).toContain("Tell us what runs your business today");
+    expect(hubPainMirror).not.toContain("'/vega'");
+    expect(hubPainMirror).not.toContain("'/atrium'");
   });
 
   it("the descent: shapes land in their cards, the Iso watermarks return (W14, restored)", () => {
