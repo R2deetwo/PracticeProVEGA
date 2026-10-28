@@ -83,7 +83,7 @@ export const VegaRecord: React.FC = () => (
                         {/* The instrument (lazy three.js; SVG fallback beneath) */}
                         <VegaScalesScene className="absolute inset-[6%] rounded-2xl" />
                     </div>
-                    <p className="font-mono text-2xs tracking-[0.2em] text-slate-500 mt-2 text-center">
+                    <p className="font-mono text-2xs tracking-[0.2em] text-slate-600 mt-2 text-center">
                         THE BALANCE — THE PRACTICE&rsquo;S OWN INSTRUMENT, HELD IN EQUILIBRIUM
                     </p>
                 </div>
@@ -101,7 +101,7 @@ export const VegaRecord: React.FC = () => (
                         Trusted on the record,{' '}
                         <span className="font-vega-italic text-vega-gilt-bright">not on vanity.</span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-10 md:mb-12">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-700 max-w-2xl mb-10 md:mb-12">
                         Every figure below is verifiable in the running product or the
                         platform&rsquo;s published terms. We do not publish counts we cannot
                         defend in a courtroom.
@@ -117,13 +117,13 @@ export const VegaRecord: React.FC = () => (
                                     i % 2 === 0 ? 'sm:border-r' : ''
                                 } ${i >= 2 ? 'border-b-0' : 'lg:border-b-0'} border-vega-night/10`}
                             >
-                                <p className="vg-figure-outline font-vega text-4xl md:text-[2.6rem] font-semibold tracking-tight leading-none mb-4 whitespace-nowrap">
+                                <p className="font-vega text-4xl md:text-[2.6rem] font-semibold tracking-tight leading-none mb-4 whitespace-nowrap text-vega-night">
                                     {r.figure}
                                 </p>
-                                <p className="font-mono text-2xs tracking-[0.18em] text-vega-night/90 mb-3">
+                                <p className="font-mono text-2xs tracking-[0.18em] text-vega-gilt-bright mb-3">
                                     {r.label}
                                 </p>
-                                <p className="text-sm leading-[1.7] text-slate-600">{r.note}</p>
+                                <p className="text-sm leading-[1.7] text-slate-700">{r.note}</p>
                             </div>
                         ))}
                     </div>

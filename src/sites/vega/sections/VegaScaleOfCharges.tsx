@@ -71,13 +71,13 @@ export const VegaScaleOfCharges: React.FC = () => (
                             Remuneration Order.
                         </span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-600">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-700">
                         When Vega bills a matter, every line item is computed on the Scale of
                         Charges under the Remuneration Order 2023 — the schedule your clients
                         and the profession expect to see. Track billable work, apply the right
                         rates, and let the fee note build itself.
                     </p>
-                    <p className="font-mono text-2xs tracking-widest text-slate-500 mt-8">
+                    <p className="font-mono text-2xs tracking-widest text-slate-600 mt-8">
                         EXHIBIT — FEE NOTE COMPUTED ON THE SCALE OF CHARGES (REMUNERATION ORDER 2023)
                     </p>
                 </div>

@@ -2085,19 +2085,19 @@ span[data-type="legal-placeholder"] {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VEGA PRODUCT PAGE — R37 "The Daylight Chambers" (.theme-vega scope)
+   VEGA PRODUCT PAGE — R38 "The Reading Room" (.theme-vega scope)
    ─────────────────────────────────────────────────────────────────────────
-   Owner direction (R37): a NEW colour scheme — the law library by DAY.
-   The page ground flips to warm ivory with espresso ink; ONE restrained
-   accent (notary claret, the seals' own colour) carries every rule,
-   numeral, ring and CTA fill. The espresso side survives in measured
-   interludes — the masthead chrome, the ledger band, the two ink bands
-   and the deep footer — so the drama of the old register is rationed,
-   not lost. Display type is Fraunces throughout; the exhibits stay
-   bright paper. Every rule below is scoped under .theme-vega (applied to
-   the landing root ONLY while the /vega product page is shown) so the
-   hub, /atrium and every other surface render pixel-identically. No
-   global rule in this block may ever match an element outside a Vega page.
+   Owner direction (R38): "I wanted a redo of the page, not just changing
+   the colours." The R37 palette survives (warm ivory ground, espresso
+   ink, ONE restrained claret accent); the STRUCTURE is rebuilt around
+   it. Every band runs on the daylight register, the chrome is cream
+   glass, and the espresso register survives only as TYPE and the deep
+   footer. Display type is Fraunces throughout; the exhibits are live
+   captures in quiet cream sheets. Every rule below is scoped under
+   .theme-vega (applied to the landing root ONLY while the /vega product
+   page is shown) so the hub, /atrium and every other surface render
+   pixel-identically. No global rule in this block may ever match an
+   element outside a Vega page.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Scope: the espresso remap (R26) ─────────────────────────────────────
@@ -2172,16 +2172,10 @@ span[data-type="legal-placeholder"] {
   transform: none;
 }
 
-/* ── The Record figures (R26) — LawPavilion's outlined stats. Big numerals
-   drawn as burnt-orange OUTLINES on the espresso ground; the @supports
-   fallback paints them solid orange where text-stroke is unavailable. */
-.theme-vega .vg-figure-outline {
-  color: transparent;
-  -webkit-text-stroke: 2.5px rgb(var(--color-vega-gilt));
-}
-@supports not (-webkit-text-stroke: 1px black) {
-  .theme-vega .vg-figure-outline { color: rgb(var(--color-vega-gilt)); }
-}
+/* ── The Record figures (R38) — solid espresso numerals, claret labels.
+   The R26 outlined-stroke stat treatment was retired with the dark
+   register (stroke glyphs read faint on ivory — the R37 legibility
+   lesson). */
 
 /* ── The Balance band — the certification ring around the instrument. ───
    A slow mono micro-caption circling the scales, the register of a
@@ -2198,7 +2192,32 @@ span[data-type="legal-placeholder"] {
   .vg-cert-ring { animation: none; }
 }
 
-/* ── Vega exhibits — bright paper on the night ground ─────────────────────
+/* ── Vega exhibits — the light sheet (R38) ────────────────────────────────
+   The live captures sit in a QUIET CREAM SHEET on the ivory ground:
+   one hairline, a soft warm shadow, generous padding. The old deep-
+   shadow "paper under a desk lamp" chrome (.vg-doc) was built for the
+   dark register and is retired from the page (kept below for any
+   legacy exhibit that still needs it). The capture is the exhibit; the
+   frame stays out of the way. */
+.vg-shot {
+  position: relative;
+  background: var(--color-vega-parchment, #FBF6EC);
+  border: 1px solid rgb(42 33 24 / 0.14);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow:
+    0 1px 2px 0 rgb(42 33 24 / 0.06),
+    0 18px 36px -20px rgb(42 33 24 / 0.28);
+}
+.vg-shot__img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid rgb(42 33 24 / 0.10);
+}
+
+/* ── Vega exhibits — bright paper on the night ground (legacy, R26) ──────
    The pleading sheets are the page's light source: warm-white stock with
    a deep two-layer shadow stack, so they float above the night ground
    like papers under a desk lamp. */
@@ -2349,11 +2368,11 @@ span[data-type="legal-placeholder"] {
   background: rgb(var(--color-vega-claret-bright) / 0.40);
 }
 
-/* The fluid nav pill — on the espresso masthead it becomes a quiet lit-
-   claret wash (the moss-green pill never appears on /vega). */
+/* The fluid nav pill — on the cream masthead it becomes a quiet claret
+   wash with a claret hairline (the moss-green pill never appears on /vega). */
 .theme-vega .w8-nav-pill {
-  background: rgb(var(--color-vega-claret-bright) / 0.14);
-  border-color: rgb(var(--color-vega-claret-bright) / 0.30);
+  background: rgb(var(--color-vega-gilt) / 0.08);
+  border-color: rgb(var(--color-vega-gilt) / 0.30);
 }
 
 /* ── The night atmosphere ────────────────────────────────────────────────── */
@@ -2495,6 +2514,11 @@ span[data-type="legal-placeholder"] {
 .on-vega-page, .site-vega .terms-link:hover {
   color: rgb(255 255 255 / 0.92);
 }
+/* R38: the cookie bar's body copy lifts to bone-200 while on /vega — the
+   remapped slate-300 read faint at text-xs on the dark chrome bar. */
+body.on-vega-page .cookie-copy {
+  color: rgb(224 213 192);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .theme-vega .landing-card,
@@ -2564,12 +2588,31 @@ span[data-type="legal-placeholder"] {
 /* ── Occupancy grid (the portfolio as a warm grid of units) ─────────────── */
 .at-unit {
   border-radius: 6px;
-  transition: transform 400ms var(--ease-out);
+  transition: transform 400ms var(--ease-out), box-shadow 200ms ease;
 }
-.at-unit--occupied {
+.at-unit--occupied,
+.at-unit--paid {
   background: rgb(var(--color-atrium-emerald) / 0.08);
   border: 1px solid rgb(var(--color-atrium-emerald) / 0.22);
   color: rgb(4 120 85);
+}
+/* R38: the app's own colour coding, mirrored on the site — amber DUE,
+   blue PARTIAL, rose OVERDUE (the unit ledger's language), clay dashed
+   VACANT (the estate's own register). */
+.at-unit--due {
+  background: rgb(245 158 11 / 0.10);
+  border: 1px solid rgb(245 158 11 / 0.45);
+  color: rgb(180 83 9);
+}
+.at-unit--partial {
+  background: rgb(37 99 235 / 0.08);
+  border: 1px solid rgb(37 99 235 / 0.35);
+  color: rgb(29 78 216);
+}
+.at-unit--overdue {
+  background: rgb(225 29 72 / 0.09);
+  border: 1px solid rgb(225 29 72 / 0.40);
+  color: rgb(190 18 60);
 }
 .at-unit--vacant {
   background: rgb(var(--color-clay) / 0.12);
@@ -2578,6 +2621,45 @@ span[data-type="legal-placeholder"] {
 }
 @media (hover: hover) {
   .at-unit:hover { transform: translateY(-2px); }
+}
+.at-unit.is-selected {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 2px var(--color-paper, #FAF7F2),
+    0 0 0 4px currentColor;
+}
+.at-unit.at-unit--vacant.is-selected {
+  box-shadow:
+    0 0 0 2px var(--color-paper, #FAF7F2),
+    0 0 0 4px rgb(var(--color-clay) / 0.7);
+}
+
+/* The legend swatches — the same five states, at 10px. */
+.at-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.at-swatch--paid {
+  background: rgb(var(--color-atrium-emerald) / 0.15);
+  border: 1px solid rgb(var(--color-atrium-emerald) / 0.5);
+}
+.at-swatch--due {
+  background: rgb(245 158 11 / 0.15);
+  border: 1px solid rgb(245 158 11 / 0.6);
+}
+.at-swatch--partial {
+  background: rgb(37 99 235 / 0.12);
+  border: 1px solid rgb(37 99 235 / 0.5);
+}
+.at-swatch--overdue {
+  background: rgb(225 29 72 / 0.12);
+  border: 1px solid rgb(225 29 72 / 0.55);
+}
+.at-swatch--vacant {
+  background: rgb(var(--color-clay) / 0.12);
+  border: 1px dashed rgb(var(--color-clay) / 0.6);
 }
 
 /* ── Residents' portal phone mockup ─────────────────────────────────────── */

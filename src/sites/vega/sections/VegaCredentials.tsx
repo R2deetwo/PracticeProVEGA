@@ -58,7 +58,7 @@ export const VegaCredentials: React.FC = () => {
             >
                 Why firms run on Vega
             </h2>
-            <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-12 md:mb-16">
+            <p className="text-base md:text-lg leading-[1.7] text-slate-700 max-w-2xl mb-12 md:mb-16">
                 How Vega helps Nigerian law firms stay on top of matters,
                 drafts, and billable work.
             </p>
@@ -77,7 +77,7 @@ export const VegaCredentials: React.FC = () => {
                             <h3 className="sm:col-span-4 font-vega text-xl font-semibold text-vega-night leading-snug">
                                 {a.title}
                             </h3>
-                            <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-600">
+                            <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-700">
                                 {a.body}
                             </p>
                         </div>
@@ -89,7 +89,7 @@ export const VegaCredentials: React.FC = () => {
                     beside the record like a photograph in chambers. */}
                 <div className="lg:col-span-5 lg:sticky lg:top-24">
                     <figure>
-                        <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                        <div className="relative rounded-2xl overflow-hidden border border-vega-night/12 shadow-[0_18px_36px_-20px_rgb(42_33_24/0.35)]">
                             <img
                                 src={`/assets/landing/people/vega-counsel.jpg?v=${buildSha}`}
                                 alt="Counsel reviewing a document in warm lamplight in her chambers at dusk"
@@ -114,7 +114,7 @@ export const VegaCredentials: React.FC = () => {
                                 </p>
                             </div>
                         </div>
-                        <figcaption className="font-mono text-2xs tracking-[0.18em] text-slate-500 mt-4 uppercase">
+                        <figcaption className="font-mono text-2xs tracking-[0.18em] text-slate-600 mt-4 uppercase">
                             Built for the practitioner behind the file — the same counsel ALOA
                             was drafting with at the top of this page
                         </figcaption>
@@ -123,7 +123,7 @@ export const VegaCredentials: React.FC = () => {
             </div>
 
             {/* The colophon — the trust strip, folded into the record */}
-            <p className="font-mono text-2xs tracking-[0.22em] text-slate-500 mt-8 uppercase">
+            <p className="font-mono text-2xs tracking-[0.22em] text-slate-600 mt-8 uppercase">
                 NDPA 2023 Compliant <span className="text-vega-gilt-bright mx-1">·</span> TLS 1.3
                 Encrypted <span className="text-vega-gilt-bright mx-1">·</span> Data Encrypted at Rest{' '}
                 <span className="text-vega-gilt-bright mx-1">·</span> 2FA Available

@@ -1,8 +1,9 @@
-# DESIGN.md — the PracticePro house design system (locked R37)
+# DESIGN.md — the PracticePro house design system (locked R38)
 
 This file is the contract. Every round of design or copy work on this repo
 obeys it. If a change violates a rule here, the change is wrong — not the
-rule. (Established R37, "The Daylight Chambers", 2026-10-28.)
+rule. (Established R37, "The Daylight Chambers"; rebuilt R38, "The Reading
+Room", 2026-10-28.)
 
 ## 0. The one-line law
 
@@ -14,7 +15,7 @@ the talking — never the statistical average of AI-generated landing pages.
 | Surface | Route | Register | Accent |
 |---|---|---|---|
 | Corporate hub | `/` | Paper + moss, the builder's studio | Moss/emerald (existing) |
-| **Vega** | `/vega` | **Daylight Chambers (R37)** — warm ivory law library by day | **Notary claret** |
+| **Vega** | `/vega` | **Reading Room (R38)** — daylight throughout, cream chrome | **Notary claret** |
 | Atrium | `/atrium` | Well-Kept Estate — photo-led, warm | Emerald `#059669` |
 
 The logo system stays as-is (owner direction R37). Products may be named
@@ -22,7 +23,7 @@ in the "Our Work / systems we've built" surfaces and on the product pages
 themselves — never inside the hub's capability sections, which sell what
 we can build for THE VISITOR'S business, not our catalogue.
 
-## 2. Vega — "The Daylight Chambers" (R37) exact values
+## 2. Vega — "The Reading Room" (R38) exact values
 
 All Vega tokens live in `src/index.css` under `.theme-vega` / `.site-vega`
 (`--color-vega-*`). Do not invent new colors; re-use these tokens.
@@ -41,9 +42,27 @@ All Vega tokens live in `src/index.css` under `.theme-vega` / `.site-vega`
 | `--color-vega-parchment` | `#FBF6EC` | Cream card stock on the ivory ground |
 | `--color-vega-ink-soft` | `#6E5C4A` | Taupe body type on cream stock |
 
-The espresso side is RATIONED to measured interludes (masthead, matters
-ledger band, the two ink bands, deep footer). The page reads as daylight;
-drama is an accent, not the ground.
+The espresso side is TYPE and the DEEP FOOTER — nothing else (R38). The
+masthead is cream glass (`--color-vega-parchment` at 90% + blur) with
+espresso links; no band on the page paints espresso. The page reads as
+one bright law library; drama is an accent, not the ground.
+
+### R38 architecture (the redo, not a re-tint)
+
+- ONE feature index: `VegaSuite` is the merged instrument index — the
+  six-card catalogue grid, the dark matters ledger and the separate
+  workspace gallery are folded into ONE ruled, expandable index whose
+  rows open into capability entries + a live capture in the `.vg-shot`
+  cream sheet.
+- Every band runs on `var(--color-paper)`; exhibits are real captures
+  in `.vg-shot` (one hairline, soft warm shadow, 12px sheet radius) —
+  never the old deep-shadow `.vg-doc` lamp chrome.
+- The hero's evening exchange is a daylight thread card on cream stock
+  (claret-tinted practitioner bubbles, white ALOA replies) — no dark
+  slab anywhere on the page.
+- Minimum type colors on ivory: body `slate-700`, mono micro-labels and
+  captions `slate-600` (the remapped warm scale). `slate-400/500` are
+  dark-ground-only. On espresso, minimum is `slate-300`.
 
 ### Typography (all self-hosted via @fontsource — no Google CDN)
 

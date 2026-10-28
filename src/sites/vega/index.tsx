@@ -11,10 +11,8 @@ import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaIndexLine } from './sections/VegaIndexLine';
 import { VegaSuite } from './sections/VegaSuite';
-import { VegaRealWorkspace } from './sections/VegaRealWorkspace';
 import { VegaRecord } from './sections/VegaRecord';
 import { VegaSegments } from './sections/VegaSegments';
-import { VegaMattersLedger } from './sections/VegaMattersLedger';
 import { VegaAIDrafting } from './sections/VegaAIDrafting';
 import { VegaCourtRules } from './sections/VegaCourtRules';
 import { VegaScaleOfCharges } from './sections/VegaScaleOfCharges';
@@ -24,27 +22,28 @@ import { VegaFAQInk } from './sections/VegaFAQInk';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
 
 /**
- * VegaSite — /vega, "The Chambers Standard" (P0 split), rearranged to the
- * LawPavilion composition (owner direction: "let us have it looking like
- * LawPavilion in terms of arrangement"). Their order — products grid first,
- * then the trust band, then the segment switch, then the alternating
- * feature deep-dives — maps onto Vega as:
+ * VegaSite — /vega, "The Reading Room" (R38).
  *
- *   hero → index line → THE SUITE (six instruments, the products grid) →
- *   THE RECORD (the trust band) → PRACTICE AREAS (the segment tabs) →
- *   the four deep-dive bands in alternating rhythm (matters ledger → ALOA
- *   ink band → court-rule chronology → scale of charges, flipped) →
- *   procedure → attestations → ink FAQ → colophon CTA.
+ * Owner direction (R38): "I wanted a redo of the page, not just changing
+ * the colours." The page is rebuilt for the daylight register — one
+ * system, one light, from the first pixel to the last:
  *
- * Same Night Chambers visual language as R22; only the ARRANGEMENT is
- * LawPavilion's. Zero shared marketing sections below the nav.
+ *   hero (the evening exchange as a daylight thread card) → index line →
+ *   THE SUITE (the merged instrument index — the six-card grid, the dark
+ *   matters ledger and the separate workspace gallery folded into ONE
+ *   ruled, expandable index with live captures) → the record → practice
+ *   areas → ALOA → court rules → scale of charges → procedure →
+ *   attestations → interrogatories → colophon CTA.
+ *
+ * The espresso register survives only as TYPE and the deep footer — the
+ * chrome is cream glass. Zero shared marketing sections below the nav.
  */
 export const VegaSite: React.FC = () => {
     const navigate = useNavigate();
     const { openModal } = useUI();
     useSiteChrome('vega');
     const { scrollRef, activeSection, scrollTo } = useSiteScroll(
-        ['home', 'suite', 'practice-areas', 'features', 'howItWorks']
+        ['home', 'suite', 'practice-areas', 'howItWorks']
     );
     const openSignup = useSignupOpener('vega');
     const {
@@ -151,13 +150,12 @@ export const VegaSite: React.FC = () => {
                     )}
                 />
                 <VegaIndexLine />
-                {/* The LawPavilion arrangement: products grid, trust band,
-                    segment tabs — then the deep-dives. */}
+                {/* The Reading Room arrangement: the merged instrument
+                    index (with its live captures), the record, the segment
+                    tabs — then the deep-dives. */}
                 <VegaSuite />
-                <VegaRealWorkspace />
                 <VegaRecord />
                 <VegaSegments />
-                <VegaMattersLedger />
                 <VegaAIDrafting />
                 <VegaCourtRules />
                 <VegaScaleOfCharges />

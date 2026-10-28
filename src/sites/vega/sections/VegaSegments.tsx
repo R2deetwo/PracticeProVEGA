@@ -101,7 +101,7 @@ export const VegaSegments: React.FC = () => {
                     Solutions rightly built for{' '}
                     <span className="font-vega-italic text-vega-gilt-bright">how you practise.</span>
                 </h2>
-                <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-10 md:mb-14">
+                <p className="text-base md:text-lg leading-[1.7] text-slate-700 max-w-2xl mb-10 md:mb-14">
                     The same workspace, tailored by practice area — the blueprints
                     the OnboardingWizard applies when a firm picks its areas of law.
                 </p>
@@ -124,7 +124,7 @@ export const VegaSegments: React.FC = () => {
                 aria-controls="vg-segment-panel"
                 onClick={() => setActive(i)}
                 className={`rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt ${
-                    on ? 'bg-vega-gilt text-vega-parchment' : 'border border-vega-night/20 text-slate-600 hover:text-vega-night hover:border-vega-night/45'
+                    on ? 'bg-vega-gilt text-vega-parchment' : 'border border-vega-night/20 text-slate-700 hover:text-vega-night hover:border-vega-night/45'
                 }`}
             >
                 {s.tab}
@@ -146,7 +146,7 @@ export const VegaSegments: React.FC = () => {
                         <h3 className="font-vega text-2xl md:text-3xl font-semibold leading-[1.15] tracking-[-0.01em] text-vega-night mb-5">
                             {seg.title}
                         </h3>
-                        <p className="text-base leading-[1.75] text-slate-600">{seg.body}</p>
+                        <p className="text-base leading-[1.75] text-slate-700">{seg.body}</p>
                     </div>
 
                     {/* Right — the capability rows */}
@@ -165,7 +165,7 @@ export const VegaSegments: React.FC = () => {
                                     <h4 className="sm:col-span-4 font-vega text-lg font-semibold text-vega-night leading-snug">
                                         {row.title}
                                     </h4>
-                                    <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-600">
+                                    <p className="sm:col-span-7 text-sm leading-[1.7] text-slate-700">
                                         {row.detail}
                                     </p>
                                 </div>

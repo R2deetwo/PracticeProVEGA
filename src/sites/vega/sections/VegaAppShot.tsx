@@ -2,23 +2,25 @@ import React from 'react';
 
 /**
  * VegaAppShot — a REAL screenshot of the shipping app, framed in the
- * page's lit paper-sheet chrome (R28).
+ * page's light sheet chrome (R38).
  *
- * Owner direction: "The images do not look like what the app looks like —
- * let us use stuff from the app so we are not showing false images." The
- * deep-dive bands now carry LIVE CAPTURES of the workspace (captured from
- * the product with the Warm Chambers skin active — the same register this
- * page runs on) instead of stylized mock exhibits. Each capture states
- * what it is in the mono caption; nothing is staged.
+ * Owner direction (R28, kept): "The images do not look like what the app
+ * looks like — let us use stuff from the app so we are not showing false
+ * images." The captures are live from the product; each states what it
+ * is in the mono caption; nothing is staged. R38: the old deep-shadow
+ * "paper under a desk lamp" chrome (built for the dark register) is
+ * replaced by a quiet CREAM SHEET on the ivory ground — one hairline, a
+ * soft warm shadow, generous padding. The capture is the exhibit; the
+ * frame stays out of the way.
  *
  * The shots live in public/assets/landing/app/ (progressive JPEGs,
  * captured by scripts/r28-app-shots.cjs against the live workspace).
  *
- * Presentational only — zero buttons (ADR-0004), zero hardcoded hexes
- * (the sheet chrome is the shared .vg-doc class).
+ * Presentational only — zero buttons (ADR-0004); the sheet chrome is the
+ * shared .vg-shot class.
  */
 export const VegaAppShot: React.FC<{
-    /** Absolute path under /assets/landing/app/ */
+    /** Absolute path under /assets/landing/ */
     src: string;
     alt: string;
     /** Mono caption under the sheet — states WHAT was captured. */
@@ -26,7 +28,7 @@ export const VegaAppShot: React.FC<{
     className?: string;
 }> = ({ src, alt, caption, className = '' }) => (
     <figure className={className}>
-        <div className="vg-doc p-2 sm:p-3">
+        <div className="vg-shot">
             <img
                 src={src}
                 alt={alt}
@@ -34,9 +36,9 @@ export const VegaAppShot: React.FC<{
                 decoding="async"
                 width={1440}
                 height={900}
-                className="w-full h-auto rounded-[10px] border border-slate-200/80 shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
+                className="vg-shot__img"
             />
         </div>
-        <figcaption className="font-mono text-2xs tracking-widest text-slate-500 mt-5">{caption}</figcaption>
+        <figcaption className="font-mono text-2xs tracking-widest text-slate-600 mt-4">{caption}</figcaption>
     </figure>
 );

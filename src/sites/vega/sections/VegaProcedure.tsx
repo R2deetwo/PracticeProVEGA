@@ -50,7 +50,7 @@ export const VegaProcedure: React.FC = () => (
             >
                 Open your chambers in three steps
             </h2>
-            <p className="text-base md:text-lg leading-[1.7] text-slate-600 max-w-2xl mb-12 md:mb-16">
+            <p className="text-base md:text-lg leading-[1.7] text-slate-700 max-w-2xl mb-12 md:mb-16">
                 From sign-up to your first legal draft — in minutes, not weeks.
             </p>
 
@@ -64,7 +64,7 @@ export const VegaProcedure: React.FC = () => (
                         <h3 className="font-vega text-xl font-semibold text-vega-night mb-3">
                             {step.title}
                         </h3>
-                        <p className="text-sm leading-[1.7] text-slate-600">
+                        <p className="text-sm leading-[1.7] text-slate-700">
                             {step.body}
                         </p>
                     </div>

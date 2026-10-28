@@ -101,7 +101,7 @@ const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 // Vega Pass A — the page-specific rebuild files under marketing/vega/.
 const vegaHero = read("src", "sites", "vega", "sections", "VegaHero.tsx");
-const vegaMatters = read("src", "sites", "vega", "sections", "VegaMattersLedger.tsx");
+const vegaSuite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
 const vegaProcedure = read("src", "sites", "vega", "sections", "VegaProcedure.tsx");
 const vegaCredentials = read("src", "sites", "vega", "sections", "VegaCredentials.tsx");
 const vegaFAQ = read("src", "sites", "vega", "sections", "VegaFAQInk.tsx");
@@ -715,10 +715,12 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     ]) {
       expect(body).not.toContain(`<${s}`);
     }
-    // The vega composition (LawPavilion arrangement): products grid first,
-    // then the trust band, then the segment tabs, then the deep-dives in
-    // alternating rhythm — the owner direction "looking like LawPavilion in
-    // terms of arrangement".
+    // The vega composition (R38 "The Reading Room"): the merged
+    // instrument index — the six-card grid, the dark matters ledger and
+    // the separate workspace gallery folded into ONE expandable ruled
+    // index with live captures — then the record, the segment tabs, and
+    // the deep-dives. Owner direction: "I wanted a redo of the page, not
+    // just changing the colours."
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
@@ -726,13 +728,8 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
       "VegaHero",
       "VegaIndexLine",
       "VegaSuite",
-      // R28: the live-capture band (owner: "use stuff from the app so we
-      // are not showing false images") — real workspace screenshots right
-      // after the suite catalogue.
-      "VegaRealWorkspace",
       "VegaRecord",
       "VegaSegments",
-      "VegaMattersLedger",
       "VegaAIDrafting",
       "VegaCourtRules",
       "VegaScaleOfCharges",
@@ -745,7 +742,7 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
 
   it("the vega branch never imports an atrium component and vice versa", () => {
     // Cross-page isolation: vega files import no atrium components.
-    for (const src of [vegaHero, vegaMatters, vegaProcedure, vegaCredentials, vegaFAQ, vegaFinalCTA]) {
+    for (const src of [vegaHero, vegaSuite, vegaProcedure, vegaCredentials, vegaFAQ, vegaFinalCTA]) {
       expect(src).not.toContain("sites/atrium/");
       expect(src).not.toContain("../../atrium/");
       expect(src).not.toContain("AtriumHero");
@@ -790,21 +787,32 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
   it("the stat-chip row is replaced by a mono index line", () => {
     expect(vegaSite).toContain("import { VegaIndexLine }");
     // No rounded stat cards on /vega — the shared chip row is atrium-only.
-    expect(vegaMatters).not.toContain("VEGA_STATS");
+    expect(vegaSuite).not.toContain("VEGA_STATS");
   });
 
-  it("features are a ruled ledger index, not a hover-expand card grid", () => {
-    expect(vegaMatters).toContain('id="features"');
-    expect(vegaMatters).not.toContain("rounded-");
-    expect(vegaMatters).not.toContain("shadow-");
-    expect(vegaMatters).toContain("MATTERS_INDEX");
-    // R37 Daylight Chambers: the ledger is the page's espresso interlude —
-    // white hairlines and parchment titles on the dark band; the accent
-    // register there is the LIT claret (gilt-bright is the ivory-ground
-    // register, re-valued with the R37 re-theme).
-    expect(vegaMatters).toContain("border-b border-white/10");
-    expect(vegaMatters).toContain("text-vega-claret-bright");
-    expect(vegaMatters).toContain("text-vega-parchment");
+  it("the suite is a ruled, expandable instrument index with live captures (R38)", () => {
+    // R38: the six-card grid, the dark matters ledger and the separate
+    // workspace gallery are merged into ONE instrument — a ruled index on
+    // the ivory ground (no cards, no shadows, square corners) whose rows
+    // expand inline into capability entries + a LIVE CAPTURE (R28 owner
+    // direction: "use stuff from the app so we are not showing false
+    // images").
+    expect(vegaSuite).toContain('id="suite"');
+    expect(vegaSuite).not.toContain("rounded-");
+    expect(vegaSuite).not.toContain("shadow-");
+    expect(vegaSuite).toContain("INSTRUMENTS");
+    // The daylight register: warm hairlines and espresso titles — never
+    // the old dark-band language.
+    expect(vegaSuite).toContain("border-b border-vega-night/10");
+    expect(vegaSuite).toContain("text-vega-night");
+    expect(vegaSuite).not.toContain("bg-vega-night");
+    expect(vegaSuite).not.toContain("bg-vega-ink");
+    // The captures are the real product, honestly captioned.
+    expect(vegaSuite).toContain("/assets/landing/app/dashboard.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/aloa.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/calendar.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/billing.jpg");
+    expect(vegaSuite).toContain("LIVE CAPTURE");
   });
 
   it("pricing tiers are retired from the product pages (owner direction, R21)", () => {
@@ -840,9 +848,12 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaProcedure).not.toContain("'01'");
   });
 
-  it("the FAQ is the ink band, de-tiered, and carries the audit anchor copy", () => {
+  it("the FAQ is a ruled interrogatory accordion on the page's paper (R38)", () => {
     expect(vegaFAQ).toContain("Questions? Answered.");
-    expect(vegaFAQ).toContain("bg-vega-ink");
+    // R38: the FAQ leaves the raised-ink band — same ivory paper as the
+    // rest of the page, warm hairlines, claret numerals.
+    expect(vegaFAQ).not.toContain("bg-vega-ink");
+    expect(vegaFAQ).toContain("border-b border-vega-night/10");
     expect(vegaFAQ).toContain("PracticePro Vega for law firms");
     // R21: no tier names anywhere in the FAQ.
     expect(vegaFAQ).not.toContain("Growth");

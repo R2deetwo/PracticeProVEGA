@@ -2,22 +2,20 @@ import React from 'react';
 import { Button } from '../../../components/ui';
 
 /**
- * VegaFinalCTA — /vega's replacement for the shared final-CTA band.
+ * VegaFinalCTA — /vega's close (R38, daylight edition).
  *
- * "The Night Chambers" register: the close is the COLOPHON — the
- * title page returned to at the end of the volume, on the night ground
- * with the hero's lights mirrored behind it (the bookend). Parchment
- * serif headline, the same thin gilt rule the hero carries, and square
- * CTAs: a brass primary, a gilt-outline ghost. Left-aligned like the
- * hero — not a centered band.
+ * The close is the COLOPHON — the title page returned to at the end of
+ * the volume, on the ivory ground with the hero's daylight washes
+ * mirrored behind it (the bookend). Espresso serif headline, the same
+ * thin claret rule the hero carries, and pill CTAs: a claret primary,
+ * a hairline ghost. Left-aligned like the hero — not a centered band.
  *
- * R21: the Komplete and bespoke-systems cross-sells were relocated here
- * from the retired rate-card band — the pricing TIERS are gone (owner
- * direction) but these PracticePro offerings stay on the page, restyled
- * as compact rounded cards beneath the colophon (R26).
+ * R21 (kept): the Komplete and bespoke-systems cross-sells live here,
+ * restyled as compact CREAM CARDS on the page's stock (R38) — one with
+ * the claret spine — with espresso type and slate body copy, never the
+ * old dark panels.
  *
- * CTAs use the ui/Button primitive (ADR-0004); R26: pill CTAs, orange
- * primary, warm outline ghost.
+ * CTAs use the ui/Button primitive (ADR-0004).
  */
 export const VegaFinalCTA: React.FC<{
     onSignup: (productOverride?: unknown) => void;
@@ -28,7 +26,7 @@ export const VegaFinalCTA: React.FC<{
         className="relative overflow-hidden vg-grain py-20 md:py-28 border-t border-vega-night/10"
         style={{ background: 'var(--color-paper)' }}
     >
-        {/* The colophon lights — the hero's glows, mirrored */}
+        {/* The colophon lights — the hero's daylight washes, mirrored */}
         <div className="vg-cta-bg" aria-hidden="true" />
 
         <div className="relative z-10 container mx-auto px-4 sm:px-6 max-w-7xl">
@@ -44,9 +42,9 @@ export const VegaFinalCTA: React.FC<{
                     Ready to run a{' '}
                     <span className="font-vega-italic text-vega-gilt-bright">sharper practice?</span>
                 </h2>
-                {/* The hero's gilt rule, returned */}
+                {/* The hero's claret rule, returned */}
                 <div className="h-px w-24 bg-vega-gilt mb-8" aria-hidden="true" />
-                <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-10">
+                <p className="text-base md:text-lg leading-[1.7] text-slate-700 mb-10">
                     Join Nigerian law firms who have already switched to
                     PracticePro Vega — matter management, AI drafting, and
                     court-rule-aware calendaring built for the way you actually
@@ -56,49 +54,48 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onSignup()}
-                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-parchment hover:bg-vega-claret-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold bg-vega-gilt text-vega-parchment hover:bg-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Start Free Trial
                     </Button>
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Final CTA')}
-                        className="rounded-full px-8 py-4 text-base font-bold border border-vega-gilt/50 text-vega-gilt-bright hover:bg-vega-gilt/10 transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
+                        className="rounded-full px-8 py-4 text-base font-bold border border-vega-night/30 text-vega-night hover:border-vega-gilt-bright hover:text-vega-gilt-bright hover:bg-vega-gilt/[0.05] transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Talk to Sales
                     </Button>
                 </div>
-                <p className="font-mono text-2xs tracking-widest text-slate-500 mt-8">
+                <p className="font-mono text-2xs tracking-widest text-slate-600 mt-8">
                     NO CREDIT CARD · 30-DAY TRIAL · CANCEL ANYTIME
                 </p>
             </div>
 
-            {/* Ruled cross-sells — relocated from the retired rate-card band.
-                Compact, subordinate, in register — night panels with a gilt
-                spine. */}
+            {/* Ruled cross-sells — relocated from the retired rate-card band
+                (R21). Compact, subordinate, cream stock with a claret spine. */}
             <div className="mt-16 md:mt-20 grid md:grid-cols-2 gap-5 max-w-4xl" data-vg-reveal style={{ '--vg-d': '120ms' } as React.CSSProperties}>
-                <div className="rounded-2xl border border-white/10 border-l-2 border-l-vega-gilt bg-vega-night-2 px-6 py-7 shadow-[0_12px_28px_-16px_rgb(0_0_0/0.45)]">
-                    <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-2 tracking-tight">
+                <div className="rounded-2xl border border-vega-night/12 border-l-2 border-l-vega-gilt bg-vega-parchment px-6 py-7 shadow-[0_14px_30px_-20px_rgb(42_33_24/0.30)]">
+                    <h3 className="font-vega text-xl font-semibold text-vega-night mb-2 tracking-tight">
                         Are you a Real Estate Lawyer?
                     </h3>
-                    <p className="text-sm text-slate-400 leading-relaxed mb-5">
-                        Discover <strong className="text-vega-claret-bright">Komplete</strong> — Vega and Atrium in one workspace, built
+                    <p className="text-sm text-slate-700 leading-relaxed mb-5">
+                        Discover <strong className="text-vega-gilt-bright">Komplete</strong> — Vega and Atrium in one workspace, built
                         for real estate attorneys to coordinate high-stakes property legal operations, manage tenancy
                         portfolios, and track chamber matters from a single secure terminal.
                     </p>
                     <Button
                         variant="bare"
                         onClick={() => onSignup('unified')}
-                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-parchment hover:bg-vega-claret-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
+                        className="rounded-full px-6 py-3 text-sm font-bold bg-vega-gilt text-vega-parchment hover:bg-vega-gilt-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Explore Komplete
                     </Button>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-vega-night-2 px-6 py-7 shadow-[0_12px_28px_-16px_rgb(0_0_0/0.45)]">
-                    <h3 className="font-vega text-xl font-semibold text-vega-parchment mb-2 tracking-tight">
+                <div className="rounded-2xl border border-vega-night/12 bg-vega-parchment px-6 py-7 shadow-[0_14px_30px_-20px_rgb(42_33_24/0.30)]">
+                    <h3 className="font-vega text-xl font-semibold text-vega-night mb-2 tracking-tight">
                         Need Custom Automations or Tailored Management Tools?
                     </h3>
-                    <p className="text-sm text-slate-400 leading-relaxed mb-5">
+                    <p className="text-sm text-slate-700 leading-relaxed mb-5">
                         PracticePro develops bespoke operational systems, specialized CRMs, and custom workflow automations tailored
                         to your organization&rsquo;s precise processes. Talk to us about building high-performance management tools
                         engineered around your specific business architecture.
@@ -106,7 +103,7 @@ export const VegaFinalCTA: React.FC<{
                     <Button
                         variant="bare"
                         onClick={() => onContactSales('Custom Automation Pipeline')}
-                        className="rounded-full px-6 py-3 text-sm font-bold border border-white/25 text-vega-parchment hover:border-vega-claret-bright hover:text-vega-claret-bright transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-claret-bright"
+                        className="rounded-full px-6 py-3 text-sm font-bold border border-vega-night/30 text-vega-night hover:border-vega-gilt-bright hover:text-vega-gilt-bright hover:bg-vega-gilt/[0.05] transition-all duration-150 active:scale-[0.98] focus-visible:ring-vega-gilt"
                     >
                         Contact Sales
                     </Button>

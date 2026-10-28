@@ -86,7 +86,7 @@ export const VegaCourtRules: React.FC = () => (
                             keeps itself.
                         </span>
                     </h2>
-                    <p className="text-base md:text-lg leading-[1.7] text-slate-600 mb-8">
+                    <p className="text-base md:text-lg leading-[1.7] text-slate-700 mb-8">
                         Vega computes every filing and service deadline from the Civil Procedure
                         Rules of the court your matter sits in — Federal and State High Courts,
                         36 states and the FCT — then reminds the assigned lawyer 7, 3 and 1 days
@@ -95,12 +95,12 @@ export const VegaCourtRules: React.FC = () => (
 
                     {/* Legend — the chronology's key, in the ledger's voice */}
                     <div className="border-t border-vega-night/10 pt-5 space-y-2">
-                        <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
+                        <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-600">
                             <span className="inline-block w-2 h-2 rounded-full bg-vega-claret-bright" aria-hidden="true" />
                             DEADLINE COMPUTED BY THE COURT RULES AGENT
                         </p>
-                        <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-500">
-                            <span className="inline-block w-2 h-2 rounded-full border border-slate-500 bg-transparent" aria-hidden="true" />
+                        <p className="flex items-center gap-2.5 font-mono text-2xs tracking-widest text-slate-600">
+                            <span className="inline-block w-2 h-2 rounded-full border border-slate-600 bg-transparent" aria-hidden="true" />
                             EVENT RECORDED FROM THE MATTER FILE
                         </p>
                     </div>

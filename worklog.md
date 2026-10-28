@@ -13349,3 +13349,62 @@ restrained accent, refined editorial typography, honest copy.
   the Kozy Care catalogue line; live DOM serves --color-paper #F5EFE3
   / claret 123 30 30; live VLM confirms the daylight render + full
   headline, no clipping.
+
+## R38 — The Reading Room + the live estate (2026-10-28)
+
+Owner direction (two threads, one message): (a) "on the atrium site… I am
+pretty happy with it" — only the Estate-at-a-glance band changes: closer to
+the app's arrangement + colour coding, and INTERACTIVE (click a unit, the
+phone shows that resident's status; "a good opportunity to get users to see
+what they could see in the app"); the Atrium logo is flagged for a future
+round. (b) Vega: "i wanted a redo of the page not just changing the
+colours… some of the text is not legible so you made a poor looking site
+worse."
+
+- VEGA — THE READING ROOM (R38): a true structural redo on the surviving
+  R37 palette. The cream-glass masthead replaces the espresso turtleneck
+  (espresso links, claret accents, cream dropdown/mobile sheet/sticky CTA;
+  claret chat FAB). The hero's evening exchange is re-rendered as a
+  DAYLIGHT thread card — cream stock, hairline edge, claret-tinted
+  practitioner bubbles, white ALOA replies (all pinned copy kept). THE
+  SUITE absorbs the six-card catalogue grid + the dark MattersLedger +
+  the separate RealWorkspace gallery into ONE ruled, expandable
+  instrument index: hairline rows, mono numerals, inline panels carrying
+  the capability entries + a LIVE CAPTURE each (dashboard, documents,
+  ALOA, calendar, billing, portal) in the new .vg-shot cream sheet. The
+  ALOA band and the FAQ leave the raised-ink register for the ivory
+  ground (dashed quote frame retired). The Record's stats drop the
+  stroke-outline numerals (the R37 illegibility lesson) for solid
+  espresso figures + claret labels. Cross-sells in the colophon CTA are
+  cream cards with a claret spine. Legibility sweep: body slate-700,
+  mono micro-labels/captions slate-600 minimum on ivory (slate-400/500
+  are dark-ground-only), footer text lifted to bone, cookie-bar copy
+  lifted to bone-200 while on /vega (.cookie-copy hook). useSiteScroll
+  ids lose the retired 'features' anchor; footer Features → 'suite'.
+  VegaMattersLedger.tsx + VegaRealWorkspace.tsx deleted; tests re-pinned
+  to the merged band (composition order, INSTRUMENTS, light-register
+  classes, live-capture paths).
+- ATRIUM — THE LIVE ESTATE (R38): the occupancy grid mirrors the app's
+  colour language — emerald PAID, amber DUE, blue PARTIAL, rose OVERDUE,
+  dashed clay VACANT (the app's FinancialStatusBadge/ledger coding). All
+  24 units are real buttons (aria-pressed, title, status ring via
+  currentColor); selecting one drives the phone mockup: resident name,
+  status chip, balance card with status-coloured spine, ledger rows in
+  status colours, demand-notice state for defaulters (7-Day Notice),
+  listing view for vacant units. Default selection is the OVERDUE C4 —
+  the defaulter-dashboard story the band tells. Legend carries the five
+  states with counts (17/2/1/2/2 = 22/24 occupied, 91.7% kept). aria-live
+  on the phone region. Everything else on /atrium untouched.
+- Gates: vitest 1274/1274, eslint 0 errors, ui-primitives ratchet 2314
+  held, build green (twice). Visual QA (local dist): VLM SHIP on desktop
+  full ("coherent daylight editorial design… top 80% perfect", header
+  reads cream w/ dark links), mobile full ("YES — coherent daylight
+  design", no overflow, no dark slabs), expanded suite row (capture
+  clean, hairlines aligned), Atrium estate ×3 states (overdue/paid/
+  vacant all PASS — phone visibly changes, rings match status) + mobile
+  estate (legible, balanced). 360px scrollWidth check: no overflow on
+  /vega or /atrium. Kept deliberately: the claret headline accent
+  (7.4:1 on ivory — sanctioned pair) and the deep espresso footer (the
+  Atrium family pattern the owner is happy with).
+- Deploy (R38): see below — promote workflow dispatched with the sha
+  read from git; verified via /version.json.
