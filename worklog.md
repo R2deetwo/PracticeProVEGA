@@ -13332,3 +13332,20 @@ restrained accent, refined editorial typography, honest copy.
   product-name leakage on /vega), mobile full + hero (SHIP after the
   overflow fix), hub WhatWeDo (no product names; intro verbatim) and
   Sound Familiar (four personas render with distinct headlines).
+- Deploy (R37): e58b3ceb pushed (PAT re-rotated again — the workspace
+  snapshot had reverted the stored token to a dead one; the fresh one
+  from the owner was set). CI Tests + Staging + APK green at e58b3ceb;
+  CI chore commits moved main to fd9b25db (patch 1.0.720, APK build
+  1111). NOTE: Vercel no longer auto-deploys main — the promote
+  workflow is now the only production path (first dispatch failed on a
+  mistyped sha; re-dispatched with the sha read programmatically from
+  git — always read it, never type it). Promote run 40686192348 at
+  fd9b25db: quality gate ✓ (tsc baseline + vitest on the promoted
+  commit), Vercel + Convex production ✓ with live probes green,
+  Cloudflare mirror ✗ at the standing expired CLOUDFLARE_API_TOKEN
+  (owner action, same as R33-R36). Live-verified: version.json healthy
+  at fd9b25db; live bundle carries "Making your systems work as one"
+  and the new capability intro, ZERO "already runs in production" or
+  the Kozy Care catalogue line; live DOM serves --color-paper #F5EFE3
+  / claret 123 30 30; live VLM confirms the daylight render + full
+  headline, no clipping.
