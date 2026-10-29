@@ -21,10 +21,12 @@ import {
 
 /** The phone's logical size and the scale applied to fit the bezel.
  *  390x844 is the real handset layout the captures ran at — scaled to
- *  the bezel, never letterboxed. */
+ *  the bezel, never letterboxed. R43: 0.72 (was 0.78) — the owner found
+ *  the handset "a bit too large" next to the workspace; this reads as a
+ *  modest pocket device while the 390px layout stays fully legible. */
 const PHONE_W = 390;
 const PHONE_H = 844;
-const SCALE = 0.78;
+const SCALE = 0.72;
 
 const BottomNavItem: React.FC<{
     label: string;

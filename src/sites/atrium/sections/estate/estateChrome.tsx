@@ -199,7 +199,7 @@ export const PropertiesPanel: React.FC<{
     hintLabel: string;
     compact?: boolean;
 }> = ({ state, hintLabel, compact }) => (
-    <div className="flex flex-col h-full bg-slate-50 border-r border-slate-200 overflow-hidden">
+    <div className={`flex flex-col h-full bg-slate-50 overflow-hidden ${compact ? '' : 'border-r border-slate-200'}`}>
         <div className="flex-shrink-0 py-3 px-3 border-b border-slate-100 bg-white z-10 space-y-2.5">
             <div className="flex items-center justify-between">
                 <h2 className={`${compact ? 'text-lg' : 'text-xl'} font-bold text-slate-900 tracking-tight`}>Properties</h2>

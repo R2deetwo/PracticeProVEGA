@@ -687,6 +687,7 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(order).toEqual([
       "VegaHero",
       "VegaSuite",
+      "VegaTeam",
       "VegaSegments",
       "VegaAIDrafting",
       "VegaCourtRules",
@@ -695,6 +696,24 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
       "VegaFAQInk",
       "VegaFinalCTA",
     ]);
+  });
+
+  it("R43: the chambers band shows the team/collaborative side with live captures", () => {
+    // Owner direction (R43): "there are no live shots of the app that show
+    // multiple team members logged in at the same time... buyers need to
+    // know it has a team/collaborative side to it." The band sits after
+    // the Suite, carries two real captures (the per-counsel task board
+    // and a matter's discussion thread) and honest multi-user copy.
+    const vegaTeam = read("src", "sites", "vega", "sections", "VegaTeam.tsx");
+    expect(vegaSite).toContain("<VegaTeam />");
+    expect(vegaTeam).toContain('id="team"');
+    expect(vegaTeam).toContain("The whole team");
+    expect(vegaTeam).toContain("/assets/landing/app/tasks-team.jpg");
+    expect(vegaTeam).toContain("/assets/landing/app/matter-notes.jpg");
+    expect(vegaTeam).toContain("LIVE CAPTURE");
+    // The honest register: no cards, no shadows (the ruled page).
+    expect(vegaTeam).not.toContain("rounded-");
+    expect(vegaTeam).not.toContain("shadow-");
   });
 
   it("the vega branch never imports an atrium component and vice versa", () => {

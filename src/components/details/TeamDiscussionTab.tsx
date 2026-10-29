@@ -3,6 +3,12 @@ import { NotePage, User, ModalType, UserRole } from '../../types';
 import { getInitials, getUserColor, timeAgo } from '../../utils/colorUtils';
 import { CalendarIcon, TasksIcon, TrashIcon, PlusIcon, EditIcon, CheckIcon, XIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { sanitize } from '../../utils/sanitization';
+
+/** Notes authored elsewhere (DraftPro, ALOA drafts) can carry rich HTML.
+ *  Rendered as sanitized rich text in the timeline — raw tags never show. */
+const looksLikeHtml = (s: string) =>
+    /<\/(p|h[1-6]|ol|ul|li|strong|em|b|i|div|blockquote|table)\s*>|<br\s*\/?>/i.test(s || '');
 
 interface TeamDiscussionTabProps {
     matterId: string;
@@ -109,6 +115,14 @@ const EndorsementTimelineItem: React.FC<{
                                 </button>
                             </div>
                         </div>
+                    ) : looksLikeHtml(note.content) ? (
+                        /* Rich notes (DraftPro/ALOA-authored) render as sanitized
+                         * HTML — headings and lists read as written, never as
+                         * a wall of tags. */
+                        <div
+                            className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed break-words prose prose-sm dark:prose-invert max-w-none prose-p:my-1.5 prose-headings:mb-2 prose-headings:mt-3 prose-li:my-0.5"
+                            dangerouslySetInnerHTML={{ __html: sanitize(note.content) }}
+                        />
                     ) : (
                         <div className="text-sm text-slate-700 dark:text-zinc-300 leading-relaxed whitespace-pre-wrap break-words">
                             {note.content}

@@ -70,16 +70,20 @@ export const AtriumEstate: React.FC = () => {
                         </figure>
                     </div>
 
-                    {/* Right — the PHONE: a proper screen, no void */}
+                    {/* Right — the PHONE: a proper screen, no void (R43:
+                        the bezel now shrink-wraps the screen — w-fit — so
+                        the handset keeps real proportions and the app fills
+                        it edge to edge; the caption wraps instead of
+                        stretching the frame). */}
                     <div className="lg:col-span-4 flex flex-col items-center">
-                        <figure className="m-0">
-                            {/* The handset — a dark bezel around the running app */}
-                            <div className="rounded-[2.4rem] bg-slate-900 p-[10px] shadow-[0_24px_48px_-20px_rgb(28_25_23/0.5)]">
-                                <div className="rounded-[1.7rem] overflow-hidden bg-white">
+                        <figure className="m-0 flex flex-col items-center">
+                            {/* The handset — a dark bezel hugging the running app */}
+                            <div className="w-fit rounded-[2.2rem] bg-slate-900 p-[10px] shadow-[0_24px_48px_-20px_rgb(28_25_23/0.5)]">
+                                <div className="rounded-[1.6rem] overflow-hidden bg-white">
                                     <EstatePhoneExplorer />
                                 </div>
                             </div>
-                            <figcaption className="font-mono text-2xs tracking-wider text-slate-500 mt-5 text-center">
+                            <figcaption className="font-mono text-2xs tracking-wider text-slate-500 mt-5 text-center max-w-[290px] mx-auto">
                                 THE SAME PREVIEW, POCKET-SIZED · TAP A PROPERTY — THE MANAGER&rsquo;S APP, LIVE
                             </figcaption>
                         </figure>

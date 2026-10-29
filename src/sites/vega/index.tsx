@@ -10,6 +10,7 @@ import { VegaNavBar, VegaFooter, VegaMobileStickyCTA, VegaChatFab } from './Vega
 import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaSuite } from './sections/VegaSuite';
+import { VegaTeam } from './sections/VegaTeam';
 import { VegaSegments } from './sections/VegaSegments';
 import { VegaAIDrafting } from './sections/VegaAIDrafting';
 import { VegaCourtRules } from './sections/VegaCourtRules';
@@ -151,8 +152,11 @@ export const VegaSite: React.FC = () => {
                 />
                 {/* The Reading Room arrangement, simplified (R40): the
                     merged instrument index (with its live captures), the
-                    segment tabs — then the deep-dives. */}
+                    segment tabs — then the deep-dives. R43: the chambers
+                    band sits after the Suite — the instruments, then the
+                    whole team that runs them. */}
                 <VegaSuite />
+                <VegaTeam />
                 <VegaSegments />
                 <VegaAIDrafting />
                 <VegaCourtRules />

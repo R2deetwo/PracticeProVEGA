@@ -55,6 +55,22 @@ describe("estate band (R41) — the two playable frames", () => {
       expect(estatePhone).toContain(`label="${item}"`);
     }
   });
+
+  it("R43: the bezel shrink-wraps the screen — real phone proportions, no right-side gap", () => {
+    // Owner: "it doesn't fill the phone... the proportions aren't okay...
+    // it sort of squeezes to the left, it doesn't hit the right hand
+    // side." Root cause: the long figcaption stretched the figure, the
+    // block bezel stretched with it, and the fixed-width screen sat left
+    // inside a ~55px gap. The bezel now fits its content (w-fit) and the
+    // caption wraps (max-w) instead of stretching the frame.
+    expect(atriumEstate).toContain("w-fit rounded-[2.2rem]");
+    expect(atriumEstate).toContain("max-w-[290px]");
+    // The modest handset (0.72 — the owner found 0.78 "a bit too large").
+    expect(estatePhone).toContain("const SCALE = 0.72");
+    // The compact (phone) panel drops the desktop middle-column border —
+    // no stray line at the screen's right edge.
+    expect(estateChrome).toContain("compact ? '' : 'border-r border-slate-200'");
+  });
 });
 
 describe("estate band (R41) — the interaction contract", () => {
