@@ -13554,3 +13554,113 @@ unit numbering should be just a flick of a switch."
   first capture landed on wrong scroll offsets — scrollIntoView fixed it):
   hero photographs PASS, estate grid + camera-pill phone + neutral-gray A5
   notices PASS, invoice PASS — verdict SHIP.
+
+## Round 40 (2026-10-29) — the real thing: live captures everywhere, the copy audit enforced, the pages simplified
+
+Owner direction (verbatim threads): the hero photos need no border/
+label/caption — "we can just work with the image itself"; the moved
+"evening exchange" is a fake version of ALOA — "we don't really need
+this fake mockup... ALOA can actually draw out in real life... an
+extra modal that sort of slides out... let's use the real live shots";
+"look at every word that is said on the Vega site — if the app doesn't
+do it yet, ensure it actually is able to do it"; "get rid of the sound
+familiar? page altogether"; "we need to look at how we can simplify
+the vega site"; the Atrium estate band should be "how it will look on
+the laptop on the left and how it looks on the phone on the right —
+the real-life thing, not this fake thing"; same for the invoice
+("let's use live mockups — how it actually looks"); "get rid of
+payments in parts" on the site (the feature stays in the app).
+
+- ENVIRONMENT: the sandbox rolled back mid-session — the repo tree was
+  a stale September snapshot (591 behind origin/main, node_modules
+  gone). Stashed the stale tree, reset to origin/main (all R39 work was
+  already pushed), npm ci, playwright chromium reinstalled. The git
+  remote credential also reverted — re-set from the owner's fresh PAT.
+- REAL CAPTURES (the R40 core): the dev server's demo-session bypass
+  (r28 pattern) drove the REAL app — product=vega and product=atrium.
+  Five progressive-JPEG assets in public/assets/landing/app/:
+  vega-aloa.jpg (ALOA panel over Financials, welcome + suggestions),
+  vega-aloa-drawout.jpg (the DRAW-OUT — the New Contact DockedModal
+  slid over the open ALOA panel, filled with Emeka Obi; the same
+  drawer ALOA's create_contact tool opens via mapToolToModal),
+  atrium-estate-units.jpg (Parkview Gardens Units tab — 8 named unit
+  cards, tenants, lease ends, statuses), atrium-estate-mobile.jpg (the
+  manager's app at 390px — bottom nav, property cards), and
+  atrium-invoice.jpg (INV/RENT/24-001 opened from Financials). VLM
+  verdicts on every capture: USE.
+- VEGA: hero chrome stripped (no frame/label/caption/grade — the
+  photographs stand alone, dots stay). The AI band's hand-built chat
+  card RETIRED; two real captures in its place with an honest mono
+  line ("NOTHING STAGED; BOTH FRAMES ARE THE SHIPPING APP"). Page
+  simplified 12 → 9 bands: IndexLine, Record (the scales) and
+  Procedure retired with their nav item — the suite + pullouts carry
+  the how-it-works story. VegaShell nav loses "How It Works"
+  (desktop + mobile); scroll observers re-scoped.
+- HUB: PainMirrorSection ("Sound familiar?") deleted entirely — the
+  hub leads with the work.
+- ATRIUM: the estate band rebuilt on the two real captures (laptop
+  card left, phone in a dark bezel right) — the fake 24-unit grid,
+  filter chips and fake portal phone are gone. The receipt band shows
+  the app's own invoice capture; "In part" removed from the site (the
+  app keeps recording whatever arrives); "Receipt sent" strip kept.
+- COPY AUDIT (every word vs the app):
+  * Scale of Charges was marketing-only — the ScaleOfChargesAgent was
+    dead code. Implemented deterministic arithmetic
+    (src/utils/scaleOfCharges.ts, Scale 4 bands verified against the
+    NBA enforcement protocol: 10% ≤₦50m; ₦5m + 5% to ₦100m; ₦7.5m +
+    3% above) and WIRED it into InvoiceForm for land-documentation
+    matters: property value in, band-by-band fee note out, one tap
+    adds the lines (ui/Input + ui/Button; replaces prior scale lines,
+    not stacks). The exhibit + copy now mirror the app's own math
+    (₦65m conveyance → ₦5,750,000).
+  * "All 36 state property & tenancy laws" was an over-claim (the
+    corpus holds 37 judiciaries + Lagos Tenancy Law 2011 + Land Use
+    Act). Implemented tenancyNoticePeriods.ts (the notice framework:
+    weekly 1wk / monthly 1mo / quarterly 3mo / yearly 6mo; Lagos
+    encoded; other states → framework + verify the current statute),
+    referenced it in ARIA's identity prompt, and corrected the three
+    over-claims (AtriumAI body/feature/footnote, WhyRunOn, FAQ).
+  * Client-portal KYC was claimed but absent — implemented the Submit
+    KYC card in ClientDocumentsTab (type select + upload through the
+    existing client-upload plumbing, titled "KYC — <type> — <file>").
+  * "Matter-level access control" softened to the real role-based
+    controls. Amenity Booking / Estate Bulletin / Service Provider
+    Directory verified REAL (convex/estateCommunity.ts). Sentry Pass
+    pricing (₦7,500/mo, Komplete included, 30-day trial), 2FA,
+    magistrate courts, DraftPro guardrails, receipts delivery — all
+    verified true.
+  * App fixes surfaced by the audit: getUnitDisplay now falls back to
+    unit.name (units no longer render "Unnamed"), and the demo estate
+    units carry rentalDetails (names, phones, leases).
+- Tests: websiteRepositioning re-pinned (vega order 9 bands; mockup
+  retirement; hero chrome absence; index-line/procedure retirement;
+  hub pain-mirror retirement; hero copy now states what we do); new
+  tests/unit/scaleAndTenancy.test.ts (13 cases: band boundaries at
+  ₦50m/₦100m, negative guard, applicability, Lagos vs framework,
+  at-will, table). Gates: tsc 127 (baseline 131 — the retired sections
+  carried 4; zero new in touched files), vitest 1293/1293 (1293 =
+  1281 − 8 retired + 13 new + 7 re-pinned net), eslint 0 errors,
+  ui-primitives ratchet 2314 held exactly, build green (twice).
+- Visual QA (scripts/r40-visual-qa.cjs, local dist): hero untreated
+  (VLM PASS after round 2 removed the last rounded corner + shadow +
+  grade), AI band two captures PASS, estate laptop+phone PASS,
+  receipt On time/Ahead PASS, hub Sound-familiar absent PASS; mobile
+  390px scrollWidth 390 on all three routes; zero console errors.
+- FOUND (owner action): the production GEMINI_DEMO_KEY is DEAD —
+  Google reports "Your API key was reported as leaked" (the old
+  repo-embedded key, since flagged). Demo ALOA/ARIA replies fail in
+  production for demo users; the live captures therefore show the
+  welcome state, not mid-conversation. Fix: mint a fresh key in Google
+  AI Studio → Convex dashboard → GEMINI_DEMO_KEY. The capture scripts
+  re-run in minutes once the key is live.
+- Deploy (R40): ebd70f14 pushed (PAT re-set after the rollback ate
+  the remote credential); CI Tests + Staging + APK (v1.0.723,
+  build-1114) all green; promote run 40804433402 on 7436f661 —
+  quality gate ✓, Vercel + Convex production ✓, Cloudflare mirror ✗ on
+  the standing expired CLOUDFLARE_API_TOKEN (owner action, unchanged
+  since R33). Live-verified (scripts/r40-live-verify.cjs, 16/16 PASS):
+  all five new assets serve 200 at full size; hero chrome gone;
+  evening exchange gone; How-It-Works gone; both ALOA captures load
+  (2880px); estate units + phone + invoice captures load; "In part"
+  gone; Sound familiar? gone; hero states what we do; zero console
+  errors. Live VLM: SHIP.
