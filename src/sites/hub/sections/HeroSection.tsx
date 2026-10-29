@@ -1,37 +1,67 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ChevronDownIcon } from '../../../constants';
 import { Button } from '../../../components/ui';
+import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
 import NetworkScene from '../scenes/NetworkScene';
 
 /**
- * HubHero — R42, the glassmorphic daylight hero.
+ * HubHero — R44, the ambient workspace + the map of the internet.
  *
- * Owner direction (R42): move on from the living orb — "something to do
- * with some kind of networking… how systems get connected together…
- * systems sort of coming together to become one process", still
- * interactive and 3D, the mouse having an effect, and nothing plopping
- * onto the screen. Layout brief (owner-supplied, SmartEsq-referenced):
- * a light ambient hero — glassmorphic floating nav, LEFT-aligned
- * headline block with an eyebrow tag, a solid accent-green primary CTA,
- * and a floating featured-solution card anchored bottom-right.
+ * Owner direction (R44): "why don't we have something like what they
+ * have there, where you have somebody working on a laptop, an African
+ * man, a Nigerian man working on a laptop, and it's just like a video
+ * that fills that background landing page?" — plus the networking
+ * visual should look like a real map of the internet ("little clusters
+ * communicating with each other"), and the featured-solutions card
+ * should tell OUR product story (Vega and Atrium, correctly named) and
+ * explore DOWN to the products on this page, not away to /vega.
  *
- * The ambient background is the NetworkScene itself (see
- * scenes/NetworkScene.tsx): six system constellations converging into
- * one ringed process, pulses travelling the arcs, pointer parallax +
- * proximity glow + click-to-pulse. A soft paper gradient keeps the ink
- * copy perfectly crisp on the left. The old dark hero furniture
- * (w7-dark, vignette, grain, bottom fade) retired with the orb.
+ * Layers, back to front:
+ *   0. The paper ground (never transparent to the body).
+ *   0.5 THE AMBIENT VIDEO — a Nigerian professional at his laptop,
+ *       built as a 24s seamless Ken Burns loop from a generated still
+ *       (scripts/r44-ambient-video.sh; see assets/landing/hero/).
+ *       Muted, looping, inline; paused under prefers-reduced-motion and
+ *       when the hero is offscreen; the poster frame is the fallback.
+ *   1. A paper wash over the video — strong on the left (the ink copy
+ *       stays crisp), letting the workspace breathe on the right.
+ *   2. THE MAP — NetworkScene, the internet-map mesh of clusters and
+ *       backbone traffic, drawn over the softened video.
+ *   3. The left legibility gradient + the content column.
  *
- * Copy is the owner-supplied R42 brief, kept verbatim.
+ * Typography stays the site's own system throughout (owner, R44: "let's
+ * ensure the font still matches across"): Space Grotesk display for the
+ * H1 (font-display), Figtree for body (font-sans default), IBM Plex
+ * Mono for the eyebrow/badge labels (font-mono) — the same stacks every
+ * other section wears. Copy is the R42 owner-supplied brief, kept.
  */
 export const HubHero: React.FC<{
     onContactSales: () => void;
     scrollTo: (id: string) => void;
-    onOpenVega?: () => void;
-}> = ({ onContactSales, scrollTo, onOpenVega }) => {
-    const openVega = () => {
-        if (onOpenVega) onOpenVega();
-        else window.open('/vega', '_blank', 'noopener,noreferrer');
+    onOpenProduct?: (p: 'vega' | 'atrium') => void;
+}> = ({ onContactSales, scrollTo, onOpenProduct }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Ambient video etiquette: never autoplay under reduced motion; pause
+    // when the hero leaves the viewport (the poster stays); resume on
+    // return. Errors (no codec / blocked) fall back to the poster frame.
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced) { video.pause(); return; }
+        const io = new IntersectionObserver((entries) => {
+            const visible = entries.some((en) => en.isIntersecting);
+            if (visible && video.paused) video.play().catch(() => {});
+            else if (!visible && !video.paused) video.pause();
+        }, { threshold: 0 });
+        io.observe(video);
+        return () => io.disconnect();
+    }, []);
+
+    const openProduct = (p: 'vega' | 'atrium') => {
+        if (onOpenProduct) onOpenProduct(p);
+        else window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer');
     };
 
     return (
@@ -39,22 +69,41 @@ export const HubHero: React.FC<{
             id="home"
             className="relative overflow-hidden min-h-[92vh] flex items-center r42-hero"
         >
-            {/* Layer 0 — the paper ground (matches the page surface) */}
+            {/* Layer 0 — the paper ground */}
             <div className="absolute inset-0 bg-[#FBFBF9]" aria-hidden="true" />
-            {/* Soft ambient washes — calm, high-trust daylight */}
-            <div className="absolute -top-24 right-[12%] w-[38rem] h-[26rem] rounded-full bg-emerald-100/50 blur-[120px] pointer-events-none" aria-hidden="true" />
-            <div className="absolute bottom-[-6rem] left-[6%] w-[30rem] h-[22rem] rounded-full bg-teal-50/70 blur-[110px] pointer-events-none" aria-hidden="true" />
 
-            {/* Layer 1 — the living network (WebGL; CSS fallback behind it),
-                arriving through its own build-in choreography. */}
+            {/* Layer 0.5 — the ambient workspace video (a Nigerian
+                professional at his laptop; 24s seamless loop). */}
+            <video
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster="/assets/landing/hero/ambient-poster.jpg"
+                aria-hidden="true"
+                tabIndex={-1}
+            >
+                <source src="/assets/landing/hero/ambient-loop.mp4" type="video/mp4" />
+            </video>
+
+            {/* Layer 1 — the paper wash: the left column stays crisp ink,
+                the workspace breathes on the right. */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[#FBFBF9]/95 via-[#FBFBF9]/80 to-[#FBFBF9]/45 pointer-events-none" aria-hidden="true" />
+            {/* A soft top wash keeps the floating nav pill glassy. */}
+            <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#FBFBF9]/80 to-transparent pointer-events-none" aria-hidden="true" />
+
+            {/* Layer 2 — the map of the internet (WebGL; CSS fallback
+                behind it), arriving through its build-in choreography. */}
             <div className="absolute inset-0 r42-net-fallback" aria-hidden="true" />
             <div className="absolute inset-0 w8-scene-enter" aria-hidden="true">
                 <NetworkScene className="absolute inset-0" />
             </div>
 
-            {/* Layer 2 — legibility wash: the left column stays crisp ink
-                over whatever the field is doing behind it. */}
-            <div className="absolute inset-y-0 left-0 w-full lg:w-[62%] bg-gradient-to-r from-[#FBFBF9] via-[#FBFBF9]/85 to-transparent pointer-events-none" aria-hidden="true" />
+            {/* Layer 3 — legibility wash under the copy column. */}
+            <div className="absolute inset-y-0 left-0 w-full lg:w-[62%] bg-gradient-to-r from-[#FBFBF9]/70 via-[#FBFBF9]/40 to-transparent pointer-events-none" aria-hidden="true" />
 
             {/* Content — left-aligned, one column, generous air. pb-24 on
                 mobile clears the chat FAB (bottom-24 = 96px). */}
@@ -75,7 +124,7 @@ export const HubHero: React.FC<{
                         We design, build, and run custom business solutions.
                     </h1>
 
-                    <p className="text-lg md:text-xl leading-[1.75] text-slate-600 mb-10 max-w-xl">
+                    <p className="text-lg md:text-xl leading-[1.75] text-slate-700 mb-10 max-w-xl">
                         From custom software and system integrations to domain management and
                         operational tech—we build and manage the complete digital foundation
                         your business needs.
@@ -99,18 +148,19 @@ export const HubHero: React.FC<{
                         </Button>
                     </div>
 
-                    {/* Mobile/stacked anchor for the featured card — the same
-                        card the desktop view floats bottom-right. */}
+                    {/* Mobile/stacked anchor for the featured solutions —
+                        the same card the desktop view floats bottom-right. */}
                     <div className="mt-12 lg:hidden r42-card-in">
-                        <FeaturedSolutionCard onOpen={openVega} />
+                        <FeaturedSolutionsCard onOpenProduct={openProduct} onExplore={() => scrollTo('ourWork')} />
                     </div>
                 </div>
             </div>
 
-            {/* Floating proof card — anchored bottom-right of the hero,
-                overlapping the network field (desktop). */}
-            <div className="hidden lg:block absolute bottom-10 right-6 xl:right-10 z-10 w-[380px] r42-card-in">
-                <FeaturedSolutionCard onOpen={openVega} />
+            {/* Floating featured-solutions card — anchored bottom-right of
+                the hero, overlapping the map (desktop). R44: OUR products,
+                correctly named; Explore scrolls DOWN to the products. */}
+            <div className="hidden lg:block absolute bottom-10 right-6 xl:right-10 z-10 w-[400px] r42-card-in">
+                <FeaturedSolutionsCard onOpenProduct={openProduct} onExplore={() => scrollTo('ourWork')} />
             </div>
 
             {/* Scroll cue — invites the descent into the story. */}
@@ -126,29 +176,66 @@ export const HubHero: React.FC<{
     );
 };
 
-/** The featured-solution card — white, soft-shadowed, clickable through
- *  to the Vega suite (R42 brief: "FEATURED SOLUTION", the Vega Legal &
- *  Property Suite, one honest sentence, an affordance to explore). */
-const FeaturedSolutionCard: React.FC<{ onOpen: () => void }> = ({ onOpen }) => (
-    <button
-        type="button"
-        onClick={onOpen}
-        className="group w-full text-left bg-white rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 p-6 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-900/15 hover:-translate-y-0.5 active:scale-[0.99] focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none"
-        aria-label="Featured solution — Vega Legal and Property Suite. Explore the suite."
-    >
-        <p className="font-mono text-2xs font-medium uppercase tracking-[0.22em] text-emerald-700 mb-3">
-            Featured Solution
-        </p>
-        <h3 className="font-display text-xl font-semibold text-slate-900 leading-snug mb-2">
-            Vega Legal &amp; Property Suite
-        </h3>
-        <p className="text-sm leading-[1.65] text-slate-600 mb-4">
-            Discover how custom-built workflow automation and integrated payment
-            systems transformed operations.
-        </p>
-        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 group-hover:gap-2.5 transition-all">
-            Explore the suite
-            <span aria-hidden="true">→</span>
-        </span>
-    </button>
+/** The featured solutions — Vega and Atrium, in their own names (R44:
+ *  the owner: "there's Vega and there's Atrium... I don't think that's
+ *  what it's called, and if you click on Explore it should take you
+ *  down to products"). Each product row opens ITS page (new tab, R21
+ *  routing keep); the Explore affordance scrolls to Our Work — the
+ *  products live on this page. */
+const FeaturedSolutionsCard: React.FC<{
+    onOpenProduct: (p: 'vega' | 'atrium') => void;
+    onExplore: () => void;
+}> = ({ onOpenProduct, onExplore }) => (
+    <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 overflow-hidden transition-all duration-300">
+        <div className="p-6 pb-5">
+            <p className="font-mono text-2xs font-medium uppercase tracking-[0.22em] text-emerald-700 mb-4">
+                Featured Solutions
+            </p>
+            <div className="space-y-4">
+                <button
+                    type="button"
+                    onClick={() => onOpenProduct('vega')}
+                    className="group w-full text-left flex items-start gap-3.5 rounded-lg p-2 -m-2 hover:bg-emerald-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 active:scale-[0.99]"
+                    aria-label="Vega — the legal practice operating system. Opens the Vega page."
+                >
+                    <VegaMark className="w-8 h-8 mt-0.5 flex-shrink-0" />
+                    <span className="min-w-0">
+                        <span className="flex items-baseline gap-2">
+                            <span className="font-display text-lg font-semibold text-slate-900">Vega</span>
+                            <span className="font-mono text-2xs uppercase tracking-widest text-emerald-700">Legal Practice OS</span>
+                        </span>
+                        <span className="block text-sm leading-[1.6] text-slate-600 mt-0.5">
+                            Matters, drafting, court-rule diaries and billing for law firms.
+                        </span>
+                    </span>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onOpenProduct('atrium')}
+                    className="group w-full text-left flex items-start gap-3.5 rounded-lg p-2 -m-2 hover:bg-emerald-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 active:scale-[0.99]"
+                    aria-label="Atrium — the property management operating system. Opens the Atrium page."
+                >
+                    <AtriumMark className="w-8 h-8 mt-0.5 flex-shrink-0" />
+                    <span className="min-w-0">
+                        <span className="flex items-baseline gap-2">
+                            <span className="font-display text-lg font-semibold text-slate-900">Atrium</span>
+                            <span className="font-mono text-2xs uppercase tracking-widest text-emerald-700">Property Management OS</span>
+                        </span>
+                        <span className="block text-sm leading-[1.6] text-slate-600 mt-0.5">
+                            Estates, tenants, rent and receipts in one well-kept system.
+                        </span>
+                    </span>
+                </button>
+            </div>
+        </div>
+        <button
+            type="button"
+            onClick={onExplore}
+            className="group w-full flex items-center justify-between px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 hover:bg-emerald-50/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 active:scale-[0.99]"
+            aria-label="Explore both products — scroll to Our Work"
+        >
+            <span className="text-sm font-semibold text-emerald-800">Explore both products</span>
+            <span className="text-emerald-700 group-hover:translate-y-0.5 transition-transform" aria-hidden="true">↓</span>
+        </button>
+    </div>
 );

@@ -79,7 +79,7 @@ export const HubSite: React.FC = () => {
                 <HubHero
                     onContactSales={() => openContactSales('Hub Hero')}
                     scrollTo={scrollTo}
-                    onOpenVega={() => openProductPage('vega')}
+                    onOpenProduct={openProductPage}
                 />
                 {/* R42: the hero is daylight now — the dark capabilities band
                     pours in through a liquid seam instead of a shared ground. */}

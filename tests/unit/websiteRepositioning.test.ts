@@ -308,19 +308,42 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 
 
-  it("the hero is the convergence network, full-bleed behind left-aligned copy (R42)", () => {
+  it("the hero is the map of the internet over the ambient workspace, behind left-aligned copy (R42→R44)", () => {
     // R42 (owner direction): the orb retired — "systems sort of coming
-    // together to become one process". NetworkScene full-bleed behind the
-    // LEFT-aligned glassmorphic copy (owner-supplied brief), with the
-    // featured-solution card floating bottom-right and a soft paper wash
-    // keeping the ink copy crisp.
+    // together to become one process". R44: the network is now the
+    // internet-map mesh ("little clusters communicating with each
+    // other") over an AMBIENT VIDEO of a Nigerian professional at his
+    // laptop ("a video that fills that background landing page"), with
+    // the featured-solutions card floating bottom-right telling OUR
+    // product story — Vega and Atrium, correctly named — and an Explore
+    // affordance that scrolls DOWN to the products on this page.
     expect(hubHeroSection).toContain("NetworkScene");
     expect(hubHeroSection).toContain("w8-scene-enter");
     expect(hubHeroSection).toContain("End-to-End Digital Infrastructure");
     expect(hubHeroSection).toContain("We design, build, and run custom business solutions.");
-    expect(hubHeroSection).toContain("FeaturedSolutionCard");
-    expect(hubHeroSection).toContain("Vega Legal &amp; Property Suite");
+    // The ambient video: self-hosted, muted, looping, inline, poster
+    // fallback; paused under reduced motion.
+    expect(hubHeroSection).toContain("ambient-loop.mp4");
+    expect(hubHeroSection).toContain("ambient-poster.jpg");
+    expect(hubHeroSection).toContain("playsInline");
+    expect(hubHeroSection).toContain("prefers-reduced-motion");
+    // The featured solutions: Vega + Atrium in their own names.
+    expect(hubHeroSection).toContain("FeaturedSolutionsCard");
+    expect(hubHeroSection).toContain("<VegaMark");
+    expect(hubHeroSection).toContain("<AtriumMark");
+    expect(hubHeroSection).toContain("Legal Practice OS");
+    expect(hubHeroSection).toContain("Property Management OS");
+    expect(hubHeroSection).toContain("Explore both products");
+    // Explore scrolls DOWN to the products (Our Work), never away.
+    expect(hubHeroSection).toContain("onExplore={() => scrollTo('ourWork')}");
+    expect(hubHeroSection).not.toContain("Vega Legal &amp; Property Suite");
     expect(hubHeroSection).not.toContain("aspect-[4/3]");
+    // R44 (owner: "ensure the font still matches across"): the hero
+    // wears the site's own stacks — Space Grotesk display, IBM Plex
+    // Mono labels, Figtree body — never the referenced site's fonts.
+    expect(hubHeroSection).toContain("font-display");
+    expect(hubHeroSection).toContain("font-mono");
+    expect(hubHeroSection).not.toMatch(/font-(inter|geist)|Inter[, '"]|Geist/);
     // The diorama's stage machinery is gone with it. ("Money recorded" is
     // NOT asserted here — it is also a legitimate What-we-do capability
     // title: "Money recorded the moment it lands".)
