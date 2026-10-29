@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Invoice, InvoiceLineItem, Contact, Matter, BankAccount, InvoiceStatus, ContactType } from '../../types';
 import { CurrencyDollarIcon, UserIcon, CalendarIcon, PlusIcon, TrashIcon, SaveIcon, XIcon, BriefcaseIcon, InfoIcon, ClockIcon } from '../../constants';
-import { FileText as FileTextIcon, Calculator as CalculatorIcon, CheckCircle as CheckCircleIcon } from 'lucide-react';
+import { FileText as FileTextIcon, Calculator as CalculatorIcon, CheckCircle as CheckCircleIcon, Scale as ScaleIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
 import { formatNumberWithCommas, parseFormattedNumber, formatNaira } from '../../utils/formatting';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -10,6 +10,8 @@ import { useFinanceState } from '../../contexts/FinanceContext';
 import { useProduct } from '../../contexts/ProductContext';
 import NairaSymbol from '../NairaSymbol';
 import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
+import { computeScaleFeeNote, scaleAppliesToMatter } from '../../utils/scaleOfCharges';
+import { Button, Input } from '../ui';
 
 interface InvoiceFormProps {
   clients: Contact[];
@@ -57,6 +59,37 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const [applyWht, setApplyWht] = useState(false);
   const whtRate = 0.10;
   const whtPercentage = (whtRate * 100).toFixed(0);
+
+  // R40 — the Scale of Charges computation (land-documentation matters).
+  // The property value drives the bands; one tap appends the fee note to
+  // the invoice. (The selected matter resolves via the existing
+  // `selectedMatter` below — no shadow declaration.)
+  const [scalePropertyValue, setScalePropertyValue] = useState<number>(0);
+  const scaleNote = useMemo(
+      () => (scalePropertyValue > 0 ? computeScaleFeeNote(scalePropertyValue) : null),
+      [scalePropertyValue],
+  );
+  const addScaleLineItems = () => {
+      if (!scaleNote || scaleNote.total <= 0) return;
+      // One line per band, plus the statutory reference — the fee note the
+      // profession expects to see, item by item.
+      const bandLines: Partial<InvoiceLineItem>[] = scaleNote.bands.map((b) => ({
+          description: `Professional fee — ${b.label} (${b.rateLabel}) · Scale 4, Remuneration Order 2023`,
+          total: b.amount,
+          hours: 1,
+          rate: b.amount,
+      }));
+      setLineItems((prev) => {
+          // Replace any previous scale lines rather than stacking copies
+          const kept = prev.filter(
+              (li) => !String(li.description || '').includes('Scale 4, Remuneration Order 2023'),
+          );
+          // If the only line is an untouched empty one, drop it
+          const cleaned = kept.filter((li, i) => !(kept.length === 1 && !li.description && !li.total));
+          return [...(cleaned.length ? cleaned : []), ...bandLines];
+      });
+      addToast(`Fee note added — ${formatNaira(scaleNote.total)} on the Scale of Charges.`, { type: 'success' });
+  };
 
   const isEditing = !!invoiceToEdit;
   const selectedClient = clients.find(c => c.id === clientId);
@@ -145,6 +178,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const invoiceTotal = subTotal + vatAmount;
   const netReceivable = subTotal + vatAmount - whtAmount;
   const selectedMatter = matters.find(m => m.id === matterId);
+  // The land scale applies only to land-documentation matters.
+  const scaleApplies = scaleAppliesToMatter(selectedMatter);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,6 +289,78 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                       </select>
                   </div>
               </div>
+
+              {/* R40 — THE SCALE OF CHARGES (Remuneration Order 2023, Scale 4):
+                  for land-documentation matters, the professional fee is
+                  COMPUTED on the statutory schedule — the site's Scale band
+                  claims it, the invoice now does it. Progressive bands:
+                  10% to ₦50m; ₦5m + 5% to ₦100m; ₦7.5m + 3% above. */}
+              {!isProperty && scaleApplies && (
+                  <div className="p-3 sm:p-4 rounded-lg border border-indigo-100 dark:border-zinc-700/50 bg-indigo-50/40 dark:bg-zinc-800/30 space-y-3">
+                      <div className="flex items-center gap-3 px-1">
+                          <div className="p-1.5 bg-indigo-600 text-white rounded-lg shadow-sm">
+                              <ScaleIcon className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                              <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">
+                                  Scale of Charges — Remuneration Order 2023
+                              </h3>
+                              <p className="text-2xs text-slate-500 dark:text-zinc-400">
+                                  Land documentation · Scale 4 · the statutory schedule for this matter type
+                              </p>
+                          </div>
+                      </div>
+                      <div className="flex flex-wrap items-end gap-3">
+                          <div className="flex-1 min-w-[220px]">
+                              <label className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1.5 block ml-1">
+                                  Property / transaction value
+                              </label>
+                              <Input
+                                  styleVariant="modern"
+                                  inputClassName="font-semibold"
+                                  type="text"
+                                  value={formatNumberWithCommas(scalePropertyValue)}
+                                  onChange={(e) => setScalePropertyValue(parseFormattedNumber(e.target.value))}
+                                  placeholder="e.g. 65,000,000"
+                              />
+                          </div>
+                          <Button
+                              variant="primary"
+                              disabled={!scaleNote || scaleNote.total <= 0}
+                              onClick={addScaleLineItems}
+                              className="mb-0.5"
+                          >
+                              <CheckCircleIcon className="w-4 h-4 mr-1.5" />
+                              Add fee note to invoice
+                          </Button>
+                      </div>
+                      {scaleNote && scaleNote.total > 0 && (
+                          <div className="rounded-lg bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 px-4 py-3 space-y-1.5">
+                              {scaleNote.bands.map((b, i) => (
+                                  <div key={i} className="flex items-baseline justify-between gap-3 text-xs">
+                                      <span className="text-slate-500 dark:text-zinc-400 min-w-0">
+                                          {b.label} <span className="font-mono text-slate-400">· {b.rateLabel}</span>
+                                      </span>
+                                      <span className="font-mono font-semibold text-slate-700 dark:text-zinc-200 whitespace-nowrap">
+                                          <NairaSymbol />{formatNumberWithCommas(b.amount)}.00
+                                      </span>
+                                  </div>
+                              ))}
+                              <div className="flex items-baseline justify-between gap-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                                  <span className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest">
+                                      Professional fee
+                                  </span>
+                                  <span className="font-mono font-black text-indigo-600 dark:text-indigo-300 whitespace-nowrap">
+                                      <NairaSymbol />{formatNumberWithCommas(scaleNote.total)}.00
+                                  </span>
+                              </div>
+                              <p className="text-2xs text-slate-400 dark:text-zinc-500 pt-1 leading-relaxed">
+                                  {scaleNote.complianceNote}
+                              </p>
+                          </div>
+                      )}
+                  </div>
+              )}
           </div>
 
           {/* Line Items Section */}

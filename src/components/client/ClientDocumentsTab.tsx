@@ -4,7 +4,18 @@ import { Document, Matter, FileDetails, User } from '../../types';
 import { useCoreState } from '../../contexts/CoreContext';
 import { formatBytes } from '../../utils/formatting';
 import { UploadIcon, UserUploadIcon, DownloadIcon, CheckBadgeIcon, SignatureIcon } from '../../constants';
+import { ShieldCheck as IdentificationIcon } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
+import { Select, Button } from '../ui';
+
+/** KYC document types the firm's Compliance & KYC accordion expects. */
+const KYC_DOC_TYPES = [
+    { value: 'nin', label: 'National ID Card (NIN)' },
+    { value: 'passport', label: 'International Passport' },
+    { value: 'licence', label: 'Driver\u2019s Licence' },
+    { value: 'utility', label: 'Utility Bill (address proof)' },
+    { value: 'other', label: 'Other compliance document' },
+];
 
 interface ClientDocumentsTabProps {
     documents: Document[];
@@ -17,21 +28,35 @@ interface ClientDocumentsTabProps {
 
 export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ documents, matter, currentUser, handleClientUploadDocument, handleClientMarkDocumentAsReviewed, isNew }) => {
     const { coreState, isDataLoaded } = useCoreState();
-    const { openModal } = useUI();
+    const { openModal, addToast } = useUI();
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    // R40 — KYC submission from the portal (the site's suite entry promises
+    // "clients submit KYC at any hour"): the same upload plumbing, titled
+    // for the firm's Compliance & KYC review. Select the document type,
+    // tap upload — the file lands titled KYC — <type>.
+    const [kycDocType, setKycDocType] = useState('nin');
+    const [kycPending, setKycPending] = useState(false);
 
     const handleFile = (file: File) => {
         const reader = new FileReader();
         reader.onload = () => {
+            const baseName = kycPending
+                ? `KYC \u2014 ${KYC_DOC_TYPES.find((t) => t.value === kycDocType)?.label || 'Compliance'} \u2014 ${file.name}`
+                : file.name;
             const fileDetails: FileDetails = {
-                name: file.name,
+                name: baseName,
                 type: file.type,
                 size: file.size,
                 filePath: `client_upload/${matter.id}/${file.name}`,
                 dataUrl: reader.result as string,
             };
             handleClientUploadDocument(matter.id, fileDetails);
+            if (kycPending) {
+                addToast(`KYC document submitted \u2014 ${KYC_DOC_TYPES.find((t) => t.value === kycDocType)?.label}. Your firm has been notified.`, { type: 'success' });
+                setKycPending(false);
+            }
         };
         reader.readAsDataURL(file);
     };
@@ -81,9 +106,37 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ document
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-bold">Shared Documents</h3>
                 <input autoComplete="off" data-lpignore="true"  type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" />
-                <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-primary-500 text-white rounded-lg font-semibold text-sm hover:bg-primary-600 flex items-center">
+                <button onClick={() => { setKycPending(false); fileInputRef.current?.click(); }} className="px-4 py-2 bg-primary-500 text-white rounded-lg font-semibold text-sm hover:bg-primary-600 flex items-center">
                     <UploadIcon className="mr-2 w-4 h-4" /> Upload Document
                 </button>
+            </div>
+
+            {/* R40 — KYC submission: identification uploaded from the
+                portal, titled for the firm's Compliance & KYC review. */}
+            <div className="mb-5 p-4 rounded-lg border border-primary-100 dark:border-zinc-700 bg-primary-50/50 dark:bg-zinc-800/40 flex flex-col sm:flex-row sm:items-end gap-3">
+                <div className="flex items-center gap-3 sm:flex-1 min-w-0">
+                    <span className="p-2 bg-primary-500 text-white rounded-lg flex-shrink-0"><IdentificationIcon className="w-4 h-4" /></span>
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 dark:text-white">Submit KYC</p>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">Identification for compliance \u2014 uploaded to this matter, any hour, without calling the office.</p>
+                    </div>
+                </div>
+                <div className="flex items-end gap-2 sm:flex-shrink-0">
+                    <Select
+                        styleVariant="modern"
+                        value={kycDocType}
+                        onChange={(e) => setKycDocType(e.target.value)}
+                        options={KYC_DOC_TYPES}
+                        selectClassName="text-sm py-2"
+                        aria-label="KYC document type"
+                    />
+                    <Button
+                        variant="primary"
+                        onClick={() => { setKycPending(true); fileInputRef.current?.click(); }}
+                    >
+                        <UploadIcon className="w-4 h-4 mr-1.5" /> Upload
+                    </Button>
+                </div>
             </div>
             {sharedDocuments.length > 0 ? (
                 <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">

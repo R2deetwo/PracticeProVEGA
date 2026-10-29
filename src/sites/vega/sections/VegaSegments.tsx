@@ -50,11 +50,11 @@ const SEGMENTS: Segment[] = [
         key: 'corporate',
         tab: 'Corporate & Commercial',
         title: 'The transactional desk, kept in order.',
-        body: 'Engagements run on structured matter workflows with document categories, checklists and event types preset for corporate work — so the drafts, board approvals and closings stay in one vault with version history, and the fee note builds itself on the Scale of Charges.',
+        body: 'Engagements run on structured matter workflows with document categories, checklists and event types preset for corporate work — so the drafts, board approvals and closings stay in one vault with version history, and land-documentation fee notes build themselves on the statutory Scale of Charges.',
         rows: [
             { title: 'Document vault', detail: 'Version history, access controls and full-text search across the firm\u2019s library — NDPA-compliant metadata.' },
             { title: 'Deal checklists', detail: 'Preset engagement checklists keep every closing item owned and dated — nothing slips between counsel.' },
-            { title: 'Billing on the Scale', detail: 'Fee notes computed under the Remuneration Order 2023, with naira-first bank transfer flows.' },
+            { title: 'Billing on the Scale', detail: 'Land-documentation fee notes computed under the Remuneration Order 2023, with naira-first bank transfer flows.' },
             { title: 'Retainers that renew', detail: 'Retainer billing cycles and outstanding balances tracked per client on the financial dashboard.' },
         ],
     },

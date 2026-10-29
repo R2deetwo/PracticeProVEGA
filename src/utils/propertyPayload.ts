@@ -332,8 +332,13 @@ export function computeTermProgress(leaseStart?: string, leaseEnd?: string): num
 /** Display fields for unit cards (Property rows store tenant/rent in rentalDetails). */
 export function getUnitDisplay(unit: Property & { rentalDetails?: Record<string, unknown> }) {
   const rd = (unit.rentalDetails || unit) as Record<string, unknown>;
+  // R40: fall back to unit.name — units written before the rentalDetails
+  // redesign (and the demo estate) carry only the flat name field; they
+  // rendered as "Unnamed" in the Units tab even though the name exists.
+  // (Typed as a cast: the flat legacy field is not on the Property type.)
   const unitName =
     (rd.unitName as string) ||
+    ((unit as unknown as { name?: string }).name as string | undefined) ||
     unit.description?.match(/\((.*?)\)/)?.[1] ||
     '';
   const sc = resolveServiceCharge({ unit, rental: (unit.rentalDetails ?? undefined) as Record<string, unknown> | undefined });

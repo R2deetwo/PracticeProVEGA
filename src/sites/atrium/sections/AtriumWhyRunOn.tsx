@@ -26,7 +26,7 @@ const WHY_RUN_ON: Array<{
     },
     {
         title: "Every state's tenancy law, applied",
-        body: 'ARIA works from the property and tenancy laws of all 36 states and the FCT, and applies the law of the state where each property is located — quit notices included.',
+        body: 'ARIA applies the tenancy law of the state where each property is located — the notice-to-quit framework is built in and verified against the current statute before a quit notice is drafted.',
         Icon: ScalesIcon,
     },
     {

@@ -49,7 +49,7 @@ const ATRIUM_FAQS = [
     },
     {
         q: "What happens if a resident doesn't pay?",
-        a: "The Revenue Monitor tracks defaulters by days overdue and sends automated demand notices by email and to the residents' portal (with a one-tap WhatsApp share for phone-first residents). You can calculate outstanding balances with late penalties and draft statutory quit notices using the tenancy law of the state where your property is located — all 36 states and the FCT are supported, backed by the Land Use Act. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
+        a: "The Revenue Monitor tracks defaulters by days overdue and sends automated demand notices by email and to the residents' portal (with a one-tap WhatsApp share for phone-first residents). You can calculate outstanding balances with late penalties and draft statutory quit notices on the notice framework the app encodes (weekly 1 week, monthly 1 month, quarterly 3 months, yearly 6 months), applied to the state where your property is located — with the Tenancy Law of Lagos State 2011 in the legal corpus and ARIA verifying the current statute of any other state before drafting. For property owners managing remotely from abroad, this means full visibility into arrears and recovery without needing a local proxy — ARIA tracks every unit and drafts notices even while you're away.",
     },
     {
         q: "I'm a property owner living abroad. Can I use Atrium to manage my Nigerian properties?",

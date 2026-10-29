@@ -4,12 +4,15 @@ import { VegaAppShot } from './VegaAppShot';
 /**
  * VegaScaleOfCharges — the "Scale of Charges" signature moment for /vega.
  *
- * Billing compliance rendered as a LEDGER, not a feature card: a fee note
- * computed under the Scale of Charges (Remuneration Order 2023), set in
- * IBM Plex Mono with tabular numerals, hairline row rules and the classic
- * accounting double-rule under the total. Naira amounts in tabular mono.
- * On the night page the ledger stays a lit paper sheet — the fee note on
- * the desk — while the framing copy runs on the dark ground.
+ * R40: the exhibit is the REAL computation the app now runs
+ * (src/utils/scaleOfCharges.ts — wired into the invoice form): a
+ * land-documentation fee note under Scale 4 of the Remuneration Order
+ * 2023, band by band — 10% to ₦50m; ₦5m + 5% to ₦100m; ₦7.5m + 3%
+ * above — set in IBM Plex Mono with tabular numerals, hairline row
+ * rules and the classic accounting double-rule under the total. Naira
+ * amounts in tabular mono. On the night page the ledger stays a lit
+ * paper sheet — the fee note on the desk — while the framing copy runs
+ * on the dark ground.
  *
  * Presentational only — zero buttons (ADR-0004), zero hardcoded hexes.
  */
@@ -21,15 +24,14 @@ type LedgerRow = {
     amount: string;
 };
 
+/** The exhibit's matter: a ₦65,000,000 conveyance — the same arithmetic
+ *  the invoice form runs (computeScaleFeeNote(65_000_000)). */
 const LEDGER_ROWS: LedgerRow[] = [
-    { item: '01', particulars: 'Consultation & case assessment', basis: 'FIXED FEE', amount: '150,000.00' },
-    { item: '02', particulars: 'Writ of Summons & statement of claim', basis: 'ITEM 2, SCALE', amount: '450,000.00' },
-    { item: '03', particulars: 'Affidavit of personal service', basis: 'ITEM 4, SCALE', amount: '60,000.00' },
-    { item: '04', particulars: 'Motion on notice (interlocutory)', basis: 'ITEM 7, SCALE', amount: '250,000.00' },
-    { item: '05', particulars: 'Pre-trial conference appearance', basis: 'ITEM 12, SCALE', amount: '180,000.00' },
+    { item: '01', particulars: 'Professional fee — first ₦50,000,000', basis: '10% · SCALE 4', amount: '5,000,000.00' },
+    { item: '02', particulars: 'Professional fee — next ₦15,000,000 (₦50m–₦100m band)', basis: '5% · SCALE 4', amount: '750,000.00' },
 ];
 
-const LEDGER_TOTAL = '1,090,000.00';
+const LEDGER_TOTAL = '5,750,000.00';
 
 export const VegaScaleOfCharges: React.FC = () => (
     <section
@@ -72,13 +74,14 @@ export const VegaScaleOfCharges: React.FC = () => (
                         </span>
                     </h2>
                     <p className="text-base md:text-lg leading-[1.7] text-slate-700">
-                        When Vega bills a matter, every line item is computed on the Scale of
-                        Charges under the Remuneration Order 2023 — the schedule your clients
-                        and the profession expect to see. Track billable work, apply the right
-                        rates, and let the fee note build itself.
+                        When a land-documentation matter is billed, the fee note computes
+                        itself on the statutory scale — Scale 4 of the Remuneration Order
+                        2023: 10% to ₦50m, then 5% to ₦100m, then 3% above — the schedule
+                        your clients and the profession expect to see. Track billable work,
+                        apply the right rates, and let the fee note build itself.
                     </p>
                     <p className="font-mono text-2xs tracking-widest text-slate-600 mt-8">
-                        EXHIBIT — FEE NOTE COMPUTED ON THE SCALE OF CHARGES (REMUNERATION ORDER 2023)
+                        EXHIBIT — FEE NOTE COMPUTED ON SCALE 4, REMUNERATION ORDER 2023 · THE APP&rsquo;S OWN ARITHMETIC (₦65M CONVEYANCE)
                     </p>
                 </div>
             </div>

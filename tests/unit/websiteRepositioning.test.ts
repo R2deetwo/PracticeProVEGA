@@ -76,7 +76,7 @@ const landing = read("src", "components", "LandingPage.tsx");
 // P1: HubSections.tsx was replaced by per-section files.
 const hubHeroSection = read("src", "sites", "hub", "sections", "HeroSection.tsx");
 const hubMarquee = read("src", "sites", "hub", "sections", "MarqueeSection.tsx");
-const hubPainMirror = read("src", "sites", "hub", "sections", "PainMirrorSection.tsx");
+const hubPainMirror = ""; // R40: PainMirrorSection retired by owner direction
 const hubWhatWeDo = read("src", "sites", "hub", "sections", "WhatWeDoSection.tsx");
 const hubWork = read("src", "sites", "hub", "sections", "OurWorkSection.tsx");
 const hubHowWeWork = read("src", "sites", "hub", "sections", "HowWeWorkSection.tsx");
@@ -103,7 +103,7 @@ const css = read("src", "index.css");
 const vegaHero = read("src", "sites", "vega", "sections", "VegaHero.tsx");
 const vegaAIDrafting = read("src", "sites", "vega", "sections", "VegaAIDrafting.tsx");
 const vegaSuite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
-const vegaProcedure = read("src", "sites", "vega", "sections", "VegaProcedure.tsx");
+const vegaProcedure = ""; // R40: VegaProcedure retired (page simplified)
 const vegaCredentials = read("src", "sites", "vega", "sections", "VegaCredentials.tsx");
 const vegaFAQ = read("src", "sites", "vega", "sections", "VegaFAQInk.tsx");
 const vegaFinalCTA = read("src", "sites", "vega", "sections", "VegaFinalCTA.tsx");
@@ -547,76 +547,25 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
   it("the hero sells the problem, not the product catalogue", () => {
     // The "Our products" quick-links are gone from the hero — too early.
     expect(hub).not.toContain("Our products</span>");
-    // hub-restore: the W18 pain-first hero description is back; the
-    // pain mirror itself is the Sound familiar? section (PAIN_MIRROR copy).
-    expect(hub).toContain("Spreadsheets, chat threads, memory and paper will get a business started");
-    expect(hubPainMirror).toContain("PAIN_MIRROR");
-    // R29: the mirror is Ada's week now — five DIFFERENT moments (a lost
-    // order, an unplaced payment, the away key-man, the receipt hunt, the
-    // owner's 11pm shift), each with its own illustration. No shared
-    // tangle grammar, no repeated points.
-    expect(hubPainMirror).toContain("A customer sends her measurements for two outfits on WhatsApp");
-    expect(hubPainMirror).toContain("The payment you can\\u2019t place");
-    expect(hubPainMirror).toContain("The one who knows is away");
-    expect(hubPainMirror).toContain("The receipt hunt");
-    expect(hubPainMirror).toContain("The owner\\u2019s shift");
+    // R40: the pain-first hero description ("Spreadsheets, chat threads,
+    // memory and paper will get a business started...") belonged to the
+    // retired Sound-familiar? mirror; the hero now states what we do.
+    expect(hub).not.toContain("Spreadsheets, chat threads, memory and paper");
+    expect(hub).toContain("Your orders, payments and customers, finally in one place.");
+    expect(hub).toContain("designed, built and run end to end");
   });
 
-  it("a mirror before the pitch: Sound familiar? names the visitor's friction", () => {
-    expect(hub).toContain("PAIN_MIRROR");
-    expect(hub).toContain("Sound familiar?");
-    expect(hub).toContain("just not software");
-    expect(hub).toContain("You need a system");
-    expect(hub).toContain("Tell us what runs your business today");
-    expect(hubIndex).toContain('<PainMirrorSection onContactSales');
-  });
-
-  it("R36: four worlds, bespoke sighs — the band names no products", () => {
-    // Owner (R36): every back repeated the same "rebuilt" stamp and the
-    // cast was only lawyers and property managers, which "boxes us in".
-    // The band now speaks to four real operators — e-commerce,
-    // pharmacy, hospitality and logistics — and every back carries its
-    // own sigh of relief, in the operator's voice.
-    expect(hubPainMirror).not.toContain("On Vega");
-    expect(hubPainMirror).not.toContain("On Atrium");
-    expect(hubPainMirror).not.toContain("ALOA");
-    expect(hubPainMirror).not.toContain("ARIA");
-    expect(hubPainMirror).not.toContain("VegaMark");
-    expect(hubPainMirror).not.toContain("AtriumMark");
-    expect(hubPainMirror).not.toContain("See how Vega");
-    expect(hubPainMirror).not.toContain("See how Atrium");
-    // The repeated back stamp is dead — every back is its own headline.
-    expect(hubPainMirror).not.toContain("backTag");
-    expect(hubPainMirror).not.toContain(", rebuilt");
-    // Four worlds the visitor can declare from the tabs.
-    expect(hubPainMirror).toContain("I run an e-commerce brand");
-    expect(hubPainMirror).toContain("I run a pharmacy / medical retail");
-    expect(hubPainMirror).toContain("I manage a boutique hotel / short-let");
-    expect(hubPainMirror).toContain("I run a logistics / dispatch service");
-    expect(hubPainMirror).toContain("Ada Eze");
-    expect(hubPainMirror).toContain("Dr. Emeka Okoro");
-    expect(hubPainMirror).toContain("Chuka Obi");
-    expect(hubPainMirror).toContain("Tunde Baku");
-    // Every back is a bespoke sigh of relief — one per moment, never a
-    // shared stamp — plus one line of what THEIR system now does.
-    expect(hubPainMirror).toContain("Nothing important lives in the scroll.");
-    expect(hubPainMirror).toContain("The shelf counts itself.");
-    expect(hubPainMirror).toContain("One calendar. One truth.");
-    expect(hubPainMirror).toContain("Tracking without the phone call.");
-    // The aria narrates each world's system in that world's terms.
-    expect(hubPainMirror).toContain("On a system built for her business");
-    expect(hubPainMirror).toContain("On a system built for his pharmacy");
-    expect(hubPainMirror).toContain("On a system built for his flats");
-    expect(hubPainMirror).toContain("On a system built for his hub");
-    // The pivot speaks as the builder for all four worlds.
-    expect(hubPainMirror).toContain("the system we build for brands like hers");
-    expect(hubPainMirror).toContain("the system we build for pharmacies like his");
-    expect(hubPainMirror).toContain("the system we build for hosts like him");
-    expect(hubPainMirror).toContain("the system we build for hubs like his");
-    // One CTA for every world — the empathy band routes no catalogues.
-    expect(hubPainMirror).toContain("Tell us what runs your business today");
-    expect(hubPainMirror).not.toContain("'/vega'");
-    expect(hubPainMirror).not.toContain("'/atrium'");
+  it("R40: the pain-mirror (\"Sound familiar?\") is retired — the hub leads with the work", () => {
+    // Owner direction (R40): "get rid of the sound familiar? page all
+    // together — I don't think we need it any more." Old expectation: the
+    // hub carried PainMirrorSection between the marquee and What we do, with
+    // four operator worlds (Ada Eze / Dr. Emeka Okoro / Chuka Obi / Tunde
+    // Baku). New expectation: the section file is deleted and the hub index
+    // mounts nothing between MarqueeStrip and the What-we-do seam — the
+    // hub's pitch opens with what we do, not the visitor's pain.
+    expect(hubIndex).not.toContain("PainMirrorSection");
+    expect(hubIndex.indexOf("<MarqueeStrip />")).toBeGreaterThan(-1);
+    expect(hubIndex.indexOf("<WhatWeDoSection")).toBeGreaterThan(hubIndex.indexOf("<MarqueeStrip />"));
   });
 
   it("the descent: shapes land in their cards, the Iso watermarks return (W14, restored)", () => {
@@ -716,25 +665,22 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     ]) {
       expect(body).not.toContain(`<${s}`);
     }
-    // The vega composition (R38 "The Reading Room"): the merged
-    // instrument index — the six-card grid, the dark matters ledger and
-    // the separate workspace gallery folded into ONE expandable ruled
-    // index with live captures — then the record, the segment tabs, and
-    // the deep-dives. Owner direction: "I wanted a redo of the page, not
-    // just changing the colours."
+    // The vega composition (R38 "The Reading Room"; simplified R40 —
+    // owner: "we need to look at how we can simplify the vega site").
+    // Old expectation: 12 bands including the mono index line, The Record's
+    // scales and the three-step procedure schedule. New expectation: the
+    // page folds to its load-bearing bands — the decorative exhibits are
+    // retired; the real product captures carry the trust.
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
     expect(order).toEqual([
       "VegaHero",
-      "VegaIndexLine",
       "VegaSuite",
-      "VegaRecord",
       "VegaSegments",
       "VegaAIDrafting",
       "VegaCourtRules",
       "VegaScaleOfCharges",
-      "VegaProcedure",
       "VegaCredentials",
       "VegaFAQInk",
       "VegaFinalCTA",
@@ -770,12 +716,15 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).not.toContain("ChatRow");
     expect(vegaHero).not.toContain("ALOA · Online");
     // The gallery: three real photographs of the practice at work,
-    // cycling with pagination dots.
+    // cycling with pagination dots. R40: the exhibit chrome (frame,
+    // "The practice, at work" header, mono caption) is gone — the
+    // photographs stand alone.
     expect(vegaHero).toContain("/assets/landing/vega-hero-1.jpg");
     expect(vegaHero).toContain("/assets/landing/vega-hero-2.jpg");
     expect(vegaHero).toContain("/assets/landing/vega-hero-3.jpg");
-    expect(vegaHero).toContain("The practice, at work");
     expect(vegaHero).toContain("View scene");
+    expect(vegaHero).not.toContain("The practice, at work");
+    expect(vegaHero).not.toContain("bg-vega-parchment");
     // The title-page devices: serif display + the gilt accent + the thin
     // gilt rule + the night atmosphere.
     expect(vegaHero).toContain("font-vega");
@@ -785,23 +734,28 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).toContain("vg-grain");
   });
 
-  it("the evening exchange lives on in the Powered-by band, beside the live ALOA capture (R39)", () => {
-    // R39: the graphic the owner likes, kept in its formal form — moved
-    // from the hero into VegaAIDrafting, where it sits beside the live
-    // workspace capture it always described.
-    expect(vegaAIDrafting).toContain("ALOA · Online");
-    expect(vegaAIDrafting).toContain("IKD/1287/2026 — Okafor v Meridian Logistics");
-    expect(vegaAIDrafting).toContain("Motion on Notice");
-    expect(vegaAIDrafting).toContain("two clear days before hearing");
-    expect(vegaAIDrafting).toContain("Nothing. You&rsquo;re home for dinner by 6:15.");
-    expect(vegaAIDrafting).toContain("THE EVENING EXCHANGE — CHIOMA OKAFOR");
-    // The live capture stays beside it.
-    expect(vegaAIDrafting).toContain("/assets/landing/app/aloa.jpg");
-    expect(vegaAIDrafting).toContain("LIVE CAPTURE");
-    // The pullout demos — openable working forms, placed LOWER in the
-    // band (owner: "the demos should appear a little further down, not
-    // on the graphic"): the deadline computer, the drafting studio,
-    // the 7·3·1 cadence, on the shared ui primitives.
+  it("R40: the fake ALOA chat mockup is retired — the band carries REAL captures (R40)", () => {
+    // Owner direction (R40): "we don't need that fake version of ALOA —
+    // let's have the actual live captures... ALOA can draw out... an
+    // extra modal that slides out." Old expectation (R39): the evening
+    // exchange chat card (ALOA · Online, IKD/1287/2026, "home for dinner
+    // by 6:15") lived beside the live capture. New expectation: the
+    // hand-built chat is gone; the band shows two screenshots of the
+    // shipping app — ALOA over the workspace, and the draw-out (a tool
+    // call opening the New Contact form drawer).
+    expect(vegaAIDrafting).not.toContain("ALOA · Online");
+    expect(vegaAIDrafting).not.toContain("IKD/1287/2026 — Okafor v Meridian Logistics");
+    expect(vegaAIDrafting).not.toContain("EveningExchange");
+    expect(vegaAIDrafting).not.toContain("home for dinner");
+    // The two real captures.
+    expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa.jpg");
+    expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa-drawout.jpg");
+    expect(vegaAIDrafting).toContain("LIVE CAPTURE — ALOA IN THE RUNNING WORKSPACE");
+    expect(vegaAIDrafting).toContain("LIVE CAPTURE — THE DRAW-OUT");
+    // The pullout demos stay — openable working forms, placed LOWER in
+    // the band (owner: "the demos should appear a little further down"):
+    // the deadline computer, the drafting studio, the 7·3·1 cadence, on
+    // the shared ui primitives.
     expect(vegaAIDrafting).toContain("The Instruments, in Miniature");
     expect(vegaAIDrafting).toContain("The deadline computer");
     expect(vegaAIDrafting).toContain("The drafting studio");
@@ -809,9 +763,12 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaAIDrafting).toContain("HCCPR 2019");
   });
 
-  it("the stat-chip row is replaced by a mono index line", () => {
-    expect(vegaSite).toContain("import { VegaIndexLine }");
-    // No rounded stat cards on /vega — the shared chip row is atrium-only.
+  it("R40: the stat-chip row and the mono index line are both retired", () => {
+    // Old expectation: VegaIndexLine replaced the shared stat-chip row.
+    // New expectation (R40 simplification): the index line is retired
+    // entirely — its claims (NDPA 2023, TLS 1.3) live in VegaCredentials
+    // and the footer. No rounded stat cards on /vega either.
+    expect(vegaSite).not.toContain("VegaIndexLine");
     expect(vegaSuite).not.toContain("VEGA_STATS");
   });
 
@@ -864,13 +821,13 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaFinalCTA).not.toContain("rounded-sm");
   });
 
-  it("how-it-works is a procedure schedule with plain numerals", () => {
-    expect(vegaProcedure).toContain('id="howItWorks"');
-    expect(vegaProcedure).toContain("Matter Ingestion Wizard");
-    expect(vegaProcedure).toContain("DraftPro");
-    // The audit's legibility rule: no 01/02/03 numbering.
-    expect(vegaProcedure).not.toContain(">01<");
-    expect(vegaProcedure).not.toContain("'01'");
+  it("R40: the procedure schedule is retired (page simplified)", () => {
+    // Old expectation: VegaProcedure carried id="howItWorks", the Matter
+    // Ingestion Wizard and DraftPro steps. New expectation (R40
+    // simplification): the band and its nav item are gone; the suite and
+    // the pullouts carry the how-it-works story.
+    expect(vegaSite).not.toContain("VegaProcedure");
+    expect(vegaSite).not.toContain("howItWorks");
   });
 
   it("the FAQ is a ruled interrogatory accordion on the page's paper (R38)", () => {

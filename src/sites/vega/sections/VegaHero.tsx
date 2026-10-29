@@ -2,44 +2,33 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui';
 
 /**
- * VegaHero — "The Reading Room" hero for /vega (R38, R39).
+ * VegaHero — "The Reading Room" hero for /vega (R38–R40).
  *
- * R27 kept the landing PERSONAL; R39 (owner direction: "move the product
- * mockup out of the hero — put real people there; the mockup I like goes
- * down into the Powered-by band") completes the move: the right column is
- * now a PHOTOGRAPH — the practice at work, cycling through three real
- * scenes (counsel reviewing a brief, the draft in chambers, the hearing
- * attended) in the page's cream exhibit chrome. The evening exchange
- * lives on in VegaAIDrafting, where it sits beside the live ALOA capture
- * it always described.
- *
- * The gallery: three cache-busted photographs crossfading every 6s
- * (reduced-motion users hold the first frame), pagination dots beneath,
- * and a mono caption that names the scene — the same exhibit language
- * the page uses for its product captures. No raw form elements
- * (ADR-0004); reveals stay opt-in [data-vg-reveal].
+ * R39 put real people in the right column; R40 (owner direction:
+ * "we don't need this border around it — just work with the image
+ * itself") strips the exhibit chrome: no frame, no header label, no
+ * mono caption. The photographs stand on their own — three real scenes
+ * of the practice, crossfading every 6s (reduced-motion holds frame
+ * one), with quiet pagination dots. No raw form elements (ADR-0004);
+ * reveals stay opt-in [data-vg-reveal].
  */
 
 /** One photograph of the practice at work. */
 const HERO_PHOTOS: Array<{
     src: string;
     alt: string;
-    caption: string;
 }> = [
     {
         src: '/assets/landing/vega-hero-2.jpg',
         alt: 'Counsel and an associate reviewing a brief together in a law library',
-        caption: 'THE FILE, REVIEWED — COUNSEL & ASSOCIATE',
     },
     {
         src: '/assets/landing/vega-hero-3.jpg',
         alt: 'A solicitor drafting at his desk in chambers, certificates on the wall',
-        caption: 'THE DRAFT, IN CHAMBERS — LATE AFTERNOON',
     },
     {
         src: '/assets/landing/vega-hero-1.jpg',
         alt: 'Counsel in robes outside the courthouse after a hearing',
-        caption: 'THE HEARING, ATTENDED — IKEJA DIVISION',
     },
 ];
 
@@ -138,79 +127,50 @@ export const VegaHero: React.FC<{
                         </p>
                     </div>
 
-                    {/* Right — the practice at work (R39): a cycling gallery
-                        of the people Vega is built for, in the page's cream
-                        exhibit chrome. The product's own exhibits begin with
-                        the instrument index below. */}
+                    {/* Right — the practice at work (R39): a cycling
+                        gallery of the people Vega is built for. R40: zero
+                        chrome — no frame, no grade, no shadow; the
+                        photograph stands alone. */}
                     <div className="lg:col-span-5 relative min-w-0" data-vg-reveal style={{ '--vg-d': '200ms' } as React.CSSProperties}>
-                        <div className="relative rounded-[20px] border border-vega-night/12 bg-vega-parchment px-3 sm:px-4 py-4 sm:py-5 shadow-[0_24px_48px_-24px_rgb(42_33_24/0.35)]">
-                            {/* The frame header — the gallery's label */}
-                            <div className="flex items-center justify-between border-b border-vega-night/10 pb-3 mb-3">
-                                <p className="font-mono text-2xs font-medium uppercase tracking-[0.2em] text-slate-600">
-                                    The practice, at work
-                                </p>
-                                <span className="flex items-center gap-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-vega-gilt-bright">
-                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-vega-gilt-bright" aria-hidden="true" />
-                                    Vega
-                                </span>
-                            </div>
-
-                            {/* The photograph — crossfading scenes */}
-                            <div className="relative aspect-[4/3] rounded-[12px] overflow-hidden ring-1 ring-vega-night/10">
-                                {photos.map((p, i) => (
-                                    <img
-                                        key={p.src}
-                                        src={p.src}
-                                        alt={p.alt}
-                                        className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-out"
-                                        style={{
-                                            opacity: i === idx ? 1 : 0,
-                                            zIndex: i === idx ? 2 : 1,
-                                        }}
-                                        loading={i === 0 ? 'eager' : 'lazy'}
-                                        decoding="async"
-                                    />
-                                ))}
-                                {/* A warm breath over the photograph — ties the
-                                    image to the page's ivory light. */}
-                                <div
-                                    className="absolute inset-0 pointer-events-none mix-blend-multiply opacity-[0.08] bg-vega-gilt-bright"
-                                    style={{ zIndex: 3 }}
-                                    aria-hidden="true"
+                        {/* The photographs — crossfading scenes, untreated */}
+                        <div className="relative aspect-[4/3]">
+                            {photos.map((p, i) => (
+                                <img
+                                    key={p.src}
+                                    src={p.src}
+                                    alt={p.alt}
+                                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-out"
+                                    style={{
+                                        opacity: i === idx ? 1 : 0,
+                                        zIndex: i === idx ? 2 : 1,
+                                    }}
+                                    loading={i === 0 ? 'eager' : 'lazy'}
+                                    decoding="async"
                                 />
-                                <div
-                                    className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent pointer-events-none"
-                                    style={{ zIndex: 4 }}
-                                    aria-hidden="true"
-                                />
-                            </div>
-
-                            {/* Pagination dots — which scene is up */}
-                            <div className="flex gap-2 justify-center items-center pt-3.5" role="group" aria-label="Hero gallery">
-                                {photos.map((p, i) => (
-                                    <Button
-                                        key={p.src}
-                                        variant="bare"
-                                        onClick={() => setIdx(i)}
-                                        aria-label={`View scene ${i + 1} of ${photos.length}: ${p.caption}`}
-                                        aria-pressed={i === idx}
-                                        className="p-1.5 flex items-center justify-center focus-visible:ring-vega-gilt"
-                                    >
-                                        <span
-                                            className="h-1.5 rounded-full transition-all duration-300 block"
-                                            style={{
-                                                width: i === idx ? 22 : 7,
-                                                backgroundColor: i === idx ? 'var(--color-vega-gilt-bright)' : 'rgb(203 213 225)',
-                                            }}
-                                        />
-                                    </Button>
-                                ))}
-                            </div>
+                            ))}
                         </div>
-                        {/* The scene's caption — names the work on screen */}
-                        <p className="font-mono text-2xs tracking-widest text-slate-700 mt-6 text-center lg:text-left lg:pl-4" aria-live="polite">
-                            {photos[idx].caption}
-                        </p>
+
+                        {/* Pagination dots — which scene is up */}
+                        <div className="flex gap-2 justify-center items-center pt-4" role="group" aria-label="Hero gallery">
+                            {photos.map((p, i) => (
+                                <Button
+                                    key={p.src}
+                                    variant="bare"
+                                    onClick={() => setIdx(i)}
+                                    aria-label={`View scene ${i + 1} of ${photos.length}`}
+                                    aria-pressed={i === idx}
+                                    className="p-1.5 flex items-center justify-center focus-visible:ring-vega-gilt"
+                                >
+                                    <span
+                                        className="h-1.5 rounded-full transition-all duration-300 block"
+                                        style={{
+                                            width: i === idx ? 22 : 7,
+                                            backgroundColor: i === idx ? 'var(--color-vega-gilt-bright)' : 'rgb(203 213 225)',
+                                        }}
+                                    />
+                                </Button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

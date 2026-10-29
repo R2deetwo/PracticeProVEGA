@@ -100,7 +100,7 @@ const INSTRUMENTS: Instrument[] = [
     {
         num: '05',
         title: 'Billing on the Scale',
-        line: 'Fee notes computed under the Scale of Charges (Remuneration Order 2023), with naira-first bank transfer flows.',
+        line: 'Land-documentation fee notes computed on the statutory Scale 4 (Remuneration Order 2023), with naira-first bank transfer flows.',
         shot: {
             src: '/assets/landing/app/billing.jpg',
             alt: 'Vega billing — invoices and fee notes in the live workspace',

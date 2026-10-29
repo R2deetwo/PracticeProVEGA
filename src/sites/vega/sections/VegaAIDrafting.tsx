@@ -3,157 +3,28 @@ import { Button, Select } from '../../../components/ui';
 import { VegaAppShot } from './VegaAppShot';
 
 /**
- * VegaAIDrafting — /vega's AI band (R38 daylight edition; reworked R39).
+ * VegaAIDrafting — /vega's AI band (R38 daylight edition; reworked R40).
  *
- * R39 (owner direction): the hero's product mockup moves OUT of the hero
- * (real people go there) and DOWN INTO this band — "the graphic I like,
- * in its proper form, with the actual product beside it." So the band
- * now carries BOTH exhibits: THE EVENING EXCHANGE (the chat card the
- * page has always told its story with, verbatim, in the cream exhibit
- * chrome) beside the LIVE CAPTURE of ALOA in the running workspace —
- * the promise and the product on one spread.
+ * R40 (owner direction): the hand-built "evening exchange" chat mockup
+ * is RETIRED — "we don't need that fake version of ALOA; let's have the
+ * actual live captures." The band now carries two REAL captures of the
+ * running product: ALOA open in the workspace (suggestions, disclaimer,
+ * the live Financials behind it) and THE DRAW-OUT — the moment a tool
+ * call opens a working form: the New Contact drawer slid out over the
+ * chat, the same drawer ALOA's create_contact / create_matter /
+ * create_event tools open (mapToolToModal in AloaChat.tsx). Nothing is
+ * staged; both frames are screenshots of the shipping app.
  *
- * Lower in the band sit the PULLOUTS (owner direction: "the openable
- * demos should appear a little further down, not on the graphic"):
- * three expandable mini-demos of the instruments the copy claims — the
- * deadline computer, the drafting studio, the 7·3·1 reminder cadence —
- * each a working form (pick a court, a document, a hearing date) whose
- * readout mirrors the shipped arithmetic (proceduralRules.ts,
- * courtCalculator.ts, the reminder engine).
+ * Lower in the band sit the PULLOUTS: three expandable mini-demos of the
+ * instruments the copy claims — the deadline computer, the drafting
+ * studio, the 7·3·1 reminder cadence — each a working form (pick a
+ * court, a document, a hearing date) whose readout mirrors the shipped
+ * arithmetic (proceduralRules.ts, courtCalculator.ts, the reminder
+ * engine).
  *
- * Copy is the shipped ALOA copy, verbatim. Interactive controls use the
- * ui/Button and ui/Select primitives (ADR-0004), never raw elements.
+ * Interactive controls use the ui/Button and ui/Select primitives
+ * (ADR-0004), never raw elements.
  */
-
-/* ── The evening exchange — moved from the hero (R39), verbatim ── */
-
-/** ALOA's roundel — the claret notary seal at avatar scale. The § is the
- *  lawyer's glyph in the serif face. */
-const AloaRoundel: React.FC = () => (
-    <span
-        className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-vega-gilt/40 bg-vega-gilt/10 flex-shrink-0"
-        aria-hidden="true"
-    >
-        <span
-            className="text-vega-gilt-bright text-lg leading-none"
-            style={{ fontFamily: 'var(--font-vega-display)' }}
-        >
-            §
-        </span>
-    </span>
-);
-
-/** Chioma's roundel — espresso initials on a cream coin. */
-const ChiomaRoundel: React.FC = () => (
-    <span
-        className="inline-flex items-center justify-center w-9 h-9 rounded-full border border-vega-night/20 bg-vega-night/[0.06] font-mono text-2xs font-semibold tracking-widest text-vega-night flex-shrink-0"
-        aria-hidden="true"
-    >
-        CO
-    </span>
-);
-
-/** A 12px tick / dot pair for the checklist — inline SVG, no emoji. */
-const TickGlyph: React.FC = () => (
-    <svg className="w-3 h-3 text-vega-gilt-bright flex-shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-        <path d="M2 6.5L4.8 9.2L10 3.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-);
-const ClockGlyph: React.FC = () => (
-    <svg className="w-3 h-3 text-vega-gilt flex-shrink-0" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-        <circle cx="6" cy="6" r="4.6" stroke="currentColor" strokeWidth="1.3" />
-        <path d="M6 3.6V6l1.8 1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-);
-
-/** One message row. `side` decides the tint and the order of avatar and
- * bubble; `card` renders ALOA's reply as a white exhibit card (hairline,
- * claret suit line) instead of a plain bubble. */
-const ChatRow: React.FC<{
-    side: 'chioma' | 'aloa';
-    card?: boolean;
-    children: React.ReactNode;
-}> = ({ side, card = false, children }) => {
-    const isChioma = side === 'chioma';
-    return (
-        <div className={`flex items-start gap-3 ${isChioma ? 'flex-row-reverse' : ''}`}>
-            {isChioma ? <ChiomaRoundel /> : <AloaRoundel />}
-            <div
-                className={[
-                    'max-w-[78%] px-4 py-3 text-[13px] sm:text-sm leading-[1.65]',
-                    isChioma
-                        ? 'rounded-2xl rounded-tr-md bg-vega-gilt/[0.07] border border-vega-gilt/25 text-vega-night'
-                        : card
-                            ? 'rounded-2xl rounded-tl-md bg-white border border-vega-night/15 shadow-[0_10px_24px_-16px_rgb(42_33_24/0.30)] text-vega-night'
-                            : 'rounded-2xl rounded-tl-md bg-white/80 border border-vega-night/10 text-vega-night',
-                ].join(' ')}
-            >
-                {children}
-            </div>
-        </div>
-    );
-};
-
-/** The evening exchange, in its formal home (R39): the thread the hero
- *  used to carry, pinned beside the live capture that proves it. */
-const EveningExchange: React.FC = () => (
-    <div className="relative rounded-[20px] border border-vega-night/12 bg-vega-parchment px-4 sm:px-5 py-5 sm:py-6 shadow-[0_24px_48px_-24px_rgb(42_33_24/0.35)]">
-        {/* Thread header — a working Thursday, live at 18:42 */}
-        <div className="flex items-center justify-between border-b border-vega-night/10 pb-3.5 mb-4">
-            <p className="font-mono text-2xs font-medium uppercase tracking-[0.2em] text-slate-600">
-                Thursday · 18:42
-            </p>
-            <span className="flex items-center gap-1.5 font-mono text-2xs uppercase tracking-[0.2em] text-vega-gilt-bright">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-vega-gilt-bright" aria-hidden="true" />
-                ALOA · Online
-            </span>
-        </div>
-
-        {/* The exchange */}
-        <div className="space-y-3.5">
-            <ChatRow side="chioma">
-                ALOA — amendment hearing at Ikeja on Friday.
-                What&rsquo;s still outstanding on the file?
-            </ChatRow>
-
-            <ChatRow side="aloa" card>
-                <p className="font-mono text-2xs font-bold uppercase tracking-[0.18em] text-vega-gilt-bright mb-2.5">
-                    IKD/1287/2026 — Okafor v Meridian Logistics
-                </p>
-                <ul className="space-y-2">
-                    <li className="flex items-start gap-2.5">
-                        <TickGlyph />
-                        <span className="text-slate-700">
-                            <b className="text-vega-night">Motion on Notice</b> — rev 3, filed 12 Oct.
-                            Leave to amend + deemed filing.
-                        </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                        <TickGlyph />
-                        <span className="text-slate-700">
-                            <b className="text-vega-night">Affidavit</b> — 14 paragraphs, sworn at the Registry.
-                        </span>
-                    </li>
-                    <li className="flex items-start gap-2.5">
-                        <ClockGlyph />
-                        <span className="text-slate-700">
-                            <b className="text-vega-night">Written Address</b> — due Wednesday, 5:00&nbsp;pm.
-                            <span className="block text-slate-600 text-xs mt-0.5">
-                                Deadline set by the Division&rsquo;s rules — two clear days before hearing.
-                            </span>
-                        </span>
-                    </li>
-                </ul>
-            </ChatRow>
-
-            <ChatRow side="chioma">And after Wednesday?</ChatRow>
-
-            <ChatRow side="aloa">
-                Nothing. You&rsquo;re home for dinner by 6:15.
-            </ChatRow>
-        </div>
-    </div>
-);
 
 /* ── The capability index — shipped copy, verbatim ── */
 
@@ -171,7 +42,7 @@ const ALOA_CAPABILITIES = [
     {
         title: 'Firm-Grade Security',
         body: "Your firm's data is fully isolated from every other organization on the platform. AI queries only access your matters, your documents, and your clients. No cross-organization data leakage — ever.",
-        features: ['Complete data isolation between organizations', 'Matter-level access control', 'Full audit trail on all AI activity'],
+        features: ['Complete data isolation between organizations', 'Role-based team access controls', 'Full audit trail on all AI activity'],
     },
 ];
 
@@ -310,25 +181,25 @@ export const VegaAIDrafting: React.FC = () => {
                     client data safe.
                 </p>
 
-                {/* The exhibits — the thread beside the workspace (R39).
-                    Left: the evening exchange, the graphic the page tells
-                    its story with. Right: the same conversation, running
-                    live in the product. */}
-                <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-start max-w-6xl mb-16 md:mb-20">
-                    <div className="lg:col-span-5">
-                        <EveningExchange />
-                        <p className="font-mono text-2xs tracking-widest text-slate-700 mt-6 text-center lg:text-left lg:pl-4">
-                            THE EVENING EXCHANGE — CHIOMA OKAFOR, SOLE PRACTITIONER, IKEJA · ILLUSTRATIVE
-                        </p>
-                    </div>
-                    <div className="lg:col-span-7">
-                        <VegaAppShot
-                            src="/assets/landing/app/aloa.jpg"
-                            alt="ALOA chat in the live Vega workspace — drafting and research carried in conversation"
-                            caption="LIVE CAPTURE — THE SAME CONVERSATION, IN THE RUNNING WORKSPACE"
-                        />
-                    </div>
+                {/* The exhibits (R40): two REAL captures of the running
+                    product — no mockups. Left: ALOA open in the workspace.
+                    Right: the draw-out — a tool call opening a working
+                    form, the New Contact drawer over the chat. */}
+                <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-start max-w-6xl mb-6 md:mb-8">
+                    <VegaAppShot
+                        src="/assets/landing/app/vega-aloa.jpg"
+                        alt="ALOA open in the live Vega workspace over the Financials view — suggestions, disclaimer, the running product"
+                        caption="LIVE CAPTURE — ALOA IN THE RUNNING WORKSPACE, OVER FINANCIALS"
+                    />
+                    <VegaAppShot
+                        src="/assets/landing/app/vega-aloa-drawout.jpg"
+                        alt="The draw-out — ALOA's tool call slides the New Contact form out over the chat, in the live workspace"
+                        caption="LIVE CAPTURE — THE DRAW-OUT: A TOOL CALL OPENS A WORKING FORM"
+                    />
                 </div>
+                <p className="font-mono text-2xs tracking-widest text-slate-600 max-w-6xl mb-16 md:mb-20 border-b border-vega-night/10 pb-5">
+                    ASK FOR A CONTACT, A MATTER, A TASK, A HEARING — ALOA DRAFTS THE RECORD AND SLIDES THE FORM OUT, PRE-FILLED. NOTHING STAGED; BOTH FRAMES ARE THE SHIPPING APP.
+                </p>
 
                 {/* The capability index — ruled, not carded */}
                 <div className="max-w-6xl mb-16 md:mb-20">

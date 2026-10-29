@@ -172,17 +172,9 @@ export const VegaNavBar: React.FC<{
                 >
                     Practice Areas
                 </button>
-                <button
-                    onClick={() => scrollTo('howItWorks')}
-                    data-nav-id="howItWorks"
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
-                        activeSection === 'howItWorks'
-                            ? navLinkActiveCls
-                            : navLinkCls
-                    }`}
-                >
-                    How It Works
-                </button>
+                {/* R40 simplification: the How It Works nav item retired with
+                    the procedure band — the suite and the pullouts carry the
+                    how-it-works story now. */}
                 <button
                     onClick={onResources}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${navLinkCls}`}
@@ -256,7 +248,6 @@ export const VegaNavBar: React.FC<{
                     </div>
                     <button onClick={() => handleNavClick(() => scrollTo('suite'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>The Suite</button>
                     <button onClick={() => handleNavClick(() => scrollTo('practice-areas'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Practice Areas</button>
-                    <button onClick={() => handleNavClick(() => scrollTo('howItWorks'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>How It Works</button>
                     <button onClick={() => handleNavClick(onResources)} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Contact</button>
                     <div className="h-px my-3 bg-vega-night/10" />

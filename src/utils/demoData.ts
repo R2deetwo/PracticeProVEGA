@@ -434,14 +434,14 @@ export const ATRIUM_DEMO_APP_STATE: AppState = {
             value: 780000000,
             numberOfUnits: 8,
             units: [
-                { id: 'spu-1', name: 'Unit 1A', floor: 1, status: 'Occupied', tenantName: 'Mr. Emeka Obi', rentAmount: 3200000, leaseStart: daysAgo(90), leaseEnd: daysFromNow(275) },
-                { id: 'spu-2', name: 'Unit 1B', floor: 1, status: 'Occupied', tenantName: 'Mrs. Funke Adeyemi', rentAmount: 3200000, leaseStart: daysAgo(200), leaseEnd: daysFromNow(165) },
-                { id: 'spu-3', name: 'Unit 2A', floor: 2, status: 'Vacant', rentAmount: 3500000 },
-                { id: 'spu-4', name: 'Unit 2B', floor: 2, status: 'Occupied', tenantName: 'Dr. Aisha Bello', rentAmount: 3500000, leaseStart: daysAgo(30), leaseEnd: daysFromNow(335) },
-                { id: 'spu-5', name: 'Unit 3A', floor: 3, status: 'Occupied', tenantName: 'Mr. Tunde Williams', rentAmount: 3800000, leaseStart: daysAgo(120), leaseEnd: daysFromNow(245) },
-                { id: 'spu-6', name: 'Unit 3B', floor: 3, status: 'Vacant', rentAmount: 3800000 },
-                { id: 'spu-7', name: 'Penthouse A', floor: 4, status: 'Occupied', tenantName: 'Dr. John Doe', rentAmount: 8500000, leaseStart: daysAgo(60), leaseEnd: daysFromNow(305) },
-                { id: 'spu-8', name: 'Penthouse B', floor: 4, status: 'Maintenance', rentAmount: 8500000 }
+                { id: 'spu-1', name: 'Unit 1A', floor: 1, status: 'Occupied', tenantName: 'Mr. Emeka Obi', tenantPhone: '0803 111 0001', rentAmount: 3200000, leaseStart: daysAgo(90), leaseEnd: daysFromNow(275), rentalDetails: { unitName: 'Unit 1A', tenantName: 'Mr. Emeka Obi', tenantPhone: '0803 111 0001', rentAmount: 3200000, rentFrequency: 'Annually', leaseStart: daysAgo(90), leaseEnd: daysFromNow(275) } },
+                { id: 'spu-2', name: 'Unit 1B', floor: 1, status: 'Occupied', tenantName: 'Mrs. Funke Adeyemi', tenantPhone: '0803 111 0002', rentAmount: 3200000, leaseStart: daysAgo(200), leaseEnd: daysFromNow(165), rentalDetails: { unitName: 'Unit 1B', tenantName: 'Mrs. Funke Adeyemi', tenantPhone: '0803 111 0002', rentAmount: 3200000, rentFrequency: 'Annually', leaseStart: daysAgo(200), leaseEnd: daysFromNow(165) } },
+                { id: 'spu-3', name: 'Unit 2A', floor: 2, status: 'Vacant', rentAmount: 3500000, rentalDetails: { unitName: 'Unit 2A', rentAmount: 3500000, rentFrequency: 'Annually' } },
+                { id: 'spu-4', name: 'Unit 2B', floor: 2, status: 'Occupied', tenantName: 'Dr. Aisha Bello', tenantPhone: '0803 111 0004', rentAmount: 3500000, leaseStart: daysAgo(30), leaseEnd: daysFromNow(335), rentalDetails: { unitName: 'Unit 2B', tenantName: 'Dr. Aisha Bello', tenantPhone: '0803 111 0004', rentAmount: 3500000, rentFrequency: 'Annually', leaseStart: daysAgo(30), leaseEnd: daysFromNow(335) } },
+                { id: 'spu-5', name: 'Unit 3A', floor: 3, status: 'Occupied', tenantName: 'Mr. Tunde Williams', tenantPhone: '0803 111 0005', rentAmount: 3800000, leaseStart: daysAgo(120), leaseEnd: daysFromNow(245), rentalDetails: { unitName: 'Unit 3A', tenantName: 'Mr. Tunde Williams', tenantPhone: '0803 111 0005', rentAmount: 3800000, rentFrequency: 'Annually', leaseStart: daysAgo(120), leaseEnd: daysFromNow(245) } },
+                { id: 'spu-6', name: 'Unit 3B', floor: 3, status: 'Vacant', rentAmount: 3800000, rentalDetails: { unitName: 'Unit 3B', rentAmount: 3800000, rentFrequency: 'Annually' } },
+                { id: 'spu-7', name: 'Penthouse A', floor: 4, status: 'Occupied', tenantName: 'Dr. John Doe', tenantPhone: '0802 222 3333', rentAmount: 8500000, leaseStart: daysAgo(60), leaseEnd: daysFromNow(305), rentalDetails: { unitName: 'Penthouse A', tenantName: 'Dr. John Doe', tenantPhone: '0802 222 3333', rentAmount: 8500000, rentFrequency: 'Annually', leaseStart: daysAgo(60), leaseEnd: daysFromNow(305) } },
+                { id: 'spu-8', name: 'Penthouse B', floor: 4, status: 'Maintenance', rentAmount: 8500000, rentalDetails: { unitName: 'Penthouse B', rentAmount: 8500000, rentFrequency: 'Annually' } }
             ],
             rentPaymentHistory: [
                 { id: 'sph4', amount: 3200000, date: daysAgo(10), status: 'pending', description: 'Monthly Rent - Unit 1A' },

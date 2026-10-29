@@ -9,33 +9,33 @@ import ContactSalesDrawer from '../shared/ContactSalesDrawer';
 import { VegaNavBar, VegaFooter, VegaMobileStickyCTA, VegaChatFab } from './VegaShell';
 import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
-import { VegaIndexLine } from './sections/VegaIndexLine';
 import { VegaSuite } from './sections/VegaSuite';
-import { VegaRecord } from './sections/VegaRecord';
 import { VegaSegments } from './sections/VegaSegments';
 import { VegaAIDrafting } from './sections/VegaAIDrafting';
 import { VegaCourtRules } from './sections/VegaCourtRules';
 import { VegaScaleOfCharges } from './sections/VegaScaleOfCharges';
-import { VegaProcedure } from './sections/VegaProcedure';
 import { VegaCredentials } from './sections/VegaCredentials';
 import { VegaFAQInk } from './sections/VegaFAQInk';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
 
 /**
- * VegaSite — /vega, "The Reading Room" (R38).
+ * VegaSite — /vega, "The Reading Room" (R38; simplified R40).
  *
  * Owner direction (R38): "I wanted a redo of the page, not just changing
- * the colours." The page is rebuilt for the daylight register — one
- * system, one light, from the first pixel to the last:
+ * the colours." Owner direction (R40): simplify. The page folds to its
+ * load-bearing bands:
  *
- *   hero (the evening exchange as a daylight thread card) → index line →
- *   THE SUITE (the merged instrument index — the six-card grid, the dark
- *   matters ledger and the separate workspace gallery folded into ONE
- *   ruled, expandable index with live captures) → the record → practice
- *   areas → ALOA → court rules → scale of charges → procedure →
- *   attestations → interrogatories → colophon CTA.
+ *   hero (real photographs of the practice) → THE SUITE (the merged
+ *   instrument index with live captures) → practice areas → ALOA (real
+ *   captures: the workspace + the draw-out) → court rules → scale of
+ *   charges → credentials → interrogatories → colophon CTA.
  *
- * The espresso register survives only as TYPE and the deep footer — the
+ * Retired in R40: the mono index line (its claims live in Credentials
+ * and the footer), The Record's animated scales (decorative — the real
+ * product exhibits carry the trust now), and the three-step procedure
+ * schedule (generic; the suite and the pullouts show the actual work).
+ *
+ * The espresso register survives as TYPE and the deep footer — the
  * chrome is cream glass. Zero shared marketing sections below the nav.
  */
 export const VegaSite: React.FC = () => {
@@ -43,7 +43,7 @@ export const VegaSite: React.FC = () => {
     const { openModal } = useUI();
     useSiteChrome('vega');
     const { scrollRef, activeSection, scrollTo } = useSiteScroll(
-        ['home', 'suite', 'practice-areas', 'howItWorks']
+        ['home', 'suite', 'practice-areas']
     );
     const openSignup = useSignupOpener('vega');
     const {
@@ -149,17 +149,14 @@ export const VegaSite: React.FC = () => {
                         </>
                     )}
                 />
-                <VegaIndexLine />
-                {/* The Reading Room arrangement: the merged instrument
-                    index (with its live captures), the record, the segment
-                    tabs — then the deep-dives. */}
+                {/* The Reading Room arrangement, simplified (R40): the
+                    merged instrument index (with its live captures), the
+                    segment tabs — then the deep-dives. */}
                 <VegaSuite />
-                <VegaRecord />
                 <VegaSegments />
                 <VegaAIDrafting />
                 <VegaCourtRules />
                 <VegaScaleOfCharges />
-                <VegaProcedure />
                 <VegaCredentials />
                 <VegaFAQInk />
                 <VegaFinalCTA
