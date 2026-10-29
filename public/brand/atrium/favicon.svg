@@ -1,23 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Atrium — the Coin of the Courtyard (R39, owner direction:
-       "change the Atrium iconography"). Keeps the coin formula the owner
-       loved on Vega (mass carries 16px, the void carries the meaning) and
-       cuts THE ATRIUM through the heart of the emerald disc: the courtyard
-       plan — square estate walls around a central court, open at one
-       controlled entrance (the gate, south, its flanking posts reading as
-       the gatehouse). The name drawn as geometry: the product IS the
-       well-kept estate around a common heart, and everything that enters
-       comes through one gate (access control's own echo). Sibling to the
-       Vega star: the star is aspiration, the courtyard is the estate.
-       Emerald on the estate's cream, the register of the live /atrium
-       page. -->
+  <!-- PracticePro Atrium — the Coin of the Courtyard (R41 refresh).
+       Same geometry the owner approved in R39 (the coin formula: mass
+       carries 16px, the void carries the meaning — square estate walls
+       around a central court, open at one controlled gate, south), recol
+       BRIGHTER by owner direction (R41): "the red one is too dark for my
+       liking" — the deep jade/pine register read as a dark coin at 16px.
+       The disc now runs the fresh emerald of the live /atrium accent
+       (#10B981 to #059669, the site's own emerald token), so the
+       tab reads clearly GREEN and clearly LIGHT on both light and dark
+       browser chrome. Sibling to the Vega star: the star is aspiration,
+       the courtyard is the estate. -->
   <defs>
     <linearGradient id="at" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0C7A57"/>
-      <stop offset="1" stop-color="#053D2C"/>
+      <stop offset="0" stop-color="#10B981"/>
+      <stop offset="1" stop-color="#059669"/>
     </linearGradient>
   </defs>
   <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#10B981" stroke-opacity="0.4" stroke-width="1.5"/>
   <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M15 15 H33 V33 H15 Z M20.5 20.5 H27.5 V33.5 H20.5 Z" fill="url(#at)"/>
 </svg>

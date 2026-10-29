@@ -157,6 +157,13 @@ function metaValues(b: ProductBrand): string[] {
 
 const ORIGINAL_TITLE = 'PracticePro Systems — Build Systems That Help Scale Your Business';
 
+/** R41: favicons are aggressively cached by browsers (the owner was still
+ *  seeing the retired dark Atrium coin long after R39 replaced it). Every
+ *  product favicon now carries the build sha, so each deploy is a fresh
+ *  fetch — same trick the landing assets have always used. */
+const BUILD_SHA = (import.meta as any).env?.VITE_BUILD_SHA || 'r41';
+const cacheBusted = (url: string) => (url.includes('?') ? url : `${url}?v=${BUILD_SHA}`);
+
 function captureOriginal(el: Element, key: string) {
     if (!ORIGINALS.has(key)) {
         ORIGINALS.set(key, el.getAttribute('content') || '');
@@ -188,12 +195,12 @@ function applyProductIdentity(b: ProductBrand) {
     stashCompanyIconLinks();
     const png = ensureLink('icon', 'image/png');
     png.setAttribute('sizes', '48x48');
-    png.setAttribute('href', b.faviconPng);
+    png.setAttribute('href', cacheBusted(b.faviconPng));
     const svg = ensureLink('icon', 'image/svg+xml');
-    svg.setAttribute('href', b.faviconSvg);
+    svg.setAttribute('href', cacheBusted(b.faviconSvg));
     const apple = ensureLink('apple-touch-icon');
     apple.setAttribute('sizes', '180x180');
-    apple.setAttribute('href', b.appleTouch);
+    apple.setAttribute('href', cacheBusted(b.appleTouch));
 }
 
 function applyCompanyIdentity() {

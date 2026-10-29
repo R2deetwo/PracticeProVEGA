@@ -11,6 +11,7 @@ import { useFeatures } from '../hooks/useFeatures';
 import StatCard from './StatCard';
 import NairaSymbol from './NairaSymbol';
 import { formatNaira, formatLargeNumber, normalizeAddress } from '../utils/formatting';
+import { unitCountBase, unitCountLabel } from '../utils/propertyUnitCount';
 import EmptyState from './EmptyState';
 import ErrorBoundary from './ErrorBoundary';
 // SIMPLIFY FIX: dead generateRentReviewNoticePdf import removed — nothing ever
@@ -80,9 +81,15 @@ const PropertyListItem: React.FC<{
                         <div className="flex-1 min-w-0 pr-2">
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary-600 transition-colors leading-tight">{property.address}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                                {unitCount && unitCount > 1 && (
-                                    <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{unitCount} Units</span>
-                                )}
+                                {/* R41 — the unit count is always shown ("8 Units" /
+                                    "1 Unit"): the owner's direction was that the
+                                    list says how many units each property has. */}
+                                {(() => {
+                                    const label = unitCount != null ? unitCountLabel(unitCount) : null;
+                                    return label ? (
+                                        <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300">{label}</span>
+                                    ) : null;
+                                })()}
                                 <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[140px]">{ownerName}</span>
                                 {allRents.length > 0 ? (
                                     <span className="text-2xs font-bold text-emerald-600 dark:text-emerald-400">
@@ -190,12 +197,18 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
 
         rawProps.forEach(item => {
             const addr = normalizeAddress(item.property.address || 'Unknown Address');
+            // R41 — the count is the property's OWN inventory first
+            // (numberOfUnits field, else the embedded units array), not
+            // just how many rows share an address: a multi-unit estate is
+            // ONE row with embedded units, which the old ++ logic counted
+            // as 1 — so Parkview's "8 Units" chip never rendered.
+            const base = unitCountBase(item.property);
             if (addressMap.has(addr)) {
                 const index = addressMap.get(addr)!;
-                grouped[index].unitCount++;
+                grouped[index].unitCount += base;
             } else {
                 addressMap.set(addr, grouped.length);
-                grouped.push({ ...item, unitCount: 1 });
+                grouped.push({ ...item, unitCount: base });
             }
         });
 
