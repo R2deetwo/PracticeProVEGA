@@ -13764,3 +13764,47 @@ Standing owner actions (unchanged): CLOUDFLARE_API_TOKEN expired (mint
 at dash.cloudflare.com → GitHub secret); GEMINI_DEMO_KEY dead in
 production (mint in Google AI Studio → Convex) — demo ALOA/ARIA
 captures show the welcome state until it is live.
+
+## Round 44 (2026-10-29) — the ambient workspace, the map of the internet, and our own product story
+
+Owner: "The landing page looks considerably better. I love the way it's
+been done" — now make the borrowed layout authentically ours. Notes:
+fonts must match across; the network "is not really how networks look…
+have you ever seen a heat map of the internet? … little clusters
+communicating with each other"; the featured card misnames the product
+("Vega, Legal, and Property Suite — I don't think that's what it's
+called") and Explore "should take you down to products"; and "why don't
+we have… a Nigerian man working on a laptop… a video that fills that
+background landing page?"
+
+- THE AMBIENT VIDEO: generated still (VLM-picked of two) → 24s seamless
+  Ken Burns ping-pong loop (zoom 1.0→1.18→1.0, end frame == start
+  frame), 1.0MB 1344x768 h264 + 75KB poster under
+  assets/landing/hero/. Self-hosted; muted/loop/playsInline; paused
+  under reduced-motion and offscreen (IO); poster fallback. A paper
+  wash (95%→45%) keeps the ink copy crisp.
+- THE MAP (NetworkScene v2): the convergence ring retired. 12 clusters
+  (7 mobile), hub + 4-8 leaves each, 3 tier-1 carriers; every hub joins
+  its 2-4 nearest via long bowed backbone arcs; traffic pulses ROUTE at
+  hubs (adjacency walk — light flows through the map); click = nearest
+  hub fires pulses along all its arcs. Build-in: hubs → leaves →
+  backbone → traffic. CSS fallback repainted as cluster glows.
+- THE CARD: Vega and Atrium in their own names with their own marks
+  (Legal Practice OS / Property Management OS), one honest line each,
+  rows open the product pages; "Explore both products ↓" (R29 register)
+  scrolls to Our Work. The invented name is gone.
+- THE FONTS: verified by computed styles on the built page — Space
+  Grotesk display / IBM Plex Mono labels / Figtree body; pinned by test
+  (no Inter/Geist in hub surfaces).
+- Gates: 1314/1314, tsc clean (touched), eslint clean, build green
+  (font preloads intact). Local QA: video advancing (6.36→8.90 of 24),
+  canvas 1430x828, card rows + Explore OK, Explore → ourWork top 64px,
+  mobile 390 OK, zero console errors. VLM: video visible, mesh reads as
+  an internet map, headline crisp, card correct — desktop + mobile.
+- Deploy: 2329c732 pushed; CI Tests + Staging + APK green; promote run
+  40870841360 — Vercel + Convex ✓ live, Cloudflare mirror ✗ (standing
+  expired CLOUDFLARE_API_TOKEN, owner action). Live-verified: sha
+  2329c732; mp4 200 (1,018,889 bytes) + poster 200; video playing and
+  advancing; canvas alive; card correct (old name absent); H1 Space
+  Grotesk; Explore → ourWork top 64; mobile 390; zero console errors.
+  Live VLM: SHIP.
