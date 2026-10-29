@@ -13530,3 +13530,27 @@ unit numbering should be just a flick of a switch."
   (courtyard coin crisp, doubles as a stylized A). Mobile 390px:
   scrollWidth 390 both routes (no overflow); estate + hero crops clean.
   VLM verdicts: SHIP.
+  Deploy (R39) result: b38e518b pushed with a fresh owner PAT; CI Tests +
+  Staging + APK all green; the APK bump bot advanced main to 83288ff4
+  (v1.0.722, build-1113) and the promote run 40790112218 dispatched on it —
+  quality gate ✓ (convex tsc 0, baseline 131 held, 1281 tests, identity
+  audit, ui-primitives ratchet), Vercel + Convex production ✓ (live
+  verification watched the sha flip f40143fa → 83288ff4), Cloudflare mirror
+  ✗ on the standing expired CLOUDFLARE_API_TOKEN (owner action, unchanged
+  since R33 — the mirror still serves 04d798b3 from Sep 18).
+  Live-verified (scripts/r39-live-verify.cjs against practice-pro-vega.vercel.app,
+  29/29 PASS): Vega hero 3 photographs loaded (1152px, cache-busted ?v=sha)
+  with 3 gallery dots; EVENING EXCHANGE + LIVE CAPTURE co-present in the
+  Powered-by band; deadline-computer / drafting-studio / 7·3·1 pullouts
+  present; segments portrait renders; credentials two frames (vega-hero-2 +
+  vega-counsel). Atrium: all seven filter chips; dropdown stat cards (7
+  select nodes); A5 vacant clickable, phone Notices tab tappable, neutral
+  .at-chip--neutral renders; Balance/Months/Notices tabs; camera pill;
+  receipt band scoped — Ashford letterhead, INV-APM-0147, Receipt sent, NO
+  Sentry Pass on the resident's paper (it stays only in the product's own
+  marketing sections, by design), no ₦48.6M, no typed-by-hand, no "Estate
+  Receipt", On time/In part/Ahead all present. Zero console errors; mobile
+  390px scrollWidth 390 both routes. Live VLM (recaptured shots after the
+  first capture landed on wrong scroll offsets — scrollIntoView fixed it):
+  hero photographs PASS, estate grid + camera-pill phone + neutral-gray A5
+  notices PASS, invoice PASS — verdict SHIP.
