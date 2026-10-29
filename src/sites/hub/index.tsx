@@ -79,12 +79,16 @@ export const HubSite: React.FC = () => {
                 <HubHero
                     onContactSales={() => openContactSales('Hub Hero')}
                     scrollTo={scrollTo}
+                    onOpenVega={() => openProductPage('vega')}
                 />
+                {/* R42: the hero is daylight now — the dark capabilities band
+                    pours in through a liquid seam instead of a shared ground. */}
+                <FluidSeam from="#FBFBF9" to="#0A101C" phase={0} />
                 <MarqueeStrip />
                 {/* R40: the pain-mirror ("Sound familiar?") retired by
                     owner direction — the hub leads with the work. */}
                 {/* Liquid seams — each section pours into the next. */}
-                <FluidSeam from="#0A101C" to="#FFFFFF" phase={0} />
+                <FluidSeam from="#0A101C" to="#FFFFFF" phase={1} />
                 <WhatWeDoSection scrollTo={scrollTo} />
                 <FluidSeam from="#FFFFFF" to="#0A101C" phase={1} />
                 <OurWorkSection onContactSales={() => openContactSales('Our Work')} />

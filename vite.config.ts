@@ -149,6 +149,87 @@ function loosenCspForLocalConvex(extraHosts: string[] = []) {
 // emitted filenames, so in-bundle renames do not survive. See the script for
 // the full rationale (edge-cache poisoning of stable CSS URLs).
 
+// FONT PRELOAD (2026-10-29, R42): the self-hosted @fontsource families load
+// with font-display: swap, and browsers only START fetching a font when
+// rendered text first needs it — after CSS parse + layout. On first visits
+// that gap is visible: the page paints in the fallback face, then "sorts
+// itself out" (owner: "the font should already be there, not change
+// midway"). The fix is <link rel="preload"> in index.html so the woff2
+// fetches start at HTML-PARSE time, typically landing before first paint.
+//
+// Vite hashes asset URLs, so the links can't be hardcoded — this plugin
+// scans the emitted bundle at generateBundle time for the critical
+// latin-subset woff2 files (stable @fontsource names) and injects preload
+// tags into index.html. Build-only; dev serves from memory with no swap.
+const CRITICAL_FONTS = [
+  'figtree-latin-400-normal',
+  'figtree-latin-500-normal',
+  'figtree-latin-600-normal',
+  'figtree-latin-700-normal',
+  'space-grotesk-latin-500-normal',
+  'space-grotesk-latin-600-normal',
+  'space-grotesk-latin-700-normal',
+  'fraunces-latin-wght-normal',
+  'ibm-plex-mono-latin-400-normal',
+  'ibm-plex-mono-latin-500-normal',
+];
+function preloadCriticalFonts() {
+  return {
+    name: 'preload-critical-fonts',
+    apply: 'build' as const,
+    generateBundle: {
+      // order: 'post' — Vite's own build-html plugin emits index.html in
+      // its generateBundle; run after it so the asset (and its final
+      // source) is present in the bundle.
+      order: 'post' as const,
+      handler(_options: any, bundle: any) {
+      const htmlAsset: any = Object.values(bundle).find(
+        (a: any) => a.type === 'asset' &&
+          (a.fileName === 'index.html' || a.names?.includes('index.html') || a.name === 'index.html')
+      );
+      if (!htmlAsset) {
+        console.warn('[fonts] index.html asset not found — preloads skipped');
+        return;
+      }
+      const wanted = new Map<string, string>(); // font token -> fileName
+      // Asset names may be the ORIGINAL unhashed filename ('figtree-latin-
+      // 400-normal.woff2') or the hashed output ('assets/figtree-latin-400-
+      // normal-BXy1.woff2') — match both shapes against the tokens.
+      const stemOf = (n: string) => {
+        const base = n.split('/').pop() || n;
+        return base.endsWith('.woff2') ? base.slice(0, -'.woff2'.length) : null;
+      };
+      for (const asset of Object.values(bundle) as any[]) {
+        if (asset.type !== 'asset') continue;
+        const names: string[] = [
+          ...(asset.names || []),
+          ...(asset.name ? [asset.name] : []),
+          ...(asset.fileName ? [asset.fileName] : []),
+        ];
+        for (const n of names) {
+          const stem = stemOf(n);
+          if (!stem) continue;
+          const token = CRITICAL_FONTS.find(
+            (t) => stem === t || stem.startsWith(t + '-')
+          );
+          if (token && !wanted.has(token)) {
+            wanted.set(token, asset.fileName);
+            break;
+          }
+        }
+      }
+      if (wanted.size === 0) return;
+      const links = [...wanted.values()]
+        .map((f) => `<link rel="preload" href="/${f}" as="font" type="font/woff2" crossorigin>`)
+        .join('\n  ');
+      const src = typeof htmlAsset.source === 'string' ? htmlAsset.source : String(htmlAsset.source);
+      htmlAsset.source = src.replace('</head>', `  ${links}\n</head>`);
+      console.log(`[fonts] preloaded ${wanted.size} critical woff2 files into index.html`);
+      },
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
@@ -157,6 +238,9 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       generateVersionManifest(),
+      // R42: parse-time preloads for the above-fold brand fonts (kills the
+      // first-visit font swap on /, /vega and /atrium).
+      preloadCriticalFonts(),
       // Dev server only (apply: 'serve') — loosens CSP so `npx convex dev`'s
       // local backend is reachable. Production builds are unaffected.
       loosenCspForLocalConvex(

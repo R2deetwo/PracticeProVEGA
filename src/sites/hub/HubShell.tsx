@@ -80,11 +80,13 @@ export const HubNavBar: React.FC<{
     };
 
     return (
-    <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
-        {/* Glass layer — always light on the hub */}
-        <div className="absolute inset-0 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 transition-colors duration-500" />
+    <header className="fixed top-0 left-0 right-0 z-[250] pt-safe pointer-events-none">
+        {/* R42: the floating glass pill — one rounded container centred at
+            the top, floating OVER the hero (and every section below). */}
+        <div className="container mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pointer-events-auto">
+        <div className="relative max-w-6xl mx-auto rounded-2xl border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_10px_36px_-12px_rgba(15,23,42,0.18)] transition-colors duration-500">
 
-        <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="relative h-16 flex items-center justify-between px-3 sm:px-4">
             {/* Logo — on the hub it scrolls home. */}
             <div className="flex items-center gap-3">
                 <button
@@ -166,14 +168,14 @@ export const HubNavBar: React.FC<{
                 </button>
             </nav>
 
-            {/* Right — the one conversation CTA. Auth lives with the products. */}
+            {/* Right — the outline Contact Us pill (R42 brief); below lg
+                the hamburger. Auth lives with the products. */}
             <div className="flex items-center gap-2">
-                <div className="hidden lg:block h-4 w-px bg-slate-200 mx-1" />
                 <button
                     onClick={onContactSales}
-                    className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-primary-600 transition-all duration-150 active:scale-[0.98] min-h-[2rem]"
+                    className="hidden lg:inline-flex items-center gap-1.5 px-5 py-2 rounded-full text-sm font-semibold text-slate-700 border border-slate-300/90 bg-white/40 hover:border-emerald-500/70 hover:text-emerald-700 hover:bg-white/80 transition-all duration-150 active:scale-[0.98] min-h-[2.25rem]"
                 >
-                    Talk to us <span aria-hidden="true">→</span>
+                    Contact Us <span aria-hidden="true">→</span>
                 </button>
 
                 {/* Mobile hamburger — below lg so iPad portrait uses this menu. */}
@@ -191,10 +193,12 @@ export const HubNavBar: React.FC<{
                 </button>
             </div>
         </div>
+        </div>{/* /pill */}
+        </div>{/* /floating wrapper */}
 
-        {/* Mobile overlay menu */}
+        {/* Mobile overlay menu (offset clears the floating pill) */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-16 z-[240] bg-white overflow-y-auto menu-in-top origin-top">
+            <div className="lg:hidden fixed inset-0 top-[84px] z-[240] bg-white/95 backdrop-blur-xl overflow-y-auto menu-in-top origin-top pointer-events-auto">
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     <div className="mb-2">
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>

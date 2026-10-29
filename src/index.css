@@ -3367,6 +3367,40 @@ nav,
   to   { background-size: 170% 170%, 148% 148%, 132% 132%; }
 }
 
+/* ── R42: the network hero (daylight) ─────────────────────────────────────
+ * CSS fallback for scenes/NetworkScene.tsx when WebGL is unavailable: the
+ * same picture, painted softly — a ringed convergence right-of-centre on
+ * the paper ground, plus the faint constellation dust. Sits BEHIND the
+ * canvas; the canvas is transparent so this also warms the low-alpha
+ * edges of the live scene. */
+.r42-net-fallback {
+  background:
+    radial-gradient(circle at 71% 46%, rgba(5, 150, 105, 0.14) 0%, rgba(13, 148, 136, 0.08) 30%, rgba(251, 251, 249, 0) 62%),
+    radial-gradient(circle at 76% 52%, rgba(251, 251, 249, 0) 0%, rgba(251, 251, 249, 0) 17%, rgba(16, 185, 129, 0.12) 18.5%, rgba(251, 251, 249, 0) 20%),
+    radial-gradient(circle at 84% 30%, rgba(3, 105, 161, 0.07) 0%, rgba(251, 251, 249, 0) 34%),
+    radial-gradient(circle at 60% 72%, rgba(52, 211, 153, 0.09) 0%, rgba(251, 251, 249, 0) 38%),
+    radial-gradient(circle at 30% 24%, rgba(100, 116, 139, 0.06) 0%, rgba(251, 251, 249, 0) 30%);
+  animation: r42-fallback-breathe 14s ease-in-out infinite alternate;
+}
+@keyframes r42-fallback-breathe {
+  from { background-position: 71% 46%, 76% 52%, 84% 30%, 60% 72%, 30% 24%; }
+  to   { background-position: 72% 45%, 76% 53%, 85% 31%, 61% 71%, 31% 25%; }
+}
+
+/* Featured-solution card — arrives after the network has drawn itself in
+ * (the scene's build-in is ~2.6s), rising gently into place. No plop. */
+.r42-card-in {
+  animation: r42-card-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 1.7s both;
+}
+@keyframes r42-card-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .r42-card-in { animation: none; }
+  .r42-net-fallback { animation: none; }
+}
+
 /* Soft double shadow under the hero headline — keeps white type legible
    over the brightest parts of the orb. */
 .w7-headline-shadow {

@@ -86,7 +86,7 @@ const hubShell = read("src", "sites", "hub", "HubShell.tsx");
 const hubIndex = read("src", "sites", "hub", "index.tsx");
 const hubHooks = read("src", "sites", "hub", "hooks.ts");
 const hubScenes = read("src", "sites", "hub", "scenes", "SystemCoreScene.tsx") + "\n" +
-  read("src", "sites", "hub", "scenes", "MorphScene.tsx");
+  read("src", "sites", "hub", "scenes", "NetworkScene.tsx");
 const hub = [hubShell, hubIndex, hubHooks, hubScenes, hubHeroSection, hubMarquee,
   hubPainMirror, hubWhatWeDo, hubWork, hubHowWeWork, hubAbout, hubFinalCTA].join("\n");
 const vegaSite = read("src", "sites", "vega", "index.tsx");
@@ -118,22 +118,20 @@ const atriumFinalCTA = read("src", "sites", "atrium", "sections", "AtriumFinalCT
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    // hub-revert-rubbish (owner verdict on the Phase C diorama: "particularly
-    // rubbish and not well done"): the hero is the W14 living orb again —
-    // MorphScene full-bleed behind centred text. The plain-language copy
-    // (C3) and both CTAs stay; the diorama is retired.
-    expect(hub).toContain("Your orders, payments and customers, finally in one place.");
-    expect(hub).toContain("We design, build &amp; run business software");
-    // R28: the owner retired the Lagos/Vega/Atrium enumeration — the hero
-    // now hammers the one message: software and custom systems for
-    // businesses like yours. No product names, no city.
-    expect(hub).toContain("We build software and custom systems for businesses like yours");
+    // R42 (owner direction): the living orb retired — the hero now shows
+    // NETWORKING: "systems coming together to become one process"
+    // (NetworkScene), on the daylight glassmorphic layout with the
+    // owner-supplied copy brief.
+    expect(hub).toContain("We design, build, and run custom business solutions.");
+    expect(hub).toContain("End-to-End Digital Infrastructure");
+    expect(hub).toContain("we build and manage the complete digital foundation");
     expect(hub).not.toContain("We build business software in Lagos");
     // The hero CTAs.
-    expect(hub).toContain("Talk to us");
+    expect(hub).toContain("Talk to Us");
     expect(hub).toContain("See what we&apos;ve built");
-    // The living orb is back in the hero; the diorama is retired.
-    expect(hub).toContain("MorphScene");
+    // The network hero (R42); the orb and the diorama are retired.
+    expect(hub).toContain("NetworkScene");
+    expect(hub).not.toContain("MorphScene");
     expect(hub).not.toContain("ScalingNoun");
     expect(hub).not.toContain("SCALE_NOUNS");
     // The system core (What we do) keeps its scene; the Phase C diorama
@@ -164,7 +162,9 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
   });
 
   it("the hub positions the company broadly — we build systems, not 'a Lagos software company' (W7)", () => {
-    expect(hub).toContain("We design, build &amp; run business software");
+    // R42: the eyebrow is the owner-supplied brief's tag; the body copy
+    // carries the systems message.
+    expect(hub).toContain("End-to-End Digital Infrastructure");
     // R28: the Lagos line is retired with the Vega/Atrium enumeration —
     // the sub-copy now reads "software and custom systems for businesses
     // like yours" with no city and no product list. ("Built in Lagos."
@@ -275,25 +275,30 @@ describe("W7 — the wow site: real screens, stack, and the preview system", () 
     expect(hub).toContain("Ask us about a system like this");
   });
 
-  it("the hero carries the morphing system with a structural CSS fallback", () => {
-    // hub-revert-rubbish: the hero scene is the W14 living orb (MorphScene)
-    // with the structural CSS fallback painted behind it until WebGL
-    // arrives (and permanently if WebGL never arrives).
-    expect(hub).toContain("MorphScene");
-    expect(hub).toContain("w8-lattice-fallback");
+  it("the hero carries the network with a structural CSS fallback", () => {
+    // R42: the hero scene is the convergence network (NetworkScene) with
+    // the structural CSS fallback painted behind it until WebGL arrives
+    // (and permanently if WebGL never arrives).
+    expect(hub).toContain("NetworkScene");
+    expect(hub).toContain("r42-net-fallback");
     expect(hub).not.toContain("HubScene");
   });
 });
 
 describe("W8 — structured fluidity: the lattice system", () => {
-  it("the hero shows structure that morphs — a system lattice, not a blob (W8, restored)", () => {
-    expect(hub).toContain("w8-lattice");
+  it("the hero shows structure that morphs — a converging network, not a blob (W8→R42)", () => {
+    expect(hub).toContain("r42-net-fallback");
+    expect(hub).toContain("r42-card-in");
   });
 
 
   it("sections pour into each other through visible SVG waves that morph as you scroll (W10, restored)", () => {
     expect(hub).toContain("FluidSeam");
-    expect(hubIndex).toContain('<FluidSeam from="#0A101C" to="#FFFFFF" phase={0}');
+    // R42: the hero is daylight — it pours into the dark capabilities band
+    // through its own seam (phase 0); the band then pours into the white
+    // body. The final paper→dark close keeps phase 3.
+    expect(hubIndex).toContain('<FluidSeam from="#FBFBF9" to="#0A101C" phase={0}');
+    expect(hubIndex).toContain('<FluidSeam from="#0A101C" to="#FFFFFF" phase={1}');
     expect(hubIndex).toContain('<FluidSeam from="#FBFBF9" to="#0A101C" phase={3}');
   });
 
@@ -303,16 +308,18 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 
 
-  it("the hero is the living orb, full-bleed behind centred text (W14 restored)", () => {
-    // hub-revert-rubbish: the diorama is retired; the living orb is back —
-    // full-bleed (absolute inset-0) behind the centred copy, the W14-era
-    // presentation the owner originally asked to restore. The plain C3
-    // copy and both CTAs stay.
-    expect(hubHeroSection).toContain("MorphScene");
+  it("the hero is the convergence network, full-bleed behind left-aligned copy (R42)", () => {
+    // R42 (owner direction): the orb retired — "systems sort of coming
+    // together to become one process". NetworkScene full-bleed behind the
+    // LEFT-aligned glassmorphic copy (owner-supplied brief), with the
+    // featured-solution card floating bottom-right and a soft paper wash
+    // keeping the ink copy crisp.
+    expect(hubHeroSection).toContain("NetworkScene");
     expect(hubHeroSection).toContain("w8-scene-enter");
-    expect(hubHeroSection).toContain("w7-headline-shadow");
-    expect(hubHeroSection).toContain("flex flex-col items-center text-center");
-    expect(hubHeroSection).toContain("absolute inset-0 w8-scene-enter");
+    expect(hubHeroSection).toContain("End-to-End Digital Infrastructure");
+    expect(hubHeroSection).toContain("We design, build, and run custom business solutions.");
+    expect(hubHeroSection).toContain("FeaturedSolutionCard");
+    expect(hubHeroSection).toContain("Vega Legal &amp; Property Suite");
     expect(hubHeroSection).not.toContain("aspect-[4/3]");
     // The diorama's stage machinery is gone with it. ("Money recorded" is
     // NOT asserted here — it is also a legitimate What-we-do capability
@@ -321,7 +328,7 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hub).not.toContain("Nobody loses it");
     expect(hub).not.toContain("Receipt sent");
     expect(hub).not.toContain("HubScenePoster");
-    // Performance + safety contract (MorphScene, verbatim W14).
+    // Performance + safety contract (NetworkScene, same as every scene).
     expect(hub).toContain("Math.min(window.devicePixelRatio || 1");
     expect(hub).toContain("prefers-reduced-motion");
     expect(hub).toContain("renderer.dispose()");
@@ -376,8 +383,10 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
 
   it("the scene runs on the hero's engine contract (restored)", () => {
     // Same lazy-chunk + pause-offscreen contract the hero scene uses.
+    // R42: the hero scene is NetworkScene (the orb, MorphScene, retired
+    // with the file — same as the diorama before it).
     expect(hubScenes).toContain("SystemCoreScene");
-    expect(hubScenes).toContain("MorphScene");
+    expect(hubScenes).toContain("NetworkScene");
     expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1");
   });
 
@@ -550,9 +559,10 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     // R40: the pain-first hero description ("Spreadsheets, chat threads,
     // memory and paper will get a business started...") belonged to the
     // retired Sound-familiar? mirror; the hero now states what we do.
+    // R42: the hero copy is the owner-supplied glassmorphic brief.
     expect(hub).not.toContain("Spreadsheets, chat threads, memory and paper");
-    expect(hub).toContain("Your orders, payments and customers, finally in one place.");
-    expect(hub).toContain("designed, built and run end to end");
+    expect(hub).toContain("We design, build, and run custom business solutions.");
+    expect(hub).toContain("From custom software and system integrations");
   });
 
   it("R40: the pain-mirror (\"Sound familiar?\") is retired — the hub leads with the work", () => {
@@ -789,12 +799,30 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaSuite).toContain("text-vega-night");
     expect(vegaSuite).not.toContain("bg-vega-night");
     expect(vegaSuite).not.toContain("bg-vega-ink");
-    // The captures are the real product, honestly captioned.
-    expect(vegaSuite).toContain("/assets/landing/app/dashboard.jpg");
+    // The captures are the real product, honestly captioned. R42: every
+    // ENTRY carries its own capture — the matters ledger (not the generic
+    // dashboard), the DraftPro editor, the chronology, both task-board
+    // layouts, contacts, research, analytics and the bank-transfer
+    // invoice.
+    expect(vegaSuite).toContain("/assets/landing/app/matters-ledger.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/tasks-status.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/tasks-flat.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/contacts.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/editor.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/research.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/chronology.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/aloa.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/calendar.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/billing.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/analytics.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/invoice-bank.jpg");
     expect(vegaSuite).toContain("LIVE CAPTURE");
+    // R42: entries switch their capture on hover/tap; the task board
+    // cycles its two real layouts; ALOA says locus classicus.
+    expect(vegaSuite).toContain("onMouseEnter={onActivate}");
+    expect(vegaSuite).toContain("swap:");
+    expect(vegaSuite).toContain("locus classicus");
+    expect(vegaSuite).not.toContain("intake to judgment");
   });
 
   it("pricing tiers are retired from the product pages (owner direction, R21)", () => {

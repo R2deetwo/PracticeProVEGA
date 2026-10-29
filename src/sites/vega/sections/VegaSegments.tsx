@@ -42,7 +42,7 @@ const SEGMENTS: Segment[] = [
         rows: [
             { title: 'Pleadings & motions', detail: 'DraftPro formats captions, parties\u2019 designations and prayers to Nigerian court practice — A4, ready to file.' },
             { title: 'Deadlines by the right rules', detail: 'Filing and service windows computed under the matter\u2019s Civil Procedure Rules — 36 states and the FCT.' },
-            { title: 'The chronology', detail: 'A provisional timeline of every event and computed deadline, kept per matter — intake to judgment.' },
+            { title: 'The chronology', detail: 'A provisional timeline of every event and computed deadline, kept per matter and updated as filings land and dates move.' },
             { title: 'Reminders that fire', detail: '7 · 3 · 1 days before each hearing, to assigned counsel by email and in-app.' },
         ],
     },
