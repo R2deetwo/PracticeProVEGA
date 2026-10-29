@@ -13664,3 +13664,103 @@ payments in parts" on the site (the feature stays in the app).
   (2880px); estate units + phone + invoice captures load; "In part"
   gone; Sound familiar? gone; hero states what we do; zero console
   errors. Live VLM: SHIP.
+
+## Rounds 41–43 (2026-10-29) — the estate you can play, the network hero, the fonts that arrive, the suite that follows your hand, the phone that fits, the chambers you can see
+
+**R41 (c1b08658) — the estate at a glance, interactive.** Owner: the
+phone capture read as "a huge black space where the actual phone screen
+is"; the Properties list is "supposed to" carry unit counts; the band
+should let a visitor "almost play around with it." THE APP: the list
+counted rows sharing an address, so multi-unit estates counted 1 and
+the "8 Units" chip never rendered — new src/utils/propertyUnitCount.ts
+resolves the property's own inventory (numberOfUnits, else the embedded
+units array, else 1); the chip now shows on every card. THE BAND:
+AtriumEstate retired its static captures and runs the workspace itself
+— estateChrome, a replica built from the app's own markup on the demo
+estate (Parkview 8 units 5/2/1, Lekki, Warehouse, Horizon). Desktop
+frame: sidebar + Properties + detail pane, hover hints, property →
+Units tab → unit card expanding to its larger Tier-1 form → More
+reveals Tier-2. Phone frame: the real 390x844 layout rendered live,
+scaled into the bezel, with the mobile Back bar, tabs and the Atrium
+bottom nav. Every would-be mutation answers with an honest
+"Preview — in the product…" toast. Favicons brightened (the owner found
+Atrium's deep red "too dark for my liking" — both marks now read on
+the light tab strip). tests/unit/estateExplorer.test.ts pins the
+interaction contract.
+
+**R42 (ca978716) — systems converging.** Owner: the living orb "I
+might want to move on from it" — something about networking, "systems
+coming together to become one process," still interactive, still 3D,
+mouse-reactive, nothing plopping onto the screen; the font "should
+already be there, not having it change midway"; and on /vega "when I'm
+on the matters ledger it should show the matters ledger."
+- THE HUB HERO: new scenes/NetworkScene.tsx — six system constellations
+  converging into one ringed process right-of-centre, pulses travelling
+  the arcs, pointer parallax + proximity glow + click-to-pulse, and a
+  build-in choreography (nodes stagger in, the links DRAW themselves
+  toward the hub, the ring forms last — no plop). MorphScene retired
+  with its file. The layout is the owner-supplied glassmorphic brief:
+  floating rounded-2xl glass nav pill (Contact Us → outline right),
+  END-TO-END DIGITAL INFRASTRUCTURE eyebrow, left-aligned H1, solid
+  green Talk to Us →, the FEATURED SOLUTION card (Vega Legal & Property
+  Suite) floating bottom-right (re-anchored under the CTAs on mobile).
+  The hero is daylight now, pouring into the dark capabilities band
+  through its own liquid seam.
+- THE FONTS: vite.config.ts gains preload-critical-fonts — a
+  build-order:'post' generateBundle plugin that injects <link
+  rel=preload> for the ten critical woff2 files into index.html, so the
+  fetch starts at HTML-parse time and the brand face is there on first
+  paint. Verified in the built HTML and live (10 preloads serving).
+- THE SUITE: every ENTRY now carries its own LIVE CAPTURE — hover (or
+  tap) an entry and the exhibit follows: matters ledger first (not the
+  generic dashboard), the task board cycling its two real layouts
+  (status groups ⇄ flat list; hover holds, chips pin), contacts with
+  relationships, DraftPro opening on THE EDITOR with [PLACEHOLDER]
+  guardrails, the vault copy stating the protection case ("some
+  clients require that level — the vault keeps it by default"),
+  Research Studio, the Court Rules Agent opening on the chronology
+  ("updated as filings land and dates move" — the vague "intake to
+  judgment" tail retired here and in VegaSegments), reminders on the
+  diary, the financial dashboard, and the bank-transfer invoice. ALOA's
+  line now says it is trained on Nigerian legal terminology, court
+  rules and LOCUS CLASSICUS.
+- Nine new captures (r42-vega-shots*.cjs — the editor one bootstraps
+  DraftPro through the app's own draft-session recovery path; the
+  update-toast is killed deterministically by pre-seeding the
+  notified-version dedup key). All VLM-verified.
+- Deploy (R42): CI Tests + Staging + APK green; promote run 40853742335
+  (input sha ca978716) — Vercel + Convex ✓ live, Cloudflare mirror ✗
+  (standing expired CLOUDFLARE_API_TOKEN, owner action). Live-verified:
+  sha ca978716, 10 font preloads, hero canvas 1430x828, nav pill
+  (144,16,1152x66,r20), matters-ledger first exhibit, locus classicus
+  present, zero console errors. Live VLM: SHIP.
+
+**R43 (678678a6) — the phone that fits, the chambers you can see.**
+Owner: the estate phone "doesn't fill the phone — the phone might be a
+bit too large, the proportions aren't okay, the content squeezes to the
+left, it doesn't hit the right hand side." ROOT CAUSE: the long
+figcaption set the figure's intrinsic width, the block bezel stretched
+to match (378.7px) while the fixed 304.2px screen sat left in a ~55px
+gap. FIX: the bezel fits its content (w-fit, radius 2.2rem), the
+caption wraps (max-w-[290px]), the scale drops to 0.72, and the
+compact panel drops the desktop border-r. Live geometry probe: bezel
+300.8, screen 280.8, gapRight 0 — edge to edge, real proportions; VLM
+confirms. THE CHAMBERS BAND (VegaTeam, after the Suite): "The whole
+team, one workspace" — two live captures of the collaborative side
+(the task board filtered to one counsel with the team strip, and a
+matter's discussion thread), plus three ruled facts (everyone in at
+once / work assigned per counsel / the file discusses itself). THE APP:
+the matter discussion tab rendered HTML-bearing notes as raw tags —
+notes now render as sanitized rich text (DOMPurify sanitize +
+prose-sm), plain notes unchanged. Captures tasks-team.jpg +
+matter-notes.jpg (both VLM-verified clean). Deploy: CI green; promote
+run 40863440639 (input sha 678678a6) — Vercel + Convex ✓ live,
+Cloudflare ✗ (same token). Live-verified: sha 678678a6, phone gapRight
+0, both team captures serving 2880px with heading + copy, mobile
+scrollWidth 390 on /vega and /atrium, zero console errors. Live VLM:
+SHIP.
+
+Standing owner actions (unchanged): CLOUDFLARE_API_TOKEN expired (mint
+at dash.cloudflare.com → GitHub secret); GEMINI_DEMO_KEY dead in
+production (mint in Google AI Studio → Convex) — demo ALOA/ARIA
+captures show the welcome state until it is live.
