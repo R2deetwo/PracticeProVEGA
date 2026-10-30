@@ -13808,3 +13808,45 @@ background landing page?"
   advancing; canvas alive; card correct (old name absent); H1 Space
   Grotesk; Explore → ourWork top 64; mobile 390; zero console errors.
   Live VLM: SHIP.
+
+**R45 (5fed7c99) — the quiet hero: clusters retired, the loop that
+doesn't glitch, the slimmer card.**
+Owner: "get rid of the internet clusters"; "why the hell is the image
+glitching?"; "ensure the featured solutions have a slimmer form factor."
+- THE CLUSTERS, RETIRED: NetworkScene v2 (the map of the internet) and
+  its .r42-net-fallback CSS glows deleted with the file — 669 lines
+  gone. The hero is the ambient workspace alone: paper ground, the
+  video, the washes, the copy. No canvas, nothing to render but the
+  room. (SystemCoreScene keeps the scene contract in What-we-do.)
+- THE GLITCH, FIXED AT THE SOURCE. The R44 loop glitched for three
+  compounding reasons: zoompan steps in whole INPUT pixels and the
+  build only fed it a 1600px intermediate (judder); the double
+  re-encode (concat crf 24 over crf 22 clips) landed at 337 kbps for
+  1344x768 — a slow Ken Burns at that bitrate is macroblock soup, and
+  the blocks swim as the crop drifts. REBUILT (scripts/r45-ambient-
+  video.sh) as ONE pass: source upscaled to 3200 wide first so every
+  zoompan pixel step is subpixel at output; the whole 24s ping-pong
+  (1.0→1.18→1.0) in a single zoompan expression, end frame == start
+  frame (seam measured: mean abs diff 1.15/255); encoded once at
+  1920x1096 CRF 23 -tune stillimage — 1.43 Mbps, 4.3MB, single
+  generation. Phones anchor object-position at 58% (frame-extract
+  tested at both ends of the zoom: face, typing hand and laptop stay
+  composed in the ~21% window); sm and up re-centre.
+- THE CARD, SLIMMER: 400→330px, p-6→px-5 py-4, marks 32→24, titles
+  text-lg→15px, one quiet 13px line per product, rows 16px→6px apart,
+  thin 10px Explore rail, rounded-2xl→rounded-lg. Same two products in
+  their own names; Explore still scrolls down to Our Work.
+- Gates: 1314/1314, tsc clean (touched), eslint clean, build green
+  (font preloads intact). Local QA (built preview): no hero canvas;
+  video readyState 4, new 1920x1096 encode, playback linear (six 500ms
+  deltas all 0.50-0.51s — no stalls); card w=330 h=240 (was 400/~256);
+  Explore → ourWork top 64; mobile 390 no overflow; zero console
+  errors. VLM: no mesh/clusters anywhere, photo clean and smooth (no
+  blockiness/banding), card slim — desktop + mobile.
+- Deploy: 5fed7c99 pushed; CI Tests + Staging + APK green; promote run
+  41051443489 — Vercel + Convex ✓ live, Cloudflare mirror ✗ (standing
+  expired CLOUDFLARE_API_TOKEN, owner action — unchanged since R42).
+  Live-verified: sha 5fed7c99; video playing and advancing linearly,
+  w=1920 h=1096; no hero canvas; card w=330 h=240; Explore → ourWork
+  top 64; H1 Space Grotesk; mobile 390; zero console errors. Live VLM:
+  clean and smooth, no artifacts, card slim — SHIP.
