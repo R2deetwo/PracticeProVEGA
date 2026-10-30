@@ -13850,3 +13850,51 @@ glitching?"; "ensure the featured solutions have a slimmer form factor."
   w=1920 h=1096; no hero canvas; card w=330 h=240; Explore → ourWork
   top 64; H1 Space Grotesk; mobile 390; zero console errors. Live VLM:
   clean and smooth, no artifacts, card slim — SHIP.
+
+**R46 (8b7e9bdd) — the still hero: the image stops moving, the face
+stops looming.**
+Owner: "for some reason the image is moving which looks weird on the
+laptop and the mobile... on the mobile its enlarged and shakey... you
+can use the same image but stop it from moving about and being creepy.
+humans will find this creepy."
+- THE LOOP, RETIRED. The R45 fix made the Ken Burns SMOOTH — the owner
+  made the real call: not smoother, STILLER. The 24s loop, its 4.3MB
+  ambient-loop.mp4 and the poster are deleted. The SAME photograph
+  stays, stopped: the loop's rest frame (1920x1097, q2, 181KB),
+  full-bleed at lg+ behind the same paper washes, object-anchored at
+  60% so the subject (he spans ~35–90% of the frame) stays composed in
+  the cover window at every lg width.
+- THE FACE THAT STOPPED LOOMING. Below lg the full-bleed crop is
+  retired too — grounded live: a 16:9 photo covering a 390x1050 phone
+  shows 21% of its frame width, which put a giant blurred EYE behind
+  the headline (live VLM: "significantly enlarged and looming... the
+  giant eyeball rather than the copy"). In its place: a calm framed 4:3
+  panel of the whole desk scene at natural photographic scale
+  (1200x900 art-directed crop, x 320..1344 of the source — the man
+  centered at ~54% with the laptop and plant framing him; VLM: "natural
+  scale... ideal for a hero panel meant to convey calm
+  professionalism"), rounded-2xl, on the paper ground.
+- NOTHING IN THE HERO MOVES. No video loop, no pinging eyebrow dot
+  (the badge dot rests), no bobbing scroll cue (w7-cue-bob retired
+  from the CSS; the chevron rests). The copy stagger and the card rise
+  stay as one-time entrances — the section arrives, then rests. Lazy +
+  display:none scoping means each viewport fetches only its
+  composition: desktop downloads just the landscape still, phones just
+  the panel (proven via performance entries both ways).
+- Gates: 1314/1314, tsc clean (touched; 127 pre-existing errors
+  elsewhere, identical on HEAD), eslint clean, build green (10 font
+  preloads intact). Local QA on the built preview: zero running
+  animations in the hero on both viewports; desktop still 1920x1097 at
+  60%; mobile panel 358x269 (4:3, 16px gutters, no overflow); card
+  still 330x240; Explore → ourWork top 64; zero console errors.
+- Deploy: 8b7e9bdd pushed; CI Tests + Staging + APK green; promote run
+  41056418710 (promoted the APK bot's 3687d341 = R46 + version.json
+  build-1119) — Vercel + Convex ✓ live, Cloudflare mirror ✗ (standing
+  expired CLOUDFLARE_API_TOKEN, owner action — unchanged since R42).
+  Live-verified: version.json sha 8b7e9bdd healthy; no video/canvas;
+  nothing animates; still + panel serve 200 as image/jpeg (the retired
+  mp4 path 200s only as the vercel.json SPA catch-all, content-type
+  text/html — the file is gone); desktop fetched only the still, mobile
+  only the panel; card 330x240; Explore → ourWork top 64; mobile 390 no
+  overflow; zero console errors. Live VLM: desktop "calm, static,
+  professional — SHIP"; mobile "the giant looming face is GONE".
