@@ -117,9 +117,9 @@ const atriumFinalCTA = read("src", "sites", "atrium", "sections", "AtriumFinalCT
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    // R42→R45: the hero copy is the owner-supplied brief; the visual is
-    // the ambient workspace VIDEO alone (R45: the internet-map clusters
-    // are retired — "get rid of the internet clusters").
+    // R42→R46: the hero copy is the owner-supplied brief; the visual is
+    // the ambient workspace photograph, STOPPED (R46: "you can use the
+    // same image but stop it from moving about and being creepy").
     expect(hub).toContain("We design, build, and run custom business solutions.");
     expect(hub).toContain("End-to-End Digital Infrastructure");
     expect(hub).toContain("we build and manage the complete digital foundation");
@@ -274,15 +274,21 @@ describe("W7 — the wow site: real screens, stack, and the preview system", () 
     expect(hub).toContain("Ask us about a system like this");
   });
 
-  it("the hero is the ambient workspace video — no canvas, no cluster fallback (R45)", () => {
+  it("the hero is the ambient workspace STILL — no canvas, no video, no motion (R45→R46)", () => {
     // R45 (owner direction): "get rid of the internet clusters" — the
     // NetworkScene canvas and its structural CSS fallback are retired
-    // from the hero. The ambient video (with its poster) is the whole
-    // visual, under the paper washes.
+    // from the hero. R46 (owner direction): "stop it from moving about
+    // and being creepy" — the video loop is retired too; the same
+    // photograph stays, stopped. Nothing in the hero animates.
     expect(hubHeroSection).not.toContain("NetworkScene");
     expect(hubHeroSection).not.toContain("w8-scene-enter");
     expect(css).not.toContain(".r42-net-fallback");
     expect(hub).not.toContain("HubScene");
+    // R46: no video element, no loop file, no cue bob left in the CSS.
+    expect(hubHeroSection).not.toContain("<video");
+    expect(hubHeroSection).not.toContain("ambient-loop");
+    expect(hubHeroSection).not.toContain("autoPlay");
+    expect(css).not.toContain("w7-cue-bob");
   });
 });
 
@@ -311,11 +317,15 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 
 
-  it("the hero is the ambient workspace alone, behind left-aligned copy, with a slimmer card (R42→R45)", () => {
-    // R42: the orb retired. R44: ambient video + the internet map. R45
-    // (owner direction): the clusters are GONE and the video must not
-    // glitch (re-encoded: single-pass subpixel Ken Burns, 1920 wide,
-    // CRF 23 stillimage — no double encode, no macroblock swimming).
+  it("the hero is the ambient workspace alone, behind left-aligned copy, with a slimmer card (R42→R46)", () => {
+    // R42: the orb retired. R44: ambient video + the internet map. R45:
+    // the clusters are GONE. R46 (owner direction): "you can use the
+    // same image but stop it from moving about and being creepy" — the
+    // loop is retired; the SAME photograph stays as a still (the loop's
+    // rest frame), full-bleed at lg+ and a calm framed 4:3 panel below
+    // (the full-bleed crop on a 390px phone showed just 21% of the
+    // frame — a giant looming face behind the copy: "enlarged and
+    // shakey").
     // The featured-solutions card floats bottom-right, SLIMMER (330px),
     // telling OUR product story — Vega and Atrium, correctly named —
     // and an Explore affordance that scrolls DOWN to the products.
@@ -323,17 +333,20 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hubHeroSection).not.toContain("w8-scene-enter");
     expect(hubHeroSection).toContain("End-to-End Digital Infrastructure");
     expect(hubHeroSection).toContain("We design, build, and run custom business solutions.");
-    // The ambient video: self-hosted, muted, looping, inline, poster
-    // fallback; paused under reduced motion.
-    expect(hubHeroSection).toContain("ambient-loop.mp4");
-    expect(hubHeroSection).toContain("ambient-poster.jpg");
-    expect(hubHeroSection).toContain("playsInline");
-    expect(hubHeroSection).toContain("prefers-reduced-motion");
-    // R45: phones crop the 16:9 frame to ~21% of its width — the window
-    // anchors at 58% (frame-extract tested at both ends of the zoom) so
-    // the subject's face, typing hand and laptop stay inside the crop;
-    // sm and up re-centre.
-    expect(hubHeroSection).toContain("object-[58%_center] sm:object-center");
+    // R46: the still — the same photograph, stopped. Desktop full-bleed
+    // (the loop's rest frame, anchored at 60% so the subject stays
+    // composed at every lg width); the framed panel below lg at a
+    // natural photographic scale. Lazy + display:none scoping means
+    // each breakpoint fetches only the composition it shows.
+    expect(hubHeroSection).toContain("ambient-still.jpg");
+    expect(hubHeroSection).toContain("ambient-still-panel.jpg");
+    expect(hubHeroSection).toContain("object-[60%_center]");
+    expect(hubHeroSection).toContain("aspect-[4/3]");
+    // Nothing in the hero animates: no pinging badge dot, no bobbing
+    // scroll cue (the chevron rests), no JS motion machinery at all.
+    expect(hubHeroSection).not.toContain("animate-ping");
+    expect(hubHeroSection).not.toContain("w7-scroll-cue");
+    expect(hubHeroSection).not.toContain("IntersectionObserver");
     // The featured solutions: Vega + Atrium in their own names — R45:
     // a slimmer card (330px, tighter air).
     expect(hubHeroSection).toContain("FeaturedSolutionsCard");
@@ -347,7 +360,6 @@ describe("W8 — structured fluidity: the lattice system", () => {
     // Explore scrolls DOWN to the products (Our Work), never away.
     expect(hubHeroSection).toContain("onExplore={() => scrollTo('ourWork')}");
     expect(hubHeroSection).not.toContain("Vega Legal &amp; Property Suite");
-    expect(hubHeroSection).not.toContain("aspect-[4/3]");
     // R44 (owner: "ensure the font still matches across"): the hero
     // wears the site's own stacks — Space Grotesk display, IBM Plex
     // Mono labels, Figtree body — never the referenced site's fonts.
@@ -362,7 +374,7 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hub).not.toContain("Receipt sent");
     expect(hub).not.toContain("HubScenePoster");
     // Performance + safety contract — now carried by the remaining
-    // scene (SystemCoreScene) alone; the hero video needs no canvas.
+    // scene (SystemCoreScene) alone; the hero still needs no canvas.
     expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1");
     expect(hubScenes).toContain("prefers-reduced-motion");
     expect(hubScenes).toContain("renderer.dispose()");

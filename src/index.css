@@ -3367,10 +3367,13 @@ nav,
   to   { background-size: 170% 170%, 148% 148%, 132% 132%; }
 }
 
-/* ── R45: the ambient-workspace hero (daylight) ────────────────────────────
+/* ── R46: the still hero (daylight) ────────────────────────────────────────
  * The internet-map clusters are retired (owner, R45: "get rid of the
- * internet clusters") — the hero is the ambient workspace video alone
- * under its paper washes; no WebGL canvas, no cluster fallback. */
+ * internet clusters") and the ambient Ken Burns loop is retired with
+ * its motion (owner, R46: "you can use the same image but stop it from
+ * moving about and being creepy") — the hero is the workspace
+ * photograph, STOPPED: full-bleed at lg+, a calm framed panel below.
+ * No WebGL canvas, no video, nothing animates in the hero. */
 
 /* Featured-solution card — rises gently into place after the copy
  * stagger (R45: no scene build-in to wait for anymore; it follows the
@@ -3392,12 +3395,8 @@ nav,
   text-shadow: 0 2px 28px rgba(7, 13, 24, 0.85), 0 1px 6px rgba(7, 13, 24, 0.6);
 }
 
-/* Scroll cue — a slow, polite bob. */
-.w7-scroll-cue { animation: w7-cue-bob 2.4s ease-in-out infinite; }
-@keyframes w7-cue-bob {
-  0%, 100% { transform: translate(-50%, 0); opacity: 0.65; }
-  50%      { transform: translate(-50%, 8px); opacity: 1; }
-}
+/* Scroll cue — R46: the bob is retired with the hero's motion (owner:
+ * "stop it from moving about and being creepy"). The chevron rests. */
 
 /* Capabilities marquee — the track is duplicated in the DOM; translating it
    -50% yields a seamless loop. */
@@ -3466,7 +3465,6 @@ nav,
   .w7-aurora-a,
   .w7-aurora-b,
   .hub-cta-ring,
-  .w7-scroll-cue,
   .w8-lattice-fallback,
   .w14-cue {
     animation: none;

@@ -1,30 +1,38 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { ChevronDownIcon } from '../../../constants';
 import { Button } from '../../../components/ui';
 import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
 
 /**
- * HubHero — R45, the ambient workspace, quietly alone.
+ * HubHero — R46, the still hero.
  *
- * Owner direction (R45): the internet-map clusters are GONE ("get rid
- * of the internet clusters") and the ambient image must not glitch —
- * the loop is re-encoded as one smooth single-pass Ken Burns (see
- * scripts/r45-ambient-video.sh: subpixel-stepped at 1920 wide, CRF 18,
- * stillimage tune — no more macroblock swimming, no double encode).
- * What remains is exactly the R44 brief the owner loved: "a video that
- * fills that background landing page" — a Nigerian professional at his
- * laptop — with the featured-solutions card, now SLIMMER, telling OUR
- * product story and exploring DOWN to the products on this page.
+ * Owner direction (R46): "the image is moving... on the mobile its
+ * enlarged and shakey... you can use the same image but stop it from
+ * moving about and being creepy." The ambient Ken Burns loop is retired
+ * with its 4.3MB mp4 — the SAME photograph stays, stopped:
+ *
+ *   ≥lg   — full-bleed, exactly the loop's rest frame (the frame the
+ *           owner has been looking at), behind the same paper washes.
+ *   <lg   — the full-bleed crop is retired too: a 16:9 photo covering a
+ *           390×1050 phone shows just 21% of its width — a giant,
+ *           looming face behind the copy ("enlarged and creepy"). In
+ *           its place: a calm, framed 4:3 panel of the whole desk
+ *           scene at a natural photographic scale, on the paper ground.
+ *
+ * And NOTHING in the hero moves anymore: no video loop, no pinging
+ * eyebrow dot, no bobbing scroll cue. The section arrives (the copy
+ * stagger and the card rise are one-time entrances) and then it rests.
  *
  * Layers, back to front:
  *   0. The paper ground (never transparent to the body).
- *   1. THE AMBIENT VIDEO — 24s seamless Ken Burns loop (1920 wide,
- *      high-bitrate). Muted, looping, inline; paused under
- *      prefers-reduced-motion and when the hero is offscreen; the
- *      poster frame is the fallback.
- *   2. A paper wash over the video — strong on the left (the ink copy
+ *   1. THE STILL — the workspace photograph (≥lg, full-bleed). Lazy +
+ *      high priority: browsers do not fetch a lazy image that is
+ *      display:none, so phones never download the landscape frame and
+ *      desktops never download the panel.
+ *   2. A paper wash over the still — strong on the left (the ink copy
  *      stays crisp), letting the workspace breathe on the right.
- *   3. The left legibility gradient + the content column.
+ *   3. The left legibility gradient + the content column (with the
+ *      framed panel below lg).
  *
  * Typography stays the site's own system throughout (owner, R44: "let's
  * ensure the font still matches across"): Space Grotesk display for the
@@ -37,25 +45,6 @@ export const HubHero: React.FC<{
     scrollTo: (id: string) => void;
     onOpenProduct?: (p: 'vega' | 'atrium') => void;
 }> = ({ onContactSales, scrollTo, onOpenProduct }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
-
-    // Ambient video etiquette: never autoplay under reduced motion; pause
-    // when the hero leaves the viewport (the poster stays); resume on
-    // return. Errors (no codec / blocked) fall back to the poster frame.
-    useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
-        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if (reduced) { video.pause(); return; }
-        const io = new IntersectionObserver((entries) => {
-            const visible = entries.some((en) => en.isIntersecting);
-            if (visible && video.paused) video.play().catch(() => {});
-            else if (!visible && !video.paused) video.pause();
-        }, { threshold: 0 });
-        io.observe(video);
-        return () => io.disconnect();
-    }, []);
-
     const openProduct = (p: 'vega' | 'atrium') => {
         if (onOpenProduct) onOpenProduct(p);
         else window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer');
@@ -69,31 +58,24 @@ export const HubHero: React.FC<{
             {/* Layer 0 — the paper ground */}
             <div className="absolute inset-0 bg-[#FBFBF9]" aria-hidden="true" />
 
-            {/* Layer 0.5 — the ambient workspace video (a Nigerian
-                professional at his laptop; 24s seamless loop). R45: on
-                phones the 16:9 frame crops to ~21% of its width — the
-                default centre window slices the subject's face at the
-                crop edge through the zoom cycle. Small screens anchor the
-                window at 58% (chosen by frame-extract test at both ends
-                of the zoom: face, typing hand and laptop stay composed
-                inside the crop); sm and up re-centre (the frame is wide
-                enough to hold it all). */}
-            <video
-                ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover object-[58%_center] sm:object-center"
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster="/assets/landing/hero/ambient-poster.jpg"
+            {/* Layer 1 — THE STILL: the workspace photograph, stopped
+                (R46). This is the loop's rest frame — the same image the
+                owner approved, frozen. Anchored at 60% so the subject
+                (he spans ~35–90% of the frame) stays composed in the
+                cover window at every lg width. Lazy: phones (where this
+                is display:none) never fetch it. */}
+            <img
+                src="/assets/landing/hero/ambient-still.jpg"
+                alt=""
                 aria-hidden="true"
                 tabIndex={-1}
-            >
-                <source src="/assets/landing/hero/ambient-loop.mp4" type="video/mp4" />
-            </video>
+                loading="lazy"
+                decoding="async"
+                fetchPriority="high"
+                className="hidden lg:block absolute inset-0 w-full h-full object-cover object-[60%_center]"
+            />
 
-            {/* Layer 1 — the paper wash: the left column stays crisp ink,
+            {/* Layer 2 — the paper wash: the left column stays crisp ink,
                 the workspace breathes on the right. */}
             <div className="absolute inset-0 bg-gradient-to-r from-[#FBFBF9]/95 via-[#FBFBF9]/80 to-[#FBFBF9]/45 pointer-events-none" aria-hidden="true" />
             {/* A soft top wash keeps the floating nav pill glassy. */}
@@ -106,12 +88,10 @@ export const HubHero: React.FC<{
                 mobile clears the chat FAB (bottom-24 = 96px). */}
             <div className="hero-stagger relative z-10 container mx-auto px-4 sm:px-6 pt-32 pb-28 sm:pt-36 sm:pb-24 w-full">
                 <div className="max-w-2xl">
-                    {/* Eyebrow badge */}
+                    {/* Eyebrow badge — R46: the dot rests (no ping; nothing
+                        in the hero moves). */}
                     <p className="inline-flex items-center gap-2.5 rounded-full border border-emerald-600/20 bg-white/70 backdrop-blur-sm px-4 py-1.5 mb-8">
-                        <span className="relative flex h-2 w-2" aria-hidden="true">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                        </span>
+                        <span className="inline-flex rounded-full h-2 w-2 bg-emerald-500" aria-hidden="true" />
                         <span className="font-mono text-2xs sm:text-xs font-medium uppercase tracking-[0.22em] text-emerald-800">
                             End-to-End Digital Infrastructure
                         </span>
@@ -145,9 +125,26 @@ export const HubHero: React.FC<{
                         </Button>
                     </div>
 
+                    {/* R46 — the workspace photograph below lg: a calm,
+                        framed 4:3 still at natural scale. The full-bleed
+                        16:9 crop on a phone showed 21% of the frame — a
+                        giant face looming behind the copy; this shows the
+                        whole desk scene, like a photograph on paper.
+                        Lazy: desktops (display:none) never fetch it. */}
+                    <div className="mt-10 lg:hidden">
+                        <img
+                            src="/assets/landing/hero/ambient-still-panel.jpg"
+                            alt="A professional at his laptop in a bright office"
+                            loading="lazy"
+                            decoding="async"
+                            fetchPriority="high"
+                            className="w-full aspect-[4/3] object-cover rounded-2xl border border-slate-900/[0.06] shadow-[0_18px_40px_-24px_rgba(15,42,64,0.35)]"
+                        />
+                    </div>
+
                     {/* Mobile/stacked anchor for the featured solutions —
                         the same card the desktop view floats bottom-right. */}
-                    <div className="mt-12 lg:hidden r42-card-in">
+                    <div className="mt-6 lg:hidden r42-card-in">
                         <FeaturedSolutionsCard onOpenProduct={openProduct} onExplore={() => scrollTo('ourWork')} />
                     </div>
                 </div>
@@ -161,12 +158,13 @@ export const HubHero: React.FC<{
                 <FeaturedSolutionsCard onOpenProduct={openProduct} onExplore={() => scrollTo('ourWork')} />
             </div>
 
-            {/* Scroll cue — invites the descent into the story. */}
+            {/* Scroll cue — R46: it rests (no bob). Still invites the
+                descent into the story. */}
             <Button
                 variant="bare"
                 onClick={() => scrollTo('whatWeDo')}
                 aria-label="Scroll to what we do"
-                className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 p-2 text-slate-400 hover:text-emerald-700 transition-colors w7-scroll-cue"
+                className="absolute bottom-5 left-1/2 -translate-x-1/2 z-10 p-2 text-slate-400 hover:text-emerald-700 transition-colors"
             >
                 <ChevronDownIcon className="w-6 h-6" />
             </Button>
