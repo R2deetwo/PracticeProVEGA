@@ -85,8 +85,7 @@ const hubFinalCTA = read("src", "sites", "hub", "sections", "HubFinalCTASection.
 const hubShell = read("src", "sites", "hub", "HubShell.tsx");
 const hubIndex = read("src", "sites", "hub", "index.tsx");
 const hubHooks = read("src", "sites", "hub", "hooks.ts");
-const hubScenes = read("src", "sites", "hub", "scenes", "SystemCoreScene.tsx") + "\n" +
-  read("src", "sites", "hub", "scenes", "NetworkScene.tsx");
+const hubScenes = read("src", "sites", "hub", "scenes", "SystemCoreScene.tsx");
 const hub = [hubShell, hubIndex, hubHooks, hubScenes, hubHeroSection, hubMarquee,
   hubPainMirror, hubWhatWeDo, hubWork, hubHowWeWork, hubAbout, hubFinalCTA].join("\n");
 const vegaSite = read("src", "sites", "vega", "index.tsx");
@@ -118,10 +117,9 @@ const atriumFinalCTA = read("src", "sites", "atrium", "sections", "AtriumFinalCT
 
 describe("W6/W7 — the root page is the company's corporate home", () => {
   it("the hero sells what the company does, value-first", () => {
-    // R42 (owner direction): the living orb retired — the hero now shows
-    // NETWORKING: "systems coming together to become one process"
-    // (NetworkScene), on the daylight glassmorphic layout with the
-    // owner-supplied copy brief.
+    // R42→R45: the hero copy is the owner-supplied brief; the visual is
+    // the ambient workspace VIDEO alone (R45: the internet-map clusters
+    // are retired — "get rid of the internet clusters").
     expect(hub).toContain("We design, build, and run custom business solutions.");
     expect(hub).toContain("End-to-End Digital Infrastructure");
     expect(hub).toContain("we build and manage the complete digital foundation");
@@ -129,8 +127,9 @@ describe("W6/W7 — the root page is the company's corporate home", () => {
     // The hero CTAs.
     expect(hub).toContain("Talk to Us");
     expect(hub).toContain("See what we&apos;ve built");
-    // The network hero (R42); the orb and the diorama are retired.
-    expect(hub).toContain("NetworkScene");
+    // R45: no hero WebGL scene at all — the network (and its file) is
+    // retired with the owner's verdict; the orb and diorama stay gone.
+    expect(hub).not.toContain("NetworkScene");
     expect(hub).not.toContain("MorphScene");
     expect(hub).not.toContain("ScalingNoun");
     expect(hub).not.toContain("SCALE_NOUNS");
@@ -275,19 +274,23 @@ describe("W7 — the wow site: real screens, stack, and the preview system", () 
     expect(hub).toContain("Ask us about a system like this");
   });
 
-  it("the hero carries the network with a structural CSS fallback", () => {
-    // R42: the hero scene is the convergence network (NetworkScene) with
-    // the structural CSS fallback painted behind it until WebGL arrives
-    // (and permanently if WebGL never arrives).
-    expect(hub).toContain("NetworkScene");
-    expect(hub).toContain("r42-net-fallback");
+  it("the hero is the ambient workspace video — no canvas, no cluster fallback (R45)", () => {
+    // R45 (owner direction): "get rid of the internet clusters" — the
+    // NetworkScene canvas and its structural CSS fallback are retired
+    // from the hero. The ambient video (with its poster) is the whole
+    // visual, under the paper washes.
+    expect(hubHeroSection).not.toContain("NetworkScene");
+    expect(hubHeroSection).not.toContain("w8-scene-enter");
+    expect(css).not.toContain(".r42-net-fallback");
     expect(hub).not.toContain("HubScene");
   });
 });
 
 describe("W8 — structured fluidity: the lattice system", () => {
   it("the hero shows structure that morphs — a converging network, not a blob (W8→R42)", () => {
-    expect(hub).toContain("r42-net-fallback");
+    // R45: the network fallback is retired with the clusters; the card
+    // entrance (r42-card-in) stays.
+    expect(hub).not.toContain("r42-net-fallback");
     expect(hub).toContain("r42-card-in");
   });
 
@@ -308,17 +311,16 @@ describe("W8 — structured fluidity: the lattice system", () => {
   });
 
 
-  it("the hero is the map of the internet over the ambient workspace, behind left-aligned copy (R42→R44)", () => {
-    // R42 (owner direction): the orb retired — "systems sort of coming
-    // together to become one process". R44: the network is now the
-    // internet-map mesh ("little clusters communicating with each
-    // other") over an AMBIENT VIDEO of a Nigerian professional at his
-    // laptop ("a video that fills that background landing page"), with
-    // the featured-solutions card floating bottom-right telling OUR
-    // product story — Vega and Atrium, correctly named — and an Explore
-    // affordance that scrolls DOWN to the products on this page.
-    expect(hubHeroSection).toContain("NetworkScene");
-    expect(hubHeroSection).toContain("w8-scene-enter");
+  it("the hero is the ambient workspace alone, behind left-aligned copy, with a slimmer card (R42→R45)", () => {
+    // R42: the orb retired. R44: ambient video + the internet map. R45
+    // (owner direction): the clusters are GONE and the video must not
+    // glitch (re-encoded: single-pass subpixel Ken Burns, 1920 wide,
+    // CRF 23 stillimage — no double encode, no macroblock swimming).
+    // The featured-solutions card floats bottom-right, SLIMMER (330px),
+    // telling OUR product story — Vega and Atrium, correctly named —
+    // and an Explore affordance that scrolls DOWN to the products.
+    expect(hubHeroSection).not.toContain("NetworkScene");
+    expect(hubHeroSection).not.toContain("w8-scene-enter");
     expect(hubHeroSection).toContain("End-to-End Digital Infrastructure");
     expect(hubHeroSection).toContain("We design, build, and run custom business solutions.");
     // The ambient video: self-hosted, muted, looping, inline, poster
@@ -327,8 +329,16 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hubHeroSection).toContain("ambient-poster.jpg");
     expect(hubHeroSection).toContain("playsInline");
     expect(hubHeroSection).toContain("prefers-reduced-motion");
-    // The featured solutions: Vega + Atrium in their own names.
+    // R45: phones crop the 16:9 frame to ~21% of its width — the window
+    // anchors at 58% (frame-extract tested at both ends of the zoom) so
+    // the subject's face, typing hand and laptop stay inside the crop;
+    // sm and up re-centre.
+    expect(hubHeroSection).toContain("object-[58%_center] sm:object-center");
+    // The featured solutions: Vega + Atrium in their own names — R45:
+    // a slimmer card (330px, tighter air).
     expect(hubHeroSection).toContain("FeaturedSolutionsCard");
+    expect(hubHeroSection).toContain("w-[330px]");
+    expect(hubHeroSection).not.toContain("w-[400px]");
     expect(hubHeroSection).toContain("<VegaMark");
     expect(hubHeroSection).toContain("<AtriumMark");
     expect(hubHeroSection).toContain("Legal Practice OS");
@@ -351,10 +361,11 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hub).not.toContain("Nobody loses it");
     expect(hub).not.toContain("Receipt sent");
     expect(hub).not.toContain("HubScenePoster");
-    // Performance + safety contract (NetworkScene, same as every scene).
-    expect(hub).toContain("Math.min(window.devicePixelRatio || 1");
-    expect(hub).toContain("prefers-reduced-motion");
-    expect(hub).toContain("renderer.dispose()");
+    // Performance + safety contract — now carried by the remaining
+    // scene (SystemCoreScene) alone; the hero video needs no canvas.
+    expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1");
+    expect(hubScenes).toContain("prefers-reduced-motion");
+    expect(hubScenes).toContain("renderer.dispose()");
   });
 
   it("Phase C — What we build speaks in outcomes, not technology (C4)", () => {
@@ -405,11 +416,11 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
 
 
   it("the scene runs on the hero's engine contract (restored)", () => {
-    // Same lazy-chunk + pause-offscreen contract the hero scene uses.
-    // R42: the hero scene is NetworkScene (the orb, MorphScene, retired
-    // with the file — same as the diorama before it).
+    // Same lazy-chunk + pause-offscreen contract the hero scene used.
+    // R45: NetworkScene is deleted with the internet clusters; the
+    // contract lives on in SystemCoreScene (What we do).
     expect(hubScenes).toContain("SystemCoreScene");
-    expect(hubScenes).toContain("NetworkScene");
+    expect(hubScenes).not.toContain("NetworkScene");
     expect(hubScenes).toContain("Math.min(window.devicePixelRatio || 1");
   });
 

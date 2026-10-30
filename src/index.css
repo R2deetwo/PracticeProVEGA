@@ -3367,34 +3367,16 @@ nav,
   to   { background-size: 170% 170%, 148% 148%, 132% 132%; }
 }
 
-/* ── R42/R44: the network hero (daylight) ──────────────────────────────────
- * CSS fallback for scenes/NetworkScene.tsx when WebGL is unavailable: the
- * map-of-the-internet picture painted softly — small cluster glows
- * scattered across the field (dense right, sparse left), joined by one
- * faint backbone wash. Sits BEHIND the canvas; the canvas is transparent
- * so this also warms the low-alpha edges of the live scene. */
-.r42-net-fallback {
-  background:
-    radial-gradient(circle at 76% 30%, rgba(5, 150, 105, 0.13) 0%, rgba(251, 251, 249, 0) 26%),
-    radial-gradient(circle at 88% 46%, rgba(13, 148, 136, 0.12) 0%, rgba(251, 251, 249, 0) 24%),
-    radial-gradient(circle at 68% 62%, rgba(3, 105, 161, 0.10) 0%, rgba(251, 251, 249, 0) 24%),
-    radial-gradient(circle at 82% 74%, rgba(77, 124, 15, 0.10) 0%, rgba(251, 251, 249, 0) 22%),
-    radial-gradient(circle at 60% 22%, rgba(52, 211, 153, 0.10) 0%, rgba(251, 251, 249, 0) 22%),
-    radial-gradient(circle at 92% 20%, rgba(100, 116, 139, 0.09) 0%, rgba(251, 251, 249, 0) 20%),
-    radial-gradient(circle at 55% 80%, rgba(5, 150, 105, 0.09) 0%, rgba(251, 251, 249, 0) 20%),
-    radial-gradient(circle at 40% 42%, rgba(13, 148, 136, 0.07) 0%, rgba(251, 251, 249, 0) 18%),
-    radial-gradient(ellipse at 76% 48%, rgba(16, 185, 129, 0.05) 0%, rgba(251, 251, 249, 0) 55%);
-  animation: r42-fallback-breathe 16s ease-in-out infinite alternate;
-}
-@keyframes r42-fallback-breathe {
-  from { background-position: 76% 30%, 88% 46%, 68% 62%, 82% 74%, 60% 22%, 92% 20%, 55% 80%, 40% 42%, 76% 48%; }
-  to   { background-position: 77% 31%, 89% 45%, 69% 61%, 83% 73%, 61% 23%, 93% 21%, 56% 79%, 41% 43%, 77% 47%; }
-}
+/* ── R45: the ambient-workspace hero (daylight) ────────────────────────────
+ * The internet-map clusters are retired (owner, R45: "get rid of the
+ * internet clusters") — the hero is the ambient workspace video alone
+ * under its paper washes; no WebGL canvas, no cluster fallback. */
 
-/* Featured-solution card — arrives after the network has drawn itself in
- * (the scene's build-in is ~2.6s), rising gently into place. No plop. */
+/* Featured-solution card — rises gently into place after the copy
+ * stagger (R45: no scene build-in to wait for anymore; it follows the
+ * hero stagger directly). No plop. */
 .r42-card-in {
-  animation: r42-card-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 1.7s both;
+  animation: r42-card-in 900ms cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
 }
 @keyframes r42-card-in {
   from { opacity: 0; transform: translateY(18px) scale(0.985); }
@@ -3402,7 +3384,6 @@ nav,
 }
 @media (prefers-reduced-motion: reduce) {
   .r42-card-in { animation: none; }
-  .r42-net-fallback { animation: none; }
 }
 
 /* Soft double shadow under the hero headline — keeps white type legible
@@ -3487,7 +3468,6 @@ nav,
   .hub-cta-ring,
   .w7-scroll-cue,
   .w8-lattice-fallback,
-  .w8-scene-enter,
   .w14-cue {
     animation: none;
   }
@@ -3515,12 +3495,8 @@ nav,
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* The scene arrives — one slow scale-and-settle instead of a hard cut.
-   Sits on the MorphScene wrapper in the hero. */
-.w8-scene-enter { animation: w8-scene-in 1.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
-@keyframes w8-scene-in {
-  from { opacity: 0; transform: scale(0.94); }
-  to   { opacity: 1; transform: scale(1); }
-}
+   (R45: retired from the hero with NetworkScene; the class stays for any
+   future scene wrapper.) */
 
 /* Liquid seams — W8 drove the organic edge with CSS keyframes; W10 draws
    a true SVG wave per seam (see the W10 block below — .w10-seam). The

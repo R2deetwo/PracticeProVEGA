@@ -2,31 +2,28 @@ import React, { useEffect, useRef } from 'react';
 import { ChevronDownIcon } from '../../../constants';
 import { Button } from '../../../components/ui';
 import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
-import NetworkScene from '../scenes/NetworkScene';
 
 /**
- * HubHero — R44, the ambient workspace + the map of the internet.
+ * HubHero — R45, the ambient workspace, quietly alone.
  *
- * Owner direction (R44): "why don't we have something like what they
- * have there, where you have somebody working on a laptop, an African
- * man, a Nigerian man working on a laptop, and it's just like a video
- * that fills that background landing page?" — plus the networking
- * visual should look like a real map of the internet ("little clusters
- * communicating with each other"), and the featured-solutions card
- * should tell OUR product story (Vega and Atrium, correctly named) and
- * explore DOWN to the products on this page, not away to /vega.
+ * Owner direction (R45): the internet-map clusters are GONE ("get rid
+ * of the internet clusters") and the ambient image must not glitch —
+ * the loop is re-encoded as one smooth single-pass Ken Burns (see
+ * scripts/r45-ambient-video.sh: subpixel-stepped at 1920 wide, CRF 18,
+ * stillimage tune — no more macroblock swimming, no double encode).
+ * What remains is exactly the R44 brief the owner loved: "a video that
+ * fills that background landing page" — a Nigerian professional at his
+ * laptop — with the featured-solutions card, now SLIMMER, telling OUR
+ * product story and exploring DOWN to the products on this page.
  *
  * Layers, back to front:
  *   0. The paper ground (never transparent to the body).
- *   0.5 THE AMBIENT VIDEO — a Nigerian professional at his laptop,
- *       built as a 24s seamless Ken Burns loop from a generated still
- *       (scripts/r44-ambient-video.sh; see assets/landing/hero/).
- *       Muted, looping, inline; paused under prefers-reduced-motion and
- *       when the hero is offscreen; the poster frame is the fallback.
- *   1. A paper wash over the video — strong on the left (the ink copy
- *       stays crisp), letting the workspace breathe on the right.
- *   2. THE MAP — NetworkScene, the internet-map mesh of clusters and
- *       backbone traffic, drawn over the softened video.
+ *   1. THE AMBIENT VIDEO — 24s seamless Ken Burns loop (1920 wide,
+ *      high-bitrate). Muted, looping, inline; paused under
+ *      prefers-reduced-motion and when the hero is offscreen; the
+ *      poster frame is the fallback.
+ *   2. A paper wash over the video — strong on the left (the ink copy
+ *      stays crisp), letting the workspace breathe on the right.
  *   3. The left legibility gradient + the content column.
  *
  * Typography stays the site's own system throughout (owner, R44: "let's
@@ -73,10 +70,17 @@ export const HubHero: React.FC<{
             <div className="absolute inset-0 bg-[#FBFBF9]" aria-hidden="true" />
 
             {/* Layer 0.5 — the ambient workspace video (a Nigerian
-                professional at his laptop; 24s seamless loop). */}
+                professional at his laptop; 24s seamless loop). R45: on
+                phones the 16:9 frame crops to ~21% of its width — the
+                default centre window slices the subject's face at the
+                crop edge through the zoom cycle. Small screens anchor the
+                window at 58% (chosen by frame-extract test at both ends
+                of the zoom: face, typing hand and laptop stay composed
+                inside the crop); sm and up re-centre (the frame is wide
+                enough to hold it all). */}
             <video
                 ref={videoRef}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover object-[58%_center] sm:object-center"
                 autoPlay
                 muted
                 loop
@@ -94,13 +98,6 @@ export const HubHero: React.FC<{
             <div className="absolute inset-0 bg-gradient-to-r from-[#FBFBF9]/95 via-[#FBFBF9]/80 to-[#FBFBF9]/45 pointer-events-none" aria-hidden="true" />
             {/* A soft top wash keeps the floating nav pill glassy. */}
             <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#FBFBF9]/80 to-transparent pointer-events-none" aria-hidden="true" />
-
-            {/* Layer 2 — the map of the internet (WebGL; CSS fallback
-                behind it), arriving through its build-in choreography. */}
-            <div className="absolute inset-0 r42-net-fallback" aria-hidden="true" />
-            <div className="absolute inset-0 w8-scene-enter" aria-hidden="true">
-                <NetworkScene className="absolute inset-0" />
-            </div>
 
             {/* Layer 3 — legibility wash under the copy column. */}
             <div className="absolute inset-y-0 left-0 w-full lg:w-[62%] bg-gradient-to-r from-[#FBFBF9]/70 via-[#FBFBF9]/40 to-transparent pointer-events-none" aria-hidden="true" />
@@ -157,9 +154,10 @@ export const HubHero: React.FC<{
             </div>
 
             {/* Floating featured-solutions card — anchored bottom-right of
-                the hero, overlapping the map (desktop). R44: OUR products,
-                correctly named; Explore scrolls DOWN to the products. */}
-            <div className="hidden lg:block absolute bottom-10 right-6 xl:right-10 z-10 w-[400px] r42-card-in">
+                the hero (desktop). R44: OUR products, correctly named;
+                Explore scrolls DOWN to the products. R45: a SLIMMER form
+                factor — 330px, tighter air, one quiet line per product. */}
+            <div className="hidden lg:block absolute bottom-10 right-6 xl:right-10 z-10 w-[330px] r42-card-in">
                 <FeaturedSolutionsCard onOpenProduct={openProduct} onExplore={() => scrollTo('ourWork')} />
             </div>
 
@@ -179,32 +177,35 @@ export const HubHero: React.FC<{
 /** The featured solutions — Vega and Atrium, in their own names (R44:
  *  the owner: "there's Vega and there's Atrium... I don't think that's
  *  what it's called, and if you click on Explore it should take you
- *  down to products"). Each product row opens ITS page (new tab, R21
- *  routing keep); the Explore affordance scrolls to Our Work — the
- *  products live on this page. */
+ *  down to products"). R45: a SLIMMER form factor (the owner: "ensure
+ *  the featured solutions have a slimmer form factor") — 330px wide,
+ *  tighter air, smaller marks, one quiet line per product, a thin
+ *  Explore rail. Each product row opens ITS page (new tab, R21 routing
+ *  keep); the Explore affordance scrolls to Our Work — the products
+ *  live on this page. */
 const FeaturedSolutionsCard: React.FC<{
     onOpenProduct: (p: 'vega' | 'atrium') => void;
     onExplore: () => void;
 }> = ({ onOpenProduct, onExplore }) => (
-    <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-100 overflow-hidden transition-all duration-300">
-        <div className="p-6 pb-5">
-            <p className="font-mono text-2xs font-medium uppercase tracking-[0.22em] text-emerald-700 mb-4">
+    <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg shadow-slate-900/10 border border-slate-100 overflow-hidden transition-all duration-300">
+        <div className="px-5 pt-4 pb-3">
+            <p className="font-mono text-2xs font-medium uppercase tracking-[0.22em] text-emerald-700 mb-2.5">
                 Featured Solutions
             </p>
-            <div className="space-y-4">
+            <div className="space-y-1.5">
                 <button
                     type="button"
                     onClick={() => onOpenProduct('vega')}
-                    className="group w-full text-left flex items-start gap-3.5 rounded-lg p-2 -m-2 hover:bg-emerald-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 active:scale-[0.99]"
+                    className="group w-full text-left flex items-center gap-3 rounded-lg p-1.5 -m-1.5 hover:bg-emerald-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 active:scale-[0.99]"
                     aria-label="Vega — the legal practice operating system. Opens the Vega page."
                 >
-                    <VegaMark className="w-8 h-8 mt-0.5 flex-shrink-0" />
+                    <VegaMark className="w-6 h-6 flex-shrink-0" />
                     <span className="min-w-0">
-                        <span className="flex items-baseline gap-2">
-                            <span className="font-display text-lg font-semibold text-slate-900">Vega</span>
+                        <span className="flex items-baseline gap-1.5">
+                            <span className="font-display text-[15px] font-semibold text-slate-900">Vega</span>
                             <span className="font-mono text-2xs uppercase tracking-widest text-emerald-700">Legal Practice OS</span>
                         </span>
-                        <span className="block text-sm leading-[1.6] text-slate-600 mt-0.5">
+                        <span className="block text-[13px] leading-[1.45] text-slate-600">
                             Matters, drafting, court-rule diaries and billing for law firms.
                         </span>
                     </span>
@@ -212,16 +213,16 @@ const FeaturedSolutionsCard: React.FC<{
                 <button
                     type="button"
                     onClick={() => onOpenProduct('atrium')}
-                    className="group w-full text-left flex items-start gap-3.5 rounded-lg p-2 -m-2 hover:bg-emerald-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 active:scale-[0.99]"
+                    className="group w-full text-left flex items-center gap-3 rounded-lg p-1.5 -m-1.5 hover:bg-emerald-50/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 active:scale-[0.99]"
                     aria-label="Atrium — the property management operating system. Opens the Atrium page."
                 >
-                    <AtriumMark className="w-8 h-8 mt-0.5 flex-shrink-0" />
+                    <AtriumMark className="w-6 h-6 flex-shrink-0" />
                     <span className="min-w-0">
-                        <span className="flex items-baseline gap-2">
-                            <span className="font-display text-lg font-semibold text-slate-900">Atrium</span>
+                        <span className="flex items-baseline gap-1.5">
+                            <span className="font-display text-[15px] font-semibold text-slate-900">Atrium</span>
                             <span className="font-mono text-2xs uppercase tracking-widest text-emerald-700">Property Management OS</span>
                         </span>
-                        <span className="block text-sm leading-[1.6] text-slate-600 mt-0.5">
+                        <span className="block text-[13px] leading-[1.45] text-slate-600">
                             Estates, tenants, rent and receipts in one well-kept system.
                         </span>
                     </span>
@@ -231,10 +232,10 @@ const FeaturedSolutionsCard: React.FC<{
         <button
             type="button"
             onClick={onExplore}
-            className="group w-full flex items-center justify-between px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 hover:bg-emerald-50/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 active:scale-[0.99]"
+            className="group w-full flex items-center justify-between px-5 py-2.5 border-t border-slate-100 bg-slate-50/80 hover:bg-emerald-50/80 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500 active:scale-[0.99]"
             aria-label="Explore both products — scroll to Our Work"
         >
-            <span className="text-sm font-semibold text-emerald-800">Explore both products</span>
+            <span className="text-[13px] font-semibold text-emerald-800">Explore both products</span>
             <span className="text-emerald-700 group-hover:translate-y-0.5 transition-transform" aria-hidden="true">↓</span>
         </button>
     </div>
