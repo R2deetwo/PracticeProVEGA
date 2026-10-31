@@ -116,6 +116,24 @@ export const useFeatures = () => {
         canUseResearchStudio: isLegalFirm && isGrowthOrAbove,  // AI research studio (Growth+ legal)
         canAccessLawReports: isLegalFirm,                       // Basic law reports (all legal plans)
 
+        // ─── DRAFTPRO CONTRACT ANALYZER (R48) ───────────────────────────
+        // MODULE 1 (contract analysis + redlines): INCLUDED STANDARD in the
+        // core tier — every Vega workspace, every plan.
+        canUseContractAnalyzer: isLegalFirm,
+
+        // MODULE 2 (Regulatory Cross-Referencing engine): the high-value
+        // Enterprise add-on. Included with Enterprise/Komplete; otherwise
+        // activated per-firm (negotiated add-on — mirrors the estateCommunity
+        // { status, trialEndsAt } shape; no invented catalog price).
+        canUseRegulatoryEngine: isLegalFirm && (
+            isEnterpriseOrAbove
+            || (appState.firmDetails as any)?.subscriptionAddons?.regulatoryCrossReference?.status === 'active'
+            || (
+                (appState.firmDetails as any)?.subscriptionAddons?.regulatoryCrossReference?.status === 'trial'
+                && (appState.firmDetails as any)?.subscriptionAddons?.regulatoryCrossReference?.trialEndsAt > now
+            )
+        ),
+
         // Team Features
         canAddUsers: isGrowthOrAbove,
 
@@ -158,7 +176,7 @@ export const useFeatures = () => {
             : (isPro ? 'Priority Email' : 'Standard')),
 
         // Helper
-        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling' | 'estateCommunity') => {
+        checkFeatureAccess: (feature: 'ai' | 'research' | 'automation' | 'audit' | 'security' | 'bi' | 'team' | 'property' | 'clientPortal' | 'tenantPortal' | 'courtIntelligence' | 'advancedBilling' | 'reportGenerator' | 'researchStudio' | 'externalCounsel' | 'retainerAutoBilling' | 'estateCommunity' | 'contractAnalyzer' | 'regulatoryEngine') => {
             switch (feature) {
                 case 'ai':                return isGrowthOrAbove;
                 case 'automation':        return isEnterpriseOrAbove;
@@ -176,6 +194,13 @@ export const useFeatures = () => {
                 case 'reportGenerator':   return isGrowthOrAbove;
                 case 'externalCounsel':   return isEnterpriseOrAbove;
                 case 'retainerAutoBilling': return isLegalFirm && isGrowthOrAbove;
+                case 'contractAnalyzer':  return isLegalFirm;
+                case 'regulatoryEngine':  return isLegalFirm && (
+                    isEnterpriseOrAbove
+                    || (appState.firmDetails as any)?.subscriptionAddons?.regulatoryCrossReference?.status === 'active'
+                    || ((appState.firmDetails as any)?.subscriptionAddons?.regulatoryCrossReference?.status === 'trial'
+                        && (appState.firmDetails as any)?.subscriptionAddons?.regulatoryCrossReference?.trialEndsAt > now)
+                );
                 case 'estateCommunity':   return isPropertyFirm && (
                     isProOrAbove
                     || (appState.firmDetails as any)?.subscriptionAddons?.estateCommunity?.status === 'active'

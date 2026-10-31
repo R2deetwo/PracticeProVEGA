@@ -13,7 +13,7 @@ import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon
+    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon, ScalesIcon
 } from '../constants';
 import GettingStartedChecklist from './GettingStartedChecklist';
 
@@ -367,6 +367,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     {isLegal && (
                         <NavItemLink
                             item={{ view: 'documents', text: 'Documents', icon: <DocumentsIcon /> }}
+                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                        />
+                    )}
+                    {/* R48: DraftPro Contract Analyzer — MODULE 1 is standard on
+                        every plan (MODULE 2's statutory tab gates itself inside
+                        the view), so the item is never locked. */}
+                    {isLegal && (
+                        <NavItemLink
+                            item={{ view: 'analyzer', text: 'Contract Analyzer', icon: <ScalesIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}
