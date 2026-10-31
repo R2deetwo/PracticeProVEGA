@@ -3,10 +3,16 @@
  * deployed system (Vega, Atrium, Kozy Care, Woosh) with real screens,
  * the stack and what's inside. Restored verbatim; WorkDetailModal keeps
  * the informed tour (SystemTour, W15).
+ *
+ * R54 — the badge taxonomy is retired by owner direction ("Let's just
+ * have the names of the things"): no 'A product' / 'A free tool' /
+ * 'Built for a client' pills and no icon chips on the cards — each
+ * card leads with its NAME and tagline, and the intro no longer
+ * enumerates the taxonomy either.
  */
 import React, { useEffect, useState } from 'react';
 import { useScrollReveal } from '../hooks';
-import { CheckIcon, DeviceMobileIcon, ExternalLinkIcon, LockClosedIcon, MailIcon, MapPinIcon, OfficeBuildingIcon, ScalesIcon, XMarkIcon } from '../../../constants';
+import { CheckIcon, DeviceMobileIcon, ExternalLinkIcon, LockClosedIcon, XMarkIcon } from '../../../constants';
 
 import { Button } from '../../../components/ui';
 import { SystemTour, type TourSystem } from '../../../components/marketing/SystemTour';
@@ -33,10 +39,6 @@ type WorkScreen = {
 const OUR_WORK: Array<{
     name: string;
     tagline: string;
-    badge: string;
-    badgeClass: string;
-    Icon: React.ComponentType<{ className?: string }>;
-    iconClass: string;
     body: string;
     cta: { label: string; href: string; external: boolean };
     ctaClass: string;
@@ -54,10 +56,6 @@ const OUR_WORK: Array<{
     {
         name: 'Vega',
         tagline: 'Legal Practice OS',
-        badge: 'A product',
-        badgeClass: 'bg-amber-500/10 text-amber-300 border border-amber-500/30',
-        Icon: ScalesIcon,
-        iconClass: 'bg-amber-500/10 text-amber-400',
         body: 'Case management, AI-assisted drafting with DraftPro and ALOA, court-rule-aware calendaring and billing for Nigerian law firms — from case intake to filing.',
         cta: { label: 'Explore Vega', href: '/vega', external: true },
         ctaClass: 'group-hover:text-amber-400 text-amber-400',
@@ -110,10 +108,6 @@ const OUR_WORK: Array<{
     {
         name: 'Atrium',
         tagline: 'Property Management OS',
-        badge: 'A product',
-        badgeClass: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30',
-        Icon: OfficeBuildingIcon,
-        iconClass: 'bg-emerald-500/10 text-emerald-400',
         body: "Rent and service-charge collection, residents' portal, maintenance workflows and revenue intelligence for property portfolios — applying the tenancy law of all 36 states and the FCT.",
         cta: { label: 'Explore Atrium', href: '/atrium', external: true },
         ctaClass: 'group-hover:text-emerald-400 text-emerald-400',
@@ -160,10 +154,6 @@ const OUR_WORK: Array<{
     {
         name: 'Kozy Care',
         tagline: 'Dry-cleaning & laundry platform',
-        badge: 'Built for a client',
-        badgeClass: 'bg-primary-500/10 text-primary-300 border border-primary-500/30',
-        Icon: MapPinIcon,
-        iconClass: 'bg-primary-500/10 text-primary-400',
         body: '“Uncompromising care. Exceptional convenience.” Pickup-and-delivery laundry is a crowded business — nothing special about the idea. What lets this one scale is the system behind it: guest booking, Kozy Circle memberships, a customer portal with live order tracking, GPS rider dispatch across 12 Lagos zones, a multi-branch admin console and a partner network — more customers, handled well, without the chaos doubling.',
         cta: { label: 'Visit kozycare.ng', href: 'https://kozycare.ng', external: true },
         ctaClass: 'group-hover:text-primary-400 text-primary-400',
@@ -271,10 +261,6 @@ const OUR_WORK: Array<{
     {
         name: 'Woosh',
         tagline: 'Free temporary email — for humans and test rigs',
-        badge: 'A free tool',
-        badgeClass: 'bg-sky-500/10 text-sky-300 border border-sky-500/30',
-        Icon: MailIcon,
-        iconClass: 'bg-sky-500/10 text-sky-400',
         body: 'A free temporary-email service we built in-house: instant disposable inboxes that keep spam out of real mailboxes — plus a documented API with webhooks, revocable API keys and extracted verification codes. Our own test rigs run signup, payment and notification batteries on it, sparing our transactional email quota.',
         cta: { label: 'Visit woosh.dpdns.org', href: 'https://woosh.dpdns.org', external: true },
         ctaClass: 'group-hover:text-sky-400 text-sky-400',
@@ -392,9 +378,6 @@ const WorkDetailModal: React.FC<{
                 {/* Header */}
                 <div className="flex items-start justify-between gap-4 px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100">
                     <div className="flex items-center gap-3 min-w-0">
-                        <span className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${work.iconClass}`}>
-                            <work.Icon className="w-5 h-5" />
-                        </span>
                         <div className="min-w-0">
                             <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-slate-900 truncate">{work.name}</h3>
                             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">{work.tagline}</p>
@@ -492,7 +475,6 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
                         Systems we&apos;ve built
                     </h2>
                     <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
-                        Two products we run ourselves, a platform built to order for a client, and a free tool running on the open internet.
                         Each one takes a real workflow end to end — and shows what it takes to run a business that scales. Real screens, real stack, really live.
                     </p>
                 </div>
@@ -506,14 +488,6 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
                                 {/* Text side — alternates sides so the page breathes */}
                                 <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
-                                    <div className="flex items-center gap-3 mb-4">
-                                        <span className={`w-11 h-11 rounded-xl flex items-center justify-center ${w.iconClass}`}>
-                                            <w.Icon className="w-5 h-5" />
-                                        </span>
-                                        <span className={`text-xs font-bold uppercase tracking-widest px-2.5 py-1.5 rounded-full ${w.badgeClass}`}>
-                                            {w.badge}
-                                        </span>
-                                    </div>
                                     <h3 className="font-display text-3xl font-bold tracking-tight text-white">{w.name}</h3>
                                     <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1.5 mb-4">{w.tagline}</p>
                                     <p className="text-slate-300/90 text-sm leading-[1.75] mb-6">{w.body}</p>

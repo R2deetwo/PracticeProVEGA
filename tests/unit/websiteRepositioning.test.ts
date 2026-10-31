@@ -225,9 +225,8 @@ describe("W6 — the portfolio: products + client commissions", () => {
     expect(hub).toContain('href="/atrium"');
   });
 
-  it("Kozy Care is presented as a client commission, live at kozycare.ng", () => {
+  it("Kozy Care joins the portfolio, live at kozycare.ng", () => {
     expect(hub).toContain("Kozy Care");
-    expect(hub).toContain("Built for a client");
     expect(hub).toContain("https://kozycare.ng");
   });
 
@@ -548,14 +547,31 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
 
   it("Woosh — a free tool we run — joins the portfolio as a fourth entry", () => {
     expect(hub).toContain("name: 'Woosh'");
-    // R29: the possessive register is retired — 'A free tool', not 'Our tool'.
-    expect(hub).toContain("A free tool");
-    expect(hub).not.toContain("Our tool");
     expect(hub).toContain("https://woosh.dpdns.org");
     expect(hub).toContain("tourSystem: 'woosh'");
     // The stack story is capability-honest (no invented framework).
     expect(hub).toContain("REST API + webhooks");
     expect(hub).toContain("Verification-code extraction");
+  });
+
+  it("R54 — the work cards carry just the names, no badge taxonomy", () => {
+    // Owner direction (Prompt 4): "There's no need to add a product…
+    // Let's not put a free tool. Let's not put built for a client.
+    // Let's not put a product… Let's just have the names of the
+    // things." The category pills and their icon chips are retired;
+    // the intro no longer enumerates the taxonomy either.
+    expect(hubWork).not.toContain("badge: 'A product'");
+    expect(hubWork).not.toContain("badge: 'A free tool'");
+    expect(hubWork).not.toContain("badge: 'Built for a client'");
+    expect(hubWork).not.toContain("badgeClass");
+    expect(hubWork).not.toContain("iconClass");
+    // The four systems keep their names and taglines.
+    expect(hubWork).toContain("name: 'Vega'");
+    expect(hubWork).toContain("name: 'Atrium'");
+    expect(hubWork).toContain("name: 'Kozy Care'");
+    expect(hubWork).toContain("name: 'Woosh'");
+    // The intro's taxonomy sentence is gone with the pills.
+    expect(hub).not.toContain("Two products we run ourselves");
   });
 
   it("the Woosh tour shows the real tool in action, including Kozy mail", () => {
@@ -669,13 +685,12 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
     expect(surfaces).not.toContain("run on PracticePro");
   });
 
-  it("R29 — 'a product', not 'our product'; and exactly two products", () => {
-    // Owner direction: the site must stop saying "our product" — the
-    // register is the indefinite "a product" — and it must be clear the
-    // company has exactly TWO products, Vega and Atrium.
-    expect(hubWork).toContain("badge: 'A product'");
+  it("R29 — the possessive register is retired; exactly two products", () => {
+    // Owner direction: the site must stop saying "our product" — and it
+    // must be clear the company has exactly TWO products, Vega and
+    // Atrium. R54 retires the badge taxonomy itself; the two-products
+    // framing survives in the closing CTA and the three footers.
     expect(hubWork).not.toContain("badge: 'Our product'");
-    expect(hubWork).toContain("badge: 'A free tool'");
     // The closing CTA counts them and points at both.
     expect(hubFinalCTA).toContain("If one of the two products already fits");
     expect(hubFinalCTA).toContain("Explore both products");
@@ -1242,6 +1257,30 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(atriumFavicon).toContain(boxPath);
     expect(atriumFavicon).toContain(counterPath);
     expect(atriumFavicon).not.toContain("M6 43.5 L21.5 4.5");
+  });
+
+  it("R54 — the Vega mark paints in the favicon's orange, not the claret", () => {
+    // Owner: "the vega logo is also too dark on the page and it is
+    // different from the favicon color.. we want the favicon color as
+    // the standard please." The R37 claret rebrand re-tinted the page's
+    // accent tokens (--color-vega-gilt = #7B1E1E) but the favicon kept
+    // the R26 burnt orange — so the mark's star went dark and stopped
+    // matching the tab. The mark now draws from dedicated seal tokens
+    // carrying the favicon's own hex.
+    const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
+    expect(marks).toContain("rgb(var(--color-vega-seal))");
+    expect(marks).toContain("rgb(var(--color-vega-seal-bright))");
+    expect(marks).toContain("rgb(var(--color-vega-seal-ground))");
+    // The claret accent tokens no longer paint the mark.
+    expect(marks).not.toMatch(/VegaMark[\s\S]*?--color-vega-gilt\)/);
+    // The tokens carry the favicon SVG's exact resolved hex.
+    const css = read("src", "index.css");
+    expect(css).toContain("--color-vega-seal: 224 122 63;");         /* #E07A3F */
+    expect(css).toContain("--color-vega-seal-bright: 243 166 106;"); /* #F3A66A */
+    expect(css).toContain("--color-vega-seal-ground: 46 32 21;");    /* #2E2015 */
+    const vegaFavicon = read("public", "brand", "vega", "favicon.svg");
+    expect(vegaFavicon).toContain("#E07A3F");
+    expect(vegaFavicon).toContain("#F3A66A");
   });
 
   it("no fabricated aggregateRating anywhere", () => {

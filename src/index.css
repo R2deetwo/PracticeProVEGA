@@ -137,6 +137,14 @@
      fall into a deep corner; flat saturated tiles read as emoji. */
   --color-vega-claret-lift: 143 42 56;  /* #8F2A38 — the seal's lit corner   */
   --color-vega-oxblood: 74 14 25;       /* #4A0E19 — the seal's deep corner  */
+  /* R54 — THE FAVICON IS THE STANDARD. The VegaMark's star was painting
+     in the R37 claret (dark #7B1E1E) while the /brand/vega/favicon.svg
+     still wore the R26 burnt orange the owner chose; the mark on the
+     page read too dark and unlike the tab icon. These tokens carry the
+     favicon's own hex so the mark and the tab render identically. */
+  --color-vega-seal: 224 122 63;        /* #E07A3F — the favicon's burnt orange */
+  --color-vega-seal-bright: 243 166 106;/* #F3A66A — the favicon's lit corner */
+  --color-vega-seal-ground: 46 32 21;   /* #2E2015 — the favicon's espresso start */
   --font-vega-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
   /* Real Nigerian court documents are set in Times New Roman — the drafting
      exhibits use it verbatim so the demo drafts are super accurate. */

@@ -38,7 +38,12 @@ type MarkProps = {
 
 /** Vega — the Seal: a solid coin with the steer-star cut through it in
  *  true negative space (evenodd), burnt orange on the espresso ground
- *  (R26): the live /vega page's own register. */
+ *  (R26): the live /vega page's own register. R54: the star and hairline
+ *  now paint in the FAVICON's own orange (--color-vega-seal tokens,
+ *  #E07A3F → #F3A66A) — owner direction: "the vega logo is also too
+ *  dark on the page and it is different from the favicon color.. we
+ *  want the favicon color as the standard please." The ground matches
+ *  the favicon tile too (#2E2015 → #22170F). */
 export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -52,12 +57,12 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
             {title && <title>{title}</title>}
             <defs>
                 <linearGradient id={`vgmk${uid}`} x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="rgb(var(--color-vega-night-2))" />
+                    <stop offset="0" stopColor="rgb(var(--color-vega-seal-ground))" />
                     <stop offset="1" stopColor="rgb(var(--color-vega-night))" />
                 </linearGradient>
                 <linearGradient id={`vgsl${uid}`} x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="rgb(var(--color-vega-gilt))" />
-                    <stop offset="1" stopColor="rgb(var(--color-vega-gilt-bright))" />
+                    <stop offset="0" stopColor="rgb(var(--color-vega-seal))" />
+                    <stop offset="1" stopColor="rgb(var(--color-vega-seal-bright))" />
                 </linearGradient>
             </defs>
             {/* The quiet ground — the espresso ground the /vega page runs on */}
@@ -67,7 +72,7 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
             <rect
                 x="1" y="1" width="46" height="46" rx="11.5"
                 fill="none"
-                stroke="rgb(var(--color-vega-gilt) / 0.5)"
+                stroke="rgb(var(--color-vega-seal) / 0.5)"
                 strokeWidth="1.5"
             />
             {/* The Seal — one solid coin (a notary seal) with the four-point
