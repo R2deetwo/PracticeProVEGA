@@ -6,6 +6,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAccentTheme } from '../../contexts/AccentThemeContext';
 import { ACCENT_THEME_OPTIONS } from '../../utils/accentTheme';
+import { Button } from '../ui';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { haptics } from '../../utils/haptics';
@@ -218,9 +219,9 @@ const AccentPicker: React.FC = () => {
                 {ACCENT_THEME_OPTIONS.map((opt) => {
                     const isActive = preference === opt.value;
                     return (
-                        <button
+                        <Button
                             key={opt.value}
-                            type="button"
+                            variant="bare"
                             role="radio"
                             aria-checked={isActive}
                             onClick={() => setPreference(opt.value)}
@@ -245,7 +246,7 @@ const AccentPicker: React.FC = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                 </svg>
                             )}
-                        </button>
+                        </Button>
                     );
                 })}
             </div>
