@@ -22,7 +22,7 @@ import { SwirlBands } from '../../shared/SwirlBands';
  *   z-20 — the hero typography, CTAs and interactive elements.
  *
  * Mobile & desktop (dvh viewport units): the still is full-bleed at EVERY
- * breakpoint, anchored at 60% so the subject stays composed in the cover
+ * breakpoint, anchored at 72% so the subject sits in the dark right zone, away from the copy column
  * window — the R46 framed panel is retired; the heavy darkening is what
  * keeps the photograph a texture rather than a looming face. The one-time
  * entrance staggers (r42-hero/hero-stagger/r42-card-in) survive; nothing
@@ -51,7 +51,7 @@ export const HubHero: React.FC<{
             </div>
 
             {/* Layer 1 (z-10) — THE STILL: the workspace photograph, faded.
-                Full-bleed at every breakpoint, anchored at 60% so the
+                Full-bleed at every breakpoint, anchored at 72% so the
                 subject stays composed in the cover window; translucent so
                 the bands breathe through it. */}
             <img

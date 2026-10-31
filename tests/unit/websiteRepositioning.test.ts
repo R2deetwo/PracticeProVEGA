@@ -345,7 +345,7 @@ describe("W8 — structured fluidity: the lattice system", () => {
     // entrance staggers remain one-time arrivals.
     expect(hubHeroSection).toContain("ambient-still.jpg");
     expect(hubHeroSection).not.toContain("ambient-still-panel.jpg");
-    expect(hubHeroSection).toContain("object-[60%_center]");
+    expect(hubHeroSection).toContain("object-[72%_center]");
     expect(hubHeroSection).toContain("min-h-[100dvh]");
     expect(hubHeroSection).toContain("from-slate-950/85 via-slate-900/75 to-slate-950");
     expect(hubHeroSection).toContain("<SwirlBands");
