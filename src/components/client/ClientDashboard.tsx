@@ -916,7 +916,7 @@ const ClientDashboard: React.FC = () => {
                     </div>
                     <div class="footer">
                         <p>This record confirms your acceptance of the PracticePro portal terms and conditions.</p>
-                        <p>PracticePro Systems Ltd · Lagos, Nigeria</p>
+                        <p>Built by PracticePro Systems Ltd · Lagos, Nigeria</p>
                         <p>NDPA 2023 Compliant · ISO 27001 Aligned · AES-256 Encrypted</p>
                     </div>
                     <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
@@ -954,7 +954,7 @@ const ClientDashboard: React.FC = () => {
                     </div>
                     <div class="content">${escapeHtml(doc.content || 'Document content is not available for viewing in the portal. Please contact your legal team for the full document.')}</div>
                     <div class="footer">
-                        <p>PracticePro VEGA · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                        <p>Vega · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                     </div>
                     <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
                         <button onclick="window.print()" style="padding:10px 20px;background:#10b981;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print Document</button>

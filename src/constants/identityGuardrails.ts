@@ -114,8 +114,8 @@ export const validateAIResponse = (
     // answers that merely CONTAIN a leak keep their substance above.
     if (cleaned.length < 60) {
         return isProperty
-            ? "I'm ARIA, your property management assistant within PracticePro Atrium. How can I help with your portfolio? I can assist with revenue monitoring, residents management, property tracking, and more."
-            : "I'm ALOA, your legal practice assistant within PracticePro Vega. How can I help with your practice? I can assist with matter management, legal drafting, client relations, and more.";
+            ? "I'm ARIA, your property management assistant within Atrium. How can I help with your portfolio? I can assist with revenue monitoring, residents management, property tracking, and more."
+            : "I'm ALOA, your legal practice assistant within Vega. How can I help with your practice? I can assist with matter management, legal drafting, client relations, and more.";
     }
 
     return cleaned;

@@ -62,7 +62,7 @@ export const HubSite: React.FC = () => {
             <HubNavBar
                 activeSection={activeSection}
                 scrollTo={scrollTo}
-                onResources={() => navigate('/resources')}
+               
                 onContactSales={() => openContactSales('Nav')}
                 onOpenProduct={openProductPage}
             />
@@ -111,7 +111,7 @@ export const HubSite: React.FC = () => {
                 onTermsClick={() => navigate('/terms-of-service')}
                 onCookieClick={() => navigate('/cookie-policy')}
                 onUsageClick={() => navigate('/usage-policy')}
-                onResources={() => navigate('/resources')}
+               
                 onContactSales={() => openContactSales('Footer')}
             />
         </div>

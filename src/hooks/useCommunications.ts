@@ -5,6 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useIsProperty } from '../contexts/ProductContext';
 import { buildEmailHtml } from '../utils/emailTemplate';
 
 /**
@@ -12,6 +13,9 @@ import { buildEmailHtml } from '../utils/emailTemplate';
  */
 export const useCommunications = (actions: any) => {
     const { currentUser, bearerToken } = useAuth() as any;
+    // R47: emails carry the product's voice (Vega/Atrium) with
+    // PracticePro as the builder credit in the footer.
+    const isProperty = useIsProperty();
     const { addToast } = useUI();
     const convex = useConvex();
     const logAutomation = useMutation(api.sentry.logAutomation);
@@ -57,6 +61,7 @@ export const useCommunications = (actions: any) => {
                     subject: data.subject,
                     htmlContent: buildEmailHtml({
                         firmName,
+                        productName: isProperty ? 'Atrium' : 'Vega',
                         body: data.body || '',
                         footerNote: data.footerNote,
                     }),

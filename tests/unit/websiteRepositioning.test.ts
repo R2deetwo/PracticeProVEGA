@@ -6,8 +6,10 @@
  * it in the legal documents:
  *
  *   - Company:  PracticePro Systems Limited ("PracticePro")
- *   - Products: PracticePro Vega (legal), PracticePro Atrium (property),
- *               Komplete (the bundle)
+ *   - Products: Vega (legal), Atrium (property), Komplete (the bundle) —
+ *               R47 (owner direction): the products speak their own
+ *               names; PracticePro is the BUILDER ("built by
+ *               PracticePro"), not a prefix on the product names
  *   - Client commissions: Kozy Care (live at kozycare.ng)
  *   - W6 (2026-10-07, owner direction): the root page is the company's full
  *     corporate home — it sells the BUILDER (what we do, what we've built,
@@ -96,6 +98,7 @@ const productPages = vegaSite + "\n" + vegaShell + "\n" + atriumSite + "\n" + at
 const sharedChrome = read("src", "sites", "shared", "useSiteChrome.ts");
 const surfaces = landing + "\n" + hub + "\n" + productPages;
 const index = read("index.html");
+const appIndex = read("src", "components", "App.tsx");
 const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 // Vega Pass A — the page-specific rebuild files under marketing/vega/.
@@ -929,7 +932,7 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     // rest of the page, warm hairlines, claret numerals.
     expect(vegaFAQ).not.toContain("bg-vega-ink");
     expect(vegaFAQ).toContain("border-b border-vega-night/10");
-    expect(vegaFAQ).toContain("PracticePro Vega for law firms");
+    expect(vegaFAQ).toContain("Vega for law firms");
     // R21: no tier names anywhere in the FAQ.
     expect(vegaFAQ).not.toContain("Growth");
     expect(vegaFAQ).not.toContain("all tiers");
@@ -1067,7 +1070,7 @@ describe("Atrium rebrand Pass B — 'The Well-Kept Estate' page-specific section
 
   it("the FAQ is light and rounded — no ink band on /atrium", () => {
     expect(atriumFAQ).toContain("Questions? Answered.");
-    expect(atriumFAQ).toContain("PracticePro Atrium for property managers");
+    expect(atriumFAQ).toContain("Atrium for property managers");
     expect(atriumFAQ).toContain("rounded-lg");
     expect(atriumFAQ).not.toContain("bg-vega-ink");
   });
@@ -1113,13 +1116,89 @@ describe("W4 — structured data: Organization + per-product apps", () => {
   });
 
   it("one SoftwareApplication per product, published by the company", () => {
-    expect(index).toContain('"PracticePro Vega"');
-    expect(index).toContain('"PracticePro Atrium"');
+    // R47: the apps are named Vega and Atrium; the company is the
+    // publisher. The product names carry no company prefix.
+    expect(index).toContain('"name": "Vega"');
+    expect(index).toContain('"name": "Atrium"');
+    expect(index).not.toContain('"PracticePro Vega"');
+    expect(index).not.toContain('"PracticePro Atrium"');
     expect(index).toContain('"url": "https://practicepro.ng/vega"');
     expect(index).toContain('"url": "https://practicepro.ng/atrium"');
     expect(index).toContain(
       '"publisher": { "@id": "https://practicepro.ng/#organization" }'
     );
+  });
+
+  it("R47 — the resources pages belong to the products; PracticePro is the builder", () => {
+    // Owner: "in the resources page for Atrium, what I'm seeing is Practice
+    // Pro. We need to be removing this Practice Pro from the Atrium product
+    // unless it's where it's necessary... in the resources page, we should
+    // have the brand Atrium. But where we're going to have the Practice Pro
+    // is inside, at the bottom... I say built by Practice Pro." And: "the
+    // resources should not be inside Practice Pro anymore... the Atrium one
+    // should be in Atrium, the Vega one should be in Vega."
+    const resources = read("src", "components", "ResourcesPage.tsx");
+    // The header carries the PRODUCT's mark and name — not the company's.
+    expect(resources).toContain("<ProductMark product={activeProduct}");
+    expect(resources).toContain("{productDisplay}");
+    // The document identity (favicon + title) follows the product.
+    // Mount-gated identity child (never clobbers the in-app shell
+    // identity when the flag is absent).
+    expect(resources).toContain("useProductBranding(product, true)");
+    expect(resources).toContain("applyDocumentIdentity && <ProductIdentity");
+    // Switching product navigates to that product's own resources page.
+    expect(resources).toContain("onSwitchProduct");
+    expect(appIndex).toContain("'/vega/resources'");
+    expect(appIndex).toContain("'/atrium/resources'");
+    // PracticePro appears exactly where the owner puts it: the builder's
+    // credit at the bottom — never as the product's name.
+    expect(resources).toContain("is built by PracticePro Systems Ltd");
+    expect(resources).not.toContain("PracticePro Vega");
+    expect(resources).not.toContain("PracticePro Atrium");
+    expect(resources).not.toContain("PracticePro VEGA");
+    expect(resources).not.toContain("PracticePro ATRIUM");
+    // The company (hub) page no longer routes to a company resources page —
+    // resources live with the products.
+    expect(hubShell).not.toContain("onResources");
+    expect(hubIndex).not.toContain("'/resources'");
+    // The product shells keep their own Resources links.
+    expect(vegaShell).toContain("Resources");
+    expect(atriumShell).toContain("Resources");
+    // The portal + receipt print documents speak the product's name, with
+    // the builder's credit at the bottom.
+    const tenantDocs = read("src", "components", "tenant", "TenantPortal", "DocumentsTab.tsx");
+    expect(tenantDocs).not.toContain("PracticePro Atrium ·");
+    expect(tenantDocs).toContain("Built by PracticePro Systems Ltd");
+    const clientDash = read("src", "components", "client", "ClientDashboard.tsx");
+    expect(clientDash).not.toContain("PracticePro VEGA ·");
+  });
+
+  it("R47 — the Atrium mark is the Big A, in the PracticePro favicon's formula", () => {
+    // Owner: "I don't like the favicon or even the icon for Atrium. For
+    // Atrium, I think it would look better if you look at the Practice Pro
+    // favicon. It looks much clearer. You can see what it is. There's a
+    // big P." The Coin of the Courtyard is retired; the estate tile says
+    // "A" the way the company tile says "P": a big, clear letterform.
+    const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
+    expect(marks).toContain("THE BIG A");
+    expect(marks).not.toContain("Coin of the Courtyard");
+    expect(marks).not.toContain("Coin of the House");
+    // The letter is white on the filled emerald tile (the P formula).
+    expect(marks).toMatch(/AtriumMark[\s\S]*?fill="#FFFFFF"/);
+    // The standalone favicon SVG carries the same geometry.
+    const atriumFavicon = read("public", "brand", "atrium", "favicon.svg");
+    expect(atriumFavicon).toContain("THE BIG A");
+    expect(atriumFavicon).not.toContain("Coin of the Courtyard");
+    // The AI assistants speak the product's name too.
+    const guardrails = read("src", "constants", "identityGuardrails.ts");
+    expect(guardrails).not.toContain("within PracticePro Atrium");
+    expect(guardrails).not.toContain("within PracticePro Vega");
+    const aloaPrompt = read("ai", "prompts", "03a-aloa-identity-guardrail.md");
+    const ariaPrompt = read("ai", "prompts", "03b-aria-identity-guardrail.md");
+    expect(aloaPrompt).not.toContain("powering PracticePro Vega");
+    expect(ariaPrompt).not.toContain("powering PracticePro Atrium");
+    expect(aloaPrompt).toContain("by PracticePro");
+    expect(ariaPrompt).toContain("by PracticePro");
   });
 
   it("no fabricated aggregateRating anywhere", () => {

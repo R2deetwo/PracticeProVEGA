@@ -1,7 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { Logo, DocumentIcon, ShieldCheckIcon, SparklesIcon, ArrowLeftIcon } from '../constants';
+import { DocumentIcon, ShieldCheckIcon, SparklesIcon, ArrowLeftIcon } from '../constants';
 import { sanitize } from '../utils/sanitization';
+import { ProductMark } from './marketing/brand/ProductMarks';
+import { useProductBranding } from './marketing/brand/useProductBranding';
 
 /**
  * The public Resources page must ALWAYS render in light mode, regardless of:
@@ -22,6 +24,18 @@ import { sanitize } from '../utils/sanitization';
  * every meaningful element handle the rest, so the global
  * `html.dark body { color: #ffffff !important }` rule in index.html
  * cannot bleed through.
+ *
+ * R47 — THE PAGE BELONGS TO THE PRODUCT. Owner direction: "in the
+ * resources page for Atrium, what I'm seeing is Practice Pro. We need to
+ * be removing this Practice Pro from the Atrium product unless it's where
+ * it's necessary... in the resources page, we should have the brand
+ * Atrium. But where we're going to have the Practice Pro is inside, at
+ * the bottom... I say built by Practice Pro." So: the header, hero,
+ * content, CTA and footer all speak the PRODUCT's name (Vega / Atrium);
+ * PracticePro appears only as the builder's credit at the bottom (and in
+ * the company-level legal statements where the company genuinely is the
+ * party — e.g. the DPA's Data Processor role). The document identity
+ * (favicon + title) follows the product too, on the public routes.
  */
 
 interface ResourcesPageProps {
@@ -30,6 +44,16 @@ interface ResourcesPageProps {
     onTermsClick: () => void;
     onCookieClick?: () => void;
     onDPAClick?: () => void;
+    /** R47: switching product on the toggle navigates to the product's own
+     * resources page (/vega/resources, /atrium/resources) so the URL, the
+     * content and the tab identity all agree. Falls back to in-place
+     * content switching when not provided. */
+    onSwitchProduct?: (p: 'vega' | 'atrium') => void;
+    /** R47: apply the PRODUCT's document identity (favicon + title) while
+     * this page is mounted. Passed on the public routes; the in-app shell
+     * already carries the firm's product identity, so it is not passed
+     * there. */
+    applyDocumentIdentity?: boolean;
     /** Optional: called when the user clicks "Start Free Trial". If not
      * provided, the CTA falls back to `onBack`. Wired in App.tsx to
      * `navigateTo('dashboard')`, which routes unauthenticated visitors to
@@ -71,7 +95,7 @@ Today's Nigerian property manager is not just collecting rent; they are managing
 Late payments and reconciliation errors are the silent killers of property management profitability. When rent collection relies on bank transfers followed by WhatsApp messages with screenshots of payment receipts, the reconciliation process becomes a full-time job.
 
 **The Automation Solution:**
-By integrating automated payment gateways and automatic invoicing, property managers eliminate the "I sent it" vs "I haven't seen it" debate. Systems like PracticePro Atrium automatically map incoming payments to specific units, instantly update the tenant's ledger, generate a digital receipt, and trigger an alert to the property manager. This can significantly reduce reconciliation time compared to manual methods.
+By integrating automated payment gateways and automatic invoicing, property managers eliminate the "I sent it" vs "I haven't seen it" debate. Atrium automatically maps incoming payments to specific units, instantly updates the tenant's ledger, generates a digital receipt, and triggers an alert to the property manager. This can significantly reduce reconciliation time compared to manual methods.
 
 ## 2. Transforming the Maintenance Lifecycle
 
@@ -94,7 +118,7 @@ Atrium OS provides real-time financial dashboards that separate management fees,
 
 ## Conclusion
 
-The transition to a unified property management system is no longer a luxury; it is a competitive necessity. Adopting a system like PracticePro Atrium streamlines operations, reduces overhead, and ultimately allows property managers to scale their portfolios confidently without sacrificing service quality.
+The transition to a unified property management system is no longer a luxury; it is a competitive necessity. Adopting Atrium streamlines operations, reduces overhead, and ultimately allows property managers to scale their portfolios confidently without sacrificing service quality.
         `
     },
     {
@@ -219,7 +243,7 @@ The return on technology investment for property agencies can be quantified acro
 
 ## Conclusion
 
-The digital transformation of a property agency is a journey measured in years, not months. The agencies that begin now — methodically, stage by stage — are better positioned to build competitive advantages over those who delay. PracticePro Atrium is designed to support agencies at every stage of this journey.
+The digital transformation of a property agency is a journey measured in years, not months. The agencies that begin now — methodically, stage by stage — are better positioned to build competitive advantages over those who delay. Atrium is designed to support agencies at every stage of this journey.
         `
     }
 ];
@@ -228,7 +252,7 @@ const ATRIUM_COMPLIANCE_DOCS = [
     {
         icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600" />,
         title: 'NDPA & Tenancy Data Security',
-        description: 'Comprehensive guide on how PracticePro Atrium protects sensitive tenant information, lease agreements, guarantors data, and financial records in strict compliance with the Nigerian Data Protection Act (NDPA) 2023.',
+        description: 'Comprehensive guide on how Atrium protects sensitive tenant information, lease agreements, guarantors data, and financial records in strict compliance with the Nigerian Data Protection Act (NDPA) 2023.',
         badge: 'Security',
         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
@@ -249,7 +273,7 @@ const ATRIUM_GUIDES = [
         tag: 'Beginner',
         readTime: '6 min read',
         content: `
-## Welcome to PracticePro ATRIUM
+## Welcome to Atrium
 
 Atrium is designed to be the central nervous system of your property management operations. This guide will walk you through the essential first steps to get your portfolio online.
 
@@ -370,9 +394,9 @@ AI tools must not substitute for:
 - Court filings without review
 - Client communication without supervision
 
-## 5. PracticePro's Approach
+## 5. Vega's Approach
 
-PracticePro VEGA implements AI responsibly through:
+Vega implements AI responsibly through:
 - **Explicit consent capture** at onboarding — users must acknowledge AI processing before ALOA® is activated
 - **Audit logging** of all AI-generated outputs, preserving accountability trails
 - **No secondary data use** — client data submitted to ALOA® is processed in context and not used to train models
@@ -557,7 +581,7 @@ The return on technology investment for law firms can be quantified across three
 
 ## Conclusion
 
-The digital transformation of a law firm is a journey measured in years, not months. The firms that begin now — methodically, stage by stage — are better positioned to build competitive advantages over those who delay. PracticePro is designed to support firms at every stage of this journey.
+The digital transformation of a law firm is a journey measured in years, not months. The firms that begin now — methodically, stage by stage — are better positioned to build competitive advantages over those who delay. Vega is designed to support firms at every stage of this journey.
         `
     }
 ];
@@ -566,7 +590,7 @@ const COMPLIANCE_DOCS = [
     {
         icon: <ShieldCheckIcon className="w-6 h-6 text-indigo-600" />,
         title: 'ISO 27001 Alignment Statement',
-        description: 'The PracticePro platform is built against the ISO 27001:2022 information security framework. This document outlines our security controls across access management, incident response, encryption, and audit logging.',
+        description: 'The Vega platform is built against the ISO 27001:2022 information security framework. This document outlines our security controls across access management, incident response, encryption, and audit logging.',
         badge: 'Platform',
         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
@@ -582,12 +606,12 @@ const COMPLIANCE_DOCS = [
 const GUIDES = [
     {
         id: 'getting-started',
-        title: 'Getting Started with PracticePro',
+        title: 'Getting Started with Vega',
         description: 'Set up your firm workspace, invite team members, and create your first matter in a few simple steps.',
         tag: 'Beginner',
         readTime: '4 min read',
         content: `
-## Welcome to PracticePro VEGA
+## Welcome to Vega
 
 This guide will walk you through setting up your firm's workspace in a few simple steps. By the end of this guide, you will be ready to manage matters, track time, and collaborate efficiently.
 
@@ -641,7 +665,7 @@ The way you ask a question determines the quality of the answer. Use the "Contex
 ### Professional Responsibility
 ALOA is an assistant, not a lawyer.
 - **Always Verify:** AI can hallucinate citations. If ALOA cites a case (e.g., *Savannah Bank v. Ajilo*), verify it yourself.
-- **Protect Client Confidentiality:** While PracticePro keeps your data isolated, you should still avoid entering unnecessary sensitive client information into conversational prompts if it isn't required for the task.
+- **Protect Client Confidentiality:** While Vega keeps your data isolated, you should still avoid entering unnecessary sensitive client information into conversational prompts if it isn't required for the task.
         `
     },
     {
@@ -653,7 +677,7 @@ ALOA is an assistant, not a lawyer.
         content: `
 ## Setting Up Financial Workflows
 
-PracticePro VEGA includes robust timekeeping and invoicing tools tailored to Nigerian billing practices.
+Vega includes robust timekeeping and invoicing tools tailored to Nigerian billing practices.
 
 ### 1. Setting Hourly Rates
 You can set default rates per role and override them per member or per matter.
@@ -672,7 +696,7 @@ When it’s time to bill a client:
 2. Click **Generate Invoice**.
 3. Select the unbilled time entries and expenses you wish to include.
 4. Apply any discounts or fixed fees.
-5. PracticePro automatically calculates VAT (currently 7.5% in Nigeria by default) and applies it to the total.
+5. Vega automatically calculates VAT (currently 7.5% in Nigeria by default) and applies it to the total.
         `
     },
     {
@@ -684,10 +708,10 @@ When it’s time to bill a client:
         content: `
 ## Role-Based Access Control (RBAC)
 
-PracticePro VEGA uses a strict permission hierarchy to ensure sensitive client information is only accessible to authorized personnel.
+Vega uses a strict permission hierarchy to ensure sensitive client information is only accessible to authorized personnel.
 
 ### The Role Hierarchy
-There are three fundamental tiers of access in PracticePro:
+There are three fundamental tiers of access in Vega:
 
 | Role Level | Visibility | Best For |
 |------------|------------|----------|
@@ -873,11 +897,12 @@ const WhitePaperCard: React.FC<{ paper: typeof WHITE_PAPERS[0], activeProduct: '
                 th { background: #f7fafc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
                 th, td { border: 1px solid #e2e8f0; padding: 8px 12px; text-align: left; font-size: 14px; }
                 .meta { color: #718096; font-size: 14px; margin-bottom: 32px; }
+                .builtby { color: #94a3b8; font-size: 11px; margin-top: 48px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
                 @media print { body { margin: 0; } }
             </style></head>
             <body>
                 <h1>${paper.title}</h1>
-                <p class="meta">PracticePro ${activeProduct === 'vega' ? 'VEGA · Legal Tech Research' : 'ATRIUM · PropTech Research'} · ${paper.readTime}</p>
+                <p class="meta">${activeProduct === 'vega' ? 'Vega · Legal Tech Research' : 'Atrium · PropTech Research'} · ${paper.readTime}</p>
                 ${paper.content
                     .replace(/## (.*)/g, '<h2>$1</h2>')
                     .replace(/### (.*)/g, '<h3>$1</h3>')
@@ -885,6 +910,7 @@ const WhitePaperCard: React.FC<{ paper: typeof WHITE_PAPERS[0], activeProduct: '
                     .replace(/\n- (.*)/g, '<li>$1</li>')
                     .replace(/\n\n/g, '</p><p>')
                     .replace(/^/, '<p>').replace(/$/, '</p>')}
+                <p class="builtby">Built by PracticePro Systems Ltd · Lagos, Nigeria</p>
             </body></html>`);
         printWindow.document.close();
         printWindow.focus();
@@ -1175,8 +1201,22 @@ const WhatsNewEntry: React.FC<{ entry: WhatsNewEntry }> = ({ entry }) => {
 
 // ─── ROOT COMPONENT ───────────────────────────────────────────────────────────
 
-const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, onStartTrial, onContactSales, onUsageClick, onPortalTermsClick, activeProduct, setActiveProduct }) => {
+/** Applies the PRODUCT's document identity (favicon + title) while
+ *  mounted, and hands the document back to the company brand on unmount
+ *  (R47). Rendered ONLY on the public routes — the in-app shell already
+ *  carries the firm's product identity via useAppProductIdentity, and a
+ *  direct useProductBranding(activeProduct, false) call would clobber it
+ *  with the company identity (the exact mix-up R28 fixed in the app
+ *  chrome). A mount-gated child keeps hooks unconditional and the
+ *  identity ownership clean. */
+const ProductIdentity: React.FC<{ product: 'vega' | 'atrium' }> = ({ product }) => {
+    useProductBranding(product, true);
+    return null;
+};
+
+const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, onTermsClick, onCookieClick, onDPAClick, onStartTrial, onContactSales, onUsageClick, onPortalTermsClick, activeProduct, setActiveProduct, onSwitchProduct, applyDocumentIdentity }) => {
     const isVega = activeProduct === 'vega';
+    const productDisplay = isVega ? 'Vega' : 'Atrium';
     const [whatsNewFilter, setWhatsNewFilter] = useState<'all' | 'vega' | 'atrium' | 'komplete'>(activeProduct);
     const [activeTab, setActiveTab] = useState<'whatsnew' | 'papers' | 'guides' | 'compliance' | 'legal'>('whatsnew');
     const [showBackToTop, setShowBackToTop] = useState(false);
@@ -1209,6 +1249,10 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
             style={{ colorScheme: 'light' }}
             data-resources-root
         >
+            {/* R47: on the public routes, the tab carries the product's
+                identity — Atrium's favicon and title on /atrium/resources,
+                Vega's on /vega/resources. */}
+            {applyDocumentIdentity && <ProductIdentity product={activeProduct} />}
             {/* Header — sticky at the very top */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
                 <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-4">
@@ -1218,8 +1262,12 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     </button>
                     <div className="h-4 w-px bg-slate-200 shrink-0" />
                     <div className="flex items-center gap-2 min-w-0">
-                        <Logo className="h-5 w-5 text-primary-600 shrink-0" />
-                        <span className="font-bold text-slate-900 truncate">PracticePro</span>
+                        {/* R47: the page belongs to the PRODUCT — the header
+                            carries the product's own mark and name, not the
+                            company's. PracticePro appears only as the
+                            builder's credit in the footer. */}
+                        <ProductMark product={activeProduct} className="h-5 w-5 shrink-0" />
+                        <span className="font-bold text-slate-900 truncate">{productDisplay}</span>
                         <span className="text-slate-400 shrink-0">/</span>
                         <span className="text-slate-600 font-medium flex items-center min-w-0">
                             <span className="truncate">Resources</span>
@@ -1268,21 +1316,25 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-slate-900 mb-3">Resources & Documentation</h1>
                         <p className="text-base sm:text-lg text-slate-500 max-w-2xl leading-relaxed">
                             {isVega
-                                ? 'Research papers, compliance documentation, and product guides to help your firm get the most from PracticePro — and stay ahead of regulatory requirements.'
-                                : 'PropTech research, compliance documentation, and product guides to help you scale your property management operations.'}
+                                ? 'Research papers, compliance documentation, and product guides to help your firm get the most from Vega — and stay ahead of regulatory requirements.'
+                                : 'PropTech research, compliance documentation, and product guides to help you get the most from Atrium — and scale your property management operations.'}
                         </p>
                     </div>
-                    {/* Product toggle — full-width on mobile, auto-width on desktop */}
-                    {setActiveProduct && (
+                    {/* Product toggle — full-width on mobile, auto-width on
+                        desktop. R47: switching product navigates to that
+                        product's own resources page (URL, content and tab
+                        identity all agree); falls back to in-place content
+                        switching when no handler is wired. */}
+                    {(setActiveProduct || onSwitchProduct) && (
                         <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 shrink-0 self-start w-full sm:w-auto">
                             <button
-                                onClick={() => setActiveProduct('vega')}
+                                onClick={() => (onSwitchProduct ? onSwitchProduct('vega') : setActiveProduct?.('vega'))}
                                 className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold transition-all ${isVega ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Law Firms
                             </button>
                             <button
-                                onClick={() => setActiveProduct('atrium')}
+                                onClick={() => (onSwitchProduct ? onSwitchProduct('atrium') : setActiveProduct?.('atrium'))}
                                 className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold transition-all ${!isVega ? 'bg-atrium-emerald text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Property Managers
@@ -1396,7 +1448,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                                 Product Guides
                                 <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
                             </h2>
-                            <p className="text-sm text-slate-500">Step-by-step guides for getting the most from PracticePro</p>
+                            <p className="text-sm text-slate-500">Step-by-step guides for getting the most from {productDisplay}</p>
                         </div>
                     </div>
                     <div className="grid md:grid-cols-2 gap-4 items-start">
@@ -1422,7 +1474,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                                 Legal Notices
                                 <span className={`ml-2 text-2xs px-1.5 py-0.5 rounded font-bold ${productBadge}`}>{isVega ? 'VEGA' : 'ATRIUM'}</span>
                             </h2>
-                            <p className="text-sm text-slate-500">Governing documents for your use of PracticePro {isVega ? 'VEGA' : 'ATRIUM'}</p>
+                            <p className="text-sm text-slate-500">Governing documents for your use of {productDisplay}</p>
                         </div>
                     </div>
                     <div className="grid sm:grid-cols-2 gap-4">
@@ -1551,7 +1603,7 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                 <div className="mt-12 mb-8 p-8 sm:p-10 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 border border-slate-700 text-center">
                     <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Ready to get started?</h3>
                     <p className="text-slate-300 text-sm mb-6 max-w-md mx-auto">
-                        {isVega ? 'Start your 30-day free trial of PracticePro Vega today. No credit card required.' : 'Start your 30-day free trial of PracticePro Atrium today. No credit card required.'}
+                        {isVega ? 'Start your 30-day free trial of Vega today. No credit card required.' : 'Start your 30-day free trial of Atrium today. No credit card required.'}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
                         <button
@@ -1569,9 +1621,12 @@ const ResourcesPage: React.FC<ResourcesPageProps> = ({ onBack, onPrivacyClick, o
                     </div>
                 </div>
 
-                {/* Footer */}
+                {/* Footer — R47: the product's name carries the page;
+                    PracticePro appears as the builder's credit, exactly
+                    where the owner puts it: "at the bottom of every one of
+                    the apps... I say built by Practice Pro." */}
                 <p className="text-center text-xs text-slate-400">
-                    © {new Date().getFullYear()} PracticePro Systems Ltd. Lagos, Nigeria.
+                    {productDisplay} is built by PracticePro Systems Ltd · © {new Date().getFullYear()} · Lagos, Nigeria.
                 </p>
             </div>
 

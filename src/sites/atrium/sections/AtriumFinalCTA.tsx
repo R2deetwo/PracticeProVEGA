@@ -23,7 +23,7 @@ export const AtriumFinalCTA: React.FC<{ onSignup: () => void; onContactSales: ()
                     Ready to stop managing chaos?
                 </h2>
                 <p className="text-lg mt-4 max-w-2xl mx-auto text-slate-600">
-                    Join Nigerian property managers who have already switched to PracticePro Atrium — rent collection, resident portals, and revenue intelligence built for portfolios that scale.
+                    Join Nigerian property managers who have already switched to Atrium — rent collection, resident portals, and revenue intelligence built for portfolios that scale.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
                     {/* TASK 54: no-arg invocation — never leak the click event

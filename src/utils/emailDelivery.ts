@@ -141,6 +141,7 @@ export function buildReceiptEmailHtml(input: ReceiptEmailInput): string {
 
     return buildEmailHtml({
         firmName: input.firmLegalName || input.firmName,
+        productName: 'Atrium',
         body,
         footerNote: input.signerBlock
             ? `Issued by ${input.firmLegalName || input.firmName} — ${input.signerBlock}.`

@@ -8,8 +8,14 @@ interface AIConsentModalProps {
 
 const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) => {
   const { isProperty } = useProduct();
-  const productName = isProperty ? 'ATRIUM' : 'VEGA';
+  // R47: the product speaks its own name (owner: "we need to be removing
+  // this Practice Pro from the Atrium product unless it's where it's
+  // necessary") — PracticePro appears only as the builder's credit at
+  // the bottom. The assistant names are per-product (ALOA for Vega,
+  // ARIA for Atrium — the old copy's "ALDIA" was a typo).
+  const productName = isProperty ? 'Atrium' : 'Vega';
   const productLabel = isProperty ? 'Property OS' : 'Legal OS';
+  const assistant = isProperty ? 'ARIA' : 'ALOA';
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -20,12 +26,12 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
           </svg>
         </div>
         <h2 className="text-xl font-black text-slate-900 dark:text-white mb-1">AI Processing Consent</h2>
-        <p className="text-xs text-slate-500">PracticePro {productName} — {productLabel}</p>
+        <p className="text-xs text-slate-500">{productName} — {productLabel}</p>
       </div>
       
       <div className="text-sm text-slate-600 dark:text-zinc-400 space-y-3">
         <p>
-          PracticePro {productName} uses specialized AI agents (ARIA, ALDIA, etc.) to assist with {isProperty ? 'property management, tenant screening, and document processing' : 'legal drafting, research, and data extraction'}.
+          {productName} uses its specialised AI assistant ({assistant}) to assist with {isProperty ? 'property management, tenant screening, and document processing' : 'legal drafting, research, and data extraction'}.
         </p>
         <div className="bg-slate-50 dark:bg-zinc-900 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 text-left">
           <ul className="list-disc pl-5 space-y-2">
@@ -41,19 +47,23 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
       </div>
       
       <div className="flex gap-3">
-        <button 
+        <button
           onClick={onDecline}
           className="flex-1 py-3 px-4 border border-slate-300 dark:border-zinc-700 rounded-lg font-bold text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors"
         >
           Decline
         </button>
-        <button 
+        <button
           onClick={onAccept}
           className="flex-1 py-3 px-4 bg-primary-600 text-white rounded-lg font-bold hover:bg-primary-700 shadow-md transition-colors"
         >
           I Consent
         </button>
       </div>
+
+      <p className="text-center text-2xs text-slate-400">
+        {productName} is built by PracticePro
+      </p>
     </div>
   );
 };

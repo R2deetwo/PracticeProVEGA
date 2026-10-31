@@ -744,7 +744,9 @@ const ModalManager: React.FC = () => {
     modalTitle = 'Workspace Setup';
   }
   if (modal === 'demoUpsell') {
-    modalTitle = 'Upgrade to PracticePro';
+    // R47: the product speaks its own name — the company stays in the
+    // built-by credit, not the upsell title.
+    modalTitle = isProperty ? 'Upgrade to Atrium' : 'Upgrade to Vega';
   }
 
   // Size mapping based on form complexity:

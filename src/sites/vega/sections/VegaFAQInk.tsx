@@ -74,7 +74,7 @@ export const VegaFAQInk: React.FC = () => {
                     Questions? Answered.
                 </h2>
                 <p className="text-base md:text-lg leading-[1.7] text-slate-700 mb-12 md:mb-16">
-                    Everything you need to know about PracticePro Vega for law firms.
+                    Everything you need to know about Vega for law firms.
                 </p>
 
                 {/* The interrogatories — a ruled accordion on the paper */}

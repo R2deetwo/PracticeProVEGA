@@ -1,40 +1,32 @@
 import React, { useId } from 'react';
 
 /**
- * ProductMarks — PracticePro product identity marks (R26).
+ * ProductMarks — PracticePro product identity marks (R26 → R47).
  *
- * Owner direction (R26, after two rounds of monogram tiles that never
- * read right): NEW MARKS, chosen autonomously — objects with meaning,
- * not letterforms. Both are constructed as single solid paths on the
- * R23 quiet grounds (one clean diagonal gradient, squircle tile, one
- * hairline) — flat, engineered, never bevelled.
+ * Owner direction history: R26 chose objects with meaning over
+ * letterforms; R28 and R39 evolved the Atrium coin through two object
+ * marks (a house, then a courtyard plan). R47 reverses that call for
+ * Atrium with a plain instruction — "look at the Practice Pro favicon.
+ * It looks much clearer. You can see what it is. There's a big P" — the
+ * letter wins. Clarity of the NAME beats cleverness of the object.
  *
- *   1. VEGA — THE SEAL. Vega is the brightest star in Lyra; the star
- *      navigators steered by, the zero-point brightness was calibrated
- *      against. The mark is a solid coin (a notary seal — the page's
- *      own device) with the four-point steer-star cut through it in
- *      TRUE negative space (evenodd): the disc carries 16px by mass,
- *      the star void carries the meaning at 24px+. Burnt orange on the
- *      espresso ground, the exact register of the live /vega page
- *      (R26 The Warm Chambers).
+ *   1. VEGA — THE SEAL (unchanged). Vega is the brightest star in Lyra;
+ *      the mark is a solid coin (a notary seal) with the four-point
+ *      steer-star cut through in TRUE negative space. Burnt orange on
+ *      the espresso ground, the register of the live /vega page.
  *
- *   2. ATRIUM — THE COIN OF THE HOUSE (R28). Twin of the Vega coin: one
- *      solid emerald disc (the estate) with THE HOUSE cut through its
- *      heart — a Monopoly-style silhouette: pitched roof overhanging
- *      square walls (owner direction: "I don't like the Roman arch —
- *      we can have a Monopoly style house there instead"). The roof
- *      reads as property at a glance; the house is what Atrium manages,
- *      the coin is the estate it sits on. Sibling to the Vega star: the
- *      star is aspiration, the house is the estate. Mass carries 16px;
- *      the void carries the meaning; the pair read as a set — two
- *      coins, two hearts. Emerald on the estate's cream, the register
- *      of the live /atrium page.
+ *   2. ATRIUM — THE BIG A (R47). A solid emerald tile with a bold
+ *      white A — the PracticePro favicon's own formula: the company
+ *      tile says "P", the estate tile says "A". Mass carries 16px; the
+ *      letter carries the meaning; nothing to decode at a glance.
  *
  * Both marks draw EXCLUSIVELY from design tokens (rgb(var(--x))) so the
- * token gate stays green — no hardcoded hexes in components. The
- * standalone favicon SVGs under public/brand/ are self-contained static
- * assets and carry resolved hex. Gradient ids are uniquified with useId —
- * several instances render on one page (nav, dropdown, footer).
+ * token gate stays green — no hardcoded hexes in components (the white
+ * letter is the one literal, the same white the company favicon's P
+ * wears). The standalone favicon SVGs under public/brand/ are
+ * self-contained static assets and carry resolved hex. Gradient ids are
+ * uniquified with useId — several instances render on one page (nav,
+ * dropdown, footer).
  *
  * Presentational only — zero buttons (ADR-0004).
  */
@@ -94,16 +86,17 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Coin of the Courtyard (R39): a solid emerald disc with
- *  THE ATRIUM cut through its heart — the courtyard plan: square estate
- *  walls around a central court, open at one controlled entrance (the
- *  gate, south). The name drawn as geometry — the product IS the
- *  well-kept estate around a common heart, and everything that enters
- *  comes through one gate (access control's own echo). Emerald on the
- *  estate's cream: the live /atrium page's own register. Sibling to the
- *  Vega coin: the star is aspiration, the courtyard is the estate.
- *  (R28's Monopoly house retired by owner direction: "change the
- *  Atrium iconography.") */
+/** Atrium — the Big A (R47): a solid emerald tile with a bold white A
+ *  cut through it — the PracticePro favicon's own formula (owner
+ *  direction: "I don't like the favicon or even the icon for Atrium.
+ *  For Atrium, I think it would look better if you look at the Practice
+ *  Pro favicon. It looks much clearer. You can see what it is. There's
+ *  a big P"). The company tile says "P"; the estate tile says "A" —
+ *  same family, one letter each, nothing to decode. Mass carries 16px;
+ *  the letter carries the meaning; nothing to interpret at a glance.
+ *  (R28's house mark and R39's courtyard coin are retired by
+ *  owner direction — the courtyard read as abstract geometry, not as
+ *  the product's name.) */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -121,30 +114,28 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                     <stop offset="1" stopColor="rgb(var(--color-atrium-pine))" />
                 </linearGradient>
             </defs>
-            {/* The quiet ground — the estate's cream, the page's surface */}
-            <rect x="1" y="1" width="46" height="46" rx="11.5" fill="rgb(var(--color-cream))" />
-            {/* An emerald hairline so the light tile holds its edge on light
-                UI rows — the page's emerald accent, at mark scale. */}
-            <rect
-                x="1" y="1" width="46" height="46" rx="11.5"
-                fill="none"
-                stroke="rgb(var(--color-atrium-jade) / 0.4)"
-                strokeWidth="1.5"
-            />
-            {/* The Coin of the Courtyard — twin of the Vega coin: one solid
-                emerald disc (the estate) with the ATRIUM cut through it in
-                TRUE negative space (evenodd): the square wall, the central
-                court, and the south gate — the single controlled entrance,
-                its flanking posts reading as the gatehouse. The void is one
-                enclosed shape plus the gate breach, so nothing clogs at
-                16px on cheap displays. Mass carries 16px; the void carries
-                the meaning; the pair read as a set. */}
+            {/* The estate tile — solid emerald (jade lit toward pine), the
+                exact register of the live /atrium page's own greens. White
+                letter on the filled tile: the PracticePro "big P" favicon
+                formula, which the owner holds up as the standard of
+                clarity. No hairline — the filled tile holds its own edge
+                on light and dark UI alike. */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#atmk${uid})`} />
+            {/* THE A — one bold geometric letterform, solid white, sized
+                like the company favicon's P (owner, R47: "There's a big
+                P... it looks much clearer"): the letter spans 75% of the
+                tile's width and 81% of its height, with 8.5-unit legs
+                (≈2.8px at a 16px tab render — the P's own stem weight)
+                and a 6.5-unit crossbar. Drawn as a single evenodd path:
+                the A silhouette (flat apex, two legs, feet) with the
+                bottom notch open and the counter punched above the bar.
+                The counter (9 wide) and notch stay legible at 16px —
+                the VLM-verified clarity bar for the tab. */}
             <path
                 fillRule="evenodd"
-                d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z
-                   M15 15 H33 V33 H15 Z
-                   M20.5 20.5 H27.5 V33.5 H20.5 Z"
-                fill={`url(#atmk${uid})`}
+                d="M6 43.5 L21.5 4.5 H26.5 L42 43.5 H33.5 L31.1 37.5 H16.9 L14.5 43.5 Z
+                   M24 17 L28.5 31 H19.5 Z"
+                fill="#FFFFFF"
             />
         </svg>
     );

@@ -50,7 +50,7 @@ const LeadCaptureModal: React.FC = () => {
         </div>
         <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">Access Interactive Demo</h3>
         <p className="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
-          Experience the full PracticePro suite. Enter your work email for instant, password-free access.
+          Experience the full suite. Enter your work email for instant, password-free access.
         </p>
       </div>
 

@@ -74,14 +74,14 @@ const OUR_WORK: Array<{
         ],
         primaryScreen: {
             src: '/assets/landing/work/vega-page.jpg',
-            alt: 'The PracticePro Vega product page — Practice Management for Nigerian Law Firms',
+            alt: 'The Vega product page — Practice Management for Nigerian Law Firms',
             kind: 'browser',
             label: 'Product page — practicepro.ng/vega',
         },
         detailScreens: [
             {
                 src: '/assets/landing/work/vega-page.jpg',
-                alt: 'The PracticePro Vega product page — Practice Management for Nigerian Law Firms',
+                alt: 'The Vega product page — Practice Management for Nigerian Law Firms',
                 kind: 'browser',
                 label: 'Product page — practicepro.ng/vega',
             },
@@ -130,14 +130,14 @@ const OUR_WORK: Array<{
         ],
         primaryScreen: {
             src: '/assets/landing/work/atrium-page.jpg',
-            alt: 'The PracticePro Atrium product page — Revenue Monitor for Property Managers',
+            alt: 'The Atrium product page — Revenue Monitor for Property Managers',
             kind: 'browser',
             label: 'Product page — practicepro.ng/atrium',
         },
         detailScreens: [
             {
                 src: '/assets/landing/work/atrium-page.jpg',
-                alt: 'The PracticePro Atrium product page — Revenue Monitor for Property Managers',
+                alt: 'The Atrium product page — Revenue Monitor for Property Managers',
                 kind: 'browser',
                 label: 'Product page — practicepro.ng/atrium',
             },

@@ -302,7 +302,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
         const defaultAccount: BankAccount = coreState.firmDetails?.bankAccounts?.[0] || {
           id: '1',
-          bankName: 'PracticePro Default',
+          bankName: 'Firm Account (configure in Settings)',
           accountName: coreState.firmDetails?.name || 'Firm',
           accountNumber: '0000000000'
         };
@@ -485,7 +485,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         dueDate: receiptDate,
         paidDate: receiptDate,
         paymentDetails: coreState.firmDetails?.bankAccounts?.[0] || { 
-          bankName: 'PracticePro Default', 
+          bankName: 'Firm Account (configure in Settings)', 
           accountNumber: '0000000000',
           accountName: coreState.firmDetails?.name || 'Firm'
         },

@@ -232,6 +232,7 @@ const AutomationCenter: React.FC = () => {
           subject: `Rent reminder — ${tenantName} (${address || 'your unit'})`,
           htmlContent: buildEmailHtml({
             firmName,
+            productName: 'Atrium',
             body: plainMsg + buildPortalButtonHtml(buildTenantPortalLoginUrl(to)),
             footerNote: 'This is an official rent reminder from your property manager.',
           }),

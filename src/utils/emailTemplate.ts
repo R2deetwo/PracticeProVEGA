@@ -13,6 +13,10 @@
 export interface EmailTemplateOptions {
   /** The sending firm's display name (email "From" name). */
   firmName?: string;
+  /** R47: the product whose voice the email carries ('Vega' | 'Atrium').
+   *  Omitted for company-level sends — the footer then names the company
+   *  as the builder, never the product. */
+  productName?: string;
   /** Message body — plain text (newlines → <br/>) or existing HTML. */
   body: string;
   /** Optional one-line note under the signature (e.g. portal link). */
@@ -28,7 +32,7 @@ const bodyToHtml = (body: string) => {
   return `<p style="margin:0 0 16px 0;color:#1f2937;font-size:15px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(trimmed)}</p>`;
 };
 
-export function buildEmailHtml({ firmName, body, footerNote }: EmailTemplateOptions): string {
+export function buildEmailHtml({ firmName, body, footerNote, productName }: EmailTemplateOptions): string {
   const firm = (firmName || '').trim();
   return [
     '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px 16px;">',
@@ -40,7 +44,9 @@ export function buildEmailHtml({ firmName, body, footerNote }: EmailTemplateOpti
       ? `  <p style="margin:20px 0 0 0;padding:12px 14px;background:#f0fdfa;border:1px solid #ccfbf1;border-radius:8px;font-size:13px;color:#134e4a;line-height:1.6;">${escapeHtml(footerNote)}</p>`
       : '',
     '  <p style="margin:24px 0 0 0;border-top:1px solid #e5e7eb;padding-top:12px;font-size:11px;color:#9ca3af;">',
-    `    Sent via PracticePro${firm ? ` on behalf of ${escapeHtml(firm)}` : ''}.`,
+    productName
+      ? `    Sent via ${escapeHtml(productName)}${firm ? ` on behalf of ${escapeHtml(firm)}` : ''} — built by PracticePro.`
+      : `    Sent via PracticePro${firm ? ` on behalf of ${escapeHtml(firm)}` : ''}.`,
     '  </p>',
     '</div>',
   ].filter(Boolean).join('\n');

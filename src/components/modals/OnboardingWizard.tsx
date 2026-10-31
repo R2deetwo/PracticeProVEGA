@@ -1407,7 +1407,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-slate-900">Yes — invite my team</p>
-                    <p className="text-2xs text-slate-500 font-medium mt-0.5">Lawyers, paralegals, property officers, accountants — anyone who'll work in PracticePro.</p>
+                    <p className="text-2xs text-slate-500 font-medium mt-0.5">Lawyers, paralegals, property officers, accountants — anyone who'll work in ${productName}.</p>
                   </div>
                   {willInviteTeam === true && <CheckIcon className="w-5 h-5 text-primary-600 flex-shrink-0" />}
                 </div>
@@ -1624,7 +1624,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                     {setupStageLabel || 'Configuring your workspace…'}
                   </span>
                 ) : (
-                  'Start using PracticePro'
+                  'Start using ' + productName
                 )}
               </button>
               {isSavingFinal && (

@@ -144,6 +144,14 @@ describe('buildEmailHtml — the branded email shell', () => {
     expect(html).toContain('Sent via PracticePro on behalf of Grand Starfish Estates');
   });
 
+  it('carries the product voice with the builder credit (R47)', () => {
+    // Owner: remove PracticePro from the products unless necessary — the
+    // product speaks, the builder is credited at the bottom.
+    const html = buildEmailHtml({ firmName: 'Grand Starfish Estates', productName: 'Atrium', body: 'Rent is due.' });
+    expect(html).toContain('Sent via Atrium on behalf of Grand Starfish Estates — built by PracticePro.');
+    expect(html).not.toContain('Sent via PracticePro on behalf');
+  });
+
   it('converts plain-text bodies with newlines preserved', () => {
     const html = buildEmailHtml({ firmName: 'F', body: 'Line one\nLine two' });
     expect(html).toContain('Line one');

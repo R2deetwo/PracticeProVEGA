@@ -1,22 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- PracticePro Atrium — the Coin of the Courtyard (R41 refresh).
-       Same geometry the owner approved in R39 (the coin formula: mass
-       carries 16px, the void carries the meaning — square estate walls
-       around a central court, open at one controlled gate, south), recol
-       BRIGHTER by owner direction (R41): "the red one is too dark for my
-       liking" — the deep jade/pine register read as a dark coin at 16px.
-       The disc now runs the fresh emerald of the live /atrium accent
-       (#10B981 to #059669, the site's own emerald token), so the
-       tab reads clearly GREEN and clearly LIGHT on both light and dark
-       browser chrome. Sibling to the Vega star: the star is aspiration,
-       the courtyard is the estate. -->
+  <!-- PracticePro Atrium — THE BIG A (R47).
+       Owner direction: "I don't like the favicon or even the icon for
+       Atrium. For Atrium, I think it would look better if you look at
+       the Practice Pro favicon. It looks much clearer. You can see what
+       it is. There's a big P." The R39/R41 courtyard coin is
+       retired — abstract geometry never read as fast as a letter. This
+       is the company favicon's own formula, in Atrium's register: a
+       full-bleed emerald tile (the bright emerald the owner approved
+       for the tab in R41 — #10B981 lit toward #059669, so it reads
+       clearly GREEN on light and dark browser chrome) with a bold white
+       A. The company tile says P; the estate tile says A. -->
   <defs>
     <linearGradient id="at" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#10B981"/>
       <stop offset="1" stop-color="#059669"/>
     </linearGradient>
   </defs>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#10B981" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M15 15 H33 V33 H15 Z M20.5 20.5 H27.5 V33.5 H20.5 Z" fill="url(#at)"/>
+  <rect width="48" height="48" rx="10.5" fill="url(#at)"/>
+  <!-- THE A — one bold geometric letterform, solid white, sized like the
+       company favicon's big P: the letter spans 75% of the tile's width
+       and 81% of its height; 8.5-unit legs (the P's own stem weight at
+       tab scale); 6.5-unit crossbar; counter and notch stay legible at
+       16px (VLM-verified). Identical geometry to the in-app AtriumMark. -->
+  <path
+    fill-rule="evenodd"
+    d="M6 43.5 L21.5 4.5 H26.5 L42 43.5 H33.5 L31.1 37.5 H16.9 L14.5 43.5 Z
+       M24 17 L28.5 31 H19.5 Z"
+    fill="#FFFFFF"/>
 </svg>

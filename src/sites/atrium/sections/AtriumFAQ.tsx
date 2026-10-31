@@ -68,7 +68,7 @@ export const AtriumFAQ: React.FC = () => {
                         Questions? Answered.
                     </h2>
                     <p className="text-lg text-slate-500 mt-4">
-                        Everything you need to know about PracticePro Atrium for property managers.
+                        Everything you need to know about Atrium for property managers.
                     </p>
                 </div>
                 <div className="space-y-3">

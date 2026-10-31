@@ -303,9 +303,9 @@ export const CHANGELOG: ChangelogEntry[] = [
         version: '1.13.0',
         date: '2026-05-28',
         title: 'Brand Consistency & DraftPro Description Refresh',
-        description: 'We unified the PracticePro brand across every surface — the landing page, portal headers, and app footer now use identical logo sizing, typography, and product badge colours. The DraftPro feature description now accurately reflects its placeholder safety guardrails.',
+        description: 'We unified the brand across every surface — the landing page, portal headers, and app footer now use identical logo sizing, typography, and product badge colours. The DraftPro feature description now accurately reflects its placeholder safety guardrails.',
         features: [
-            { icon: 'theme', label: 'Unified Brand Header', text: 'Portal login pages now display the PracticePro VEGA / ATRIUM brand in the same size and position as the main landing page header. Logo, text sizing, and product badge colours are pixel-consistent across all surfaces.' },
+            { icon: 'theme', label: 'Unified Brand Header', text: 'Portal login pages now display the Vega / Atrium brand in the same size and position as the main landing page header. Logo, text sizing, and product badge colours are pixel-consistent across all surfaces.' },
             { icon: 'pen', label: 'DraftPro Description Update', text: 'The landing page now describes DraftPro\'s placeholder guardrails instead of the old "what you see is what you print" phrasing. The new copy highlights the safety feature: printing is blocked until all blanks are filled.' },
             { icon: 'bolt', label: 'Selection Colour Fix', text: 'Fixed the dark selection highlight in DraftPro that was causing text selection to appear as a dark rectangle. The editor now uses a standard light-blue selection colour that matches the always-white page background.' },
         ],

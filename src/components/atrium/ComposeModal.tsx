@@ -912,6 +912,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
               subject: `${getMsgTypeLabel(msgType)} — ${firmName}`,
               htmlContent: buildEmailHtml({
                 firmName,
+                productName: 'Atrium',
                 body: personalizedMessage,
                 footerNote: 'This is an official notification from your property manager.',
               }),

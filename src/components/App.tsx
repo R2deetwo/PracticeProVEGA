@@ -465,7 +465,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'usagePolicy': return <UsagePolicy onBack={goBack} />;
             // FIX: onStartTrial/onContactSales navigated to the dashboard (a
             // no-op CTA) and setActiveProduct was a truthy no-op (dead toggle).
-            case 'resources': return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('upgradePlan')} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} />;
+            // R47: the 'resources' case is retired from MainContent — it
+            // referenced App-scoped state (resourcesProduct) it never had in
+            // scope, so an authed user opening /vega/resources would have hit
+            // a ReferenceError. Authed users now get the same public
+            // ResourcesPage via the intercept in App's render flow.
             case 'securityAccess': return <SecurityAccessView onBack={goBack} />;
             default: return <NotFoundView />;
         }
@@ -1514,7 +1518,7 @@ export const App: React.FC = () => {
             // your 30-day free trial of PracticePro Atrium today"). The trial
             // CTA now carries that product into the signup modal so the copy
             // and the actual signup match.
-            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} />;
+            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} onSwitchProduct={(p) => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')} applyDocumentIdentity />;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
@@ -1707,6 +1711,28 @@ export const App: React.FC = () => {
                     </div>
                 </div>
             );
+        }
+
+        // R47: /resources is a PUBLIC docs page — an authed user who
+        // navigates to it (by URL; the app UI no longer links it) sees the
+        // same product-branded page instead of the app shell. The shell's
+        // own product identity (useAppProductIdentity) stays in charge of
+        // the tab, so no document-identity prop is passed here.
+        if (view === 'resources') {
+            return <ResourcesPage
+                onBack={goBack}
+                onPrivacyClick={() => navigateTo('privacyPolicy')}
+                onTermsClick={() => navigateTo('termsOfService')}
+                onCookieClick={() => navigateTo('cookiePolicy')}
+                onDPAClick={() => navigateTo('dataProcessingAgreement')}
+                onUsageClick={() => navigateTo('usagePolicy')}
+                onPortalTermsClick={() => navigateTo('portalTermsOfUse')}
+                onStartTrial={() => openModal('upgradePlan')}
+                onContactSales={() => openModal('leadCapture')}
+                activeProduct={resourcesProduct}
+                setActiveProduct={setResourcesProduct}
+                onSwitchProduct={(p) => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')}
+            />;
         }
 
         return (

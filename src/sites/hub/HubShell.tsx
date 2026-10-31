@@ -26,10 +26,9 @@ const NAV_SECTIONS: { label: string; id: string }[] = [
 export const HubNavBar: React.FC<{
     activeSection: string;
     scrollTo: (id: string) => void;
-    onResources: () => void;
     onContactSales: () => void;
     onOpenProduct: (p: 'vega' | 'atrium') => void;
-}> = ({ activeSection, scrollTo, onResources, onContactSales, onOpenProduct }) => {
+}> = ({ activeSection, scrollTo, onContactSales, onOpenProduct }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
     // Click-toggle dropdown (not hover) so iPad/tablet touch users can open
     // it. Outside-pointer closes, Escape closes, choosing closes — the
@@ -154,12 +153,10 @@ export const HubNavBar: React.FC<{
                         {s.label}
                     </button>
                 ))}
-                <button
-                    onClick={onResources}
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150 active:scale-[0.98]"
-                >
-                    Resources
-                </button>
+                {/* R47: Resources retired from the company nav (owner:
+                    "the resources should not be inside Practice Pro anymore.
+                    They should be with their respective apps") — Vega and
+                    Atrium each carry their own Resources page. */}
                 <button
                     onClick={onContactSales}
                     className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-150 active:scale-[0.98]"
@@ -214,7 +211,6 @@ export const HubNavBar: React.FC<{
                             {s.label}
                         </button>
                     ))}
-                    <button onClick={() => handleNavClick(onResources)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className="w-full text-left px-4 py-3 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150 active:scale-[0.98]">Contact</button>
                     <div className="h-px bg-slate-200 my-3" />
                     <button
@@ -236,9 +232,8 @@ export const HubFooter: React.FC<{
     onTermsClick: () => void;
     onCookieClick: () => void;
     onUsageClick: () => void;
-    onResources: () => void;
     onContactSales: () => void;
-}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales }) => (
+}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onContactSales }) => (
     <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
@@ -286,7 +281,10 @@ export const HubFooter: React.FC<{
                         <span onClick={onUsageClick} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Usage Policy</span>
                         <span onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Contact Sales</span>
                         <a href="mailto:dpo@practicepro.ng" className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Email Us</a>
-                        <span onClick={onResources} className="text-slate-500 hover:text-slate-300 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Security</span>
+                        {/* R47: the Security link retired from the company
+                            footer — the security statements live with each
+                            product's Resources page now (the Vega and
+                            Atrium footers carry their own). */}
                     </div>
                 </div>
             </div>

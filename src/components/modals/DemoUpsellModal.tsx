@@ -52,7 +52,7 @@ const DemoUpsellModal: React.FC<DemoUpsellModalProps> = ({ context = 'generic', 
       default:
         return {
           headline: "You've hit the limit for this demo.",
-          subline: "Hope you're enjoying the PracticePro experience! To use the full platform and keep your progress, create an account.",
+          subline: `Hope you're enjoying the ${isProperty ? 'Atrium' : 'Vega'} experience! To use the full platform and keep your progress, create an account.`,
           icon: <SparklesIcon className="w-12 h-12 text-primary-500" />
         };
     }

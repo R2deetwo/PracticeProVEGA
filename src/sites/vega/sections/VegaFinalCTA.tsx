@@ -46,7 +46,7 @@ export const VegaFinalCTA: React.FC<{
                 <div className="h-px w-24 bg-vega-gilt mb-8" aria-hidden="true" />
                 <p className="text-base md:text-lg leading-[1.7] text-slate-700 mb-10">
                     Join Nigerian law firms who have already switched to
-                    PracticePro Vega — matter management, AI drafting, and
+                    Vega — matter management, AI drafting, and
                     court-rule-aware calendaring built for the way you actually
                     work.
                 </p>

@@ -68,7 +68,7 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
           </div>
           <div class="content">${doc.content}</div>
           <div class="footer">
-            <p>PracticePro Atrium · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p>Atrium · Document generated ${new Date().toLocaleDateString('en-NG', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
           <div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;">
             <button onclick="window.print()" style="padding:10px 20px;background:#64748b;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;">Print</button>
@@ -166,8 +166,8 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
         ` : ''}
 
         <div class="footer">
-          <p>This is a summary of your lease details from PracticePro Atrium.</p>
-          <p>PracticePro Systems Ltd · Lagos, Nigeria</p>
+          <p>This is a summary of your lease details from Atrium.</p>
+          <p>Built by PracticePro Systems Ltd · Lagos, Nigeria</p>
           <p>NDPA 2023 Compliant · AES-256 Encrypted</p>
         </div>
         <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
@@ -223,7 +223,7 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
         </div>
         <div class="footer">
           <p>This record confirms your acceptance of the PracticePro portal terms and conditions.</p>
-          <p>PracticePro Systems Ltd · Lagos, Nigeria</p>
+          <p>Built by PracticePro Systems Ltd · Lagos, Nigeria</p>
           <p>NDPA 2023 Compliant · ISO 27001 Aligned · AES-256 Encrypted</p>
         </div>
         <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
@@ -570,7 +570,7 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
                             <div class="row"><span class="label">Files Attached</span><span class="value">${proof.storageIds?.length || 0}</span></div>
                           </div>
                           <div class="footer">
-                            <p>PracticePro Systems Ltd · Lagos, Nigeria</p>
+                            <p>Built by PracticePro Systems Ltd · Lagos, Nigeria</p>
                             <p>NDPA 2023 Compliant · AES-256 Encrypted</p>
                           </div>
                           <div class="no-print" style="position:fixed;bottom:20px;right:20px;">
