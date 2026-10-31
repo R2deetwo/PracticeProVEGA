@@ -32,7 +32,7 @@ const ALOA_CAPABILITIES = [
     {
         title: 'Legal Drafting & Analysis',
         body: "Draft writs, affidavits, and motions with Nigerian court-specific formatting. Analyze opposing counsel's arguments, identify weaknesses, and research locus classicus across jurisdictions.",
-        features: ['DraftPro editor with A4 pagination', 'Nigerian citation formats (NWLR, NSC)', 'Cross-jurisdictional analysis with caveats'],
+        features: ['DraftPro editor with A4 pagination', 'DraftPro contract analyzer — risk scoring + redlines (standard)', 'Nigerian citation formats (NWLR, NSC)', 'Cross-jurisdictional analysis with caveats'],
     },
     {
         title: 'PII Shield',
@@ -178,7 +178,8 @@ export const VegaAIDrafting: React.FC = () => {
                 <p className="text-base md:text-lg leading-[1.7] text-slate-700 max-w-2xl mb-12 md:mb-16">
                     Your AI legal copilot drafts documents, researches precedents,
                     and analyzes cases — with privacy-first architecture that keeps
-                    client data safe.
+                    client data safe. And DraftPro™ ships standard in every workspace:
+                    drafting, contract analysis, and redlines in one instrument.
                 </p>
 
                 {/* The exhibits (R40): two REAL captures of the running

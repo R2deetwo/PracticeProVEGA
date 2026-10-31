@@ -15,6 +15,8 @@ import { VegaSegments } from './sections/VegaSegments';
 import { VegaAIDrafting } from './sections/VegaAIDrafting';
 import { VegaCourtRules } from './sections/VegaCourtRules';
 import { VegaScaleOfCharges } from './sections/VegaScaleOfCharges';
+import { VegaRegulatory } from './sections/VegaRegulatory';
+import { VegaPricing } from './sections/VegaPricing';
 import { VegaCredentials } from './sections/VegaCredentials';
 import { VegaFAQInk } from './sections/VegaFAQInk';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
@@ -161,6 +163,10 @@ export const VegaSite: React.FC = () => {
                 <VegaAIDrafting />
                 <VegaCourtRules />
                 <VegaScaleOfCharges />
+                {/* R49: the add-on band (V) and the restructured pricing
+                    matrix (VI), before Credentials (VII) and Questions (VIII). */}
+                <VegaRegulatory onContactSales={(s) => openContactSales(s || 'Vega Regulatory')} onSignup={openSignup} />
+                <VegaPricing onContactSales={(s) => openContactSales(s || 'Vega Pricing')} onSignup={openSignup} />
                 <VegaCredentials />
                 <VegaFAQInk />
                 <VegaFinalCTA

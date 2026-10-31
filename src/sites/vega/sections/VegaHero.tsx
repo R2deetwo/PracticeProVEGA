@@ -103,14 +103,20 @@ export const VegaHero: React.FC<{
                             style={{ '--vg-d': '150ms' } as React.CSSProperties}
                         />
 
-                        {/* Sub-copy — shipped capability copy, verbatim */}
+                        {/* Sub-copy — R49 (Prompt 2): Vega now ships with DraftPro —
+                            built-in AI contract analysis for Nigerian commercial
+                            practice; hours saved reviewing commercial agreements,
+                            toxic clauses flagged instantly. */}
                         <p
                             className="text-base md:text-lg max-w-xl leading-[1.7] text-slate-700 mb-8"
                             data-vg-reveal
                             style={{ '--vg-d': '210ms' } as React.CSSProperties}
                         >
-                            Case management, AI-assisted drafting, and billing that respects Nigerian court
-                            practice — from intake to judgment, in one workspace.
+                            Case management, billing — and DraftPro™ built in: AI contract
+                            analysis for Nigerian commercial practice. Vega reads every
+                            commercial agreement, flags the toxic clauses instantly, and
+                            redlines them to Nigerian-law-compliant drafts. Hours of review
+                            become minutes.
                         </p>
 
                         {/* CTA — rendered by the site index. */}
@@ -123,7 +129,7 @@ export const VegaHero: React.FC<{
                             data-vg-reveal
                             style={{ '--vg-d': '340ms' } as React.CSSProperties}
                         >
-                            NO CREDIT CARD · 30-DAY TRIAL · CANCEL ANYTIME
+                            NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED
                         </p>
                     </div>
 

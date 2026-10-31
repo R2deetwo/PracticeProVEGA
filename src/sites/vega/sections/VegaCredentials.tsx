@@ -54,7 +54,7 @@ export const VegaCredentials: React.FC = () => {
         <div className="container mx-auto px-4 sm:px-6 max-w-7xl" data-vg-reveal>
             {/* Roman-numeral hairline section head */}
             <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
-                VI — Credentials
+                VII — Credentials
             </p>
             <h2
                 id="vega-credentials-heading"

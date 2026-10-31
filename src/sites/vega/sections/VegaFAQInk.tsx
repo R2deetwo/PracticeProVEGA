@@ -65,7 +65,7 @@ export const VegaFAQInk: React.FC = () => {
             <div className="container mx-auto px-4 sm:px-6 max-w-4xl" data-vg-reveal>
                 {/* Section head */}
                 <p className="vg-rule-h font-mono text-2xs font-medium uppercase tracking-[0.25em] text-vega-gilt-bright mb-7">
-                    VII — Questions
+                    VIII — Questions
                 </p>
                 <h2
                     id="vega-faq-heading"
