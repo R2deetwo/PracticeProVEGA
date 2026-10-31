@@ -14060,3 +14060,28 @@ per the brief.
   only failure is the standing Cloudflare mirror token (owner action,
   unchanged since R47). R49's landing work went live on this same
   promote.
+
+**Verification addendum (post-R50, no release) — the new GitHub token
+works; the Cloudflare mirror still needs a Cloudflare-side token.**
+The owner supplied a fresh GitHub PAT (the old one had expired) hoping
+it would also revive the Cloudflare mirror job. Verified against the
+R50 promote (run 41211181892) and the repo:
+- The new GitHub token is GOOD: fetch/push on main, Actions API reads,
+  and the workflow_dispatch of the R48/R49/R50 promotes all succeeded
+  with it. It is now the credential in the remote URL.
+- The mirror failure is a DIFFERENT credential: the job dies at the
+  fail-fast verify with Cloudflare's own answer —
+  `{"code":1000,"message":"Invalid API Token"}` on
+  /user/tokens/verify and `{"code":9109,"message":"Invalid access
+  token"}` on the account probe. That is the repo secret
+  CLOUDFLARE_API_TOKEN (a Cloudflare-issued token), which no GitHub
+  token can renew.
+- Mirror serving state: practice-pro-vega.prototypechigo.workers.dev
+  still answers 200 but is frozen at 04d798b3 (built 2026-09-18) — the
+  last successful manual deploy, 43 days behind bcc5f76b.
+- Owner action (unchanged): dash.cloudflare.com → My Profile → API
+  Tokens → Create Token (template "Edit Cloudflare Workers", scoped to
+  the account) → repo Settings → Secrets and variables → Actions →
+  update CLOUDFLARE_API_TOKEN → re-run production-deploy.yml on
+  bcc5f76b to bring the mirror current. Production itself (Vercel +
+  Convex) is healthy and fully current; the mirror is a redundancy.
