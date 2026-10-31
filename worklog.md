@@ -13898,3 +13898,49 @@ humans will find this creepy."
   only the panel; card 330x240; Explore → ourWork top 64; mobile 390 no
   overflow; zero console errors. Live VLM: desktop "calm, static,
   professional — SHIP"; mobile "the giant looming face is GONE".
+
+**R47 (23b068c7) — the products speak their own names: the Big A,
+resources live with the products, PracticePro as the builder.**
+Owner: "I don't like the favicon or even the icon for Atrium. For
+Atrium, I think it would look better if you look at the Practice Pro
+favicon. It looks much clearer. You can see what it is. There's a big
+P." And: "in the resources page for Atrium, what I'm seeing is
+Practice Pro. We need to be removing this Practice Pro from the
+Atrium product unless it's where it's necessary... in the resources
+page, we should have the brand Atrium. But where we're going to have
+the Practice Pro is inside, at the bottom — built by Practice Pro...
+the resources should not be inside Practice Pro anymore... the Atrium
+one should be in Atrium, the Vega one should be in Vega."
+- THE BIG A. The Atrium mark rebuilt in the PracticePro favicon's own
+  formula: a solid emerald tile with a big bold white A, the letter
+  sized like the company P (75% of tile width, 81% of height; 8.5-unit
+  legs = the P's stem weight at 16px). Verified at a TRUE 16x16 grid;
+  VLM: SHIP.
+- RESOURCES LIVE WITH THE PRODUCTS. /atrium/resources and
+  /vega/resources are the products' own pages: product mark + name in
+  the header, product voice in hero/copy/CTA, builder credit in the
+  footer and print/PDF ("Atrium is built by PracticePro Systems Ltd"),
+  product favicon + title in the tab. The product toggle now navigates
+  to the product's own page; the company hub no longer links a company
+  resources page; MainContent's latent 'resources' case (an
+  authed-state ReferenceError waiting for a deep-link) is replaced by
+  an App-level intercept rendering the same public page.
+- PRACTICEPRO AS THE BUILDER, EVERYWHERE THE PRODUCTS SPEAK. AI consent,
+  rent receipts, portal print docs, CollectRent placeholder, demo
+  upsell + upgrade titles, onboarding wizard, lead capture, the email
+  shell (productName option), the AI identity guardrails and
+  ALOA/ARIA prompts, marketing FAQs/CTAs/alt text, and the JSON-LD
+  SoftwareApplication names — all product-first, builder-credited.
+  Legal documents (Privacy Policy, ToS, DPA) intentionally keep the
+  formal company-product naming.
+- Gates: 1317/1317 (+3 R47 tests), tsc 125 (baseline 131 in CI),
+  eslint clean, build green. Live (scripts/r47-live-verify.cjs):
+  15/15 — Atrium/Vega resources titles + product favicons + product
+  headers + CTAs + builder credits, hub nav clean of a company
+  resources item, company favicon kept on the hub, /atrium carries the
+  Atrium favicon, the Big A SVG serves with a white glyph on the tile.
+  Live VLM: Atrium resources SHIP; Vega resources SHIP. Production
+  healthy at 23b068c7 (version.json). Known legacy: the Cloudflare
+  mirror job fails at token verification (CLOUDFLARE_API_TOKEN expired
+  — owner action: rotate the repo secret; Vercel + Convex deployed and
+  verified, the failure does not affect the live site).
