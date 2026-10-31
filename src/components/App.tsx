@@ -17,6 +17,7 @@ import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useIdleTimer } from '../hooks/useIdleTimer';
 import { OfficeBuildingIcon, Logo } from '../constants';
 import { useProduct } from '../contexts/ProductContext';
+import { useAccentTheme } from '../contexts/AccentThemeContext';
 
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -641,20 +642,22 @@ export const App: React.FC = () => {
     const { startTour } = useOnboarding();
     const ui = useUI();
     const { isSessionLocked, setIsSessionLocked, goBack } = ui;
-    // R28 — PRODUCT APP SKIN (APP_UI_SEPARATION.md Stage 3, owner direction
-    // 2026-10-17: "I would like a theme for the app that matches the Vega
-    // site"). Pure Vega firms run the Warm Chambers skin everywhere; a
-    // Komplete firm gets it on the LEGAL-side views (matters, documents,
-    // research, DraftPro, ALOA indexer) — the property side and every
-    // shared surface keep today's emerald register, so one workspace
-    // legitimately feels like two distinct apps. Atrium-only firms and
-    // logged-out surfaces are untouched (class absent → byte-identical).
-    const { product: firmProduct } = useProduct();
-    const LEGAL_SIDE_VIEWS: string[] = ['matters', 'matterDetail', 'documents', 'documentDetail', 'research', 'indexer', 'editor'];
-    const appSkinClass =
-        firmProduct === 'vega' || (firmProduct === 'unified' && LEGAL_SIDE_VIEWS.includes(view))
-            ? 'app-skin-vega'
-            : '';
+    // R52 — THE ACCENT THEME ENGINE (owner bug report: "brand accents
+    // are fragmenting across different views. While the Home dashboard
+    // correctly renders using the primary brand color (Green), navigating
+    // to other core modules like Matters, Documents, or Research
+    // abruptly overrides the accent with a hardcoded copper/brown color
+    // scheme"). The R28 legal-side skin (the per-view list that switched
+    // Komplete firms to copper on matters/documents/research) is retired:
+    // the accent now resolves in ONE place — AccentThemeContext — from
+    // the active product (Komplete → the favicon green on EVERY route;
+    // Vega → the Warm Chambers copper; Atrium → the estate jade), with
+    // the user able to lock a palette in Settings → Display → Appearance
+    // (persisted per-account in localStorage). Komplete resolves to NO
+    // scope class — the :root green ramp already is the komplete
+    // register — so the default path is byte-identical to pre-R28 for
+    // Komplete firms and logged-out surfaces.
+    const { skinClass: accentSkinClass } = useAccentTheme();
     // 2026-09-23 DraftPro-ambush fix: the auto-starting product tour was
     // firing inside dedicated DraftPro tabs (opened by ALOA start_drafting)
     // 5 seconds into drafting, covering the editor with a "Welcome to Vega"
@@ -1814,7 +1817,7 @@ export const App: React.FC = () => {
     })();
 
     return (
-        <div className={`app-container font-sans text-base ${theme} ${appSkinClass} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
+        <div className={`app-container font-sans text-base ${theme} ${accentSkinClass} h-[100dvh] bg-[rgb(var(--bg-main))] text-[rgb(var(--text-main))]`}>
             <SplashScreen 
                 isVisible={!hasInitialSplashFinished && (hasSavedSession || flowState === 'splash')} 
                 statusMessage={loadingMessage} 

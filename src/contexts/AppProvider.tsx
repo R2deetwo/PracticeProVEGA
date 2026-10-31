@@ -5,6 +5,7 @@ import { UIProvider } from './UIContext';
 import { AppContextProvider } from './AppContext';
 import { DataProvider } from './DataProvider';
 import { ProductProvider } from './ProductContext';
+import { AccentThemeProvider } from './AccentThemeContext';
 import { CoreProvider } from './CoreContext';
 import { MatterProvider } from './MatterContext';
 import { FinanceProvider } from './FinanceContext';
@@ -26,6 +27,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         <AppContextProvider />,
         <DataProvider />,
         <ProductProvider />,
+        <AccentThemeProvider />,
         <CoreProvider />,
         <MatterProvider />,
         <FinanceProvider />,

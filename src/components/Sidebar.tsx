@@ -296,7 +296,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                                             className={`
                                                 w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors 
                                                 ${isActive
-                                                    ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400'
+                                                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-950/30 dark:text-primary-400'
                                                     : 'text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700'
                                                 }
                                             `}

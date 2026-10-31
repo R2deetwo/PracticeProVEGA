@@ -433,7 +433,7 @@ const Header: React.FC = React.memo(() => {
                             onClick={() => { actions.switchDemoProduct('atrium'); setDemoProduct('atrium'); }}
                             className={`px-3 py-1 text-xs uppercase tracking-wider font-bold rounded-md transition-all ${
                                 demoProduct === 'atrium'
-                                    ? 'bg-white dark:bg-zinc-600 text-emerald-600 shadow-sm'
+                                    ? 'bg-white dark:bg-zinc-600 text-primary-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'
                             }`}
                         >

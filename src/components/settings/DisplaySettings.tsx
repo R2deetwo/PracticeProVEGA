@@ -4,6 +4,8 @@ import { Theme, FontSize, User } from '../../types';
 import { SunIcon, MoonIcon, FontSizeIcon, DesktopComputerIcon, ZapIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAccentTheme } from '../../contexts/AccentThemeContext';
+import { ACCENT_THEME_OPTIONS } from '../../utils/accentTheme';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { haptics } from '../../utils/haptics';
@@ -201,6 +203,61 @@ interface DisplaySettingsProps {
     className?: string;
 }
 
+// ─── AccentPicker (R52) ──────────────────────────────────────────
+// The product accent (primary colour) controller: Auto follows the
+// active product (Komplete → green, Vega → legal copper, Atrium →
+// jade); an explicit pick LOCKS the palette across every route. The
+// choice persists per-account (localStorage) and applies instantly —
+// sidebar active states, buttons, FAB, selection borders all re-tint
+// because they read the same --color-primary-* ramp.
+const AccentPicker: React.FC = () => {
+    const { preference, setPreference, resolved } = useAccentTheme();
+    return (
+        <div id="accent-preference" role="radiogroup" aria-label="Accent colour">
+            <div className="space-y-2">
+                {ACCENT_THEME_OPTIONS.map((opt) => {
+                    const isActive = preference === opt.value;
+                    return (
+                        <button
+                            key={opt.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={isActive}
+                            onClick={() => setPreference(opt.value)}
+                            className={`w-full px-3 py-2.5 flex items-center justify-between rounded-lg border transition-colors cursor-pointer text-left ${
+                                isActive
+                                    ? 'bg-primary-50 dark:bg-primary-950/30 border-primary-300 dark:border-primary-700'
+                                    : 'bg-white dark:bg-slate-900/60 border-slate-200 dark:border-slate-700/80 hover:border-primary-300 dark:hover:border-primary-700'
+                            }`}
+                        >
+                            <span className="flex items-center gap-3 min-w-0">
+                                <span
+                                    className="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600 flex-shrink-0 shadow-sm"
+                                    style={{ background: opt.swatch }}
+                                />
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-semibold text-slate-800 dark:text-white truncate">{opt.label}</span>
+                                    <span className="block text-xs text-slate-500 dark:text-zinc-400 truncate">{opt.description}</span>
+                                </span>
+                            </span>
+                            {isActive && (
+                                <svg className="w-4 h-4 text-primary-600 dark:text-primary-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-3">
+                {preference === 'auto'
+                    ? `Auto — currently following your active product (${resolved === 'komplete' ? 'Komplete green' : resolved === 'vega' ? 'Vega legal copper' : 'Atrium jade'}).`
+                    : 'Locked — this palette applies to every screen until you change it.'}
+            </p>
+        </div>
+    );
+};
+
 const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, className }) => {
     const { fontSize, setFontSize } = useUI();
     const { currentUser, updateCurrentUser } = useAuth();
@@ -228,6 +285,14 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-3">
                             Changes apply immediately across the application.
                         </p>
+                    </div>
+                    {/* R52 — the product accent controller. Auto follows the
+                        active product; an explicit pick locks the palette
+                        (per-account, localStorage). This is the fix for the
+                        copper-on-Matters/Documents/Research fragmentation. */}
+                    <div className="pt-6 border-t border-slate-100 dark:border-zinc-800">
+                        <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-3">Accent Colour (Product Theme)</label>
+                        <AccentPicker />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">Font Size</label>

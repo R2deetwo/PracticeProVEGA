@@ -312,9 +312,12 @@
  * and even html.theme-* user themes — the product identity wins for the
  * primary accent inside the product's app, while the user's theme keeps
  * governing everything else (backgrounds, text, radii).
- * Applies when: product === 'vega' (pure legal firms, always) or a
- * Komplete firm working on a legal-side view (matters, documents,
- * research, DraftPro) — the "two distinct apps in one workspace" feel. */
+ * R52: the skin is now applied by AccentThemeContext from the active
+ * product + the user's locked preference (Settings → Display →
+ * Appearance) — never per-view. Applies when the resolved accent is
+ * 'vega': a pure Vega firm on auto (every route), or any user who locks
+ * the Vega palette. Komplete resolves to NO class — the :root green is
+ * the komplete register — so its default path is byte-identical. */
 .app-skin-vega {
   --color-primary-50:  253 244 235;
   --color-primary-100: 250 228 208;
@@ -329,6 +332,31 @@
   --color-primary-950: 68 30 13;
   --primary-accent: 224, 122, 63;    /* match primary-500 */
   --primary-light:  250, 228, 208;   /* match primary-100 */
+}
+
+/* R52 — THE ATRIUM ESTATE SKIN. The property register of the /atrium
+ * page (R26: emerald #059669 lit toward jade #0C7A57, grounded in pine
+ * #053D2C — the same greens the AtriumMark tile and the estate pages
+ * wear), carried at TINT LEVEL exactly like the Vega skin above: every
+ * primary-* accent re-resolves, surfaces and layout untouched. Applies
+ * when the resolved accent is 'atrium' (an Atrium firm on auto, or any
+ * user who locks the Atrium palette in Settings). Distinct from the
+ * Komplete green (a brighter kelly #16A34A) and from the Vega copper,
+ * so the three products read as three registers. */
+.app-skin-atrium {
+  --color-primary-50:  236 253 245;
+  --color-primary-100: 209 250 229;
+  --color-primary-200: 167 243 208;
+  --color-primary-300: 110 231 183;  /* #6EE7B7 — the atrium mint */
+  --color-primary-400: 52 211 153;
+  --color-primary-500: 5 150 105;    /* #059669 — the atrium emerald */
+  --color-primary-600: 12 122 87;    /* #0C7A57 — the atrium jade, hover/active */
+  --color-primary-700: 5 101 74;
+  --color-primary-800: 6 78 59;
+  --color-primary-900: 5 61 44;      /* #053D2C — the atrium pine */
+  --color-primary-950: 2 44 32;
+  --primary-accent: 5, 150, 105;     /* match primary-500 */
+  --primary-light:  209, 250, 229;   /* match primary-100 */
 }
 
 /* ===== Smooth Theme Transitions ===== */
