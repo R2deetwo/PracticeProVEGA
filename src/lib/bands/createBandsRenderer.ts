@@ -123,6 +123,20 @@ export function createBandsRenderer(
         return { dispose() { /* nothing running */ }, stats };
     }
 
+    // ── Software-renderer fast path ──────────────────────────────────
+    // SwiftShader/llvmpipe (headless labs, VMs, rare client devices)
+    // rasterizes this shader on the CPU, where a full-resolution first
+    // frame costs >1s of main-thread blocking (measured: Lighthouse TBT
+    // 1,270ms). Start those renderers at the LOWEST quality step — the
+    // ladder never steps back up, so hardware GPUs are unaffected.
+    try {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        const rendererName = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
+        if (/swiftshader|software|llvmpipe|basic render/i.test(rendererName)) {
+            stats.qualityScale = 0.5;
+        }
+    } catch { /* renderer string unavailable — assume hardware */ }
+
     const compile = (type: number, src: string): WebGLShader | null => {
         const sh = gl!.createShader(type);
         if (!sh) return null;
@@ -202,7 +216,7 @@ export function createBandsRenderer(
             canvas.height = h;
             gl!.viewport(0, 0, w, h);
         }
-        if (reduced) drawOnce(STATIC_TIME); // static frame must follow a resize
+        if (reduced && booted) drawOnce(STATIC_TIME); // static frame follows a resize (after boot)
     };
 
     // ── Pointer: lerp 0.05/frame toward the real pointer ─────────────────
@@ -236,6 +250,7 @@ export function createBandsRenderer(
     let framesSinceCheck = 0;
 
     let disposed = false;
+    let booted = false;   // set when the idle boot draws the first frame
     let lastCheckAt = performance.now();
 
     const maybeStepQuality = (minSamples = FRAME_WINDOW) => {
@@ -317,19 +332,43 @@ export function createBandsRenderer(
     canvas.addEventListener('webglcontextlost', onContextLost);
     canvas.addEventListener('webglcontextrestored', onContextRestored);
 
+    let idleHandle: number | null = null;
+    let idleTimer: number | null = null;
+
     resize();
 
-    if (reduced) {
-        // ONE static composition, never animated (spec: uTime = 12.0).
-        drawOnce(STATIC_TIME);
+    // ── Idle boot ───────────────────────────────────────────────────────
+    // The FIRST draw (shader compile + full-screen rasterization) is the
+    // expensive one. Booting it during page load competes with hydration
+    // for the main thread (measured: Lighthouse TBT +1.3s on a software
+    // renderer). The hero already shows the ground colour (the section
+    // background = palette[0]); the bands arrive a beat later, on idle.
+    const boot = () => {
+        if (disposed) return;
+        booted = true;
+        resize();
+        if (reduced) {
+            // ONE static composition, never animated (spec: uTime = 12.0).
+            drawOnce(STATIC_TIME);
+        } else {
+            last = performance.now();
+            raf = requestAnimationFrame(frame);
+        }
+    };
+    if (typeof (window as any).requestIdleCallback === 'function') {
+        idleHandle = (window as any).requestIdleCallback(boot, { timeout: 1200 });
     } else {
-        raf = requestAnimationFrame(frame);
+        idleTimer = window.setTimeout(boot, 200);
     }
 
     return {
         dispose() {
             disposed = true;
             cancelAnimationFrame(raf);
+            if (idleHandle !== null && typeof (window as any).cancelIdleCallback === 'function') {
+                (window as any).cancelIdleCallback(idleHandle);
+            }
+            if (idleTimer !== null) clearTimeout(idleTimer);
             io.disconnect();
             ro.disconnect();
             document.removeEventListener('visibilitychange', onVisibility);

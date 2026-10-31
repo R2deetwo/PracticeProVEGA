@@ -103,6 +103,19 @@ describe('R53 the renderer (src/lib/bands/createBandsRenderer.ts)', () => {
         expect(r).toContain('STATIC_TIME = 12.0');
     });
 
+    it('boots the first (expensive) draw on idle — never competing with hydration', () => {
+        // Measured: a synchronous first draw on a software renderer cost
+        // 1,270ms of Lighthouse TBT. The hero shows the ground colour
+        // until idle, then the bands arrive.
+        expect(r).toContain('requestIdleCallback(boot, { timeout: 1200 })');
+        expect(r).toContain('booted = true');
+    });
+
+    it('starts SOFTWARE renderers (SwiftShader/llvmpipe) at the lowest quality step', () => {
+        expect(r).toMatch(/swiftshader\|software\|llvmpipe/i);
+        expect(r).toContain('stats.qualityScale = 0.5');
+    });
+
     it('handles context loss, restore, and dispose — WITHOUT killing the context', () => {
         expect(r).toContain('webglcontextlost');
         expect(r).toContain('webglcontextrestored');
