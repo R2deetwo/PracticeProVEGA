@@ -13944,3 +13944,47 @@ one should be in Atrium, the Vega one should be in Vega."
   mirror job fails at token verification (CLOUDFLARE_API_TOKEN expired
   — owner action: rotate the repo secret; Vercel + Convex deployed and
   verified, the failure does not affect the live site).
+
+**R48 (cf2d57fc) — DraftPro grows two engines: the contract analyzer
+(standard) and the statutory cross-referencer (Enterprise add-on).**
+Owner brief (Prompt 1): "Implement two new AI-powered modules into the
+existing Vega application architecture: 1. 'DraftPro: Smart Document /
+Contract Analyzer' (Included standard in core tier). 2. 'Regulatory &
+Compliance Cross-Referencing Tool' (High-value modular add-on /
+Enterprise tier)." Split-pane workspaces, no toy chat UIs; drag-and-drop
+docx/PDF ingest; analysis dashboard (defined terms, missing standard
+clauses, risk scoring, redline suggestions); side-by-side original vs
+suggested Nigerian-law-compliant drafts; jurisdiction & statute
+selector; a compliance audit log with exact section citations; an
+add-on gate modal for standard users.
+- MODULE 1 (standard, every plan — the Free tier included, exactly as
+  the brief's "core tier" wording demands). Pure deterministic engine
+  (contractAnalysis.ts) + the mock API data structures documented for
+  the backend swap; the workspace's own extraction stack (pdfjs/JSZip,
+  no new deps). MODULE 2 (statuteLibrary.ts): seven provisions authored
+  from the statutes as verified during the round — CAMA 2020 s.18(1),
+  Labour Act s.7(1) + s.18(1), FCCPA 2018 s.17 + s.24, Lagos Tenancy
+  Law 2011 s.4 + s.25; findings carry exact citations ("Violation of
+  Section 4 of the Lagos Tenancy Law 2011") and the fix that cures each.
+  The gate: Enterprise/Komplete or per-firm activation (the
+  estateCommunity { status, trialEndsAt } shape) — no invented catalog
+  price; the CTA opens the existing upgradePlan modal at Enterprise.
+- Gates: 1349/1349 (+32), tsc 125 (= baseline), eslint clean, ADR-0004
+  ratchet held (the file picker is created imperatively — no JSX
+  raw-element debt), build green. Local QA on the dev server + demo
+  session (the r28-app-shots pattern): 13/13 — sidebar entry, idle drop
+  zone, real-file-chooser ingest, auto-detect as Commercial Lease,
+  flags/missing/defined-terms panels, redline side-by-side, Lagos audit
+  citing s.4 with the required fix, zero app console errors. VLM:
+  analysis panel SHIP; audit log SHIP. The demo firm runs Enterprise,
+  so live QA exercised the audit side; the gate modal is static markup
+  on the SoftGateModal pattern with the brief's copy verbatim.
+- Live: production healthy at cf2d57fc (version.json); the promote's
+  quality gate (1353 as of the pinned commit) + Vercel + Convex verified
+  by the workflow; the run's only failure is the standing Cloudflare
+  mirror token (as R47 — owner action, unchanged).
+- NOTE for R49 (recorded here because it bit immediately): the R49
+  commit pushed before the pinned section-inventory test
+  (websiteRepositioning) was updated for the two new bands — its CI run
+  is red for that reason alone; the fix landed in the R50 commit and R49
+  rides the R50 promote.
