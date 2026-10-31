@@ -13988,3 +13988,75 @@ add-on gate modal for standard users.
   (websiteRepositioning) was updated for the two new bands — its CI run
   is red for that reason alone; the fix landed in the R50 commit and R49
   rides the R50 promote.
+
+**R49 (f46fe3a3 → live at bcc5f76b with R50) — the Vega page sells what
+it ships: DraftPro standard, the regulatory add-on, a real matrix.**
+Owner brief (Prompt 2): integrate DraftPro as a standard core feature,
+introduce the Regulatory & Compliance engine as a high-value Enterprise
+add-on; authoritative, no-nonsense, Nigerian-local — no US buzzwords.
+- THE HERO: the sub-headline carries the full offer (DraftPro built in,
+  toxic clauses flagged instantly, redlined to Nigerian-law-compliant
+  drafts, hours → minutes); the micro-label gains DRAFTPRO INCLUDED.
+  The AI band names DraftPro standard in every workspace; the capability
+  index gains the analyzer line.
+- V — STATUTORY CROSS-REFERENCING (new band) and VI — PLANS & ADD-ONS
+  (new band); Credentials VI→VII, Questions VII→VIII — the roman run
+  stays unbroken. The provisions render from THE SAME statute library
+  the workspace runs — one source of truth. The matrix renders from
+  VEGA_TIERS (the in-app subscription page's own source — prices cannot
+  drift), with the two-row delineation: Vega Core + DraftPro™ (Standard)
+  vs Regulatory Compliance Cross-Referencing (Add-on · Enterprise tier).
+  tiers.ts gains the lines: DraftPro standard on every Vega plan (Free
+  included), the Regulatory engine on Enterprise only.
+- Gates: 1353/1353 (+4 vegaTiersDraftPro), tsc 125, eslint clean, ratchet
+  held, build green. Local QA 28/28; VLM regulatory band SHIP, pricing
+  SHIP (the first regulatory capture at a 900px viewport was an element-
+  screenshot stitching artifact — disproven at a 3,200px viewport).
+  Live (rides the R50 promote): production QA 28/28; VLM on the
+  production captures: regulatory SHIP, pricing SHIP (four cards, Naira
+  prices, Pro recommended, the two-row delineation present).
+  Process note: its CI run was red because the pinned section-inventory
+  test was updated one commit late (recorded under R48); the inventory
+  pin now carries VegaRegulatory + VegaPricing between Scale of Charges
+  and Credentials.
+
+**R50 (e6db1521 + bcc5f76b) — the full-screen faded heroes: the still
+recedes, the silk moves.**
+Owner brief (Prompt 3): full-screen faded hero imagery on the main site,
+the 3-image cycling component on Vega replaced with a single stable
+faded hero, and custom silky-smooth swirling band animations on both
+sites — Bitnomial-inspired, adapted to the brand palette; performance,
+accessibility (prefers-reduced-motion) and the z-0/z-10/z-20 layering
+per the brief.
+- THE SHARED SILK (src/sites/shared/SwirlBands.tsx): one canvas, two
+  palettes — hub: translucent deep navy / dark slate / muted gold at
+  15–30%; vega: legal-tech cyan/gold. Each band sums three octaves of a
+  base frequency (the brand fractal character) and never cycles back to
+  a recognizable loop. rAF with no layout reads, DPR capped at 2,
+  offscreen/hidden pauses, reduced-motion draws one static frame.
+- THE HUB HERO: full-screen (100dvh) at every breakpoint behind
+  from-slate-950/85 via-slate-900/75 to-slate-950; the copy flips light;
+  the featured card goes dark glass; the R46 mobile panel retired. The
+  still is faded to 0.40 and — after two of three VLM readings still saw
+  the face as dominating at the 60% anchor — re-anchored to 72% so the
+  subject sits in the dark right zone away from the copy column: VLM
+  SHIP at desktop and mobile. The pinned tests updated with the page
+  (the 60%→72% anchor pin initially failed a CI run and was corrected
+  one commit later — the fixup and the pin rode bcc5f76b).
+- THE VEGA HERO: the carousel and dots retired; one stable photograph
+  (vega-hero-2) behind from-slate-950/80 via-slate-900/70 to-slate-950,
+  arriving through a 1s opacity ease; the Vega silk beneath; light copy
+  (white serif, gilt accents survive); the paper washes retired.
+  fetchPriority dropped from both hero images (React 18 logs an
+  unknown-prop warning for it); eager + above-the-fold serves the LCP.
+- Gates: 1353/1353, tsc 125, eslint clean, ratchet held (2314 = 2314),
+  build green. QA (scripts/r50-hero-qa.cjs, five probes — hub/vega ×
+  desktop/mobile + reduced-motion): 47/47 locally AND on production;
+  canvas-paint sampling proves the silk draws; VLM: hub desktop SHIP,
+  hub mobile SHIP, vega desktop SHIP (the silk's subtlety is the 15–30%
+  brief by design), vega mobile SHIP. The cookie banner is dismissed in
+  the harness so it never overlays the captures.
+- Live: production healthy at bcc5f76b (version.json). The promote's
+  only failure is the standing Cloudflare mirror token (owner action,
+  unchanged since R47). R49's landing work went live on this same
+  promote.
