@@ -336,20 +336,23 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hubHeroSection).not.toContain("w8-scene-enter");
     expect(hubHeroSection).toContain("End-to-End Digital Infrastructure");
     expect(hubHeroSection).toContain("We design, build, and run custom business solutions.");
-    // R46: the still — the same photograph, stopped. Desktop full-bleed
-    // (the loop's rest frame, anchored at 60% so the subject stays
-    // composed at every lg width); the framed panel below lg at a
-    // natural photographic scale. Lazy + display:none scoping means
-    // each breakpoint fetches only the composition it shows.
+    // R50: the full-screen faded hero — the same still, full-bleed at
+    // EVERY breakpoint behind the dark gradient overlay
+    // (from-slate-950/85 via-slate-900/75 to-slate-950); the framed panel
+    // below lg is retired — the heavy darkening keeps the photograph a
+    // texture rather than a looming face. The motion layer is the shared
+    // silk canvas at z-0; the photograph itself never moves, and the
+    // entrance staggers remain one-time arrivals.
     expect(hubHeroSection).toContain("ambient-still.jpg");
-    expect(hubHeroSection).toContain("ambient-still-panel.jpg");
+    expect(hubHeroSection).not.toContain("ambient-still-panel.jpg");
     expect(hubHeroSection).toContain("object-[60%_center]");
-    expect(hubHeroSection).toContain("aspect-[4/3]");
-    // Nothing in the hero animates: no pinging badge dot, no bobbing
-    // scroll cue (the chevron rests), no JS motion machinery at all.
+    expect(hubHeroSection).toContain("min-h-[100dvh]");
+    expect(hubHeroSection).toContain("from-slate-950/85 via-slate-900/75 to-slate-950");
+    expect(hubHeroSection).toContain("<SwirlBands");
+    // Nothing in the hero itself animates after arrival: no pinging badge
+    // dot, no bobbing scroll cue (the chevron rests).
     expect(hubHeroSection).not.toContain("animate-ping");
     expect(hubHeroSection).not.toContain("w7-scroll-cue");
-    expect(hubHeroSection).not.toContain("IntersectionObserver");
     // The featured solutions: Vega + Atrium in their own names — R45:
     // a slimmer card (330px, tighter air).
     expect(hubHeroSection).toContain("FeaturedSolutionsCard");
@@ -741,6 +744,10 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
       "VegaAIDrafting",
       "VegaCourtRules",
       "VegaScaleOfCharges",
+      // R49: the two new bands — the add-on (V) and the pricing matrix (VI)
+      // — before Credentials (VII) and Questions (VIII).
+      "VegaRegulatory",
+      "VegaPricing",
       "VegaCredentials",
       "VegaFAQInk",
       "VegaFinalCTA",
@@ -793,14 +800,20 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     // no thread header. Real people instead.
     expect(vegaHero).not.toContain("ChatRow");
     expect(vegaHero).not.toContain("ALOA · Online");
-    // The gallery: three real photographs of the practice at work,
-    // cycling with pagination dots. R40: the exhibit chrome (frame,
-    // "The practice, at work" header, mono caption) is gone — the
-    // photographs stand alone.
-    expect(vegaHero).toContain("/assets/landing/vega-hero-1.jpg");
-    expect(vegaHero).toContain("/assets/landing/vega-hero-2.jpg");
-    expect(vegaHero).toContain("/assets/landing/vega-hero-3.jpg");
-    expect(vegaHero).toContain("View scene");
+    // R50: the 3-image cycling gallery is RETIRED. A single stable,
+    // full-screen faded photograph sits behind the matching dark
+    // gradient overlay; the Vega silk (cyan/gold) runs beneath it.
+    // The image arrives through a 1s opacity ease; after that, only the
+    // silk moves.
+    expect(vegaHero).toContain("vega-hero-2.jpg");
+    expect(vegaHero).not.toContain("vega-hero-1.jpg");
+    expect(vegaHero).not.toContain("vega-hero-3.jpg");
+    expect(vegaHero).not.toContain("View scene");
+    expect(vegaHero).not.toContain("setInterval");
+    expect(vegaHero).toContain("<SwirlBands");
+    expect(vegaHero).toContain("from-slate-950/80 via-slate-900/70 to-slate-950");
+    expect(vegaHero).toContain("transition-opacity duration-1000 ease-in-out");
+    expect(vegaHero).toContain("min-h-[100dvh]");
     expect(vegaHero).not.toContain("The practice, at work");
     expect(vegaHero).not.toContain("bg-vega-parchment");
     // The title-page devices: serif display + the gilt accent + the thin
@@ -808,8 +821,10 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaHero).toContain("font-vega");
     expect(vegaHero).toContain("font-vega-italic text-vega-gilt-bright");
     expect(vegaHero).toContain("h-px w-24 bg-vega-gilt");
-    expect(vegaHero).toContain("vg-hero-bg");
-    expect(vegaHero).toContain("vg-grain");
+    // R50: the light paper washes retired with the dark hero; the copy
+    // flips to light on the dark ground.
+    expect(vegaHero).not.toContain("vg-hero-bg");
+    expect(vegaHero).not.toContain("vg-grain");
   });
 
   it("R40: the fake ALOA chat mockup is retired — the band carries REAL captures (R40)", () => {
