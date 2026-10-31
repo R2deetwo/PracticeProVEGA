@@ -14113,3 +14113,134 @@ top it looks too pointed please. it should be a box 'A' not with slants."
   serves the box path, the pointed path is gone, the mark renders on
   /atrium, favicon-48.png regenerated. VLM on the live /atrium nav
   crop: BOX-A. version.json healthy at 6a3bd8cc.
+
+**R52 (d84a3597 + 8082fab1, live at 8082fab1 via run 41220416821) — one
+accent, one engine: Komplete green on every route, user-lockable.**
+Owner bug report (Prompt 5): "?app=komplete — Home renders the brand
+green correctly, but Matters, Documents, Research abruptly override the
+accent with a hardcoded copper/brown scheme; the colour state is forced,
+not driven by a centralised theme or user-controlled appearance
+preferences."
+- ROOT CAUSE: R28's LEGAL_SIDE_VIEWS — a per-VIEW skin class that
+  switched Komplete firms to the Vega copper the moment they opened a
+  "legal-side" module. Deleted outright.
+- THE ENGINE (one resolution point): AccentThemeContext (registered
+  after ProductProvider) resolves accentTheme.resolveAccentTheme(
+  preference, product): 'auto' inherits the product mode — unified →
+  komplete (the favicon green), vega → the Warm Chambers copper,
+  atrium → the estate jade; any explicit preference is a LOCK that wins
+  regardless of product. Applied as a scope class on the app container
+  remapping the --color-primary-* ramp; komplete resolves to NO class —
+  the :root default IS the komplete green, so the default path stays
+  byte-identical.
+- ATRIUM JOINS THE SET: .app-skin-atrium (emerald #059669 lit toward
+  jade #0C7A57, grounded in pine #053D2C — the AtriumMark tile's own
+  register) alongside the existing .app-skin-vega. Sidebar active
+  states, FABs, buttons and badges all read the ramp — nothing
+  hardcodes a module accent anymore (pinned by test: the sidebar
+  workspace row reads primary-*, not a hardcoded green).
+- SETTINGS → DISPLAY → APPEARANCE: the controller — Auto (follow the
+  product) plus the three palettes with swatches, persisted per-account
+  in localStorage (key derived from the normalized email; a signed-out
+  save is a quiet no-op) so it survives reloads and deep-links.
+  8082fab1: the picker's controls moved onto the ui/ Button primitive —
+  the ADR-0004 raw-element ratchet held.
+- Gates: 1366/1366 (+12 accentTheme), convex tsc 0, root tsc 125
+  (baseline), eslint clean, build green. Promote run 41220416821:
+  quality gate ✓, Vercel + Convex ✓, live serving 8082fab1; the run's
+  only failure is the standing Cloudflare mirror token (owner action,
+  unchanged since R47).
+
+**R53 (4f235e74 + ddac46af, live at ddac46af via run 41221834681) — the
+flowing bands: the hub hero becomes a WebGL2 contour field, the
+photograph retires.**
+Owner direction (Prompt 5, via a reference analysis of bitnomial.com's
+hero): the R50 stroked-line silk was "random lines… you can hardly even
+see it" — what was wanted is the reference's silky FRACTAL contour
+bands: layered folds, razor-thin bright lines, soft glow, zero banding.
+- THE REFERENCE, DIAGNOSED: bitnomial.com ships the effect as a looping
+  1500×1500 MP4 (a <video>, no canvas, no three/gsap). We built the
+  shader version instead — resolution-independent, ~10KB of GLSL, no
+  loop seam, infinite dwell.
+- THE SHADER (src/lib/bands/shader.frag.ts, the owner-supplied spec
+  verbatim): domain warping — fbm of fbm of fbm (q → r → f) — folds a
+  scalar field swept diagonally; fract(k) slices it into contour bands;
+  each band gets a silky cos inner gradient, an exponential glow and a
+  fwidth()-AA'd razor line at centre; a horizontal mask keeps the
+  effect on the RIGHT, blending to the ground colour under the copy
+  column; a 1/255 dither kills 8-bit banding.
+- THE RENDERER (createBandsRenderer.ts, 352 lines): dependency-free
+  WebGL2, one fullscreen triangle via gl_VertexID, zero per-frame
+  allocations; CSS-size × min(DPR, 2) × qualityScale with quality
+  stepping DOWN only (1 → 0.75 → 0.5 when the 30-frame average exceeds
+  20ms; software renderers — SwiftShader/llvmpipe — boot at 0.5);
+  frame delta clamped to 0.1s; pointer lerped at 0.05/frame;
+  IntersectionObserver + visibilitychange pause; prefers-reduced-motion
+  renders ONE static frame (uTime 12.0) and stops; context-loss/
+  restore handled without killing the context; full dispose on unmount.
+  ddac46af: the first (expensive) draw boots on requestIdleCallback so
+  it never competes with hydration — TBT 1,270ms reclaimed — and
+  software renderers start at the lowest quality step.
+- THE HERO: the hub photograph and its gradient overlay are RETIRED
+  (ambient-still.jpg and ambient-still-panel.jpg deleted); the hero IS
+  the bands now — palette [bg #050B18, mid #1B3358, bright #3D6CA8,
+  line #D8B45C], bandCount 9, speed 0.55 — the PracticePro register:
+  navy ground, slate folds, a gilt contour razor. The section
+  background equals uPal[0] so the mask's left edge is seamless;
+  copy in light on the dark ground; the R42 entrance stagger survives.
+  Without WebGL2: a quiet navy CSS gradient fallback — never a crash.
+- VEGA: the silk lines are RETIRED there too (owner: "I don't know why
+  you've put those lines inside it") — SwirlBands.tsx is deleted
+  outright; Vega keeps the clean full-screen faded photograph hero.
+- Gates: 1388/1388 (+22 bandsRenderer — the shader pins: version-300-es
+  preamble, the fbm warp chain, fwidth AA + dither, the right-side
+  mask, uPointer reactivity, the triangle draw, quality stepping, the
+  0.1s clamp, pause paths, the static reduced-motion frame, the idle
+  boot, the software-renderer floor, context loss/restore/dispose, the
+  CSS fallback, and the hero wiring — photo gone, palette pinned, Vega
+  clean), convex tsc 0, root tsc 125, eslint clean, build green.
+  Promote run 41221834681: quality gate ✓, Vercel + Convex ✓, live
+  serving ddac46af; Cloudflare mirror token unchanged (owner action).
+
+**R54 (9c2d28a7, live at 9c2d28a7 via run 41224042433) — just the
+names: the badge taxonomy retires, the portfolio catches up with the
+real pages, the Vega mark wears the favicon's orange.**
+Owner direction (Prompt 5, appended): the work cards' category labels
+go — "There's no need to add a product… no need to even put built for a
+client… Even that's a free tool. Let's not put a free tool… Let's just
+have the names of the things." Plus: the Vega screenshot on the hub was
+stale, and the Vega logo on the page read too dark next to the favicon.
+- THE CARDS: 'A product' (Vega, Atrium), 'Built for a client' (Kozy
+  Care) and 'A free tool' (Woosh) pills and their icon chips (the
+  scales symbol included) are retired from the cards AND the preview
+  modal's header — every entry leads with its name and tagline, nothing
+  else. The intro's taxonomy sentence ("Two products we run ourselves,
+  a platform built to order for a client, and a free tool…") goes with
+  them; what remains is the substance: "Each one takes a real workflow
+  end to end… Real screens, real stack, really live."
+- THE SHOTS: vega-page.jpg / vega-m-page.jpg / atrium-page.jpg /
+  atrium-m-page.jpg were R26-era captures (Oct 13) — 30+ rounds stale,
+  showing the pre-R37 page and the pre-R51 pointed A. Re-captured from
+  the R54 build at 1440×900 and 390×844 (cookie banner dismissed in the
+  harness), so the cards and the guided tour's LIVE shots show the
+  current dark-hero pages. VLM on all four: modern pages, correct
+  marks, no banner, no defects — SHIP.
+- THE MARK: the VegaMark's star was painting in the R37 claret
+  (--color-vega-gilt #7B1E1E) while the favicon kept the R26 burnt
+  orange the owner chose — the mark read dark and unlike the tab. New
+  dedicated tokens (--color-vega-seal #E07A3F, -seal-bright #F3A66A,
+  -seal-ground #2E2015) carry the favicon SVG's exact hex; the mark's
+  star, hairline and ground now render identically to the tab icon.
+  The favicon itself is untouched — it IS the standard.
+- Gates: 1390/1390 (+2 R54 pins: the badge/iconClass/typeKey absence
+  + name pins + the intro sentence gone; the seal tokens in marks, css
+  and favicon), convex tsc 0, root tsc 125 (baseline), eslint 0 errors
+  (and two fewer rounded-xl warnings — the chips' spans went with
+  them), build green. Local QA 18/18 (pills absent, four h3 names, no
+  chips, card images load, modal header clean, zero console errors).
+  Live: run 41224042433 quality gate ✓, Vercel + Convex ✓; live QA
+  13/13 — pills gone, names render, the new vega-page.jpg serves
+  byte-identical (97,499B), and the live nav mark's gradient stops
+  resolve to rgb(224,122,63)/rgb(243,166,106) — the favicon's own
+  orange. VLM on the live section + mark crops: SHIP. Cloudflare
+  mirror token unchanged (owner action, standing since R47).
