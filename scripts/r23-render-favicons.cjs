@@ -4,6 +4,12 @@ const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
 
+// Prefer the repo's cached full Chromium (the sandbox keeps a pinned build
+// at chromium-1200; newer playwright revs look for a headless-shell that
+// isn't downloaded — same pattern as the r50 hero QA harness).
+const CACHED_CHROME = '/home/z/.cache/ms-playwright/chromium-1200/chrome-linux64/chrome';
+const launchArgs = fs.existsSync(CACHED_CHROME) ? { executablePath: CACHED_CHROME } : {};
+
 const root = path.join(__dirname, '..');
 const jobs = [
     { svg: 'public/brand/vega/favicon.svg', out: 'public/brand/vega/favicon-48.png', size: 48 },
@@ -13,7 +19,7 @@ const jobs = [
 ];
 
 (async () => {
-    const browser = await chromium.launch();
+    const browser = await chromium.launch(launchArgs);
     for (const j of jobs) {
         const svgAbs = path.join(root, j.svg);
         const outAbs = path.join(root, j.out);

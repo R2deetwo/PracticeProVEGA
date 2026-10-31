@@ -86,7 +86,7 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Big A (R47): a solid emerald tile with a bold white A
+/** Atrium — the Big A (R47, redrawn R51): a solid emerald tile with a
  *  cut through it — the PracticePro favicon's own formula (owner
  *  direction: "I don't like the favicon or even the icon for Atrium.
  *  For Atrium, I think it would look better if you look at the Practice
@@ -96,7 +96,10 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
  *  the letter carries the meaning; nothing to interpret at a glance.
  *  (R28's house mark and R39's courtyard coin are retired by
  *  owner direction — the courtyard read as abstract geometry, not as
- *  the product's name.) */
+ *  the product's name.) R51 redraws the letterform by owner direction
+ *  ("make the 'A' have a flat top it looks too pointed please. it
+ *  should be a box 'A' not with slants"): the pointed apex and splayed
+ *  legs are gone — the A is a BOX letter, every edge orthogonal. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -121,20 +124,22 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
                 clarity. No hairline — the filled tile holds its own edge
                 on light and dark UI alike. */}
             <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#atmk${uid})`} />
-            {/* THE A — one bold geometric letterform, solid white, sized
-                like the company favicon's P (owner, R47: "There's a big
-                P... it looks much clearer"): the letter spans 75% of the
-                tile's width and 81% of its height, with 8.5-unit legs
-                (≈2.8px at a 16px tab render — the P's own stem weight)
-                and a 6.5-unit crossbar. Drawn as a single evenodd path:
-                the A silhouette (flat apex, two legs, feet) with the
-                bottom notch open and the counter punched above the bar.
-                The counter (9 wide) and notch stay legible at 16px —
-                the VLM-verified clarity bar for the tab. */}
+            {/* THE A — one bold BOX letterform (R51), solid white, sized
+                like the company favicon's P: the letter spans 75% of the
+                tile's width and 81% of its height and is drawn as a
+                single evenodd path with ONLY orthogonal edges — a flat
+                top across the full 6→42 span, two vertical 8.5-unit
+                stems (≈2.8px at a 16px tab render — the P's own stem
+                weight), a 6.5-unit crossbar, a rectangular counter
+                (19×12.5) and a squared foot notch. No apex, no splayed
+                legs — the box register the owner asked for (R51:
+                "it should be a box 'A' not with slants"). The counter
+                and notch open wider than the R47 triangle, so the
+                letter stays VLM-legible at 16px. */}
             <path
                 fillRule="evenodd"
-                d="M6 43.5 L21.5 4.5 H26.5 L42 43.5 H33.5 L31.1 37.5 H16.9 L14.5 43.5 Z
-                   M24 17 L28.5 31 H19.5 Z"
+                d="M6 4.5 H42 V43.5 H33.5 V32 H14.5 V43.5 H6 Z
+                   M14.5 13 H33.5 V25.5 H14.5 Z"
                 fill="#FFFFFF"
             />
         </svg>

@@ -1216,6 +1216,28 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(ariaPrompt).toContain("by PracticePro");
   });
 
+  it("R51 — the A is a BOX letter: flat top, vertical stems, no slants", () => {
+    // Owner, R51: "make the 'A' have a flat top it looks too pointed
+    // please. it should be a box 'A' not with slants." The R47 A had a
+    // narrow apex and splayed legs (L-commands climbing to y 4.5). The
+    // R51 letterform is orthogonal end to end: flat top across the full
+    // letter width, two vertical stems, a rectangular counter and a
+    // squared foot notch — every drawing command is H or V.
+    const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
+    const boxPath = "M6 4.5 H42 V43.5 H33.5 V32 H14.5 V43.5 H6 Z";
+    const counterPath = "M14.5 13 H33.5 V25.5 H14.5 Z";
+    expect(marks).toContain(boxPath);
+    expect(marks).toContain(counterPath);
+    // The pointed/slanted R47 silhouette is gone.
+    expect(marks).not.toContain("M6 43.5 L21.5 4.5");
+    expect(marks).not.toContain("L31.1 37.5");
+    // The standalone favicon SVG carries the identical geometry.
+    const atriumFavicon = read("public", "brand", "atrium", "favicon.svg");
+    expect(atriumFavicon).toContain(boxPath);
+    expect(atriumFavicon).toContain(counterPath);
+    expect(atriumFavicon).not.toContain("M6 43.5 L21.5 4.5");
+  });
+
   it("no fabricated aggregateRating anywhere", () => {
     expect(index).not.toContain("aggregateRating");
     expect(index).not.toContain("ratingValue");
