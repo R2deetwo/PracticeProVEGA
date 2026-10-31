@@ -61,7 +61,7 @@ export const HubHero: React.FC<{
                 tabIndex={-1}
                 loading="eager"
                 decoding="async"
-                className="absolute inset-0 z-10 w-full h-full object-cover object-[60%_center] opacity-[0.40] pointer-events-none"
+                className="absolute inset-0 z-10 w-full h-full object-cover object-[72%_center] opacity-[0.40] pointer-events-none"
             />
 
             {/* Layer 2 (z-10, above the still) — the dark gradient overlay:

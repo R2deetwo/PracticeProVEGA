@@ -7,6 +7,7 @@
  * A 3,200px viewport captures the whole section in one frame.
  */
 const { chromium } = require('playwright');
+const URL = process.env.VITE_URL || 'http://localhost:5199';
 
 (async () => {
     const b = await chromium.launch({
@@ -14,7 +15,8 @@ const { chromium } = require('playwright');
         executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || '/home/z/.cache/ms-playwright/chromium-1200/chrome-linux64/chrome',
     });
     const page = await b.newPage({ viewport: { width: 1440, height: 3200 } });
-    await page.goto('http://localhost:5199/vega', { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(URL + '/vega', { waitUntil: 'networkidle', timeout: 60000 });
+    await page.click('text=Acknowledge', { timeout: 2500 }).catch(() => {});
     await page.evaluate(() => document.dispatchEvent(new Event('vg:reveal-all')));
     await page.waitForTimeout(600);
     await page.locator('#regulatory').screenshot({ path: '/tmp/r49-regulatory.png' });
