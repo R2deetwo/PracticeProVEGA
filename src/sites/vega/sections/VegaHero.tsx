@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
-import { SwirlBands } from '../../shared/SwirlBands';
 
 /**
- * VegaHero — R50, the dark full-screen hero for /vega.
+ * VegaHero — R53: the clean photograph hero.
  *
- * Owner direction (Prompt 3, Part 2): the 3-image cycling gallery is
- * RETIRED. In its place: a single stable, full-screen faded hero
- * background — one photograph (the first scene the page has led with
- * since R39: counsel and an associate reviewing a brief) behind the
- * matching dark gradient overlay (from-slate-950/80 via-slate-900/70 to
- * slate-950) for consistency with the PracticePro hero.
+ * Owner direction (Prompt 4): "I like the Vega website... but I don't
+ * know why you've put those lines inside it, and then you didn't even
+ * get it right." The R50 silk-line overlay is RETIRED from Vega — the
+ * page keeps what the owner likes: the single stable, full-screen
+ * faded photograph (counsel and an associate reviewing a brief) behind
+ * the matching dark gradient overlay (from-slate-950/80 via-
+ * slate-900/70 to-slate-950), with the copy in light on the dark
+ * ground. The flowing-bands treatment lives on the PracticePro Systems
+ * hero, where the owner asked for it; Vega stays the quiet legal
+ * register.
  *
- * The custom Vega swirl (SwirlBands variant="vega") runs beneath the
- * faded image in legal-tech cyan/gold — distinct from the parent brand's
- * navy/slate/gold while staying visually connected to it. The image
- * arrives through a 1s opacity ease (transition-opacity
- * duration-1000 ease-in-out); after that, nothing in the hero moves
- * except the silk.
+ * The image arrives through a 1s opacity ease
+ * (transition-opacity duration-1000 ease-in-out); after that, nothing
+ * in the hero moves.
  *
- * Layers: z-0 canvas · z-10 faded image + dark gradient · z-20 the copy.
- * The copy flips to light on the dark ground — white headline, the gilt
- * accents survive (they were born for this), slate-300 body. The §
- * watermark stays, ghosted white.
+ * Layers: z-10 faded image + dark gradient · z-20 the copy. The copy
+ * flips to light on the dark ground — white headline, the gilt accents
+ * survive (they were born for this), slate-300 body. The § watermark
+ * stays, ghosted white.
  */
 export const VegaHero: React.FC<{
     /** Pinned attribution string — owned by the site index. */
@@ -37,13 +37,10 @@ export const VegaHero: React.FC<{
 
     return (
         <section id="home" className="relative overflow-hidden min-h-[100dvh] flex items-center bg-slate-950">
-            {/* z-0 — the Vega silk: cyan/gold, distinct from the parent brand. */}
-            <div className="absolute inset-0 z-0" aria-hidden="true">
-                <SwirlBands variant="vega" />
-            </div>
-
             {/* z-10 — THE STILL: one photograph of the practice, faded.
-                Single and stable — the carousel is retired. */}
+                Single and stable — the carousel is retired, and the R50
+                silk-line layer beneath it is retired with it (the bands
+                belong to the hub hero now). */}
             <img
                 src={`/assets/landing/vega-hero-2.jpg?v=${buildSha}`}
                 alt="Counsel and an associate reviewing a brief together in a law library"

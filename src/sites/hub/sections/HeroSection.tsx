@@ -2,32 +2,46 @@ import React from 'react';
 import { ChevronDownIcon } from '../../../constants';
 import { Button } from '../../../components/ui';
 import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
-import { SwirlBands } from '../../shared/SwirlBands';
+import { BandsBackground } from '../../shared/BandsBackground';
+
+/** The hub bands palette (R53): deep navy ground, navy/slate bands,
+ * steel-blue bright folds, gilt razor lines — the PracticePro register
+ * of the reference look. bg (#050B18) IS the hero's background colour,
+ * which is what makes the shader's left fade seamless. */
+const HUB_BANDS_PALETTE: [string, string, string, string] = [
+    '#050B18', // bg — the hero ground
+    '#1B3358', // mid — the navy band body
+    '#3D6CA8', // bright — the lit fold
+    '#D8B45C', // line — the gilt contour razor
+];
 
 /**
- * HubHero — R50, the full-screen faded hero.
+ * HubHero — R53, the flowing-bands hero.
  *
- * Owner direction (Prompt 3, Part 1): the hero's primary image becomes a
- * full-screen, backdrop layer — h/min-h 100dvh, bg-cover bg-center — with
- * a subtle dark gradient overlay (from-slate-950/85 via-slate-900/75 to
- * slate-950) so it sits in the background gracefully while text, badges
- * and primary buttons stay crisp and legible. The same still photograph
- * the owner approved in R46 stays STOPPED — what moves now is the abstract
- * layer behind it: the shared silk-band canvas (SwirlBands), deep navy /
- * dark slate / muted gold at 15–30% opacity, pointer-events-none.
+ * Owner direction (Prompt 4): "the Practice Pro Systems is not supposed
+ * to have the image anymore in the background, it's supposed to have
+ * this new thing I wanted to incorporate" — the reference being the
+ * silky, fractal, slowly drifting contour bands of bitnomial.com's
+ * hero, which the R50 thin-line overlay did not capture ("you can
+ * hardly even see it... they're not just supposed to be random
+ * lines").
  *
- * Layers, back to front (the brief's exact hierarchy):
- *   z-0  — the swirling canvas.
- *   z-10 — the faded full-screen image + the dark gradient overlay.
- *   z-20 — the hero typography, CTAs and interactive elements.
+ * So: the photograph is RETIRED, and the flowing bands become the hero
+ * itself — a full-bleed WebGL2 shader (BandsBackground →
+ * createBandsRenderer, dependency-free) drawing layered contour bands
+ * that fold into each other, drifting slowly, with razor-thin gilt
+ * lines and a dithered silky gradient. The shader masks the effect to
+ * the right side and blends to the ground colour toward the left, so
+ * the copy column sits on clean navy and the hero's edge is seamless.
  *
- * Mobile & desktop (dvh viewport units): the still is full-bleed at EVERY
- * breakpoint, anchored at 72% so the subject sits in the dark right zone, away from the copy column
- * window — the R46 framed panel is retired; the heavy darkening is what
- * keeps the photograph a texture rather than a looming face. The one-time
- * entrance staggers (r42-hero/hero-stagger/r42-card-in) survive; nothing
- * in the hero itself animates after arrival. Reduced-motion users get a
- * static canvas frame (see SwirlBands).
+ * Layers, back to front:
+ *   z-0  — the flowing-bands canvas (the hero IS the background).
+ *   z-20 — the hero typography, CTAs, the featured card, the cue.
+ * (No image layer, no gradient overlay — nothing to fade.)
+ *
+ * The entrance staggers (r42-hero/hero-stagger/r42-card-in) survive.
+ * Reduced-motion users get ONE static composition (never animated);
+ * without WebGL2 the hero falls back to a quiet navy gradient.
  */
 export const HubHero: React.FC<{
     onContactSales: () => void;
@@ -42,35 +56,21 @@ export const HubHero: React.FC<{
     return (
         <section
             id="home"
-            className="relative overflow-hidden min-h-[100dvh] flex items-center r42-hero bg-slate-950"
+            className="relative overflow-hidden min-h-[100dvh] flex items-center r42-hero"
+            style={{ background: HUB_BANDS_PALETTE[0] }}
         >
-            {/* Layer 0 (z-0) — the silk bands: navy / slate / muted gold at
-                15–30% opacity, twisting behind everything. */}
+            {/* Layer 0 (z-0) — THE HERO ITSELF: the flowing bands. Full-bleed
+                WebGL2 contour field, masked to the right, blending to the
+                ground colour under the copy column. The canvas never takes
+                pointer events; the shader tracks the pointer through the
+                window and warps the field subtly. */}
             <div className="absolute inset-0 z-0" aria-hidden="true">
-                <SwirlBands variant="hub" />
+                <BandsBackground
+                    palette={HUB_BANDS_PALETTE}
+                    bandCount={9}
+                    speed={0.55}
+                />
             </div>
-
-            {/* Layer 1 (z-10) — THE STILL: the workspace photograph, faded.
-                Full-bleed at every breakpoint, anchored at 72% so the
-                subject stays composed in the cover window; translucent so
-                the bands breathe through it. */}
-            <img
-                src="/assets/landing/hero/ambient-still.jpg"
-                alt=""
-                aria-hidden="true"
-                tabIndex={-1}
-                loading="eager"
-                decoding="async"
-                className="absolute inset-0 z-10 w-full h-full object-cover object-[72%_center] opacity-[0.40] pointer-events-none"
-            />
-
-            {/* Layer 2 (z-10, above the still) — the dark gradient overlay:
-                the image sits in the background gracefully; the copy stays
-                crisp. from-slate-950/85 via-slate-900/75 to-slate-950. */}
-            <div
-                className="absolute inset-0 z-10 bg-gradient-to-b from-slate-950/85 via-slate-900/75 to-slate-950 pointer-events-none"
-                aria-hidden="true"
-            />
 
             {/* Layer 3 (z-20) — the content column, light on dark. */}
             <div className="hero-stagger relative z-20 container mx-auto px-4 sm:px-6 pt-32 pb-28 sm:pt-36 sm:pb-24 w-full">
