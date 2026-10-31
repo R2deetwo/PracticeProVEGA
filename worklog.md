@@ -14085,3 +14085,31 @@ R50 promote (run 41211181892) and the repo:
   update CLOUDFLARE_API_TOKEN → re-run production-deploy.yml on
   bcc5f76b to bring the mirror current. Production itself (Vercel +
   Convex) is healthy and fully current; the mirror is a redundancy.
+
+**R51 (6a3bd8cc) — the A squares up: a box letterform, flat top, vertical
+stems, no splay.**
+Owner direction (Prompt 4, appended): "please make the 'A' have a flat
+top it looks too pointed please. it should be a box 'A' not with slants."
+- THE LETTERFORM: the R47 A (narrow apex, splayed legs) is redrawn as a
+  BOX A — every edge orthogonal: a flat top across the full 6→42 span
+  at y 4.5, two vertical 8.5-unit stems, a 6.5-unit crossbar, a
+  rectangular counter (19×12.5) and a squared foot notch, drawn as one
+  evenodd path (`M6 4.5 H42 V43.5 H33.5 V32 H14.5 V43.5 H6 Z` +
+  counter). Same span as the P formula (75% width, 81% height); the
+  counter and notch open WIDER than the R47 triangle, so 16px legibility
+  improves. Eurostile/DIN register — geometric like the company P.
+- SYNCED EVERYWHERE: ProductMarks.tsx (the in-app mark), the standalone
+  public/brand/atrium/favicon.svg (identical geometry), and both PNG
+  renderings regenerated via scripts/r23-render-favicons.cjs (which now
+  prefers the sandbox's pinned Chromium at chromium-1200 — newer
+  playwright revs look for a headless-shell that isn't downloaded).
+- Gates: 1354/1354 (+1 R51 pin: the box path present in mark + favicon,
+  the pointed path absent), tsc 125 (baseline), eslint clean, build
+  green. VLM on the 16/24/48/96/180px sheet: box A, flat top, vertical
+  parallel stems, counter legible at 16px — SHIP.
+- Live: promoted 6a3bd8cc (run 41217085370: quality gate ✓, Vercel +
+  Convex ✓; the run's only failure is the standing Cloudflare mirror
+  token — owner action, unchanged since R47). Live QA 4/4: favicon.svg
+  serves the box path, the pointed path is gone, the mark renders on
+  /atrium, favicon-48.png regenerated. VLM on the live /atrium nav
+  crop: BOX-A. version.json healthy at 6a3bd8cc.
