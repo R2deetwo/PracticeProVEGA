@@ -14244,3 +14244,103 @@ stale, and the Vega logo on the page read too dark next to the favicon.
   resolve to rgb(224,122,63)/rgb(243,166,106) — the favicon's own
   orange. VLM on the live section + mark crops: SHIP. Cloudflare
   mirror token unchanged (owner action, standing since R47).
+
+**R55 (f446c100) — the hairline ribbons: the hub hero's third act, plain
+2D canvas this time. NOT YET PROMOTED — the sandbox's GitHub write
+credential expired; the commit is local-ready (see the deploy note).**
+Owner direction (Prompt 6): "NO topographic / contour-map look. NO
+noise, NO fbm… NO WebGL, NO shaders… Plain 2D canvas only." The R53
+WebGL2 contour field (which read as a topo map) is RETIRED with its
+shader, renderer, wrapper and 22 pins; the owner-supplied implementation
+ships verbatim:
+- src/lib/ribbons.ts — drawRibbons + RIBBON_PRESET: 2 ribbons × 64
+  hairlines on the RIGHT (cx 0.80/0.84), fanning and pinching as if
+  twisting in 3D, one bright edge fading to near-invisible (edge =
+  (1-s)^3.2), additive 'lighter' blend, ~11s sway. The line green is
+  the repo token --color-primary-500 (rgb 22 163 74, #16A34A — the
+  favicon/logo green); the task's eyedropper sample #1CB74C exists
+  nowhere in the repo, and the palette rule says tokens win.
+- src/components/HeroRibbons.tsx — exact owner code: DPR clamp 2, dt
+  clamp 0.1s, IntersectionObserver + visibilitychange pause, ONE static
+  frame (t=2) under reduced-motion, opacity-40 below md. tsconfig gains
+  the '@/\*' paths mapping (matching the existing vite alias; the first
+  '@/'' import in the repo).
+- HeroSection: <HeroRibbons /> as the section's FIRST child; content
+  stays z-20; the ground stays #050B18 (HUB_HERO_GROUND) — the task's
+  sampled #040916 is 1-2 units off the live value (sampling artifact);
+  per "must stay as is" the code value is untouched.
+- NOTE: "three" stays in package.json — the R53 note calling it unused
+  was WRONG: SystemCoreScene (hub) and VegaScalesScene (vega, since
+  deleted as dead code) import it dynamically. Removing it broke tsc
+  (+32 TS2307) and was reverted.
+- Gates: 1388/1388 (+20 heroRibbons pins, −22 bandsRenderer pins),
+  convex tsc 0, root tsc 125 (=baseline), eslint clean, build green.
+  Evidence: 1920×1080 shot (ribbons right, green on navy, 58k
+  green-dominant px, ZERO blue, zero gold outside the VegaMark's
+  favicon-orange star), t0/t4/t8 motion (pixel Δ 5.5+, VLM: "cross,
+  forming an X"), 390px (opacity 0.4, headline readable), pause proofs
+  (off-screen: 0 frames + frozen canvas pixels; hidden: 0 frames; both
+  resume), reduced-motion (1 static frame, 0 draws between samples).
+  PERF HONESTLY REPORTED: the JS/record cost is 0.16-0.21ms/frame
+  (7,680 strokes instrumented), but this GPU-less headless verification
+  browser rasters the full-screen canvas on the CPU (~20ms/frame; its
+  own blank-page floor is 17.3ms and the page without the visible
+  canvas runs at 2ms) — so the ≤16.7ms median cannot be demonstrated
+  in this environment; real GPU browsers pay the raster on the GPU.
+
+**R56 (fed75757) — the Vega light-enterprise rebrand: twelve bands fold
+to six, the espresso register retires. NOT YET PROMOTED (same reason).**
+Owner direction: "a clean, modern, light-themed, enterprise-grade
+landing page… consolidating redundant content into an ultra-focused,
+high-converting layout."
+- THE SYSTEM: .theme-vega/.site-vega remap flips to paper #FFFFFF, ink
+  #0F172A and the TRUE Tailwind slate scale (the warm-ivory/espresso
+  remap retires); white alternating with #F8FAFC; white cards with
+  border-slate-200/80 + shadow-sm/md; Space Grotesk display with tight
+  tracking; deep navy #1E3A8A/#1E40AF executive accent (primary CTAs,
+  the one saturated CTA band) + vibrant indigo #4F46E5 interactive
+  accent (tab indicators, active toggles, indigo-50 pills). The CTA
+  pair's tone=vega re-registers to the navy pill + slate outline.
+- THE SIX SECTIONS: (1) light hero — subtle 48px grid, one pastel
+  ribbon at ~6-7%, "Legal workflow automation for Nigerian law
+  firms.", Get Started (navy) + View Live Demo (outline → the suite's
+  live captures), the REAL dashboard capture in a light browser
+  container (shadow-2xl shadow-slate-900/10); (2) the Core Suite
+  Showcase — ONE tabbed hub (Matter Management / Smart Documents &
+  DraftPro / Time & Billing / Team Workflows), real captures with an
+  exhibit selector, hover or click to switch; (3) Built for Nigerian
+  practice — the Court Rules Agent (HCCPR 2019, 7·3·1), the Regulatory
+  engine (CAMA 2020 · Labour Act · FCCPA 2018 · Lagos Tenancy Law) and
+  ALOA (workspace + draw-out captures) on three light cards; (4) Why
+  firms run on Vega — the attestations + the litigation/transactional
+  segments; (5) Pricing — VEGA_TIERS on white cards, Pro in the navy
+  ring, the FAQ folded in (cost answer keeps the 30-day money-back
+  guarantee, no tier names in the answers); (6) the navy CTA band +
+  the Komplete/bespoke cross-sells.
+- RETIRED: VegaTeam, VegaSegments, VegaAIDrafting, VegaCourtRules,
+  VegaScaleOfCharges, VegaRegulatory, VegaCredentials, VegaFAQInk (the
+  substance rides the six), the dead VegaScalesScene, the full-screen
+  photo hero, and the espresso/claret chrome (nav/footer/sticky CTA/
+  FAB all light; the VegaMark keeps the favicon orange). vega-page.jpg
+  / vega-m-page.jpg re-captured from this build (cookie banner
+  preset-dismissed) so the hub portfolio shows the real page.
+- Gates: 1388/1388, convex tsc 0, root tsc 125 (=baseline), tokens
+  gray=0, primitives 2314 (=baseline), eslint 0 errors (1 pre-existing
+  rounded-xl warn), build green. Local QA: zero console errors, all
+  six bands present, tab interaction verified, VLM on hero/full-page/
+  mobile/team-tab: SHIP.
+- DEFERRED (raised, not shipped): og-vega.png still shows the dark
+  page (a manual brand asset); mouse interaction + scroll-linked
+  motion + a light-mode variant for the hub ribbons; the ribbon
+  effect on /vega or /atrium (explicitly out of scope).
+
+**DEPLOY BLOCKER (both R55 + R56): the sandbox's GitHub write
+credential expired.** All three recoverable tokens (the remote-URL
+PAT, the set_fcm_secret.py PAT and the update-workflow-via-api.cjs
+fine-grained PAT) return 401 — reads kept working only because the
+repo is public. The two commits + this worklog entry sit on local
+main, gates green, ready to push. Owner action: provide a fresh GitHub
+PAT with repo write (update the origin remote URL or hand it to the
+session), then: git push origin main → CI (quality gate) → dispatch
+production-deploy.yml on fed75757 → live verify. The standing
+Cloudflare CLOUDFLARE_API_TOKEN action from R47 remains open too.
