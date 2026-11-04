@@ -10,43 +10,39 @@ import { VegaNavBar, VegaFooter, VegaMobileStickyCTA, VegaChatFab } from './Vega
 import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaSuite } from './sections/VegaSuite';
-import { VegaTeam } from './sections/VegaTeam';
-import { VegaSegments } from './sections/VegaSegments';
-import { VegaAIDrafting } from './sections/VegaAIDrafting';
-import { VegaCourtRules } from './sections/VegaCourtRules';
-import { VegaScaleOfCharges } from './sections/VegaScaleOfCharges';
-import { VegaRegulatory } from './sections/VegaRegulatory';
+import { VegaWhyNigeria } from './sections/VegaWhyNigeria';
+import { VegaTrust } from './sections/VegaTrust';
 import { VegaPricing } from './sections/VegaPricing';
-import { VegaCredentials } from './sections/VegaCredentials';
-import { VegaFAQInk } from './sections/VegaFAQInk';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
 
 /**
- * VegaSite — /vega, "The Reading Room" (R38; simplified R40).
+ * VegaSite — /vega, the light-enterprise edition (R56).
  *
- * Owner direction (R38): "I wanted a redo of the page, not just changing
- * the colours." Owner direction (R40): simplify. The page folds to its
- * load-bearing bands:
+ * Owner direction: "Transform the Vega marketing website from a
+ * dark-themed, text-heavy page into a clean, modern, light-themed,
+ * enterprise-grade landing page… consolidating redundant content into
+ * an ultra-focused, high-converting layout." Twelve sections fold to
+ * SIX core bands:
  *
- *   hero (real photographs of the practice) → THE SUITE (the merged
- *   instrument index with live captures) → practice areas → ALOA (real
- *   captures: the workspace + the draw-out) → court rules → scale of
- *   charges → credentials → interrogatories → colophon CTA.
+ *   hero (light, dashboard preview) → THE CORE SUITE (one interactive
+ *   tabbed hub: matters, documents/DraftPro, billing, team) →
+ *   BUILT FOR NIGERIAN PRACTICE (court rules + regulatory + ALOA) →
+ *   WHY FIRMS RUN ON VEGA (attestations + the practice segments) →
+ *   PRICING (the VEGA_TIERS matrix + the compact FAQ) → the navy
+ *   final-CTA band with the cross-sells.
  *
- * Retired in R40: the mono index line (its claims live in Credentials
- * and the footer), The Record's animated scales (decorative — the real
- * product exhibits carry the trust now), and the three-step procedure
- * schedule (generic; the suite and the pullouts show the actual work).
- *
- * The espresso register survives as TYPE and the deep footer — the
- * chrome is cream glass. Zero shared marketing sections below the nav.
+ * Retired in R56: VegaTeam, VegaSegments, VegaAIDrafting,
+ * VegaCourtRules, VegaScaleOfCharges, VegaRegulatory, VegaCredentials
+ * and VegaFAQInk as standalone bands (their substance rides the six),
+ * the Fraunces/espresso "Reading Room" register, and the full-screen
+ * photograph hero. The reveal machinery (data-vg-reveal) survives.
  */
 export const VegaSite: React.FC = () => {
     const navigate = useNavigate();
     const { openModal } = useUI();
     useSiteChrome('vega');
     const { scrollRef, activeSection, scrollTo } = useSiteScroll(
-        ['home', 'suite', 'practice-areas']
+        ['home', 'suite', 'practice-areas', 'pricing']
     );
     const openSignup = useSignupOpener('vega');
     const {
@@ -140,35 +136,26 @@ export const VegaSite: React.FC = () => {
 
             <main id="main-content" className="animate-swap-in">
                 <VegaHero
-                    eyebrow={'The Chambers Standard — Built by PracticePro'}
+                    eyebrow={'Legal Workflow Automation — Built by PracticePro'}
                     cta={(
-                        <>
-                            <PrimaryButton onClick={() => openSignup()} tone="vega" className="text-base px-8 py-4">
-                                Get Started
-                            </PrimaryButton>
-                            <GhostButton onClick={() => openContactSales('Vega Hero')} tone="vega" className="text-base px-8 py-4">
-                                Talk to Sales
-                            </GhostButton>
-                        </>
+                        <PrimaryButton onClick={() => openSignup()} tone="vega" className="text-base px-8 py-4">
+                            Get Started
+                        </PrimaryButton>
+                    )}
+                    demoCta={(
+                        <GhostButton onClick={() => scrollTo('suite')} tone="vega" className="text-base px-8 py-4">
+                            View Live Demo
+                        </GhostButton>
                     )}
                 />
-                {/* The Reading Room arrangement, simplified (R40): the
-                    merged instrument index (with its live captures), the
-                    segment tabs — then the deep-dives. R43: the chambers
-                    band sits after the Suite — the instruments, then the
-                    whole team that runs them. */}
+                {/* The six core bands (R56): the tabbed suite hub, the
+                    Nigeria differentiators, the trust/segments band, the
+                    pricing matrix with its compact FAQ, and the navy
+                    final-CTA close. */}
                 <VegaSuite />
-                <VegaTeam />
-                <VegaSegments />
-                <VegaAIDrafting />
-                <VegaCourtRules />
-                <VegaScaleOfCharges />
-                {/* R49: the add-on band (V) and the restructured pricing
-                    matrix (VI), before Credentials (VII) and Questions (VIII). */}
-                <VegaRegulatory onContactSales={(s) => openContactSales(s || 'Vega Regulatory')} onSignup={openSignup} />
+                <VegaWhyNigeria />
+                <VegaTrust />
                 <VegaPricing onContactSales={(s) => openContactSales(s || 'Vega Pricing')} onSignup={openSignup} />
-                <VegaCredentials />
-                <VegaFAQInk />
                 <VegaFinalCTA
                     onSignup={openSignup}
                     onContactSales={openContactSales}

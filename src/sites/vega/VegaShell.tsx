@@ -10,21 +10,20 @@ import { vegaSiteConfig } from './siteConfig';
  * every branch resolved to the VEGA surface (productChosen=true,
  * activeProduct='vega', onVega=true).
  *
- * R38 "The Reading Room": the masthead is CREAM GLASS on the ivory page —
- * espresso links, claret accents, warm hairlines. The old espresso
- * "turtleneck" masthead is retired; the deep footer stays espresso (the
- * page's one dark chrome moment) with parchment-grade type. No
+ * R56 light-enterprise register: the masthead is WHITE GLASS on the
+ * white page — slate links, navy accents, cool hairlines. The footer
+ * joins the light system (white stock, slate type, navy accents). No
  * activeProduct ternaries remain.
  */
 
 // R30 motion pass — every chrome affordance carries press feedback
 // (active:scale-[0.98] over 150ms, the Kowalski press-down) and fast
 // spring transitions. Reveals are origin-aware (.menu-in/.menu-in-top).
-const navLinkCls = 'text-vega-night/75 hover:text-vega-night hover:bg-vega-night/5 active:scale-[0.98]';
-const navLinkActiveCls = 'text-vega-gilt-bright active:scale-[0.98]';
-const menuItemCls = 'text-vega-night/75 hover:bg-vega-night/5 hover:text-vega-night active:scale-[0.98] transition-all duration-150';
-const vegaItemCls = 'bg-vega-gilt/10 text-vega-gilt-bright';
-const atriumItemCls = 'text-vega-night/75 hover:bg-vega-night/5 hover:text-vega-night active:scale-[0.98] transition-all duration-150';
+const navLinkCls = 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 active:scale-[0.98]';
+const navLinkActiveCls = 'text-[#1E3A8A] active:scale-[0.98]';
+const menuItemCls = 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all duration-150';
+const vegaItemCls = 'bg-indigo-50 text-indigo-700';
+const atriumItemCls = 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98] transition-all duration-150';
 
 export const VegaNavBar: React.FC<{
     activeSection: string;
@@ -85,8 +84,8 @@ export const VegaNavBar: React.FC<{
 
     return (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
-        {/* Glass layer — cream glass on the ivory page (R38 The Reading Room) */}
-        <div className="absolute inset-0 backdrop-blur-xl border-b transition-colors duration-500 bg-vega-parchment/90 border-vega-night/10" />
+        {/* Glass layer — white glass on the white page (R56) */}
+        <div className="absolute inset-0 backdrop-blur-xl border-b transition-colors duration-500 bg-white/90 border-slate-200/80" />
 
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Product lockup + back-to-hub breadcrumb */}
@@ -98,14 +97,14 @@ export const VegaNavBar: React.FC<{
                 >
                     <VegaMark className="h-8 w-8 group-hover:scale-105 active:scale-[0.98] transition-transform duration-150" />
                     <span className="flex flex-col items-start leading-none">
-                        <span className="text-lg font-bold tracking-tight font-vega text-vega-night">
+                        <span className="text-lg font-bold tracking-tight font-display text-slate-900">
                             Vega
                         </span>
                     </span>
                 </button>
                 <button
                     onClick={onBackToHub}
-                    className="hidden md:flex items-center gap-1 pl-3 border-l h-7 text-xs font-black uppercase tracking-widest transition-colors border-vega-night/15 text-vega-night/70 hover:text-vega-gilt-bright"
+                    className="hidden md:flex items-center gap-1 pl-3 border-l h-7 text-xs font-black uppercase tracking-widest transition-colors border-slate-200 text-slate-500 hover:text-[#1E3A8A]"
                     aria-label="Back to all products"
                 >
                     <ArrowLeftIcon className="w-3 h-3" />
@@ -129,7 +128,7 @@ export const VegaNavBar: React.FC<{
                     </button>
                     {productsOpen && (
                         <div className="absolute top-full left-0 pt-1.5 w-[210px] menu-in origin-top-left">
-                            <div className="border rounded-xl shadow-lg shadow-[rgb(42_33_24/0.18)] flex flex-col p-1 bg-vega-parchment border-vega-night/12">
+                            <div className="border rounded-xl shadow-lg shadow-slate-900/10 flex flex-col p-1 bg-white border-slate-200">
                                 <button
                                     onClick={() => { onOpenProduct('vega'); setProductsOpen(false); }}
                                     className={`px-4 py-2.5 text-left text-sm font-semibold rounded-lg transition-all duration-150 active:scale-[0.98] flex items-center gap-2 ${vegaItemCls}`}
@@ -191,10 +190,10 @@ export const VegaNavBar: React.FC<{
 
             {/* Right Actions — Log In / Start Free Trial on product pages. */}
             <div className="flex items-center gap-2">
-                <div className="hidden lg:block h-4 w-px mx-1 bg-vega-night/15" />
+                <div className="hidden lg:block h-4 w-px mx-1 bg-slate-200" />
                 <button
                     onClick={onLogin}
-                    className="hidden lg:block px-4 py-2 text-sm font-semibold transition-all duration-150 active:scale-[0.98] text-vega-night/75 hover:text-vega-gilt-bright"
+                    className="hidden lg:block px-4 py-2 text-sm font-semibold transition-all duration-150 active:scale-[0.98] text-slate-600 hover:text-[#1E3A8A]"
                 >
                     Log In
                 </button>
@@ -212,7 +211,7 @@ export const VegaNavBar: React.FC<{
                 {/* Mobile hamburger button — shown below lg (1024px). */}
                 <button
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 active:scale-[0.98] text-vega-night hover:bg-vega-night/5"
+                    className="lg:hidden flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-150 active:scale-[0.98] text-slate-700 hover:bg-slate-100"
                     aria-label="Toggle menu"
                     aria-expanded={mobileMenuOpen}
                 >
@@ -225,10 +224,10 @@ export const VegaNavBar: React.FC<{
             </div>
         </div>
 
-        {/* Mobile overlay menu — shown below lg (1024px). R38: the cream
-            sheet, espresso type — the same stock as the page. */}
+        {/* Mobile overlay menu — shown below lg (1024px). R56: the white
+            sheet, slate type — the same stock as the page. */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto bg-vega-parchment menu-in-top origin-top">
+            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto bg-white menu-in-top origin-top">
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     {/* Back-to-hub affordance — mobile users need a way back. */}
                     <button
@@ -250,12 +249,12 @@ export const VegaNavBar: React.FC<{
                     <button onClick={() => handleNavClick(() => scrollTo('practice-areas'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Practice Areas</button>
                     <button onClick={() => handleNavClick(onResources)} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold ${menuItemCls}`}>Resources</button>
                     <button onClick={() => handleNavClick(onContactSales)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Contact</button>
-                    <div className="h-px my-3 bg-vega-night/10" />
+                    <div className="h-px my-3 bg-slate-200" />
                     <button onClick={() => handleNavClick(onLogin)} className={`w-full text-left px-4 py-3 rounded-sm text-sm font-semibold ${menuItemCls}`}>Log In</button>
                     <PrimaryButton onClick={() => handleNavClick(onSignup)} className="!w-full !py-3 !rounded-full !text-sm mt-2">
                         Start Free Trial
                     </PrimaryButton>
-                    <p className="text-2xs text-slate-600 text-center mt-4">No credit card required · 30-day free trial</p>
+                    <p className="text-2xs text-slate-400 text-center mt-4">No credit card required · 30-day free trial</p>
                 </nav>
             </div>
         )}
@@ -272,7 +271,7 @@ export const VegaFooter: React.FC<{
     onContactSales: () => void;
     onOpenProduct: (p: 'vega' | 'atrium') => void;
 }> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onResources, onContactSales, onOpenProduct }) => (
-    <footer className="bg-vega-night border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
+    <footer className="bg-white border-t border-slate-200 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
                 {/* Brand — the product's own mark; the company as attribution. */}
@@ -280,17 +279,17 @@ export const VegaFooter: React.FC<{
                     <div className="flex items-center gap-2.5 mb-4">
                         <VegaMark className="h-7 w-7" />
                         <span className="flex flex-col leading-none">
-                            <span className="text-vega-parchment font-bold text-lg font-vega">
+                            <span className="text-slate-900 font-bold text-lg font-display">
                                 Vega
                             </span>
-                            <span className="font-mono text-2xs tracking-[0.18em] text-slate-300 mt-1">BY PRACTICEPRO</span>
+                            <span className="font-mono text-2xs tracking-[0.18em] text-slate-400 mt-1">BY PRACTICEPRO</span>
                         </span>
                     </div>
-                    <p className="text-slate-300 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
+                    <p className="text-slate-600 text-sm leading-relaxed max-w-xs">We design, build and run the systems businesses manage their affairs with — two products, Vega and Atrium, and custom commissions for clients. From Lagos, for businesses anywhere.</p>
                     <div className="mt-4 flex items-center gap-3">
                         <button
                             onClick={() => onOpenProduct('atrium')}
-                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all duration-150 active:scale-[0.98] text-vega-claret-bright hover:text-vega-parchment border-vega-claret-bright/30 hover:bg-vega-claret-bright/10"
+                            className="text-2xs font-bold uppercase tracking-widest flex items-center gap-1.5 py-1 px-2 rounded-lg border transition-all duration-150 active:scale-[0.98] text-[#1E3A8A] hover:text-[#1E40AF] border-slate-300 hover:border-[#1E3A8A] hover:bg-indigo-50"
                         >
                             Open Atrium <span className="text-xs">↗</span>
                         </button>
@@ -298,73 +297,73 @@ export const VegaFooter: React.FC<{
                 </div>
                 {/* Product */}
                 <div>
-                    <p className="font-mono text-slate-300 text-xs font-medium uppercase tracking-widest mb-4">Product</p>
+                    <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Product</p>
                     <div className="flex flex-col gap-2.5">
-                        <button onClick={() => document.getElementById('suite')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-300 hover:text-white text-sm text-left transition-colors">Features</button>
-                        <button onClick={onResources} className="text-slate-300 hover:text-white text-sm text-left transition-colors">Resources</button>
+                        <button onClick={() => document.getElementById('suite')?.scrollIntoView({ behavior: 'smooth' })} className="text-slate-600 hover:text-slate-900 text-sm text-left transition-colors">Features</button>
+                        <button onClick={onResources} className="text-slate-600 hover:text-slate-900 text-sm text-left transition-colors">Resources</button>
                         {/* ROUND 9: Changelog routes to the Resources page. */}
-                        <button onClick={onResources} className="text-slate-300 hover:text-white text-sm text-left transition-colors">Changelog</button>
+                        <button onClick={onResources} className="text-slate-600 hover:text-slate-900 text-sm text-left transition-colors">Changelog</button>
                     </div>
                 </div>
                 {/* Portals */}
                 <div>
-                    <p className="font-mono text-slate-300 text-xs font-medium uppercase tracking-widest mb-4">Portals</p>
+                    <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Portals</p>
                     <div className="flex flex-col gap-2.5">
-                        <a href={vegaSiteConfig.portal.client} className="text-slate-300 hover:text-white text-sm transition-colors">Client Portal</a>
+                        <a href={vegaSiteConfig.portal.client} className="text-slate-600 hover:text-slate-900 text-sm transition-colors">Client Portal</a>
                     </div>
                 </div>
                 {/* Company */}
                 <div>
-                    <p className="font-mono text-slate-300 text-xs font-medium uppercase tracking-widest mb-4">Company</p>
+                    <p className="font-mono text-slate-400 text-xs font-medium uppercase tracking-widest mb-4">Company</p>
                     <div className="flex flex-col gap-1">
-                        <span onClick={onPrivacyClick} className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Privacy Policy</span>
-                        <span onClick={onTermsClick} className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Terms of Service</span>
-                        <span onClick={onCookieClick} className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Cookie Policy</span>
-                        <span onClick={onUsageClick} className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Usage Policy</span>
-                        <span onClick={onContactSales} className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Contact Sales</span>
-                        <a href="mailto:dpo@practicepro.ng" className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Email Us</a>
-                        <span onClick={onResources} className="text-slate-300 hover:text-white text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Security</span>
+                        <span onClick={onPrivacyClick} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Privacy Policy</span>
+                        <span onClick={onTermsClick} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Terms of Service</span>
+                        <span onClick={onCookieClick} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Cookie Policy</span>
+                        <span onClick={onUsageClick} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Usage Policy</span>
+                        <span onClick={onContactSales} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Contact Sales</span>
+                        <a href="mailto:dpo@practicepro.ng" className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Email Us</a>
+                        <span onClick={onResources} className="text-slate-600 hover:text-slate-900 text-sm cursor-pointer transition-colors min-h-[2rem] flex items-center">Security</span>
                     </div>
                 </div>
             </div>
-            <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <p className="text-xs text-slate-300">© {new Date().getFullYear()} PracticePro Systems Limited Lagos, Nigeria.</p>
-                <p className="text-xs text-slate-300 order-last md:order-none">Vega &amp; Atrium · Built by PracticePro</p>
-                <p className="text-xs text-slate-300">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
+            <div className="border-t border-slate-200 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                <p className="text-xs text-slate-500">© {new Date().getFullYear()} PracticePro Systems Limited Lagos, Nigeria.</p>
+                <p className="text-xs text-slate-500 order-last md:order-none">Vega &amp; Atrium · Built by PracticePro</p>
+                <p className="text-xs text-slate-500">NDPA 2023 Compliant · TLS 1.3 Encrypted · *Encryption provided by infrastructure</p>
             </div>
         </div>
     </footer>
 );
 
-/** Mobile sticky bottom CTA — R38: the cream bar with the claret pill. */
+/** Mobile sticky bottom CTA — R56: the white bar with the navy pill. */
 export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_16px_rgb(42_33_24/0.10)] bg-vega-parchment/95 border-vega-night/10">
+    <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_16px_rgb(15_23_42/0.08)] bg-white/95 border-slate-200">
         <button
             onClick={onContactSales}
-            className="flex-1 py-3 rounded-full border text-sm font-semibold transition-all duration-150 active:scale-[0.98] border-vega-night/25 text-vega-night hover:bg-vega-night/5"
+            className="flex-1 py-3 rounded-full border text-sm font-semibold transition-all duration-150 active:scale-[0.98] border-slate-300 text-slate-700 hover:border-[#1E3A8A] hover:text-[#1E3A8A]"
         >
             Talk to Sales
         </button>
         {/* TASK 54: no-arg invocation — never leak the click event into the
-            product override. Vega's primary is the claret pill (R38). */}
+            product override. R56: Vega's primary is the navy pill. */}
         <button
             onClick={() => onSignup()}
-            className="flex-[1.5] py-3 rounded-full text-sm font-semibold transition-all duration-150 active:scale-[0.98] bg-vega-gilt text-vega-parchment hover:bg-vega-gilt-bright"
+            className="flex-[1.5] py-3 rounded-full text-sm font-semibold transition-all duration-150 active:scale-[0.98] bg-[#1E3A8A] text-white hover:bg-[#1E40AF]"
         >
             Start Free Trial
         </button>
     </div>
 );
 
-/** Chat FAB — R38: the claret roundel on the ivory page. */
+/** Chat FAB — R56: the navy roundel on the white page. */
 export const VegaChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center transition-all duration-150 active:scale-95 bg-vega-gilt border-vega-gilt hover:bg-vega-gilt-bright hover:shadow-lg hover:shadow-[rgb(123_30_30/0.35)]"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center transition-all duration-150 active:scale-95 bg-[#1E3A8A] border-[#1E3A8A] hover:bg-[#1E40AF] hover:shadow-lg hover:shadow-[rgb(30_58_138/0.35)]"
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >
-        <svg className="w-7 h-7 text-vega-parchment" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
         </svg>
     </button>

@@ -103,11 +103,14 @@ const tour = read("src", "components", "marketing", "SystemTour.tsx");
 const css = read("src", "index.css");
 // Vega Pass A — the page-specific rebuild files under marketing/vega/.
 const vegaHero = read("src", "sites", "vega", "sections", "VegaHero.tsx");
-const vegaAIDrafting = read("src", "sites", "vega", "sections", "VegaAIDrafting.tsx");
+// R56: the ALOA content folded into VegaWhyNigeria; the credentials into
+// VegaTrust; the FAQ into VegaPricing. The vars keep their names so the
+// pin blocks below read as the same subjects.
+const vegaAIDrafting = read("src", "sites", "vega", "sections", "VegaWhyNigeria.tsx");
 const vegaSuite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
 const vegaProcedure = ""; // R40: VegaProcedure retired (page simplified)
-const vegaCredentials = read("src", "sites", "vega", "sections", "VegaCredentials.tsx");
-const vegaFAQ = read("src", "sites", "vega", "sections", "VegaFAQInk.tsx");
+const vegaCredentials = read("src", "sites", "vega", "sections", "VegaTrust.tsx");
+const vegaFAQ = read("src", "sites", "vega", "sections", "VegaPricing.tsx");
 const vegaFinalCTA = read("src", "sites", "vega", "sections", "VegaFinalCTA.tsx");
 const atriumStats = read("src", "sites", "atrium", "sections", "AtriumStats.tsx");
 const atriumFeatures = read("src", "sites", "atrium", "sections", "AtriumFeatures.tsx");
@@ -671,10 +674,10 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
   });
 
   it("product heroes carry the Built-by attribution eyebrow", () => {
-    // Pass A: Vega's eyebrow moves to its own register ("The Chambers
-    // Standard") so it no longer mirrors Atrium's "Product · Built by…"
-    // pattern; the Built-by attribution itself survives on both pages.
-    expect(vegaSite).toContain("'The Chambers Standard — Built by PracticePro'");
+    // R56: Vega's eyebrow moves to the light-enterprise register ("Legal
+    // Workflow Automation") — the attribution itself survives on both
+    // pages.
+    expect(vegaSite).toContain("'Legal Workflow Automation — Built by PracticePro'");
     expect(atriumSite).toContain("'Atrium · Built by PracticePro'");
   });
 
@@ -723,8 +726,8 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
   });
 });
 
-describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections", () => {
-  it("/vega renders ONLY Vega-owned sections — zero shared sections, different inventory + order", () => {
+describe("Vega rebrand — the R56 light-enterprise page", () => {
+  it("R56: /vega renders ONLY Vega-owned sections — SIX core bands, consolidated", () => {
     // P0 split: the vega render branch moved verbatim into its own file,
     // src/sites/vega/index.tsx — the <main> element IS the branch (the
     // shell chrome below it is the site's own, not shared sections).
@@ -746,49 +749,34 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     ]) {
       expect(body).not.toContain(`<${s}`);
     }
-    // The vega composition (R38 "The Reading Room"; simplified R40 —
-    // owner: "we need to look at how we can simplify the vega site").
-    // Old expectation: 12 bands including the mono index line, The Record's
-    // scales and the three-step procedure schedule. New expectation: the
-    // page folds to its load-bearing bands — the decorative exhibits are
-    // retired; the real product captures carry the trust.
+    // The R56 consolidation (owner: "a lot of pages and a lot on there
+    // that isn't necessary" → "compress the landing page down to 6 core,
+    // highly engaging sections"): twelve bands fold to six — the hero,
+    // the tabbed Core Suite hub, the Nigeria differentiators, the
+    // trust/segments band, pricing (with the folded FAQ), the final CTA.
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
     expect(order).toEqual([
       "VegaHero",
       "VegaSuite",
-      "VegaTeam",
-      "VegaSegments",
-      "VegaAIDrafting",
-      "VegaCourtRules",
-      "VegaScaleOfCharges",
-      // R49: the two new bands — the add-on (V) and the pricing matrix (VI)
-      // — before Credentials (VII) and Questions (VIII).
-      "VegaRegulatory",
+      "VegaWhyNigeria",
+      "VegaTrust",
       "VegaPricing",
-      "VegaCredentials",
-      "VegaFAQInk",
       "VegaFinalCTA",
     ]);
   });
 
-  it("R43: the chambers band shows the team/collaborative side with live captures", () => {
-    // Owner direction (R43): "there are no live shots of the app that show
-    // multiple team members logged in at the same time... buyers need to
-    // know it has a team/collaborative side to it." The band sits after
-    // the Suite, carries two real captures (the per-counsel task board
-    // and a matter's discussion thread) and honest multi-user copy.
-    const vegaTeam = read("src", "sites", "vega", "sections", "VegaTeam.tsx");
-    expect(vegaSite).toContain("<VegaTeam />");
-    expect(vegaTeam).toContain('id="team"');
-    expect(vegaTeam).toContain("The whole team");
-    expect(vegaTeam).toContain("/assets/landing/app/tasks-team.jpg");
-    expect(vegaTeam).toContain("/assets/landing/app/matter-notes.jpg");
-    expect(vegaTeam).toContain("LIVE CAPTURE");
-    // The honest register: no cards, no shadows (the ruled page).
-    expect(vegaTeam).not.toContain("rounded-");
-    expect(vegaTeam).not.toContain("shadow-");
+  it("R56: the team/collaborative side rides the Suite's Team Workflows tab", () => {
+    // R43 (kept in substance): buyers still need to know it has a
+    // team/collaborative side — real captures (the per-counsel task
+    // board and a matter's discussion thread) and honest multi-user
+    // copy, now inside the tabbed hub instead of a standalone band.
+    expect(vegaSuite).toContain("Team Workflows");
+    expect(vegaSuite).toContain("The whole team");
+    expect(vegaSuite).toContain("/assets/landing/app/tasks-team.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/matter-notes.jpg");
+    expect(vegaSuite).toContain("LIVE CAPTURE");
   });
 
   it("the vega branch never imports an atrium component and vice versa", () => {
@@ -801,51 +789,54 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     }
   });
 
-  it("the hero sells to real people — photographs of the practice, not a product mockup (R39)", () => {
-    // R39 (owner direction: "take the mockup out of the hero — put real
-    // people there; the mockup I like goes down into the Powered-by
-    // band"): the right column is a cycling gallery of the practice at
-    // work; the evening exchange moved to VegaAIDrafting (pinned below).
+  it("R56: the hero is the light-enterprise register — white ground, dashboard preview (R39 kept honest)", () => {
+    // R56 (owner: "a clean, modern, light-themed, enterprise-grade landing
+    // page"): the full-screen photograph and its dark gradient are
+    // RETIRED; the hero is white with a subtle grid + pastel ribbon, a
+    // crisp headline on legal workflow automation, dual CTAs (navy Get
+    // Started + outline View Live Demo), and the REAL dashboard capture
+    // in a light browser container (R28 kept: "use stuff from the app so
+    // we are not showing false images").
     expect(vegaHero).not.toContain("bg-clip-text");
     expect(vegaHero).not.toContain("text-transparent");
-    expect(vegaHero).not.toContain("font-vega-italic font-medium text-vega-amber-deep");
-    // The filing is GONE from the hero — no pleading paper, no court
-    // caption, no execution block. The drafting-paper story lives in the
-    // AI band's tracked-changes exhibit instead.
     expect(vegaHero).not.toContain("vg-pleading");
     expect(vegaHero).not.toContain("vg-doc__line");
     expect(vegaHero).not.toContain("In the High Court of Lagos State");
-    // R39: the product mockup is GONE from the hero too — no chat rows,
-    // no thread header. Real people instead.
     expect(vegaHero).not.toContain("ChatRow");
     expect(vegaHero).not.toContain("ALOA · Online");
-    // R53: the 3-image cycling gallery is RETIRED. A single stable,
-    // full-screen faded photograph sits behind the matching dark
-    // gradient overlay. The R50 silk-line layer is retired from Vega
-    // (owner: "I don't know why you've put those lines inside it") —
-    // the flowing bands belong to the hub hero; Vega stays the quiet
-    // legal register. The image arrives through a 1s opacity ease.
-    expect(vegaHero).toContain("vega-hero-2.jpg");
-    expect(vegaHero).not.toContain("vega-hero-1.jpg");
-    expect(vegaHero).not.toContain("vega-hero-3.jpg");
+    // The photograph hero and its dark gradient are retired.
+    expect(vegaHero).not.toContain("vega-hero-");
+    expect(vegaHero).not.toContain("from-slate-950");
     expect(vegaHero).not.toContain("View scene");
     expect(vegaHero).not.toContain("setInterval");
     expect(vegaHero).not.toContain("<SwirlBands");
     expect(vegaHero).not.toContain("BandsBackground");
-    expect(vegaHero).toContain("from-slate-950/80 via-slate-900/70 to-slate-950");
-    expect(vegaHero).toContain("transition-opacity duration-1000 ease-in-out");
-    expect(vegaHero).toContain("min-h-[100dvh]");
-    expect(vegaHero).not.toContain("The practice, at work");
+    // The light register: white ground, subtle grid, the pastel ribbon,
+    // the crisp slate headline, the navy accent.
+    expect(vegaHero).toContain('className="relative overflow-hidden bg-white"');
+    expect(vegaHero).toContain("backgroundImage");
+    expect(vegaHero).toContain("rgb(79 70 229 / 0.07)"); // the pastel ribbon
+    expect(vegaHero).toContain("font-display");
+    expect(vegaHero).not.toContain("font-vega");
+    expect(vegaHero).toContain("text-slate-900");
+    expect(vegaHero).toContain("text-[#1E3A8A]");
     expect(vegaHero).not.toContain("bg-vega-parchment");
-    // The title-page devices: serif display + the gilt accent + the thin
-    // gilt rule + the night atmosphere.
-    expect(vegaHero).toContain("font-vega");
-    expect(vegaHero).toContain("font-vega-italic text-vega-gilt-bright");
-    expect(vegaHero).toContain("h-px w-24 bg-vega-gilt");
-    // R50: the light paper washes retired with the dark hero; the copy
-    // flips to light on the dark ground.
+    expect(vegaHero).not.toContain("h-px w-24 bg-vega-gilt");
     expect(vegaHero).not.toContain("vg-hero-bg");
     expect(vegaHero).not.toContain("vg-grain");
+    // The dashboard preview: the real capture in the light browser frame.
+    expect(vegaHero).toContain("/assets/landing/app/dashboard.jpg");
+    expect(vegaHero).toContain("rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10");
+    expect(vegaHero).toContain("LIVE CAPTURE");
+    // The headline sells legal workflow automation in Nigeria.
+    expect(vegaHero).toContain("Legal workflow automation");
+    expect(vegaHero).toContain("Nigerian law firms");
+    expect(vegaHero).toContain("NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED");
+    // The dual CTAs are wired by the site index: Get Started (signup) +
+    // View Live Demo (scrolls to the suite's live captures).
+    expect(vegaSite).toContain("Get Started");
+    expect(vegaSite).toContain("View Live Demo");
+    expect(vegaSite).toContain("scrollTo('suite')");
   });
 
   it("R40: the fake ALOA chat mockup is retired — the band carries REAL captures (R40)", () => {
@@ -866,11 +857,10 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa-drawout.jpg");
     expect(vegaAIDrafting).toContain("LIVE CAPTURE — ALOA IN THE RUNNING WORKSPACE");
     expect(vegaAIDrafting).toContain("LIVE CAPTURE — THE DRAW-OUT");
-    // The pullout demos stay — openable working forms, placed LOWER in
-    // the band (owner: "the demos should appear a little further down"):
-    // the deadline computer, the drafting studio, the 7·3·1 cadence, on
-    // the shared ui primitives.
-    expect(vegaAIDrafting).toContain("The Instruments, in Miniature");
+    // The pullout demos stay (owner: "the demos should appear a little
+    // further down"): the deadline computer, the drafting studio, the
+    // 7·3·1 cadence — the instruments, in miniature.
+    expect(vegaAIDrafting).toContain("the instruments, in miniature");
     expect(vegaAIDrafting).toContain("The deadline computer");
     expect(vegaAIDrafting).toContain("The drafting studio");
     expect(vegaAIDrafting).toContain("7 · 3 · 1 cadence");
@@ -886,46 +876,48 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaSuite).not.toContain("VEGA_STATS");
   });
 
-  it("the suite is a ruled, expandable instrument index with live captures (R38)", () => {
-    // R38: the six-card grid, the dark matters ledger and the separate
-    // workspace gallery are merged into ONE instrument — a ruled index on
-    // the ivory ground (no cards, no shadows, square corners) whose rows
-    // expand inline into capability entries + a LIVE CAPTURE (R28 owner
-    // direction: "use stuff from the app so we are not showing false
-    // images").
+  it("R56: the suite is ONE consolidated interactive hub — four tabs, live captures (R38/R42 kept)", () => {
+    // Owner direction: "Combine Matter Management, Smart Document/DraftPro
+    // Drafting, Time & Billing, and Team Workflows into a single
+    // interactive hub." The R42 per-entry index folds into a tabbed
+    // surface: four tabs, each with REAL captures (R28 kept: "use stuff
+    // from the app so we are not showing false images") and a capture
+    // selector so a visitor can page the exhibits.
     expect(vegaSuite).toContain('id="suite"');
-    expect(vegaSuite).not.toContain("rounded-");
-    expect(vegaSuite).not.toContain("shadow-");
-    expect(vegaSuite).toContain("INSTRUMENTS");
-    // The daylight register: warm hairlines and espresso titles — never
-    // the old dark-band language.
-    expect(vegaSuite).toContain("border-b border-vega-night/10");
-    expect(vegaSuite).toContain("text-vega-night");
+    expect(vegaSuite).toContain("The Core Suite");
+    expect(vegaSuite).toContain("Matter Management");
+    expect(vegaSuite).toContain("Smart Documents & DraftPro");
+    expect(vegaSuite).toContain("Time & Billing");
+    expect(vegaSuite).toContain("Team Workflows");
+    // The light register: slate-50 ground, white exhibits, indigo active
+    // tabs — never the old espresso language.
+    expect(vegaSuite).toContain("bg-slate-50");
+    expect(vegaSuite).toContain("text-slate-900");
+    expect(vegaSuite).toContain("bg-indigo-600");
     expect(vegaSuite).not.toContain("bg-vega-night");
     expect(vegaSuite).not.toContain("bg-vega-ink");
-    // The captures are the real product, honestly captioned. R42: every
-    // ENTRY carries its own capture — the matters ledger (not the generic
-    // dashboard), the DraftPro editor, the chronology, both task-board
-    // layouts, contacts, research, analytics and the bank-transfer
-    // invoice.
+    expect(vegaSuite).not.toContain("text-vega-night");
+    // The captures are the real product, honestly captioned — the
+    // matters ledger, both task-board layouts, contacts, the editor, the
+    // vault, research, the team board, the calendar, matter notes,
+    // billing, analytics and the bank-transfer invoice.
     expect(vegaSuite).toContain("/assets/landing/app/matters-ledger.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-status.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-flat.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/contacts.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/editor.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/research.jpg");
-    expect(vegaSuite).toContain("/assets/landing/app/chronology.jpg");
-    expect(vegaSuite).toContain("/assets/landing/app/aloa.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/tasks-team.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/calendar.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/matter-notes.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/billing.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/analytics.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/invoice-bank.jpg");
     expect(vegaSuite).toContain("LIVE CAPTURE");
-    // R42: entries switch their capture on hover/tap; the task board
-    // cycles its two real layouts; ALOA says locus classicus.
-    expect(vegaSuite).toContain("onMouseEnter={onActivate}");
-    expect(vegaSuite).toContain("swap:");
-    expect(vegaSuite).toContain("locus classicus");
+    // R42 kept: tabs switch on hover/tap and the exhibits page through a
+    // selector (aria-pressed) — the swap story survives.
+    expect(vegaSuite).toContain("onMouseEnter={() => onActivate(i)}");
+    expect(vegaSuite).toContain("aria-pressed={shot === i}");
     expect(vegaSuite).not.toContain("intake to judgment");
   });
 
@@ -962,16 +954,19 @@ describe("Vega rebrand Pass A — 'The Chambers Standard' page-specific sections
     expect(vegaSite).not.toContain("howItWorks");
   });
 
-  it("the FAQ is a ruled interrogatory accordion on the page's paper (R38)", () => {
+  it("R56: the FAQ folds into the pricing band as a compact accordion", () => {
+    // The standalone FAQ band is retired in the consolidation; the
+    // load-bearing answers ride the pricing band (the cost answer keeps
+    // the refund promise — pinned by refunds.test.ts too).
     expect(vegaFAQ).toContain("Questions? Answered.");
-    // R38: the FAQ leaves the raised-ink band — same ivory paper as the
-    // rest of the page, warm hairlines, claret numerals.
     expect(vegaFAQ).not.toContain("bg-vega-ink");
-    expect(vegaFAQ).toContain("border-b border-vega-night/10");
+    expect(vegaFAQ).toContain("divide-y divide-slate-200/80");
     expect(vegaFAQ).toContain("Vega for law firms");
-    // R21: no tier names anywhere in the FAQ.
-    expect(vegaFAQ).not.toContain("Growth");
-    expect(vegaFAQ).not.toContain("all tiers");
+    // R21 (kept, scoped to the FAQ copy): no tier names in the answers
+    // (the tier CARDS above them legitimately carry the tier labels).
+    const faqBlock = vegaFAQ.slice(vegaFAQ.indexOf("const FAQS"), vegaFAQ.indexOf("const CARD_BASE"));
+    expect(faqBlock).not.toContain("Growth");
+    expect(faqBlock).not.toContain("all tiers");
     // The money-back guarantee promise survives on the cost question.
     expect(vegaFAQ).toContain("How much does Vega cost?");
     expect(vegaFAQ).toContain("30-day money-back guarantee");

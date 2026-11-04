@@ -2136,29 +2136,28 @@ span[data-type="legal-placeholder"] {
    element outside a Vega page.
    ═══════════════════════════════════════════════════════════════════════ */
 
-/* ── Scope: the espresso remap (R26) ─────────────────────────────────────
-   The page's two master vars flip (R37): paper becomes warm ivory and
-   ink becomes espresso. The slate scale re-values onto the light register
-   — warm hairlines at 200, bone secondary for the dark interludes at
-   300/400, taupe/espresso for the ivory ground at 500+ — so secondary
-   type, hairlines, the exhibits' ink and the deep footer all join the
-   warm system without touching that code.
-   .site-vega (body) carries the same remap to the App-level chrome the
-   theme root cannot reach — the cookie banner and any portal modals —
-   so nothing navy survives while /vega is shown (R26). */
+/* ── Scope: the light-enterprise remap (R56) ─────────────────────────────
+   The Reading Room's warm-ivory/espresso remap is RETIRED (owner,
+   R56: the page becomes a clean, modern, LIGHT, enterprise-grade landing
+   page). The two master vars flip to pristine white + deep slate, and the
+   slate scale re-values onto its TRUE Tailwind register — so every
+   slate-* class on /vega now renders the same cool slate as the rest of
+   the family. .site-vega (body) carries the same remap to the App-level
+   chrome the theme root cannot reach — the cookie banner and any portal
+   modals — so the whole /vega surface joins the light system. */
 .theme-vega,
 .site-vega {
-  --color-paper: #F5EFE3;       /* R37: the daylight ground — warm ivory */
-  --color-ink: #2A2118;        /* R37: espresso ink — display + body  */
-  --color-slate-200: 224 213 192;  /* warm hairlines on ivory          */
-  --color-slate-300: 200 186 162;  /* bone — secondary on the dark side */
-  --color-slate-400: 138 122 100;  /* mid bone — micro labels, both grounds */
-  --color-slate-500: 122 106 87;   /* taupe — muted notes on ivory     */
-  --color-slate-600: 95 81 64;     /* secondary body on ivory           */
-  --color-slate-700: 74 62 50;     /* document secondary               */
-  --color-slate-800: 58 47 35;     /* panels                           */
-  --color-slate-900: 42 33 24;     /* espresso ink surfaces            */
-  --color-slate-950: 32 25 16;     /* the deep footer                  */
+  --color-paper: #FFFFFF;        /* R56: pristine white ground            */
+  --color-ink: #0F172A;          /* R56: deep slate ink — display + body  */
+  --color-slate-200: 226 232 240;  /* true slate hairlines                */
+  --color-slate-300: 203 213 225;  /* true slate secondary                */
+  --color-slate-400: 148 163 184;  /* true slate micro labels             */
+  --color-slate-500: 100 116 139;  /* true slate muted notes              */
+  --color-slate-600: 71 85 105;    /* true slate body                     */
+  --color-slate-700: 51 65 85;     /* true slate secondary strong         */
+  --color-slate-800: 30 41 59;     /* true slate panels                   */
+  --color-slate-900: 15 23 42;     /* true slate ink surfaces             */
+  --color-slate-950: 2 6 23;       /* the deepest slate                   */
 }
 
 /* ── Vega display type (R26) ──────────────────────────────────────────────
@@ -2228,29 +2227,26 @@ span[data-type="legal-placeholder"] {
   .vg-cert-ring { animation: none; }
 }
 
-/* ── Vega exhibits — the light sheet (R38) ────────────────────────────────
-   The live captures sit in a QUIET CREAM SHEET on the ivory ground:
-   one hairline, a soft warm shadow, generous padding. The old deep-
-   shadow "paper under a desk lamp" chrome (.vg-doc) was built for the
-   dark register and is retired from the page (kept below for any
-   legacy exhibit that still needs it). The capture is the exhibit; the
-   frame stays out of the way. */
+/* ── Vega exhibits — the light sheet (R56) ────────────────────────────────
+   The live captures sit in a QUIET WHITE SHEET on the light ground:
+   a delicate slate hairline, a soft neutral shadow, generous padding.
+   The capture is the exhibit; the frame stays out of the way. */
 .vg-shot {
   position: relative;
-  background: var(--color-vega-parchment, #FBF6EC);
-  border: 1px solid rgb(42 33 24 / 0.14);
+  background: #FFFFFF;
+  border: 1px solid rgb(226 232 240 / 0.9);
   border-radius: 12px;
   padding: 10px;
   box-shadow:
-    0 1px 2px 0 rgb(42 33 24 / 0.06),
-    0 18px 36px -20px rgb(42 33 24 / 0.28);
+    0 1px 2px 0 rgb(15 23 42 / 0.05),
+    0 18px 36px -20px rgb(15 23 42 / 0.14);
 }
 .vg-shot__img {
   display: block;
   width: 100%;
   height: auto;
   border-radius: 6px;
-  border: 1px solid rgb(42 33 24 / 0.10);
+  border: 1px solid rgb(15 23 42 / 0.08);
 }
 
 /* ── Vega exhibits — bright paper on the night ground (legacy, R26) ──────
