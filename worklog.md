@@ -14845,3 +14845,82 @@ scripted check on the new surfaces passes.**
 - STANDING OWNER ACTIONS, unchanged: the Cloudflare
   CLOUDFLARE_API_TOKEN (the mirror stays frozen), and the PAT that
   transited the chat remains worth rotating once convenient.
+
+**R66 — the /vega hero becomes a calm lifestyle-video hero: the
+user-supplied lawyer-at-laptop clip loops full-bleed under a pale
+wash, dark copy kept, every acceptance gate measured.**
+- THE ASK (owner, verbatim shape): full-bleed looping background
+  video for the /vega hero — "bright, still, soft video with a pale
+  wash over it and dark text on top"; existing headline/subcopy/CTAs
+  kept, no copy rewrites, no competitor layouts, no sound, no
+  controls, no animation libraries.
+- ASSETS: public/video/ did NOT exist — the three spec'd files were
+  built from the user's upload (Woman_lawyer_typing_on_laptop_9199b5d8
+  .mp4: 1280x720, 24fps, 7.93s, h264+AAC, 2.0MB). Pipeline
+  (scripts/vega_hero_assets.sh): audio stripped; seamless loop via a
+  circular crossfade — the last 0.8s dissolves into a still of the
+  opening frame, so the wrap-point diff is 3.65 (the raw clip's
+  first-vs-last jump was 40.6); lanczos upscale to 1920x1080 per the
+  spec. Outputs: vega-hero.mp4 (h264, 610KB, faststart),
+  vega-hero.webm (VP9, 959KB — what Chromium fetches), and
+  vega-hero-poster.jpg (102KB, == frame 0, the LCP resource).
+- THE BUILD: new src/components/HeroVideo.tsx (the task-supplied
+  component) — IntersectionObserver play/pause, visibilitychange
+  pause, prefers-reduced-motion + save-data fallback to the still
+  poster. TWO sanctioned deviations, both forced by acceptance
+  gates: (1) the reduced-motion check moved into the useState
+  initializer — a post-render swap still let Chromium fire the
+  preload="metadata" 206 before the effect unmounted the video;
+  (2) the pale wash raised 55 -> 65 after WCAG sampling (see
+  contrast). Plus fetchpriority=high on the video + still img (the
+  Lighthouse LCP insight asked for it; spread-cast because React
+  types don't declare it on <video> yet). VegaHero.tsx wiring: the
+  HeroVideo is the section's first child (wrapper was already
+  relative overflow-hidden), the R56 hairline grid + pastel ribbon
+  retired (the video is the ground now), content lifted to z-10.
+  Copy untouched; fonts/spacing untouched; nothing below the hero
+  touched. Subcopy slate-600 -> slate-800 and the two slate-400
+  microcopy lines -> slate-500 (contrast, below). Navbar unchanged:
+  the fixed full-width bar already wears bg-white/90 +
+  backdrop-blur-xl glass.
+- CONTRAST (the harness samples the real rendered backdrop with the
+  text hidden, darkest 8x8 patch behind each block, 4 loop samples
+  desktop + 3 mobile): at wash/55 the centred subcopy failed 4.5:1
+  (desktop 3.15:1, mobile worst pixel 2.33:1 — the clip's subject
+  sits centre-right, her dark hair lands behind the copy). After
+  wash/65 + slate-800 subcopy: headline slate-900 9.23:1 and navy
+  span 5.35:1 (>=3.0 large), subcopy desktop 7.81:1, mobile patch
+  6.38:1 / worst single pixel 6.36:1 (>=4.5). A /70 interation
+  passed too but VLM QA read the subject as "a faint ghost" — /65
+  keeps her recognizable while every ratio holds.
+- ACCEPTANCE (scripts/r66-video-acceptance.cjs + r66-lighthouse.cjs,
+  evidence in download/r66-video-hero/): screenshots 1920x1080 +
+  390x844 + reduced-motion, VLM-verified (subject visible,
+  headline fully readable, no defects; the mobile "defect" the VLM
+  flagged is the site-wide dismissible cookie banner, pre-existing);
+  network — poster 200 (101,979B) requested BEFORE the webm 206
+  (981,723B < 1MB), zero console errors; video sanity — muted, loop,
+  playsInline, autoplay, NO controls, 1920x1080, 7.96s, playing;
+  playback — pauses when the hero scrolls out of the app's inner
+  .overflow-y-auto scroller (html/body are overflow:hidden — the
+  harness scrolls the real container) and resumes on return; pauses
+  on tab-hidden and resumes (CDP freeze did not flip
+  document.hidden in headless, so the gate ran as a synthetic
+  visibilitychange with the property overridden — method logged in
+  the report); reduced-motion — the still poster renders and ZERO
+  video requests fire (only the poster 200).
+- LIGHTHOUSE (desktop preset, local vite preview): before 78 /
+  LCP 2.1s (= FCP; the LCP element was the headline text) -> after
+  72 / LCP ~2.95s (the LCP element is now the video's poster frame;
+  in this SPA it is only discovered after React mounts, which is the
+  whole regression). fetchpriority + the 102KB poster did not move
+  it in the throttled sandbox — the remaining lever would be a
+  route-scoped preload of the poster, which costs every other route
+  140KB of prefetch since the entry chunk is shared, so it stays
+  deferred. TBT 0, CLS 0 both sides.
+- GATES: root tsc 125 (= the R64 baseline, zero errors in the
+  touched files), npm run build green, zero NEW console errors.
+- COMMITTED: feat(r66) — the component, the wiring, the three
+  assets, the two harness scripts. NOT pushed/deployed: the task
+  scoped this round to build + local acceptance; the owner decides
+  when R66 rides the next promotion.
