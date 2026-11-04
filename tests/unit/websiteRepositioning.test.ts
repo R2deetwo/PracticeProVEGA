@@ -335,18 +335,18 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hubHeroSection).not.toContain("w8-scene-enter");
     expect(hubHeroSection).toContain("End-to-End Digital Infrastructure");
     expect(hubHeroSection).toContain("We design, build, and run custom business solutions.");
-    // R53: the flowing-bands hero — the photograph is RETIRED (owner:
-    // "the Practice Pro Systems is not supposed to have the image
-    // anymore in the background, it's supposed to have this new thing
-    // I wanted to incorporate") and the hero's background is the
-    // full-bleed WebGL2 contour-band shader: silky fractal bands with
-    // razor-thin gilt lines, masked to the right, blending to the
-    // ground colour under the copy column. No gradient overlay — the
-    // bands ARE the background. The entrance staggers remain one-time
-    // arrivals; nothing in the hero itself animates after arrival
-    // except the shader's slow drift.
-    expect(hubHeroSection).toContain("<BandsBackground");
-    expect(hubHeroSection).toContain("HUB_BANDS_PALETTE");
+    // R55: the hairline-ribbon hero — the R53 WebGL2 contour-field shader
+    // is RETIRED (owner: "NO topographic / contour-map look. NO noise,
+    // NO fbm… NO WebGL, NO shaders… Plain 2D canvas only") and replaced
+    // by two 64-line silk ribbons on the RIGHT of the hero — PracticePro
+    // green (--color-primary-500) on the unchanged navy ground, additive
+    // blend, slow ~11s sway. No photo, no overlay: the ground colour is
+    // the hero's own background, unchanged since R53. The entrance
+    // staggers remain one-time arrivals; the ribbons are the only thing
+    // that animates after arrival.
+    expect(hubHeroSection).toContain("<HeroRibbons");
+    expect(hubHeroSection).not.toContain("BandsBackground");
+    expect(hubHeroSection).toContain("HUB_HERO_GROUND");
     expect(hubHeroSection).not.toContain("ambient-still");
     expect(hubHeroSection).not.toContain("ambient-still-panel.jpg");
     expect(hubHeroSection).not.toContain("object-[72%_center]");

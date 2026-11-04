@@ -2,46 +2,36 @@ import React from 'react';
 import { ChevronDownIcon } from '../../../constants';
 import { Button } from '../../../components/ui';
 import { VegaMark, AtriumMark } from '../../../components/marketing/brand/ProductMarks';
-import { BandsBackground } from '../../shared/BandsBackground';
+import { HeroRibbons } from '../../../components/HeroRibbons';
 
-/** The hub bands palette (R53): deep navy ground, navy/slate bands,
- * steel-blue bright folds, gilt razor lines — the PracticePro register
- * of the reference look. bg (#050B18) IS the hero's background colour,
- * which is what makes the shader's left fade seamless. */
-const HUB_BANDS_PALETTE: [string, string, string, string] = [
-    '#050B18', // bg — the hero ground
-    '#1B3358', // mid — the navy band body
-    '#3D6CA8', // bright — the lit fold
-    '#D8B45C', // line — the gilt contour razor
-];
+/** The hero ground — unchanged since R53: the deep navy the section paints
+ * behind the ribbons. The R53 bands palette retired with its shader; the
+ * ground stays byte-identical. */
+const HUB_HERO_GROUND = '#050B18';
 
 /**
- * HubHero — R53, the flowing-bands hero.
+ * HubHero — R55, the hairline-ribbon hero.
  *
- * Owner direction (Prompt 4): "the Practice Pro Systems is not supposed
- * to have the image anymore in the background, it's supposed to have
- * this new thing I wanted to incorporate" — the reference being the
- * silky, fractal, slowly drifting contour bands of bitnomial.com's
- * hero, which the R50 thin-line overlay did not capture ("you can
- * hardly even see it... they're not just supposed to be random
- * lines").
+ * Owner direction: the R53 contour-field shader read as a topographic
+ * map, not silk — "NO topographic / contour-map look. NO noise, NO fbm,
+ * NO WebGL, NO shaders… Plain 2D canvas only." What stays is the idea:
+ * two ribbons of very thin curved lines on the RIGHT of the hero,
+ * fanning and pinching as if twisting in 3D, one bright edge fading to
+ * near-invisible, crossing over each other in a slow ~11s sway —
+ * PracticePro green (the --color-primary-500 token) on the navy
+ * ground, additive-blended so overlaps glow.
  *
- * So: the photograph is RETIRED, and the flowing bands become the hero
- * itself — a full-bleed WebGL2 shader (BandsBackground →
- * createBandsRenderer, dependency-free) drawing layered contour bands
- * that fold into each other, drifting slowly, with razor-thin gilt
- * lines and a dithered silky gradient. The shader masks the effect to
- * the right side and blends to the ground colour toward the left, so
- * the copy column sits on clean navy and the hero's edge is seamless.
+ * HeroRibbons (src/components/HeroRibbons.tsx → drawRibbons in
+ * src/lib/ribbons.ts) is exactly the owner-supplied implementation:
+ * plain 2D canvas, zero dependencies, DPR-clamped, paused when
+ * off-screen or hidden, ONE static frame under reduced-motion.
  *
  * Layers, back to front:
- *   z-0  — the flowing-bands canvas (the hero IS the background).
+ *   first child — the ribbon canvas (absolute inset-0, pointer-events-none).
  *   z-20 — the hero typography, CTAs, the featured card, the cue.
- * (No image layer, no gradient overlay — nothing to fade.)
  *
- * The entrance staggers (r42-hero/hero-stagger/r42-card-in) survive.
- * Reduced-motion users get ONE static composition (never animated);
- * without WebGL2 the hero falls back to a quiet navy gradient.
+ * The entrance staggers (r42-hero/hero-stagger/r42-card-in) survive,
+ * and the ground colour is unchanged (HUB_HERO_GROUND = the R53 navy).
  */
 export const HubHero: React.FC<{
     onContactSales: () => void;
@@ -57,20 +47,12 @@ export const HubHero: React.FC<{
         <section
             id="home"
             className="relative overflow-hidden min-h-[100dvh] flex items-center r42-hero"
-            style={{ background: HUB_BANDS_PALETTE[0] }}
+            style={{ background: HUB_HERO_GROUND }}
         >
-            {/* Layer 0 (z-0) — THE HERO ITSELF: the flowing bands. Full-bleed
-                WebGL2 contour field, masked to the right, blending to the
-                ground colour under the copy column. The canvas never takes
-                pointer events; the shader tracks the pointer through the
-                window and warps the field subtly. */}
-            <div className="absolute inset-0 z-0" aria-hidden="true">
-                <BandsBackground
-                    palette={HUB_BANDS_PALETTE}
-                    bandCount={9}
-                    speed={0.55}
-                />
-            </div>
+            {/* Layer 0 — the hairline ribbons: two 64-line silk ribbons on
+                the right (cx 0.80/0.84 of the width), green on navy,
+                additive blend. Plain 2D canvas — no WebGL, no shaders. */}
+            <HeroRibbons />
 
             {/* Layer 3 (z-20) — the content column, light on dark. */}
             <div className="hero-stagger relative z-20 container mx-auto px-4 sm:px-6 pt-32 pb-28 sm:pt-36 sm:pb-24 w-full">
