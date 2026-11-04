@@ -56,7 +56,7 @@ export const PRODUCT_BRANDS: Record<'vega' | 'atrium' | 'komplete', ProductBrand
         faviconPng: '/brand/vega/favicon-48.png',
         appleTouch: '/brand/vega/apple-touch-icon.png',
         appleTitle: 'Vega',
-        themeColor: '#07090F',
+        themeColor: '#FFFFFF',
         ogImage: '/assets/landing/og-vega.png',
         ogImageAlt: 'PracticePro Vega — the legal practice OS for Nigerian law firms',
     },

@@ -1204,36 +1204,39 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(clientDash).not.toContain("PracticePro VEGA ·");
   });
 
-  it("R57 — the Atrium mark is the Stepped Stack, the company logo's formula in a different color", () => {
-    // Owner: "the atrium favicon and logo, they are too chunky. i think
-    // we ought to use a different color as well please. it should look
-    // like the style of the practicepro logo but it should be a
-    // different color that works well." So the mark IS the company
-    // logo's construction (public/logo.svg): a FLAT tile, three stepped
-    // translucent white blocks (100/80/60%) and the letter cut in
-    // negative space from the top block — in Atrium's own indigo. The
-    // Coin of the Courtyard and the chunky solid emerald tile with the
-    // fat white A are both retired.
+  it("R57/R60 — the Atrium mark is the Stepped Stack, the company logo's formula in yellow", () => {
+    // Owner (R57): "the atrium favicon and logo, they are too chunky. i
+    // think we ought to use a different color as well please. it should
+    // look like the style of the practicepro logo but it should be a
+    // different color that works well." Owner (R60): "make atrium
+    // yellow instead of the current colour." So the mark IS the company
+    // logo's construction (public/logo.svg): a FLAT YELLOW tile, three
+    // stepped translucent white blocks (100/80/60%) and the letter cut
+    // in negative space from the top block. The R57 indigo retires with
+    // the emerald and the Coin before it.
     const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
     expect(marks).toContain("THE STEPPED STACK");
     expect(marks).not.toContain("Coin of the Courtyard");
     expect(marks).not.toContain("Coin of the House");
-    // The tile is flat indigo, from the token — no gradient, no emerald.
-    expect(marks).toContain("rgb(var(--color-atrium-indigo))");
+    // The tile is flat yellow, from the colour-agnostic tile token — no
+    // gradient, no emerald, no indigo.
+    expect(marks).toContain("rgb(var(--color-atrium-tile))");
     expect(marks).not.toMatch(/AtriumMark[\s\S]*?--color-atrium-jade/);
+    expect(marks).not.toContain("--color-atrium-indigo");
     // The stepped white blocks at 100/80/60% — the company logo's own
     // three blocks.
     expect(marks).toMatch(/AtriumMark[\s\S]*?fill="#FFFFFF" fillOpacity="0\.8"/);
     expect(marks).toMatch(/AtriumMark[\s\S]*?fill="#FFFFFF" fillOpacity="0\.6"/);
-    // The token is registered in index.css as the resolved indigo.
+    // The token is registered in index.css as the resolved yellow.
     const css = read("src", "index.css");
-    expect(css).toContain("--color-atrium-indigo: 79 70 229");
+    expect(css).toContain("--color-atrium-tile: 234 179 8");
     // The standalone favicon SVG carries the same construction in
     // resolved hex.
     const atriumFavicon = read("public", "brand", "atrium", "favicon.svg");
     expect(atriumFavicon).toContain("THE STEPPED STACK");
-    expect(atriumFavicon).toContain("#4F46E5");
+    expect(atriumFavicon).toContain("#EAB308");
     expect(atriumFavicon).not.toContain("#10B981");
+    expect(atriumFavicon).not.toContain("#4F46E5");
     expect(atriumFavicon).not.toContain("Coin of the Courtyard");
     // The AI assistants speak the product's name too.
     const guardrails = read("src", "constants", "identityGuardrails.ts");
@@ -1274,28 +1277,34 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(atriumFavicon).not.toContain("M6 43.5 L21.5 4.5");
   });
 
-  it("R54 — the Vega mark paints in the favicon's orange, not the claret", () => {
-    // Owner: "the vega logo is also too dark on the page and it is
-    // different from the favicon color.. we want the favicon color as
-    // the standard please." The R37 claret rebrand re-tinted the page's
-    // accent tokens (--color-vega-gilt = #7B1E1E) but the favicon kept
-    // the R26 burnt orange — so the mark's star went dark and stopped
-    // matching the tab. The mark now draws from dedicated seal tokens
-    // carrying the favicon's own hex.
+  it("R60 — the Vega mark wears the light-enterprise navy + white star", () => {
+    // Owner (R60): "please make the vega favicon/icon match the new
+    // brand colours" — the R56 light rebrand's executive navy +
+    // vibrant indigo register. The mark keeps the Seal construction but
+    // the tile is NAVY (#1E3A8A → the deep-navy corner) and the star is
+    // WHITE lit toward indigo (#C7D2FE) — the page's own
+    // navy-buttons-with-white-text pairing. The R54 burnt-orange and
+    // R37 claret registers both retire.
     const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
     expect(marks).toContain("rgb(var(--color-vega-seal))");
     expect(marks).toContain("rgb(var(--color-vega-seal-bright))");
     expect(marks).toContain("rgb(var(--color-vega-seal-ground))");
-    // The claret accent tokens no longer paint the mark.
+    // The claret/navy accent tokens never paint the mark's star.
     expect(marks).not.toMatch(/VegaMark[\s\S]*?--color-vega-gilt\)/);
-    // The tokens carry the favicon SVG's exact resolved hex.
+    // The tokens carry the new brand's exact resolved hex.
     const css = read("src", "index.css");
-    expect(css).toContain("--color-vega-seal: 224 122 63;");         /* #E07A3F */
-    expect(css).toContain("--color-vega-seal-bright: 243 166 106;"); /* #F3A66A */
-    expect(css).toContain("--color-vega-seal-ground: 46 32 21;");    /* #2E2015 */
+    expect(css).toContain("--color-vega-seal: 255 255 255;");         /* #FFFFFF */
+    expect(css).toContain("--color-vega-seal-bright: 199 210 254;");  /* #C7D2FE */
+    expect(css).toContain("--color-vega-seal-ground: 30 58 138;");    /* #1E3A8A */
+    // The whole vega page register follows the new brand.
+    expect(css).toContain("--color-vega-gilt: 30 58 138;");           /* #1E3A8A */
+    expect(css).toContain("--color-vega-parchment: 255 255 255;");    /* #FFFFFF */
+    expect(css).not.toContain("224 122 63");
     const vegaFavicon = read("public", "brand", "vega", "favicon.svg");
-    expect(vegaFavicon).toContain("#E07A3F");
-    expect(vegaFavicon).toContain("#F3A66A");
+    expect(vegaFavicon).toContain("#1E3A8A");
+    expect(vegaFavicon).toContain("#C7D2FE");
+    expect(vegaFavicon).not.toContain("#E07A3F");
+    expect(vegaFavicon).not.toContain("#2E2015");
   });
 
   it("no fabricated aggregateRating anywhere", () => {

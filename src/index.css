@@ -108,17 +108,18 @@
   /* Emerald — Atrium accent (emerald-600, deeper than 500). */
   --color-emerald: #059669;
 
-  /* ===== Vega product-page tokens (R37 "The Daylight Chambers") ==============
-   Owner direction (R37): a NEW colour scheme for /vega — the page flips
-   to a warm ivory ground with espresso ink and ONE restrained accent:
-   notary claret. Same token NAMES (tests pin the class strings, not the
-   values) re-valued in place, the house re-theme pattern since R22:
-     - gilt/gilt-bright (was burnt orange) -> the claret accent register
-     - parchment (was cream-on-dark type) -> cream CARD STOCK on ivory
-     - night/night-2 stay espresso: the chrome, the ledger band, the
-       dark interludes and raised panels
-     - ink/ink-soft (was band surfaces) -> the ink bands + taupe body
-   "gilt" reads as "the accent"; "claret" stays the seals' own family. */
+  /* ===== Vega product-page tokens (R60 "the light enterprise navy") =============
+   Owner direction (R56 rebrand + R60): /vega is a clean, modern, LIGHT,
+   enterprise-grade page; the executive navy #1E3A8A/#1E40AF carries the
+   accent register and vibrant indigo rides the interactive chrome. Same
+   token NAMES (tests pin the class strings, not the values) re-valued
+   in place, the house re-theme pattern since R22:
+     - gilt/gilt-bright (claret, was burnt orange) -> the executive navy
+     - parchment -> pristine WHITE card stock on the paper ground
+     - night/night-2 -> deep navy surfaces (overlay, dark bands)
+     - ink/ink-soft -> the true slate ink + body register
+   "gilt" reads as "the accent"; "claret" stays the seals' own family
+   (the DraftPro redline exhibit keeps its legal tracked-changes red). */
   /* Triplets (RGB space-separated) so Tailwind can alpha-modulate them
      via the same rgb(var(--x) / <alpha-value>) mapping as the scales.
      --color-amber (hex, above) stays untouched — it is pinned by
@@ -126,25 +127,26 @@
   --color-vega-claret: 123 30 30;       /* #7B1E1E — seals, stamps, ribbon   */
   --color-vega-claret-deep: 92 20 20;   /* #5C1414 — claret text on light    */
   --color-vega-claret-bright: 196 92 92;/* #C45C5C — claret legible on night */
-  --color-vega-gilt: 123 30 30;         /* #7B1E1E — R37 notary claret: rules, fills, rings, CTAs */
-  --color-vega-gilt-bright: 142 38 30;  /* #8E261E — R37 claret type register on the ivory ground */
-  --color-vega-ink: 42 31 22;           /* #2A1F16 — R37 the ink bands (drafting, interrogatories) */
-  --color-vega-ink-soft: 110 92 74;     /* #6E5C4A — R37 taupe body type on cream stock */
-  --color-vega-night: 34 23 15;         /* #22170F — the espresso side: chrome, the ledger band */
-  --color-vega-night-2: 56 42 28;       /* #382A1C — R37 raised dark panels (dropdown, cross-sells, the evening exchange) */
-  --color-vega-parchment: 251 246 236;  /* #FBF6EC — R37 cream card stock on the ivory ground */
+  --color-vega-gilt: 30 58 138;         /* #1E3A8A — the executive navy: rules, fills, rings, CTAs */
+  --color-vega-gilt-bright: 30 64 175;  /* #1E40AF — navy hover/active, the brand's own pair */
+  --color-vega-ink: 15 23 42;           /* #0F172A — the ink bands (slate-900) */
+  --color-vega-ink-soft: 71 85 105;     /* #475569 — slate-600 body type */
+  --color-vega-night: 23 37 84;         /* #172554 — deep navy: overlay, the dark bands */
+  --color-vega-night-2: 30 41 105;      /* #1E2969 — raised navy panels */
+  --color-vega-parchment: 255 255 255;  /* #FFFFFF — pristine white card stock */
   /* R23 mark grounds — the product seals are lit from the top-left and
      fall into a deep corner; flat saturated tiles read as emoji. */
   --color-vega-claret-lift: 143 42 56;  /* #8F2A38 — the seal's lit corner   */
   --color-vega-oxblood: 74 14 25;       /* #4A0E19 — the seal's deep corner  */
-  /* R54 — THE FAVICON IS THE STANDARD. The VegaMark's star was painting
-     in the R37 claret (dark #7B1E1E) while the /brand/vega/favicon.svg
-     still wore the R26 burnt orange the owner chose; the mark on the
-     page read too dark and unlike the tab icon. These tokens carry the
-     favicon's own hex so the mark and the tab render identically. */
-  --color-vega-seal: 224 122 63;        /* #E07A3F — the favicon's burnt orange */
-  --color-vega-seal-bright: 243 166 106;/* #F3A66A — the favicon's lit corner */
-  --color-vega-seal-ground: 46 32 21;   /* #2E2015 — the favicon's espresso start */
+  /* R60 — THE NEW BRAND IS THE STANDARD. The /vega page rebranded light
+     (R56) with the executive navy + vibrant indigo register; R60 carries
+     that register into the mark itself: a NAVY tile (the CTA navy), the
+     star in WHITE with an indigo-lit corner — the same pairing as the
+     page's navy buttons with white text. The burnt-orange favicon
+     register retires with the Warm Chambers. */
+  --color-vega-seal: 255 255 255;       /* #FFFFFF — the star, white on navy */
+  --color-vega-seal-bright: 199 210 254;/* #C7D2FE — the indigo-200 lit corner */
+  --color-vega-seal-ground: 30 58 138;  /* #1E3A8A — the navy tile start */
   --font-vega-display: 'Fraunces Variable', 'Fraunces', Georgia, 'Times New Roman', serif;
   /* Real Nigerian court documents are set in Times New Roman — the drafting
      exhibits use it verbatim so the demo drafts are super accurate. */
@@ -158,15 +160,15 @@
   --color-atrium-mint: 110 231 183;     /* #6EE7B7 — the tile's inner ring */
   --color-clay: 180 132 108;            /* #B4846C — warm supporting tone  */
   --color-cream: 250 247 242;           /* #FAF7F2 — warm base surface     */
-  /* R57 — THE STEPPED-STACK ATRIUM TILE. Owner direction: the emerald
-     tile + fat white A read "too chunky" and as a second PracticePro
-     green at tab scale; the mark now borrows the company logo's own
-     construction (flat tile, stepped translucent white blocks, letter
-     cut in negative) in Atrium's own register: indigo #4F46E5 —
-     distinct from the hub green #16A34A, Vega's orange and Komplete's
-     ink, and the classic cool counterpoint to the page's cream, sage
-     and emerald. One flat tile color, like the company logo. */
-  --color-atrium-indigo: 79 70 229;     /* #4F46E5 — the estate tile (R57) */
+  /* R60 — THE STEPPED-STACK ATRIUM TILE GOES YELLOW. Owner direction:
+   "make atrium yellow instead of the current colour". The R57 indigo
+   retires; the construction is unchanged (flat tile, stepped
+   translucent white blocks, letter cut in negative) and the tile is
+   now a confident yellow #EAB308 — warm against the page's cream,
+   distinct at 16px from the hub green, Vega's navy and Komplete's
+   ink. Token renamed to the colour-agnostic --color-atrium-tile so
+   the register can move again without a rename. */
+  --color-atrium-tile: 234 179 8;       /* #EAB308 — the estate tile (R60) */
 
   /* ===== Brand Overhaul Tokens (docs/design/brand.md §4) ============== */
   /* Type roles — three registers, theme-agnostic (fonts don't change per
@@ -312,17 +314,19 @@
   --border-strong: var(--color-slate-300);   /* emphasized borders          */
 }
 
-/* ─── R28: PRODUCT APP SKIN — VEGA (The Warm Chambers) ────────────────────
+/* ─── R28→R60: PRODUCT APP SKIN — VEGA (the light-enterprise navy) ────────
  * Owner direction (2026-10-17): "I would like a theme for the app that
  * matches the Vega site. This way we have realistic images that match how
- * the app actually works." The /vega marketing register is espresso +
- * cream + burnt orange (R26 The Warm Chambers); the app skin carries that
- * register at TINT LEVEL: every primary-* accent (nav active states,
- * buttons, FAB, focus rings, selected rows, badges) re-resolves to the
- * burnt-orange ramp. Surfaces, typography, layout and components are
- * untouched — this is the APP_UI_SEPARATION.md Stage-3 "tint-level"
- * pattern: a scope class on the app container, zero component edits,
- * default path byte-identical when the class is absent.
+ * the app actually works." R60: the /vega marketing register rebranded
+ * light (R56) — the executive navy #1E3A8A + vibrant indigo — and the
+ * owner wants the app captures in line with the new brand, so the skin
+ * re-resolves to the NAVY/INDIGO ramp: every primary-* accent (nav
+ * active states, buttons, FAB, focus rings, selected rows, badges)
+ * carries the navy, with indigo at the light/interactive end. Surfaces,
+ * typography, layout and components are untouched — this is the
+ * APP_UI_SEPARATION.md Stage-3 "tint-level" pattern: a scope class on
+ * the app container, zero component edits, default path byte-identical
+ * when the class is absent.
  *
  * Cascade: the class sits on the app-container DIV, so for every element
  * inside the workspace it is a CLOSER variable ancestor than html/:root
@@ -336,19 +340,19 @@
  * the Vega palette. Komplete resolves to NO class — the :root green is
  * the komplete register — so its default path is byte-identical. */
 .app-skin-vega {
-  --color-primary-50:  253 244 235;
-  --color-primary-100: 250 228 208;
-  --color-primary-200: 244 205 172;
-  --color-primary-300: 240 173 127;
-  --color-primary-400: 232 141 82;
-  --color-primary-500: 224 122 63;   /* #E07A3F — the Vega gilt */
-  --color-primary-600: 201 96 43;    /* darker for hover/active */
-  --color-primary-700: 172 78 32;
-  --color-primary-800: 148 68 32;
-  --color-primary-900: 124 58 30;
-  --color-primary-950: 68 30 13;
-  --primary-accent: 224, 122, 63;    /* match primary-500 */
-  --primary-light:  250, 228, 208;   /* match primary-100 */
+  --color-primary-50:  238 242 255;
+  --color-primary-100: 224 231 255;
+  --color-primary-200: 199 210 254;
+  --color-primary-300: 165 180 252;
+  --color-primary-400: 99 102 241;   /* #6366F1 — the vibrant indigo, interactive end */
+  --color-primary-500: 30 58 138;    /* #1E3A8A — the executive navy, THE accent */
+  --color-primary-600: 27 52 126;    /* darker navy for hover/active */
+  --color-primary-700: 23 44 108;
+  --color-primary-800: 20 37 90;
+  --color-primary-900: 16 30 74;
+  --color-primary-950: 9 17 44;
+  --primary-accent: 30, 58, 138;     /* match primary-500 */
+  --primary-light:  224, 231, 255;   /* match primary-100 */
 }
 
 /* R52 — THE ATRIUM ESTATE SKIN. The property register of the /atrium

@@ -10,13 +10,13 @@ import { normalizeSignupProduct } from '../../utils/signupProduct';
  * the PracticePro web site — sort this out for the vega and atrium."
  *
  * The auth modal now carries the identity of the page that opened it.
- * A login/signup opened from /vega renders in the Warm Chambers register
- * (parchment card on an espresso blur, gilt accent bar, the Seal); from
- * /atrium it renders in the Well-Kept Estate register (cream card,
- * emerald accent, the Coin of the Arch). Opened anywhere else — the hub,
- * the native app, the portals — it stays EXACTLY the modal that has
- * always shipped (chrome: null → Modal's defaults are used untouched),
- * so no other surface moves.
+ * A login/signup opened from /vega renders in the light-enterprise
+ * register (white card on a deep-navy blur, navy accent bar, the Seal
+ * in the new navy/white); from /atrium it renders in the Well-Kept
+ * Estate register (cream card, emerald accent, the Stepped Stack).
+ * Opened anywhere else — the hub, the native app, the portals — it
+ * stays EXACTLY the modal that has always shipped (chrome: null →
+ * Modal's defaults are used untouched), so no other surface moves.
  *
  * This is also the first consumer of the two-distinct-apps theming
  * strategy (see APP_UI_SEPARATION.md): one resolver, product-scoped
@@ -77,16 +77,16 @@ const HUB_THEME: AuthThemeDef = {
 const VEGA_THEME: AuthThemeDef = {
     id: 'vega',
     name: 'Vega',
-    tagline: 'The Chambers Standard — built by PracticePro.',
-    microlabel: 'THE CHAMBERS STANDARD',
+    tagline: 'Legal workflow automation for Nigerian law firms.',
+    microlabel: 'LEGAL WORKFLOW AUTOMATION',
     chrome: {
-        overlayClass: 'bg-vega-night/75 sm:backdrop-blur-md',
+        overlayClass: 'bg-vega-night/70 sm:backdrop-blur-md',
         cardClass: 'bg-vega-parchment border-vega-gilt/30',
         accentBarClass: 'bg-vega-gilt',
     },
     Mark: VegaMark,
     primaryBtn:
-        'bg-vega-gilt text-vega-night hover:bg-vega-gilt-bright shadow-sm',
+        'bg-vega-gilt text-white hover:bg-vega-gilt-bright shadow-sm',
     linkBtn: 'text-vega-gilt hover:text-vega-gilt-bright',
     inputFocus: 'focus:ring-vega-gilt/60 focus:border-vega-gilt',
 };

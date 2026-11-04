@@ -58,22 +58,23 @@ never on Atrium.
 
 ## Logo usage
 
-- The **Atrium mark — the Stepped Stack (R57)**
-  (`src/components/marketing/brand/ProductMarks.tsx`): the company
-  logo's own construction in Atrium's register, per owner direction
-  ("too chunky… it should look like the style of the practicepro logo
-  but it should be a different color that works well"). A FLAT indigo
-  tile `#4F46E5` (`--color-atrium-indigo`), three stepped translucent
-  white blocks (100% / 80% / 60%, each wider than the one above — the
-  document stack), and the box A cut in negative space from the top
-  block in the tile's own color — exactly how the company P is cut.
+- The **Atrium mark — the Stepped Stack (R57 construction, R60
+  colour)** (`src/components/marketing/brand/ProductMarks.tsx`): the
+  company logo's own construction, per owner direction ("too chunky…
+  it should look like the style of the practicepro logo but it should
+  be a different color that works well"; R60: "make atrium yellow
+  instead of the current colour"). A FLAT yellow tile `#EAB308`
+  (`--color-atrium-tile`), three stepped translucent white blocks
+  (100% / 80% / 60%, each wider than the one above — the document
+  stack), and the box A cut in negative space from the top block in
+  the tile's own color — exactly how the company P is cut.
   The letterform keeps the R51 box register (flat top, orthogonal
   edges) at the company P's stroke ratio (stems = 25% of letter
-  width). Indigo was chosen because it is distinct from the hub green
-  `#16A34A`, Vega's burnt orange and Komplete's deep ink at 16px, and
-  it is the classic cool counterpoint to this page's cream, sage and
-  emerald. History: R23 jade→pine tile → R47 big white A → R51 box A
-  → R57 stepped stack.
+  width). Yellow was chosen because it is distinct from the hub green
+  `#16A34A`, Vega's navy and Komplete's deep ink at 16px, and warm
+  against this page's cream, sage and emerald. History: R23 jade→pine
+  tile → R47 big white A → R51 box A → R57 stepped stack in indigo →
+  R60 the yellow tile.
 - Header lockup: mark + "Atrium" wordmark (Space Grotesk) only. Footer
   lockup: mark + "Atrium" + "BY PRACTICEPRO" (R24: no byline in the
   header).

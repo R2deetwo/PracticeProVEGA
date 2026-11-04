@@ -454,10 +454,10 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
     </div>
 
     <div className="space-y-4">
-     {/* Vega — Legal — amber glow */}
+     {/* Vega — Legal — navy glow (the light-enterprise register) */}
      <button
       onClick={() => { setSelectedProduct('legal'); productRef.current = 'legal'; setStep('form'); }}
-      style={{ '--glow-color': 'rgba(224, 122, 63, 0.12)', '--glow-border': 'rgba(224, 122, 63, 0.25)' } as React.CSSProperties}
+      style={{ '--glow-color': 'rgba(30, 58, 138, 0.12)', '--glow-border': 'rgba(30, 58, 138, 0.25)' } as React.CSSProperties}
       className="product-glow-pulse product-glow-pulse-delay-1 w-full p-4 text-left border-2 rounded-md transition-all flex items-start gap-3 hover:border-vega-gilt bg-white border-slate-100 shadow-sm hover:shadow-md group"
      >
       <div className="p-2.5 rounded-md bg-vega-gilt/10 text-vega-gilt group-hover:bg-vega-gilt/20 transition-colors">

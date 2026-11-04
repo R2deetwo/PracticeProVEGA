@@ -122,12 +122,14 @@ describe('R52 wiring — one application point, no per-view skinning', () => {
         expect(accentIdx).toBeGreaterThan(productIdx);
     });
 
-    it('index.css carries all three registers: default green, vega copper, atrium jade', () => {
+    it('index.css carries all three registers: default green, vega navy, atrium jade', () => {
         const css = read('src', 'index.css');
         // Komplete = the :root favicon green
         expect(css).toContain('--color-primary-500: 22 163 74');
-        // Vega = the Warm Chambers copper
-        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-500: 224 122 63/);
+        // Vega = the light-enterprise navy (R60 — the copper retired
+        // with the Warm Chambers when the /vega page rebranded light)
+        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-500: 30 58 138/);
+        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-400: 99 102 241/);
         // Atrium = the estate jade ramp
         expect(css).toMatch(/\.app-skin-atrium\s*\{[\s\S]*?--color-primary-500: 5 150 105/);
         expect(css).toMatch(/\.app-skin-atrium\s*\{[\s\S]*?--color-primary-600: 12 122 87/);

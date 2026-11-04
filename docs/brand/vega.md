@@ -79,10 +79,17 @@ Square. `rounded-` classes are banned on /vega (enforced by test:
 
 ## Logo usage
 
-- The **Vega mark** (`src/components/marketing/brand/ProductMarks.tsx`): a
-  solid parchment "V" with the star cut into its point as a diamond void,
-  on a claret-lift→oxblood lit squircle. SaaS-grade geometric monogram —
-  never the old sparkle-star seal.
-- Header lockup: mark + "Vega" wordmark (Fraunces) only. Footer lockup:
-  mark + "Vega" + "BY PRACTICEPRO" (R24: no byline in the header).
+- The **Vega mark — the Seal** (`src/components/marketing/brand/ProductMarks.tsx`):
+  a solid coin (a notary seal) with the four-point steer-star cut
+  through it in TRUE negative space — Vega is the brightest star in
+  Lyra, the star navigators steered by. R60: the tile is the executive
+  NAVY of the light-enterprise rebrand (`#1E3A8A` falling to the
+  deep-navy corner, `--color-vega-seal-ground` → `--color-vega-night`)
+  and the star is WHITE lit toward indigo (`#C7D2FE`,
+  `--color-vega-seal` → `--color-vega-seal-bright`) — the page's own
+  navy-buttons-with-white-text pairing, at mark scale. The Warm
+  Chambers burnt-orange register retired with R60.
+- Header lockup: mark + "Vega" wordmark (Space Grotesk) only. Footer
+  lockup: mark + "Vega" + "BY PRACTICEPRO" (R24: no byline in the
+  header).
 - Favicons: `/brand/vega/favicon.svg` + `favicon-48.png` + `apple-touch-icon.png`.

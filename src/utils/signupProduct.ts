@@ -42,10 +42,10 @@ export const PRODUCT_DISPLAY_NAMES: Record<InternalProduct, string> = {
 
 /**
  * Tailwind-ish accent colors for the product chip in the signup form —
- * mirrors the glow colors of the three chooser cards (amber / blue / indigo).
+ * mirrors the glow colors of the three chooser cards (navy / emerald / indigo).
  */
 export const PRODUCT_ACCENT_COLORS: Record<InternalProduct, string> = {
-  legal: '#E07A3F', // burnt orange — Vega's gilt (R27; was mis-registered as amber)
+  legal: '#1E3A8A', // executive navy — Vega's light-enterprise register (R60; was the Warm Chambers orange)
   property: '#059669', // emerald — Atrium's registered identity (R27; was mis-registered as blue)
   unified: '#4F46E5', // indigo-600 — Komplete
 };

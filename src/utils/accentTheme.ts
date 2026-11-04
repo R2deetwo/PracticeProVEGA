@@ -16,7 +16,7 @@
  *
  *   1. the ACTIVE PRODUCT (ProductContext — the app= URL param stays
  *      purely informational): 'unified' → komplete green, 'vega' → the
- *      Warm Chambers copper, 'atrium' → the estate jade;
+ *      light-enterprise navy, 'atrium' → the estate jade;
  *   2. the USER'S LOCKED PREFERENCE (Settings → Display → Appearance),
  *      persisted per-account in localStorage, which overrides the
  *      product default when set to anything other than 'auto'.
@@ -45,7 +45,7 @@ export function isAccentPreference(value: unknown): value is AccentThemePreferen
 /**
  * Resolve the active accent from preference + product.
  * 'auto' (the default) inherits from the active product mode:
- * unified/komplete → green, vega → legal copper, atrium → jade.
+ * unified/komplete → green, vega → the navy register, atrium → jade.
  * An explicit preference is a LOCK — it wins regardless of product.
  */
 export function resolveAccentTheme(
@@ -80,8 +80,8 @@ export const ACCENT_THEME_OPTIONS: Array<{
     {
         value: 'auto',
         label: 'Auto — follow active product',
-        description: 'Komplete → Green · Vega → Legal Copper · Atrium → Jade',
-        swatch: 'linear-gradient(135deg, #16A34A 34%, #E07A3F 67%, #0C7A57 100%)',
+        description: 'Komplete → Green · Vega → Navy · Atrium → Jade',
+        swatch: 'linear-gradient(135deg, #16A34A 34%, #1E3A8A 67%, #0C7A57 100%)',
     },
     {
         value: 'komplete',
@@ -91,9 +91,9 @@ export const ACCENT_THEME_OPTIONS: Array<{
     },
     {
         value: 'vega',
-        label: 'Vega — Legal Copper',
-        description: 'The Warm Chambers register of the Vega product.',
-        swatch: '#E07A3F',
+        label: 'Vega — Navy',
+        description: 'The light-enterprise register of the Vega product.',
+        swatch: '#1E3A8A',
     },
     {
         value: 'atrium',
