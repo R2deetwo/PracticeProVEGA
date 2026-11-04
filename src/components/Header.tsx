@@ -88,10 +88,6 @@ const Header: React.FC = React.memo(() => {
         }
     };
 
-    const [demoProduct, setDemoProduct] = useState<'vega' | 'atrium'>(
-        () => (sessionStorage.getItem('practicepro_demo_product') as 'vega' | 'atrium') || 'vega'
-    );
-
     // Fetch inbound tenant messages for notification bell.
     // IMPORTANT: Use hasPropertyFeatures (not isProperty) so Komplete firms
     // also get resident messages. isProperty is only for the assistant name.
@@ -416,31 +412,13 @@ const Header: React.FC = React.memo(() => {
                     </button>
                 </div>
 
-                {/* Demo Switcher */}
-                {currentUser.email === 'demo@practicepro.ng' && (
-                    <div className="hidden lg:flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 border border-slate-200 dark:border-zinc-700 mr-1">
-                        <button
-                            onClick={() => { actions.switchDemoProduct('vega'); setDemoProduct('vega'); }}
-                            className={`px-3 py-1 text-xs uppercase tracking-wider font-bold rounded-md transition-all ${
-                                demoProduct !== 'atrium'
-                                    ? 'bg-white dark:bg-zinc-600 text-primary-600 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'
-                            }`}
-                        >
-                            Vega
-                        </button>
-                        <button
-                            onClick={() => { actions.switchDemoProduct('atrium'); setDemoProduct('atrium'); }}
-                            className={`px-3 py-1 text-xs uppercase tracking-wider font-bold rounded-md transition-all ${
-                                demoProduct === 'atrium'
-                                    ? 'bg-white dark:bg-zinc-600 text-primary-600 shadow-sm'
-                                    : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400'
-                            }`}
-                        >
-                            Atrium
-                        </button>
-                    </div>
-                )}
+                {/* R61 — the demo Vega|Atrium product switcher is RETIRED.
+                    Owner direction: it made no sense in the workspace captures
+                    ("this is not how the app is even for komplete on the dash")
+                    — a real firm never sees a product toggle in its own
+                    header. The demo product is chosen where it belongs: at
+                    login/session-restore time via the
+                    practicepro_demo_product session key. */}
 
                 {/* DB Connection Status */}
                 <ConnectionStatus />

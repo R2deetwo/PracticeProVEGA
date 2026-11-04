@@ -228,6 +228,34 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     const sendHeartbeatMutation = useMutation(api.myFunctions.sendHeartbeat);
     const activePeersQuery = useQuery(api.myFunctions.getActivePeers, currentUser?.firmId ? { firmId: currentUser.firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : "skip");
 
+    // R61 — DEV DEMO PRESENCE. Owner direction: the workspace captures
+    // (and the dev demo generally) should show what MULTIPLE PEOPLE
+    // LOGGED INTO THE WORKSPACE actually looks like — the overlapping
+    // moniker avatars with live green rings that PresenceAvatars renders
+    // for real firms. A dev demo session has no real presence records
+    // (nobody else is actually connected), so when the real query comes
+    // back empty the demo firm's seeded members are marked online —
+    // dev-gated exactly like the demo session itself
+    // (import.meta.env.DEV), so no production user ever sees synthetic
+    // presence. The ids are the seeded demo firm member ids
+    // (src/utils/demoData.ts — dId('u','1'…) for Vega, dId('su',…) for
+    // Atrium).
+    const activePeers = React.useMemo(() => {
+        const peers = activePeersQuery || [];
+        if (
+            import.meta.env.DEV &&
+            peers.length === 0 &&
+            currentUser?.email === 'demo@practicepro.ng'
+        ) {
+            const product = window.sessionStorage.getItem('practicepro_demo_product') || 'vega';
+            const memberIds = product === 'atrium'
+                ? ['demo-su-1', 'demo-su-2']
+                : ['demo-u-1', 'demo-u-2', 'demo-u-3'];
+            return memberIds.map((userId) => ({ userId, updatedAt: Date.now(), isOnline: true }));
+        }
+        return peers;
+    }, [activePeersQuery, currentUser]);
+
     const [fontSize, setFontSize] = React.useState<FontSize>(() => {
         const stored = localStorage.getItem('practicepro_fontSize');
         return (stored as FontSize) || 'md';
@@ -973,7 +1001,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         isCommandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen,
         contextMenu, setContextMenu, closeContextMenu,
         viewState, setViewState,
-        activePeers: activePeersQuery || [],
+        activePeers: activePeers,
         isOnline,
         isSessionLocked, setIsSessionLocked,
         banners, addBanner, dismissBanner
@@ -987,7 +1015,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         taskStatusFilter, highlightTarget, isMobileSearchOpen, dockedModalType,
         formInteractionState, activeFormSnapshot, editorState, openEditor, closeEditor,
         isCommandPaletteOpen, toggleCommandPalette, contextMenu, closeContextMenu,
-        viewState, activePeersQuery, isOnline, isSessionLocked,
+        viewState, activePeers, isOnline, isSessionLocked,
         banners, addBanner, dismissBanner
     ]);
 
