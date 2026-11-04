@@ -14802,3 +14802,46 @@ image/screenshots and the vega/atrium toggle."
   messages compose "13 recipients, WhatsApp channel, a drafted
   Notice of Adjournment"; the portals "green PracticePro P + indigo
   VEGA badge" / "+ yellow ATRIUM badge".
+
+**R65 — the promotion of R64: production serves ca8facf4, and every
+scripted check on the new surfaces passes.**
+- THE PUSH: ca8facf4 → origin/main clean (no credential trouble this
+  time; the remote URL stayed clean after R63's hygiene fix).
+- CI: this time the push-event trigger FIRED (the R58/R63 delivery
+  hiccup did not recur) — Tests + Deploy to Staging + Build Android
+  APK all queued on the push, plus the belt-and-braces manual Tests
+  dispatch. Tests on ca8facf4: COMPLETED SUCCESS. The APK workflow
+  committed its usual pair back to main (e91b3459 version bump to
+  1.0.739, 0405abf1 version.json [build-1132]) — main moved past the
+  promoted sha by automation, as designed.
+- THE DEPLOY: production-deploy.yml dispatched with the full sha
+  ca8facf447ce29d67a8d95ce0605d5aabefc8ec0 → run 41880551961.
+  Jobs: "Typecheck + unit tests (on the promoted commit)" SUCCESS;
+  "Deploy to production (Vercel + Convex) and verify live" SUCCESS
+  (the input sha is honored — version.json serves ca8facf4 even
+  though the run's head shows the newer automation commit); "Deploy
+  to production (Cloudflare mirror)" FAILURE — the standing
+  owner-side CLOUDFLARE_API_TOKEN issue (since R47), unchanged.
+- LIVE VERIFY (https://practice-pro-vega.vercel.app): version.json
+  serves sha ca8facf4, status healthy, builtAt 2026-11-04T17:50Z.
+  scripts/r64-live-verify.cjs — 14/14 scripted checks PASSED: the
+  View Live Demo CTA opens the demo-access modal with both product
+  pills and the marks, Vega pre-checked (aria-checked), the CTA
+  computed rgb(30, 58, 138) navy, the toggle flips to Atrium; the
+  served hero capture is the new one (navy px present 1.74%, the
+  Warm Chambers copper 0.01% — noise); the suite exhibit
+  tasks-status.jpg re-captured (navy 1.49% / green 0.00%); the
+  client portal badge computes rgb(165, 180, 252) indigo; the tenant
+  portal badge rgb(250, 204, 21) yellow with the yellow gradient
+  CTA (rgb(250, 204, 21) → rgb(234, 179, 8)); the portfolio tour
+  (via "Preview the system") renders vega indigo accents with the
+  retired amber ABSENT; zero console errors on /, /vega and both
+  portal logins. Production captures in download/r64-promotion/.
+- VLM on the production captures: the hero — "the dashboard wears a
+  navy/indigo accent… the page is light with navy CTAs"; the suite —
+  "the Matters ledger exhibit… accented with indigo/violet"; the
+  modal — "Vega — Legal OS (indigo diamond icon…) vs Atrium —
+  Property OS (amber/orange building icon)".
+- STANDING OWNER ACTIONS, unchanged: the Cloudflare
+  CLOUDFLARE_API_TOKEN (the mirror stays frozen), and the PAT that
+  transited the chat remains worth rotating once convenient.
