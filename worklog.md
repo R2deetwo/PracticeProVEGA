@@ -14413,3 +14413,64 @@ it should be a different color that works well."
   16px favicon variant (drop the stack at smallest sizes) — the company
   P favicon carries no such variant and the standard is the standard;
   revisit only if the owner finds the tab icon busy.
+
+**R58 — the promotion of R55 + R56 + R57: all three local-ready
+releases ship in one push. A fresh credential arrives, a stale
+embedded token is found and retired, and production serves 4335088e.**
+- THE UNBLOCK: the owner supplied a fresh classic PAT (full scopes —
+  repo, workflow, admin:org). Configured via credential.helper store
+  only (never committed; masked in every diagnostic output). The first
+  push failed "Invalid username or token" even though the same token
+  authenticated to the API — root cause: the repo-local remote URL
+  still carried the EXPIRED embedded PAT from the R55/R56-era setup
+  (x-access-token:ghp_OLD@github.com/...), and URL-embedded
+  credentials override the credential helper. `git remote set-url` to
+  the clean https URL → push succeeds: 27b13df8..4335088e (R55, R56,
+  R57 + their worklog entries, five commits).
+- CI QUIRK, WORKED AROUND: the push created NO Tests run — the
+  push-event trigger did not fire (no Actions incident on
+  githubstatus, repo public, workflow active, the same trigger worked
+  all through Oct 31; reads like a GitHub-side event-delivery hiccup).
+  tests.yml supports workflow_dispatch → manually dispatched on main:
+  run 41839463602 on 4335088e → COMPLETED SUCCESS (~90s). The same
+  gate then ran again inline inside the deploy workflow.
+- THE DEPLOY: production-deploy.yml dispatched with the full 40-char
+  sha 4335088ee80b5d6bb95839e3e9bf3442ff5cd895 → run 41839764123.
+  Jobs: "Typecheck + unit tests (on the promoted commit)" SUCCESS;
+  "Deploy to production (Vercel + Convex) and verify live" SUCCESS
+  (the workflow's own live-SHA verification passed); "Deploy to
+  production (Cloudflare mirror)" FAILURE — the standing owner-side
+  CLOUDFLARE_API_TOKEN issue (since R47), unchanged; the run-level
+  conclusion reads failure for this reason only, as every deploy since
+  R47.
+- LIVE VERIFY (https://practice-pro-vega.vercel.app): version.json
+  serves sha 4335088e…, status healthy, builtAt 2026-11-04T13:40Z.
+  DOM: the hero canvas is the section's first child, aria-hidden,
+  plain 2D (no WebGL); the old bands are gone (the only other canvas
+  on / is the SystemCoreScene in #whatWeDo, 620×350 — three.js, by
+  design); 13,655 green px in a 1/9 sample grid with mean green
+  x = 82.1% of width (the RIGHT side) and 8,618/49,304 sampled px
+  changed t0→t4 (moving); mobile 390: computed opacity 0.4, headline
+  38.4px, readable. /vega: exactly six sections (#home, #suite,
+  #why-nigeria, #practice-areas, #pricing + the CTA band), hero bg
+  rgb(255,255,255), h1 "Legal workflow automation for Nigerian law
+  firms.". /atrium: favicon served from /brand/atrium/ (cache-busted
+  to this sha), --color-atrium-indigo = 79 70 229 in the served CSS,
+  header mark = the indigo tile. ZERO console errors on all three
+  pages.
+- VLM on the production captures (download/r55-r57-promotion/): hub
+  t0/t4/t8 — "green ribbons on the right, ~1px lines fanning and
+  pinching like silk, deep navy ground, green only, three frames
+  differ (C-curve → X-crossing → twisted crossing), headline fully
+  readable, NOT topographic"; mobile 390 — "headline fully readable,
+  ribbons subtle"; /vega — "light enterprise, navy Get Started +
+  outline View Live Demo, dashboard below"; /atrium — "indigo stacked
+  blocks with a letter cut out, not green or orange". 18/19 scripted
+  checks passed; the 19th was a false-fail — the check's selector
+  counted the whole page, and the second canvas is the legitimate
+  SystemCoreScene (verified by location; the hero holds exactly one).
+- HYGIENE NOTE FOR THE OWNER: the PAT transited the chat — worth
+  rotating once convenient. It lives only in the sandbox's
+  ~/.git-credentials for git transport and was never committed
+  anywhere. The Cloudflare CLOUDFLARE_API_TOKEN action from R47
+  remains open; the mirror is still frozen at 04d798b3 (owner action).
