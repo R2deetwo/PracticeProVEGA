@@ -17,6 +17,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { Logo, MailIcon } from '../../constants';
+import { AtriumMark } from '../marketing/brand/ProductMarks';
 
 // Inline icon for alert circle
 const AlertCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -239,7 +240,7 @@ const TenantPortalLogin: React.FC = () => {
     return (
         <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
             {/* Ambient glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-amber-500/10 pointer-events-none" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-yellow-500/10 pointer-events-none" />
 
             {/* Brand header */}
             <div className="relative z-10 flex-shrink-0">
@@ -248,8 +249,9 @@ const TenantPortalLogin: React.FC = () => {
                         <Logo className="h-7 w-7 text-primary-500" />
                         <span className="text-lg font-bold tracking-tight text-white flex items-center">
                             Practice<span className="text-primary-500">Pro</span>
-                            <span className="ml-2 text-sm font-black uppercase tracking-tight text-violet-400">
-                                ATRIUM
+                            <span className="ml-2 inline-flex items-center gap-1.5 text-sm font-black uppercase tracking-tight text-yellow-400">
+                                <AtriumMark className="h-4 w-4" title="" />
+                                Atrium
                             </span>
                         </span>
                     </div>
@@ -274,12 +276,12 @@ const TenantPortalLogin: React.FC = () => {
 
                     {/* Invite banner */}
                     {showInviteBanner && viewMode === 'login' && (
-                        <div className="mb-4 px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-300 text-sm">
+                        <div className="mb-4 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
                             <div className="flex items-start gap-2">
                                 <MailIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-semibold">You've been invited!</p>
-                                    <p className="text-violet-400/80 text-xs mt-0.5">
+                                    <p className="text-amber-400/80 text-xs mt-0.5">
                                         {invite.inviteeName
                                             ? `Welcome, ${invite.inviteeName}. Your email has been pre-filled.`
                                             : 'Your email has been pre-filled from the invitation.'}
@@ -353,7 +355,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="your@email.com"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -362,7 +364,7 @@ const TenantPortalLogin: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => { setViewMode('forgot'); setForgotEmail(email); setForgotSent(false); setResetError(''); }}
-                                            className="text-xs text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                                            className="text-xs text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
                                         >
                                             Forgot password?
                                         </button>
@@ -374,14 +376,14 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="Enter your password"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
 
                                 <button
                                     onClick={handleSignIn}
                                     disabled={isSubmitting}
-                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 font-bold text-sm hover:from-yellow-300 hover:to-yellow-400 shadow-lg shadow-yellow-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>
@@ -420,7 +422,7 @@ const TenantPortalLogin: React.FC = () => {
                                     </p>
                                     <button
                                         onClick={() => { setViewMode('reset'); setResetError(''); }}
-                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98]"
+                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 font-bold text-sm hover:from-yellow-300 hover:to-yellow-400 shadow-lg shadow-yellow-500/20 transition-all active:scale-[0.98]"
                                     >
                                         I Have a Recovery Code
                                     </button>
@@ -447,13 +449,13 @@ const TenantPortalLogin: React.FC = () => {
                                             onKeyDown={handleKeyDown}
                                             placeholder="your@email.com"
                                             disabled={isSubmitting}
-                                            className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                            className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                         />
                                     </div>
                                     <button
                                         onClick={handleForgotPassword}
                                         disabled={isSubmitting}
-                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 font-bold text-sm hover:from-yellow-300 hover:to-yellow-400 shadow-lg shadow-yellow-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         {isSubmitting ? (
                                             <>
@@ -492,7 +494,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onChange={e => setForgotEmail(e.target.value)}
                                         placeholder="your@email.com"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -504,7 +506,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="RCV-XXXXXX"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm font-mono tracking-widest focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm font-mono tracking-widest focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                     />
                                     <p className="text-xs text-slate-500 mt-1.5">Enter the code from the recovery email we sent you.</p>
                                 </div>
@@ -517,7 +519,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="At least 8 characters"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                     />
                                     {newPassword && (
                                         <div className="mt-2">
@@ -539,7 +541,7 @@ const TenantPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="Re-enter your new password"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-yellow-500/50 focus:border-yellow-500/30 transition-all disabled:opacity-50"
                                     />
                                     {confirmPassword && confirmPassword !== newPassword && (
                                         <p className="text-xs text-red-400 mt-1.5">Passwords do not match</p>
@@ -548,7 +550,7 @@ const TenantPortalLogin: React.FC = () => {
                                 <button
                                     onClick={handleResetPassword}
                                     disabled={isSubmitting}
-                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-sm hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-950 font-bold text-sm hover:from-yellow-300 hover:to-yellow-400 shadow-lg shadow-yellow-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>

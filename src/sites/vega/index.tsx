@@ -45,6 +45,11 @@ export const VegaSite: React.FC = () => {
         ['home', 'suite', 'practice-areas', 'pricing']
     );
     const openSignup = useSignupOpener('vega');
+    // R64 — the demo entry: "View Live Demo" opens the demo-access modal
+    // (the home of the Vega | Atrium toggle), pre-toggled to THIS page's
+    // product. In dev it launches the chosen demo; in production the email
+    // capture hands off to signup with the product preselected.
+    const openDemo = () => openModal('leadCapture', null, { demoProduct: 'vega' });
     const {
         isContactDrawerOpen,
         contactDrawerSource,
@@ -143,7 +148,7 @@ export const VegaSite: React.FC = () => {
                         </PrimaryButton>
                     )}
                     demoCta={(
-                        <GhostButton onClick={() => scrollTo('suite')} tone="vega" className="text-base px-8 py-4">
+                        <GhostButton onClick={openDemo} tone="vega" className="text-base px-8 py-4">
                             View Live Demo
                         </GhostButton>
                     )}

@@ -16,6 +16,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { Logo, MailIcon } from '../../constants';
+import { VegaMark } from '../marketing/brand/ProductMarks';
 
 // Inline icon for alert circle
 const AlertCircleIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -230,18 +231,24 @@ const ClientPortalLogin: React.FC = () => {
 
     return (
         <div className="min-h-[100dvh] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex flex-col overflow-x-hidden overflow-y-auto" style={{ WebkitOverflowScrolling: "touch" }}>
-            {/* Ambient glow */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-primary-500/10 pointer-events-none" />
+            {/* Ambient glow — R64: indigo, the Vega light-enterprise
+                interactive tone (the amber glow retired with the Warm
+                Chambers register). */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[800px] h-[400px] rounded-full blur-[120px] bg-indigo-500/10 pointer-events-none" />
 
-            {/* Brand header */}
+            {/* Brand header — R64: the portal follows the rebrand. The
+                PracticePro P keeps the company green; the VEGA badge wears
+                the navy Seal mark + the indigo register (the amber text is
+                the retired Warm Chambers accent). */}
             <div className="relative z-10 flex-shrink-0">
                 <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center">
                     <div className="flex items-center gap-2.5">
                         <Logo className="h-7 w-7 text-primary-500" />
                         <span className="text-lg font-bold tracking-tight text-white flex items-center">
                             Practice<span className="text-primary-500">Pro</span>
-                            <span className="ml-2 text-sm font-black uppercase tracking-tight text-amber-500">
-                                VEGA
+                            <span className="ml-2 inline-flex items-center gap-1.5 text-sm font-black uppercase tracking-tight text-indigo-300">
+                                <VegaMark className="h-4 w-4" title="" />
+                                Vega
                             </span>
                         </span>
                     </div>
@@ -345,7 +352,7 @@ const ClientPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="your@email.com"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -354,7 +361,7 @@ const ClientPortalLogin: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => { setViewMode('forgot'); setForgotEmail(email); setForgotSent(false); setResetError(''); }}
-                                            className="text-xs text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                                            className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
                                         >
                                             Forgot password?
                                         </button>
@@ -366,14 +373,14 @@ const ClientPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="Enter your password"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
 
                                 <button
                                     onClick={handleSignIn}
                                     disabled={isSubmitting}
-                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-sm hover:from-primary-400 hover:to-primary-500 shadow-lg shadow-primary-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-indigo-600 to-[#1E3A8A] text-white font-bold text-sm hover:from-indigo-500 hover:to-[#1E40AF] shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>
@@ -412,7 +419,7 @@ const ClientPortalLogin: React.FC = () => {
                                     </p>
                                     <button
                                         onClick={() => { setViewMode('reset'); setResetError(''); }}
-                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-sm hover:from-primary-400 hover:to-primary-500 shadow-lg shadow-primary-500/20 transition-all active:scale-[0.98]"
+                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-indigo-600 to-[#1E3A8A] text-white font-bold text-sm hover:from-indigo-500 hover:to-[#1E40AF] shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98]"
                                     >
                                         I Have a Recovery Code
                                     </button>
@@ -439,13 +446,13 @@ const ClientPortalLogin: React.FC = () => {
                                             onKeyDown={handleKeyDown}
                                             placeholder="your@email.com"
                                             disabled={isSubmitting}
-                                            className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                            className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                         />
                                     </div>
                                     <button
                                         onClick={handleForgotPassword}
                                         disabled={isSubmitting}
-                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-sm hover:from-primary-400 hover:to-primary-500 shadow-lg shadow-primary-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 rounded-lg bg-gradient-to-r from-indigo-600 to-[#1E3A8A] text-white font-bold text-sm hover:from-indigo-500 hover:to-[#1E40AF] shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                     >
                                         {isSubmitting ? (
                                             <>
@@ -484,7 +491,7 @@ const ClientPortalLogin: React.FC = () => {
                                         onChange={e => setForgotEmail(e.target.value)}
                                         placeholder="your@email.com"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                     />
                                 </div>
                                 <div>
@@ -496,7 +503,7 @@ const ClientPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="RCV-XXXXXX"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm font-mono tracking-widest focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm font-mono tracking-widest focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                     />
                                     <p className="text-xs text-slate-500 mt-1.5">Enter the code from the recovery email we sent you.</p>
                                 </div>
@@ -509,7 +516,7 @@ const ClientPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="At least 8 characters"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                     />
                                     {newPassword && (
                                         <div className="mt-2">
@@ -531,7 +538,7 @@ const ClientPortalLogin: React.FC = () => {
                                         onKeyDown={handleKeyDown}
                                         placeholder="Re-enter your new password"
                                         disabled={isSubmitting}
-                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/30 transition-all disabled:opacity-50"
+                                        className="w-full px-4 py-3 rounded-lg bg-white/[0.06] border border-white/[0.08] text-white placeholder-slate-500 text-sm focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/30 transition-all disabled:opacity-50"
                                     />
                                     {confirmPassword && confirmPassword !== newPassword && (
                                         <p className="text-xs text-red-400 mt-1.5">Passwords do not match</p>
@@ -540,7 +547,7 @@ const ClientPortalLogin: React.FC = () => {
                                 <button
                                     onClick={handleResetPassword}
                                     disabled={isSubmitting}
-                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-primary-500 to-primary-600 text-white font-bold text-sm hover:from-primary-400 hover:to-primary-500 shadow-lg shadow-primary-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    className="w-full py-3.5 rounded-lg bg-gradient-to-r from-indigo-600 to-[#1E3A8A] text-white font-bold text-sm hover:from-indigo-500 hover:to-[#1E40AF] shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
                                         <>

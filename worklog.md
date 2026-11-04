@@ -14719,3 +14719,86 @@ releases ship in one push, and production serves f26413f3.**
   R47 reads failure for this job only), and the PAT that transited
   the chat is still worth rotating once convenient — it lives only
   in the sandbox's ~/.git-credentials, never committed.
+
+**R64 — the owner's two missed asks land: every live screenshot
+re-captured in the current registers, and the Vega | Atrium toggle
+reaches the vega site. Plus the rebrand's three forgotten surfaces.**
+Owner direction: "i think there were some thing i asked you to do with
+the vega site that you have not done such as the theme for the live
+image/screenshots and the vega/atrium toggle."
+- THE LIVE SCREENSHOTS, RE-CAPTURED (38 shots). Every Vega/Atrium app
+  capture on the marketing surfaces wore a retired register: the /vega
+  hero dashboard and the 16 suite exhibits wore the Warm Chambers
+  copper (captured R28/R40), the hub tour's vega-demo-* set wore the
+  pre-R28 green (captured W10), the Atrium invoice wore the old
+  emerald Coin era, and the four portal shots wore the pre-rebrand
+  amber/violet badges. scripts/r64-app-shots.cjs (the r28 pattern,
+  extended) boots the dev server's demo session per product, waits
+  for the skin class, and walks the real views — same exhibits, the
+  CURRENT app: the navy/indigo Vega skin, the honest R61 header (no
+  product toggle, the dev presence avatars online), the yellow
+  Stepped Stack era marks where they appear. Sets re-captured:
+  /assets/landing/app/ (dashboard, matters-ledger, tasks-status/flat/
+  team, contacts, editor, documents, research, billing, invoice-bank,
+  analytics, calendar, matter-notes, vega-aloa, vega-aloa-drawout,
+  atrium-invoice) and /assets/landing/work/ (vega-demo-dashboard/
+  newmatter/matter-detail/billing/calendar/messages/aloa, the five
+  mobile captures, atrium-demo-dashboard/financials + mobile, and
+  the four rebranded portal logins). The editor shot seeds a REAL
+  statement-of-claim draft session (the same localStorage path ALOA's
+  drafting takes) so the exhibit shows the guardrailed template
+  instead of the blank state; the draw-out opens the same
+  newContact modal ALOA's create_contact tool opens, via the command
+  palette (the ALOA panel covers the Contacts toolbar). Kozy/Woosh
+  and the R56 page captures were already current — untouched.
+- THE VEGA | ATRIUM TOGGLE reaches the vega site. "View Live Demo" on
+  /vega now opens the demo-access modal (openModal('leadCapture',
+  null, { demoProduct: 'vega' })) — the modal that CARRIES the
+  product toggle — pre-toggled to the page's product, instead of
+  scrolling to the suite showcase (the showcase keeps the captures
+  and stays reachable from the nav's "The Suite"). The R61 header
+  switcher stays retired; a VISITOR picking which product to explore
+  is exactly what this surface is for. Honest in both builds: DEV
+  launches the chosen product's demo; PRODUCTION (the demo bypass is
+  dev-gated since the pre-launch audit) captures the email and hands
+  off to the SIGNUP modal with the chosen product preselected — the
+  toggle still does its job and nothing promises what won't happen.
+- THE MODAL ITSELF re-registers (it still wore the pre-rebrand look):
+  the Vega pill is indigo with the Seal at toggle scale, the Atrium
+  pill yellow with the Stepped Stack, the CTA is the executive navy
+  (the green→emerald gradient retired), the toggle is a real
+  radiogroup with aria-checked, and the copy stopped promising
+  "instant, password-free access" it cannot deliver in production.
+- THE REBRAND'S THREE FORGOTTEN SURFACES: (1) LeadCaptureModal
+  (above); (2) the two portal logins — the client portal wears the
+  Seal + indigo badge/CTA/glow (the amber VEGA badge retired), the
+  tenant portal wears the Stepped Stack + yellow badge/CTA/glow (the
+  violet ATRIUM badge and amber register retired; the invite banner
+  aligns with the client portal's functional amber); (3) the
+  SystemTour ACCENTS map — Vega amber→indigo #4F46E5, Atrium
+  emerald→yellow #EAB308, Woosh indigo→sky #0EA5E9 (matching the
+  R62 portfolio rows), Kozy green kept.
+- HARNESS LESSONS (r64-app-shots.cjs documents them inline): the
+  New Matter modal blocks the whole app (close via its backdrop, not
+  Escape); the mobile nav is the bottom tab bar + a "More" bottom
+  sheet (the desktop aside exists but is hidden — select :visible);
+  the portal cookie banner has a hidden Acknowledge duplicate (pick
+  the visible one); and a seeded DraftPro draft session keys on the
+  FIRM id (demo-firm-id, hyphens — not the auth firmId's
+  demo_firm_id).
+- Gates: 1395/1395 (+3 R64 guards: the toggle wiring + modal
+  registers, the portal registers, the tour accents), convex tsc 0,
+  root tsc 125 (=baseline), eslint 0 errors (72 pre-existing
+  warnings), primitives 2312 (=baseline; the modal edit added no raw
+  elements), build green. Local QA: the modal opens from the hero
+  with Vega pre-checked (aria-checked), Atrium flips it yellow; the
+  hero serves the new navy dashboard capture; both portals show the
+  new registers; zero NEW console errors beyond the two documented
+  pre-existing CSP-source notices. VLM on the new captures: the
+  dashboard "navy blue accent, no product toggle"; the editor "a
+  Statement of Claim with the full Legal Tools ribbon" (content
+  loaded, placeholders visible); the draw-out "New Contact modal
+  over Financials + the ALOA panel with suggestion chips"; the
+  messages compose "13 recipients, WhatsApp channel, a drafted
+  Notice of Adjournment"; the portals "green PracticePro P + indigo
+  VEGA badge" / "+ yellow ATRIUM badge".

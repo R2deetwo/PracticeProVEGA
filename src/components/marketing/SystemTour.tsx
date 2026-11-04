@@ -30,14 +30,19 @@ import { Button } from '../ui';
  */
 
 // ─── Per-system accents ────────────────────────────────────────────────────
+// R64: the accents follow the rebrand — Vega indigo (the light-enterprise
+// interactive tone, replacing the retired Warm Chambers amber), Atrium
+// yellow (the Stepped Stack's tile, replacing the emerald), Woosh sky
+// (matching the portfolio rows; was a near-Vega indigo). Kozy keeps the
+// company green.
 
 export type TourSystem = 'vega' | 'atrium' | 'kozy' | 'woosh';
 
 const ACCENTS: Record<TourSystem, { hex: string; soft: string; text: string; ring: string; chipBg: string }> = {
-    vega: { hex: '#D97706', soft: 'rgba(217,119,6,0.10)', text: '#B45309', ring: 'rgba(217,119,6,0.35)', chipBg: 'rgba(217,119,6,0.12)' },
-    atrium: { hex: '#059669', soft: 'rgba(5,150,105,0.10)', text: '#047857', ring: 'rgba(5,150,105,0.35)', chipBg: 'rgba(5,150,105,0.12)' },
+    vega: { hex: '#4F46E5', soft: 'rgba(79,70,229,0.10)', text: '#4338CA', ring: 'rgba(79,70,229,0.35)', chipBg: 'rgba(79,70,229,0.12)' },
+    atrium: { hex: '#EAB308', soft: 'rgba(234,179,8,0.12)', text: '#A16207', ring: 'rgba(234,179,8,0.40)', chipBg: 'rgba(234,179,8,0.14)' },
     kozy: { hex: '#16A34A', soft: 'rgba(22,163,74,0.10)', text: '#15803D', ring: 'rgba(22,163,74,0.35)', chipBg: 'rgba(22,163,74,0.12)' },
-    woosh: { hex: '#6366F1', soft: 'rgba(99,102,241,0.10)', text: '#4F46E5', ring: 'rgba(99,102,241,0.35)', chipBg: 'rgba(99,102,241,0.12)' },
+    woosh: { hex: '#0EA5E9', soft: 'rgba(14,165,233,0.10)', text: '#0284C7', ring: 'rgba(14,165,233,0.35)', chipBg: 'rgba(14,165,233,0.12)' },
 };
 
 const acc = (s: TourSystem) => ACCENTS[s];

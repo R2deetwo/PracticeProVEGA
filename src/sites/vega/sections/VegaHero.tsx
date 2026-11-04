@@ -14,7 +14,9 @@ import React from 'react';
  *     sweeping behind the copy — smooth visual separation, not a glow,
  *   - a crisp headline on legal workflow automation in Nigeria,
  *   - dual CTAs: solid navy "Get Started" + outline "View Live Demo"
- *     (the demo IS the Core Suite Showcase's live captures — no staging),
+ *     (R64: opens the demo-access modal — the Vega | Atrium toggle —
+ *     pre-toggled to Vega; the Core Suite showcase below keeps the
+ *     real captures),
  *   - the product's REAL dashboard capture (owner, R28: "use stuff from
  *     the app so we are not showing false images") in a clean light
  *     browser container with a soft drop shadow.
@@ -26,7 +28,8 @@ export const VegaHero: React.FC<{
     eyebrow: string;
     /** The primary CTA node (Vega-styled buttons), passed in by the site index. */
     cta: React.ReactNode;
-    /** The secondary "View Live Demo" node — scrolls to the suite showcase. */
+    /** The secondary "View Live Demo" node — R64: opens the demo-access
+     *  modal (the Vega | Atrium toggle), pre-toggled to Vega. */
     demoCta: React.ReactNode;
 }> = ({ eyebrow, cta, demoCta }) => {
     // R39: cache-busted like every landing asset (VITE_BUILD_SHA).

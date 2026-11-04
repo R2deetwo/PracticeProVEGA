@@ -875,10 +875,77 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaHero).toContain("Nigerian law firms");
     expect(vegaHero).toContain("NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED");
     // The dual CTAs are wired by the site index: Get Started (signup) +
-    // View Live Demo (scrolls to the suite's live captures).
+    // View Live Demo (R64: opens the demo-access modal — the Vega | Atrium
+    // toggle — pre-toggled to Vega; the suite showcase keeps the captures
+    // and stays reachable from the nav's "The Suite", which holds the
+    // scrollTo('suite') wiring in VegaShell).
     expect(vegaSite).toContain("Get Started");
     expect(vegaSite).toContain("View Live Demo");
-    expect(vegaSite).toContain("scrollTo('suite')");
+    expect(vegaShell).toContain("scrollTo('suite')");
+  });
+
+  it("R64: the vega/atrium toggle reaches the vega site — View Live Demo opens the demo-access modal", () => {
+    // Owner direction (R64): "the vega/atrium toggle" belongs where the
+    // demo is chosen. The R61 header switcher stays retired (a real firm
+    // never sees one); the site's "View Live Demo" CTA opens the
+    // LeadCaptureModal — which carries the Vega | Atrium product toggle —
+    // pre-toggled to the page's product.
+    expect(vegaSite).toContain("openModal('leadCapture', null, { demoProduct: 'vega' })");
+    expect(vegaSite).not.toContain("scrollTo('suite')}\" tone=\"vega\" className=\"text-base px-8 py-4\">\n                            View Live Demo");
+    const modal = read("src", "components", "modals", "LeadCaptureModal.tsx");
+    // The toggle, in the family registers: Vega indigo, Atrium yellow,
+    // both marks at toggle scale.
+    expect(modal).toContain("VegaMark");
+    expect(modal).toContain("AtriumMark");
+    expect(modal).toContain("Vega — Legal OS");
+    expect(modal).toContain("Atrium — Property OS");
+    expect(modal).toContain("text-indigo-700");
+    expect(modal).toContain("text-yellow-700");
+    expect(modal).toContain("role=\"radiogroup\"");
+    // The retired pre-rebrand registers are gone: no green primary pills,
+    // no emerald Atrium, no green→emerald gradient CTA.
+    expect(modal).not.toContain("to-emerald-600");
+    expect(modal).not.toContain("from-primary-600 to-emerald-600");
+    expect(modal).not.toContain("text-emerald-600");
+    // The CTA is the executive navy.
+    expect(modal).toContain("bg-[#1E3A8A]");
+    // Honest in production: the demo is dev-gated, so the email capture
+    // hands off to signup with the CHOSEN product preselected.
+    expect(modal).toContain("openModal('signup', null, { selectedProduct })");
+  });
+
+  it("R64: the portal logins follow the rebrand — Vega indigo, Atrium yellow", () => {
+    // The portal captures on the tour show these surfaces; they wore the
+    // pre-rebrand registers (an amber VEGA badge, a violet ATRIUM badge,
+    // green/amber CTAs). Now: the product marks at badge scale, the
+    // product registers for links/focus/CTAs.
+    const clientPortal = read("src", "components", "portal", "ClientPortalLogin.tsx");
+    expect(clientPortal).toContain("VegaMark");
+    expect(clientPortal).toContain("text-indigo-300");
+    // the amber VEGA badge is retired (the remaining amber uses are the
+    // functional invite/inactive banners, not brand)
+    expect(clientPortal).not.toContain("uppercase tracking-tight text-amber-500");
+    expect(clientPortal).toContain("bg-indigo-500/10"); // the ambient glow
+    expect(clientPortal).toContain("to-[#1E3A8A]"); // the sign-in CTA
+    const tenantPortal = read("src", "components", "portal", "TenantPortalLogin.tsx");
+    expect(tenantPortal).toContain("AtriumMark");
+    expect(tenantPortal).toContain("text-yellow-400");
+    expect(tenantPortal).not.toContain("text-violet-400");
+    expect(tenantPortal).toContain("bg-yellow-500/10"); // the ambient glow
+    expect(tenantPortal).toContain("from-yellow-400 to-yellow-500"); // the CTA
+  });
+
+  it("R64: the SystemTour accents follow the rebrand — Vega indigo, Atrium yellow, Woosh sky", () => {
+    // The tour player still carried the retired registers (amber for
+    // Vega, emerald for Atrium, a near-Vega indigo for Woosh). The R60
+    // registers: Vega indigo #4F46E5, Atrium yellow #EAB308 (the Stepped
+    // Stack's tile), Woosh sky (matching the portfolio rows), Kozy green.
+    expect(tour).toContain("vega: { hex: '#4F46E5'");
+    expect(tour).toContain("atrium: { hex: '#EAB308'");
+    expect(tour).toContain("woosh: { hex: '#0EA5E9'");
+    expect(tour).toContain("kozy: { hex: '#16A34A'");
+    expect(tour).not.toContain("vega: { hex: '#D97706'");
+    expect(tour).not.toContain("atrium: { hex: '#059669'");
   });
 
   it("R40: the fake ALOA chat mockup is retired — the band carries REAL captures (R40)", () => {
