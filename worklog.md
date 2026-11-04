@@ -14650,3 +14650,72 @@ where you said 3 systems live in production and then lists them."
   folded, hover Atrium open, the Vega exhibit full-length, and the
   about section before/after — smooth both ways, first row open, no
   layout jump.
+
+**R63 — the promotion of R59 + R60 + R61 + R62: four local-ready
+releases ship in one push, and production serves f26413f3.**
+- THE PUSH, BLOCKED AND UNBLOCKED AGAIN: the push failed "Invalid
+  username or token" — the repo-local remote URL had RE-ACQUIRED an
+  embedded credential (a dead one: 401 to the API), and URL-embedded
+  credentials override the credential helper (the same failure mode
+  R58 documented; the store's token is alive: 200). `git remote
+  set-url` to the clean https URL → push succeeds: cf33ba38..f26413f3
+  (R59, R60, R61, R62 + their worklog entry + the tightened
+  primitives baseline, five commits). HYGIENE: whatever re-embeds
+  tokens in the remote URL, the URL must stay clean — the store is
+  the single source of the credential.
+- CI: the push-event Tests run did NOT fire AGAIN (same GitHub-side
+  event-delivery hiccup as R58 — workflow active, repo public, no
+  incident). Manually dispatched on main: run 41866545716 on f26413f3
+  → COMPLETED SUCCESS (a ~5-minute runner queue, then green: convex
+  tsc 0, root tsc under baseline, 1392/1392). The same gate then ran
+  again inline inside the deploy workflow.
+- THE DEPLOY: production-deploy.yml dispatched with the full 40-char
+  sha f26413f309c9cefdc91728a1e92c85dbd4912752 → run 41868179124.
+  Jobs: "Typecheck + unit tests (on the promoted commit)" SUCCESS;
+  "Deploy to production (Vercel + Convex) and verify live" SUCCESS
+  (the workflow's own live-SHA verification passed); "Deploy to
+  production (Cloudflare mirror)" FAILURE — the standing owner-side
+  CLOUDFLARE_API_TOKEN issue (since R47), unchanged; the run-level
+  conclusion reads failure for this reason only, as every deploy
+  since R47.
+- LIVE VERIFY (https://practice-pro-vega.vercel.app): version.json
+  serves sha f26413f3…, status healthy, builtAt 2026-11-04T16:36Z.
+  scripts/r63-live-verify.cjs — 27/27 scripted checks PASSED:
+  R59 — one hero canvas, aria-hidden, plain 2D (webgl ctx null),
+  16,473/143,100 sampled px changed over 4s (moving), green present
+  and right-side weighted (mean x 66.6% of width). R60 — the served
+  CSS registers --color-atrium-tile: 234 179 8 and the .app-skin-vega
+  navy (30 58 138); /vega h1 "Legal workflow automation for Nigerian
+  law firms.", /brand/vega/favicon.svg carries #1E3A8A + #C7D2FE and
+  no burnt orange; /brand/atrium/favicon.svg carries #EAB308 and no
+  indigo; both favicon links cache-busted to this sha. R62 — four
+  <button> trigger rows with aria-controls, first row open, HOVER
+  OPENS row 2 (false,true,false,false) and MOUSE-AWAY FOLDS IT
+  (false,false,false,false); the about retirements live; the hero
+  canvas goes visibility:hidden off-screen (at top −6969px). Zero
+  console errors on /, /vega and /atrium. HARNESS NOTES for the next
+  verify: the hub scrolls an INNER div.overflow-y-auto (the window
+  never scrolls — documentElement.scrollHeight == viewport height),
+  so window.scrollTo is a no-op; and the scroll-reveal blur needs
+  ~3s to settle before captures. R61 — no public-surface delta by
+  design (the retired switcher and the dev-gated presence are demo
+  surfaces); pinned by the suite.
+- VLM on the production captures (download/r59-r62-promotion/): the
+  hero — "two flowing, ribbon-like sweeps of fine parallel green
+  lines on the right… headline, subhead, badge and buttons sit on
+  the left and read clearly… no topographic contour lines, no
+  noise/grain, no stray blobs"; the marks — "Vega: dark navy-blue
+  rounded square containing a white four-pointed compass star… Atrium:
+  bright yellow rounded square… unambiguously different"; the
+  portfolio — "numbered accordion rows — 02 Atrium expanded…
+  browser-frame screenshot with an overlapping phone mockup… BUILT
+  WITH pills… INSIDE THE SYSTEM checklist… text sharp and readable"
+  (the first capture attempt caught the scroll-reveal blur
+  mid-transition — a capture-timing artifact, re-taken clean; the
+  open/fold behaviour itself was already confirmed by the DOM
+  probes).
+- STANDING OWNER ACTIONS, unchanged: the Cloudflare
+  CLOUDFLARE_API_TOKEN (the mirror stays frozen; every deploy since
+  R47 reads failure for this job only), and the PAT that transited
+  the chat is still worth rotating once convenient — it lives only
+  in the sandbox's ~/.git-credentials, never committed.
