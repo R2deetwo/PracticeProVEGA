@@ -14983,6 +14983,28 @@ the typing is actually in view; R66 (never promoted) rides with it.**
   accounting stands).
 - GATES: root tsc 125 (= the R64 baseline, zero errors in the touched
   files), npm run build green.
-- PROMOTION: R66 + R67 pushed together and production-deploy.yml
-  dispatched on the R67 sha (the owner's message this round: the
-  changes had not reached the site — this ride is the fix).
+- PROMOTION (the owner's message this round: the changes had not
+  reached the site — R66 had sat unpushed, so this ride is the fix):
+  R66 + R67 pushed together (bf7ffe55 -> d082a815). First dispatch
+  (run 41903494510) FAILED the unit gate — the R56 hero ratchet in
+  tests/unit/websiteRepositioning.test.ts still asserted the
+  backgroundImage hairline grid + pastel ribbon that R66 had retired
+  (R66's gates ran tsc + build but never npm test). Fixed by flipping
+  the stale pair to their retirements and asserting the HeroVideo
+  ground instead (602680ec, 1395/1395 green). Second dispatch (run
+  41903947698): Typecheck + unit tests SUCCESS; Deploy to production
+  (Vercel + Convex) and verify live SUCCESS; the Cloudflare mirror
+  FAILURE is the standing owner-side CLOUDFLARE_API_TOKEN issue
+  (since R47), unchanged. LIVE VERIFY (https://practice-pro-vega.vercel
+  .app): version.json serves 602680ec, healthy, builtAt
+  2026-11-04T20:13Z; poster 200 (101,979B), webm 206; live geometry —
+  video box 1910x1074 @1920 and 390x219 @390, zero-crop both, playing,
+  zero console errors; VLM on the live desktop capture — the woman
+  clearly visible, "hands actively on the laptop keyboard", "natural
+  wide composition... clean, bright lifestyle-video hero with dark
+  text on top. Very good execution." Mobile: full frame present
+  (zero-crop proven; window/plants/person/laptop/hands confirmed on a
+  3x crop), headline excellent — the 16:9 clip is inherently small at
+  390px wide; a taller dedicated mobile band would mean cropping,
+  which the owner's "see all the video" forbids. Known follow-up if
+  the owner ever wants it.
