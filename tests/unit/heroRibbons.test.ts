@@ -5,12 +5,16 @@
  * shader, retired by owner direction: "NO topographic / contour-map
  * look. NO noise, NO fbm… NO WebGL, NO shaders… Plain 2D canvas
  * only."). These tests pin the NEW contract in source, the way this
- * repo pins every other visual system:
+ * repo pins every other visual system. R59 upgrades the renderer to
+ * the owner's v2 (paste-exact): true parallel curves offset along the
+ * tangent normal, a shared vertical fade gradient, a twist floor so
+ * the ribbon never pinches to nothing, and a tanh tilt so the BOLD
+ * EDGE CHANGES SIDES over the ~11s cycle.
  *   - plain 2D canvas, dependency-free (no three/ogl/regl/pixi/gsap,
  *     no WebGL, no shaders — the Phase-spec DO-NOTs),
  *   - the preset: 2 ribbons × 64 lines, right side (cx 0.80/0.84),
- *     additive 'lighter' blend, the PracticePro green kept in sync
- *     with the --color-primary-500 token (rgb 22 163 74),
+ *     additive 'lighter' blend, the owner's v2 green (rgb 28 183 76 —
+ *     the v1 token-sync adaptation retired by the paste-exact rule),
  *   - the component's runtime rules (DPR clamp, dt clamp, pause
  *     off-screen/hidden, ONE static frame under reduced-motion,
  *     mobile fade opacity-40),
@@ -64,8 +68,10 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
         expect(lib).toContain("blend: 'lighter'");
         expect(lib).toContain('lines: 64');
         expect(lib).toContain('lw: 1.1');
-        expect(lib).toContain('aMin: 0.05');
-        expect(lib).toContain('aMax: 0.85');
+        expect(lib).toContain('aMin: 0.07');
+        expect(lib).toContain('aMax: 0.9');
+        expect(lib).toContain('fade: 0.12');
+        expect(lib).toContain('floor: 0.32');
         // exactly two ribbon specs
         const cxMatches = lib.match(/cx: [0-9.]+/g) ?? [];
         expect(cxMatches).toHaveLength(2);
@@ -76,19 +82,15 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
         expect(lib).toContain('cx: 0.84');
     });
 
-    it('the line green is the repo token --color-primary-500 (rgb 22 163 74, #16A34A)', () => {
-        // The task's eyedropper sample read #1CB74C (28,183,76), which
-        // exists nowhere in the repo; the favicon, logo.svg, theme-color
-        // and --color-primary-500 are all #16A34A. Per the task's palette
-        // rule ("if the repo already defines tokens for these colors, use
-        // those and keep the rgb values in the preset in sync") the
-        // preset carries the token values.
-        expect(lib).toContain('rgb: [22, 163, 74]');
-        expect(lib).not.toContain('28, 183, 76');
-        expect(lib).not.toContain('[28, 183, 76]');
-        // and the sync target is real: the CSS token carries the same rgb
-        const css = read('src', 'index.css');
-        expect(css).toContain('--color-primary-500: 22 163 74');
+    it('the line green is the owner v2 preset value (rgb 28 183 76, #1CB74C)', () => {
+        // R55 adapted the preset to the --color-primary-500 token
+        // (rgb 22 163 74) under the v1 task's palette rule. R59 ships the
+        // owner's v2 renderer PASTE-EXACT, and that code carries its own
+        // rgb — 28, 183, 76 (#1CB74C) — so the preset now owns the colour
+        // and the token adaptation retires.
+        expect(lib).toContain('rgb: [28, 183, 76]');
+        // the v1 minW/maxW pair is gone — v2 width is maxW + floor only
+        expect(lib).not.toContain('minW');
     });
 
     it('draws stroked polylines only — no filled shapes, no blobs', () => {
@@ -101,11 +103,35 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
         expect(lib).not.toContain('arc(');
     });
 
-    it('one edge bright, the other nearly invisible — the silk fade', () => {
-        // edge = (1 - s)^3.2 drives both alpha and width toward aMin
-        expect(lib).toContain('Math.pow(1 - s, 3.2)');
-        expect(lib).toContain('o.aMin + (o.aMax - o.aMin) * edge');
-        expect(lib).toContain('o.lw * (0.6 + 0.9 * edge)');
+    it('one edge bold, the other nearly invisible — and the bold edge changes sides', () => {
+        // tilt = tanh(2.2·sin(...)) decides which edge is "near"; the
+        // near edge runs at aMax, the far edge fades to aMin (q³ curve)
+        expect(lib).toContain('Math.tanh(2.2 * Math.sin(t * R.sp * 0.5 + R.ph * 1.7))');
+        expect(lib).toContain('const q = 0.5 + 0.5 * s * tilt');
+        expect(lib).toContain('o.aMin + (o.aMax - o.aMin) * q * q * q');
+        expect(lib).toContain('o.lw * (0.7 + 0.6 * q)');
+    });
+
+    it('true parallel curves: offset along the tangent normal, never sheared', () => {
+        // the centre curve, normal and twist are computed once per ribbon
+        // into typed arrays; every hairline is offset ALONG THE NORMAL, so
+        // the lines stay parallel through the bows (no hatched stripes)
+        expect(lib).toContain('const N = 220');
+        expect(lib).toContain('nx[j] = dy / len; ny[j] = -dx / len;');
+        expect(lib).toContain('const off = halfW * s * ct[j];');
+        expect(lib).toContain('const x = px[j] + nx[j] * off;');
+        // the twist floor: the ribbon pinches narrow but never to nothing
+        expect(lib).toContain('ct[j] = Math.hypot(Math.cos(Math.PI * R.twist * v + R.sp * 0.8 * t + R.ph), o.floor) / norm;');
+    });
+
+    it('a shared vertical fade gradient softens both ends of every line', () => {
+        // one linear gradient (transparent → solid at fade → solid →
+        // transparent) strokes all lines of a ribbon — ends melt into the
+        // ground instead of stopping dead
+        expect(lib).toContain('ctx.createLinearGradient(0, 0, 0, H)');
+        expect(lib).toContain('grad.addColorStop(o.fade,');
+        expect(lib).toContain('grad.addColorStop(1 - o.fade,');
+        expect(lib).toContain('ctx.strokeStyle = grad;');
     });
 
     it('clears each frame and takes the blend from the options', () => {
