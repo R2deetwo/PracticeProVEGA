@@ -14344,3 +14344,72 @@ PAT with repo write (update the origin remote URL or hand it to the
 session), then: git push origin main → CI (quality gate) → dispatch
 production-deploy.yml on fed75757 → live verify. The standing
 Cloudflare CLOUDFLARE_API_TOKEN action from R47 remains open too.
+
+**R57 (d150540f) — the Atrium Stepped Stack: the company logo's own
+formula, in indigo. NOT YET PROMOTED (the GitHub write credential is
+still expired — see the R55/R56 deploy note; this commit now also waits
+on the same push).**
+Owner direction: "you still have not sorted out the atrium favicon and
+logo, they are too chunky. i think we ought to use a different color as
+well please. it should look like the style of the practicepro logo but
+it should be a different color that works well."
+- THE MARK IS THE COMPANY LOGO'S CONSTRUCTION, TRANSLATED. public/
+  logo.svg (the owner's standard) is a flat green tile, three stepped
+  translucent white blocks (100% / 80% / 60%, each wider than the one
+  above — a document stack), and the letter cut in NEGATIVE space from
+  the top block in the tile's own green. The new AtriumMark is exactly
+  that at 48 units (the 64-unit P geometry × 0.75): flat indigo tile,
+  the same three steps (27 → 30 → 33 wide, flush at y 27/34.5), and the
+  box A cut from the top block in the tile's indigo. The chunky solid
+  emerald tile with the fat white A (R47/R51) is retired.
+- THE COLOR — INDIGO #4F46E5, one flat tile color like the company
+  green. Chosen because it is unmistakably distinct at 16px from the
+  hub's green #16A34A (the two green tiles read as twins in a tab bar),
+  Vega's burnt orange and Komplete's deep ink, AND it is the classic
+  cool counterpoint to Atrium's own cream / sage / emerald page (VLM:
+  "sits surprisingly well against the cream/green palette; the
+  violet-blue complements the green CTA rather than clashing"). New
+  token --color-atrium-indigo: 79 70 229 (src/index.css); the favicon
+  SVGs carry resolved #4F46E5. Alternates considered: royal #1E40AF
+  (too close to Vega's new navy page accent), violet #7C3AED, teal
+  (reads as a third green). One-token change if the owner wants a
+  different hue.
+- THE LETTER keeps R51's box register (flat top, orthogonal edges, no
+  slants) but re-fitted inside the top block at the P's own stroke
+  ratio: 18×18 letter box, 4.5-unit stems = 25% of letter width (the
+  P's exact proportion), 9×6 counter, 6-unit open foot. At 16px:
+  stems 1.5px, counter 3×2px — same register as the company favicon's
+  P. VLM on the family sheet: "row 5 clearly distinguishable in color
+  from rows 1/2 (green), 3 (orange), 6 (dark); visually lighter and
+  less heavy than row 4" — verdict SHIP.
+- FILES: AtriumMark (ProductMarks.tsx) rebuilt — flat tile + clipPath'd
+  step group + negative letter, tokens only (literal whites at
+  100/80/60, the same literal-white allowance as before);
+  public/brand/atrium/favicon.svg identical geometry, full-bleed
+  rx 10.5; favicon-48.png + apple-touch-icon.png re-rendered; og-
+  atrium.png re-rendered (this fixed a STALE R28 Coin of the House that
+  had survived in the OG card long after the mark changed);
+  generate-brand-assets.cjs ATRIUM_MARK updated + a product filter
+  (`node scripts/generate-brand-assets.cjs atrium`) so vega's manual
+  og card is never casually re-rendered; docs/brand/atrium.md logo
+  section rewritten (it still described the R23 domed-A monogram);
+  tests updated (the R47/R51 geometry guards now assert the R57
+  construction, orthogonal register and indigo token).
+- NOT CHANGED, on purpose: the /atrium PAGE keeps its emerald accent
+  and emerald theme-color #059669 (the page register; indigo is the
+  MARK's register), and useProductBranding's atrium themeColor stays
+  emerald for the same reason.
+- Gates: 1388/1388, convex tsc 0, root tsc 125 (=baseline), identity
+  audit pass, tokens gray=0, primitives 2314 (=baseline), eslint 0
+  errors (72 pre-existing warnings), build green. Local QA: marks
+  sheet (scripts/r57-marks-qa.cjs + .py — family lineup, 16/32/48/96px,
+  16px@4x nearest) VLM SHIP; in-context captures (scripts/r57-
+  context-qa.cjs) of /atrium nav + footer, hub dropdown (w-4 16px) and
+  the hub hero (R55 ribbons re-verified visible, title readable) VLM
+  SHIP on all four. Zero console errors on /atrium and / beyond the
+  two pre-existing CSP-source notices and the pre-existing fetchPriority
+  React warning in AtriumHero.
+- DEFERRED: the VLM's optional-polish note about a dedicated simplified
+  16px favicon variant (drop the stack at smallest sizes) — the company
+  P favicon carries no such variant and the standard is the standard;
+  revisit only if the owner finds the tab icon busy.
