@@ -853,11 +853,13 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaHero).not.toContain("setInterval");
     expect(vegaHero).not.toContain("<SwirlBands");
     expect(vegaHero).not.toContain("BandsBackground");
-    // The light register: white ground, subtle grid, the pastel ribbon,
-    // the crisp slate headline, the navy accent.
+    // The light register: white ground, the lifestyle-video hero (R65/R67:
+    // the R56 hairline grid + pastel ribbon are retired — the clip is the
+    // ground now), the crisp slate headline, the navy accent.
     expect(vegaHero).toContain('className="relative overflow-hidden bg-white"');
-    expect(vegaHero).toContain("backgroundImage");
-    expect(vegaHero).toContain("rgb(79 70 229 / 0.07)"); // the pastel ribbon
+    expect(vegaHero).toContain("HeroVideo");
+    expect(vegaHero).not.toContain("backgroundImage"); // the R56 grid, retired R66
+    expect(vegaHero).not.toContain("rgb(79 70 229 / 0.07)"); // the pastel ribbon, retired R66
     expect(vegaHero).toContain("font-display");
     expect(vegaHero).not.toContain("font-vega");
     expect(vegaHero).toContain("text-slate-900");
