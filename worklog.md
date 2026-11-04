@@ -14474,3 +14474,179 @@ embedded token is found and retired, and production serves 4335088e.**
   ~/.git-credentials for git transport and was never committed
   anywhere. The Cloudflare CLOUDFLARE_API_TOKEN action from R47
   remains open; the mirror is still frozen at 04d798b3 (owner action).
+
+**R59 (f4494205) — ribbons v2: the owner's own renderer, paste-exact.
+The v1 adaptation retires; the preset now owns its colour. LOCAL-READY
+(this entry written at gate time; see R63 for the promotion).**
+Owner direction: a pasted v2 renderer for the hero ribbons — the
+geometry upgrades are the owner's own code, kept paste-exact.
+- TRUE PARALLEL CURVES: v1 offset each hairline by (s-0.5)·w in x only,
+  which shears the family through the bows (hatched stripes). v2
+  computes the centre curve ONCE per ribbon into typed arrays (N=220
+  samples, v spanning -0.1..1.1), derives the tangent normal
+  (nx = dy/len, ny = -dx/len) and offsets every hairline ALONG THE
+  NORMAL (off = halfW·s·ct[j]) — the lines stay parallel through every
+  bow. The per-line fan term and the per-line rgba() string building
+  are gone with it.
+- THE SHARED END-FADE: one vertical linear gradient per frame
+  (transparent → solid at fade=0.12·H → solid → transparent), set once
+  as strokeStyle — v1 faded only by edge position and the ribbon ends
+  ran hard to the canvas edge.
+- THE TWIST FLOOR: ct = hypot(cos(π·twist·v + 0.8·sp·t + ph), floor)/
+  norm with floor 0.32 — the ribbon pinches narrow over its twist
+  cycle but NEVER to nothing (v1's minW pinch could close it fully).
+- THE TANH TILT: tilt = tanh(2.2·sin(t·sp·0.5 + 1.7·ph)) decides which
+  edge is "near"; q = 0.5 + 0.5·s·tilt drives alpha (aMin + Δ·q³, now
+  0.07→0.9) and width (lw·(0.7+0.6·q)). The BOLD EDGE CHANGES SIDES
+  over the ~11s cycle — v1's bold edge was fixed at s=0.
+- THE COLOUR: rgb 28 183 76 (#1CB74C) — the owner's original
+  eyedropper sample. R55 had adapted it to the --color-primary-500
+  token (rgb 22 163 74) under the v1 task's palette rule; the
+  paste-exact rule wins now — the preset carries its own colour and
+  the token-sync test retired with it. minW is gone entirely (width is
+  maxW + floor only).
+- TESTS: heroRibbons.test.ts rewritten to pin the v2 contract — the
+  new preset constants (aMin 0.07, aMax 0.9, fade 0.12, floor 0.32),
+  the normal-offset lines, the tanh tilt/q³ bold edge, the shared
+  gradient fade, the twist floor, and #1CB74C as the line colour.
+- Gates: 1392/1392, convex tsc 0, root tsc 125 (=baseline), eslint 0
+  errors (72 pre-existing warnings), primitives 2314 (=baseline).
+  Local QA captures (download/r59-ribbons-v2/): hero t0/t4/t8 +
+  zoom300 ribbon band + offscreen t5/t17 — the curves read as true
+  parallel silk through the bows, ends fade clean, and the bold edge
+  demonstrably changes sides across the cycle.
+
+**R60 (ffea002d) — the brand follows the rebrand: the two product
+marks leave their legacy registers and wear the new ones, and every
+derived surface follows. LOCAL-READY (promoted in R63).**
+Owner direction: "make atrium yellow instead of the current colour" —
+and, with the /vega page's light-enterprise rebrand live (R56), the
+Vega mark's Warm Chambers orange no longer matched anything.
+- VEGA'S SEAL — executive navy + a white star. The construction is
+  unchanged (the notary coin, the four-point steer-star cut in true
+  negative space); the tile is now the navy gradient
+  (--color-vega-seal-ground → --color-vega-night, #1E3A8A falling to
+  the deep-navy corner) with the star in WHITE lit toward indigo
+  (#C7D2FE, --color-vega-seal → --color-vega-seal-bright) and a
+  star-white hairline holding the tile's edge — the page's own
+  navy-button/white-text pairing at mark scale. The burnt-orange
+  register retired with the Warm Chambers.
+- ATRIUM'S STEPPED STACK — yellow #EAB308. The R57 construction is
+  unchanged (the company logo's formula: flat tile, three stepped
+  translucent white blocks 100/80/60, the box A cut in negative
+  space, P-ratio stems); the tile is now a confident yellow. The
+  indigo token became the colour-agnostic --color-atrium-tile
+  (234 179 8) so the next colour change is one line, and the docs say
+  so. Warm against the cream/sage/emerald page, distinct at 16px from
+  the hub green, Vega's navy and Komplete's ink.
+- THE APP SKIN FOLLOWS: .app-skin-vega re-resolves to the new
+  register — --color-primary-500: 30 58 138 (navy) with
+  --color-primary-400: 99 102 241 (indigo) for interactive states;
+  the legal copper retired. accentTheme's auto label now reads
+  "Komplete → Green · Vega → Navy · Atrium → Jade". The auth modal's
+  VEGA_THEME re-registers too: white card on the deep-navy blur,
+  navy accent bar, and the tagline/microlabel the /vega page wears
+  ("Legal workflow automation for Nigerian law firms." / LEGAL
+  WORKFLOW AUTOMATION) — the surfaces stay in lockstep.
+- EVERY DERIVED ASSET RE-RENDERED: both favicon.svg + favicon-48.png +
+  apple-touch-icon.png (vega navy seal, atrium yellow stack) via the
+  updated generate-brand-assets.cjs; og-atrium.png re-rendered; og-
+  vega.png re-rendered against a real /vega capture (hence the size
+  jump 94KB→183KB — the light page carries real content, not a dark
+  void). docs/brand/vega.md + atrium.md rewritten to describe what
+  actually ships (vega.md still described the retired R37 claret
+  monogram era).
+- TESTS: the R54/R57 mark guards re-pointed (vega: navy seal tokens,
+  no orange; atrium: --color-atrium-tile, #EAB308 in the favicon, the
+  indigo asserted ABSENT); accentTheme + websiteRepositioning guards
+  follow the skin.
+- Gates: 1392/1392, convex tsc 0, root tsc 125 (=baseline), eslint 0
+  errors (72 pre-existing warnings), primitives 2314 (=baseline).
+  Local QA (download/r60-brand/): marks family sheet at 16/32/48/96 +
+  tabbar strip at 16 — every mark clearly distinct by colour and
+  silhouette; in-context captures of the hub featured card and both
+  product headers with the new marks in place.
+
+**R61 (153f6b1c) — the honest workspace: the demo header switcher
+retires, and dev demo sessions show a lived-in workspace. LOCAL-READY
+(promoted in R63).**
+Owner direction: the demo Vega|Atrium toggle in the workspace header
+made no sense in the captures ("this is not how the app is even for
+komplete on the dash") — a real firm never sees a product toggle in
+its own header.
+- THE SWITCHER RETIRES: the demo@practicepro.ng-only Vega|Atrium pill
+  (and its sessionStorage mirror state) is gone from Header.tsx. The
+  demo product is chosen where it belongs — login/session-restore
+  time, via the practicepro_demo_product session key — and the
+  captures show a header a real firm would actually see.
+- DEV PRESENCE FOR THE DEMO FIRM: the workspace captures should show
+  what SEVERAL PEOPLE in one workspace looks like — the overlapping
+  moniker avatars with live rings. A dev demo session has no real
+  presence rows, so UIContext now synthesizes them when the real
+  getActivePeers query returns empty: the seeded demo firm members
+  (demo-u-1/2/3 for Vega, demo-su-1/2 for Atrium) marked online,
+  DEV-GATED exactly like the demo session itself (import.meta.env.DEV
+  + the demo email) — no production user can ever see synthetic
+  presence. The value memoized, not a query override.
+- Gates: 1392/1392, convex tsc 0, root tsc 125 (=baseline), eslint 0
+  errors (72 pre-existing warnings), primitives 2314 (=baseline).
+  No pixel QA needed — pure code removal + a dev-only data path,
+  covered by the existing demo-session and header suites.
+
+**R62 (de538b6a) — the portfolio folds into a hover-expand list, the
+about copy stops over-flogging the products, and the hero canvas
+drops its layer when off-screen. LOCAL-READY (promoted in R63).**
+Owner direction (portfolio): "rather than having a situation where
+all the things i have built show all at once, we have a list of sorts
+or sections and when the user hovers over it it opens up to how it
+looks right now and when the user moves the mouse away from the
+trigger section, it closes back and both processes should be smooth."
+Owner direction (about): "the second and third paragraphs are not
+necessary… i certainly dont want to have the issue of vega and atrium
+over flogged it seems desparate" + "please get rid of that thing
+where you said 3 systems live in production and then lists them."
+- THE HOVER-EXPAND LIST: OurWorkSection is now four slim trigger rows
+  (name + tagline + the plus affordance). Hover a row and the full
+  exhibit — the same two-column showcase as before: story, stack,
+  what's inside, CTAs, the real screens in their browser/phone frames
+  — unfolds BENEATH it via grid-rows-[0fr→1fr] with a
+  transition-[grid-template-rows] (no fixed heights, no JS height
+  math, smooth BOTH ways). Move away and it folds back the same way.
+  Touch: canHover is matchMedia('(hover: hover) and (pointer:
+  fine)') — on touch devices a tap toggles (the row's onClick checks
+  e.detail === 0 for the keyboard Enter/Space path). The row is a
+  real <button> with aria-expanded + aria-controls. The FIRST ROW
+  SHIPS OPEN so the affordance is obvious. The always-open card grid
+  is retired.
+- THE ACCENTS FOLLOW R60: Vega rows run indigo (the light-enterprise
+  interactive tone), Atrium rows yellow (the Stepped Stack's tile),
+  Kozy the company green, Woosh sky — no more amber/emerald leftovers
+  from the retired registers.
+- THE ABOUT COPY: the product roll-call paragraph ("We don't just
+  build systems for other people — we run two products of our own…"
+  naming Vega and Atrium) and the vendor-vs-partner musing both
+  retire; one tightened paragraph keeps the credibility point
+  product-name-free ("We run our own systems in production every
+  working day…"). The at-a-glance "3 systems live in production"
+  enumeration fact retires with it. The team photo, Lagos line and
+  the two remaining facts stay.
+- THE CANVAS LAYER: when the hero scrolls out of view the loop
+  already stopped — now the canvas element hides too
+  (visibility: hidden in the IntersectionObserver), so the compositor
+  drops the huge additive-blended layer entirely instead of carrying
+  it around off-screen (it was measured starving main-thread
+  transitions further down the page on software-composited devices).
+- TESTS: websiteRepositioning.test.ts grows the R62 block — the list
+  contract (onMouseEnter/Leave, grid-rows both values, the
+  transition, aria-expanded/controls, the detail-0 keyboard path,
+  useState(0) first-open, the old card-grid selector ABSENT) and the
+  about-copy retirements asserted gone with the survivors asserted
+  present.
+- Gates: 1392/1392, convex tsc 0, root tsc 125 (=baseline), eslint 0
+  errors (72 pre-existing warnings), primitives ratchet IMPROVED
+  2314 → 2312 (the OurWorkSection rewrite shed 2 raw elements) —
+  baseline re-committed at 2312 in the same push. Local QA
+  (download/r62-hub/): initial first-open, hover Kozy open, all
+  folded, hover Atrium open, the Vega exhibit full-length, and the
+  about section before/after — smooth both ways, first row open, no
+  layout jump.
