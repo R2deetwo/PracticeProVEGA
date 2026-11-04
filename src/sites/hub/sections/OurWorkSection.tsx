@@ -1,18 +1,31 @@
 /**
- * OurWorkSection — the W18 portfolio: every card maps to a real,
- * deployed system (Vega, Atrium, Kozy Care, Woosh) with real screens,
- * the stack and what's inside. Restored verbatim; WorkDetailModal keeps
- * the informed tour (SystemTour, W15).
+ * OurWorkSection — the portfolio as a HOVER-EXPAND LIST (R62).
  *
- * R54 — the badge taxonomy is retired by owner direction ("Let's just
- * have the names of the things"): no 'A product' / 'A free tool' /
- * 'Built for a client' pills and no icon chips on the cards — each
- * card leads with its NAME and tagline, and the intro no longer
- * enumerates the taxonomy either.
+ * Owner direction (R62): "rather than having a situation where all the
+ * things i have built show all at once, we have a list of sorts or
+ * sections and when the user hovers over it it opens up to how it looks
+ * right now and when the user moves the mouse away from the trigger
+ * section, it closes back and both processes should be smooth."
+ *
+ * So: four slim rows (name + tagline + the plus affordance). Hover a
+ * row and the full exhibit — the same two-column showcase as before:
+ * the story, the stack, what's inside, the CTAs and the real screens
+ * in their browser/phone frames — unfolds BENEATH it via the
+ * grid-rows-[0fr→1fr] transition (no fixed heights, cheap, smooth both
+ * ways). Move the mouse away and it folds back the same way. Touch
+ * devices have no hover: a tap toggles instead (and keyboard users get
+ * a real <button> row with aria-expanded + Enter/Space). The first row
+ * ships open so the affordance is obvious.
+ *
+ * R54 — the badge taxonomy stays retired ("just the names"); every row
+ * leads with its NAME and tagline. R60: the accents follow the new
+ * registers — Vega indigo (the light-enterprise interactive tone),
+ * Atrium yellow (the Stepped Stack's tile), Kozy the company green,
+ * Woosh sky.
  */
 import React, { useEffect, useState } from 'react';
 import { useScrollReveal } from '../hooks';
-import { CheckIcon, DeviceMobileIcon, ExternalLinkIcon, LockClosedIcon, XMarkIcon } from '../../../constants';
+import { CheckIcon, DeviceMobileIcon, ExternalLinkIcon, LockClosedIcon, PlusIcon, XMarkIcon } from '../../../constants';
 
 import { Button } from '../../../components/ui';
 import { SystemTour, type TourSystem } from '../../../components/marketing/SystemTour';
@@ -58,7 +71,7 @@ const OUR_WORK: Array<{
         tagline: 'Legal Practice OS',
         body: 'Case management, AI-assisted drafting with DraftPro and ALOA, court-rule-aware calendaring and billing for Nigerian law firms — from case intake to filing.',
         cta: { label: 'Explore Vega', href: '/vega', external: true },
-        ctaClass: 'group-hover:text-amber-400 text-amber-400',
+        ctaClass: 'group-hover:text-indigo-300 text-indigo-300',
         frameUrl: 'practicepro.ng/vega',
         tourSystem: 'vega',
         stack: ['React + TypeScript', 'Convex', 'Tailwind CSS', 'Gemini AI', 'Paystack', 'Android app (Capacitor)'],
@@ -102,15 +115,15 @@ const OUR_WORK: Array<{
                 label: 'Client portal — sign-in',
             },
         ],
-        glowClass: 'bg-amber-500/25',
-        borderGlowClass: 'group-hover:border-amber-500/40',
+        glowClass: 'bg-indigo-500/25',
+        borderGlowClass: 'group-hover:border-indigo-500/40',
     },
     {
         name: 'Atrium',
         tagline: 'Property Management OS',
         body: "Rent and service-charge collection, residents' portal, maintenance workflows and revenue intelligence for property portfolios — applying the tenancy law of all 36 states and the FCT.",
         cta: { label: 'Explore Atrium', href: '/atrium', external: true },
-        ctaClass: 'group-hover:text-emerald-400 text-emerald-400',
+        ctaClass: 'group-hover:text-yellow-300 text-yellow-300',
         frameUrl: 'practicepro.ng/atrium',
         tourSystem: 'atrium',
         stack: ['React + TypeScript', 'Convex', 'Tailwind CSS', 'Paystack', 'WhatsApp & SMS', 'Web + Android'],
@@ -148,8 +161,8 @@ const OUR_WORK: Array<{
                 label: "Residents' portal — sign-in",
             },
         ],
-        glowClass: 'bg-emerald-500/25',
-        borderGlowClass: 'group-hover:border-emerald-500/40',
+        glowClass: 'bg-yellow-500/25',
+        borderGlowClass: 'group-hover:border-yellow-500/40',
     },
     {
         name: 'Kozy Care',
@@ -458,6 +471,18 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
     const panelsRef = useScrollReveal<HTMLDivElement>();
     const [preview, setPreview] = useState<(typeof OUR_WORK)[number] | null>(null);
 
+    // R62 — the hover-expand list. `open` is the OPEN ROW INDEX (null =
+    // all folded). Hover drives it on pointer-fine devices; a tap toggles
+    // on touch; keyboard users toggle with Enter/Space on the row button
+    // (e.detail === 0 marks a keyboard-synthesized click, so one handler
+    // serves both without fighting the hover path). The first row ships
+    // OPEN so the affordance is obvious.
+    const [open, setOpen] = useState<number | null>(0);
+    const [canHover] = useState<boolean>(
+        () => typeof window !== 'undefined'
+            && !!window.matchMedia?.('(hover: hover) and (pointer: fine)').matches
+    );
+
     return (
         <section id="ourWork" className="relative py-16 sm:py-24 overflow-hidden w7-dark">
             {/* deep ink base + brand aurora, so the real screens glow */}
@@ -477,96 +502,168 @@ export const OurWorkSection: React.FC<{ onContactSales: () => void }> = ({ onCon
                     <p className="text-lg text-slate-400 mt-4 max-w-2xl mx-auto" style={{ '--w9-d': '180ms' } as React.CSSProperties}>
                         Each one takes a real workflow end to end — and shows what it takes to run a business that scales. Real screens, real stack, really live.
                     </p>
+                    <p className="mt-3 font-mono text-2xs font-semibold uppercase tracking-[0.28em] text-slate-500">
+                        {canHover ? 'Hover a system to open it — move away and it folds back' : 'Tap a system to open it — tap again to fold it back'}
+                    </p>
                 </div>
 
-                <div ref={panelsRef} className="w9-reveal-stagger grid grid-cols-1 gap-6 md:gap-10 max-w-6xl mx-auto">
-                    {OUR_WORK.map((w, i) => (
-                        <div
-                            key={w.name}
-                            className={`group relative rounded-3xl border border-white/10 bg-white/[0.03] backdrop-blur-sm p-6 sm:p-10 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.05] ${w.borderGlowClass}`}
-                        >
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-                                {/* Text side — alternates sides so the page breathes */}
-                                <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
-                                    <h3 className="font-display text-3xl font-bold tracking-tight text-white">{w.name}</h3>
-                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1.5 mb-4">{w.tagline}</p>
-                                    <p className="text-slate-300/90 text-sm leading-[1.75] mb-6">{w.body}</p>
+                {/* THE LIST — slim rows; the exhibit unfolds beneath the
+                    hovered row via grid-rows-[0fr→1fr] (no fixed heights,
+                    smooth in both directions). */}
+                <div ref={panelsRef} className="w9-reveal-stagger max-w-6xl mx-auto">
+                    {OUR_WORK.map((w, i) => {
+                        const isOpen = open === i;
+                        return (
+                            <div
+                                key={w.name}
+                                className={`group border-b border-white/10 first:border-t ${isOpen ? 'bg-white/[0.03]' : 'hover:bg-white/[0.02]'} transition-colors duration-300`}
+                                onMouseEnter={() => { if (canHover) setOpen(i); }}
+                                onMouseLeave={() => { if (canHover) setOpen(null); }}
+                            >
+                                {/* THE TRIGGER ROW — the name leads (R54:
+                                    "just the names"), tagline beside it,
+                                    the plus affordance on the right. */}
+                                <button
+                                    type="button"
+                                    aria-expanded={isOpen}
+                                    aria-controls={`work-exhibit-${i}`}
+                                    onClick={(e) => {
+                                        // Touch toggles; keyboard (detail 0)
+                                        // toggles; a real mouse click on a
+                                        // hover-capable device does nothing
+                                        // extra — hover already governs.
+                                        if (!canHover || e.detail === 0) {
+                                            setOpen(isOpen ? null : i);
+                                        }
+                                    }}
+                                    className="w-full flex items-center gap-4 sm:gap-6 px-4 sm:px-8 py-6 sm:py-7 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400"
+                                >
+                                    <span className={`font-mono text-2xs font-bold tracking-widest flex-shrink-0 transition-colors duration-300 ${isOpen ? w.ctaClass : 'text-slate-600'}`}>
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                    <span className="min-w-0 flex-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                                        <span className={`font-display text-2xl sm:text-3xl font-bold tracking-tight transition-colors duration-300 ${isOpen ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>
+                                            {w.name}
+                                        </span>
+                                        <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                                            {w.tagline}
+                                        </span>
+                                    </span>
+                                    {/* The affordance — a plus that turns to a
+                                        cross as the exhibit opens. */}
+                                    <PlusIcon
+                                        className={`w-5 h-5 flex-shrink-0 transition-transform duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${isOpen ? 'rotate-45 text-emerald-300' : 'text-slate-500 group-hover:text-slate-300'}`}
+                                    />
+                                </button>
 
-                                    {/* Stack chips — the first few, full list in the preview */}
-                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Built with</p>
-                                    <div className="flex flex-wrap gap-2 mb-6">
-                                        {w.stack.slice(0, 4).map((s) => (
-                                            <span key={s} className="px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-xs font-semibold text-slate-300">
-                                                {s}
-                                            </span>
-                                        ))}
-                                        {w.stack.length > 4 && (
-                                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500">
-                                                +{w.stack.length - 4} more
-                                            </span>
-                                        )}
-                                    </div>
+                                {/* THE EXHIBIT — the same two-column showcase
+                                    the always-open cards carried, inside a
+                                    0fr→1fr grid row so it unfolds and folds
+                                    smoothly. */}
+                                <div
+                                    id={`work-exhibit-${i}`}
+                                    className={`grid transition-[grid-template-rows] duration-500 ease-[cubic-bezier(.22,1,.36,1)] ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}
+                                >
+                                    <div
+                                        className="overflow-hidden"
+                                        aria-hidden={!isOpen}
+                                        // visibility follows the height
+                                        // animation: instant on open, delayed
+                                        // by the 500ms fold on close — the
+                                        // content never pops out mid-fold and
+                                        // never stays tabbable when folded.
+                                        style={{
+                                            visibility: isOpen ? 'visible' : 'hidden',
+                                            transition: isOpen ? 'visibility 0s' : 'visibility 0s linear 500ms',
+                                        }}
+                                    >
+                                        <div className={`px-4 sm:px-8 pb-10 sm:pb-12 pt-2 ${isOpen ? w.borderGlowClass.replace('group-hover:', '') : ''}`}>
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+                                                {/* Text side — alternates sides so the page breathes */}
+                                                <div className={`${i % 2 === 1 ? 'lg:order-2' : ''}`}>
+                                                    <h3 className="font-display text-3xl font-bold tracking-tight text-white">{w.name}</h3>
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1.5 mb-4">{w.tagline}</p>
+                                                    <p className="text-slate-300/90 text-sm leading-[1.75] mb-6">{w.body}</p>
 
-                                    {/* Key modules — a taste of what's inside */}
-                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Inside the system</p>
-                                    <ul className="space-y-1.5 mb-8">
-                                        {w.inside.slice(0, 3).map((item) => (
-                                            <li key={item} className="flex items-start gap-2 text-sm text-slate-400">
-                                                <CheckIcon className="w-3.5 h-3.5 mt-1 flex-shrink-0 text-primary-500" />
-                                                {item}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                                    {/* Stack chips — the first few, full list in the preview */}
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Built with</p>
+                                                    <div className="flex flex-wrap gap-2 mb-6">
+                                                        {w.stack.slice(0, 4).map((s) => (
+                                                            <span key={s} className="px-2.5 py-1 rounded-full bg-white/[0.06] border border-white/10 text-xs font-semibold text-slate-300">
+                                                                {s}
+                                                            </span>
+                                                        ))}
+                                                        {w.stack.length > 4 && (
+                                                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold text-slate-500">
+                                                                +{w.stack.length - 4} more
+                                                            </span>
+                                                        )}
+                                                    </div>
 
-                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-                                        <a
-                                            href={w.cta.href}
-                                            {...(w.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                                            className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-150 group-hover:gap-2.5 active:scale-[0.98] ${w.ctaClass}`}
-                                        >
-                                            {w.cta.label} {w.cta.external
-                                                ? <ExternalLinkIcon className="w-3.5 h-3.5" />
-                                                : <span aria-hidden="true">→</span>}
-                                        </a>
-                                        <Button
-                                            variant="bare"
-                                            onClick={() => setPreview(w)}
-                                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-all duration-150 active:scale-[0.98] min-h-[2rem]"
-                                        >
-                                            <DeviceMobileIcon className="w-4 h-4" /> Preview the system
-                                        </Button>
-                                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">Built by PracticePro</span>
-                                    </div>
-                                </div>
+                                                    {/* Key modules — a taste of what's inside */}
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2.5">Inside the system</p>
+                                                    <ul className="space-y-1.5 mb-8">
+                                                        {w.inside.slice(0, 3).map((item) => (
+                                                            <li key={item} className="flex items-start gap-2 text-sm text-slate-400">
+                                                                <CheckIcon className="w-3.5 h-3.5 mt-1 flex-shrink-0 text-primary-500" />
+                                                                {item}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
 
-                                {/* Device side — real screens, floating in the glow */}
-                                <div className={`relative ${i % 2 === 1 ? 'lg:order-1' : ''}`}>
-                                    <div className={`absolute -inset-6 rounded-[2rem] blur-3xl opacity-60 group-hover:opacity-90 transition-opacity duration-700 ${w.glowClass}`} aria-hidden="true" />
-                                    <div className="relative transition-transform duration-500 ease-out group-hover:-translate-y-1.5">
-                                        <BrowserFrame
-                                            url={w.frameUrl}
-                                            src={w.primaryScreen.src}
-                                            alt={w.primaryScreen.alt}
-                                            className="transition-transform duration-500 group-hover:scale-[1.015] rotate-[-1.2deg] group-hover:rotate-0"
-                                        />
-                                        {/* The second surface: an in-app phone screen (Vega/Atrium)
-                                            or a second live page (Kozy Care). */}
-                                        {w.detailScreens[1].kind === 'phone' ? (
-                                            <PhoneFrame
-                                                src={w.detailScreens[1].src}
-                                                alt={w.detailScreens[1].alt}
-                                                className="absolute -bottom-8 -right-3 sm:-right-6 w-[27%] min-w-[92px] rotate-[3deg] w7-float"
-                                            />
-                                        ) : (
-                                            <div className="absolute -bottom-8 -right-2 sm:-right-5 w-[46%] rotate-[2.2deg] w7-float">
-                                                <BrowserFrame url={w.frameUrl + (w.name === 'Kozy Care' ? '/services' : '')} src={w.detailScreens[1].src} alt={w.detailScreens[1].alt} />
+                                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+                                                        <a
+                                                            href={w.cta.href}
+                                                            {...(w.cta.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                                                            className={`inline-flex items-center gap-1.5 text-sm font-semibold transition-all duration-150 group-hover:gap-2.5 active:scale-[0.98] ${w.ctaClass}`}
+                                                        >
+                                                            {w.cta.label} {w.cta.external
+                                                                ? <ExternalLinkIcon className="w-3.5 h-3.5" />
+                                                                : <span aria-hidden="true">→</span>}
+                                                        </a>
+                                                        <Button
+                                                            variant="bare"
+                                                            onClick={() => setPreview(w)}
+                                                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-300 hover:text-white transition-all duration-150 active:scale-[0.98] min-h-[2rem]"
+                                                        >
+                                                            <DeviceMobileIcon className="w-4 h-4" /> Preview the system
+                                                        </Button>
+                                                        <span className="text-xs font-semibold uppercase tracking-wider text-slate-600">Built by PracticePro</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Device side — real screens, floating in the glow */}
+                                                <div className={`relative ${i % 2 === 1 ? 'lg:order-1' : ''}`}>
+                                                    <div className={`absolute -inset-6 rounded-[2rem] blur-3xl opacity-60 group-hover:opacity-90 transition-opacity duration-700 ${w.glowClass}`} aria-hidden="true" />
+                                                    <div className="relative transition-transform duration-500 ease-out group-hover:-translate-y-1.5">
+                                                        <BrowserFrame
+                                                            url={w.frameUrl}
+                                                            src={w.primaryScreen.src}
+                                                            alt={w.primaryScreen.alt}
+                                                            className="transition-transform duration-500 group-hover:scale-[1.015] rotate-[-1.2deg] group-hover:rotate-0"
+                                                        />
+                                                        {/* The second surface: an in-app phone screen (Vega/Atrium)
+                                                            or a second live page (Kozy Care). */}
+                                                        {w.detailScreens[1].kind === 'phone' ? (
+                                                            <PhoneFrame
+                                                                src={w.detailScreens[1].src}
+                                                                alt={w.detailScreens[1].alt}
+                                                                className="absolute -bottom-8 -right-3 sm:-right-6 w-[27%] min-w-[92px] rotate-[3deg] w7-float"
+                                                            />
+                                                        ) : (
+                                                            <div className="absolute -bottom-8 -right-2 sm:-right-5 w-[46%] rotate-[2.2deg] w7-float">
+                                                                <BrowserFrame url={w.frameUrl + (w.name === 'Kozy Care' ? '/services' : '')} src={w.detailScreens[1].src} alt={w.detailScreens[1].alt} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
 

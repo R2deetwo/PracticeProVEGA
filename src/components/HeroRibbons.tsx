@@ -37,7 +37,17 @@ export function HeroRibbons({ className = '' }: { className?: string }) {
     };
 
     const ro = new ResizeObserver(resize); ro.observe(canvas);
-    const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; visible ? start() : stop(); });
+    // R62: when the hero scrolls out of view the loop already stops —
+    // and now the canvas element hides too, so the compositor drops the
+    // (huge, additive-blended) layer entirely instead of carrying it
+    // around off-screen. A frozen-but-present canvas layer was measured
+    // starving main-thread transitions further down the page on
+    // software-composited devices; hidden, the layer costs nothing.
+    const io = new IntersectionObserver(([e]) => {
+      visible = e.isIntersecting;
+      canvas.style.visibility = visible ? 'visible' : 'hidden';
+      visible ? start() : stop();
+    });
     io.observe(canvas);
     const onVis = () => (document.hidden ? stop() : start());
     document.addEventListener('visibilitychange', onVis);

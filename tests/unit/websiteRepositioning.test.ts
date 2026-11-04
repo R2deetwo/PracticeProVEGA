@@ -243,6 +243,48 @@ describe("W6 — the portfolio: products + client commissions", () => {
   });
 });
 
+describe("R62 — the portfolio folds into a hover-expand list; the about copy stops over-flogging the products", () => {
+  it("Our Work is a LIST of trigger rows that expand on hover and fold on leave — smooth both ways", () => {
+    // Owner: "rather than having a situation where all the things i have
+    // built show all at once, we have a list of sorts or sections and
+    // when the user hovers over it it opens up to how it looks right now
+    // and when the user moves the mouse away from the trigger section, it
+    // closes back and both processes should be smooth."
+    expect(hubWork).toContain("onMouseEnter");
+    expect(hubWork).toContain("onMouseLeave");
+    // the smooth open/close: grid-rows 0fr→1fr with a transition (no
+    // fixed heights, no JS height math)
+    expect(hubWork).toContain("grid-rows-[1fr]");
+    expect(hubWork).toContain("grid-rows-[0fr]");
+    expect(hubWork).toContain("transition-[grid-template-rows]");
+    // the row is a real button with the accessibility contract
+    expect(hubWork).toContain("aria-expanded={isOpen}");
+    expect(hubWork).toContain("aria-controls={`work-exhibit-${i}`}");
+    // touch has no hover: a tap toggles (and keyboard Enter/Space via
+    // the detail-0 click)
+    expect(hubWork).toContain("if (!canHover || e.detail === 0)");
+    // the first row ships open so the affordance is obvious
+    expect(hubWork).toContain("useState<number | null>(0)");
+    // the always-open card grid is gone — no more every-card-at-once
+    expect(hubWork).not.toContain("md:gap-10 max-w-6xl mx-auto\">\n                    {OUR_WORK.map");
+  });
+
+  it("the about section drops the product roll-call and the 3-systems enumeration", () => {
+    // Owner: "the second and third paragraphs are not necessary i dont
+    // think or could be better worded. i certainly dont want to have the
+    // issue of vega and atrium over flogged it seems desparate" and
+    // "please get rid of that thing where you said 3 systems live in
+    // production and then lists them."
+    expect(hubAbout).not.toContain("3 systems live in production");
+    expect(hubAbout).not.toContain("Kozy Care");
+    expect(hubAbout).not.toContain("Vega serves Nigerian law firms");
+    expect(hubAbout).not.toContain("vendor and a software partner");
+    // the credibility point survives, product-name-free
+    expect(hubAbout).toContain("We run our own systems in production every working day");
+    expect(hubAbout).toContain("we build that too");
+  });
+});
+
 describe("W7 — the wow site: real screens, stack, and the preview system", () => {
   it("every project showcases REAL SCREENS captured from the live systems", () => {
     // Vega — product page + real mobile-app screens + client portal

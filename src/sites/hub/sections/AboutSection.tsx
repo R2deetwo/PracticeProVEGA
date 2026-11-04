@@ -4,15 +4,18 @@
  * R33 (owner: "you have started removing human beings from the sites
  * … we need to do a personalization so we are selling to real people"):
  * the section carries the team's photograph again — faces beside the
- * facts. The photo sits in the section's own surface language (rounded
- * 2xl, hairline border, soft shadow) with a warm scrim caption, stacked
- * above the at-a-glance card so the right column reads: the people,
- * then the record.
+ * facts. R62: the copy tightens by owner direction ("the second and
+ * third paragraphs are not necessary… i certainly dont want to have
+ * the issue of vega and atrium over flogged it seems desparate") —
+ * the product roll-call and the vendor-vs-partner musing retire; one
+ * tightened paragraph keeps the credibility point (we run our own
+ * systems in production) without naming names. The at-a-glance
+ * systems enumeration retires with it.
  */
 import React from 'react';
 import { Button } from '../../../components/ui';
 import { useScrollReveal } from '../hooks';
-import { CheckIcon, MapPinIcon, ShieldCheckIcon, ZapIcon } from '../../../constants';
+import { MapPinIcon, ShieldCheckIcon, ZapIcon } from '../../../constants';
 
 // ─── WHO WE ARE (corporate hub) — about the company ────────────────────────
 // Where "Lagos, Nigeria" legitimately lives: not as a top-of-page eyebrow,
@@ -23,10 +26,6 @@ const ABOUT_FACTS: Array<{
     text: string;
     Icon: React.ComponentType<{ className?: string }>;
 }> = [
-    {
-        text: '3 systems live in production — Vega, Atrium and Kozy Care',
-        Icon: CheckIcon,
-    },
     {
         text: 'Payments, messaging, portals and AI automation shipping today, not planned',
         Icon: ZapIcon,
@@ -68,18 +67,11 @@ export const AboutSection: React.FC<{ onContactSales: () => void }> = ({ onConta
                                 software that tracks the work, moves the money, talks to the customers and
                                 keeps the records straight.
                             </p>
-                            <p className="text-slate-600 leading-[1.75] mb-5">
-                                We don&apos;t just build systems for other people — we run two products
-                                of our own, every working day. Vega serves Nigerian law firms and
-                                Atrium serves property portfolios. That means the foundations a
-                                client system stands on — payments, messaging, portals, automation,
-                                security — are already in production, not on a roadmap.
-                            </p>
                             <p className="text-slate-600 leading-[1.75]">
-                                That is the difference between a software vendor and a software partner:
-                                we live with the consequences of our engineering, in products we operate
-                                ourselves. And when a business needs something that doesn&apos;t exist
-                                yet — in any industry, anywhere — we build that too.
+                                We run our own systems in production every working day, so the
+                                foundations a client build stands on — payments, messaging, portals,
+                                automation, security — are already live, not on a roadmap. And when a
+                                business needs something that doesn&apos;t exist yet, we build that too.
                             </p>
                     </div>
                     {/* R33: the people — the team's photograph above the
