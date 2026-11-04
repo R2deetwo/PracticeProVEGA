@@ -1,7 +1,8 @@
 import React from 'react';
+import { HeroVideo } from '../../../components/HeroVideo';
 
 /**
- * VegaHero — R56: the light-enterprise hero.
+ * VegaHero — R56: the light-enterprise hero; R65: the lifestyle-video hero.
  *
  * Owner direction: transform /vega from "a dark-themed, text-heavy page"
  * into "a clean, modern, light-themed, enterprise-grade landing page" —
@@ -9,9 +10,12 @@ import React from 'react';
  * full-screen photograph (and its dark gradient) is RETIRED with the
  * espresso register; what replaces it:
  *
- *   - a pristine white ground with a subtle background grid,
- *   - one ultra-light pastel vector ribbon (slate/indigo tint at ~6%)
- *     sweeping behind the copy — smooth visual separation, not a glow,
+ *   - R65: a calm lifestyle-video hero — the user-supplied clip of the
+ *     lawyer at her laptop, full-bleed as the section background under a
+ *     uniform pale wash (bg-white/55) plus a left-side fade, with the
+ *     subject anchored lower-right and the copy kept dark on top. The
+ *     R56 grid + pastel ribbon are retired (the video is the ground now);
+ *     copy, fonts, spacing and CTAs are untouched.
  *   - a crisp headline on legal workflow automation in Nigeria,
  *   - dual CTAs: solid navy "Get Started" + outline "View Live Demo"
  *     (R64: opens the demo-access modal — the Vega | Atrium toggle —
@@ -37,45 +41,14 @@ export const VegaHero: React.FC<{
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
-            {/* The subtle background grid — 48px slate hairlines at ~5%,
-                masked to fade toward the bottom edge. */}
-            <div
-                className="absolute inset-0 pointer-events-none"
-                aria-hidden="true"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(to right, rgb(15 23 42 / 0.045) 1px, transparent 1px), linear-gradient(to bottom, rgb(15 23 42 / 0.045) 1px, transparent 1px)',
-                    backgroundSize: '48px 48px',
-                    maskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
-                    WebkitMaskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
-                }}
-            />
+            {/* R65: the lifestyle-video ground — the looping clip of the
+                lawyer at her laptop, full-bleed, under the uniform pale
+                wash + left fade that keeps the copy dark-on-light. The
+                subject sits lower-right (objectPosition 75% 100%); the
+                R56 hairline grid + pastel ribbon are retired. */}
+            <HeroVideo />
 
-            {/* The pastel ribbon — one smooth ultra-light vector wave
-                (slate/indigo tint at ~6%), sweeping behind the copy. */}
-            <svg
-                className="absolute inset-x-0 top-0 h-full w-full pointer-events-none"
-                viewBox="0 0 1440 820"
-                preserveAspectRatio="xMidYMid slice"
-                aria-hidden="true"
-            >
-                <path
-                    d="M-80 620 C 320 480, 640 760, 1040 560 S 1520 300, 1560 360"
-                    fill="none"
-                    stroke="rgb(79 70 229 / 0.07)"
-                    strokeWidth="120"
-                    strokeLinecap="round"
-                />
-                <path
-                    d="M-80 700 C 360 560, 700 820, 1100 620 S 1540 380, 1580 440"
-                    fill="none"
-                    stroke="rgb(100 116 139 / 0.06)"
-                    strokeWidth="72"
-                    strokeLinecap="round"
-                />
-            </svg>
-
-            <div className="relative pt-32 pb-20 lg:pt-40 lg:pb-24 px-4 sm:px-6">
+            <div className="relative z-10 pt-32 pb-20 lg:pt-40 lg:pb-24 px-4 sm:px-6">
                 <div className="max-w-7xl mx-auto">
                     <div className="max-w-3xl mx-auto text-center">
                         {/* Soft indigo status pill — the eyebrow. */}
@@ -103,7 +76,7 @@ export const VegaHero: React.FC<{
 
                         {/* Sub-copy — the one-system story, R49 DraftPro keeps. */}
                         <p
-                            className="text-base md:text-lg leading-[1.75] text-slate-600 max-w-2xl mx-auto mb-9"
+                            className="text-base md:text-lg leading-[1.75] text-slate-800 max-w-2xl mx-auto mb-9"
                             data-vg-reveal
                             style={{ '--vg-d': '150ms' } as React.CSSProperties}
                         >
@@ -123,7 +96,7 @@ export const VegaHero: React.FC<{
                         </div>
 
                         <p
-                            className="font-mono text-2xs tracking-widest text-slate-400"
+                            className="font-mono text-2xs tracking-widest text-slate-500"
                             data-vg-reveal
                             style={{ '--vg-d': '270ms' } as React.CSSProperties}
                         >
@@ -161,7 +134,7 @@ export const VegaHero: React.FC<{
                                 className="block w-full h-auto"
                             />
                         </div>
-                        <p className="font-mono text-2xs tracking-widest text-slate-400 text-center mt-4">
+                        <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
                             LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING
                         </p>
                     </div>
