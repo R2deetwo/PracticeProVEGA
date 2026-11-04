@@ -58,15 +58,32 @@ never on Atrium.
 
 ## Logo usage
 
-- The **Atrium mark** (`src/components/marketing/brand/ProductMarks.tsx`):
-  a solid domed-A monogram (the atrium cupola) with an open doorway and a
-  high crossbar, on a jade→pine lit squircle — SaaS-grade geometric
-  monogram, replacing the old doorway-arch tile (owner: the old marks
-  "looked like emojis").
+- The **Atrium mark — the Stepped Stack (R57)**
+  (`src/components/marketing/brand/ProductMarks.tsx`): the company
+  logo's own construction in Atrium's register, per owner direction
+  ("too chunky… it should look like the style of the practicepro logo
+  but it should be a different color that works well"). A FLAT indigo
+  tile `#4F46E5` (`--color-atrium-indigo`), three stepped translucent
+  white blocks (100% / 80% / 60%, each wider than the one above — the
+  document stack), and the box A cut in negative space from the top
+  block in the tile's own color — exactly how the company P is cut.
+  The letterform keeps the R51 box register (flat top, orthogonal
+  edges) at the company P's stroke ratio (stems = 25% of letter
+  width). Indigo was chosen because it is distinct from the hub green
+  `#16A34A`, Vega's burnt orange and Komplete's deep ink at 16px, and
+  it is the classic cool counterpoint to this page's cream, sage and
+  emerald. History: R23 jade→pine tile → R47 big white A → R51 box A
+  → R57 stepped stack.
 - Header lockup: mark + "Atrium" wordmark (Space Grotesk) only. Footer
   lockup: mark + "Atrium" + "BY PRACTICEPRO" (R24: no byline in the
   header).
-- Favicons: `/brand/atrium/favicon.svg` + `favicon-48.png` + `apple-touch-icon.png`.
+- Favicons: `/brand/atrium/favicon.svg` + `favicon-48.png` +
+  `apple-touch-icon.png` — identical geometry to the in-app mark;
+  regenerate with `node scripts/generate-brand-assets.cjs atrium`.
+  The OG card `og-atrium.png` carries the same mark (R57 fixed a
+  stale R28 house coin that had survived there).
+- The page keeps its emerald accent (`#059669`) and the emerald
+  `theme-color` — the indigo is the MARK's register, not the page's.
 
 ## Considered and deferred (owner note, 2026-10-13)
 

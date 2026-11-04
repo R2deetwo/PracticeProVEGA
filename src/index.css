@@ -158,6 +158,15 @@
   --color-atrium-mint: 110 231 183;     /* #6EE7B7 — the tile's inner ring */
   --color-clay: 180 132 108;            /* #B4846C — warm supporting tone  */
   --color-cream: 250 247 242;           /* #FAF7F2 — warm base surface     */
+  /* R57 — THE STEPPED-STACK ATRIUM TILE. Owner direction: the emerald
+     tile + fat white A read "too chunky" and as a second PracticePro
+     green at tab scale; the mark now borrows the company logo's own
+     construction (flat tile, stepped translucent white blocks, letter
+     cut in negative) in Atrium's own register: indigo #4F46E5 —
+     distinct from the hub green #16A34A, Vega's orange and Komplete's
+     ink, and the classic cool counterpoint to the page's cream, sage
+     and emerald. One flat tile color, like the company logo. */
+  --color-atrium-indigo: 79 70 229;     /* #4F46E5 — the estate tile (R57) */
 
   /* ===== Brand Overhaul Tokens (docs/design/brand.md §4) ============== */
   /* Type roles — three registers, theme-agnostic (fonts don't change per

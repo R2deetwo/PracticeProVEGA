@@ -59,17 +59,26 @@ const VEGA_MARK = `
 </svg>`;
 const VEGA_MARK_SMALL = VEGA_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
+// R57: the Stepped Stack (Atrium) — the company logo's construction in
+// Atrium's register: flat indigo tile #4F46E5, three stepped white
+// blocks (100/80/60%) and the box A cut in negative space from the top
+// block. Replaces the stale R28 Coin of the House that rode the OG card
+// long after the mark itself changed. Same construction as
+// public/brand/atrium/favicon.svg, at card scale.
 const ATRIUM_MARK = `
 <svg width="150" height="150" viewBox="0 0 48 48" aria-hidden="true">
   <defs>
-    <linearGradient id="atcard" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0C7A57"/>
-      <stop offset="1" stop-color="#053D2C"/>
-    </linearGradient>
+    <clipPath id="atcardclip">
+      <rect x="1" y="1" width="46" height="46" rx="11.5"/>
+    </clipPath>
   </defs>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#FAF7F2"/>
-  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="none" stroke="#0C7A57" stroke-opacity="0.4" stroke-width="1.5"/>
-  <path fill-rule="evenodd" d="M24 7 A17 17 0 1 0 24 41 A17 17 0 1 0 24 7 Z M24 15.5 L27 17.6 L27 15.9 L30.5 15.9 L30.5 20.45 L34.5 23.5 L31 23.5 L31 34.5 L17 34.5 L17 23.5 L13.5 23.5 Z" fill="url(#atcard)"/>
+  <rect x="1" y="1" width="46" height="46" rx="11.5" fill="#4F46E5"/>
+  <g clip-path="url(#atcardclip)">
+    <rect x="10.5" y="6" width="27" height="21" rx="1.5" fill="#FFFFFF"/>
+    <rect x="9" y="27" width="30" height="7.5" rx="1.5" fill="#FFFFFF" fill-opacity="0.8"/>
+    <rect x="7.5" y="34.5" width="33" height="7.5" rx="1.5" fill="#FFFFFF" fill-opacity="0.6"/>
+    <path fill-rule="evenodd" d="M15 7.5 H33 V25.5 H28.5 V19.5 H19.5 V25.5 H15 Z M19.5 10.5 H28.5 V16.5 H19.5 Z" fill="#4F46E5"/>
+  </g>
 </svg>`;
 const ATRIUM_MARK_SMALL = ATRIUM_MARK.replace('width="150" height="150"', 'width="64" height="64"');
 
@@ -148,6 +157,12 @@ async function shootCard(page, html, outPath) {
 }
 
 (async () => {
+  // Optional product filter: `node scripts/generate-brand-assets.cjs atrium`
+  // regenerates ONLY that product's assets (R57) — vega's og-vega.png is a
+  // manual brand asset and must not be casually re-rendered.
+  const only = process.argv[2];
+  const want = (p) => !only || only === p;
+
   // PLAYWRIGHT_CHROMIUM_PATH lets the script run in environments where the
   // playwright package version doesn't match the ms-playwright cache build
   // (CI pins its own; local sandboxes can point at any cached chromium).
@@ -158,17 +173,27 @@ async function shootCard(page, html, outPath) {
   const page = await context.newPage();
 
   console.log('Rendering product favicon PNGs (deviceScaleFactor 2 → crisp):');
-  await shootSvg(page, path.join(PUBLIC, 'brand/vega/favicon.svg'), 24, path.join(PUBLIC, 'brand/vega/favicon-48.png'));
-  await shootSvg(page, path.join(PUBLIC, 'brand/atrium/favicon.svg'), 24, path.join(PUBLIC, 'brand/atrium/favicon-48.png'));
-  await shootSvg(page, path.join(PUBLIC, 'brand/komplete/favicon.svg'), 24, path.join(PUBLIC, 'brand/komplete/favicon-48.png'));
-  await shootSvg(page, path.join(PUBLIC, 'brand/vega/favicon.svg'), 90, path.join(PUBLIC, 'brand/vega/apple-touch-icon.png'));
-  await shootSvg(page, path.join(PUBLIC, 'brand/atrium/favicon.svg'), 90, path.join(PUBLIC, 'brand/atrium/apple-touch-icon.png'));
-  await shootSvg(page, path.join(PUBLIC, 'brand/komplete/favicon.svg'), 90, path.join(PUBLIC, 'brand/komplete/apple-touch-icon.png'));
+  if (want('vega')) {
+    await shootSvg(page, path.join(PUBLIC, 'brand/vega/favicon.svg'), 24, path.join(PUBLIC, 'brand/vega/favicon-48.png'));
+    await shootSvg(page, path.join(PUBLIC, 'brand/vega/favicon.svg'), 90, path.join(PUBLIC, 'brand/vega/apple-touch-icon.png'));
+  }
+  if (want('atrium')) {
+    await shootSvg(page, path.join(PUBLIC, 'brand/atrium/favicon.svg'), 24, path.join(PUBLIC, 'brand/atrium/favicon-48.png'));
+    await shootSvg(page, path.join(PUBLIC, 'brand/atrium/favicon.svg'), 90, path.join(PUBLIC, 'brand/atrium/apple-touch-icon.png'));
+  }
+  if (want('komplete')) {
+    await shootSvg(page, path.join(PUBLIC, 'brand/komplete/favicon.svg'), 24, path.join(PUBLIC, 'brand/komplete/favicon-48.png'));
+    await shootSvg(page, path.join(PUBLIC, 'brand/komplete/favicon.svg'), 90, path.join(PUBLIC, 'brand/komplete/apple-touch-icon.png'));
+  }
 
   console.log('Rendering OG social cards:');
   fs.mkdirSync(path.join(PUBLIC, 'assets/landing'), { recursive: true });
-  await shootCard(page, VEGA_CARD, path.join(PUBLIC, 'assets/landing/og-vega.png'));
-  await shootCard(page, ATRIUM_CARD, path.join(PUBLIC, 'assets/landing/og-atrium.png'));
+  if (want('vega')) {
+    await shootCard(page, VEGA_CARD, path.join(PUBLIC, 'assets/landing/og-vega.png'));
+  }
+  if (want('atrium')) {
+    await shootCard(page, ATRIUM_CARD, path.join(PUBLIC, 'assets/landing/og-atrium.png'));
+  }
 
   await browser.close();
   console.log('Done.');

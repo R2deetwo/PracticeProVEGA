@@ -1204,21 +1204,36 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(clientDash).not.toContain("PracticePro VEGA ·");
   });
 
-  it("R47 — the Atrium mark is the Big A, in the PracticePro favicon's formula", () => {
-    // Owner: "I don't like the favicon or even the icon for Atrium. For
-    // Atrium, I think it would look better if you look at the Practice Pro
-    // favicon. It looks much clearer. You can see what it is. There's a
-    // big P." The Coin of the Courtyard is retired; the estate tile says
-    // "A" the way the company tile says "P": a big, clear letterform.
+  it("R57 — the Atrium mark is the Stepped Stack, the company logo's formula in a different color", () => {
+    // Owner: "the atrium favicon and logo, they are too chunky. i think
+    // we ought to use a different color as well please. it should look
+    // like the style of the practicepro logo but it should be a
+    // different color that works well." So the mark IS the company
+    // logo's construction (public/logo.svg): a FLAT tile, three stepped
+    // translucent white blocks (100/80/60%) and the letter cut in
+    // negative space from the top block — in Atrium's own indigo. The
+    // Coin of the Courtyard and the chunky solid emerald tile with the
+    // fat white A are both retired.
     const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
-    expect(marks).toContain("THE BIG A");
+    expect(marks).toContain("THE STEPPED STACK");
     expect(marks).not.toContain("Coin of the Courtyard");
     expect(marks).not.toContain("Coin of the House");
-    // The letter is white on the filled emerald tile (the P formula).
-    expect(marks).toMatch(/AtriumMark[\s\S]*?fill="#FFFFFF"/);
-    // The standalone favicon SVG carries the same geometry.
+    // The tile is flat indigo, from the token — no gradient, no emerald.
+    expect(marks).toContain("rgb(var(--color-atrium-indigo))");
+    expect(marks).not.toMatch(/AtriumMark[\s\S]*?--color-atrium-jade/);
+    // The stepped white blocks at 100/80/60% — the company logo's own
+    // three blocks.
+    expect(marks).toMatch(/AtriumMark[\s\S]*?fill="#FFFFFF" fillOpacity="0\.8"/);
+    expect(marks).toMatch(/AtriumMark[\s\S]*?fill="#FFFFFF" fillOpacity="0\.6"/);
+    // The token is registered in index.css as the resolved indigo.
+    const css = read("src", "index.css");
+    expect(css).toContain("--color-atrium-indigo: 79 70 229");
+    // The standalone favicon SVG carries the same construction in
+    // resolved hex.
     const atriumFavicon = read("public", "brand", "atrium", "favicon.svg");
-    expect(atriumFavicon).toContain("THE BIG A");
+    expect(atriumFavicon).toContain("THE STEPPED STACK");
+    expect(atriumFavicon).toContain("#4F46E5");
+    expect(atriumFavicon).not.toContain("#10B981");
     expect(atriumFavicon).not.toContain("Coin of the Courtyard");
     // The AI assistants speak the product's name too.
     const guardrails = read("src", "constants", "identityGuardrails.ts");
@@ -1232,21 +1247,26 @@ describe("W4 — structured data: Organization + per-product apps", () => {
     expect(ariaPrompt).toContain("by PracticePro");
   });
 
-  it("R51 — the A is a BOX letter: flat top, vertical stems, no slants", () => {
+  it("R51/R57 — the A is a BOX letter: flat top, vertical stems, no slants", () => {
     // Owner, R51: "make the 'A' have a flat top it looks too pointed
     // please. it should be a box 'A' not with slants." The R47 A had a
     // narrow apex and splayed legs (L-commands climbing to y 4.5). The
-    // R51 letterform is orthogonal end to end: flat top across the full
+    // letterform is orthogonal end to end: flat top across the full
     // letter width, two vertical stems, a rectangular counter and a
-    // squared foot notch — every drawing command is H or V.
+    // squared foot notch — every drawing command is H or V. R57 keeps
+    // the register but re-fits the letter inside the top block at the
+    // company P's own stroke ratio (stems 4.5 of an 18-wide letter,
+    // 25% — the P's exact proportion) and cuts it in negative space.
     const marks = read("src", "components", "marketing", "brand", "ProductMarks.tsx");
-    const boxPath = "M6 4.5 H42 V43.5 H33.5 V32 H14.5 V43.5 H6 Z";
-    const counterPath = "M14.5 13 H33.5 V25.5 H14.5 Z";
+    const boxPath = "M15 7.5 H33 V25.5 H28.5 V19.5 H19.5 V25.5 H15 Z";
+    const counterPath = "M19.5 10.5 H28.5 V16.5 H19.5 Z";
     expect(marks).toContain(boxPath);
     expect(marks).toContain(counterPath);
     // The pointed/slanted R47 silhouette is gone.
     expect(marks).not.toContain("M6 43.5 L21.5 4.5");
     expect(marks).not.toContain("L31.1 37.5");
+    // The chunky R51 full-tile letter is retired too.
+    expect(marks).not.toContain("M6 4.5 H42 V43.5");
     // The standalone favicon SVG carries the identical geometry.
     const atriumFavicon = read("public", "brand", "atrium", "favicon.svg");
     expect(atriumFavicon).toContain(boxPath);

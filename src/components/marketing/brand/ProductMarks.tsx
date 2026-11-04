@@ -15,10 +15,12 @@ import React, { useId } from 'react';
  *      steer-star cut through in TRUE negative space. Burnt orange on
  *      the espresso ground, the register of the live /vega page.
  *
- *   2. ATRIUM — THE BIG A (R47). A solid emerald tile with a bold
- *      white A — the PracticePro favicon's own formula: the company
- *      tile says "P", the estate tile says "A". Mass carries 16px; the
- *      letter carries the meaning; nothing to decode at a glance.
+ *   2. ATRIUM — THE STEPPED STACK (R57). The company logo's own
+ *      construction in Atrium's register: a flat indigo tile, three
+ *      stepped translucent white blocks (100/80/60%), and the box A cut
+ *      in negative space from the top block — "the style of the
+ *      practicepro logo but a different color that works well." The
+ *      chunky solid emerald tile with the fat white A is retired.
  *
  * Both marks draw EXCLUSIVELY from design tokens (rgb(var(--x))) so the
  * token gate stays green — no hardcoded hexes in components (the white
@@ -91,20 +93,23 @@ export const VegaMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) 
     );
 };
 
-/** Atrium — the Big A (R47, redrawn R51): a solid emerald tile with a
- *  cut through it — the PracticePro favicon's own formula (owner
- *  direction: "I don't like the favicon or even the icon for Atrium.
- *  For Atrium, I think it would look better if you look at the Practice
- *  Pro favicon. It looks much clearer. You can see what it is. There's
- *  a big P"). The company tile says "P"; the estate tile says "A" —
- *  same family, one letter each, nothing to decode. Mass carries 16px;
- *  the letter carries the meaning; nothing to interpret at a glance.
- *  (R28's house mark and R39's courtyard coin are retired by
- *  owner direction — the courtyard read as abstract geometry, not as
- *  the product's name.) R51 redraws the letterform by owner direction
- *  ("make the 'A' have a flat top it looks too pointed please. it
- *  should be a box 'A' not with slants"): the pointed apex and splayed
- *  legs are gone — the A is a BOX letter, every edge orthogonal. */
+/** Atrium — the Stepped Stack (R57): the company logo's own construction
+ *  in Atrium's register. Owner direction: the favicon and logo were "too
+ *  chunky" and the emerald read as a second PracticePro green at tab
+ *  scale — "it should look like the style of the practicepro logo but it
+ *  should be a different color that works well." So the mark IS the
+ *  company logo's formula, translated: a FLAT indigo tile (#4F46E5 —
+ *  distinct from the hub green, Vega's orange and Komplete's ink; the
+ *  cool counterpoint to Atrium's cream, sage and emerald page), three
+ *  stepped translucent white blocks (100% → 80% → 60%, each wider than
+ *  the one above — the document stack), and the letter cut in NEGATIVE
+ *  space from the top block in the tile's own color. The chunky solid
+ *  emerald tile with the fat white box A (R47/R51) is retired by this.
+ *  The letterform keeps R51's box register (flat top, orthogonal edges,
+ *  no splayed legs) but at the company P's own stroke weight — stems
+ *  are 25% of the letter's width, the P's exact ratio, so the whole
+ *  family shares one pen. Mass no longer carries the mark; the letter
+ *  and the stack do. */
 export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
     const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
     return (
@@ -117,36 +122,42 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
         >
             {title && <title>{title}</title>}
             <defs>
-                <linearGradient id={`atmk${uid}`} x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0" stopColor="rgb(var(--color-atrium-jade))" />
-                    <stop offset="1" stopColor="rgb(var(--color-atrium-pine))" />
-                </linearGradient>
+                {/* The stepped blocks are one gradient-free construction —
+                    flat tile + literal whites at 100/80/60%, exactly like
+                    the company logo's own three blocks (public/logo.svg).
+                    The uid'd clip keeps the stack inside the tile's rounded
+                    corners at every render size. */}
+                <clipPath id={`atclip${uid}`}>
+                    <rect x="1" y="1" width="46" height="46" rx="11.5" />
+                </clipPath>
             </defs>
-            {/* The estate tile — solid emerald (jade lit toward pine), the
-                exact register of the live /atrium page's own greens. White
-                letter on the filled tile: the PracticePro "big P" favicon
-                formula, which the owner holds up as the standard of
-                clarity. No hairline — the filled tile holds its own edge
-                on light and dark UI alike. */}
-            <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#atmk${uid})`} />
-            {/* THE A — one bold BOX letterform (R51), solid white, sized
-                like the company favicon's P: the letter spans 75% of the
-                tile's width and 81% of its height and is drawn as a
-                single evenodd path with ONLY orthogonal edges — a flat
-                top across the full 6→42 span, two vertical 8.5-unit
-                stems (≈2.8px at a 16px tab render — the P's own stem
-                weight), a 6.5-unit crossbar, a rectangular counter
-                (19×12.5) and a squared foot notch. No apex, no splayed
-                legs — the box register the owner asked for (R51:
-                "it should be a box 'A' not with slants"). The counter
-                and notch open wider than the R47 triangle, so the
-                letter stays VLM-legible at 16px. */}
-            <path
-                fillRule="evenodd"
-                d="M6 4.5 H42 V43.5 H33.5 V32 H14.5 V43.5 H6 Z
-                   M14.5 13 H33.5 V25.5 H14.5 Z"
-                fill="#FFFFFF"
-            />
+            {/* The estate tile — flat indigo, one color like the company
+                logo's flat green. No gradient, no hairline: the stepped
+                white stack holds the tile's edge on light and dark UI. */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill="rgb(var(--color-atrium-indigo))" />
+            <g clipPath={`url(#atclip${uid})`}>
+                {/* THE STEPPED STACK — three flush white blocks, each wider
+                    than the one above (27 → 30 → 33 of 48), opacities
+                    stepping 100% → 80% → 60%: the company logo's document
+                    stack, at the P logo's own proportions (64-unit geometry
+                    × 0.75). Reads as a layered stack of estate papers. */}
+                <rect x="10.5" y="6" width="27" height="21" rx="1.5" fill="#FFFFFF" />
+                <rect x="9" y="27" width="30" height="7.5" rx="1.5" fill="#FFFFFF" fillOpacity="0.8" />
+                <rect x="7.5" y="34.5" width="33" height="7.5" rx="1.5" fill="#FFFFFF" fillOpacity="0.6" />
+                {/* THE A — cut through the top block in the tile's own
+                    indigo (negative space, the P's own formula), one
+                    evenodd path: 18×18 letter box with the block's own
+                    margins (4.5 side / 1.5 top-bottom — the P's 6/2 at
+                    48 scale), 4.5-unit stems (25% of the letter width,
+                    the P's stroke ratio), a 9×6 counter and a 6-unit open
+                    foot. R51's orthogonal box register throughout. */}
+                <path
+                    fillRule="evenodd"
+                    d="M15 7.5 H33 V25.5 H28.5 V19.5 H19.5 V25.5 H15 Z
+                       M19.5 10.5 H28.5 V16.5 H19.5 Z"
+                    fill="rgb(var(--color-atrium-indigo))"
+                />
+            </g>
         </svg>
     );
 };
