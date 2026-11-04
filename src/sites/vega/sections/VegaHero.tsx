@@ -41,11 +41,11 @@ export const VegaHero: React.FC<{
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
-            {/* R65: the lifestyle-video ground — the looping clip of the
-                lawyer at her laptop, full-bleed, under the uniform pale
-                wash + left fade that keeps the copy dark-on-light. The
-                subject sits lower-right (objectPosition 75% 100%); the
-                R56 hairline grid + pastel ribbon are retired. */}
+            {/* R65/R67: the lifestyle-video ground — the looping clip of the
+                lawyer at her laptop, full-width at the clip's own 16:9 (zero
+                crop: the whole scene, typing included, is always visible),
+                under a composition-tuned pale veil with the copy kept dark.
+                The R56 hairline grid + pastel ribbon are retired. */}
             <HeroVideo />
 
             <div className="relative z-10 pt-32 pb-20 lg:pt-40 lg:pb-24 px-4 sm:px-6">
@@ -95,8 +95,13 @@ export const VegaHero: React.FC<{
                             {demoCta}
                         </div>
 
+                        {/* R67: the trial microcopy rides on an opaque white
+                            pill (mirroring the eyebrow pill above) — its video
+                            backdrop at this depth is near-black (worst-frame
+                            patch lum 0.003), so slate-600 on solid white
+                            (6.98:1, deterministic) is the only reliable carry. */}
                         <p
-                            className="font-mono text-2xs tracking-widest text-slate-500"
+                            className="inline-block rounded-full border border-slate-200 bg-white px-5 py-1.5 font-mono text-2xs tracking-widest text-slate-600"
                             data-vg-reveal
                             style={{ '--vg-d': '270ms' } as React.CSSProperties}
                         >
@@ -105,9 +110,16 @@ export const VegaHero: React.FC<{
                     </div>
 
                     {/* The product UI dashboard preview — the REAL capture in a
-                        clean light browser container with a soft drop shadow. */}
+                        clean light browser container with a soft drop shadow.
+                        R67: on lg+ the container is pushed below the video
+                        band (56.25vw = the band's height at any width, minus
+                        the measured 638px from the band's top to where the
+                        margin begins + a 30px gap) — the dashboard card used
+                        to start at y=748 and covered the clip's typing zone
+                        (y 752-1021) 100%. Below lg the band is shorter than
+                        the copy block, so the old mt-14 stands. */}
                     <div
-                        className="relative max-w-5xl mx-auto mt-14 lg:mt-20"
+                        className="relative max-w-5xl mx-auto mt-14 lg:mt-[max(5rem,calc(56.25vw_-_39.875rem))]"
                         data-vg-reveal
                         style={{ '--vg-d': '340ms' } as React.CSSProperties}
                     >

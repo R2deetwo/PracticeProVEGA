@@ -14924,3 +14924,65 @@ wash, dark copy kept, every acceptance gate measured.**
   assets, the two harness scripts. NOT pushed/deployed: the task
   scoped this round to build + local acceptance; the owner decides
   when R66 rides the next promotion.
+
+**R67 — the video-fit fix: the clip plays UNCROPPED at its own 16:9 and
+the typing is actually in view; R66 (never promoted) rides with it.**
+- THE ASK (owner): R66 was never pushed, so the live /vega still showed
+  no video hero — and in the R66 acceptance PNG the clip read "zoomed in
+  a lot"; the owner wants the FULL video visible, "including the typing".
+- ROOT CAUSE 1 (the zoom): VegaHero is one ~1566px-tall section (copy +
+  CTAs + the dashboard capture), and HeroVideo was absolute inset-0 +
+  object-cover — a 1920x1080 clip had to scale ~1.76x to cover it,
+  cropping the lawyer out of frame (the 75%/100% anchor favoured the
+  empty bookshelf side; the clip's subject is CENTER, x 41-66%).
+  FIX: the video renders in a full-width, exact-16:9 band
+  (aspect-video) anchored to the section top — object-fit cover over a
+  16:9 box crops NOTHING at any viewport width (measured: box ratio
+  1.7778 == intrinsic 1.7778 at 1920 and 390; geometry gate in
+  fit-report.json / final-gates.json).
+- ROOT CAUSE 2 (the typing hidden): the dashboard card started at
+  y=748 and covered the clip's typing zone (y 752-1021, x 33-74%)
+  100% on desktop. FIX: on lg+ the card is pushed below the band with
+  lg:mt-[max(5rem,calc(56.25vw_-_39.875rem))] — 56.25vw IS the band
+  height at any width, so the card tracks it (measured gaps: 62px @
+  1920, 36px @ 1536/1440/1280, typing-zone coverage 0% at every width
+  1024-1920; below lg the band is shorter than the copy, old mt-14
+  stands). The section grows 1566 -> 1928px @1920 — the added height
+  IS the now-visible lower clip.
+- ROOT CAUSE 3 (the veil fought the composition): R66's uniform
+  white/65 + a LEFT-anchored gradient were tuned against the zoomed
+  frame; unzoomed, the left gradient sat exactly over the laptop/typing
+  (the part the owner most wants seen) while the copy is CENTERED.
+  The clip's real composition (frame VLM + a worst-frame luminance
+  map, scripts/r67-wash-*.py): the lawyer spans x 41-66% dead-center
+  behind the copy, her hair/torso the darkest backdrop; the laptop +
+  hands live at y >= 68%; the left third is a bright window. NEW VEIL:
+  uniform white/30 + a plateau gradient (white/65 held to y=45%, clear
+  by y=68%) + the 7% foot fade into the section's white. The
+  microcopy row (its backdrop is near-black, worst patch lum 0.003 —
+  no uniform veil short of ~90% could carry slate text there) moved
+  onto its own opaque white pill, mirroring the eyebrow pill
+  (slate-600 on #FFF = 6.98:1, deterministic).
+- WCAG (real rendered backdrop, text hidden, 8 loop seeks, worst 8x8
+  patch — scripts/r67-wcag-final.py, wcag-real-rendered.json): h1
+  slate-900 9.97 (>=3.0), navy span 5.89 (>=3.0), subcopy slate-800
+  6.63 (>=4.5); micro pill deterministic 6.98. Modelled before build
+  (9.99/5.90/6.62) and measured after — they agree to 0.02.
+- ACCEPTANCE (evidence in download/r67-video-fit/): screenshots
+  1920x1080 + 390x844 + reduced-motion; VLM on the desktop capture —
+  "hands on keyboard and the laptop clearly visible", "full scene
+  well-framed — window with plants, desk, chair and person all fit in
+  view", headline fully readable, pill legible dark-on-white; VLM on
+  the mobile band crop (3x) — window+plants, person at desk, laptop,
+  hands on keyboard all present; network — poster 200 (101,979B)
+  before webm 206 (981,723B < 1MB); zero console errors both
+  viewports; video sanity — muted, loop, playsInline, autoplay, no
+  controls, playing; reduced-motion — still poster renders, ZERO
+  video requests. Lighthouse: no R67 delta by construction (same
+  assets, same markup weight; R66's 78->72 / LCP 2.1->2.95s
+  accounting stands).
+- GATES: root tsc 125 (= the R64 baseline, zero errors in the touched
+  files), npm run build green.
+- PROMOTION: R66 + R67 pushed together and production-deploy.yml
+  dispatched on the R67 sha (the owner's message this round: the
+  changes had not reached the site — this ride is the fix).

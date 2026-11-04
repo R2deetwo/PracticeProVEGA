@@ -29,14 +29,22 @@ export function HeroVideo({ className = '' }: { className?: string }) {
   }, []);
 
   return (
-    <div aria-hidden="true" className={`absolute inset-0 overflow-hidden ${className}`}>
+    <div aria-hidden="true" className={`absolute inset-x-0 top-0 overflow-hidden ${className}`}>
+      {/* R67: the band is pinned to the clip's own 16:9. The old inset-0 +
+          object-cover had to fill this whole ~1900px-tall section, forcing a
+          ~1.76x zoom that cropped the lawyer (and her typing) out of frame;
+          the 75%/100% anchor only made it worse by favouring the empty
+          right-hand bookshelf. At exactly 16:9 the clip fits edge-to-edge
+          with ZERO crop or zoom at any viewport width — the full scene,
+          typing included, is always visible. Content that runs past the
+          band simply sits on the section's own bg-white. */}
+      <div className="relative w-full aspect-video">
       {still ? (
-        <img src="/video/vega-hero-poster.jpg" alt="" fetchPriority="high" className="h-full w-full object-cover" style={{ objectPosition: '75% 100%' }} />
+        <img src="/video/vega-hero-poster.jpg" alt="" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
         <video
           ref={ref}
-          className="h-full w-full object-cover"
-          style={{ objectPosition: '75% 100%' }}
+          className="absolute inset-0 h-full w-full object-cover"
           autoPlay muted loop playsInline preload="metadata"
           // fetchpriority=high on the video raises the poster (the LCP
           // resource) fetch priority — React's types don't declare it on
@@ -48,14 +56,28 @@ export function HeroVideo({ className = '' }: { className?: string }) {
           <source src="/video/vega-hero.mp4" type="video/mp4" />
         </video>
       )}
-      {/* uniform pale wash: this is what keeps dark text readable over any frame
-          (R65: raised 55 -> 65 after WCAG sampling — at 55 the darkest frames
-          behind the centred subcopy dipped below 4.5:1; the subcopy also moved
-          slate-600 -> slate-800, which clears the worst mobile pixel at 65
-          with margin while keeping the subject clearly visible) */}
-      <div className="absolute inset-0 bg-white/65" />
-      {/* extra fade on the text side */}
-      <div className="absolute inset-0 bg-gradient-to-r from-white/80 via-white/30 to-transparent" />
+      {/* R67 veil stack — composition-driven, replacing R66's uniform /65 +
+          LEFT-anchored gradient. The clip's real composition (measured, see
+          scripts/r67-wash-*.py + download/r67-video-fit/): the lawyer sits
+          CENTER (x 41-66%) directly behind the centered copy; the laptop and
+          her typing hands live in the bottom third (y >= 68%); the old left
+          gradient veiled exactly that typing zone while serving no text.
+          The stack now:
+            1. uniform /30 base — the whole scene stays recognizable;
+            2. a plateau veil: /65 held through the copy (to y=45%), falling
+               to clear by y=68% so the typing zone stays vivid. Worst-frame
+               WCAG behind the copy: h1 9.99, navy span 5.90, subcopy 6.62
+               (gates 3.0 / 3.0 / 4.5);
+            3. the microcopy row rides on its own opaque white pill in
+               VegaHero (its backdrop is near-black at y~60% — no uniform
+               veil short of ~90% could carry slate text there). */}
+      <div className="absolute inset-0 bg-white/30" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.65)_0%,rgba(255,255,255,0.65)_45%,rgba(255,255,255,0)_68%)]" />
+      {/* blend the band's foot into the white section below — the hands and
+          keyboard live at y >= 68% of the frame, so a 7% fade only ever
+          touches the desk surface, never the typing */}
+      <div className="absolute inset-x-0 bottom-0 h-[7%] bg-gradient-to-b from-transparent to-white" />
+      </div>
     </div>
   );
 }
