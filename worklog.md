@@ -15302,3 +15302,50 @@ version.json, the band as the background at 1920 AND 1280 — the width
 that had shown the card — the cycle, and console errors). A safety
 bundle of the commit rides the evidence folder
 (r70-local-commit.bundle, prerequisites 3026f5b0).
+
+## Task 71 — R71: the presence stack goes quiet — no hover pop, no highlight plate (2026-11-05)
+
+User directive (verbatim): "i can see that you have put the multi users
+logged in monikers but you have over highlighted it. it should just be
+seen as visble and not highlighted or highlightable"
+
+### Diagnosis
+R69's presentation answer for tiny-card legibility was a hover pop: the
+whole bell→profile gap zone scaled to 1.55 on hover/focus with a soft
+white plate (bg-white/85, rounded-l-full) growing leftward over the
+bell. The owner read that as the monikers being "over highlighted" —
+the stack must read as plain header chrome, always on, never reacting.
+
+### The quieting (CollabPresence.tsx only)
+- The trigger Button drops `transition-transform duration-200
+  hover:scale-[1.55] focus-visible:scale-[1.55] origin-right` and the
+  `group` hook — nothing responds to hover at any render scale.
+- The pop-plate span is deleted outright — no white ground appears.
+- The static stack is untouched: three avatar circles (AO/TA/CN) + the
+  "+5" chip, pinned in the measured gap (top 1.25cqw / right 8.55cqw),
+  sized in cqw so it tracks the capture at card, hero and lightbox.
+- Kept: the keyboard focus ring (focus-visible, WCAG 2.4.7) and the
+  click roster — clicking is not highlighting. The dropdown, the DM
+  rows and the demo note are byte-identical to R69.
+
+### Verification (scripts/r71-presence-quiet.cjs joins scripts/)
+vite preview + Playwright on the built site, 1440×900: REST and HOVER
+measurements identical (trigger rect 54.5×19 unchanged, transform
+none, no plate element, no hover:scale class); the header-gap crop
+pixel-diff between rest and hover is max delta 0 (the full-frame
+screenshot diff that remains is the hero video playing behind, not the
+stack). Click still opens the roster — "8 teammates in this workspace",
+8 rows, 8 DM buttons. A suite-card trigger and the lightbox trigger are
+equally quiet. Zero console errors.
+
+### Gates
+vitest 1398/1398 green (a new R71 ratchet joins
+websiteRepositioning.test.ts: no hover:scale, no bg-white/85, the
+trigger + roster survive), tsc 125 baseline with zero errors in touched
+files, lint ratchet 2312 held, vite build green.
+
+### COMMITTED: feat(r71) — d4933b9b. PUSH: the owner supplied a fresh
+PAT this round — the parked R70+R71 stack pushes, then
+production-deploy.yml dispatches on the R71 sha, then live
+verification: r70-live-verify.cjs (the background at 1920 AND 1280, the
+cycle, console errors) plus a live re-run of the quiet checks.
