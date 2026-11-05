@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
 /**
  * HeroVideo — R66: the single-clip lifestyle-video ground; R67: the exact
- * 16:9 zero-crop band; R68: the SEAMLESS CLIP PLAYLIST.
+ * 16:9 zero-crop band; R68: the SEAMLESS CLIP PLAYLIST; R70: the band is
+ * the landing-page BACKGROUND again, at every width.
  *
  * Owner direction (R68, verbatim shape): "i have a new set of videos that
  * id like you to use. it should cycle between the videos seamlessly.
@@ -23,14 +24,37 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
  * to the white ground mid-transition). The wrap from last clip back to
  * first is the same dissolve. No black frames, no pause, no controls.
  *
- * R68 GEOMETRY (the de-shove, paired with VegaHero): below 2xl the clip
- * renders as a framed 16:9 CARD in flow (mx-4, rounded, ring+shadow — the
- * visual family of the dashboard capture below it); at 2xl+ it becomes
- * the full-bleed band, now lifted OFF the navbar (top-24, was top-0 — the
- * owner: "i dont like the manner the video is shoved to the top of the
- * screen") with the copy riding on top under a per-clip veil. The band
- * keeps R67's exact-16:9 contract: object-cover over an aspect-video box
- * crops NOTHING at any viewport width.
+ * R70 GEOMETRY (the restore, owner-ordered): "it is supposed to be on
+ * the landingpage background — put it back there." R68 had demoted the
+ * clip to a framed card BELOW the copy for every width under 2xl (only
+ * >=1536px kept the band); the owner rejected that on seeing it live.
+ * The band is now the full-bleed background at EVERY width — ONE
+ * presentation, no card variant: absolute inset-x-0 top-24 (the R68
+ * de-shove held; never back to top-0), exact 16:9 (R67's zero-crop
+ * contract: the whole scene, typing included, visible at any width),
+ * the copy riding ON TOP (VegaHero anchors it into the band at every
+ * width) under the per-clip veils — which now render at every width
+ * too, because text sits on the clip wherever the viewport lands.
+ * z-0 is LOAD-BEARING at every width now (R68 learned this at 2xl): it
+ * makes the band a stacking context, so the layer z-indexes below
+ * (10/20/30 + the z-40 foot fade) stay CONTAINED — without it they
+ * escape into the section's stacking context and paint the video OVER
+ * the copy wrapper's z-10 (the R68 acceptance VLM caught exactly that:
+ * the headline invisible under the clip).
+ *
+ * R70 VEIL LADDER (measured, r70 dip-probe): the copy's depth in the
+ * band varies with width — the sub-copy's tail lands at ~50% of the
+ * band at 1920 but ~64% at 1280, ~75% at 1024 and ~88% at 768 — so one
+ * gradient cannot carry every width: at 2xl R68's tune passed
+ * (5.1–6.9:1) but at 1280 the cufflink's near-black suit behind the
+ * sub's tail measured 1.82:1, and at 768 even the headline failed
+ * (2.55:1). Each clip therefore carries a FOUR-STEP ladder, one rung
+ * per width range, each rung holding its plateau just past that
+ * range's measured tail then easing to clear — so the action zone
+ * BELOW the copy (the typing hands, the cufflink) stays vivid at every
+ * width: 2xl R68's tune unchanged; xl holds to ~68%; lg to ~78%; below
+ * lg (the tail runs to ~88%, and at 640–767 the sub's head rides the
+ * band's foot rows) the plateau holds to 90%.
  *
  * Network posture (R66's gates, kept): the poster is the only eager
  * fetch; clip 1 streams on preload="metadata"; every other clip sits at
@@ -44,10 +68,12 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 /** One playlist entry. Veil gradients are per-clip — each clip's
  * composition differs (the typist's action lives at y>=68%, the cufflink
  * at y>=62% with a thumb that rises to ~y50%), so each clip carries the
- * veil that keeps the copy WCAG-safe while leaving ITS action zone
- * vivid. Veils render at 2xl+ only (below that no text sits on the
- * clip). Modelled worst cases, 8x8 patch, slate-800 subcopy on the
- * darkest region behind it: typist 7.8:1, cufflink 5.1:1 (gate 4.5). */
+ * veil ladder that keeps the copy WCAG-safe while leaving ITS action
+ * zone vivid. R70: the ladder renders at EVERY width (the copy rides the
+ * clip wherever the viewport lands) — one rung per width range, tuned to
+ * that range's measured copy depth (see the R70 VEIL LADDER note above).
+ * Modelled worst cases, 8x8 patch, slate-800 subcopy on the darkest
+ * region behind it: typist 7.8:1, cufflink 5.1:1 (gate 4.5). */
 interface HeroClip {
   webm: string;
   mp4: string;
@@ -62,18 +88,30 @@ const CLIPS: HeroClip[] = [
     webm: '/video/vega-hero.webm',
     mp4: '/video/vega-hero.mp4',
     poster: '/video/vega-hero-poster.jpg',
-    // R67's measured stack, R68-retuned: the plateau now holds to 60% and
-    // clears by 75% (was 45%/68%) so the subcopy stays on the plateau at
-    // EVERY 2xl width (at 1536 the copy runs deeper into the band than
-    // the 1920 layout R67 measured) — and the plateau itself eases
-    // 65% -> 55% so the typist reads vivid, not a "faint ghost" (the
-    // R66 lesson). Dip-probe measured floor: 6.73:1 steady state,
-    // 5.12:1 through the dissolve (gate 4.5). The typing hands (y>=75%)
-    // stay clear; only the laptop lid takes the tail of the fade.
+    // R67's measured stack, R68-retuned, R70-laddered. The 2xl rung is
+    // R68's exact tune (the tail lands <=57% there; measured floors
+    // 6.73:1 steady, 5.12:1 through the dissolve). The typing hands
+    // (y>=75%) stay clear on every rung — only the laptop lid above
+    // them takes the deeper washes, and never the whole scene (the
+    // uniform /30 base keeps it recognizable — R67's rule).
     veil: (
       <>
-        <div className="hidden 2xl:block absolute inset-0 bg-white/30" />
+        <div className="absolute inset-0 bg-white/30" />
+        {/* 2xl+ (>=1536): tail <=57% — R68's tune, unchanged. */}
         <div className="hidden 2xl:block absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.55)_60%,rgba(255,255,255,0)_75%)]" />
+        {/* xl (1280-1535): tail <=64.3% (measured at 1280). */}
+        <div className="hidden xl:block 2xl:hidden absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.55)_68%,rgba(255,255,255,0)_82%)]" />
+        {/* lg (1024-1279): tail <=75.3% (measured at 1024). */}
+        <div className="hidden lg:block xl:hidden absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.55)_78%,rgba(255,255,255,0)_90%)]" />
+        {/* below lg (<1024): the tail runs to ~88% (768 measured) and at
+            640-767 the sub's head rides the band's foot rows — but the
+            first ladder draft (plateau to 90%) measured 6.7-7.7:1, a 49%
+            headroom over the 4.5 gate, while the VLM read the typing as
+            half-washed. R70 final: the plateau holds only to 62% (the
+            headline's rows), then eases to a 40% shelf from 76% — the
+            typing zone keeps ~60% of its contrast, the sub's tail/head
+            still clears 4.5 on the measured floors. */}
+        <div className="lg:hidden absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.55)_0%,rgba(255,255,255,0.55)_62%,rgba(255,255,255,0.40)_76%,rgba(255,255,255,0.40)_100%)]" />
       </>
     ),
   },
@@ -82,17 +120,29 @@ const CLIPS: HeroClip[] = [
     mp4: '/video/vega-hero-2.mp4',
     // No poster: this layer is always revealed mid-dissolve over the
     // previous clip, so a poster would only add a fetch nobody sees.
-    // No uniform base either — the cufflink itself is a small
-    // high-frequency detail (brass on a white cuff, y~93%); the veil is
-    // a 62% plateau to 55%, easing to a 30% shelf that carries the
-    // subcopy rows over the navy suit, then clear from 78% down. The
-    // plateau is deeper than the typist's (55%) because this clip's
-    // backdrop behind the copy is a NEAR-BLACK suit: CSS composites the
-    // veil in sRGB space, so 55% left the worst 8x8 patch at 4.49:1
-    // (the dip-probe measured it); 62% lifts the measured floor to
-    // ~5.6:1 (gate 4.5).
+    // The cufflink's backdrop behind the copy is a NEAR-BLACK suit: CSS
+    // composites the veil in sRGB space, so the plateau must run deeper
+    // than the typist's at every rung (R68 measured 4.49:1 at 55% on
+    // this clip; 62% lifted the floor to ~5.6). The brass cufflink
+    // itself (y~93%) sits below every rung's ease-off — it stays vivid.
     veil: (
-      <div className="hidden 2xl:block absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.62)_55%,rgba(255,255,255,0.30)_62%,rgba(255,255,255,0.30)_70%,rgba(255,255,255,0)_78%)]" />
+      <>
+        <div className="absolute inset-0 bg-white/30" />
+        {/* 2xl+ (>=1536): R68's tune, unchanged. */}
+        <div className="hidden 2xl:block absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.62)_55%,rgba(255,255,255,0.30)_62%,rgba(255,255,255,0.30)_70%,rgba(255,255,255,0)_78%)]" />
+        {/* xl (1280-1535): tail <=64.3% — the 1280 dip-probe measured
+            1.82:1 in R68's 30% shelf; the plateau must hold through the
+            tail on this clip, not shelf under it. */}
+        <div className="hidden xl:block 2xl:hidden absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.62)_70%,rgba(255,255,255,0)_84%)]" />
+        {/* lg (1024-1279): tail <=75.3%. */}
+        <div className="hidden lg:block xl:hidden absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.62)_78%,rgba(255,255,255,0)_90%)]" />
+        {/* below lg (<1024): tail to ~88%, headline bottom to ~63% —
+            and the same headroom lesson as the typist: the 90% plateau
+            measured 7.7:1 but half-washed the cufflink (VLM). R70 final:
+            plateau to 62%, a 45% shelf from 76% — the near-black suit
+            needs 45% where the typist's mid-tones take 40%. */}
+        <div className="lg:hidden absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0.62)_0%,rgba(255,255,255,0.62)_62%,rgba(255,255,255,0.45)_76%,rgba(255,255,255,0.45)_100%)]" />
+      </>
     ),
   },
   // R68+: clips 3 and 4 slot in here, owner-ordered, same shape.
@@ -181,19 +231,20 @@ export function HeroVideo({ className = '' }: { className?: string }) {
     <div
       ref={rootRef}
       aria-hidden="true"
-      /* R68: one element, two presentations. Below 2xl: a framed 16:9
-         card in flow after the copy (the clip presented whole, nothing
-         behind text). At 2xl: the full-bleed band, lifted off the
-         navbar (top-24 — R67 had top-0, the "shoved to the top of the
-         screen" the owner rejected), sitting behind the copy wrapper
-         (VegaHero sizes that wrapper to exactly this band's box).
-         2xl:z-0 is LOAD-BEARING: it makes the band a stacking context,
-         so the layer z-indexes below (10/20/30 + the z-40 foot fade)
-         stay CONTAINED — without it they escape into the section's
-         stacking context and paint the video OVER the copy wrapper's
-         z-10 (the acceptance VLM caught exactly that: the headline
-         invisible under the clip). */
-      className={`relative mt-8 mx-4 sm:mx-6 aspect-video rounded-3xl overflow-hidden ring-1 ring-slate-900/10 shadow-2xl shadow-slate-900/15 2xl:mt-0 2xl:mx-0 2xl:rounded-none 2xl:ring-0 2xl:shadow-none 2xl:absolute 2xl:inset-x-0 2xl:top-24 2xl:z-0 ${className}`}
+      /* R70: ONE presentation at every width — the full-bleed band, the
+         landing-page background the owner ordered back ("put it back
+         there"). R68's card variant is retired: under 2xl the clip had
+         been demoted to a framed card BELOW the copy, which the owner
+         rejected on seeing it live. The band keeps R68's de-shove
+         (top-24, never back to top-0) and R67's exact-16:9 zero-crop
+         contract. z-0 is LOAD-BEARING (now at every width, not just
+         2xl): it makes the band a stacking context, so the layer
+         z-indexes below (10/20/30 + the z-40 foot fade) stay
+         CONTAINED — without it they escape into the section's stacking
+         context and paint the video OVER the copy wrapper's z-10 (the
+         R68 acceptance VLM caught exactly that: the headline invisible
+         under the clip). */
+      className={`absolute inset-x-0 top-24 z-0 aspect-video overflow-hidden ${className}`}
     >
       {still ? (
         <>
@@ -240,12 +291,16 @@ export function HeroVideo({ className = '' }: { className?: string }) {
           </div>
         ))
       )}
-      {/* Blend the band's foot into the white section below (2xl only —
-          below that the card sits on white with a hard, framed edge).
-          Both clips keep their action in the bottom quarter, so a 7% fade
-          only ever touches the desk/cuff, never the typing or the
-          cufflink. */}
-      <div className="hidden 2xl:block absolute inset-x-0 bottom-0 z-40 h-[7%] bg-gradient-to-b from-transparent to-white" />
+      {/* Blend the band's foot into the white section below (R70: at
+          every width — the copy can run past the band onto that white
+          at narrow viewports, so the seam must dissolve). Both clips
+          keep their action in the bottom quarter, so the fade only ever
+          touches the desk/cuff, never the typing or the cufflink.
+          R70 final: below lg the fade doubles to 14% — the VLM read
+          the 7% ramp (15px at 390) as a hard seam slicing the sub's
+          first line where the copy straddles the band's foot; at lg+
+          the copy fits inside the band, so R68's 7% stands. */}
+      <div className="absolute inset-x-0 bottom-0 z-40 h-[14%] lg:h-[7%] bg-gradient-to-b from-transparent to-white" />
     </div>
   );
 }

@@ -7,7 +7,17 @@ import { SUITE_GROUPS } from './VegaSuite';
 
 /**
  * VegaHero — R56: the light-enterprise hero; R65/R67: the lifestyle-video
- * hero; R68: the de-shoved clip hero; R69: the eyebrow pill retires.
+ * hero; R68: the de-shove; R69: the eyebrow pill retires; R70: the band is
+ * the landing-page background at EVERY width again.
+ *
+ * Owner direction, R70 (verbatim shape): "it is supposed to be on the
+ * landingpage background — put it back there." R68 had demoted the clip
+ * to a framed card below the copy for every width under 2xl (only
+ * >=1536px kept the background band); the owner rejected that on seeing
+ * it live. The wrapper now anchors the copy INTO the band at every
+ * width and is min-h'd to the band's box, so the dashboard always
+ * starts past the band foot. R68's de-shove (top-24, never top-0) and
+ * R67's exact-16:9 zero-crop are held; the R69 copy seat is untouched.
  *
  * Owner direction, R69 (verbatim shape): "Remove the small pill badge at
  * the top of the hero section" — the indigo attribution pill above the
@@ -58,14 +68,19 @@ export const VegaHero: React.FC<{
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
-            {/* ── The copy — FIRST in flow. Below 2xl it sits on white;
-                at 2xl the wrapper is sized to exactly the band's box
-                (6rem = the band's top-24 offset, 56.25vw = the 16:9 band
-                height at any width) with the copy top-anchored into the
-                band — R67's measured geometry, R69: the anchor rises
-                8.4375vw -> 11.5vw to absorb the retired eyebrow pill's
-                block so the headline keeps its exact seat. ── */}
-            <div className="relative z-10 px-4 sm:px-6 pt-28 sm:pt-32 2xl:pt-[calc(6rem+11.5vw)] 2xl:h-[calc(6rem+56.25vw)]">
+            {/* ── The copy — riding ON the band at EVERY width (R70: the
+                restore — "it is supposed to be on the landingpage
+                background; put it back there"). The wrapper is sized to
+                AT LEAST the band's box (6rem = the band's top-24 offset,
+                56.25vw = the 16:9 band height at any width) so the
+                dashboard below always starts past the band foot; min-h,
+                not h (R68 had 2xl:h), because at narrow widths the copy
+                is TALLER than the band — it runs on past the foot onto
+                the section's white (R67's mobile behaviour, held). The
+                copy is top-anchored into the band at 11.5vw — R69's
+                measured seat (the headline keeps its exact y=317 at
+                1920). ── */}
+            <div className="relative z-10 px-4 sm:px-6 pt-[calc(6rem+11.5vw)] min-h-[calc(6rem+56.25vw)]">
                 <div className="max-w-7xl mx-auto">
                     <div className="max-w-3xl mx-auto text-center">
                         {/* Headline — crisp, deep slate, tight tracking. */}
@@ -119,18 +134,18 @@ export const VegaHero: React.FC<{
                 </div>
             </div>
 
-            {/* ── The clip playlist — SECOND in flow: below 2xl the framed
-                card after the copy; at 2xl the full-bleed band (absolute)
-                behind the copy wrapper above. One element, two
-                presentations — see HeroVideo. ── */}
+            {/* ── The clip playlist — the full-bleed band (absolute)
+                behind the copy wrapper above, at EVERY width (R70: the
+                under-2xl card variant is retired — see HeroVideo). ── */}
             <HeroVideo />
 
             {/* ── The product UI dashboard preview — the REAL capture in a
                 clean light browser container with a soft drop shadow.
-                R68: plain flow spacing (the copy wrapper occupies exactly
-                the band's box at 2xl). R69: the capture carries the team
-                presence overlay and is click-to-expand into the shared
-                gallery (Dashboard + every suite exhibit). ── */}
+                R70: the wrapper above is min-h'd to the band's box at
+                every width, so this always starts past the band foot.
+                R69: the capture carries the team presence overlay and is
+                click-to-expand into the shared gallery (Dashboard + every
+                suite exhibit). ── */}
             <div
                 className="relative max-w-5xl mx-auto px-4 sm:px-6 mt-14 2xl:mt-16 mb-20 2xl:mb-24"
                 data-vg-reveal

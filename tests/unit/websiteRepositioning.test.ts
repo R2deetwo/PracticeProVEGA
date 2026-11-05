@@ -890,12 +890,16 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaShell).toContain("scrollTo('suite')");
   });
 
-  it("R68: the hero de-shove + the clip playlist — copy first, the band lifted off the navbar, seamless clip-to-clip cycling", () => {
-    // R68 (owner, verbatim shape): "i dont like the manner the vidoe is
-    // shoved to the top of the screen" — R67's band was absolute top-0,
-    // wallpaper glued to the screen top behind the navbar. And: "i have a
-    // new set of videos... it should cycle between the videos seamlessly.
-    // lets keep this current one. then we use the one with the man next".
+  it("R70: the band is the landing-page background again at EVERY width — the under-2xl card retires; the de-shove, the zero-crop and the clip playlist hold", () => {
+    // R70 (owner, verbatim shape): "it is supposed to be on the
+    // landingpage background — put it back there." R68 had demoted the
+    // clip to a framed card below the copy for every width under 2xl
+    // (only >=1536px kept the band); the owner rejected that on seeing
+    // it live. R68's own de-shove ("i dont like the manner the vidoe is
+    // shoved to the top of the screen") and the seamless playlist ("i
+    // have a new set of videos... it should cycle between the videos
+    // seamlessly. lets keep this current one. then we use the one with
+    // the man next") hold unchanged.
     const heroVideo = read("src", "components", "HeroVideo.tsx");
     // THE PLAYLIST: clip 1 (the typist, R66's assets, kept first) and
     // clip 2 (the cufflink man) cycle with a dissolve; single-clip
@@ -911,32 +915,41 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(heroVideo).toContain("zIndex: i === active ? 30 : i === last ? 20 : 10");
     // Zero-crop contract (R67) survives: the exact-16:9 band.
     expect(heroVideo).toContain("aspect-video");
-    // THE DE-SHUVE: the band is no longer anchored to the section top —
-    // it is lifted off the navbar and becomes a framed card below 2xl.
-    expect(heroVideo).toContain("2xl:absolute 2xl:inset-x-0 2xl:top-24");
+    // THE BACKGROUND AT EVERY WIDTH: one presentation, unprefixed — the
+    // band is the landing-page background at every viewport, lifted off
+    // the navbar (top-24, never back to top-0), and the R68 card
+    // variant is retired entirely.
+    expect(heroVideo).toContain("absolute inset-x-0 top-24 z-0");
     expect(heroVideo).not.toContain("2xl:top-0");
+    expect(heroVideo).not.toContain("rounded-3xl");
+    expect(heroVideo).not.toContain("ring-1 ring-slate-900/10");
     // THE STACKING PIN: the band must be its own stacking context below
-    // the copy — without 2xl:z-0 the layer z-indexes escape and the
-    // video paints OVER the copy wrapper's z-10 (the R68 acceptance VLM
+    // the copy — without z-0 the layer z-indexes escape and the video
+    // paints OVER the copy wrapper's z-10 (the R68 acceptance VLM
     // caught the headline invisible under the clip).
-    expect(heroVideo).toContain("2xl:z-0");
-    // The veils are per-clip and ride only at 2xl+ (below that no text
-    // sits on the clip — the card plays clean).
-    expect(heroVideo).toContain("hidden 2xl:block");
-    // THE COPY-FIRST ORDER: the copy wrapper precedes the HeroVideo in
-    // the section, and at 2xl it is sized to exactly the band's box
-    // (6rem offset + 56.25vw band height) — so the dashboard follows in
-    // plain flow and the R67 push-hack is retired.
+    expect(heroVideo).toContain("z-0");
+    // THE VEIL LADDER (R70, measured): one rung per width range, each
+    // holding its plateau just past that range's measured copy tail
+    // (2xl <=57%, xl <=64.3%, lg <=75.3%, below lg to ~88%) — the veils
+    // ride at EVERY width now, and the action zone below the copy stays
+    // clear on every rung.
+    expect(heroVideo).toContain("hidden 2xl:block absolute inset-0");
+    expect(heroVideo).toContain("xl:block 2xl:hidden absolute inset-0");
+    expect(heroVideo).toContain("lg:block xl:hidden absolute inset-0");
+    expect(heroVideo).toContain("lg:hidden absolute inset-0");
+    // THE COPY RIDES THE BAND: the copy wrapper precedes the HeroVideo
+    // in the section, is min-h'd to the band's box (6rem offset +
+    // 56.25vw band height — min-h, not h, because at narrow widths the
+    // copy is taller than the band and runs past the foot onto white)
+    // and anchors the copy at 11.5vw — R69's measured seat.
     const heroOrder = vegaHero.indexOf('className="relative z-10');
     const clipOrder = vegaHero.indexOf("<HeroVideo />");
     expect(heroOrder).toBeGreaterThan(-1);
     expect(clipOrder).toBeGreaterThan(heroOrder);
-    expect(vegaHero).toContain("2xl:pt-[calc(6rem+11.5vw)]");
-    expect(vegaHero).toContain("2xl:h-[calc(6rem+56.25vw)]");
+    expect(vegaHero).toContain("pt-[calc(6rem+11.5vw)]");
+    expect(vegaHero).toContain("min-h-[calc(6rem+56.25vw)]");
+    expect(vegaHero).not.toContain("2xl:h-[calc(6rem+56.25vw)]");
     expect(vegaHero).not.toContain("56.25vw_-_39.875rem");
-    // The framed-card register below 2xl.
-    expect(heroVideo).toContain("rounded-3xl");
-    expect(heroVideo).toContain("ring-1 ring-slate-900/10");
   });
 
   it("R69: the hero eyebrow retires and the live captures gain presence + the lightbox gallery", () => {
