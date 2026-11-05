@@ -886,6 +886,55 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaShell).toContain("scrollTo('suite')");
   });
 
+  it("R68: the hero de-shove + the clip playlist — copy first, the band lifted off the navbar, seamless clip-to-clip cycling", () => {
+    // R68 (owner, verbatim shape): "i dont like the manner the vidoe is
+    // shoved to the top of the screen" — R67's band was absolute top-0,
+    // wallpaper glued to the screen top behind the navbar. And: "i have a
+    // new set of videos... it should cycle between the videos seamlessly.
+    // lets keep this current one. then we use the one with the man next".
+    const heroVideo = read("src", "components", "HeroVideo.tsx");
+    // THE PLAYLIST: clip 1 (the typist, R66's assets, kept first) and
+    // clip 2 (the cufflink man) cycle with a dissolve; single-clip
+    // looping still works while the owner's remaining uploads land.
+    expect(heroVideo).toContain("/video/vega-hero.webm");
+    expect(heroVideo).toContain("/video/vega-hero-2.webm");
+    expect(heroVideo).toContain("/video/vega-hero-2.mp4");
+    expect(heroVideo).toContain("ADVANCE_AT");
+    expect(heroVideo).toContain("PREFETCH_AT");
+    expect(heroVideo).toContain("loop={CLIPS.length === 1}");
+    // The cycle is a crossfade over a held frame, never a dip to white.
+    expect(heroVideo).toContain("setLast");
+    expect(heroVideo).toContain("zIndex: i === active ? 30 : i === last ? 20 : 10");
+    // Zero-crop contract (R67) survives: the exact-16:9 band.
+    expect(heroVideo).toContain("aspect-video");
+    // THE DE-SHUVE: the band is no longer anchored to the section top —
+    // it is lifted off the navbar and becomes a framed card below 2xl.
+    expect(heroVideo).toContain("2xl:absolute 2xl:inset-x-0 2xl:top-24");
+    expect(heroVideo).not.toContain("2xl:top-0");
+    // THE STACKING PIN: the band must be its own stacking context below
+    // the copy — without 2xl:z-0 the layer z-indexes escape and the
+    // video paints OVER the copy wrapper's z-10 (the R68 acceptance VLM
+    // caught the headline invisible under the clip).
+    expect(heroVideo).toContain("2xl:z-0");
+    // The veils are per-clip and ride only at 2xl+ (below that no text
+    // sits on the clip — the card plays clean).
+    expect(heroVideo).toContain("hidden 2xl:block");
+    // THE COPY-FIRST ORDER: the copy wrapper precedes the HeroVideo in
+    // the section, and at 2xl it is sized to exactly the band's box
+    // (6rem offset + 56.25vw band height) — so the dashboard follows in
+    // plain flow and the R67 push-hack is retired.
+    const heroOrder = vegaHero.indexOf('className="relative z-10');
+    const clipOrder = vegaHero.indexOf("<HeroVideo />");
+    expect(heroOrder).toBeGreaterThan(-1);
+    expect(clipOrder).toBeGreaterThan(heroOrder);
+    expect(vegaHero).toContain("2xl:pt-[calc(6rem+8.4375vw)]");
+    expect(vegaHero).toContain("2xl:h-[calc(6rem+56.25vw)]");
+    expect(vegaHero).not.toContain("56.25vw_-_39.875rem");
+    // The framed-card register below 2xl.
+    expect(heroVideo).toContain("rounded-3xl");
+    expect(heroVideo).toContain("ring-1 ring-slate-900/10");
+  });
+
   it("R64: the vega/atrium toggle reaches the vega site — View Live Demo opens the demo-access modal", () => {
     // Owner direction (R64): "the vega/atrium toggle" belongs where the
     // demo is chosen. The R61 header switcher stays retired (a real firm

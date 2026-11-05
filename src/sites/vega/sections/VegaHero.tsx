@@ -2,30 +2,35 @@ import React from 'react';
 import { HeroVideo } from '../../../components/HeroVideo';
 
 /**
- * VegaHero — R56: the light-enterprise hero; R65: the lifestyle-video hero.
+ * VegaHero — R56: the light-enterprise hero; R65/R67: the lifestyle-video
+ * hero; R68: the de-shoved clip hero.
  *
- * Owner direction: transform /vega from "a dark-themed, text-heavy page"
- * into "a clean, modern, light-themed, enterprise-grade landing page" —
- * significantly lighter, crisp, executive-level. The Reading Room's
- * full-screen photograph (and its dark gradient) is RETIRED with the
- * espresso register; what replaces it:
+ * Owner direction, R68 (verbatim shape): "i dont like the manner the
+ * vidoe is shoved to the top of the screen" — R67's band was absolute
+ * top-0, i.e. wallpaper glued to the very top of the screen behind the
+ * navbar, with the copy and dashboard hanging below it. The R68 layout:
  *
- *   - R65: a calm lifestyle-video hero — the user-supplied clip of the
- *     lawyer at her laptop, full-bleed as the section background under a
- *     uniform pale wash (bg-white/55) plus a left-side fade, with the
- *     subject anchored lower-right and the copy kept dark on top. The
- *     R56 grid + pastel ribbon are retired (the video is the ground now);
- *     copy, fonts, spacing and CTAs are untouched.
- *   - a crisp headline on legal workflow automation in Nigeria,
- *   - dual CTAs: solid navy "Get Started" + outline "View Live Demo"
- *     (R64: opens the demo-access modal — the Vega | Atrium toggle —
- *     pre-toggled to Vega; the Core Suite showcase below keeps the
- *     real captures),
- *   - the product's REAL dashboard capture (owner, R28: "use stuff from
- *     the app so we are not showing false images") in a clean light
- *     browser container with a soft drop shadow.
+ *   - Below 2xl (phone → laptop): COPY FIRST on the clean white ground
+ *     (headline lands immediately, nothing fights it), then the clip as
+ *     a framed 16:9 CARD (rounded, ringed, shadowed — the visual family
+ *     of the dashboard capture below it), then the dashboard. The clip
+ *     plays UNCROPPED at its own 16:9, no text on it, no veil — the
+ *     whole frame, typing and cufflinks included, at full vividness.
+ *   - At 2xl+ (desktop): the clip becomes the full-bleed band, now
+ *     LIFTED OFF the navbar (2xl:top-24 — a deliberate white gap between
+ *     the glass nav and the band, so it reads as a mounted cinema screen
+ *     rather than wallpaper shoved to the top of the screen). The copy
+ *     rides on top under the per-clip veil; the copy wrapper is sized
+ *     to EXACTLY the band's box (2xl:h-[calc(6rem+56.25vw)], copy
+ *     top-anchored at 15% of the band — R67's measured geometry), so
+ *     the dashboard simply follows in flow; R67's vw-minus-rem margin
+ *     push-hack is retired — no absolute/flow coordination any more.
+ *   - The clip cycles through the owner's playlist (see HeroVideo):
+ *     the typist first, the cufflink man next, further clips as they
+ *     arrive — dissolving clip-to-clip with no seam.
  *
- * Presentational only — the CTAs arrive via props from the site index.
+ * Copy, fonts, spacing, CTAs: untouched since R56/R65 (owner: no copy
+ * rewrites). Presentational only — the CTAs arrive via props.
  */
 export const VegaHero: React.FC<{
     /** Pinned attribution string — owned by the site index. */
@@ -41,14 +46,12 @@ export const VegaHero: React.FC<{
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
-            {/* R65/R67: the lifestyle-video ground — the looping clip of the
-                lawyer at her laptop, full-width at the clip's own 16:9 (zero
-                crop: the whole scene, typing included, is always visible),
-                under a composition-tuned pale veil with the copy kept dark.
-                The R56 hairline grid + pastel ribbon are retired. */}
-            <HeroVideo />
-
-            <div className="relative z-10 pt-32 pb-20 lg:pt-40 lg:pb-24 px-4 sm:px-6">
+            {/* ── The copy — FIRST in flow. Below 2xl it sits on white;
+                at 2xl the wrapper is sized to exactly the band's box
+                (6rem = the band's top-24 offset, 56.25vw = the 16:9 band
+                height at any width) with the copy top-anchored 15% into
+                the band — the geometry R67 measured WCAG against. ── */}
+            <div className="relative z-10 px-4 sm:px-6 pt-28 sm:pt-32 2xl:pt-[calc(6rem+8.4375vw)] 2xl:h-[calc(6rem+56.25vw)]">
                 <div className="max-w-7xl mx-auto">
                     <div className="max-w-3xl mx-auto text-center">
                         {/* Soft indigo status pill — the eyebrow. */}
@@ -108,49 +111,53 @@ export const VegaHero: React.FC<{
                             NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED
                         </p>
                     </div>
-
-                    {/* The product UI dashboard preview — the REAL capture in a
-                        clean light browser container with a soft drop shadow.
-                        R67: on lg+ the container is pushed below the video
-                        band (56.25vw = the band's height at any width, minus
-                        the measured 638px from the band's top to where the
-                        margin begins + a 30px gap) — the dashboard card used
-                        to start at y=748 and covered the clip's typing zone
-                        (y 752-1021) 100%. Below lg the band is shorter than
-                        the copy block, so the old mt-14 stands. */}
-                    <div
-                        className="relative max-w-5xl mx-auto mt-14 lg:mt-[max(5rem,calc(56.25vw_-_39.875rem))]"
-                        data-vg-reveal
-                        style={{ '--vg-d': '340ms' } as React.CSSProperties}
-                    >
-                        <div className="rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden">
-                            {/* Browser chrome — three dots + the address bar. */}
-                            <div className="flex items-center gap-3 border-b border-slate-200/80 bg-slate-50 px-4 py-3">
-                                <div className="flex gap-1.5" aria-hidden="true">
-                                    <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                                    <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                                    <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                                </div>
-                                <div className="flex-1 max-w-sm mx-auto rounded-md bg-white border border-slate-200 px-3 py-1 text-center text-xs text-slate-500 truncate">
-                                    app.practicepro.ng — Dashboard
-                                </div>
-                                <div className="w-10" aria-hidden="true" />
-                            </div>
-                            <img
-                                src={`/assets/landing/app/dashboard.jpg?v=${buildSha}`}
-                                alt="Vega dashboard — the practice at a glance: matters, hearings, billing and tasks"
-                                loading="eager"
-                                decoding="async"
-                                width={1440}
-                                height={900}
-                                className="block w-full h-auto"
-                            />
-                        </div>
-                        <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
-                            LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING
-                        </p>
-                    </div>
                 </div>
+            </div>
+
+            {/* ── The clip playlist — SECOND in flow: below 2xl the framed
+                card after the copy; at 2xl the full-bleed band (absolute)
+                behind the copy wrapper above. One element, two
+                presentations — see HeroVideo. ── */}
+            <HeroVideo />
+
+            {/* ── The product UI dashboard preview — the REAL capture in a
+                clean light browser container with a soft drop shadow.
+                R68: plain flow spacing — the copy wrapper already occupies
+                exactly the band's box at 2xl, so the card lands below the
+                band's foot with a simple mt; the typing zone is never
+                covered. R67's vw-minus-rem margin push-hack is retired
+                with it. ── */}
+            <div
+                className="relative max-w-5xl mx-auto px-4 sm:px-6 mt-14 2xl:mt-16 mb-20 2xl:mb-24"
+                data-vg-reveal
+                style={{ '--vg-d': '340ms' } as React.CSSProperties}
+            >
+                <div className="rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden">
+                    {/* Browser chrome — three dots + the address bar. */}
+                    <div className="flex items-center gap-3 border-b border-slate-200/80 bg-slate-50 px-4 py-3">
+                        <div className="flex gap-1.5" aria-hidden="true">
+                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
+                        </div>
+                        <div className="flex-1 max-w-sm mx-auto rounded-md bg-white border border-slate-200 px-3 py-1 text-center text-xs text-slate-500 truncate">
+                            app.practicepro.ng — Dashboard
+                        </div>
+                        <div className="w-10" aria-hidden="true" />
+                    </div>
+                    <img
+                        src={`/assets/landing/app/dashboard.jpg?v=${buildSha}`}
+                        alt="Vega dashboard — the practice at a glance: matters, hearings, billing and tasks"
+                        loading="eager"
+                        decoding="async"
+                        width={1440}
+                        height={900}
+                        className="block w-full h-auto"
+                    />
+                </div>
+                <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
+                    LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING
+                </p>
             </div>
         </section>
     );
