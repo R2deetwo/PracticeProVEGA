@@ -15174,3 +15174,18 @@ in-modal view navigation.**
   baseline with zero errors in touched files, build green.
 - COMMITTED: feat(r69). Rode to production with the same push (the
   fresh PAT authenticated; R68's d391a948 + worklog went first).
+
+**R69 PROMOTION — live on 425b7983.** Pushed R68's parked pair
+(d391a948 + its worklog) and R69 together on the fresh PAT; first
+dispatch (run 42037804697) went green straight through — Typecheck +
+unit tests SUCCESS, Deploy to production (Vercel + Convex) SUCCESS;
+the Cloudflare mirror FAILURE is the standing owner-side
+CLOUDFLARE_API_TOKEN issue (since R47), unchanged. LIVE VERIFY
+(scripts/r69-live-verify.cjs, practice-pro-vega.vercel.app serving
+version.json 425b7983, healthy, builtAt 2026-11-05T13:43Z): the pill
+is gone with the headline at its measured seat (h1 y=317), the R68
+band geometry held (1.7778 zero-crop @ 96px), the presence overlay at
+exactly 91.45% on the live hero card, the roster opens (8 rows, 8 DM
+buttons), the lightbox opens labeled ("Dashboard") with the overlay
+inside and a rendering image, ArrowRight walks to "Ledger", Escape
+closes — zero console errors.
