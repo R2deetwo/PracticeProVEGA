@@ -29,13 +29,17 @@ import { SendIcon } from '../../../constants';
  * carries a px fallback class first (browsers without container-query
  * units keep a static stack instead of collapsing).
  *
- * INTERACTION: the whole gap zone is ONE ui/Button (ADR-0004) — on hover
- * or focus the stack pops (scale 1.55, growing leftward over the bell
- * with a soft white plate) so the initials are readable even at card
- * scale; on click it opens the presence dropdown. The dropdown is
- * portal'd to document.body (the capture frames are overflow-hidden) and
- * lists EVERY online teammate — the clicked stack always opens the full
- * roster, so the "+5" members are as reachable as the visible three.
+ * INTERACTION (R71, owner direction): "it should just be seen as
+ * visible and not highlighted or highlightable." The R69 hover pop
+ * (scale 1.55 + the white plate behind the stack) is RETIRED — the
+ * stack is quiet, always-on header chrome: it renders at rest, never
+ * enlarges, never gains a plate, and shows no hover state at all. Only
+ * the shared keyboard focus ring survives (focus-visible, WCAG 2.4.7).
+ * The whole gap zone is still ONE ui/Button (ADR-0004) — click opens
+ * the presence dropdown. The dropdown is portal'd to document.body
+ * (the capture frames are overflow-hidden) and lists EVERY online
+ * teammate — the clicked stack always opens the full roster, so the
+ * "+5" members are as reachable as the visible three.
  * Each row's "Send Direct Message" action (SendIcon, the app's own
  * metaphor) swaps the panel to an honest demo note: direct messages open
  * inside Vega — this is a live-capture preview — with a Start free
@@ -107,8 +111,10 @@ export const CollabPresence: React.FC<{
 
     return (
         <>
-            {/* The trigger — the whole bell→profile gap. Sized in cqw with
-                px fallbacks; the stack pops on hover/focus. */}
+            {/* The trigger — the whole bell→profile gap. Sized in cqw
+                with px fallbacks. R71: NO hover pop, NO plate — the
+                stack sits in the header as quiet, always-on chrome;
+                only the keyboard focus ring (focus-visible) remains. */}
             <Button
                 ref={btnRef}
                 variant="bare"
@@ -117,7 +123,7 @@ export const CollabPresence: React.FC<{
                 aria-expanded={open}
                 data-collab-trigger
                 onClick={openMenu}
-                className="group absolute z-20 flex items-center justify-end rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1 transition-transform duration-200 hover:scale-[1.55] focus-visible:scale-[1.55] origin-right"
+                className="absolute z-20 flex items-center justify-end rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1"
                 style={{
                     // The measured gap: right edge 8.55% of image width,
                     // top 1.25cqw, height 1.95cqw (the header strip's
@@ -125,15 +131,9 @@ export const CollabPresence: React.FC<{
                     top: '1.25cqw', right: '8.55cqw', height: '1.95cqw', width: '5.6cqw',
                 }}
             >
-                {/* Pop plate — a soft white ground behind the enlarged
-                    stack so the initials stay crisp over the header. The
-                    plate's RIGHT edge is pinned to the trigger's (which
-                    already stops short of the profile text — the VLM QA
-                    caught a symmetric inset clipping "Demo User"). */}
-                <span
-                    aria-hidden="true"
-                    className="absolute top-[-40%] bottom-[-40%] left-[-40%] right-0 rounded-l-full bg-white/85 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-200"
-                />
+                {/* R71: the static stack — three avatars + the "+5"
+                    chip, exactly as it reads in the app header. Nothing
+                    here responds to hover. */}
                 <span className="relative flex items-center" style={{ height: '1.95cqw' }}>
                     {COLLAB_ROSTER.slice(0, 3).map((m, i) => (
                         <span

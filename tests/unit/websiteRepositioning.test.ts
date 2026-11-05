@@ -998,6 +998,26 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("aria-pressed={shot === i}");
   });
 
+  it("R71: the presence stack is quiet chrome — no hover pop, no highlight plate", () => {
+    // Owner direction (verbatim shape): the multi-users-logged-in
+    // monikers were "over highlighted — it should just be seen as
+    // visible and not highlighted or highlightable." The R69 hover pop
+    // (scale 1.55, growing over the bell) and the soft white plate
+    // behind the enlarged stack RETIRE; the avatars render statically
+    // in the measured header gap at every scale. The click-to-roster
+    // dropdown survives untouched — clicking is not highlighting, and
+    // the keyboard focus ring stays (WCAG 2.4.7).
+    const collab = read("src", "sites", "vega", "sections", "CollabPresence.tsx");
+    expect(collab).not.toContain("hover:scale-[1.55]");
+    expect(collab).not.toContain("focus-visible:scale-[1.55]");
+    expect(collab).not.toContain("bg-white/85");
+    expect(collab).not.toContain("transition-transform");
+    // Still a quiet click target: the roster dropdown survives.
+    expect(collab).toContain("data-collab-trigger");
+    expect(collab).toContain('aria-haspopup="menu"');
+    expect(collab).toContain("Send direct message to");
+  });
+
   it("R64: the vega/atrium toggle reaches the vega site — View Live Demo opens the demo-access modal", () => {
     // Owner direction (R64): "the vega/atrium toggle" belongs where the
     // demo is chosen. The R61 header switcher stays retired (a real firm
