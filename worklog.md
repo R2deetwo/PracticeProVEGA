@@ -15189,3 +15189,116 @@ exactly 91.45% on the live hero card, the roster opens (8 rows, 8 DM
 buttons), the lightbox opens labeled ("Dashboard") with the overlay
 inside and a rendering image, ArrowRight walks to "Ledger", Escape
 closes — zero console errors.
+
+## Task 70 — R70: the hero video is the landing-page BACKGROUND again, at every width (2026-11-05)
+
+User directive (verbatim): "you have messed the vidoe up!!!??!?!? it is
+supposed to be ont the landingpage background!!!!!??!?!?! put it back
+there !!!!!"
+
+### Diagnosis
+R68 had demoted the clip to a framed card BELOW the copy for every
+width under 2xl (only >=1536px kept the background band); R69 pushed
+that live, and the owner's first sight of the live layout was the card.
+What the owner wants is the R66/R67 presentation — the full-bleed band
+behind the copy — which R68 had traded away while answering the
+separate de-shove complaint.
+
+### The restore (one presentation, no card variant)
+- HeroVideo: `absolute inset-x-0 top-24 z-0 aspect-video overflow-hidden`
+  at EVERY width — R68's card register (rounded/ring/shadow/margins) is
+  gone; the de-shove (top-24, never top-0) and R67's exact-16:9 zero-crop
+  are held; the veils + foot fade render at every width; z-0 pins the
+  band's stacking context at every width (the R68 2xl lesson — without
+  it the layer z-indexes escape over the copy's z-10 and the headline
+  goes invisible under the clip).
+- VegaHero: the copy wrapper is `pt-[calc(6rem+11.5vw)]` (R69's seat,
+  h1 y=316.8 measured at 1920) and `min-h-[calc(6rem+56.25vw)]` — min-h,
+  not R68's 2xl:h: at narrow widths the copy is TALLER than the band and
+  runs past the foot onto the section's white (R67's mobile behaviour,
+  held); the dashboard always starts past the band foot.
+
+### The R70 veil ladder (the measurement that made the restore safe)
+Opening the band at every width put the copy at depths R68's veils were
+never tuned for — the dip-probe measured 1.82:1 behind the sub at 1280
+(cufflink, near-black suit) and 2.55:1 behind the h1 at 768; gates were
+failing. The sub's tail lands at ~50% of the band at 1920, ~64% at 1280,
+~75% at 1024, ~88% at 768 — one gradient cannot carry every width, so
+each clip now carries a FOUR-RUNG ladder (one per width range), each
+holding its plateau just past that range's measured tail then easing to
+clear so the action zone below the copy stays vivid:
+- 2xl (>=1536): R68's tune unchanged (floors 5.1-6.9).
+- xl (1280-1535): plateau to 68%.
+- lg (1024-1279): plateau to 78%.
+- below lg: first draft held the plateau to 90% — measured 6.7-7.7:1 (a
+  49% headroom over the 4.5 gate) but the VLM read the typing as
+  half-washed; the final rung holds the plateau to 62% (the headline's
+  rows) with a 40%/45% shelf from 76% — the trade bought action
+  visibility and still clears every gate.
+- The foot fade doubles to 14% below lg — the VLM read the 7% ramp
+  (15px at 390) as a hard seam slicing the sub's first line where the
+  copy straddles the band's foot; after the widening it reads as a soft
+  dissolve (and 640's sub contrast rose 6.84 -> 10.19).
+
+### r70 acceptance (scripts/r70-acceptance.cjs; evidence in
+download/r70-background-restore/: report, per-width PNGs, cycle crops,
+VLM checks)
+- GEOMETRY at 1920/1536/1440/1280/1024/768/640/390: band top exactly
+  96px and ratio exactly 1.7778 at EVERY width; full-bleed to the section
+  (the 10px right gutter at desktop widths is the scrollbar — present
+  since R68 live; the "white side margins" the VLM reported at 768/640/
+  390 are the scrollbar plus the typist clip's own bright walls under
+  the veil); the h1 at its R69 seat (y=316.8 at 1920); the dashboard
+  below the band foot at every width; no card register anywhere.
+- WCAG dip-probe on the real rendered backdrop (worst 8x8 behind the
+  text, both clips, every width): h1 5.98-9.47 (gate 3.0), navy
+  3.47-5.50 (gate 3.0), sub 4.86-14.63 (gate 4.5) — ALL widths ALL
+  clips PASS (before the ladder: 1280-cufflink sub 1.82, 1024 sub
+  1.04-2.04, 768 h1 2.55 — all failing).
+- ACTION-ZONE probe (band y 78-100%, the typing/cufflink zone): reads
+  structure at every width (mean 103-195, non-white fraction 0.66-0.92)
+  — the typing is never a blank wash.
+- THE CYCLE typist -> cufflink -> typist with held-frame crossfades;
+  poster-first network (clip 2 fetches only at the prefetch window);
+  reduced-motion zero video requests; pause on scroll-out/tab-hidden
+  with resume.
+- VLM (3 iterations): the video is the full-width background with the
+  copy on top at 1920/1280 (the widths that had shown the card); at
+  768/640/390 the headline rides the band and the copy overruns onto
+  white below (the intended narrow-width behaviour), the typing stays
+  visible and recognizable, the foot grades cleanly into white; no
+  overlaps, no clipped text.
+- THE 390 LESSON (the float-index trap): fractional rects (y=140.8)
+  made the sampler's Buffer index a float (219712.00000000003) —
+  Buffer[nonInteger] is undefined and the contrasts NaN'd silently at
+  390 while 1920/1536 happened to land on integers; every index is now
+  rounded. The latent bug was present in the r68 harness too — its
+  widths just never tripped it.
+
+### Environment incident (mid-round)
+The sandbox rolled back to the rounds-10-17 era tree mid-round (the
+known stale-snapshot failure; HEAD 555d73cb, 714 dirty files, no
+node_modules, no playwright browsers) — the entire R66-R69 local state
+vanished. Recovered by the established route: backup
+(tmp/backup-stale-tree-20261105), hard-sync to origin/main (3026f5b0),
+npm ci, playwright install, re-apply R70 (all edits + the ladder + the
+harness), re-run every gate from scratch. All numbers above are from
+the recovered tree.
+
+### Gates
+vitest 1397/1397 green (the R68 hero ratchet flips to the R70 ladder in
+websiteRepositioning.test.ts), tsc 125 baseline with zero errors in
+touched files, lint ratchet 2312 held, vite build green.
+
+### COMMITTED: feat(r70) — c0ed8fa0. PUSH PARKED: awaiting a fresh PAT.
+The push failed against the stale token in the remote URL ("Invalid
+username or token") — the rollback also took the fresh PAT the R69
+promote used; the repo itself is public (fetch green) but writes need
+auth. Same class as the R68 park. To finish (next session, owner
+supplies a fresh PAT with repo scope — install into the remote URL or
+~/.git-credentials): push origin main, dispatch production-deploy.yml
+with sha c0ed8fa0, then run scripts/r70-live-verify.cjs (checks
+version.json, the band as the background at 1920 AND 1280 — the width
+that had shown the card — the cycle, and console errors). A safety
+bundle of the commit rides the evidence folder
+(r70-local-commit.bundle, prerequisites 3026f5b0).
