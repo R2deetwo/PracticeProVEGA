@@ -15349,3 +15349,20 @@ PAT this round — the parked R70+R71 stack pushes, then
 production-deploy.yml dispatches on the R71 sha, then live
 verification: r70-live-verify.cjs (the background at 1920 AND 1280, the
 cycle, console errors) plus a live re-run of the quiet checks.
+
+### R71 promotion record (2026-11-05)
+feat(r71) d4933b9b + docs 70969452 pushed with the owner's fresh PAT
+(the remote URL is sanitized to plain HTTPS; the PAT lived only in the
+credential store for the push and is cleared after). production-
+deploy.yml dispatched on 70969452: the quality gate is green (Convex
+tsc 0, app tsc baseline, identity audit, UI ratchet, vitest 1398),
+Vercel production deployed and self-verified (healthy, serving the
+promoted commit), Convex probed directly. The CLOUDFLARE MIRROR
+SKIPPED — its CLOUDFLARE_API_TOKEN secret is inactive (fail-fast step;
+Round 14's known failure class; the owner rotates the secret and re-runs
+the workflow — no code involved). LIVE, both on sha 709694524c66:
+r70-live-verify PASS (the background at 1920 AND 1280, bandRatio
+1.7778, radius 0, the copy on the band, the cycle wraps, zero console
+errors) and r71-live-verify PASS (hero trigger rest=hover to the pixel,
+no plate, roster 8 rows + 8 DM buttons on click, suite-card trigger
+quiet, zero console errors). The r71-live-verify harness joins scripts/.
