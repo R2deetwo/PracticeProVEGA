@@ -15008,3 +15008,89 @@ the typing is actually in view; R66 (never promoted) rides with it.**
   390px wide; a taller dedicated mobile band would mean cropping,
   which the owner's "see all the video" forbids. Known follow-up if
   the owner ever wants it.
+
+**R68 — the hero de-shove + the seamless clip playlist: the band lifts
+off the navbar, the clip becomes a framed card below 2xl, and the hero
+cycles the owner's clips with held-frame dissolves.**
+- THE ASK (owner, verbatim shape): "i dont like the manner the vidoe is
+  shoved to the top of the screen" — R67's band was absolute top-0,
+  wallpaper behind the navbar. And: "i have a new set of videos that
+  id like you to use. it should cycle between the videos seamlessly.
+  lets keep this current one. then we use the one with the man next,
+  then we use the other two in any order you see fit... i can upload
+  only one video file at a time so do so and loop them neatly."
+- CLIP 2 ASSETS (the cufflink man, upload
+  Lawyer_adjusts_brass_cufflink_83ae2fa2.mp4: 1280x720, 24fps, 8.00s):
+  scripts/r68_playlist_assets.sh recreates R66's pipeline — audio
+  stripped, circular crossfade of the last 0.8s into a lanczos-upscaled
+  frame-0 still (wrap-point RMS 2.18, vs the typist's 3.65), h264 mp4
+  427KB + VP9 webm 369KB + poster 64KB, all 1920x1080. VLM-verified
+  clean (composition: the man spans x 30-100%, cufflink action y>=62%,
+  thumb peaks y~50% in one frame — inputs for the veil tuning).
+- THE PLAYLIST (HeroVideo.tsx rewritten): one layer per clip stacked
+  in the band; ~0.85s before the active clip's end — as it settles onto
+  its opening-frame still — the next clip starts and dissolves in OVER
+  THE HELD FRAME (outgoing opacity pinned at 1 under the fade: no dip
+  to white; wrap clip-N -> clip-1 is the same dissolve). Later clips
+  sit at preload="none" until a 2.5s prefetch window bumps them to
+  auto, so the initial network stays R66-shaped. Single-clip looping
+  still works (loop={CLIPS.length===1}) for the window before the
+  owner's remaining two uploads land; they slot into the CLIPS array,
+  owner-ordered.
+- THE DE-SHUVE (VegaHero.tsx restructured, copy untouched): DOM order
+  is now copy -> clip -> dashboard. Below 2xl the clip is a framed
+  16:9 CARD in flow (rounded-3xl, ring, shadow — the dashboard card's
+  visual family) AFTER the headline: mobile reads headline-first on
+  white, then the whole clip, vivid, zero-crop, no veil (no text sits
+  on it). At 2xl+ the same element becomes the full-bleed band,
+  absolute 2xl:top-24 — a deliberate white gap under the glass navbar
+  ("a mounted cinema screen, not wallpaper shoved to the top") — with
+  the copy riding on top; the copy wrapper is sized to exactly the
+  band's box (2xl:h-[calc(6rem+56.25vw)], copy top-anchored 15% in —
+  R67's measured geometry) so the dashboard follows in plain flow and
+  R67's vw-minus-rem margin push-hack retires.
+- THE BUG THE ACCEPTANCE VLM CAUGHT: the headline rendered INVISIBLE —
+  the layer z-indexes (10/20/30 + the z-40 foot fade) escaped the
+  band's z-auto root and painted OVER the copy wrapper's z-10. Fix:
+  2xl:z-0 on the band root (its own stacking context), pinned by the
+  ratchet.
+- THE VEILS, per clip, 2xl-only, measured not modelled: the typist
+  keeps R67's stack re-tuned (uniform /30 + a 55% plateau to 60%,
+  clear by 75% — lighter than live R67 in the subject zone); the
+  cufflink gets a 62% plateau to 55% + a 30% shelf to 70%, clear by
+  78%, no uniform base (the brass detail stays vivid). The measured
+  lesson: CSS composites alpha in sRGB space — a linear-space model of
+  "55% white over the near-black suit" promised 8:1 and the dip-probe
+  (scripts/r68-wcag-dip-probe.cjs, 500ms cadence through two full
+  cycles) measured 4.49:1; 62% lifts it to a measured 5.53:1. Steady
+  states: typist 6.73, cufflink 5.53 (1920, worst 8x8 patch behind the
+  subcopy); dissolve moments never dip below either clip's steady state
+  (5.12 worst) — the held frame under the fade carries its veil with it.
+- ACCEPTANCE (scripts/r68-acceptance.cjs, evidence in
+  download/r68-clip-playlist/): geometry — band top 96px in-section at
+  1920 (the de-shove), box ratio 1.7778 at 1920/1536/390 (zero crop),
+  dashboard +121.6px below the band foot, mobile copy-first +388px with
+  a rounded card at ratio 1.7778 and ZERO veils rendered; cycle —
+  typist -> cufflink -> typist proven (handoff polled at incoming
+  opacity 0.14 over a held z-20 frame; wrap confirmed); contrast —
+  1920: h1 7.04-7.14 / sub 5.53-5.63; 1536: h1 8.22-8.24 / sub
+  6.84-6.86 (gates 3.0/4.5); network — poster 200 (101,979B) then webm
+  206 (981,723B) then clip-2 webm 206 (368,807B) only at +5.67s (the
+  prefetch window), zero console errors; reduced-motion — still poster,
+  zero video requests; playback — pauses scrolled-out and tab-hidden,
+  resumes both, across whichever clip is active; VLM — desktop headline
+  readable over the band with the white gap confirmed, mobile
+  headline-first confirmed, the card "vivid, uncropped, well-framed";
+  the standing pre-existing notes (cookie banner vs chat FAB stacking,
+  the mobile micro-pill wrap) are out of R68 scope.
+- GATES: vitest 1396/1396 green (the R68 ratchet joins
+  websiteRepositioning.test.ts: playlist, de-shove, stacking pin,
+  copy-first order, push-hack retirement), lint ratchet 2312 held, tsc
+  125 baseline with zero errors in the touched files, build green.
+- COMMITTED: feat(r68) d391a948 (components + test + three clip-2
+  assets + four r68 harness scripts). NOT PUSHED: the remote token
+  (which authenticated this session's fetch at 12:20) now 401s at the
+  API and the push — the standing rotated-PAT pattern; the owner
+  supplies a fresh token, then push + production-deploy dispatch
+  (scripts/r67-dispatch.cjs <sha>) + live verify. The worklog entry
+  rides the same push.
