@@ -715,11 +715,15 @@ describe("W1/W2 — company-behind-products framing on the website", () => {
     expect(hub).toContain("Vega &amp; Atrium · Built by PracticePro");
   });
 
-  it("product heroes carry the Built-by attribution eyebrow", () => {
-    // R56: Vega's eyebrow moves to the light-enterprise register ("Legal
-    // Workflow Automation") — the attribution itself survives on both
-    // pages.
-    expect(vegaSite).toContain("'Legal Workflow Automation — Built by PracticePro'");
+  it("the attribution eyebrow survives on Atrium's hero; Vega's is retired (R69)", () => {
+    // R56: both product heroes carried a Built-by attribution eyebrow.
+    // R69 (owner direction): "Remove the small pill badge at the top of
+    // the hero section that currently reads 'LEGAL WORKFLOW AUTOMATION –
+    // BUILT BY PRACTICEPRO'" — Vega's is gone (the attribution itself
+    // survives on the Vega footer's 'A PracticePro product', D8, and on
+    // the hub). Atrium's eyebrow is untouched.
+    expect(vegaSite).not.toContain("Legal Workflow Automation — Built by PracticePro");
+    expect(vegaHero).not.toContain("{eyebrow}");
     expect(atriumSite).toContain("'Atrium · Built by PracticePro'");
   });
 
@@ -927,12 +931,58 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     const clipOrder = vegaHero.indexOf("<HeroVideo />");
     expect(heroOrder).toBeGreaterThan(-1);
     expect(clipOrder).toBeGreaterThan(heroOrder);
-    expect(vegaHero).toContain("2xl:pt-[calc(6rem+8.4375vw)]");
+    expect(vegaHero).toContain("2xl:pt-[calc(6rem+11.5vw)]");
     expect(vegaHero).toContain("2xl:h-[calc(6rem+56.25vw)]");
     expect(vegaHero).not.toContain("56.25vw_-_39.875rem");
     // The framed-card register below 2xl.
     expect(heroVideo).toContain("rounded-3xl");
     expect(heroVideo).toContain("ring-1 ring-slate-900/10");
+  });
+
+  it("R69: the hero eyebrow retires and the live captures gain presence + the lightbox gallery", () => {
+    // Owner direction (verbatim shape): remove the hero's pill badge; on
+    // the live captures display overlapping team avatars with a +5
+    // overflow badge between the bell and the profile, clickable to a
+    // Send-Direct-Message menu; click-to-expand opens a lightbox that
+    // walks ALL app views without closing, each view prominently
+    // labeled.
+    const collab = read("src", "sites", "vega", "sections", "CollabPresence.tsx");
+    const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
+    const appShot = read("src", "sites", "vega", "sections", "VegaAppShot.tsx");
+    // The eyebrow pill is gone and the anchor absorbs its block.
+    expect(vegaHero).not.toContain("LEGAL WORKFLOW");
+    expect(vegaHero).not.toContain("bg-indigo-50 px-4 py-1.5");
+    // THE PRESENCE OVERLAY: overlapping initials + the +5 overflow chip,
+    // pinned into the measured bell→profile gap (cqw geometry), the
+    // dropdown with Send-Direct-Message + the honest demo note, and the
+    // roster visible on hero + suite captures and inside the lightbox.
+    expect(collab).toContain("+5");
+    expect(collab).toContain("Send direct message to");
+    expect(collab).toContain("Direct messages open inside Vega");
+    expect(collab).toContain("8.55cqw");
+    expect(collab).toContain("COLLAB_ROSTER");
+    expect(vegaHero).toContain("CollabPresence");
+    expect(vegaSuite).toContain("CollabPresence");
+    expect(lightbox).toContain("CollabPresence");
+    // The editor capture (DraftPro toolbar, no app header) opts out.
+    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor.jpg'}");
+    // THE LIGHTBOX: shared gallery — the hero's Dashboard plus every
+    // suite exhibit; labeled with the exhibit + group vocabulary;
+    // ←/→/Escape; the pill strip walks everything.
+    expect(vegaHero).toContain("AppShotLightbox");
+    expect(vegaHero).toContain("SUITE_GROUPS");
+    expect(vegaSuite).toContain("AppShotLightbox");
+    expect(lightbox).toContain("ArrowRight");
+    expect(lightbox).toContain("ArrowLeft");
+    expect(lightbox).toContain("'Escape'");
+    expect(lightbox).toContain("aria-modal");
+    // Click-to-expand on the captures (the hover hint + touch chip).
+    expect(appShot).toContain("onExpand");
+    expect(appShot).toContain("ExpandHint");
+    expect(vegaHero).toContain("ExpandHint");
+    // The suite keeps its R42 exhibit selector (aria-pressed) — the
+    // lightbox is additive, not a replacement.
+    expect(vegaSuite).toContain("aria-pressed={shot === i}");
   });
 
   it("R64: the vega/atrium toggle reaches the vega site — View Live Demo opens the demo-access modal", () => {

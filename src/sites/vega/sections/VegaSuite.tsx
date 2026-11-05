@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { VegaAppShot } from './VegaAppShot';
+import { AppShotLightbox, type LightboxGroup } from './AppShotLightbox';
 
 /**
  * VegaSuite — R56: the Core Suite Showcase, one consolidated interactive hub.
@@ -19,6 +20,14 @@ import { VegaAppShot } from './VegaAppShot';
  *
  * Tabs activate on click AND hover (desktop). Indigo is the interactive
  * accent — tab indicators and active toggles (R56 palette).
+ *
+ * R69: every capture is click-to-expand into the AppShotLightbox — one
+ * flat gallery across ALL tabs' exhibits (the owner: "seamlessly… click
+ * through the different available app views… without having to close
+ * the modal and click separate tabs on the main page"), with the
+ * CollabPresence overlay on every standard-header capture (editor.jpg
+ * opts out — the DraftPro toolbar is not the app header). The groups
+ * are exported so the hero's dashboard capture joins the same gallery.
  */
 
 type Shot = { src: string; alt: string; caption: string; label: string };
@@ -201,9 +210,19 @@ const TABS: SuiteTab[] = [
     },
 ];
 
-export const VegaSuite: React.FC = () => {
+/** R69: the suite's exhibits as lightbox groups — also imported by
+ *  VegaHero so the hero's dashboard capture rides the same gallery. */
+export const SUITE_GROUPS: LightboxGroup[] = TABS.map((t) => ({
+    id: t.id,
+    label: t.label,
+    exhibits: t.shots,
+}));
+
+export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => {
     const [active, setActive] = useState(0);
     const [shot, setShot] = useState(0);
+    // R69: the lightbox — a flat index across every tab's exhibits.
+    const [lightbox, setLightbox] = useState<number | null>(null);
 
     const onActivate = (i: number) => {
         if (active !== i) {
@@ -213,6 +232,8 @@ export const VegaSuite: React.FC = () => {
     };
     const tab = TABS[active];
     const exhibit = tab.shots[shot];
+    const flatIndexOf = (tabIdx: number, shotIdx: number) =>
+        TABS.slice(0, tabIdx).reduce((n, t) => n + t.shots.length, 0) + shotIdx;
 
     return (
         <section
@@ -318,10 +339,30 @@ export const VegaSuite: React.FC = () => {
                                 </button>
                             ))}
                         </div>
-                        <VegaAppShot src={exhibit.src} alt={exhibit.alt} caption={exhibit.caption} />
+                        <VegaAppShot
+                            src={exhibit.src}
+                            alt={exhibit.alt}
+                            caption={exhibit.caption}
+                            label={exhibit.label}
+                            onSignup={onSignup}
+                            onExpand={() => setLightbox(flatIndexOf(active, shot))}
+                            collab={exhibit.src !== '/assets/landing/app/editor.jpg'}
+                        />
                     </div>
                 </div>
             </div>
+
+            {/* R69: the expanded gallery — every exhibit of every tab one
+                click away, prominently labeled, ←/→/Escape on the keys. */}
+            {lightbox !== null && (
+                <AppShotLightbox
+                    groups={SUITE_GROUPS}
+                    index={lightbox}
+                    onNavigate={setLightbox}
+                    onClose={() => setLightbox(null)}
+                    onSignup={onSignup}
+                />
+            )}
         </section>
     );
 };

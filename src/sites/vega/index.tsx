@@ -141,7 +141,6 @@ export const VegaSite: React.FC = () => {
 
             <main id="main-content" className="animate-swap-in">
                 <VegaHero
-                    eyebrow={'Legal Workflow Automation — Built by PracticePro'}
                     cta={(
                         <PrimaryButton onClick={() => openSignup()} tone="vega" className="text-base px-8 py-4">
                             Get Started
@@ -152,12 +151,13 @@ export const VegaSite: React.FC = () => {
                             View Live Demo
                         </GhostButton>
                     )}
+                    onSignup={openSignup}
                 />
                 {/* The six core bands (R56): the tabbed suite hub, the
                     Nigeria differentiators, the trust/segments band, the
                     pricing matrix with its compact FAQ, and the navy
                     final-CTA close. */}
-                <VegaSuite />
+                <VegaSuite onSignup={openSignup} />
                 <VegaWhyNigeria />
                 <VegaTrust />
                 <VegaPricing onContactSales={(s) => openContactSales(s || 'Vega Pricing')} onSignup={openSignup} />

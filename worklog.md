@@ -15094,3 +15094,83 @@ cycles the owner's clips with held-frame dissolves.**
   supplies a fresh token, then push + production-deploy dispatch
   (scripts/r67-dispatch.cjs <sha>) + live verify. The worklog entry
   rides the same push.
+
+**R69 — the hero pill retires and the live captures become a gallery:
+team-presence avatars in every app header, click-to-expand lightbox with
+in-modal view navigation.**
+- THE ASK (owner, three-part): (1) remove the hero's attribution pill
+  ("LEGAL WORKFLOW AUTOMATION — BUILT BY PRACTICEPRO") and clean the
+  spacing; (2) in the live-capture app headers, show overlapping
+  teammate avatars with a "+5" overflow badge between the notification
+  bell and the Demo-User profile, clickable to a Send-Direct-Message
+  menu, consistent across all capture views; (3) hover/click-to-expand
+  the captures into a lightbox that walks ALL app views without
+  closing, each view prominently labeled.
+- PART 1 (VegaHero): the pill is gone; the 2xl copy anchor rises
+  8.4375vw -> 11.5vw to absorb its block — the headline keeps its exact
+  seat (h1 y=317 at 1920, measured) and the R67/R68 veil geometry
+  behind it is untouched. The attribution survives on the footer
+  ("A PracticePro product", D8) and the hub; Atrium's hero eyebrow is
+  NOT touched.
+- PART 2 (CollabPresence.tsx, new): the captures' app headers are
+  pixel-identical chrome (measured across every exhibit,
+  scripts/r69-header-geometry.py): bell ends x 86.8% of image width,
+  profile text starts 91.5% — a 4.7% gap. The overlay pins into it with
+  container-query units (containerType inline-size on the capture
+  wrapper; the Tailwind v3 setup has no cq plugin, so the units are
+  arbitrary values): 3 avatars (AO/TA/CN) at 1.95cqw with -0.58cqw
+  overlap + a "+5" corner chip on the last avatar, right edge at
+  91.45% — between bell and profile at EVERY render width (card, hero
+  card, lightbox). Hover/focus pops the stack 1.55x over a white plate
+  (plate right edge pinned — the VLM caught a symmetric inset clipping
+  "Demo User"; the chip too was re-pinned for the same reason). Click
+  opens a portal'd roster (the capture frames clip, so the menu rides
+  document.body): 8 teammates with roles, each row a DM action
+  (SendIcon); a DM swaps to the honest demo note — "Direct messages
+  open inside Vega" + Start free hand-off (D7 voice) where the host
+  provides a signup callback. ui/Button throughout (ADR-0004; the
+  ratchet never moved). editor.jpg opts out (the DraftPro toolbar is
+  not the app header).
+- PART 3 (AppShotLightbox.tsx, new): one flat gallery of 14 exhibits —
+  the hero's Dashboard plus every suite tab's shots (SUITE_GROUPS
+  exported from VegaSuite). Prev/next, ←/→ keys, a grouped pill strip
+  (Dashboard | Ledger · Task board · Flat list · Contacts | Editor ·
+  Vault · Research | Billing · Invoice · Analytics | Tasks · Calendar ·
+  Notes), Escape/backdrop close, focus send/return, inner-scroller
+  lock. The label is prominent: the exhibit name in the display face
+  over a mono group line ("TEAM WORKFLOWS · LIVE CAPTURE"), matching
+  the tab vocabulary. CollabPresence rides the expanded capture at
+  1.3x. THE 0x0 LESSON (caught by the harness + pixels, invisible to
+  tsc/vitest): a container-type wrapper must never be shrink-to-fit —
+  size containment forbids the content from informing the box, so the
+  lightbox's content-sized frame collapsed the capture to 0x0; the
+  frame is now sized explicitly (height: min(66vh, 56vw) + the
+  captures' own 8:5 aspect).
+- ACCEPTANCE (scripts/r69-acceptance.cjs + r69-lightbox-probe.cjs,
+  evidence in download/r69-captures/): hero — pill gone both viewports,
+  h1 y=317, band 1.7778 zero-crop @96px offset (R68 held); presence —
+  trigger right edge exactly 91.45% of image width, top 2%, inside the
+  header strip, on the hero card, the suite card and inside the
+  lightbox; roster — 8 rows, 8 DM buttons, demo note + Start free,
+  Escape closes; lightbox — opens labeled, ArrowRight Dashboard ->
+  Ledger, pill jump -> "Calendar · Team Workflows", scroll locks/
+  unlocks, closes on Escape; suite — editor opts out, Team tab expands
+  to "Tasks", walk Tasks -> Calendar -> Notes on the keys; mobile —
+  pill gone, tappable card into the lightbox, caption clear of the
+  arrows (px-14), pills wrap visible; pixel checks — the lightbox
+  renders bright (0.377 bright-frac vs 0.001 on the bug) and the two
+  views genuinely differ (5.1% of center pixels >30); VLM — pill
+  absence, gap placement, pop plate, roster, labels, arrows, pill
+  strip, distinct views, mobile caption all confirmed; zero console
+  errors.
+- OPTIONAL ITEMS (reviewed, decided): mobile keeps the real captures
+  (R28's "no false images") — the lightbox IS the mobile legibility
+  answer (full-width expand, wrapped pill rail); no contrast changes
+  needed — the overlay UI is built from high-contrast pairs (white
+  ring/plate, slate-900 on white, indigo-700 on white).
+- GATES: vitest 1397/1397 green (the R69 ratchet joins
+  websiteRepositioning.test.ts; the R56 eyebrow test flips to its
+  retirement), lint ratchet 2312 held (zero raw buttons added), tsc 125
+  baseline with zero errors in touched files, build green.
+- COMMITTED: feat(r69). Rode to production with the same push (the
+  fresh PAT authenticated; R68's d391a948 + worklog went first).

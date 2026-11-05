@@ -1,68 +1,73 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { HeroVideo } from '../../../components/HeroVideo';
+import { Button } from '../../../components/ui';
+import { CollabPresence } from './CollabPresence';
+import { AppShotLightbox, ExpandHint, type LightboxGroup } from './AppShotLightbox';
+import { SUITE_GROUPS } from './VegaSuite';
 
 /**
  * VegaHero — R56: the light-enterprise hero; R65/R67: the lifestyle-video
- * hero; R68: the de-shoved clip hero.
+ * hero; R68: the de-shoved clip hero; R69: the eyebrow pill retires.
  *
- * Owner direction, R68 (verbatim shape): "i dont like the manner the
- * vidoe is shoved to the top of the screen" — R67's band was absolute
- * top-0, i.e. wallpaper glued to the very top of the screen behind the
- * navbar, with the copy and dashboard hanging below it. The R68 layout:
+ * Owner direction, R69 (verbatim shape): "Remove the small pill badge at
+ * the top of the hero section" — the indigo attribution pill above the
+ * headline is gone; the 2xl copy anchor rises to compensate (the pill's
+ * block was ~58px at 1920, so the anchor moves 8.4375vw -> 11.5vw and
+ * the headline lands where it always did — the R67/R68 WCAG geometry
+ * behind it is unchanged). The attribution itself is not lost: the
+ * footer carries "A PracticePro product" (D8) and the hub keeps the
+ * built-by line.
  *
- *   - Below 2xl (phone → laptop): COPY FIRST on the clean white ground
- *     (headline lands immediately, nothing fights it), then the clip as
- *     a framed 16:9 CARD (rounded, ringed, shadowed — the visual family
- *     of the dashboard capture below it), then the dashboard. The clip
- *     plays UNCROPPED at its own 16:9, no text on it, no veil — the
- *     whole frame, typing and cufflinks included, at full vividness.
- *   - At 2xl+ (desktop): the clip becomes the full-bleed band, now
- *     LIFTED OFF the navbar (2xl:top-24 — a deliberate white gap between
- *     the glass nav and the band, so it reads as a mounted cinema screen
- *     rather than wallpaper shoved to the top of the screen). The copy
- *     rides on top under the per-clip veil; the copy wrapper is sized
- *     to EXACTLY the band's box (2xl:h-[calc(6rem+56.25vw)], copy
- *     top-anchored at 15% of the band — R67's measured geometry), so
- *     the dashboard simply follows in flow; R67's vw-minus-rem margin
- *     push-hack is retired — no absolute/flow coordination any more.
- *   - The clip cycles through the owner's playlist (see HeroVideo):
- *     the typist first, the cufflink man next, further clips as they
- *     arrive — dissolving clip-to-clip with no seam.
+ * R69 also lands the live-capture upgrades on the dashboard card: the
+ * CollabPresence overlay in the app header's bell→profile gap and
+ * click-to-expand into the shared lightbox gallery — the hero's
+ * Dashboard capture plus every suite exhibit, so "Tasks, Calendar,
+ * Notes" (and the rest) are reachable from the hero without a detour.
  *
- * Copy, fonts, spacing, CTAs: untouched since R56/R65 (owner: no copy
- * rewrites). Presentational only — the CTAs arrive via props.
+ * Copy (headline, sub-copy, CTAs, micro pill), fonts and spacing rhythm
+ * are untouched since R56/R65. Presentational only — the CTAs arrive via
+ * props.
  */
 export const VegaHero: React.FC<{
-    /** Pinned attribution string — owned by the site index. */
-    eyebrow: string;
     /** The primary CTA node (Vega-styled buttons), passed in by the site index. */
     cta: React.ReactNode;
     /** The secondary "View Live Demo" node — R64: opens the demo-access
      *  modal (the Vega | Atrium toggle), pre-toggled to Vega. */
     demoCta: React.ReactNode;
-}> = ({ eyebrow, cta, demoCta }) => {
+    /** R69: signup hand-off for the capture overlays' demo note. */
+    onSignup?: () => void;
+}> = ({ cta, demoCta, onSignup }) => {
     // R39: cache-busted like every landing asset (VITE_BUILD_SHA).
     const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
+    // R69: the lightbox — the Dashboard capture plus every suite exhibit.
+    const [lightbox, setLightbox] = useState<number | null>(null);
+
+    const groups: LightboxGroup[] = [
+        {
+            id: 'dashboard',
+            label: 'Dashboard',
+            exhibits: [{
+                src: '/assets/landing/app/dashboard.jpg',
+                alt: 'Vega dashboard — the practice at a glance: matters, hearings, billing and tasks',
+                caption: 'LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING',
+                label: 'Dashboard',
+            }],
+        },
+        ...SUITE_GROUPS,
+    ];
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
             {/* ── The copy — FIRST in flow. Below 2xl it sits on white;
                 at 2xl the wrapper is sized to exactly the band's box
                 (6rem = the band's top-24 offset, 56.25vw = the 16:9 band
-                height at any width) with the copy top-anchored 15% into
-                the band — the geometry R67 measured WCAG against. ── */}
-            <div className="relative z-10 px-4 sm:px-6 pt-28 sm:pt-32 2xl:pt-[calc(6rem+8.4375vw)] 2xl:h-[calc(6rem+56.25vw)]">
+                height at any width) with the copy top-anchored into the
+                band — R67's measured geometry, R69: the anchor rises
+                8.4375vw -> 11.5vw to absorb the retired eyebrow pill's
+                block so the headline keeps its exact seat. ── */}
+            <div className="relative z-10 px-4 sm:px-6 pt-28 sm:pt-32 2xl:pt-[calc(6rem+11.5vw)] 2xl:h-[calc(6rem+56.25vw)]">
                 <div className="max-w-7xl mx-auto">
                     <div className="max-w-3xl mx-auto text-center">
-                        {/* Soft indigo status pill — the eyebrow. */}
-                        <p
-                            className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 font-mono text-2xs sm:text-xs font-medium uppercase tracking-[0.18em] text-indigo-700 mb-7"
-                            data-vg-reveal
-                        >
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500" aria-hidden="true" />
-                            {eyebrow}
-                        </p>
-
                         {/* Headline — crisp, deep slate, tight tracking. */}
                         <h1
                             className="font-display text-[2.5rem] sm:text-6xl lg:text-[4.25rem] font-semibold leading-[1.05] tracking-tight text-slate-900 mb-6"
@@ -122,11 +127,10 @@ export const VegaHero: React.FC<{
 
             {/* ── The product UI dashboard preview — the REAL capture in a
                 clean light browser container with a soft drop shadow.
-                R68: plain flow spacing — the copy wrapper already occupies
-                exactly the band's box at 2xl, so the card lands below the
-                band's foot with a simple mt; the typing zone is never
-                covered. R67's vw-minus-rem margin push-hack is retired
-                with it. ── */}
+                R68: plain flow spacing (the copy wrapper occupies exactly
+                the band's box at 2xl). R69: the capture carries the team
+                presence overlay and is click-to-expand into the shared
+                gallery (Dashboard + every suite exhibit). ── */}
             <div
                 className="relative max-w-5xl mx-auto px-4 sm:px-6 mt-14 2xl:mt-16 mb-20 2xl:mb-24"
                 data-vg-reveal
@@ -145,20 +149,48 @@ export const VegaHero: React.FC<{
                         </div>
                         <div className="w-10" aria-hidden="true" />
                     </div>
-                    <img
-                        src={`/assets/landing/app/dashboard.jpg?v=${buildSha}`}
-                        alt="Vega dashboard — the practice at a glance: matters, hearings, billing and tasks"
-                        loading="eager"
-                        decoding="async"
-                        width={1440}
-                        height={900}
-                        className="block w-full h-auto"
-                    />
+                    <div
+                        className="relative group cursor-zoom-in"
+                        style={{ containerType: 'inline-size' }}
+                    >
+                        <img
+                            src={`/assets/landing/app/dashboard.jpg?v=${buildSha}`}
+                            alt="Vega dashboard — the practice at a glance: matters, hearings, billing and tasks"
+                            loading="eager"
+                            decoding="async"
+                            width={1440}
+                            height={900}
+                            className="block w-full h-auto"
+                        />
+                        {/* R69: the team-presence overlay + the expand
+                            affordance (the stack sits above the expand
+                            hit-area, so presence clicks open the roster). */}
+                        <CollabPresence onSignup={onSignup} />
+                        <Button
+                            variant="bare"
+                            onClick={() => setLightbox(0)}
+                            aria-label="Expand the Dashboard view"
+                            className="absolute inset-0 z-10 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
+                        />
+                        <ExpandHint />
+                    </div>
                 </div>
                 <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
                     LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING
                 </p>
             </div>
+
+            {/* R69: the shared gallery — Dashboard plus every suite
+                exhibit, one flat walk. */}
+            {lightbox !== null && (
+                <AppShotLightbox
+                    groups={groups}
+                    index={lightbox}
+                    onNavigate={setLightbox}
+                    onClose={() => setLightbox(null)}
+                    onSignup={onSignup}
+                />
+            )}
         </section>
     );
 };
