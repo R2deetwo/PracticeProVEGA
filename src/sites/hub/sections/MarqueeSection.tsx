@@ -1,6 +1,7 @@
 /**
- * FluidSeam + MarqueeStrip — the W18 liquid seams and the dark
- * capabilities ticker, restored verbatim.
+ * FluidSeam + MarqueeStrip — the W18 liquid seams and the capabilities
+ * ticker. R72: the ticker is no longer a free-floating band behind its own
+ * seam — it is the hero's docked base bar (see the marquee note below).
  */
 import React, { useEffect, useRef } from 'react';
 
@@ -70,10 +71,19 @@ export const FluidSeam: React.FC<{ from: string; to: string; phase?: number }> =
     );
 };
 
-// ─── MARQUEE (W7) — the capabilities ticker ─────────────────────────────────
-// A slow infinite band that carries the builder's vocabulary across the
-// seam between the dark hero and the light body. Pure CSS animation;
-// frozen under prefers-reduced-motion.
+// ─── MARQUEE (W7 → R72) — the capabilities ticker, docked ──────────────────
+// R72 (owner direction): the ticker stops sitting on its own strip. It rode
+// a liquid seam below the hero — a light wave gap that read as "a separate
+// thing floating under the page" ("why does it sit separately on that
+// strip… attach it to the bottom of the first page"). Now it IS the bottom
+// of the first page: the hero cedes exactly one 3rem base bar, the ticker
+// sits flush against it on the same navy ground behind a single hairline,
+// and the pair fills the first viewport together (hero
+// min-h-[calc(100dvh-3rem)] + this h-12 strip = 100dvh). Slimmer and
+// neater: a fixed 48px band (was ~62px of padding plus a 96–128px seam
+// above it), 12px mono caps, 4px diamonds, tighter tracking. The seam
+// below pours the hero's own navy into the white body. Slow infinite loop,
+// pure CSS; frozen under prefers-reduced-motion.
 
 const MARQUEE_ITEMS = [
     'Custom Systems',
@@ -88,25 +98,28 @@ const MARQUEE_ITEMS = [
 ];
 
 export const MarqueeStrip: React.FC = () => (
-    <div className="relative overflow-hidden border-y border-white/5 bg-[#0A101C] py-5" aria-label="What we build">
-        <div className="w7-marquee-track flex items-center gap-10 whitespace-nowrap w-max">
+    <div
+        className="relative h-12 overflow-hidden border-t border-white/10 bg-[#050B18]"
+        aria-label="What we build"
+    >
+        <div className="w7-marquee-track flex h-full items-center gap-8 whitespace-nowrap w-max">
             {[0, 1].map((dup) => (
-                <div key={dup} className="flex items-center gap-10" aria-hidden={dup === 1}>
+                <div key={dup} className="flex items-center gap-8" aria-hidden={dup === 1}>
                     {MARQUEE_ITEMS.map((item) => (
-                        <span key={`${dup}-${item}`} className="flex items-center gap-10">
+                        <span key={`${dup}-${item}`} className="flex items-center gap-8">
                             {/* R33: the ticker speaks the engineering register —
                                 IBM Plex Mono caps, the system-readout voice. */}
-                            <span className="font-mono text-xs sm:text-sm font-medium uppercase tracking-[0.28em] text-slate-500">
+                            <span className="font-mono text-xs font-medium uppercase tracking-[0.24em] text-slate-400">
                                 {item}
                             </span>
-                            <span className="w-1.5 h-1.5 rotate-45 bg-gradient-to-br from-emerald-300 to-emerald-500 opacity-70" aria-hidden="true" />
+                            <span className="w-1 h-1 rotate-45 bg-gradient-to-br from-emerald-300 to-emerald-500 opacity-70" aria-hidden="true" />
                         </span>
                     ))}
                 </div>
             ))}
         </div>
         {/* Edge fades so the band dissolves instead of clipping */}
-        <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#0A101C] to-transparent pointer-events-none" aria-hidden="true" />
-        <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#0A101C] to-transparent pointer-events-none" aria-hidden="true" />
+        <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-[#050B18] to-transparent pointer-events-none" aria-hidden="true" />
+        <div className="absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-[#050B18] to-transparent pointer-events-none" aria-hidden="true" />
     </div>
 );

@@ -185,8 +185,10 @@ describe('R55 the hero wiring (src/sites/hub/sections/HeroSection.tsx)', () => {
         // render strings, not JSDoc mentions)
         expect(firstChildAt).toBeLessThan(hero.indexOf('hero-stagger relative z-20 container'));
         expect(firstChildAt).toBeLessThan(hero.indexOf('<FeaturedSolutionsCard onOpenProduct'));
-        // and the wrapper is relative + overflow-hidden + full height
-        expect(hero).toContain('relative overflow-hidden min-h-[100dvh]');
+        // and the wrapper is relative + overflow-hidden + fills the first
+        // viewport MINUS the docked ticker's 3rem base bar (R72: hero +
+        // h-12 MarqueeStrip = exactly 100dvh together)
+        expect(hero).toContain('relative overflow-hidden min-h-[calc(100dvh-3rem)]');
     });
 
     it('all hero content sits above the canvas (z-20)', () => {

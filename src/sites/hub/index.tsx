@@ -17,9 +17,10 @@ import { HubFinalCTASection } from './sections/HubFinalCTASection';
  * HubSite — the PracticePro corporate hub (/), W18-era look restored on
  * the P0 split architecture (hub-restore task, Phase B).
  *
- * Section order (W18 composition, simplified R40): hero → marquee →
- * seam → What we do (the system core) → seam → Our work → seam → How we
- * work → About → seam → the dark aurora close.
+ * Section order (W18 composition, simplified R40, R72): hero (with the
+ * docked capabilities ticker as its base bar) → seam → What we do (the
+ * system core) → seam → Our work → seam → How we work → About → seam →
+ * the dark aurora close.
  *
  * R40 (owner direction): the "Sound familiar?" pain-mirror page is
  * retired — "I don't think we need it any more." The hub leads with
@@ -81,14 +82,20 @@ export const HubSite: React.FC = () => {
                     scrollTo={scrollTo}
                     onOpenProduct={openProductPage}
                 />
-                {/* R42: the hero is daylight now — the dark capabilities band
-                    pours in through a liquid seam instead of a shared ground. */}
-                <FluidSeam from="#FBFBF9" to="#0A101C" phase={0} />
+                {/* R72: the capabilities ticker is the hero's own base bar —
+                    docked to the bottom of the first page on the same navy
+                    ground, behind a single hairline. NO seam between the hero
+                    and its strip (the old phase-0 seam left a light wave gap
+                    that read as a separate floating band — owner: "why does
+                    it sit separately on that strip… attach it to the bottom
+                    of the first page"). */}
                 <MarqueeStrip />
                 {/* R40: the pain-mirror ("Sound familiar?") retired by
                     owner direction — the hub leads with the work. */}
-                {/* Liquid seams — each section pours into the next. */}
-                <FluidSeam from="#0A101C" to="#FFFFFF" phase={1} />
+                {/* Liquid seams — each section pours into the next. The first
+                    seam pours the hero's navy ground into the white body,
+                    straight off the docked strip. */}
+                <FluidSeam from="#050B18" to="#FFFFFF" phase={1} />
                 <WhatWeDoSection scrollTo={scrollTo} />
                 <FluidSeam from="#FFFFFF" to="#0A101C" phase={1} />
                 <OurWorkSection onContactSales={() => openContactSales('Our Work')} />

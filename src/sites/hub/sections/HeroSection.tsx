@@ -26,6 +26,13 @@ const HUB_HERO_GROUND = '#050B18';
  * plain 2D canvas, zero dependencies, DPR-clamped, paused when
  * off-screen or hidden, ONE static frame under reduced-motion.
  *
+ * R72: the hero cedes its bottom 3rem to the capabilities ticker — the
+ * MarqueeStrip docks flush under this section on the same navy ground
+ * (behind a single hairline), so hero + strip fill the first viewport
+ * together and the ticker reads as the first page's own base bar, not
+ * a separate strip (owner: "attach it to the bottom of the first page…
+ * make this neater and a slightly slimmer profile").
+ *
  * Layers, back to front:
  *   first child — the ribbon canvas (absolute inset-0, pointer-events-none).
  *   z-20 — the hero typography, CTAs, the featured card, the cue.
@@ -43,10 +50,12 @@ export const HubHero: React.FC<{
         else window.open(p === 'vega' ? '/vega' : '/atrium', '_blank', 'noopener,noreferrer');
     };
 
+    // R72: min-h is the viewport minus the ticker's 3rem base bar —
+    // hero + docked MarqueeStrip fill the first page exactly.
     return (
         <section
             id="home"
-            className="relative overflow-hidden min-h-[100dvh] flex items-center r42-hero"
+            className="relative overflow-hidden min-h-[calc(100dvh-3rem)] flex items-center r42-hero"
             style={{ background: HUB_HERO_GROUND }}
         >
             {/* Layer 0 — the hairline ribbons: two 64-line silk ribbons on

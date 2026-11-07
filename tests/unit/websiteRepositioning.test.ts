@@ -350,11 +350,15 @@ describe("W8 — structured fluidity: the lattice system", () => {
 
   it("sections pour into each other through visible SVG waves that morph as you scroll (W10, restored)", () => {
     expect(hub).toContain("FluidSeam");
-    // R42: the hero is daylight — it pours into the dark capabilities band
-    // through its own seam (phase 0); the band then pours into the white
-    // body. The final paper→dark close keeps phase 3.
-    expect(hubIndex).toContain('<FluidSeam from="#FBFBF9" to="#0A101C" phase={0}');
-    expect(hubIndex).toContain('<FluidSeam from="#0A101C" to="#FFFFFF" phase={1}');
+    // R72: the hero→ticker seam is RETIRED — the ticker docks to the
+    // hero's bottom on the same navy ground (owner: "why does it sit
+    // separately on that strip… attach it to the bottom of the first
+    // page"). The first seam now pours the hero's own navy straight
+    // into the white body, directly under the docked strip. The final
+    // paper→dark close keeps phase 3.
+    expect(hubIndex).not.toContain('<FluidSeam from="#FBFBF9" to="#0A101C" phase={0}');
+    expect(hubIndex).not.toContain('<FluidSeam from="#0A101C" to="#FFFFFF" phase={1}');
+    expect(hubIndex).toContain('<FluidSeam from="#050B18" to="#FFFFFF" phase={1}');
     expect(hubIndex).toContain('<FluidSeam from="#FBFBF9" to="#0A101C" phase={3}');
   });
 
@@ -396,7 +400,12 @@ describe("W8 — structured fluidity: the lattice system", () => {
     expect(hubHeroSection).not.toContain("ambient-still-panel.jpg");
     expect(hubHeroSection).not.toContain("object-[72%_center]");
     expect(hubHeroSection).not.toContain("<SwirlBands");
-    expect(hubHeroSection).toContain("min-h-[100dvh]");
+    // R72: the hero cedes its bottom 3rem to the docked ticker —
+    // min-h-[calc(100dvh-3rem)] + the h-12 MarqueeStrip = exactly the
+    // first viewport, the ticker attached to the bottom of the first
+    // page instead of floating behind its own seam.
+    expect(hubHeroSection).toContain("min-h-[calc(100dvh-3rem)]");
+    expect(hubHeroSection).not.toContain("min-h-[100dvh]");
     // Nothing in the hero itself animates after arrival: no pinging badge
     // dot, no bobbing scroll cue (the chevron rests).
     expect(hubHeroSection).not.toContain("animate-ping");
@@ -693,6 +702,38 @@ describe("W14 — navigation truth, the pulse, the descent and the pitch", () =>
     expect(hubIndex).not.toContain("PainMirrorSection");
     expect(hubIndex.indexOf("<MarqueeStrip />")).toBeGreaterThan(-1);
     expect(hubIndex.indexOf("<WhatWeDoSection")).toBeGreaterThan(hubIndex.indexOf("<MarqueeStrip />"));
+  });
+
+  it("R72: the capabilities ticker is the hero's docked base bar — attached to the bottom of the first page", () => {
+    // Owner direction: "there is a ticker that scrolls across showing the
+    // sort of thing that practice pro does… why does it sit separately on
+    // that strip… why not attach it to the bottom of the first page, instead
+    // of having it be separate from the first page. make this neater and a
+    // slightly slimmer profile." The strip rides NO seam: it mounts directly
+    // under the hero, on the hero's own navy ground behind a single
+    // hairline, and the hero cedes exactly its height so the pair fills the
+    // first viewport together.
+    const heroAt = hubIndex.indexOf("<HubHero");
+    const marqueeAt = hubIndex.indexOf("<MarqueeStrip />");
+    expect(marqueeAt).toBeGreaterThan(heroAt);
+    // No seam between the hero and its base bar.
+    expect(hubIndex.slice(heroAt, marqueeAt)).not.toContain("FluidSeam");
+    // The first seam comes AFTER the strip and pours the hero ground
+    // (#050B18) into the white body.
+    const firstSeamAfter = hubIndex.indexOf("<FluidSeam", marqueeAt);
+    expect(firstSeamAfter).toBeGreaterThan(marqueeAt);
+    expect(hubIndex.slice(marqueeAt, firstSeamAfter + 200)).toContain('from="#050B18" to="#FFFFFF"');
+    // The strip: a fixed slim 48px bar (h-12) on the hero's own ground,
+    // hairline top border only — not the old padded band (no py-5, no
+    // border-y, no separate #0A101C ground).
+    expect(hubMarquee).toContain("h-12");
+    expect(hubMarquee).toContain("border-t border-white/10");
+    expect(hubMarquee).toContain("bg-[#050B18]");
+    expect(hubMarquee).not.toContain("py-5");
+    expect(hubMarquee).not.toContain("border-y");
+    expect(hubMarquee).not.toContain("bg-[#0A101C]");
+    // And the hero cedes exactly 3rem so hero + strip = the first page.
+    expect(hubHeroSection).toContain("min-h-[calc(100dvh-3rem)]");
   });
 
   it("the descent: shapes land in their cards, the Iso watermarks return (W14, restored)", () => {
