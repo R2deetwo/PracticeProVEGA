@@ -305,3 +305,34 @@ bar button, the select checkbox). All four are now ui/ primitives
 the same pattern the landing roster uses, since ui/ ships no checkbox
 primitive). Ratchet re-verified locally: 2312 = 2312 baseline, gate
 held. tsc 125 baseline, the two touched suites green.
+
+### Task R74 — DEPLOY RECORD
+
+- First push (079fab3d) failed ONE CI gate: the UI-primitives ratchet
+  (+4 raw elements — the app-side presence additions). Fixed in
+  2253c967 (all four are ui/ primitives; the checkbox is a
+  role=checkbox Button with the CheckIcon). CI then green across the
+  board: Tests ✓, Deploy to Staging ✓, Build Android APK ✓ (bot
+  followed with 53d4c9b5 v1.0.743 + 4b701e28 build-1137, then a1dd93d3
+  build-1138 on the promote).
+- Production promote run 42405340474 (workflow_dispatch, latest main
+  = a1dd93d3, which carries R74): Typecheck + unit tests on the
+  promoted commit ✓; **Deploy to production (Vercel + Convex) and
+  verify live ✓** — production healthy and serving a1dd93d3;
+  Cloudflare mirror ✗ at the token check (standing inactive
+  CLOUDFLARE_API_TOKEN — owner rotates; mirror frozen at
+  04d798b3/2026-09-18, unchanged since R71).
+- Live-verified on practice-pro-vega.vercel.app (practicepro.ng still
+  NXDOMAIN — the standing domain-renewal owner action):
+  - /version.json sha a1dd93d3 ✓ healthy.
+  - /vega dashboard card: the INTERACTIVE PREVIEW pill, the
+    click-guide caption, 3 hotspot triggers + 4 presence triggers in
+    the DOM; the WORKSPACE panel opens live (Badejo & Associates /
+    Badejo Property Co. / Okonkwo & Partners + Connect); the presence
+    roster opens live with checkboxes and DM buttons.
+  - Hub: vega-page-r74.jpg loads (1440×900) — navy Seal logo, the
+    current video-band hero; the phone capture overlaps as before.
+- Standing owner actions unchanged: rotate CLOUDFLARE_API_TOKEN (the
+  mirror is why a stale /vega can still appear on the workers.dev
+  URL), renew practicepro.ng (NXDOMAIN), rotate the GitHub PAT when
+  sessions end.
