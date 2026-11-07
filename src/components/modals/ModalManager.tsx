@@ -567,7 +567,10 @@ const ModalManager: React.FC = () => {
       content = <NewChannelForm users={coreState.users} onCreateChannel={dataHandlers.handleCreateChannel} onClose={closeModal} />;
       break;
     case 'newDirectMessage':
-      content = <NewDirectMessageForm users={coreState.users} onClose={closeModal} />;
+      // R74: modalContext carries the presence-stack hand-offs — a
+      // preselected recipient (click-a-teammate DM) or group mode with
+      // members preselected (tick-several group message).
+      content = <NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />;
       break;
     case 'deleteConfirmation':
       content = <ConfirmationModal title={modalContext.title} message={modalContext.message} onConfirm={modalContext.onConfirm} onCancel={closeModal} confirmText={modalContext.confirmText} confirmButtonClass={modalContext.confirmButtonClass} onConfirmArchive={modalContext.onConfirmArchive} archiveText={modalContext.archiveText} verificationText={modalContext.verificationText} requiresPassword={modalContext.requiresPassword} />;

@@ -614,7 +614,7 @@ export const DockedModal: React.FC = () => {
         break;
       }
       case 'newDirectMessage': {
-        content = <NewDirectMessageForm users={coreState.users} onClose={closeModal} />;
+        content = <NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />;
         break;
       }
       // ─── NOTES ───────────────────────────────────────────────────────

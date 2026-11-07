@@ -109,12 +109,12 @@ export const VegaWhyNigeria: React.FC = () => (
                 <VegaAppShot
                     src="/assets/landing/app/vega-aloa.jpg"
                     alt="ALOA in the running workspace — the AI copilot at work inside a matter"
-                    caption="LIVE CAPTURE — ALOA IN THE RUNNING WORKSPACE"
+                    caption="ALOA IN THE RUNNING WORKSPACE"
                 />
                 <VegaAppShot
                     src="/assets/landing/app/vega-aloa-drawout.jpg"
                     alt="The draw-out — ALOA reasoning through a legal problem, step by step"
-                    caption="LIVE CAPTURE — THE DRAW-OUT"
+                    caption="THE DRAW-OUT"
                 />
             </div>
         </div>

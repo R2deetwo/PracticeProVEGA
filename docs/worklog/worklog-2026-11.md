@@ -150,3 +150,146 @@ Two separate diseases, both real:
   vendor-ai, no vendor-editor, no module-settings/documents/atrium/
   research**; the entry references the LandingPage chunk twice (lazy
   const + module-eval warm-up).
+
+---
+
+## Task R74 — the dashboard becomes a demo; the roster writes messages; the "live shot" labelling retires
+
+**Owner direction (verbatim shape):** "It now begs the question, what
+does this do? … Okay, now it looks really cool. But do we have this in
+the app? I don't think we do, and if we don't, we need to have it
+immediately. So make sure it actually works as a system. Think through
+this. Also, are there other interactive features we can have? … you can
+DM people directly … maybe you can even select multiple people so that
+you can create a group message … the ability to open that up and connect
+so that they can actually connect to multiple workspaces … This could
+probably be a very good opportunity to sort of showcase the whole app
+like a mini demo. … Is it something that we can also use to open up
+Aloa?" — plus, on the hub: "when I hover over Vega, I can see that it
+hasn't been updated. Even the logo inside that image is not up to date …
+There's no need to be writing live shots everywhere. If you have a live
+shot, just show it. Don't be mentioning live shot."
+
+### Diagnosis
+
+- The hero's dashboard capture carried only ONE interactive pixel: the
+  presence stack. Everything else begged the owner's question — "what
+  does this do?" — and the R71 quiet stack (correctly) refused to
+  advertise itself.
+- The presence dropdown TOLD visitors the app does DMs ("Direct
+  messages open inside Vega") instead of SHOWING it — a note where a
+  working miniature could be.
+- The app itself (the real product) had NO path from the header's
+  presence avatars to a conversation: the stack was display-only. The
+  DM form existed (`NewDirectMessageForm`, dual-mode DM/group) but was
+  reachable from no live UI.
+- The hub's Vega exhibit (`vega-page.jpg`, also the SystemTour's first
+  Vega stop) still showed the pre-R56 Warm Chambers page — the orange
+  Seal era, the eyebrow pill, the grid hero. The capture predates SIX
+  redesigns of the page it claims to show.
+- "LIVE CAPTURE — " prefixes rode 18 captions, the lightbox said
+  "· Live capture", the tour badged public pages "Live site" — the
+  exact "live shot" narration the owner rejects.
+
+### Changes — the landing preview (src/sites/vega/sections/)
+
+- **CollabPresence v2** — the roster becomes a working miniature:
+  every row gains a checkbox and a quick DM; one pick opens a
+  direct-message composer, two or more open the GROUP composer (name
+  prefilled from initials, editable), Send lands the message in a
+  delivered mini-thread with the Start-free hand-off ("Inside Vega
+  this thread lives in Messages — kept on the matter"). The R71 quiet
+  stack contract is untouched: no hover pop, no plate, focus ring
+  only. A small mono PREVIEW chip keeps it honest without narrating.
+- **DashboardHotspots (new)** — the capture stays a REAL screenshot;
+  the app's own interactive furniture is overlaid where it already
+  lives, in cqw units on the same container-type wrapper:
+  - the workspace chip (sidebar head) → the multi-workspace
+    switcher: current firm, two others (Vega OS + Atrium OS), and
+    Connect New Workspace with a join-code flow — "keep things
+    separate, switch without logging out" made visible;
+  - your own profile (Demo User / DU) → the user menu — My Profile,
+    Settings, Lock Workspace, Sign out, each unfolding a one-line
+    explanation of what it does in the app;
+  - the Aloa orb (the bottom-right FAB) → a mini Aloa exchange:
+    a seeded Q&A about the firm's week, quick-ask chips (draft the
+    affidavit, who's free Thursday, summarise the matter), and a
+    free input with honest fallback — plus the "Aloa reads your
+    matters, deadlines and files — not the open internet" line.
+  - Discoverability without highlight: a quiet pill rides the
+    capture foot ("INTERACTIVE PREVIEW — CLICK AROUND" / mobile
+    "TAP TO EXPLORE") until the first interaction; the hotspots
+    themselves stay invisible at rest and gain only a soft ring on
+    hover/focus. The profile hotspot is sized (7.5cqw) to stop short
+    of the presence stack's measured gap (x 85.9–91.5%) so the two
+    triggers never fight — the first click-test caught exactly that
+    collision and the geometry was narrowed.
+- Wired into BOTH the hero card and the lightbox's Dashboard exhibit
+  (scale 1.3, same as CollabPresence); the caption now says what is
+  clickable: "THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING —
+  CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA".
+
+### Changes — the app itself (it must WORK as a system)
+
+- `PresenceAvatars` (the header stack) becomes a messaging surface:
+  click any avatar → `openModal('newDirectMessage', null,
+  { recipientId })`; the roster's overflow list gains checkboxes and
+  a selection bar → `openModal('newDirectMessage', null,
+  { initialMode: 'group', initialMemberIds })`. Avatars gain the
+  pointer cursor and a subtle hover scale — they finally do something.
+- `NewDirectMessageForm` honours the prefill: group mode + members
+  arrive preselected (the old recipientId path kept).
+- BOTH modal renderers (`ModalManager`, `DockedModal`) pass
+  `initialContext={modalContext}` — the context previously never
+  reached the form.
+- The multi-workspace switcher and Connect-New-Workspace already
+  existed in the app's sidebar (Round 13+, `canUseMultiFirm`-gated) —
+  the landing demo now mirrors the real system.
+
+### Changes — the hub's Vega exhibit + the "live shot" retirement
+
+- Fresh captures of the CURRENT /vega (navy Seal logo, video-band
+  hero, no eyebrow pill) taken from production at 1440×900 and
+  390×844, saved as `vega-page-r74.jpg` / `vega-m-page-r74.jpg` —
+  RENAMED, not overwritten: /assets jpgs carry immutable year-long
+  cache headers, and the 9573903d round proved a same-name swap keeps
+  serving the stale capture to returning visitors. References updated
+  in OurWorkSection + SystemTour; the stale files deleted.
+- "LIVE CAPTURE — " prefixes retired across VegaSuite, VegaHero,
+  VegaWhyNigeria, AtriumReceipt; the lightbox "· Live capture" suffix
+  dropped; the tour's "Live site" badge and "Live inbox" label
+  retired (badge type now optional — public pages carry none; app
+  surfaces keep the form-factor labels that say what they ARE).
+
+### Verified (local preview, headless)
+
+- The dashboard card: stack + INTERACTIVE pill + click-guide caption
+  all render (VLM-confirmed at 1440×900).
+- Presence flow exercised end-to-end: roster opens, two teammates
+  ticked → "Message 2 teammates — group" → composer with TA, CN chips
+  and prefilled group name → typed message → Send → delivered view
+  with the indigo bubble and the Start-free hand-off.
+- Workspace panel: three firms + Connect flow (join code → sent
+  state); Profile panel: DU header + four rows, My Profile note
+  unfolds; Aloa panel: seeded exchange, "Draft the affidavit" chip
+  appends its reply (4 bubbles), input + fallback present.
+- Lightbox: hotspots render at scale 1.3, positions measured over the
+  capture (workspace x 13px-in, profile right-aligned, Aloa
+  bottom-right); the workspace panel opens from inside the lightbox.
+- Mobile 390×844: card fits, TAP TO EXPLORE pill, roster panel fits
+  the viewport (300px at x 43).
+- Hub: `vega-page-r74.jpg` loads (1440×900), zero "Live site" badges,
+  tour's first Vega stop shows the new capture.
+- A JSX-literal `\u2019` artefact class (escapes in JSX text render
+  literally) caught by VLM in the connect view and fixed with real
+  apostrophes.
+
+### Gates
+
+vitest 1424/1424 green (3 new R74 ratchets in
+websiteRepositioning.test.ts: the hotspots/composer contracts, the
+app-side DM/group wiring through BOTH modal renderers, and the
+"live shot" retirement sweep; the W9/W10 tour-honesty ratchet flips
+to the optional badge), tsc 125 baseline with zero errors in touched
+files, vite build green, ADR-0004 held (the Aloa chips converted to
+ui/Button; raw form-buttons do not grow).

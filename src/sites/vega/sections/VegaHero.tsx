@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HeroVideo } from '../../../components/HeroVideo';
 import { Button } from '../../../components/ui';
 import { CollabPresence } from './CollabPresence';
+import { DashboardHotspots } from './DashboardHotspots';
 import { AppShotLightbox, ExpandHint, type LightboxGroup } from './AppShotLightbox';
 import { SUITE_GROUPS } from './VegaSuite';
 
@@ -59,7 +60,7 @@ export const VegaHero: React.FC<{
             exhibits: [{
                 src: '/assets/landing/app/dashboard.jpg',
                 alt: 'Vega dashboard — the practice at a glance: matters, hearings, billing and tasks',
-                caption: 'LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING',
+                caption: 'THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA',
                 label: 'Dashboard',
             }],
         },
@@ -179,8 +180,12 @@ export const VegaHero: React.FC<{
                         />
                         {/* R69: the team-presence overlay + the expand
                             affordance (the stack sits above the expand
-                            hit-area, so presence clicks open the roster). */}
+                            hit-area, so presence clicks open the roster).
+                            R74: the workspace chip, your profile and the
+                            Aloa orb join it — the capture answers clicks
+                            like the app does. */}
                         <CollabPresence onSignup={onSignup} />
+                        <DashboardHotspots onSignup={onSignup} />
                         <Button
                             variant="bare"
                             onClick={() => setLightbox(0)}
@@ -191,7 +196,7 @@ export const VegaHero: React.FC<{
                     </div>
                 </div>
                 <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
-                    LIVE CAPTURE — THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING
+                    THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA
                 </p>
             </div>
 

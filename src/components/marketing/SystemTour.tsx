@@ -19,8 +19,9 @@ import { Button } from '../ui';
  *   • a "What it takes" panel — the ingredients of the capability, so a
  *     visitor can think "Oh — I want my business to have this."
  *
- * Honesty policy (P8) is unchanged: every surface carries its own badge
- * (Live site / The real mobile app / Real app · demo data). Auto-advance,
+ * Honesty policy (P8), R74 shape: app surfaces carry a form-factor
+ * label (The real mobile app / Real app · demo data); public pages
+ * carry none — showing the real thing says it. Auto-advance,
  * hover/focus pause, progress bar and screen chips are carried over.
  *
  * W15 stop changes on Vega (owner review): the notifications panel is
@@ -49,15 +50,18 @@ const acc = (s: TourSystem) => ACCENTS[s];
 
 // ─── The screen set — real captures, honestly labelled ─────────────────────
 
-const LIVE = 'Live site';
+// R74: the Live-site badge retires (owner: a live shot needs no
+// caption — showing it says it). Public-page surfaces carry no badge;
+// app surfaces keep the form-factor labels that say what they ARE.
 const APP = 'Real app · demo data';
 const MOBILE = 'The real mobile app';
 
-/** One capture on one form factor. `kind` picks the device chrome. */
+/** One capture on one form factor. `kind` picks the device chrome;
+ * `badge` is optional — public pages carry none (R74). */
 export type TourSurface = {
     src: string;
     url: string;
-    badge: string;
+    badge?: string;
     kind: 'browser' | 'phone';
 };
 
@@ -87,8 +91,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Loads fast on the phones your clients actually use',
                 'Every visit ends at one clear next step',
             ],
-            desktop: { src: '/assets/landing/work/vega-page.jpg', url: 'practicepro.ng/vega', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/vega-m-page.jpg', url: 'practicepro.ng/vega', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/vega-page-r74.jpg', url: 'practicepro.ng/vega', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/vega-m-page-r74.jpg', url: 'practicepro.ng/vega', kind: 'phone' },
         },
         {
             id: 'dashboard', label: 'Dashboard',
@@ -181,8 +185,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Documents and invoices in one place, always current',
                 'Branded to the firm — your portal, not ours',
             ],
-            desktop: { src: '/assets/landing/work/vega-portal.jpg', url: 'practicepro.ng/portal/client', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/vega-m-portal.jpg', url: 'practicepro.ng/portal/client', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/vega-portal.jpg', url: 'practicepro.ng/portal/client', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/vega-m-portal.jpg', url: 'practicepro.ng/portal/client', kind: 'phone' },
         },
     ],
     atrium: [
@@ -195,8 +199,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Loads fast on the phones your clients actually use',
                 'Every visit ends at one clear next step',
             ],
-            desktop: { src: '/assets/landing/work/atrium-page.jpg', url: 'practicepro.ng/atrium', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/atrium-m-page.jpg', url: 'practicepro.ng/atrium', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/atrium-page.jpg', url: 'practicepro.ng/atrium', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/atrium-m-page.jpg', url: 'practicepro.ng/atrium', kind: 'phone' },
         },
         {
             id: 'dashboard', label: 'Dashboard',
@@ -231,8 +235,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Maintenance requests flow straight into your workflow',
                 'Payment status visible to residents 24/7 — and to you',
             ],
-            desktop: { src: '/assets/landing/work/atrium-portal.jpg', url: 'practicepro.ng/portal/tenant', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/atrium-m-portal.jpg', url: 'practicepro.ng/portal/tenant', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/atrium-portal.jpg', url: 'practicepro.ng/portal/tenant', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/atrium-m-portal.jpg', url: 'practicepro.ng/portal/tenant', kind: 'phone' },
         },
     ],
     kozy: [
@@ -245,8 +249,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Booking in minutes, on any phone',
                 'The offer, the price and the promise on one page',
             ],
-            desktop: { src: '/assets/landing/work/kozy-home.jpg', url: 'kozycare.ng', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/kozy-m-home.jpg', url: 'kozycare.ng', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/kozy-home.jpg', url: 'kozycare.ng', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/kozy-m-home.jpg', url: 'kozycare.ng', kind: 'phone' },
         },
         {
             id: 'services', label: 'Services',
@@ -257,8 +261,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'No back-and-forth quotes over WhatsApp',
                 'New services go live in minutes, not print runs',
             ],
-            desktop: { src: '/assets/landing/work/kozy-services.jpg', url: 'kozycare.ng/services', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/kozy-m-services.jpg', url: 'kozycare.ng/services', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/kozy-services.jpg', url: 'kozycare.ng/services', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/kozy-m-services.jpg', url: 'kozycare.ng/services', kind: 'phone' },
         },
         {
             id: 'order', label: 'Ordering',
@@ -269,7 +273,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Per-item or per-kg, iron-only or full service — priced live',
                 'Works for guests and members alike',
             ],
-            desktop: { src: '/assets/landing/work/kozy-order-service.jpg', url: 'kozycare.ng — signed in', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-order-service.jpg', url: 'kozycare.ng — signed in', kind: 'browser' },
         },
         {
             id: 'logistics', label: 'Pickup',
@@ -280,7 +284,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Express turnaround when the customer will pay for speed',
                 'Zones and capacity the system already knows',
             ],
-            desktop: { src: '/assets/landing/work/kozy-order-logistics.jpg', url: 'kozycare.ng — signed in', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-order-logistics.jpg', url: 'kozycare.ng — signed in', kind: 'browser' },
         },
         {
             id: 'checkout', label: 'Checkout',
@@ -291,7 +295,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Discounts applied by the system, not by memory',
                 'Every payment receipted and reconciled automatically',
             ],
-            desktop: { src: '/assets/landing/work/kozy-order-checkout.jpg', url: 'kozycare.ng — signed in', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-order-checkout.jpg', url: 'kozycare.ng — signed in', kind: 'browser' },
         },
         {
             id: 'portal', label: 'Customer portal',
@@ -302,7 +306,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Order history, invoices and memberships in one place',
                 'Self-service customers actually enjoy using',
             ],
-            desktop: { src: '/assets/landing/work/kozy-portal-order.jpg', url: 'kozycare.ng/portal', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-portal-order.jpg', url: 'kozycare.ng/portal', kind: 'browser' },
         },
         {
             id: 'order-detail', label: 'Order detail',
@@ -313,7 +317,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'The same record the customer sees — no two versions of truth',
                 'Disputes end fast, because the trail is complete',
             ],
-            desktop: { src: '/assets/landing/work/kozy-order-detail.jpg', url: 'kozycare.ng/portal', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-order-detail.jpg', url: 'kozycare.ng/portal', kind: 'browser' },
         },
         {
             id: 'invoice', label: 'Invoice',
@@ -324,7 +328,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Generated by the system at the moment of payment',
                 'Books that reconcile themselves',
             ],
-            desktop: { src: '/assets/landing/work/kozy-invoice.jpg', url: 'kozycare.ng/portal', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-invoice.jpg', url: 'kozycare.ng/portal', kind: 'browser' },
         },
         {
             id: 'memberships', label: 'Memberships',
@@ -335,8 +339,8 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Member pricing applied automatically at checkout',
                 'The membership lives on the account, not on a paper card',
             ],
-            desktop: { src: '/assets/landing/work/kozy-memberships.jpg', url: 'kozycare.ng/memberships', badge: LIVE, kind: 'browser' },
-            mobile: { src: '/assets/landing/work/kozy-membership-active.jpg', url: 'kozycare.ng/portal', badge: LIVE, kind: 'phone' },
+            desktop: { src: '/assets/landing/work/kozy-memberships.jpg', url: 'kozycare.ng/memberships', kind: 'browser' },
+            mobile: { src: '/assets/landing/work/kozy-membership-active.jpg', url: 'kozycare.ng/portal', kind: 'phone' },
         },
         {
             id: 'membership-join', label: 'Join',
@@ -347,7 +351,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Payment verified, then the plan activates itself',
                 'The customer sees their benefits immediately',
             ],
-            desktop: { src: '/assets/landing/work/kozy-membership-join.jpg', url: 'kozycare.ng/portal', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-membership-join.jpg', url: 'kozycare.ng/portal', kind: 'browser' },
         },
         {
             id: 'admin-kanban', label: 'Order board',
@@ -358,7 +362,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Bottlenecks show up as piles on the board',
                 'Multi-branch, one console',
             ],
-            desktop: { src: '/assets/landing/work/kozy-admin-kanban.jpg', url: 'the admin console', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-admin-kanban.jpg', url: 'the admin console', kind: 'browser' },
         },
         {
             id: 'admin-crm', label: 'CRM',
@@ -380,7 +384,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'One place to activate, reject or review a member',
                 'An audit trail for every decision',
             ],
-            desktop: { src: '/assets/landing/work/kozy-admin-members.jpg', url: 'the admin console', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-admin-members.jpg', url: 'the admin console', kind: 'browser' },
         },
         {
             id: 'riders', label: 'Riders',
@@ -391,7 +395,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Recruitment, onboarding and dispatch in the same system',
                 'Capacity that grows with demand',
             ],
-            desktop: { src: '/assets/landing/work/kozy-join-riders.jpg', url: 'kozycare.ng/join-riders', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-join-riders.jpg', url: 'kozycare.ng/join-riders', kind: 'browser' },
         },
         {
             id: 'partners', label: 'Partners',
@@ -402,7 +406,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Standards, pricing and orders flow through one system',
                 'Growth without buying a single new machine',
             ],
-            desktop: { src: '/assets/landing/work/kozy-partners.jpg', url: 'kozycare.ng/partners', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/kozy-partners.jpg', url: 'kozycare.ng/partners', kind: 'browser' },
         },
     ],
     woosh: [
@@ -415,10 +419,10 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Keeps spam out of real mailboxes',
                 'Built like a consumer product, because it is one',
             ],
-            desktop: { src: '/assets/landing/work/woosh-home.jpg', url: 'woosh.dpdns.org', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/woosh-home.jpg', url: 'woosh.dpdns.org', kind: 'browser' },
         },
         {
-            id: 'inbox', label: 'Live inbox',
+            id: 'inbox', label: 'The inbox',
             headline: 'Proof, arriving in seconds',
             caption: "A live inbox receiving real mail — Kozy Care's signup verification and payment notice, seconds after they were sent.",
             takes: [
@@ -426,7 +430,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Our own signup and payment batteries run on it daily',
                 'Inbox links shareable, so teams can look together',
             ],
-            desktop: { src: '/assets/landing/work/woosh-inbox.jpg', url: 'woosh.dpdns.org', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/woosh-inbox.jpg', url: 'woosh.dpdns.org', kind: 'browser' },
         },
         {
             id: 'message', label: 'Message',
@@ -437,7 +441,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'One tap to copy — no squinting through HTML',
                 'Humans and test rigs read the same box',
             ],
-            desktop: { src: '/assets/landing/work/woosh-message.jpg', url: 'woosh.dpdns.org', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/woosh-message.jpg', url: 'woosh.dpdns.org', kind: 'browser' },
         },
         {
             id: 'dark', label: 'Dark mode',
@@ -448,7 +452,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'The same care we put into client systems, spent on our own tool',
                 'Free — no sign-up, no personal details harvested',
             ],
-            desktop: { src: '/assets/landing/work/woosh-dark.jpg', url: 'woosh.dpdns.org', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/woosh-dark.jpg', url: 'woosh.dpdns.org', kind: 'browser' },
         },
         {
             id: 'api', label: 'API',
@@ -459,7 +463,7 @@ export const TOUR_STOPS: Record<TourSystem, TourStop[]> = {
                 'Revocable keys, real docs, a console',
                 'Even an llms.txt block, so AI agents can use it too',
             ],
-            desktop: { src: '/assets/landing/work/woosh-api.jpg', url: 'woosh.dpdns.org/api-docs', badge: LIVE, kind: 'browser' },
+            desktop: { src: '/assets/landing/work/woosh-api.jpg', url: 'woosh.dpdns.org/api-docs', kind: 'browser' },
         },
     ],
 };
@@ -537,14 +541,19 @@ export const SystemTour: React.FC<{ system: TourSystem }> = ({ system }) => {
             onFocusCapture={() => setPaused(true)}
             onBlurCapture={() => setPaused(false)}
         >
-            {/* Honesty badge + progress + counter */}
+            {/* Honesty badge + progress + counter (R74: surfaces without
+                a badge — the public pages — simply widen the progress) */}
             <div className="flex items-center justify-between gap-3 mb-3">
-                <span
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9.5px] font-bold uppercase tracking-widest text-white whitespace-nowrap"
-                    style={{ background: a.hex }}
-                >
-                    {activeSurface.badge}
-                </span>
+                {activeSurface.badge ? (
+                    <span
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9.5px] font-bold uppercase tracking-widest text-white whitespace-nowrap"
+                        style={{ background: a.hex }}
+                    >
+                        {activeSurface.badge}
+                    </span>
+                ) : (
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: a.hex }} aria-hidden="true" />
+                )}
                 <div className="flex-1 h-1 rounded-full bg-slate-200/80 overflow-hidden hidden sm:block" aria-hidden="true">
                     {!paused && !reduced && (
                         <div key={idx} className="w9-tour-progress-fill h-full rounded-full" style={{ background: a.hex, '--w9-tour-t': `${DWELL_MS}ms` } as React.CSSProperties} />

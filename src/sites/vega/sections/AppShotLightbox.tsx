@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Button } from '../../../components/ui';
 import { ArrowsExpandIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from '../../../constants';
 import { CollabPresence } from './CollabPresence';
+import { DashboardHotspots } from './DashboardHotspots';
 
 /**
  * AppShotLightbox — R69: the expandable, navigable view of the live
@@ -98,7 +99,7 @@ export const AppShotLightbox: React.FC<{
             <div className="flex items-start justify-between gap-4 px-4 sm:px-6 pt-4 sm:pt-5 pb-3 text-left">
                 <div className="min-w-0">
                     <p className="font-mono text-2xs tracking-[0.18em] uppercase text-indigo-300 mb-1 truncate">
-                        {current.group} · Live capture
+                        {current.group}
                     </p>
                     <h2
                         id="appshot-lightbox-title"
@@ -151,6 +152,12 @@ export const AppShotLightbox: React.FC<{
                             decoding="async"
                         />
                         <CollabPresence scale={1.3} onSignup={onSignup} />
+                        {/* R74: on the dashboard exhibit, the same hotspots
+                            as the hero card — the expanded view answers
+                            clicks too (workspace, profile, Aloa). */}
+                        {current.src === '/assets/landing/app/dashboard.jpg' && (
+                            <DashboardHotspots scale={1.3} onSignup={onSignup} />
+                        )}
                     </div>
                     <figcaption className="mt-3 font-mono text-2xs tracking-widest text-slate-400 text-center px-14 sm:px-2">
                         {current.caption}

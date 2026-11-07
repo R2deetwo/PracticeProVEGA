@@ -12,7 +12,14 @@ import { useCoreState } from '../../contexts/CoreContext';
 interface NewDirectMessageFormProps {
     users: User[];
     onClose: () => void;
-    initialContext?: { recipientId?: string };
+    /** R74: prefill hand-offs — a recipientId (click-a-teammate DM), a
+     * group mode with members preselected (tick-several group message),
+     * or both from the presence stack in the header. */
+    initialContext?: {
+        recipientId?: string;
+        initialMode?: 'direct' | 'group';
+        initialMemberIds?: string[];
+    };
 }
 
 type ChatMode = 'direct' | 'group';
@@ -24,15 +31,18 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
     const { handleCreateDirectMessage, handleCreateChannel, handleSendMessage } = useDataActions();
     const { navigateTo, addToast } = useUI();
 
-    const [mode, setMode] = useState<ChatMode>('direct');
+    const [mode, setMode] = useState<ChatMode>(initialContext?.initialMode === 'group' ? 'group' : 'direct');
 
     // Direct Message State
     const [recipientId, setRecipientId] = useState<string>('');
     const [existingChatId, setExistingChatId] = useState<string | null>(null);
 
-    // Group Chat State
+    // Group Chat State — R74: members can arrive preselected (the
+    // presence stack's "message several" path).
     const [groupName, setGroupName] = useState('');
-    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+    const [selectedUsers, setSelectedUsers] = useState<Set<string>>(
+        () => new Set(initialContext?.initialMemberIds ?? [])
+    );
     const [linkedMatterId, setLinkedMatterId] = useState<string>('');
 
     const [message, setMessage] = useState('');
@@ -46,6 +56,8 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
     useEffect(() => {
         if (initialContext?.recipientId) {
             setRecipientId(initialContext.recipientId);
+        } else if (initialContext?.initialMode === 'group') {
+            // Group hand-off: keep whatever members arrived preselected.
         } else if (availableUsers.length > 0 && !recipientId) {
             setRecipientId(availableUsers[0].id);
         }

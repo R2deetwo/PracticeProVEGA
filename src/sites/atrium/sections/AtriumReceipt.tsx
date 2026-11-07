@@ -106,7 +106,7 @@ export const AtriumReceipt: React.FC = () => {
                                 </div>
                             </div>
                             <figcaption className="font-mono text-2xs tracking-wider text-slate-500 mt-5 text-center">
-                                LIVE CAPTURE — THE APP&rsquo;S OWN INVOICE, OPENED FROM FINANCIALS · ISSUED BY THE ESTATE MANAGER, NOT &ldquo;ESTATE RECEIPTS&rdquo;
+                                THE APP&rsquo;S OWN INVOICE, OPENED FROM FINANCIALS · ISSUED BY THE ESTATE MANAGER, NOT &ldquo;ESTATE RECEIPTS&rdquo;
                             </figcaption>
                         </figure>
                     </div>

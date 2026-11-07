@@ -287,8 +287,12 @@ describe("R62 — the portfolio folds into a hover-expand list; the about copy s
 
 describe("W7 — the wow site: real screens, stack, and the preview system", () => {
   it("every project showcases REAL SCREENS captured from the live systems", () => {
-    // Vega — product page + real mobile-app screens + client portal
-    expect(hub).toContain("/assets/landing/work/vega-page.jpg");
+    // Vega — product page + real mobile-app screens + client portal.
+    // R74: the product-page capture is FRESH (the current navy Seal-logo
+    // /vega) and renamed -r74 — the jpg files carry immutable cache
+    // headers, so a same-name swap would keep serving the stale capture
+    // to returning visitors (the 9573903d lesson).
+    expect(hub).toContain("/assets/landing/work/vega-page-r74.jpg");
     expect(hub).toContain("/assets/landing/work/vega-calendar.jpg");
     expect(hub).toContain("/assets/landing/work/vega-messages.jpg");
     expect(hub).toContain("/assets/landing/work/vega-portal.jpg");
@@ -557,7 +561,9 @@ describe("W9/W10/W13 — the living page, then the system core", () => {
   it("the tour is honest: every screen is labelled with exactly what it is", () => {
     expect(tour).toContain("Real app · demo data");
     expect(tour).toContain("The real mobile app");
-    expect(tour).toContain("Live site");
+    // R74: the Live-site badge retires — public pages carry no badge
+    // (showing the real thing says it); the badge type is optional.
+    expect(tour).toContain("badge?: string");
     expect(tour).not.toContain("Guided tour · demo data");
   });
 
@@ -863,7 +869,11 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("The whole team");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-team.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/matter-notes.jpg");
-    expect(vegaSuite).toContain("LIVE CAPTURE");
+    // R74: the 'LIVE CAPTURE —' label prefix retires everywhere (owner:
+    // a live shot needs no caption — showing it says it). The captions
+    // keep describing WHAT the screen is, without the label.
+    expect(vegaSuite).toContain("THE MATTERS LEDGER");
+    expect(vegaSuite).not.toContain("LIVE CAPTURE");
   });
 
   it("the vega branch never imports an atrium component and vice versa", () => {
@@ -916,7 +926,10 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // The dashboard preview: the real capture in the light browser frame.
     expect(vegaHero).toContain("/assets/landing/app/dashboard.jpg");
     expect(vegaHero).toContain("rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10");
-    expect(vegaHero).toContain("LIVE CAPTURE");
+    // R74: the caption tells the visitor the capture ANSWERS CLICKS —
+    // and the LIVE CAPTURE label is retired.
+    expect(vegaHero).toContain("CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA");
+    expect(vegaHero).not.toContain("LIVE CAPTURE");
     // The headline sells legal workflow automation in Nigeria.
     expect(vegaHero).toContain("Legal workflow automation");
     expect(vegaHero).toContain("Nigerian law firms");
@@ -1012,7 +1025,12 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // roster visible on hero + suite captures and inside the lightbox.
     expect(collab).toContain("+5");
     expect(collab).toContain("Send direct message to");
-    expect(collab).toContain("Direct messages open inside Vega");
+    // R74: the roster WRITES messages now — a DM composer for one, a
+    // group composer for several, and the delivered mini-thread with
+    // the app hand-off (the old static demo note retires).
+    expect(collab).toContain("New group message");
+    expect(collab).toContain("Inside Vega this thread lives in Messages");
+    expect(collab).toContain("Message ");
     expect(collab).toContain("8.55cqw");
     expect(collab).toContain("COLLAB_ROSTER");
     expect(vegaHero).toContain("CollabPresence");
@@ -1057,6 +1075,89 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(collab).toContain("data-collab-trigger");
     expect(collab).toContain('aria-haspopup="menu"');
     expect(collab).toContain("Send direct message to");
+  });
+
+  it("R74: the dashboard capture becomes a mini demo — hotspots answer clicks, the roster writes messages", () => {
+    // Owner direction: "let's have a situation where we're able to have a
+    // lot of interactivity brought into that little thing so that users
+    // can have an idea and understanding of what could be done… the
+    // thing with being able to… message people directly… maybe you can
+    // even select multiple people so that you can create a group
+    // message." The capture stays a REAL screenshot; the app's own
+    // interactive furniture is overlaid where it already lives.
+    const hotspots = read("src", "sites", "vega", "sections", "DashboardHotspots.tsx");
+    const collab = read("src", "sites", "vega", "sections", "CollabPresence.tsx");
+    // Wired into BOTH the hero card and the lightbox's dashboard exhibit.
+    expect(vegaHero).toContain("DashboardHotspots");
+    const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
+    expect(lightbox).toContain("DashboardHotspots");
+    expect(lightbox).toContain("current.src === '/assets/landing/app/dashboard.jpg'");
+    // The three hotspots, over the real pixels: the workspace chip
+    // (multi-workspace + join code), your own profile (the user menu),
+    // and the Aloa orb (the mini exchange).
+    expect(hotspots).toContain("Connect New Workspace");
+    expect(hotspots).toContain("Join workspace");
+    expect(hotspots).toContain("Lock Workspace");
+    expect(hotspots).toContain("Ask Aloa");
+    expect(hotspots).toContain("ALOA_REPLIES");
+    // Discoverability without highlight: a quiet pill rides the capture
+    // foot until the first interaction; the hotspots stay invisible at
+    // rest (no permanent ring/plate — the R71 quiet-chrome rule).
+    expect(hotspots).toContain("Interactive preview");
+    expect(hotspots).toContain("setInteracted(true)");
+    // The profile hotspot must stop short of the presence stack's gap
+    // (the stack owns x 85.9–91.5%) so the two triggers never fight.
+    expect(hotspots).toContain("width: s(7.5)");
+    // The presence roster composes REAL messages in preview: DM for one,
+    // group for several, delivered with the app hand-off.
+    expect(collab).toContain("New group message");
+    expect(collab).toContain("Inside Vega this thread lives in Messages");
+  });
+
+  it("R74: the app's presence stack messages people for real — DM one, group several", () => {
+    // Owner direction: "do we have this in the app? I don't think we do,
+    // and if we don't, we need to have it immediately. So make sure it
+    // actually works as a system." The header's PresenceAvatars becomes
+    // a messaging surface wired to the real conversation system.
+    const presence = read("src", "components", "toolkit", "PresenceAvatars.tsx");
+    // Click an avatar (or roster row) → the DM form, pre-addressed.
+    expect(presence).toContain("openModal('newDirectMessage', null, { recipientId: memberId })");
+    // Tick several → the same form in group mode with members preselected.
+    expect(presence).toContain("initialMode: 'group'");
+    expect(presence).toContain("initialMemberIds");
+    // The form honours the prefill: mode + members arrive preselected.
+    const form = read("src", "components", "forms", "NewDirectMessageForm.tsx");
+    expect(form).toContain("initialContext?.initialMode === 'group'");
+    expect(form).toContain("new Set(initialContext?.initialMemberIds ?? [])");
+    // BOTH modal renderers pass the context through (ModalManager and
+    // DockedModal each render this form).
+    const modalManager = read("src", "components", "modals", "ModalManager.tsx");
+    const dockedModal = read("src", "components", "modals", "DockedModal.tsx");
+    expect(modalManager).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
+    expect(dockedModal).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
+  });
+
+  it("R74: the 'live shot' labelling retires — a live shot is shown, never captioned as one", () => {
+    // Owner direction: "There's no need to be writing live shots
+    // everywhere. If you have a live shot, just show it. Don't be
+    // mentioning live shot. It looks weird and unprofessional." The
+    // LIVE CAPTURE caption prefixes, the 'Live site' badge and the
+    // 'Live inbox' label all retire; the captions keep describing what
+    // the screen IS.
+    const vegaSuite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
+    const vegaWhy = read("src", "sites", "vega", "sections", "VegaWhyNigeria.tsx");
+    const atriumReceipt = read("src", "sites", "atrium", "sections", "AtriumReceipt.tsx");
+    const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
+    const tour = read("src", "components", "marketing", "SystemTour.tsx");
+    for (const src of [vegaHero, vegaSuite, vegaWhy, atriumReceipt, lightbox]) {
+      expect(src).not.toContain("LIVE CAPTURE");
+      expect(src).not.toContain("Live capture");
+    }
+    expect(lightbox).not.toContain("· Live capture");
+    expect(tour).not.toContain("'Live site'");
+    expect(tour).not.toContain("Live inbox");
+    // The tour's badge is optional now — public pages carry none.
+    expect(tour).toContain("badge?: string");
   });
 
   it("R64: the vega/atrium toggle reaches the vega site — View Live Demo opens the demo-access modal", () => {
@@ -1139,8 +1240,10 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // The two real captures.
     expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa.jpg");
     expect(vegaAIDrafting).toContain("/assets/landing/app/vega-aloa-drawout.jpg");
-    expect(vegaAIDrafting).toContain("LIVE CAPTURE — ALOA IN THE RUNNING WORKSPACE");
-    expect(vegaAIDrafting).toContain("LIVE CAPTURE — THE DRAW-OUT");
+    // R74: the LIVE CAPTURE prefix retires; the captions stay.
+    expect(vegaAIDrafting).toContain("ALOA IN THE RUNNING WORKSPACE");
+    expect(vegaAIDrafting).toContain("THE DRAW-OUT");
+    expect(vegaAIDrafting).not.toContain("LIVE CAPTURE");
     // The pullout demos stay (owner: "the demos should appear a little
     // further down"): the deadline computer, the drafting studio, the
     // 7·3·1 cadence — the instruments, in miniature.
@@ -1197,7 +1300,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("/assets/landing/app/billing.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/analytics.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/invoice-bank.jpg");
-    expect(vegaSuite).toContain("LIVE CAPTURE");
+    expect(vegaSuite).not.toContain("LIVE CAPTURE");
     // R42 kept: tabs switch on hover/tap and the exhibits page through a
     // selector (aria-pressed) — the swap story survives.
     expect(vegaSuite).toContain("onMouseEnter={() => onActivate(i)}");

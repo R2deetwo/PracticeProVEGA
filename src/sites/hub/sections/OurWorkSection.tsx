@@ -84,14 +84,14 @@ const OUR_WORK: Array<{
             'WhatsApp, SMS & email notifications',
         ],
         primaryScreen: {
-            src: '/assets/landing/work/vega-page.jpg',
+            src: '/assets/landing/work/vega-page-r74.jpg',
             alt: 'The Vega product page — Practice Management for Nigerian Law Firms',
             kind: 'browser',
             label: 'Product page — practicepro.ng/vega',
         },
         detailScreens: [
             {
-                src: '/assets/landing/work/vega-page.jpg',
+                src: '/assets/landing/work/vega-page-r74.jpg',
                 alt: 'The Vega product page — Practice Management for Nigerian Law Firms',
                 kind: 'browser',
                 label: 'Product page — practicepro.ng/vega',
