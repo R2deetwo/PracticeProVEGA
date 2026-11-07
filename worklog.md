@@ -15437,3 +15437,30 @@ ratchet follows), tsc 125 baseline with zero errors in touched files,
 Convex tsc clean (untouched), UI-primitives ratchet 2312 held,
 identity audit pass, vite build green with
 min-height:calc(100dvh - 3rem) confirmed in the emitted CSS.
+
+### R72 promotion record (2026-11-07)
+feat(r72) d65e7abf + docs 0a52d0ca pushed with the owner's fresh PAT
+(the remote URL carried a stale embedded token from the sandbox
+rollback — "Invalid username or token" on the first push; sanitized to
+plain HTTPS per the standing convention, the PAT lives only in the
+credential store and is cleared after this round). First dispatch
+pinned the 8-char sha — actions/checkout needs the full 40-char SHA
+("A branch or tag with the name '0a52d0ca' could not be found");
+re-dispatched on 0a52d0ca7ac1f260865d8938369e85df7bda0660 (run
+42382062239). Quality gate green (Convex tsc 0, app tsc 125 baseline,
+identity audit, UI ratchet, vitest 1399), Vercel production deployed
+and self-verified (healthy, serving 0a52d0ca), Convex probed directly.
+The CLOUDFLARE MIRROR FAILED its fail-fast token verify again —
+CLOUDFLARE_API_TOKEN still inactive (Round 14's known failure class).
+The mirror has been frozen at 04d798b3 / 2026-09-18 (v1.0.635) ever
+since, which is exactly why its /vega predates the R66–R70 video hero
+the owner is seeing; the owner rotates the secret and re-runs the
+workflow — no code involved. LIVE on 0a52d0ca: the docked ticker
+measures attached (hero 1032 + strip 48 = 1080 exactly, gap 0, hero
+navy #050B18, 1px hairline, visible in the first viewport without
+scrolling), VLM reads it as the hero's base bar — "attached… not
+floating. No obvious defects" — and /vega still serves the video hero
+(/video/vega-hero.webm). The chat FAB's lower half straddles the
+hairline at the far right — it sits inside the ticker's 64px edge
+fade (no text beneath), the same floating-chrome overlap it has over
+every section edge; left as-is.
