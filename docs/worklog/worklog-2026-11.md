@@ -133,4 +133,20 @@ Two separate diseases, both real:
 
 ### Task R73 — DEPLOY RECORD
 
-- Commit <SHA> pushed → CI → production promote: see below.
+- Commit db8b48b9 pushed → CI green: Tests ✓, Deploy to Staging ✓,
+  Build Android APK ✓ (bot followed with 66a4c746 v1.0.742 +
+  66953b09 build-1136).
+- Production promote run 42399010094 (workflow_dispatch, latest main =
+  66953b09, which carries R73): Typecheck + unit tests on the promoted
+  commit ✓; **Deploy to production (Vercel + Convex) and verify live ✓**
+  — "Vercel production is healthy and serving the promoted commit
+  (66953b09)", Convex live-query probe ✓; Cloudflare mirror ✗ at the
+  token check as always (standing inactive CLOUDFLARE_API_TOKEN — owner
+  rotates, mirror re-runs; unchanged since R71).
+- Self-verified live (practice-pro-vega.vercel.app, aliased at
+  practicepro.ng): `/version.json` sha **66953b09** ✓; the served
+  `/vega` + `/` HTML eagerly loads ONLY entry (1.98MB) + module-shared +
+  vendor-react/animation/convex/icons + CSS — **no vendor-pdf, no
+  vendor-ai, no vendor-editor, no module-settings/documents/atrium/
+  research**; the entry references the LandingPage chunk twice (lazy
+  const + module-eval warm-up).
