@@ -1,4 +1,17 @@
-import { FunctionDeclaration, Type, Content, GoogleGenAI } from "@google/genai";
+// R73 (the silk pass): this service sits in the STATIC modal chain
+// (SaveToNoteForm ← ModalManager ← App) and is the LAST static importer of
+// @google/genai — the SDK now loads only where it's actually CALLED (the
+// provider/Convex action paths). Only TYPES are imported here; the `Type`
+// string-enum (value === name in @google/genai) is mirrored locally so the
+// module-level tool schemas evaluate without the SDK present.
+import type { FunctionDeclaration, Content, Type as GeminiType } from "@google/genai";
+
+const Type = {
+    STRING: 'STRING' as GeminiType.STRING,
+    NUMBER: 'NUMBER' as GeminiType.NUMBER,
+    OBJECT: 'OBJECT' as GeminiType.OBJECT,
+    ARRAY: 'ARRAY' as GeminiType.ARRAY,
+};
 import { AppState, User, HistoryEntry, AloaMessage, Matter, TaskStatus, MatterStatus, FirmDetails, SubscriptionPlan, FirmActivity, FileDetails, Lead, Contact, WorkflowDefinition, ArchivedItem, InvoiceLineItem, BankAccount, InvoiceStatus, AttorneyNote, Email, Property, IntakeFormTemplate, AutomationRule, TaskPriority, ExternalCounselInvite, ResearchNotebook, StudioAnalysisResult, AriaChatContext, AiSettings } from '../types';
 import { SignerContext } from '../contexts/ProductContext';
 import { AI_CONFIG, stripPII, getGeminiApiKey } from '../utils/aiUtils';

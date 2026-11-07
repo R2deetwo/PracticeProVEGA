@@ -1,5 +1,7 @@
 
-import { Blob } from '@google/genai';
+// R73: type-only import — the runtime half of @google/genai never loads
+// just to describe a blob shape (this util is used by the ALOA voice path).
+import type { Blob } from '@google/genai';
 
 export function createBlob(data: Float32Array): Blob {
   const l = data.length;

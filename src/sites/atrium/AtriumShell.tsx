@@ -76,8 +76,10 @@ export const AtriumNavBar: React.FC<{
 
     return (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
-        {/* Glass layer — light on /atrium */}
-        <div className="absolute inset-0 backdrop-blur-xl border-b transition-colors duration-500 bg-white/80 border-slate-200/60" />
+        {/* Glass layer — light on /atrium. R73 (the silk pass): blur-xl →
+            blur-md (see the Vega/Hub shells — the fixed nav's backdrop
+            re-blurs every scroll frame; half the radius, same glass). */}
+        <div className="absolute inset-0 backdrop-blur-md border-b transition-colors duration-500 bg-white/80 border-slate-200/60" />
 
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Product lockup + back-to-hub breadcrumb */}

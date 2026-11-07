@@ -14,11 +14,28 @@ export function HeroRibbons({ className = '' }: { className?: string }) {
 
     const draw = () => drawRibbons(ctx, W, H, t, RIBBON_PRESET);
 
+    // R73 (the silk pass): the sway is a slow ~11s breath — a 60fps redraw
+    // doubles the CPU/GPU cost for motion nobody can perceive. The loop
+    // now PAINTS at most once per 33ms (≈30fps) while still ticking on
+    // every rAF, and the skipped time is accumulated into `t`, so the
+    // sway speed is identical to the 60fps loop — it just costs half as
+    // much. Paired with the existing off-screen/hidden pauses, the
+    // ribbons no longer compete with scroll/transition work on the
+    // main thread.
+    const FRAME_MIN_MS = 33;
+    let lastPaint = 0;
+    let acc = 0;
+
     const tick = (now: number) => {
       const dt = last ? Math.min((now - last) / 1000, 0.1) : 0; // clamp: no jump after tab switch
       last = now;
-      t += dt;
-      draw();
+      acc += dt;
+      if (now - lastPaint >= FRAME_MIN_MS) {
+        lastPaint = now;
+        t += acc;
+        acc = 0;
+        if (W > 0 && H > 0) draw();
+      }
       raf = requestAnimationFrame(tick);
     };
     const start = () => {

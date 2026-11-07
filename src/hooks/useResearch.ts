@@ -5,7 +5,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useUI } from '../contexts/UIContext';
 import { AppState, ResearchSource } from '../types';
 import { getGeminiApiKey, AI_CONFIG, stripPII } from '../utils/aiUtils';
-import { GoogleGenAI, Type } from '@google/genai';
+// R73 (the silk pass): @google/genai is ~300KB minified and this hook sits
+// in the STATIC provider chain (DataProvider ← AppProvider), eagerly
+// shipping the AI SDK to every marketing visitor. It now loads on FIRST
+// use inside the research call (the function is already async). `Type`
+// was imported but never referenced — dropped.
 import { processAttachments } from '../utils/attachmentProcessor';
 
 const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
@@ -116,6 +120,7 @@ export const useResearch = (appState: AppState, actions: any) => {
                 return;
             }
 
+            const { GoogleGenAI } = await import('@google/genai');
             const ai = new GoogleGenAI({ apiKey });
             const model = AI_CONFIG.gemini.defaultModel;
 

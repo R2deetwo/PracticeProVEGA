@@ -1,6 +1,19 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+// R73 (the silk pass): this agent is reached STATICALLY from the always-
+// mounted MatterIngestionWizard (ModalManager), so the module-level
+// @google/genai import eagerly shipped the ~300KB SDK to every marketing
+// visitor. Only TYPES are imported now; the `Type` string-enum is mirrored
+// locally (value === name in @google/genai), and the client loads on
+// first use inside the async analyze call.
+import type { Schema, Type as GeminiType } from "@google/genai";
 import { getGeminiApiKey, AI_CONFIG } from '../utils/aiUtils';
-import JSZip from 'jszip';
+
+const Type = {
+    STRING: 'STRING' as GeminiType.STRING,
+    NUMBER: 'NUMBER' as GeminiType.NUMBER,
+    OBJECT: 'OBJECT' as GeminiType.OBJECT,
+    ARRAY: 'ARRAY' as GeminiType.ARRAY,
+    BOOLEAN: 'BOOLEAN' as GeminiType.BOOLEAN,
+};
 
 // --- Types ---
 
@@ -47,6 +60,7 @@ const metadataSchema: Schema = {
  */
 const extractTextFromDocx = async (file: File): Promise<string> => {
     try {
+        const { default: JSZip } = await import('jszip');
         const zip = new JSZip();
         const loadedZip = await zip.loadAsync(file);
 
@@ -112,6 +126,7 @@ export const analyzeIngestedMatterFiles = async (
         const apiKey = getGeminiApiKey();
         if (!apiKey) throw new Error("API Key missing");
 
+        const { GoogleGenAI } = await import("@google/genai");
         const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1beta' });
         const model = AI_CONFIG.gemini.defaultModel;
 

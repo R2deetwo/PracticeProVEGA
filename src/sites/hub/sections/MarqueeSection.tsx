@@ -5,13 +5,35 @@
  */
 import React, { useEffect, useRef } from 'react';
 
-// ─── FLUID SEAMS (W8 → W9 → W10) ───────────────────────────────────────────────
+// ─── FLUID SEAMS (W8 → W9 → W10 → R73) ──────────────────────────────────────
 // W10: the curvature is BACK and impossible to miss. Each seam is now a
 // true SVG wave — the previous section's colour pours into the next through
 // a visible arc whose crest slides and breathes as the seam crosses the
 // viewport (plus a slow ambient drift). The W9 organic-radius blob read
 // as a straight cut; this is a real curve again, and it morphs as you
 // scroll from page to page.
+//
+// R73 (the silk pass): all seams share ONE rAF pass. Each seam used to run
+// its own loop that read getBoundingClientRect() and then wrote the path
+// `d` — with several seams on the page those reads and writes interleaved
+// every frame, forcing a synchronous layout per seam (the classic
+// layout-thrash stutter while scrolling). The shared pass measures EVERY
+// visible seam first (reads only — at most one layout pass per frame),
+// then paints every path. Same wave, same timing, no thrash.
+
+type SeamJob = { measure: () => void; paint: (now: number) => void };
+const seamJobs = new Set<SeamJob>();
+let seamRaf = 0;
+const runSeamFrame = (now: number) => {
+    seamRaf = 0;
+    if (seamJobs.size === 0) return;
+    seamJobs.forEach((job) => job.measure());
+    seamJobs.forEach((job) => job.paint(now));
+    if (seamJobs.size > 0) seamRaf = requestAnimationFrame(runSeamFrame);
+};
+const scheduleSeamFrame = () => {
+    if (!seamRaf) seamRaf = requestAnimationFrame(runSeamFrame);
+};
 
 export const FluidSeam: React.FC<{ from: string; to: string; phase?: number }> = ({ from, to, phase = 0 }) => {
     const hostRef = useRef<HTMLDivElement>(null);
@@ -39,24 +61,27 @@ export const FluidSeam: React.FC<{ from: string; to: string; phase?: number }> =
                 `M0,0 L100,0 L100,${b.toFixed(2)} C70,${(b - amp * 0.9).toFixed(2)} 30,${(a + amp * 0.9).toFixed(2)} 0,${a.toFixed(2)} Z`);
         };
         if (reduced) { draw(0.5, 0); return; }
-        let inView = true;
-        let rafId: number | null = null;
         const t0 = performance.now();
+        let p = 0.5;
+        const job: SeamJob = {
+            measure: () => {
+                const rect = host.getBoundingClientRect();
+                const vh = window.innerHeight;
+                p = Math.min(1, Math.max(0, (vh - rect.top) / (vh + rect.height)));
+            },
+            paint: (now: number) => draw(p, (now - t0) / 1000),
+        };
         const io = new IntersectionObserver((entries) => {
-            inView = entries.some((en) => en.isIntersecting);
-            if (inView && rafId === null) rafId = requestAnimationFrame(frame);
+            if (entries.some((en) => en.isIntersecting)) {
+                seamJobs.add(job);
+                scheduleSeamFrame();
+            } else {
+                seamJobs.delete(job);
+            }
         }, { threshold: 0 });
         io.observe(host);
-        const frame = (now: number) => {
-            const rect = host.getBoundingClientRect();
-            const vh = window.innerHeight;
-            const p = Math.min(1, Math.max(0, (vh - rect.top) / (vh + rect.height)));
-            draw(p, (now - t0) / 1000);
-            rafId = inView ? requestAnimationFrame(frame) : null;
-        };
-        rafId = requestAnimationFrame(frame);
         return () => {
-            if (rafId !== null) cancelAnimationFrame(rafId);
+            seamJobs.delete(job);
             io.disconnect();
         };
     }, [phase]);

@@ -313,36 +313,34 @@ export default defineConfig(({ mode }) => {
               return 'module-shared';
             }
 
-            if (
-              id.includes('/research/') ||
-              id.includes('ResearchStudio') ||
-              id.includes('LawReports')
-            ) {
-              return 'module-research';
+            // ── R73 (the silk pass) ─────────────────────────────────────
+            // Vite's preload helper (\0vite/preload-helper.js — the
+            // __vitePreload used by every dynamic import) must NEVER land
+            // inside a lazy vendor chunk: the entry statically imports the
+            // helper, and when Rollup placed it in vendor-pdf the entry
+            // eagerly pulled the whole ~1MB PDF stack just for a 2KB
+            // function. module-shared is always eager (the entry needs it),
+            // so the helper lives there.
+            if (id.includes('vite/preload-helper')) {
+              return 'module-shared';
             }
 
-            if (
-              id.includes('PropertyManagerView') ||
-              id.includes('PropertyDetailView') ||
-              id.includes('AtriumInbox') ||
-              id.includes('RevenueEngine') ||
-              id.includes('RentDemand')
-            ) {
-              return 'module-atrium';
-            }
-
-            if (
-              id.includes('DraftProEditor') ||
-              id.includes('tiptap') ||
-              id.includes('DocumentsView') ||
-              id.includes('HeaderDesigner')
-            ) {
-              return 'module-documents';
-            }
-
-            if (id.includes('/settings/') || id.includes('SettingsView')) {
-              return 'module-settings';
-            }
+            // ── R73 (the silk pass): the per-view manual chunks are RETIRED ──
+            // module-research / module-atrium / module-documents /
+            // module-settings existed to group those views into named
+            // chunks, but the views are now DYNAMIC imports (App.tsx R73) —
+            // Rollup's automatic chunking gives each its own chunk with
+            // exactly its exclusive deps, and shared core (contexts, hooks,
+            // utils) stays in the shared graph instead of being hoisted
+            // INTO the manual chunks. That hoisting was the eager-load
+            // killer: the entry statically needed the shared core, the
+            // core landed inside module-settings (for example), so the
+            // entry statically imported module-settings — and every
+            // marketing visitor downloaded the settings/documents/atrium/
+            // research/editor/pdf stacks (~4.3MB of JS) before a single
+            // word of landing copy could paint. module-shared stays: the
+            // types/constants leaf chunk fixes the cyclic-eval enum bug
+            // (see its note above) and is legitimately needed by the entry.
           }
         }
       }

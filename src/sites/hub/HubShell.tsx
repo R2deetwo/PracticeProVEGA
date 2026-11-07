@@ -83,7 +83,12 @@ export const HubNavBar: React.FC<{
         {/* R42: the floating glass pill — one rounded container centred at
             the top, floating OVER the hero (and every section below). */}
         <div className="container mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pointer-events-auto">
-        <div className="relative max-w-6xl mx-auto rounded-2xl border border-white/70 bg-white/55 backdrop-blur-xl shadow-[0_10px_36px_-12px_rgba(15,23,42,0.18)] transition-colors duration-500">
+        {/* R73 (the silk pass): blur-xl → blur-md — the floating glass pill
+            floats over EVERY section while it scrolls, so its backdrop
+            re-blurs on every frame; half the radius halves that recurring
+            compositor cost while the glass read survives (55% white still
+            softens whatever passes beneath). */}
+        <div className="relative max-w-6xl mx-auto rounded-2xl border border-white/70 bg-white/55 backdrop-blur-md shadow-[0_10px_36px_-12px_rgba(15,23,42,0.18)] transition-colors duration-500">
 
         <div className="relative h-16 flex items-center justify-between px-3 sm:px-4">
             {/* Logo — on the hub it scrolls home. */}
@@ -195,7 +200,7 @@ export const HubNavBar: React.FC<{
 
         {/* Mobile overlay menu (offset clears the floating pill) */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[84px] z-[240] bg-white/95 backdrop-blur-xl overflow-y-auto menu-in-top origin-top pointer-events-auto">
+            <div className="lg:hidden fixed inset-0 top-[84px] z-[240] bg-white/95 backdrop-blur-md overflow-y-auto menu-in-top origin-top pointer-events-auto">
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     <div className="mb-2">
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>

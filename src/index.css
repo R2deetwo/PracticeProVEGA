@@ -2495,6 +2495,14 @@ span[data-type="legal-placeholder"] {
 [data-vg-reveal].vg-in {
   opacity: 1;
   transform: none;
+  /* R73 (the silk pass): the reveal is a one-shot entrance — once an
+     element is in, its compositor layer is released instead of being
+     carried for the rest of the session. A long page keeps dozens of
+     [data-vg-reveal] layers alive forever otherwise, and on
+     memory-constrained phones that reads as checkerboarding and scroll
+     jank. The transition itself still runs composited (the layer lives
+     for its 0.9s and the browser re-promotes on demand). */
+  will-change: auto;
 }
 
 /* ALOA's caret — the drafting cursor, blinking at the end of the clause. */
@@ -3444,9 +3452,14 @@ nav,
  * "stop it from moving about and being creepy"). The chevron rests. */
 
 /* Capabilities marquee — the track is duplicated in the DOM; translating it
-   -50% yields a seamless loop. */
+   -50% yields a seamless loop. R73 (the silk pass): will-change: transform
+   pins the track to its own compositor layer, so the 42s loop runs
+   entirely on the compositor thread — zero main-thread work per frame,
+   immune to scroll/decode pressure (the R72 docked bar stays gliding
+   even while the ribbons redraw or a clip dissolves). */
 .w7-marquee-track {
   animation: w7-marquee 42s linear infinite;
+  will-change: transform;
 }
 @keyframes w7-marquee {
   from { transform: translateX(0); }
@@ -3590,6 +3603,9 @@ nav,
   opacity: 1;
   transform: none;
   filter: blur(0);
+  /* R73 (the silk pass): release the layer + filter raster cache once
+     the reveal has run — see the [data-vg-reveal] note above. */
+  will-change: auto;
 }
 .w9-reveal-stagger > * {
   opacity: 0;
@@ -3601,7 +3617,7 @@ nav,
     filter 0.9s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity, transform, filter;
 }
-.w9-reveal-stagger.is-visible > * { opacity: 1; transform: none; filter: blur(0); }
+.w9-reveal-stagger.is-visible > * { opacity: 1; transform: none; filter: blur(0); will-change: auto; }
 .w9-reveal-stagger.is-visible > *:nth-child(1) { transition-delay: 0ms; }
 .w9-reveal-stagger.is-visible > *:nth-child(2) { transition-delay: 90ms; }
 .w9-reveal-stagger.is-visible > *:nth-child(3) { transition-delay: 180ms; }
@@ -3610,6 +3626,25 @@ nav,
 .w9-reveal-stagger.is-visible > *:nth-child(6) { transition-delay: 450ms; }
 .w9-reveal-stagger.is-visible > *:nth-child(7) { transition-delay: 540ms; }
 .w9-reveal-stagger.is-visible > *:nth-child(8) { transition-delay: 630ms; }
+
+/* R73 (the silk pass): on phones and tablets the blur(7px) leg of the
+   reveal is dropped. A 7px blur rasterizes every revealed block for its
+   full 0.95s — the single most expensive paint on the page while
+   scrolling — and on the devices that need the savings most it read as a
+   stutter exactly when new content arrived. The rise-and-fade (the part
+   the eye follows) is unchanged; desktop keeps the full defocus. */
+@media (max-width: 1023.98px) {
+  .w9-reveal,
+  .w9-reveal-stagger > * {
+    filter: none;
+    transition-property: opacity, transform;
+    will-change: opacity, transform;
+  }
+  .w9-reveal.is-visible,
+  .w9-reveal-stagger.is-visible > * {
+    filter: none;
+  }
+}
 
 /* ── W13 — the system core (What we do) ─────────────────────────────────
    A real three.js rendering (SystemCoreScene.tsx): seven glass modules

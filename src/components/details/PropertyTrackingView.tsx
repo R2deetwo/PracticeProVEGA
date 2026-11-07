@@ -286,7 +286,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
         setShowAddModal(false);
     };
 
-    const handleDownloadReceipt = (payment: RentPayment) => {
+    const handleDownloadReceipt = async (payment: RentPayment) => {
         try {
             const tenantContact = matterState.contacts.find(c => 
                 (c.email && c.email === property.rentalDetails?.tenantEmail) || 
@@ -326,7 +326,7 @@ const PropertyTrackingViewContent: React.FC<PropertyTrackingViewProps> = ({ prop
                     ? `${formatDateWithOrdinal(property.rentalDetails.leaseStart)} to ${formatDateWithOrdinal(property.rentalDetails.leaseEnd)}`
                     : undefined;
 
-            generateReceiptPdf(
+            await generateReceiptPdf(
                 mockInvoice, 
                 coreState.firmDetails, 
                 (tenantContact || { name: property.rentalDetails?.tenantName || 'The Tenant' }) as any,

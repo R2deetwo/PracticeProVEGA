@@ -1,8 +1,33 @@
 
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// R73 (the silk pass): jspdf + jspdf-autotable are the heaviest pair in
+// the app (~1MB minified, vendor-pdf) and this service is reached
+// STATICALLY from always-mounted modals (CollectRentModal via
+// ModalManager) — so every marketing visitor was downloading the whole
+// PDF stack before reading a single word of the landing page. The pair
+// now loads on FIRST USE via one shared dynamic import (cached), and
+// every exported generator became async — callers simply await (or
+// fire-and-forget) exactly as before.
 import { FirmDetails, Invoice, Contact, TimesheetData, ReportDateRangeOption, UtilizationData, MatterStatusReportData, ProfitLossData, ArAgingData, Property } from '../types';
 import { formatNaira } from '../utils/formatting';
+
+type JsPdfModule = typeof import('jspdf');
+type AutoTableFn = typeof import('jspdf-autotable')['default'];
+/** Instance type of the lazily-imported jsPDF class. */
+type JsPDFDoc = InstanceType<JsPdfModule['default']>;
+
+let pdfLibs: Promise<{ jsPDF: JsPdfModule['default']; autoTable: AutoTableFn }> | null = null;
+const ensurePdfLibs = () => {
+    if (!pdfLibs) {
+        pdfLibs = Promise.all([
+            import('jspdf'),
+            import('jspdf-autotable'),
+        ]).then(([jspdf, autotable]) => ({
+            jsPDF: jspdf.default,
+            autoTable: autotable.default,
+        }));
+    }
+    return pdfLibs;
+};
 
 const A4_WIDTH = 210;
 const A4_HEIGHT = 297;
@@ -34,7 +59,7 @@ const getDateRangeString = (dateRange: ReportDateRangeOption): string => {
 const getAsOfDateString = () => `As of ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`;
 
 // --- BASE PDF SETUP ---
-const createPdf = (firmDetails: FirmDetails, title: string, subtitle?: string): { doc: jsPDF, y: number } => {
+const createPdf = (jsPDF: JsPdfModule['default'], firmDetails: FirmDetails, title: string, subtitle?: string): { doc: JsPDFDoc, y: number } => {
     const doc = new jsPDF('p', 'mm', 'a4');
     let y = MARGIN;
 
@@ -84,7 +109,7 @@ const createPdf = (firmDetails: FirmDetails, title: string, subtitle?: string): 
     return { doc, y };
 };
 
-const renderTextHeader = (doc: jsPDF, firmDetails: FirmDetails, startY: number): number => {
+const renderTextHeader = (doc: JsPDFDoc, firmDetails: FirmDetails, startY: number): number => {
     let y = startY;
 
     // Apply Custom Header Text Color
@@ -126,7 +151,7 @@ const renderTextHeader = (doc: jsPDF, firmDetails: FirmDetails, startY: number):
 }
 
 
-const addFooter = (doc: jsPDF) => {
+const addFooter = (doc: JsPDFDoc) => {
     const pageCount = (doc as any).internal.getNumberOfPages();
     doc.setFontSize(FONT_SIZE_SMALL);
     doc.setTextColor(100); // Gray footer
@@ -145,7 +170,7 @@ const formatDate = (date: string) => new Date(date).toLocaleDateString('en-GB');
 
 // --- INVOICE & RECEIPT GENERATION ---
 
-const populateInvoicePdf = (doc: jsPDF, y: number, invoice: Invoice, client: Contact, firmDetails: FirmDetails) => {
+const populateInvoicePdf = (autoTable: AutoTableFn, doc: JsPDFDoc, y: number, invoice: Invoice, client: Contact, firmDetails: FirmDetails) => {
     // 1. BILL TO SECTION (Left) vs INVOICE DETAILS (Right) matching visual layout
 
     const startY = y;
@@ -327,20 +352,23 @@ const populateInvoicePdf = (doc: jsPDF, y: number, invoice: Invoice, client: Con
 };
 
 
-export const generateInvoicePdf = (invoice: Invoice, firmDetails: FirmDetails, client: Contact) => {
-    const { doc, y } = createPdf(firmDetails, ''); // Title is handled inside logic now
-    populateInvoicePdf(doc, y > 30 ? y : 30, invoice, client, firmDetails);
+export const generateInvoicePdf = async (invoice: Invoice, firmDetails: FirmDetails, client: Contact) => {
+    const { jsPDF, autoTable } = await ensurePdfLibs();
+    const { doc, y } = createPdf(jsPDF, firmDetails, ''); // Title is handled inside logic now
+    populateInvoicePdf(autoTable, doc, y > 30 ? y : 30, invoice, client, firmDetails);
     doc.save(`Invoice_${invoice.invoiceNumber}.pdf`);
 };
 
-export const getCreditNotePdfDataUrl = (originalInvoice: Invoice, firmDetails: FirmDetails, client: Contact): string => {
-    const { doc } = createPdf(firmDetails, `Credit Note for Invoice #${originalInvoice.invoiceNumber}`);
+export const getCreditNotePdfDataUrl = async (originalInvoice: Invoice, firmDetails: FirmDetails, client: Contact): Promise<string> => {
+    const { jsPDF } = await ensurePdfLibs();
+    const { doc } = createPdf(jsPDF, firmDetails, `Credit Note for Invoice #${originalInvoice.invoiceNumber}`);
     addFooter(doc);
     return doc.output('datauristring');
 };
 
-export const generateReceiptPdf = (invoice: Invoice, firmDetails: FirmDetails, client: Contact, additionalDetails?: { tenancyPeriod?: string }) => {
-    const { doc, y: startY } = createPdf(firmDetails, 'Receipt of Payment');
+export const generateReceiptPdf = async (invoice: Invoice, firmDetails: FirmDetails, client: Contact, additionalDetails?: { tenancyPeriod?: string }) => {
+    const { jsPDF } = await ensurePdfLibs();
+    const { doc, y: startY } = createPdf(jsPDF, firmDetails, 'Receipt of Payment');
     let y = startY;
 
     doc.setFont('helvetica', 'bold');
@@ -428,8 +456,9 @@ export const generateReceiptPdf = (invoice: Invoice, firmDetails: FirmDetails, c
     doc.save(`Receipt_${invoice.invoiceNumber}.pdf`);
 };
 
-export const generateTimesheetReport = (data: TimesheetData, firmDetails: FirmDetails, dateRange: ReportDateRangeOption) => {
-    const { doc, y } = createPdf(firmDetails, `Timesheet Report for ${data.user.name}`, getDateRangeString(dateRange));
+export const generateTimesheetReport = async (data: TimesheetData, firmDetails: FirmDetails, dateRange: ReportDateRangeOption) => {
+    const { jsPDF, autoTable } = await ensurePdfLibs();
+    const { doc, y } = createPdf(jsPDF, firmDetails, `Timesheet Report for ${data.user.name}`, getDateRangeString(dateRange));
 
     const body = data.entries.map(entry => [
         formatDate(entry.date),
@@ -451,8 +480,9 @@ export const generateTimesheetReport = (data: TimesheetData, firmDetails: FirmDe
     doc.save('Timesheet_Report.pdf');
 };
 
-export const generateUtilizationReport = (data: UtilizationData, firmDetails: FirmDetails, dateRange: ReportDateRangeOption) => {
-    const { doc, y } = createPdf(firmDetails, 'Utilization Report', getDateRangeString(dateRange));
+export const generateUtilizationReport = async (data: UtilizationData, firmDetails: FirmDetails, dateRange: ReportDateRangeOption) => {
+    const { jsPDF, autoTable } = await ensurePdfLibs();
+    const { doc, y } = createPdf(jsPDF, firmDetails, 'Utilization Report', getDateRangeString(dateRange));
 
     const body = data.users.map(u => [
         u.user.name,
@@ -479,8 +509,9 @@ export const generateUtilizationReport = (data: UtilizationData, firmDetails: Fi
     doc.save('Utilization_Report.pdf');
 };
 
-export const generateMatterStatusReport = (data: MatterStatusReportData, firmDetails: FirmDetails) => {
-    const { doc, y } = createPdf(firmDetails, 'Matter Status Report', getAsOfDateString());
+export const generateMatterStatusReport = async (data: MatterStatusReportData, firmDetails: FirmDetails) => {
+    const { jsPDF, autoTable } = await ensurePdfLibs();
+    const { doc, y } = createPdf(jsPDF, firmDetails, 'Matter Status Report', getAsOfDateString());
 
     const body = data.matters.map(m => [
         m.title,
@@ -502,8 +533,9 @@ export const generateMatterStatusReport = (data: MatterStatusReportData, firmDet
     doc.save('Matter_Status_Report.pdf');
 };
 
-export const generateProfitLossReport = (data: ProfitLossData, firmDetails: FirmDetails, dateRange: ReportDateRangeOption) => {
-    const { doc, y: startY } = createPdf(firmDetails, 'Profit & Loss Statement', getDateRangeString(dateRange));
+export const generateProfitLossReport = async (data: ProfitLossData, firmDetails: FirmDetails, dateRange: ReportDateRangeOption) => {
+    const { jsPDF, autoTable } = await ensurePdfLibs();
+    const { doc, y: startY } = createPdf(jsPDF, firmDetails, 'Profit & Loss Statement', getDateRangeString(dateRange));
     let y = startY;
 
     doc.setFont('helvetica', 'bold');
@@ -548,8 +580,9 @@ export const generateProfitLossReport = (data: ProfitLossData, firmDetails: Firm
     doc.save('Profit_Loss_Report.pdf');
 };
 
-export const generateArAgingReport = (data: ArAgingData, firmDetails: FirmDetails) => {
-    const { doc, y: startY } = createPdf(firmDetails, 'Accounts Receivable Aging Report', getAsOfDateString());
+export const generateArAgingReport = async (data: ArAgingData, firmDetails: FirmDetails) => {
+    const { jsPDF, autoTable } = await ensurePdfLibs();
+    const { doc, y: startY } = createPdf(jsPDF, firmDetails, 'Accounts Receivable Aging Report', getAsOfDateString());
     let y = startY;
 
     doc.setFont('helvetica', 'bold');
@@ -609,8 +642,9 @@ export const generateArAgingReport = (data: ArAgingData, firmDetails: FirmDetail
     doc.save('AR_Aging_Report.pdf');
 };
 
-export const generateRentReviewNoticePdf = (property: Property, owner: Contact, firmDetails: FirmDetails) => {
-    const { doc, y: startY } = createPdf(firmDetails, 'Notice of Rent Review');
+export const generateRentReviewNoticePdf = async (property: Property, owner: Contact, firmDetails: FirmDetails) => {
+    const { jsPDF } = await ensurePdfLibs();
+    const { doc, y: startY } = createPdf(jsPDF, firmDetails, 'Notice of Rent Review');
     let y = startY;
 
     const tenantName = property.rentalDetails?.tenantName || 'The Tenant';

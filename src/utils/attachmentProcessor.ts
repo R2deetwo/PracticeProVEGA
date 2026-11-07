@@ -25,13 +25,26 @@
  * This way the AI can read, analyze, and answer questions about the document.
  */
 
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Configure the worker. pdfjs-dist v5+ uses a .mjs worker.
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString();
+// R73 (the silk pass): pdfjs-dist is ~1MB minified and this util sits in
+// the STATIC provider chain (useResearch ← DataProvider ← AppProvider),
+// so the module-level import eagerly shipped the whole PDF stack to every
+// marketing visitor. The library (and its worker) now loads on FIRST PDF
+// extraction via one cached dynamic import — the worker URL is configured
+// once at that moment.
+let pdfjsPromise: Promise<typeof import('pdfjs-dist')> | null = null;
+const ensurePdfjs = () => {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import('pdfjs-dist').then((lib) => {
+      // Configure the worker. pdfjs-dist v5+ uses a .mjs worker.
+      lib.GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.mjs',
+        import.meta.url
+      ).toString();
+      return lib;
+    });
+  }
+  return pdfjsPromise;
+};
 
 export interface ProcessedAttachment {
   /** The original filename */
@@ -75,6 +88,7 @@ function detectMimeType(filename: string, blobType: string): string {
  * Returns up to 50,000 characters (roughly 8,000 words / 20 pages).
  */
 async function extractTextFromPdf(blob: Blob): Promise<string> {
+  const pdfjsLib = await ensurePdfjs();
   const arrayBuffer = await blob.arrayBuffer();
   const pdfDoc = await pdfjsLib.getDocument({
     data: arrayBuffer,

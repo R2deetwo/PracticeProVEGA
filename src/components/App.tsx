@@ -21,16 +21,6 @@ import { useAccentTheme } from '../contexts/AccentThemeContext';
 
 import Sidebar from './Sidebar';
 import Header from './Header';
-import Dashboard from './Dashboard';
-import ContactsView from './ContactsView';
-import { TasksView } from './TasksView';
-import { DocumentList } from './DocumentList';
-import { CalendarView } from './CalendarView';
-import { BillingView } from './BillingView';
-import { BillingMonitorView } from './BillingMonitorView';
-import { FounderDashboard } from './FounderDashboard'; // eslint-disable-line @typescript-eslint/no-unused-vars
-// FounderDashboard is intentionally NOT rendered in the consumer app.
-// It is only accessible via the separate Founder APK (admin entry point).
 // Lazy-loaded top-level views to keep the initial bundle small.
 // Each of these is a full screen (ReportingView, ResearchView, AloaXView,
 // TimelineView) or a heavy editor (WordProcessor pulls in TipTap + ProseMirror).
@@ -66,16 +56,68 @@ const ContractAnalyzer = lazyWithReload(() => import('./draftpro/ContractAnalyze
 const ResearchView = lazyWithReload(() => import('./ResearchView'));
 const AloaXView = lazyWithReload(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
 const TimelineView = lazyWithReload(() => import('./TimelineView'));
-import ComplianceView from './ComplianceView';
-import SettingsView from './settings/SettingsView';
-import MessagesView from './MessagesView';
+
+// ── R73 (the silk pass): the app-only views move to lazy chunks ────────────
+// A logged-OUT visitor to /, /vega or /atrium previously downloaded the
+// ENTIRE app together with the marketing page: the settings stack
+// (module-settings, ~1.2MB), the atrium property views, messaging,
+// matters, the tiptap notes editor — every view below, eagerly
+// preloaded from index.html before a single word of marketing copy
+// could paint (the "glitchy and slow" report). Each is now a
+// lazyWithReload chunk, fetched the moment its view is first opened
+// and cached after that — exactly the pattern the editor/research
+// views above already use. Every render site below wraps its view in
+// <React.Suspense fallback={<GenericSkeleton />}> so navigation shows
+// the standard skeleton while the chunk streams in.
+// FounderDashboard's dead import is also deleted: it was never rendered
+// here (founder APK only) but rode in the entry chunk anyway.
+const Dashboard = lazyWithReload(() => import('./Dashboard'));
+const ContactsView = lazyWithReload(() => import('./ContactsView'));
+const TasksView = lazyWithReload(() => import('./TasksView').then(m => ({ default: m.TasksView })));
+const DocumentList = lazyWithReload(() => import('./DocumentList').then(m => ({ default: m.DocumentList })));
+const CalendarView = lazyWithReload(() => import('./CalendarView').then(m => ({ default: m.CalendarView })));
+const BillingView = lazyWithReload(() => import('./BillingView').then(m => ({ default: m.BillingView })));
+const BillingMonitorView = lazyWithReload(() => import('./BillingMonitorView'));
+const ComplianceView = lazyWithReload(() => import('./ComplianceView'));
+const SettingsView = lazyWithReload(() => import('./settings/SettingsView'));
+const MessagesView = lazyWithReload(() => import('./MessagesView'));
+const NotesView = lazyWithReload(() => import('./NotesView').then(m => ({ default: m.NotesView })));
+const HelpView = lazyWithReload(() => import('./HelpView'));
+const ArchiveView = lazyWithReload(() => import('./ArchiveView'));
+const SecurityAccessView = lazyWithReload(() => import('./SecurityAccessView'));
+const PropertyManagerView = lazyWithReload(() => import('./PropertyManagerView'));
+const PropertyDetailView = lazyWithReload(() => import('./details/PropertyDetailView'));
+const MatterDetailView = lazyWithReload(() => import('./details/MatterDetailView').then(m => ({ default: m.MatterDetailView })));
+const ContactDetailView = lazyWithReload(() => import('./details/ContactDetailView').then(m => ({ default: m.ContactDetailView })));
+const DocumentDetailView = lazyWithReload(() => import('./details/DocumentDetailView').then(m => ({ default: m.DocumentDetailView })));
+const InvoiceDetailView = lazyWithReload(() => import('./details/InvoiceDetailView').then(m => ({ default: m.InvoiceDetailView })));
+const ReceiptDetailView = lazyWithReload(() => import('./details/ReceiptDetailView').then(m => ({ default: m.ReceiptDetailView })));
+const AtriumPublicApplicationForm = lazyWithReload(() => import('./atrium/AtriumPublicApplicationForm').then(m => ({ default: m.AtriumPublicApplicationForm })));
+// R73: the always-mounted-but-closed overlays and the portal-only surfaces
+// also move to lazy chunks — the ALOA chat stack alone is ~360KB of source,
+// and marketing visitors never open any of it.
+const AloaPanel = lazyWithReload(() => import('./aloa/AloaPanel'));
+const TenantPortal = lazyWithReload(() => import('./tenant/TenantPortal'));
+const ClientDashboard = lazyWithReload(() => import('./client/ClientDashboard'));
+const ClientMatterDetailView = lazyWithReload(() => import('./client/ClientMatterDetailView').then(m => ({ default: m.ClientMatterDetailView })));
+const MatterList = lazyWithReload(() => import('./MatterList').then(m => ({ default: m.MatterList })));
+const OnboardingWizard = lazyWithReload(() => import('./modals/OnboardingWizard'));
+const DockedModal = lazyWithReload(() => import('./modals/DockedModal').then(m => ({ default: m.DockedModal })));
+
+// The marketing surface (hub / vega / atrium sites) gets its own chunk
+// too: the logged-in app never downloads it, and a marketing visitor
+// fetches it in parallel with the auth roundtrip instead of carrying it
+// inside the monolithic entry. The import is warmed at module
+// evaluation so the chunk download races the Convex session check —
+// by the time App decides to render the landing page, it is usually
+// already resolved (the browser's module cache serves both imports).
+const LandingPage = lazyWithReload(() => import('./LandingPage').then(m => ({ default: m.LandingPage })));
+void import('./LandingPage');
 import CommandPalette from './CommandPalette';
 import ContextMenu from './ContextMenu';
 import { SplitMasterDetail } from './layout/SplitMasterDetail';
 import ErrorBoundary from './ErrorBoundary';
 import { FeatureGuard } from './FeatureGuard';
-import OnboardingWizard from './modals/OnboardingWizard';
-import { AtriumPublicApplicationForm } from './atrium/AtriumPublicApplicationForm';
 import {
     DashboardSkeleton,
     TasksSkeleton,
@@ -84,19 +126,9 @@ import {
     DocumentsSkeleton,
     GenericSkeleton
 } from './toolkit/Skeleton';
-import { NotesView } from './NotesView';
-import HelpView from './HelpView';
-import ArchiveView from './ArchiveView';
-import SecurityAccessView from './SecurityAccessView';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import ModalManager from './modals/ModalManager';
 import { ModalLayer } from '../overlays/layers/ModalLayer';
-import { DockedModal } from './modals/DockedModal';
-import { MatterDetailView } from './details/MatterDetailView';
-import { ContactDetailView } from './details/ContactDetailView';
-import { DocumentDetailView } from './details/DocumentDetailView';
-import { InvoiceDetailView } from './details/InvoiceDetailView';
-import { ReceiptDetailView } from './details/ReceiptDetailView';
 import LockScreen from './LockScreen';
 import SplashScreen from './SplashScreen';
 import FloatingTestControls from './FloatingTestControls';
@@ -106,23 +138,15 @@ import ToastRefreshNotification from './ToastRefreshNotification';
 import ApkUpdateBanner from './ApkUpdateBanner';
 import TermsAcceptance, { hasAcceptedCurrentTerms } from './TermsAcceptance';
 
-import { LandingPage } from './LandingPage';
 import BottomNav from './BottomNav';
 import FullScreenSearch from './FullScreenSearch';
-import AloaPanel from './aloa/AloaPanel';
 import AloaFAB from './aloa/AloaFAB';
 import { useAppProductIdentity } from './marketing/brand/useProductBranding';
 import { useAloa } from '../contexts/AloaProvider';
-import { MatterList } from './MatterList';
-
-
-
-import PropertyManagerView from './PropertyManagerView';
-import PropertyDetailView from './details/PropertyDetailView';
 import OnboardingTour from './OnboardingTour';
-import ClientDashboard from './client/ClientDashboard';
-import { ClientMatterDetailView } from './client/ClientMatterDetailView';
-import TenantPortal from './tenant/TenantPortal';
+
+
+
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { PortalTermsOfUse } from './PortalTermsOfUse';
@@ -265,15 +289,15 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         if (isClient) {
             document.title = "Vega — Client Portal";
             if (view === 'matterDetail' && selectedId) {
-                return <ViewWrapper><ClientMatterDetailView /></ViewWrapper>;
+                return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ClientMatterDetailView /></React.Suspense></ViewWrapper>;
             }
 
-            return <ViewWrapper><ClientDashboard /></ViewWrapper>;
+            return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ClientDashboard /></React.Suspense></ViewWrapper>;
         }
 
         if (isTenant) {
             document.title = "Atrium — Residents' Portal";
-            return <ViewWrapper><TenantPortal /></ViewWrapper>;
+            return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TenantPortal /></React.Suspense></ViewWrapper>;
         }
 
         // For admin/internal users, show skeleton while core data is loading
@@ -292,7 +316,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         switch (view) {
             case 'dashboard': return (
                 <ViewWrapper>
-                    <Dashboard />
+                    <React.Suspense fallback={<GenericSkeleton />}><Dashboard /></React.Suspense>
                 </ViewWrapper>
             );
 
@@ -313,12 +337,14 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     return (
                         <ViewWrapper>
                             <FeatureGuard requiredProduct="legal">
+                                <React.Suspense fallback={<MattersSkeleton />}>
                                 <MatterList
                                     viewMode="board"
                                     onViewModeChange={handleViewModeChange}
                                     onNavigate={navigateTo}
                                     isCompact={false}
                                 />
+                                </React.Suspense>
                             </FeatureGuard>
                         </ViewWrapper>
                     );
@@ -332,16 +358,18 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                                 isDetailVisible={isDetailOpen}
                                 onCloseDetail={() => navigateTo('matters')}
                                 sidebarContent={
+                                    <React.Suspense fallback={<MattersSkeleton />}>
                                     <MatterList
                                         viewMode="list" // Always force list in the sidebar to prevent squishing the board
                                         onViewModeChange={handleViewModeChange}
                                         onNavigate={navigateTo}
                                         isCompact={true}
                                     />
+                                    </React.Suspense>
                                 }
                                 detailContent={
                                     selectedId ? (
-                                        <MatterDetailView key={selectedId} />
+                                        <React.Suspense fallback={<GenericSkeleton />}><MatterDetailView key={selectedId} /></React.Suspense>
                                     ) : null
                                 }
                             />
@@ -359,15 +387,17 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                             isDetailVisible={view === 'contactDetail'}
                             onCloseDetail={() => navigateTo('contacts')}
                             sidebarContent={
-                                <ContactsView />
+                                <React.Suspense fallback={<GenericSkeleton />}><ContactsView /></React.Suspense>
                             }
                             detailContent={
                                 selectedId ? (
-                                    <ContactDetailView
-                                        contactId={selectedId}
-                                        onGoBack={() => navigateTo('contacts')}
-                                        openModal={openModal}
-                                    />
+                                    <React.Suspense fallback={<GenericSkeleton />}>
+                                        <ContactDetailView
+                                            contactId={selectedId}
+                                            onGoBack={() => navigateTo('contacts')}
+                                            openModal={openModal}
+                                        />
+                                    </React.Suspense>
                                 ) : (
                                     <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
                                         <p className="text-lg font-medium">Select a contact to view profile</p>
@@ -380,7 +410,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
             case 'tasks': return (
                 <ViewWrapper>
-                    <TasksView />
+                    <React.Suspense fallback={<TasksSkeleton />}><TasksView /></React.Suspense>
                 </ViewWrapper>
             );
 
@@ -397,11 +427,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                                 else navigateTo('documents');
                             }}
                             sidebarContent={
-                                <DocumentList isCompact={true} onPreviewLocalFile={setLocalPreviewDoc} />
+                                <React.Suspense fallback={<DocumentsSkeleton />}><DocumentList isCompact={true} onPreviewLocalFile={setLocalPreviewDoc} /></React.Suspense>
                             }
                             detailContent={
                                 selectedId ? (
-                                    <DocumentDetailView key={selectedId} />
+                                    <React.Suspense fallback={<GenericSkeleton />}><DocumentDetailView key={selectedId} /></React.Suspense>
                                 ) : null
                             }
                         />
@@ -417,8 +447,8 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                                 title="Property Details"
                                 isDetailVisible={view === 'propertyDetail' && !!selectedId}
                                 onCloseDetail={() => navigateTo('properties')}
-                                sidebarContent={<PropertyManagerView contacts={matterState.contacts} onViewDetails={(id) => navigateTo('propertyDetail', id)} openModal={openModal} isCompact={true} />}
-                                detailContent={selectedId ? <PropertyDetailView key={selectedId} /> : null}
+                                sidebarContent={<React.Suspense fallback={<GenericSkeleton />}><PropertyManagerView contacts={matterState.contacts} onViewDetails={(id: string) => navigateTo('propertyDetail', id)} openModal={openModal} isCompact={true} /></React.Suspense>}
+                                detailContent={selectedId ? <React.Suspense fallback={<GenericSkeleton />}><PropertyDetailView key={selectedId} /></React.Suspense> : null}
                             />
                         </FeatureGuard>
                     </ViewWrapper>
@@ -427,14 +457,14 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 
             case 'tenantPortal': return (
                 <ViewWrapper>
-                    <TenantPortal />
+                    <React.Suspense fallback={<GenericSkeleton />}><TenantPortal /></React.Suspense>
                 </ViewWrapper>
             );
 
-            case 'calendar': return <ViewWrapper><CalendarView /></ViewWrapper>;
+            case 'calendar': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><CalendarView /></React.Suspense></ViewWrapper>;
             case 'timeline': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TimelineView /></React.Suspense></ViewWrapper>;
-            case 'billing': return <ViewWrapper><BillingView /></ViewWrapper>;
-            case 'billingMonitor': return <ViewWrapper><BillingMonitorView /></ViewWrapper>;
+            case 'billing': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><BillingView /></React.Suspense></ViewWrapper>;
+            case 'billingMonitor': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><BillingMonitorView /></React.Suspense></ViewWrapper>;
             // Founder Dashboard has been REMOVED from the consumer app.
             // It is ONLY accessible via the separate Founder APK
             // (com.practicepro.admin), which has its own entry point
@@ -442,14 +472,14 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             // This prevents consumer app users from seeing the founder's
             // private platform metrics (revenue, firms, users, etc.).
             case 'reporting': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ReportingView /></React.Suspense></ViewWrapper>;
-            case 'settings': return <ViewWrapper><SettingsView /></ViewWrapper>;
+            case 'settings': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><SettingsView /></React.Suspense></ViewWrapper>;
 
-            case 'messaging': return <ViewWrapper><MessagesView /></ViewWrapper>;
-            case 'notes': return <ViewWrapper><NotesView /></ViewWrapper>;
+            case 'messaging': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><MessagesView /></React.Suspense></ViewWrapper>;
+            case 'notes': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><NotesView /></React.Suspense></ViewWrapper>;
             // /help/<sectionId> deep links (welcome-email "Get Started"
             // buttons): selectedId carries the section from the URL path.
-            case 'help': return <ViewWrapper><HelpView initialSection={selectedId} /></ViewWrapper>;
-            case 'archive': return <ViewWrapper><ArchiveView /></ViewWrapper>;
+            case 'help': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><HelpView initialSection={selectedId} /></React.Suspense></ViewWrapper>;
+            case 'archive': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ArchiveView /></React.Suspense></ViewWrapper>;
 
             // FIX: editor was the ONLY view rendered without ViewWrapper's
             // ErrorBoundary — a render error in the TipTap stack escalated to
@@ -460,9 +490,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'analyzer': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ContractAnalyzer /></React.Suspense></FeatureGuard></ViewWrapper>;
             case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView /></React.Suspense></FeatureGuard></ViewWrapper>;
             case 'indexer': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense></ViewWrapper>;
-            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><ComplianceView /></FeatureGuard></ViewWrapper>; // Reachable via Settings → Compliance (nav item) + /compliance
-            case 'invoiceDetail': return <ViewWrapper><InvoiceDetailView /></ViewWrapper>;
-            case 'receiptDetail': return <ViewWrapper><ReceiptDetailView /></ViewWrapper>;
+            case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ComplianceView /></React.Suspense></FeatureGuard></ViewWrapper>; // Reachable via Settings → Compliance (nav item) + /compliance
+            case 'invoiceDetail': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><InvoiceDetailView /></React.Suspense></ViewWrapper>;
+            case 'receiptDetail': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ReceiptDetailView /></React.Suspense></ViewWrapper>;
 
             case 'privacyPolicy': return <PrivacyPolicy onBack={goBack} />;
             case 'termsOfService': return <TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
@@ -477,7 +507,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             // scope, so an authed user opening /vega/resources would have hit
             // a ReferenceError. Authed users now get the same public
             // ResourcesPage via the intercept in App's render flow.
-            case 'securityAccess': return <SecurityAccessView onBack={goBack} />;
+            case 'securityAccess': return <React.Suspense fallback={<GenericSkeleton />}><SecurityAccessView onBack={goBack} /></React.Suspense>;
             default: return <NotFoundView />;
         }
     };
@@ -501,7 +531,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     Previously these were unmounted in editor mode, leaving
                     users stranded in DraftPro with no way back to Aloa. */}
                 <AloaFAB />
-                <AloaPanel />
+                <React.Suspense fallback={null}><AloaPanel /></React.Suspense>
             </main>
         );
     }
@@ -618,7 +648,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     <ContextMenu />
                     <DockedModal />
                     <AloaFAB />
-                    <AloaPanel />
+                    <React.Suspense fallback={null}><AloaPanel /></React.Suspense>
                     <CommandPalette />
                     <FullScreenSearch />
                 </>
@@ -1430,10 +1460,12 @@ export const App: React.FC = () => {
         if (applyMatch) {
           return (
             <div className="min-h-[100dvh] bg-slate-50 dark:bg-zinc-950">
-              <AtriumPublicApplicationForm
-                propertyId={applyMatch[1]}
-                propertyName="Property Application"
-              />
+              <React.Suspense fallback={<GenericSkeleton />}>
+                <AtriumPublicApplicationForm
+                    propertyId={applyMatch[1]}
+                    propertyName="Property Application"
+                />
+              </React.Suspense>
             </div>
           );
         }
@@ -1613,7 +1645,14 @@ export const App: React.FC = () => {
             const urlProduct: 'vega' | 'atrium' | undefined =
                 location.pathname === '/vega' ? 'vega' :
                 location.pathname === '/atrium' ? 'atrium' : undefined;
-            return <LandingPage initialProduct={urlProduct} />;
+            // R73: the marketing sites load as their own lazy chunk (warmed at
+            // module evaluation above) — the white fallback matches the
+            // sites' paper ground so the handoff reads as a clean paint.
+            return (
+                <React.Suspense fallback={<div className="h-[100dvh] w-full bg-white" />}>
+                    <LandingPage initialProduct={urlProduct} />
+                </React.Suspense>
+            );
         }
 
         // Pending approval screen — user joined a firm but admin hasn't approved yet.
@@ -1663,7 +1702,7 @@ export const App: React.FC = () => {
             } catch { return false; }
         })();
         if (currentUser && !isPortalUserRole && (!currentUser.firmId || wizardInProgress) && flowState !== 'splash') {
-            return <OnboardingWizard onComplete={() => {
+            return <React.Suspense fallback={<SplashScreen isVisible={true} statusMessage="Preparing your workspace..." />}><OnboardingWizard onComplete={() => {
                 try { sessionStorage.removeItem('practicepro_wizard_in_progress'); sessionStorage.removeItem('practicepro_wizard_in_progress_ts'); } catch { /* noop */ }
                 // R13: kill any stale deep-link URL the tab was sitting on
                 // (e.g. /matters left over from a previous Vega session in
@@ -1677,7 +1716,7 @@ export const App: React.FC = () => {
                 // ends here, not on the next state change).
                 window.dispatchEvent(new Event('practicepro:theme-sync'));
                 setFlowState('app');
-            }} />;
+            }} /></React.Suspense>;
         }
 
         // Only block on SplashScreen if the user has a saved session being restored.

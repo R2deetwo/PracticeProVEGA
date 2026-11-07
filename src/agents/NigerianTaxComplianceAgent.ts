@@ -1,5 +1,8 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+// R73 (the silk pass): the SDK is loaded on first use — this agent is
+// statically imported by ExpenseForm (an always-mounted modal form), so a
+// module-level import eagerly shipped @google/genai to every visitor.
+// `Type` is a value here (schema building) and rides the same import.
 import { Expense } from '../types';
 
 const SYSTEM_PROMPT = `You are the Nigerian Tax Compliance Agent, an expert in Nigerian tax law. Your knowledge base includes the Companies Income Tax Act (CITA) and Personal Income Tax Act (PITA). Your mission is to analyze an expense description from a Nigerian law firm and determine if it is tax-deductible.
@@ -23,6 +26,7 @@ export const analyzeExpenseDeductibility = async (
     const apiKey = getGeminiApiKey();
     if (!apiKey) throw new Error("API Key missing");
 
+    const { GoogleGenAI, Type } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({

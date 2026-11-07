@@ -445,7 +445,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
     }
   };
 
-  const handleDownloadTenantReceipt = (isSilentOrPayment: boolean | RentPayment = false) => {
+  const handleDownloadTenantReceipt = async (isSilentOrPayment: boolean | RentPayment = false) => {
     const isSilent = typeof isSilentOrPayment === 'boolean' ? isSilentOrPayment : false;
     const payment = typeof isSilentOrPayment === 'object' ? isSilentOrPayment : null;
 
@@ -503,7 +503,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           ? `${formatDateWithOrdinal(property.rentalDetails.leaseStart)} to ${formatDateWithOrdinal(property.rentalDetails.leaseEnd)}`
           : undefined;
 
-      generateReceiptPdf(mockInvoice, coreState.firmDetails, (tenantContact || { name: tenantName || 'The Tenant' }) as any, { tenancyPeriod });
+      await generateReceiptPdf(mockInvoice, coreState.firmDetails, (tenantContact || { name: tenantName || 'The Tenant' }) as any, { tenancyPeriod });
       if (!isSilent) addToast("Tenant receipt generated.", { type: 'success' });
     } catch (error: any) {
       console.error("[CollectRentModal] Receipt generation failed:", error);

@@ -68,12 +68,12 @@ const ReceiptDetailViewContent: React.FC = () => {
 
   const headerTextColor = firmDetails.headerTextColor || '#111827';
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (client) {
-      generateReceiptPdf(invoice, firmDetails, client as any);
+      await generateReceiptPdf(invoice, firmDetails, client as any);
     } else {
       // Generate PDF with invoice's embedded client data as fallback
-      generateReceiptPdf(invoice, firmDetails, invoice.client || { name: 'Tenant' } as any);
+      await generateReceiptPdf(invoice, firmDetails, invoice.client || { name: 'Tenant' } as any);
     }
   };
 

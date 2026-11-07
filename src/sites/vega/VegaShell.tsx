@@ -85,7 +85,11 @@ export const VegaNavBar: React.FC<{
     return (
     <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
         {/* Glass layer — white glass on the white page (R56) */}
-        <div className="absolute inset-0 backdrop-blur-xl border-b transition-colors duration-500 bg-white/90 border-slate-200/80" />
+        {/* R73 (the silk pass): blur-xl → blur-md — at 90% white the radius
+            difference is invisible, and the fixed nav's backdrop re-blurs on
+            every scroll frame, so halving the radius halves one of the most
+            recurring compositor costs on the page. */}
+        <div className="absolute inset-0 backdrop-blur-md border-b transition-colors duration-500 bg-white/90 border-slate-200/80" />
 
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
             {/* Product lockup + back-to-hub breadcrumb */}

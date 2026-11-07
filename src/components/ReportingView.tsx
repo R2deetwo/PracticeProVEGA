@@ -37,7 +37,7 @@ const ReportGenerator: React.FC = () => {
     const [selectedUserId, setSelectedUserId] = useState<string>(currentUser?.id || '');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleGenerateReport = () => {
+    const handleGenerateReport = async () => {
         setIsLoading(true);
         try {
             const { start, end } = getDateRange(dateRange);
@@ -83,7 +83,7 @@ const ReportGenerator: React.FC = () => {
                                 description: t.description,
                             })),
                     };
-                    generateTimesheetReport(data, coreState.firmDetails, dateRange);
+                    await generateTimesheetReport(data, coreState.firmDetails, dateRange);
                     break;
                 }
                 case 'utilization': {
@@ -107,7 +107,7 @@ const ReportGenerator: React.FC = () => {
                             };
                         }),
                     };
-                    generateUtilizationReport(data, coreState.firmDetails, dateRange);
+                    await generateUtilizationReport(data, coreState.firmDetails, dateRange);
                     break;
                 }
                 case 'matter_status': {
@@ -120,7 +120,7 @@ const ReportGenerator: React.FC = () => {
                             assignedTeam: (m.assignedUsers || []).map(id => activeUsers.find(u => u.id === id)?.name).filter(Boolean).join(', '),
                         })),
                     };
-                    generateMatterStatusReport(data, coreState.firmDetails);
+                    await generateMatterStatusReport(data, coreState.firmDetails);
                     break;
                 }
                 case 'profit_loss': {
@@ -136,7 +136,7 @@ const ReportGenerator: React.FC = () => {
                         totalExpenses,
                         netProfit: totalRevenue - totalExpenses
                     };
-                    generateProfitLossReport(data, coreState.firmDetails, dateRange);
+                    await generateProfitLossReport(data, coreState.firmDetails, dateRange);
                     break;
                 }
                 case 'ar_aging': {
@@ -165,7 +165,7 @@ const ReportGenerator: React.FC = () => {
                             };
                         })
                     };
-                    generateArAgingReport(data, coreState.firmDetails);
+                    await generateArAgingReport(data, coreState.firmDetails);
                     break;
                 }
             }

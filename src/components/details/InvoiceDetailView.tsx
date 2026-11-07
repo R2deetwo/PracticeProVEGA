@@ -121,9 +121,9 @@ const InvoiceDetailViewContent: React.FC = () => {
         });
     }
 
-    const handleDownloadPdf = () => {
+    const handleDownloadPdf = async () => {
         if (client) {
-            generateInvoicePdf(invoice, firmDetails, client);
+            await generateInvoicePdf(invoice, firmDetails, client);
         } else {
             addToast("Client details could not be found to generate the PDF.", { type: 'error' });
         }
