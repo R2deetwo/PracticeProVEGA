@@ -5,6 +5,8 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 import Tooltip from '../Tooltip';
+import { Button } from '../ui';
+import { CheckIcon } from '../../constants';
 
 interface PresenceAvatarsProps {
     activePeers: Array<{ userId: string; updatedAt: number; isOnline: boolean }>;
@@ -238,8 +240,8 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
 
                 return (
                     <Tooltip key={item.id} text={tooltipText}>
-                        <button
-                            type="button"
+                        <Button
+                            variant="bare"
                             onClick={() => startDm(item.id)}
                             aria-label={`Message ${user.name}`}
                             title={`Message ${user.name}`}
@@ -275,7 +277,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                                     style={{ transform: 'translate(25%, 25%)' }}
                                 />
                             )}
-                        </button>
+                        </Button>
                     </Tooltip>
                 );
             })}
@@ -310,18 +312,26 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                                     const checked = selected.has(item.id);
                                     return (
                                         <div key={item.id} className="flex items-center gap-2 p-2.5 hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors group/row">
-                                            <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={() => toggleSelected(item.id)}
+                                            <Button
+                                                variant="bare"
+                                                onClick={() => toggleSelected(item.id)}
+                                                role="checkbox"
+                                                aria-checked={checked}
                                                 aria-label={`Select ${user.name} for a group message`}
-                                                className="h-3.5 w-3.5 rounded border-slate-300 dark:border-zinc-600 text-primary-600 dark:text-primary-400 focus:ring-primary-500 cursor-pointer flex-shrink-0"
-                                            />
-                                            <button
-                                                type="button"
+                                                activePress={false}
+                                                className="flex-shrink-0 flex h-4 w-4 items-center justify-center rounded border cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-primary-500"
+                                                style={{
+                                                    borderColor: checked ? 'rgb(79 70 229)' : 'rgb(203 213 225)',
+                                                    background: checked ? 'rgb(79 70 229)' : 'transparent',
+                                                }}
+                                            >
+                                                {checked && <CheckIcon className="h-3 w-3 text-white" aria-hidden="true" />}
+                                            </Button>
+                                            <Button
+                                                variant="bare"
                                                 onClick={() => startDm(item.id)}
-                                                className="flex items-center gap-2.5 flex-1 min-w-0 text-left cursor-pointer"
                                                 aria-label={`Message ${user.name}`}
+                                                className="flex items-center gap-2.5 flex-1 min-w-0 text-left cursor-pointer"
                                             >
                                                 <div className={`relative w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-2xs flex-shrink-0 ${getUserColor(user.name)}`}>
                                                     {getInitials(user.name)}
@@ -335,15 +345,15 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                                                         {item.role} · {isOnline ? 'Active now' : item.lastSeen > 0 ? `Last seen ${formatLastSeen(item.lastSeen)}` : 'Offline'}
                                                     </p>
                                                 </div>
-                                            </button>
+                                            </Button>
                                         </div>
                                     );
                                 })}
                             </div>
                             {/* R74: the group bar — message everyone ticked in one thread. */}
                             <div className="sticky bottom-0 p-2 border-t border-slate-100 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/95 backdrop-blur-sm">
-                                <button
-                                    type="button"
+                                <Button
+                                    variant="bare"
                                     onClick={startGroup}
                                     disabled={selectedCount === 0}
                                     className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
@@ -357,7 +367,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                                         : selectedCount === 1
                                             ? `Message ${getUser(Array.from(selected)[0])?.name?.split(' ')[0] || 'teammate'}`
                                             : 'Tick teammates to start a group'}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}

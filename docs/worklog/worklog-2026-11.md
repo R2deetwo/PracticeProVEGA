@@ -293,3 +293,15 @@ app-side DM/group wiring through BOTH modal renderers, and the
 to the optional badge), tsc 125 baseline with zero errors in touched
 files, vite build green, ADR-0004 held (the Aloa chips converted to
 ui/Button; raw form-buttons do not grow).
+
+### R74 addendum — the ADR-0004 ratchet and the first CI run
+
+The first CI run on 079fab3d failed ONE gate: the UI-primitives
+ratchet — "Raw form-element count GREW: 2312 -> 2316 (+4)". The four
+new raw elements were exactly the app-side additions in
+PresenceAvatars (the avatar button, the roster-row button, the group
+bar button, the select checkbox). All four are now ui/ primitives
+(Button; the checkbox is a role="checkbox" Button with the CheckIcon —
+the same pattern the landing roster uses, since ui/ ships no checkbox
+primitive). Ratchet re-verified locally: 2312 = 2312 baseline, gate
+held. tsc 125 baseline, the two touched suites green.
