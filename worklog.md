@@ -15366,3 +15366,74 @@ r70-live-verify PASS (the background at 1920 AND 1280, bandRatio
 errors) and r71-live-verify PASS (hero trigger rest=hover to the pixel,
 no plate, roster 8 rows + 8 DM buttons on click, suite-card trigger
 quiet, zero console errors). The r71-live-verify harness joins scripts/.
+
+## Task 72 — R72: the capabilities ticker docks to the bottom of the first page (2026-11-07)
+
+User directive (verbatim): "there is a ticker that scrolls across
+showing the sort of thing that practice pro does... why does it sit
+separately on that strip...why not attach it to the bottom of the first
+page, instead of having it be separate from the first page. make this
+neater and a slightly slimmer profile please"
+
+### Diagnosis
+The hub's capabilities marquee (MarqueeStrip, W7) was a free-floating
+band: hero (100dvh, navy #050B18) → FluidSeam from #FBFBF9 to #0A101C
+(the R42-era "daylight hero" seam — STALE since R53 made the hero navy)
+→ the 62px padded band → seam to white. Live, that first seam renders
+as a light cream wave GAP between the navy hero and the dark band —
+VLM read: "a visible band of light background fully separates the
+hero's straight-cut bottom edge from the ticker's wavy top edge…
+SEPARATE floating strip." Measured live: hero exactly 1080, band top
+at 1208 (128px below the fold, behind the seam), band 62px.
+
+### The docking
+- The hero cedes exactly its bottom 3rem: min-h-[100dvh] →
+  min-h-[calc(100dvh-3rem)] (the no-underscore calc pattern VegaHero
+  already ships; Tailwind emits `calc(100dvh - 3rem)` — verified in
+  the compiled CSS).
+- MarqueeStrip becomes the hero's base bar, mounted immediately after
+  the section with NO seam between: h-12 (48px fixed, was py-5 ≈ 62px)
+  on the hero's own ground (bg #050B18, was #0A101C) behind a single
+  border-t hairline (white/10, was border-y white/5). Slimmer type
+  (text-xs at every width, was xs/sm), tighter tracking (0.24em, was
+  0.28em), 4px diamonds (was 6px), gap-8 (was gap-10), edge fades
+  w-16 (was w-24) re-tinted to the hero navy. slate-400 labels (was
+  slate-500) — the darker ground wants the step up.
+- The phase-0 seam is deleted; the first seam now pours the hero's
+  own navy straight into the white body: from #050B18 (was #0A101C
+  after the band) to #FFFFFF.
+- Hero internals otherwise untouched: the featured card keeps
+  bottom-10 (40px clear of the strip — measured), the chevron keeps
+  bottom-5 (20px above the hairline — measured).
+
+### Verification (measured on vite preview, 1920×1080 and 390×844)
+- heroH 1032 + strip 48 = 1080 exactly; stripTop 1032, stripBottom
+  1080, gapHeroToStrip 0 — the ticker IS the bottom edge of the first
+  page, in view without scrolling.
+- bg rgb(5,11,24) = #050B18 (the hero ground), border-top 1px
+  rgba(255,255,255,0.1).
+- Desktop card clearance 40px above the strip (bottom-10), cue 20px —
+  no overlap (the VLM's first-pass collision worry was the cookie bar
+  overlaying the fold in the raw shot; dismissed, re-measured, clean).
+- Mobile 390×844: the content-driven hero grows to 1042 (min-h 796),
+  the strip still flush at the hero bottom (gap 0), 48px, clean under
+  VLM.
+- VLM final read (desktop first viewport + mobile): "the ticker is
+  clearly visible at the very bottom edge… it reads as the base bar
+  of the hero: flush against the bottom edge on the same dark navy
+  background with no gap… attached rather than a separate floating
+  strip. Slim. Passes on both desktop and mobile."
+- Marquee mechanics untouched: the duplicated w7-marquee-track, 42s
+  linear loop, reduced-motion freeze, aria-hidden dup, aria-label
+  container all survive.
+
+### Gates
+vitest 1399/1399 green (a new R72 ratchet joins
+websiteRepositioning.test.ts: no FluidSeam between hero and strip, the
+strip is h-12/border-t/bg-[#050B18] with no py-5/border-y/#0A101C,
+the hero carries calc(100dvh-3rem); the W10 seam ratchets flip —
+phase-0 retired, first seam now #050B18→#FFFFFF; heroRibbons' wrapper
+ratchet follows), tsc 125 baseline with zero errors in touched files,
+Convex tsc clean (untouched), UI-primitives ratchet 2312 held,
+identity audit pass, vite build green with
+min-height:calc(100dvh - 3rem) confirmed in the emitted CSS.
