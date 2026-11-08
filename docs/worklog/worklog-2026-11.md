@@ -336,3 +336,64 @@ held. tsc 125 baseline, the two touched suites green.
   mirror is why a stale /vega can still appear on the workers.dev
   URL), renew practicepro.ng (NXDOMAIN), rotate the GitHub PAT when
   sessions end.
+
+## R75 — the deep audit: both apps, the sites, and the AI stack (2026-11-08)
+
+docs(r75): DEEP_AUDIT_R75.md at repo root — the owner's requested
+page-by-page deep dive after the long gap ("these apps need to be
+better… a page-by-page analysis of every single aspect"). Basis: the
+live code at 176eb905 (R74, v1.0.744, build-1138) audited in four
+parallel passes (app core / messaging+Atrium+portals+admin / sites+
+prior plans / AI stack), every finding file:line-verified, the three
+highest-impact claims (schemaValidation revert, PII attachment bypass,
+dead matter components) independently re-verified by direct read, and
+the dependency set cross-checked against the npm registry on the day.
+
+Headlines:
+- MESSAGING (the owner's open question): partially done. R27–R74
+  shipped real send/attachments/push/scheduled/WhatsApp; notification
+  and push-tap deep-links DO open the right thread. But the exact flow
+  the owner reported is still broken: roster DM open/create and
+  channel creation pass activeConversationId, which MessagesView never
+  consumes (MessagesView.tsx:346-406 reads only initialTab /
+  selectedInboxId / systemInbox) — landing on the generic inbox. Same
+  class: ContactDetailView rows deep-link to a permanent spinner
+  (clientMessages never resolved in the 'flat' lookup); PropertyDetail
+  ticket strip navigates with no context. Fix ≈10 lines; scheduled as
+  R75 item 1 in the roadmap.
+- Interaction truth: Notes drag-drop is a silent no-op (onDragEnd
+  returns early while NoteColumn renders real Draggables); matter
+  DocumentsTab download is a no-op for storage-backed files;
+  DocumentComparisonModal renders an apology screen; data export
+  promises a zip of CSVs and delivers one JSON.
+- History model: no popstate sync; filters/tabs/selection never become
+  URLs; context dies on refresh — nothing filtered is deep-linkable.
+- ~1,500 lines of dead matter components (MatterBrief chain +
+  BacklinksPanel) advertising compliance/timeline features that don't
+  exist in-product.
+- AI stack (the separate mandate): capable but scattered — 5 services,
+  6 prompt sources, 2 research paths, localStorage-bound drafts
+  (device-loss risk), porous PII (attachments + research sources bypass
+  stripPII), BLOCK_NONE safety, zero prompt evals; the
+  nigerian-litigation-drafting skill pack sits unwired at repo root.
+  Target architecture written: 1 gateway + 1 skills registry + 1
+  artifacts store + 1 evals harness, with the full deletion net.
+- Stack drift: Vite 5→8.3.5 (3 majors), React 18→19.3.1, Tailwind
+  3→4.3.4, Router 6→7.18.5; Convex/Capacitor/genai current-major.
+- Sites: R66–R74 all verified in code (hero video, docked ticker,
+  lightbox, presence roster, fresh 2026-11-08 captures, Live Shot
+  retired); the gaps are SEO (JS-only meta, no sitemap/JSON-LD) and
+  zero funnel analytics (PostHog init'd, zero track calls).
+- Prior plans: schemaValidation still off (PHASE 0 REVERT never
+  followed by the insert audit); offline queue stalled (158 direct
+  mutation sites); three strategy docs obsolete (dead Ultimate plan).
+
+The roadmap in §10 sequences R75–R92: Phase A make-the-clicks-land
+(deep-links, dead interactions), B app model (URL/history, dead-code
+consolidation), C AI modernization (gateway → skills → artifacts →
+research → safety/metering/evals), D stack currency (one major per
+round: Vite, React, Tailwind, Router), E sites (SEO + analytics),
+F data integrity + payments (schemaValidation flip, offline queue,
+Paystack). Owner picks the pace; each round runs the full gates
+(tsc 125 baseline, vitest 1421, ratchet 2312, live verify, promotion
+record).
