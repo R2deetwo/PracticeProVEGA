@@ -1097,9 +1097,17 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     for (const modelToTest of isGeminiProvider(providerCfg) ? modelsToTry : []) {
         try {
             const streamUrl = CONVEX_URL.replace('.cloud', '.site') + '/ai/stream';
+            // ROUND A (H18): the proxy now requires a session bearer.
+            // The login gateway persists it under 'practicepro_session_bearer'.
+            const streamBearer = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('practicepro_session_bearer'))
+                || (typeof localStorage !== 'undefined' && localStorage.getItem('practicepro_session_bearer'))
+                || undefined;
             const response = await fetch(streamUrl, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(streamBearer ? { "Authorization": `Bearer ${streamBearer}` } : {}),
+                },
                 signal,
                 body: JSON.stringify({
                     model: modelToTest,

@@ -35,6 +35,28 @@ function generatePortalAccessToken(): string {
   return crypto.randomUUID();
 }
 
+// ─── ROUND A (C2/C3): portal-caller alias set ──────────────────────────────
+// Portal identity is SESSION-derived. These portal endpoints previously
+// trusted caller-supplied tenantId/clientId/email strings — anyone who knew
+// a resident's email could read their ledger/documents/messages or forge
+// tickets/messages under their name. A caller-supplied identity is now
+// accepted ONLY when it is one of the caller's own alias keys; otherwise
+// reads are rebound to the session identity and writes are rejected.
+// Aliases cover every key shape legacy data uses for the same person:
+//   • the user's Convex _id (the current model)
+//   • the login email / tokenIdentifier (legacy portals keyed on it)
+//   • the legacy contact id linked on the user row (`tenantId`)
+function portalCallerAliases(caller: any): Set<string> {
+  const aliases = new Set<string>();
+  if (caller?._id) aliases.add(String(caller._id));
+  if (caller?.email) aliases.add(String(caller.email).toLowerCase());
+  const token = (caller as any)?.tokenIdentifier;
+  if (token) aliases.add(String(token).toLowerCase());
+  const legacy = (caller as any)?.tenantId;
+  if (legacy) aliases.add(String(legacy));
+  return aliases;
+}
+
 // ─── Maintenance Tickets ────────────────────────────────────────────────
 
 export const createMaintenanceTicket = mutation({
@@ -58,7 +80,22 @@ export const createMaintenanceTicket = mutation({
     const now = Date.now();
     const { attachments, requestTypeKey, requestTypeLabel, sessionToken: _st, ...rest } = args;
 
-    // 1. Insert the maintenance ticket
+    // ── ROUND A (C3): forged-ticket gate ────────────────────────────────
+    //    sessionToken was previously destructured into _st and DISCARDED —
+    //    anyone could file a ticket into any firm under any tenant name,
+    //    each firing admin notifications + FCM. Now: portal-caller auth,
+    //    firm binding, and the submitter identity (tenantId) is accepted
+    //    only when it is one of the caller's own alias keys (legacy portals
+    //    key conversations on the email/contact id — binding preserves
+    //    those threads while making forged submissions impossible).
+    const ticketCaller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    assertSameFirm(ticketCaller, args.firmId);
+    const ticketAliases = portalCallerAliases(ticketCaller);
+    if (args.tenantId && !ticketAliases.has(String(args.tenantId))) {
+      throw new Error("Not authorized: maintenance tickets can only be filed by the signed-in resident.");
+    }
+    if (!args.tenantId) (rest as any).tenantId = String(ticketCaller._id);
+    (rest as any).tenantName = (ticketCaller as any).name || args.tenantName || "Resident";
     const ticketId = await ctx.db.insert("maintenance_tickets", {
       ...rest,
       requestTypeKey: requestTypeKey ?? undefined,
@@ -174,8 +211,16 @@ export const createMaintenanceTicket = mutation({
 });
 
 export const getMaintenanceTicketsByTenant = query({
-  args: { tenantId: v.string() },
+  args: { tenantId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): this was an unauthenticated tenant read — anyone who
+    //    knew a resident's id/email could read their tickets. Portal auth
+    //    + ownership binding: the requested tenantId must be one of the
+    //    caller's own alias keys.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.tenantId });
+    if (!portalCallerAliases(caller).has(String(args.tenantId))) {
+      throw new Error("Not authorized: you can only view your own maintenance tickets.");
+    }
     const tickets = await ctx.db
       .query("maintenance_tickets")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
@@ -205,8 +250,12 @@ export const getMaintenanceTicketsByTenant = query({
 });
 
 export const getMaintenanceTicketsByFirm = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated firm-wide read → staff auth + firm
+    //    binding (previously any caller could list any firm's tickets).
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    assertSameFirm(auth.user, args.firmId);
     return await ctx.db
       .query("maintenance_tickets")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -221,9 +270,14 @@ export const getMaintenanceTicketsByFirm = query({
  * linked ticket conversation is opened.
  */
 export const getTicketById = query({
-  args: { ticketId: v.id("maintenance_tickets") },
+  args: { ticketId: v.id("maintenance_tickets"), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.ticketId);
+    // ── ROUND A (C2): bare-id read → staff auth + firm binding.
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const ticket = await ctx.db.get(args.ticketId);
+    if (!ticket) return null;
+    assertSameFirm(auth.user, (ticket as any).firmId);
+    return ticket;
   },
 });
 
@@ -233,9 +287,15 @@ export const getTicketById = query({
  * linked service request conversation is opened.
  */
 export const getServiceRequestById = query({
-  args: { requestId: v.id("client_service_requests") },
+  args: { requestId: v.id("client_service_requests"), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.requestId);
+    // ── ROUND A (C2 sibling): bare-id read → staff auth + firm binding
+    //    (same class as getTicketById — fixed in the same stroke).
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const req = await ctx.db.get(args.requestId);
+    if (!req) return null;
+    assertSameFirm(auth.user, (req as any).firmId);
+    return req;
   },
 });
 
@@ -250,23 +310,28 @@ export const updateMaintenanceTicketStatus = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // P6 SECURITY FIX: Verify caller belongs to the firm that owns this ticket.
+    // ── ROUND A (C4): UNCONDITIONAL staff auth. Previously auth ran only
+    //    `if (args.userEmail)` — the legit staff UI passed an email WITHOUT
+    //    a bearer (so in-app approval ALWAYS failed), while an anonymous
+    //    caller that omitted the email sailed through and patched any
+    //    firm's ticket. Mirrors the updateClientServiceRequestStatus
+    //    retrofit (requireStaffCaller + assertSameFirm).
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const ticket = await ctx.db.get(args.ticketId);
     if (!ticket) {
       throw new Error("Maintenance ticket not found.");
     }
-    if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-      if (auth.firmId && ticket.firmId && auth.firmId !== ticket.firmId) {
-        try {
-          await ctx.db.insert("securityEvents", {
-            eventType: "cross_firm_access_attempt",
-            details: `updateMaintenanceTicketStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update ticket ${args.ticketId} owned by firm ${ticket.firmId}`,
-            timestamp: Date.now(),
-          });
-        } catch {}
-        throw new Error("Not authorized: ticket belongs to a different firm.");
-      }
+    const joinedFirms: string[] = (caller as any).joinedFirmIds || [];
+    const ticketFirm = String((ticket as any).firmId || "");
+    if (String((caller as any).firmId || "") !== ticketFirm && !joinedFirms.includes(ticketFirm)) {
+      try {
+        await ctx.db.insert("securityEvents", {
+          eventType: "cross_firm_access_attempt",
+          details: `updateMaintenanceTicketStatus: caller (firm ${caller.firmId}) attempted to update ticket ${args.ticketId} owned by firm ${ticketFirm}`,
+          timestamp: Date.now(),
+        });
+      } catch {}
+      throw new Error("Not authorized: ticket belongs to a different firm.");
     }
     const { ticketId, sessionToken: _st, ...updates } = args;
     await ctx.db.patch(ticketId, { ...updates, updatedAt: Date.now() });
@@ -315,7 +380,7 @@ export const updateMaintenanceTicketStatus = mutation({
         // don't check the portal regularly would miss status updates.
         if (ticket.tenantEmail) {
           try {
-            ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+            ctx.scheduler.runAfter(0, internal.communications.sendEmailCore as any, {
               to: ticket.tenantEmail,
               toName: ticket.tenantName || undefined,
               subject: `Maintenance Update: ${ticket.subject}`,
@@ -462,11 +527,25 @@ export const cancelMaintenanceTicket = mutation({
     ticketId: v.id("maintenance_tickets"),
     cancellationNote: v.string(),
     cancelledBy: v.string(), // userId
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    // ── ROUND A (C3): cancelledBy was caller-supplied and trusted — anyone
+    //    could cancel any ticket by passing the submitter's id. Now: portal
+    //    auth, and BOTH the recorded canceller and the ticket's tenantId
+    //    must be the caller's own alias keys.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.cancelledBy });
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.cancelledBy))) {
+      throw new Error("Not authorized: you can only cancel your own tickets.");
+    }
     const ticket: any = await ctx.db.get(args.ticketId);
     if (!ticket) throw new Error("Ticket not found");
+    if (ticket.tenantId && !aliases.has(String(ticket.tenantId))) {
+      throw new Error("Not authorized: you can only cancel your own tickets.");
+    }
     // Only the ticket's original submitter can cancel it
     if (ticket.tenantId && ticket.tenantId !== args.cancelledBy) {
       throw new Error("Only the original submitter can cancel this ticket");
@@ -530,11 +609,23 @@ export const cancelClientServiceRequest = mutation({
     requestId: v.id("client_service_requests"),
     cancellationNote: v.string(),
     cancelledBy: v.string(), // userId
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    // ── ROUND A (C3 sibling): same forged-canceller hole as
+    //    cancelMaintenanceTicket — fixed in the same stroke.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.cancelledBy });
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.cancelledBy))) {
+      throw new Error("Not authorized: you can only cancel your own requests.");
+    }
     const req: any = await ctx.db.get(args.requestId);
     if (!req) throw new Error("Service request not found");
+    if (req.clientId && !aliases.has(String(req.clientId))) {
+      throw new Error("Not authorized: you can only cancel your own requests.");
+    }
     if (req.clientId && req.clientId !== args.cancelledBy) {
       throw new Error("Only the original submitter can cancel this request");
     }
@@ -959,9 +1050,24 @@ export const createClientServiceRequest = mutation({
     description: v.string(),
     attachments: v.optional(v.array(v.string())),
     attachmentNames: v.optional(v.array(v.string())),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+
+    // ── ROUND A (C3): this mutation had NO auth args at all — anyone could
+    //    forge service requests into any firm under any client name.
+    //    Portal auth + firm binding + submitter-alias binding (same as
+    //    createMaintenanceTicket).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.clientEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (args.clientId && !aliases.has(String(args.clientId))) {
+      throw new Error("Not authorized: service requests can only be filed by the signed-in client.");
+    }
+    if (!args.clientId) args.clientId = String(caller._id);
+    args.clientName = (caller as any).name || args.clientName || "Client";
+    args.clientEmail = String((caller as any).email || args.clientEmail || "").toLowerCase();
 
     // 1. Insert the client_service_requests row
     const requestId = await ctx.db.insert("client_service_requests", {
@@ -1598,7 +1704,7 @@ export const createPortalInvite = action({
   </table>
 </body>
 </html>`;
-      emailResult = await ctx.runAction(api.communications.sendEmail, {
+      emailResult = await ctx.runAction(internal.communications.sendEmailCore, {
         to: args.inviteeEmail!,
         toName: resolvedInviteeName,
         subject: `You're Invited: ${portalLabel} on PracticePro`,
@@ -1619,7 +1725,7 @@ export const createPortalInvite = action({
     if (shouldSendWhatsApp) {
       try {
         const waText = `PracticePro ${portalLabel} Invitation\n\nHello ${inviteeGreeting}, you've been invited to the ${portalLabel}.\n\nClick here to access: ${inviteUrl}\n\nThis link expires in 30 days.${personalMsg}\n\n— PracticePro`;
-        waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+        waResult = await ctx.runAction(internal.communications.sendWhatsAppCore, {
           to: args.inviteePhone!,
           messageText: waText,
           firmId: args.firmId,
@@ -1997,7 +2103,7 @@ export const resendPortalInvite = action({
   </table>
 </body>
 </html>`;
-      emailResult = await ctx.runAction(api.communications.sendEmail, {
+      emailResult = await ctx.runAction(internal.communications.sendEmailCore, {
         to: existing.inviteeEmail!,
         toName: existing.inviteeName,
         subject: `Reminder: ${portalLabel} Invitation on PracticePro`,
@@ -2014,7 +2120,7 @@ export const resendPortalInvite = action({
     if ((channel === "whatsapp" || channel === "both") && existing.inviteePhone) {
       try {
         const waText = `Reminder: PracticePro ${portalLabel} Invitation\n\nHello ${existing.inviteeName || existing.inviteeEmail}, your portal link has been refreshed.\n\nClick here: ${inviteUrl}\n\nExpires in 30 days.\n\n— PracticePro`;
-        waResult = await ctx.runAction(api.communications.sendWhatsApp, {
+        waResult = await ctx.runAction(internal.communications.sendWhatsAppCore, {
           to: existing.inviteePhone,
           messageText: waText,
           firmId: existing.firmId,
@@ -3115,8 +3221,11 @@ export const relinkPortalUserToProperty = mutation({
 // ─── Scheduled Messages ─────────────────────────────────────────────────
 
 export const getScheduledMessagesByFirm = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated firm read → staff auth + firm binding.
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    assertSameFirm(auth.user, args.firmId);
     return await ctx.db
       .query("scheduled_messages")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -3126,8 +3235,11 @@ export const getScheduledMessagesByFirm = query({
 });
 
 export const getPendingScheduledMessages = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated firm read → staff auth + firm binding.
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    assertSameFirm(auth.user, args.firmId);
     const now = Date.now();
     const all = await ctx.db
       .query("scheduled_messages")
@@ -3325,7 +3437,7 @@ export const processScheduledMessages = internalAction({
             try {
               // VERIFY the provider result — a returned failure is NOT an
               // exception, it must be checked explicitly.
-              const result: any = await ctx.runAction(api.communications.sendEmail, {
+              const result: any = await ctx.runAction(internal.communications.sendEmailCore, {
                 firmId: msg.firmId,
                 to: rcpt.email,
                 toName: rcpt.name || rcpt.email,
@@ -3380,7 +3492,7 @@ export const processScheduledMessages = internalAction({
               // cron reminder went out free-form only and failed silently
               // outside the 24-hour window.
               const msgAny = msg as any;
-              const result: any = await ctx.runAction(api.communications.sendWhatsApp, {
+              const result: any = await ctx.runAction(internal.communications.sendWhatsAppCore, {
                 firmId: msg.firmId,
                 to: phone,
                 messageText: msg.content,
@@ -3737,8 +3849,19 @@ export const createConversationFromScheduled = internalMutation({
  * ID that should be used for all other portal queries.
  */
 export const getTenantInfo = query({
-  args: { firmId: v.string(), userId: v.string(), email: v.string() },
+  args: { firmId: v.string(), userId: v.string(), email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): this was an unauthenticated tenant read — knowing a
+    //    resident's email let anyone enumerate their properties/units.
+    //    Portal auth + firm binding; the tenant identity (userId/email) is
+    //    rebound to the session's own aliases when the caller-supplied
+    //    values are not the caller's own (attacker-supplied victims' ids
+    //    are dropped, the session's own keys still resolve legacy data).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.userId))) args.userId = String(caller._id);
+    if (args.email && !aliases.has(String(args.email).toLowerCase())) args.email = String((caller as any).email || args.email);
     const emailLower = (args.email || "").toLowerCase().trim();
 
     // ESTATE COMMUNITY FEATURES — fetch the firm record so we can read
@@ -4043,8 +4166,16 @@ export const resolveFirmFromInvite = query({
 });
 
 export const getTenantLedger = query({
-  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated tenant financial read — anyone who
+    //    knew a resident's email could read their full ledger. Portal auth
+    //    + firm binding + session-derived tenant identity.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.tenantId))) args.tenantId = String(caller._id);
+    if (args.email && !aliases.has(String(args.email).toLowerCase())) args.email = String((caller as any).email || "") || undefined;
     // Find all properties where this tenant is assigned
     const properties = await ctx.db
       .query("properties")
@@ -4116,8 +4247,15 @@ export const getTenantLedger = query({
 // (same possibleTenantIds resolution as getTenantLedger above).
 
 export const getTenantServiceCharges = query({
-  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): same class as getTenantLedger — portal auth + firm
+    //    binding + session-derived tenant identity.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const scAliases = portalCallerAliases(caller);
+    if (!scAliases.has(String(args.tenantId))) args.tenantId = String(caller._id);
+    if (args.email && !scAliases.has(String(args.email).toLowerCase())) args.email = String((caller as any).email || "") || undefined;
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -4160,8 +4298,15 @@ export const getTenantServiceCharges = query({
 // ─── Inbound Messages for Tenant Portal ─────────────────────────────────
 
 export const getInboundMessagesByTenant = query({
-  args: { tenantId: v.string() },
+  args: { tenantId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated tenant inbox read — anyone could
+    //    read any resident's inbound messages. Portal auth + ownership
+    //    binding (the requested tenantId must be the caller's own alias).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.tenantId });
+    if (!portalCallerAliases(caller).has(String(args.tenantId))) {
+      throw new Error("Not authorized: you can only view your own messages.");
+    }
     const messages = await ctx.db
       .query("atrium_inbound_messages")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
@@ -4190,8 +4335,15 @@ export const getInboundMessagesByTenant = query({
 // ─── Client Documents for Portal ────────────────────────────────────────
 
 export const getClientDocuments = query({
-  args: { firmId: v.string(), contactId: v.string() },
+  args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2 sibling): unauthenticated client-documents read →
+    //    portal auth + firm binding + session-derived contact identity
+    //    (a caller-supplied contactId that is not the caller's own alias
+    //    is rebound to the session identity).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.contactId });
+    assertSameFirm(caller, args.firmId);
+    if (!portalCallerAliases(caller).has(String(args.contactId))) args.contactId = String(caller._id);
     // Find matters for this contact
     const matters = await ctx.db
       .query("matters")
@@ -4583,10 +4735,34 @@ export const sendPortalMessage = mutation({
     // Sub-threading: when a portal user replies within a specific ticket's
     // thread, pass the ticket ID so the reply is grouped under that ticket.
     threadTicketId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     let conversation: any;
+
+    // ── ROUND A (C3): message impersonation gate ────────────────────────
+    //    sendPortalMessage previously trusted caller-supplied
+    //    senderId/senderRole — anyone could inject a message posing as the
+    //    property manager ("your payment is confirmed") into any resident
+    //    conversation. Now: the sender is authenticated (staff session for
+    //    admin-origin messages, portal session for resident/client
+    //    messages), the firm is bound to the caller's own firm, and the
+    //    recorded senderId must be one of the caller's own alias keys
+    //    (legacy threads keyed on email/contact ids keep working).
+    const adminOrigin = args.senderRole === 'admin' || args.senderRole === 'Admin';
+    const msgCaller = adminOrigin
+      ? await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.senderEmail, firmId: args.firmId })
+      : await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.senderEmail, userId: args.senderId });
+    assertSameFirm(msgCaller, args.firmId);
+    const msgAliases = portalCallerAliases(msgCaller);
+    if (!msgAliases.has(String(args.senderId || ""))) {
+      throw new Error(adminOrigin
+        ? "Not authorized: admin messages can only be sent by the signed-in staff member."
+        : "Not authorized: portal messages can only be sent by the signed-in resident.");
+    }
+    args.senderName = args.senderName || (msgCaller as any).name || undefined;
+    if (!args.senderEmail && (msgCaller as any).email) args.senderEmail = (msgCaller as any).email;
 
     // ── ADMIN → RESIDENT MESSAGE FIX ──────────────────────────────────
     // When an admin sends a portal message (receipt, broadcast, etc.),
@@ -4805,6 +4981,8 @@ export const sendAdminReply = mutation({
     // Sub-threading: when replying within a specific ticket's thread,
     // pass the ticket ID so the reply is grouped under that ticket.
     threadTicketId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -4813,6 +4991,17 @@ export const sendAdminReply = mutation({
     const conversationRaw = await ctx.db.get(args.conversationId as any);
     if (!conversationRaw) throw new Error("Conversation not found");
     const conversation = conversationRaw as any;
+
+    // ── ROUND A (C3): adminId was caller-supplied and trusted — anyone
+    //    could pose as any staff member in any firm's conversation. Now:
+    //    staff auth, firm binding against the CONVERSATION's own firm, and
+    //    adminId must be the caller's own alias key.
+    const replyCaller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(replyCaller, (conversation as any).firmId);
+    if (!portalCallerAliases(replyCaller).has(String(args.adminId || ""))) {
+      throw new Error("Not authorized: replies can only be sent by the signed-in staff member.");
+    }
+    args.adminName = args.adminName || (replyCaller as any).name || "Admin";
 
     // Insert the admin's reply as a new message in the conversation
     const messageId = await ctx.db.insert("portal_messages", {
@@ -5032,11 +5221,16 @@ export const getConversationMessages = query({
  * conversation as read. Used when admin opens a conversation.
  */
 export const markConversationReadByAdmin = mutation({
-  args: { conversationId: v.string() },
+  args: { conversationId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversation = await ctx.db.get(args.conversationId as any);
     if (!conversation) return;
+
+    // ── ROUND A (C3 sibling): unauthenticated write → staff auth + firm
+    //    binding (same class as markConversationReadByParticipant).
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, (conversation as any).firmId);
 
     // Reset admin unread count
     await ctx.db.patch(conversation._id, { unreadByAdmin: 0, updatedAt: now });
@@ -5058,11 +5252,20 @@ export const markConversationReadByAdmin = mutation({
  * markConversationReadByParticipant — Portal user marks admin replies as read.
  */
 export const markConversationReadByParticipant = mutation({
-  args: { conversationId: v.string() },
+  args: { conversationId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = Date.now();
     const conversation = await ctx.db.get(args.conversationId as any);
     if (!conversation) return;
+
+    // ── ROUND A (C3): unauthenticated write → portal auth + firm binding
+    //    + participant binding (a resident may only clear their OWN
+    //    conversation's unread state).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, (conversation as any).firmId);
+    if (!portalCallerAliases(caller).has(String((conversation as any).participantId || ""))) {
+      throw new Error("Not authorized: you can only mark your own conversations as read.");
+    }
 
     await ctx.db.patch(conversation._id, { unreadByParticipant: 0, updatedAt: now });
 
@@ -5094,9 +5297,16 @@ export const markConversationReadByParticipant = mutation({
  * Returns: { marked: number } — count of messages updated.
  */
 export const markInboundMessagesReadByTenant = mutation({
-  args: { tenantId: v.string() },
+  args: { tenantId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const now = Date.now();
+
+    // ── ROUND A (C3): unauthenticated write → portal auth + ownership
+    //    binding (the requested tenantId must be the caller's own alias).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.tenantId });
+    if (!portalCallerAliases(caller).has(String(args.tenantId))) {
+      throw new Error("Not authorized: you can only mark your own messages as read.");
+    }
 
     // Primary: lookup by tenantId directly
     let messages = await ctx.db
@@ -5452,7 +5662,7 @@ export const submitPaymentProof = mutation({
     });
     assertSameFirm(caller, args.firmId);
 
-    // P11 DEDUP: If idempotencyKey is provided, check for an existing record.
+    // H19 DEDUP: If idempotencyKey is provided, check for an existing record.
     // If found, return the existing _id instead of creating a duplicate.
     if (args.idempotencyKey) {
       const existing = await ctx.db
@@ -5464,6 +5674,15 @@ export const submitPaymentProof = mutation({
       }
     }
     const now = Date.now();
+    // ── ROUND A (H19): the proof's initial status is SERVER-DERIVED.
+    //    Previously `status: args.status || 'pending_review'` accepted a
+    //    free caller-supplied string — a tenant could submit a proof already
+    //    marked 'approved' and it entered the books as approved. The arg is
+    //    still accepted for call-site compatibility but is NEVER trusted:
+    //    bank-transfer uploads are always pending_review; Paystack-initiated
+    //    uploads are always pending_verification (the webhook/verify flow
+    //    is the only thing that can confirm them).
+    const initialStatus = args.paymentMethod === 'paystack' ? 'pending_verification' : 'pending_review';
     const proofId = await ctx.db.insert("payment_proofs", {
       firmId: args.firmId,
       tenantId: args.tenantId,
@@ -5477,7 +5696,7 @@ export const submitPaymentProof = mutation({
       storageIds: args.storageIds,
       paymentMethod: args.paymentMethod || 'bank_transfer',
       paystackReference: args.paystackReference,
-      status: args.status || 'pending_review',
+      status: initialStatus,
       idempotencyKey: args.idempotencyKey,
       createdAt: now,
       updatedAt: now,
@@ -5489,7 +5708,7 @@ export const submitPaymentProof = mutation({
     // the hold becomes permanent (cancelled); if it is rejected the paused
     // ladder resumes so the day-of and late-notice sequence follows — the
     // exact WhatsApp-era behaviour the user asked to carry over.
-    if ((args.status || 'pending_review') === 'pending_review') {
+    if (initialStatus === 'pending_review') {
       try {
         await ctx.runMutation(internal.automationEngine.onPaymentProofSubmitted, {
           firmId: args.firmId,
@@ -5509,8 +5728,12 @@ export const submitPaymentProof = mutation({
  * getPaymentProofsByFirm — Gets all payment proof submissions for a firm (admin side).
  */
 export const getPaymentProofsByFirm = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated firm read (receipt storageIds +
+    //    tenant identities) → staff auth + firm binding.
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    assertSameFirm(auth.user, args.firmId);
     return await ctx.db
       .query("payment_proofs")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -5523,8 +5746,14 @@ export const getPaymentProofsByFirm = query({
  * getPaymentProofsByTenant — Gets payment proof submissions by a specific tenant.
  */
 export const getPaymentProofsByTenant = query({
-  args: { tenantId: v.string() },
+  args: { tenantId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated tenant read (receipt storageIds) →
+    //    portal auth + ownership binding.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.tenantId });
+    if (!portalCallerAliases(caller).has(String(args.tenantId))) {
+      throw new Error("Not authorized: you can only view your own payment proofs.");
+    }
     return await ctx.db
       .query("payment_proofs")
       .withIndex("by_tenant", (q) => q.eq("tenantId", args.tenantId))
@@ -5545,25 +5774,28 @@ export const updatePaymentProofStatus = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // P6 SECURITY FIX: Verify caller belongs to the firm that owns this payment proof.
-    // Without this, anyone with a proofId could approve/reject any firm's payment proofs.
+    // ── ROUND A (C4): UNCONDITIONAL staff auth. Previously auth ran only
+    //    `if (args.userEmail)` — the legit UI (PaymentProofsTab) passed an
+    //    email WITHOUT a bearer, so in-app approve/reject ALWAYS failed;
+    //    an anonymous caller omitting the email sailed through and set any
+    //    firm's proof to approved/rejected. Now: staff auth + firm binding
+    //    against the proof's own firm (keeps the securityEvents audit).
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const proof = await ctx.db.get(args.proofId);
     if (!proof) {
       throw new Error("Payment proof not found.");
     }
-    if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-      // Verify the caller's firm matches the proof's firm
-      if (auth.firmId && proof.firmId && auth.firmId !== proof.firmId) {
-        try {
-          await ctx.db.insert("securityEvents", {
-            eventType: "cross_firm_access_attempt",
-            details: `updatePaymentProofStatus: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update proof ${args.proofId} owned by firm ${proof.firmId}`,
-            timestamp: Date.now(),
-          });
-        } catch {}
-        throw new Error("Not authorized: payment proof belongs to a different firm.");
-      }
+    const joinedFirms: string[] = (caller as any).joinedFirmIds || [];
+    const proofFirm = String((proof as any).firmId || "");
+    if (String((caller as any).firmId || "") !== proofFirm && !joinedFirms.includes(proofFirm)) {
+      try {
+        await ctx.db.insert("securityEvents", {
+          eventType: "cross_firm_access_attempt",
+          details: `updatePaymentProofStatus: caller (firm ${caller.firmId}) attempted to update proof ${args.proofId} owned by firm ${proofFirm}`,
+          timestamp: Date.now(),
+        });
+      } catch {}
+      throw new Error("Not authorized: payment proof belongs to a different firm.");
     }
     const { proofId, sessionToken: _st, ...updates } = args;
     await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
@@ -5604,8 +5836,15 @@ export const updatePaymentProofStatus = mutation({
  * plus any documents shared with the tenant specifically.
  */
 export const getTenantDocuments = query({
-  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated tenant document read → portal auth
+    //    + firm binding + session-derived tenant identity.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.tenantId))) args.tenantId = String(caller._id);
+    if (args.email && !aliases.has(String(args.email).toLowerCase())) args.email = String((caller as any).email || "") || undefined;
     // Find properties where this tenant is assigned
     const properties = await ctx.db
       .query("properties")
@@ -5712,8 +5951,15 @@ export const getPortalUserConsentRecords = query({
  * Pulls rentalDetails from the property record and tenancy information.
  */
 export const getTenantLeaseDetails = query({
-  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()) },
+  args: { firmId: v.string(), tenantId: v.string(), email: v.optional(v.string()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated lease read → portal auth + firm
+    //    binding + session-derived tenant identity.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.tenantId))) args.tenantId = String(caller._id);
+    if (args.email && !aliases.has(String(args.email).toLowerCase())) args.email = String((caller as any).email || "") || undefined;
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -5847,8 +6093,13 @@ export const getClientConsentRecords = query({
  * whether portal messaging is enabled for tenants and clients.
  */
 export const getFirmPortalSettings = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated read → authenticated caller (staff
+    //    or portal) + firm binding (read by both the resident portal and
+    //    the admin Portal Access settings screen).
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     const settings = await ctx.db
       .query("portal_settings")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -5885,19 +6136,20 @@ export const updateFirmPortalSettings = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // P6 SECURITY FIX: Verify caller belongs to the firm they're updating settings for.
-    if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-      if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
-        try {
-          await ctx.db.insert("securityEvents", {
-            eventType: "cross_firm_access_attempt",
-            details: `updateFirmPortalSettings: caller ${args.userEmail} (firm ${auth.firmId}) attempted to update settings for firm ${args.firmId}`,
-            timestamp: Date.now(),
-          });
-        } catch {}
-        throw new Error("Not authorized: cannot update settings for a different firm.");
-      }
+    // ── ROUND A (C4): UNCONDITIONAL staff auth — previously `if (args.userEmail)`
+    //    meant anonymous callers could rewrite any firm's portal settings.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const joinedFirms: string[] = (caller as any).joinedFirmIds || [];
+    const settingsFirm = String(args.firmId || "");
+    if (String((caller as any).firmId || "") !== settingsFirm && !joinedFirms.includes(settingsFirm)) {
+      try {
+        await ctx.db.insert("securityEvents", {
+          eventType: "cross_firm_access_attempt",
+          details: `updateFirmPortalSettings: caller (firm ${caller.firmId}) attempted to update settings for firm ${settingsFirm}`,
+          timestamp: Date.now(),
+        });
+      } catch {}
+      throw new Error("Not authorized: cannot update settings for a different firm.");
     }
     const { firmId, userEmail, sessionToken: _st, ...updates } = args;
     const existing = await ctx.db
@@ -5954,21 +6206,26 @@ export const createNotice = mutation({
     // The authenticated firm (auth.firmId) is the trusted source of truth —
     // args.firmId is user-supplied and only used for the cross-firm check.
     // All subsequent writes/logs/scheduler calls use auth.firmId, not args.firmId.
+    // P6 SECURITY FIX (ROUND A C4): UNCONDITIONAL staff auth — previously
+    // `if (args.userEmail)` meant anonymous callers could post notices to
+    // any firm's residents.
+    const noticeCaller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     let authFirmId = args.firmId;
-    if (args.userEmail) {
-      const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-      if (auth.firmId && args.firmId && auth.firmId !== args.firmId) {
+    {
+      const joinedFirms: string[] = (noticeCaller as any).joinedFirmIds || [];
+      const noticeFirm = String(args.firmId || "");
+      if (String((noticeCaller as any).firmId || "") !== noticeFirm && !joinedFirms.includes(noticeFirm)) {
         try {
           await ctx.db.insert("securityEvents", {
             eventType: "cross_firm_access_attempt",
-            details: `createNotice: caller ${args.userEmail} (firm ${auth.firmId}) attempted to post notice for firm ${args.firmId}`,
+            details: `createNotice: caller (firm ${noticeCaller.firmId}) attempted to post notice for firm ${noticeFirm}`,
             timestamp: Date.now(),
           });
         } catch {}
         throw new Error("Not authorized: cannot post notices for a different firm.");
       }
       // Trust the authenticated firmId over the user-supplied one.
-      if (auth.firmId) authFirmId = auth.firmId;
+      if ((noticeCaller as any).firmId) authFirmId = (noticeCaller as any).firmId;
     }
     const now = Date.now();
     const noticeId = await ctx.db.insert("portal_notices", {
@@ -6096,8 +6353,14 @@ export const getActiveNotices = query({
     firmId: v.string(),
     propertyId: v.optional(v.string()),
     unitId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ── ROUND A (C2): unauthenticated firm notice read → portal auth +
+    //    firm binding (notices carry arrears/notice content for residents).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     const now = Date.now();
     const allNotices = await ctx.db
       .query("portal_notices")
@@ -6216,8 +6479,17 @@ export const resolvePortalUserByToken = query({
  * don't have one. Returns the existing or new token. Called on login/portal load.
  */
 export const ensurePortalAccessToken = mutation({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C3): this was an UNAUTHENTICATED user-record write —
+    //    anyone could mint/rotate a portal access token for any user by
+    //    email. Now: portal auth, and the token is only ever minted for
+    //    the CALLER's own account (args.email is rebound to the session
+    //    identity; a caller-supplied email for someone else is ignored).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    if (!portalCallerAliases(caller).has(String(args.email).toLowerCase())) {
+      args.email = String((caller as any).email || args.email);
+    }
     const email = args.email.toLowerCase().trim();
     const user = await ctx.db
       .query("users")
@@ -6251,8 +6523,14 @@ export const ensurePortalAccessToken = mutation({
  * If they don't have one, generates one. Used by the frontend to build URLs.
  */
 export const getPortalAccessToken = query({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ── ROUND A (C3 sibling): unauthenticated read of any user's portal
+    //    access token by email → portal auth + self-only.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    if (!portalCallerAliases(caller).has(String(args.email).toLowerCase())) {
+      args.email = String((caller as any).email || args.email);
+    }
     const email = args.email.toLowerCase().trim();
     const user = await ctx.db
       .query("users")
@@ -6626,7 +6904,7 @@ export const sendNoticeEmails = internalAction({
           ctaUrl: `https://practice-pro-vega.vercel.app/portal/tenant/login`,
         });
 
-        await ctx.runAction(api.communications.sendEmail, {
+        await ctx.runAction(internal.communications.sendEmailCore, {
           to: resident.email,
           toName: resident.name || "Resident",
           subject: `${priorityLabel ? `[${priorityLabel}] ` : ''}New Notice: ${args.noticeTitle}`,
@@ -6713,7 +6991,7 @@ export const sendNoticeEmailsForFirm = internalAction({
           ctaUrl: `https://practice-pro-vega.vercel.app/portal/tenant/login`,
         });
 
-        await ctx.runAction(api.communications.sendEmail, {
+        await ctx.runAction(internal.communications.sendEmailCore, {
           to: resident.email,
           toName: resident.name || "Resident",
           subject: `${priorityLabel ? `[${priorityLabel}] ` : ''}New Notice: ${args.noticeTitle}`,
@@ -6908,7 +7186,7 @@ export const sendAdminNotificationEmail = internalAction({
 </body>
 </html>`;
 
-      await ctx.runAction(api.communications.sendEmail, {
+      await ctx.runAction(internal.communications.sendEmailCore, {
         firmId: args.firmId,
         to: args.toEmail,
         toName: args.toName,

@@ -160,6 +160,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                 senderId: currentUser?.id || '',
                 senderName: currentUser?.name || 'Property Manager',
                 senderRole: 'admin',
+                sessionToken: bearerToken ?? undefined,
                 subject: `Receipt ${receiptNumber} — ${chargeTypeLabel} (${billingPeriod})`,
                 content: buildReceiptContent({
                     receiptNumber,
@@ -213,6 +214,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
                     const emailResult = await sendEmail({
                         to,
                         toName: tenantName,
+                        sessionToken: bearerToken ?? undefined,
                         subject: buildReceiptEmailSubject({ receiptNumber, chargeTypeLabel, billingPeriod: coverageNote || billingPeriod }),
                         htmlContent: buildReceiptEmailHtml({
                             firmName,

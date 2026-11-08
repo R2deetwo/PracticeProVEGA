@@ -23,6 +23,7 @@ export const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }>
       firmId,
       propertyId: tenantInfo?.primaryPropertyId || undefined,
       unitId: tenantInfo?.primaryUnitId || undefined,
+      sessionToken: bearerToken ?? undefined,
     } : 'skip'
   );
 

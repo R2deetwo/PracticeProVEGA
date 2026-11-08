@@ -175,6 +175,7 @@ export const useFinance = (appState: AppState, actions: any) => {
                 htmlContent: `<p>Dear ${clientName},</p><p>This is a friendly reminder that invoice <strong>${invoiceNumber}</strong> for <strong>₦${Number(amount || 0).toLocaleString('en-NG')}</strong> was due on ${dueDate}.</p><p>Please arrange payment at your earliest convenience. If you have already made payment, kindly disregard this notice.</p><p>Thank you for your business.</p>`,
                 firmId: currentUser?.firmId || '',
                 recordLog: true,
+                sessionToken: (bearerToken ?? undefined),
             });
             if (result?.success) {
                 addToast(`Payment reminder sent to ${clientName} (${clientEmail}).`, { type: 'success' });

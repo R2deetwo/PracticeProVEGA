@@ -461,7 +461,7 @@ describe('dispatch processor: no double-send, no zombie sends', () => {
         expect(portalsSrc).toContain('claimScheduledMessage = internalMutation');
         const runBlock = portalsSrc.slice(portalsSrc.indexOf('processScheduledMessages = internalAction'));
         expect(runBlock.indexOf('claimScheduledMessage')).toBeGreaterThan(-1);
-        expect(runBlock.indexOf('claimScheduledMessage')).toBeLessThan(runBlock.indexOf('api.communications.sendEmail'));
+        expect(runBlock.indexOf('claimScheduledMessage')).toBeLessThan(runBlock.indexOf('internal.communications.sendEmailCore')); // ROUND A (C6): trusted callers now use the internal core
     });
 
     it('reclaims stale "sending" rows at the start of every run', () => {

@@ -56,6 +56,7 @@ export const useCommunications = (actions: any) => {
                 result = await convex.action(api.communications.sendEmail, {
                     to: recipient,
                     toName: data.toName || undefined,
+                    sessionToken: (bearerToken ?? undefined),
                     senderName: firmName,
                     replyTo: currentUser?.email || undefined,
                     subject: data.subject,

@@ -582,7 +582,7 @@ export const sendReplyEmail = internalAction({
   },
   handler: async (ctx, args) => {
     try {
-      await ctx.runAction(api.communications.sendEmail, {
+      await ctx.runAction(internal.communications.sendEmailCore, {
         to: args.userEmail,
         subject: `PracticePro Team replied to your feedback`,
         htmlContent: `

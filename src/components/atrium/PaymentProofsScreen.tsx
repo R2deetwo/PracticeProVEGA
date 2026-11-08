@@ -22,7 +22,7 @@ import { PaymentProofsTab } from './PaymentProofsTab';
 import { Receipt as ReceiptIcon, Inbox as InboxIcon, Send as SendIcon } from 'lucide-react';
 
 export const PaymentProofsScreen: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const { navigateTo } = useUI() as any;
   const firmId = coreState.firmDetails?.id || currentUser?.firmId;
@@ -31,7 +31,7 @@ export const PaymentProofsScreen: React.FC = () => {
   // doesn't shout (carried over from the old AtriumInbox behaviour).
   const paymentProofs = useQuery(
     api.portals.getPaymentProofsByFirm,
-    firmId ? { firmId } : 'skip'
+    firmId ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip'
   );
   const pendingProofs = (paymentProofs || []).filter(
     (p: any) => !['approved', 'verified', 'rejected', 'declined'].includes(p.status)

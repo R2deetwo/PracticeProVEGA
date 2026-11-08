@@ -31,7 +31,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // Also fetch legacy inbound messages (WhatsApp/Email from PM)
   const inboundMessages = useQuery(
     api.portals.getInboundMessagesByTenant,
-    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+    resolvedTenantId ? { tenantId: resolvedTenantId, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   // Active conversation messages
@@ -113,7 +113,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // conversation id CHANGED, so fresh admin replies re-added unread counts).
   useEffect(() => {
     if (activeConversationId) {
-      markRead({ conversationId: activeConversationId }).catch(() => {});
+      markRead({ conversationId: activeConversationId, sessionToken: bearerToken ?? undefined }).catch(() => {});
     }
   }, [activeConversationId, conversationMessages?.length]);
 
@@ -135,10 +135,10 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
     // Fire-and-forget — non-blocking. markInboundMessagesReadByTenant takes
     // tenantId (Convex _id or email — mirrors getInboundMessagesByTenant's
     // lookup logic).
-    markInboundRead({ tenantId: resolvedTenantId }).catch(() => {});
+    markInboundRead({ tenantId: resolvedTenantId, sessionToken: bearerToken ?? undefined }).catch(() => {});
     // Also try by email — legacy data may be indexed by both tenantId and email.
     if (email && email !== resolvedTenantId) {
-      markInboundRead({ tenantId: email }).catch(() => {});
+      markInboundRead({ tenantId: email, sessionToken: bearerToken ?? undefined }).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inboundMessages]);
@@ -240,6 +240,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
         // THREADING FIX: Pass the active conversation ID so the message
         // continues in the same thread instead of creating a new one.
         conversationId: activeConversationId || undefined,
+        sessionToken: bearerToken ?? undefined,
       });
       setMessageContent('');
       setPendingFiles([]);

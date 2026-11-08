@@ -180,6 +180,7 @@ const AutomationCenter: React.FC = () => {
           templateVars: tplVars,
           templateLanguage: tpl.languages[0],
           firmId,
+          sessionToken: (bearerToken ?? undefined),
         });
         // MESSAGES FIX: an honest status — a simulated result means the
         // provider is not configured and NOTHING was delivered; "sent" is
@@ -237,6 +238,7 @@ const AutomationCenter: React.FC = () => {
             footerNote: 'This is an official rent reminder from your property manager.',
           }),
           firmId,
+          sessionToken: (bearerToken ?? undefined),
         });
         const status = result?.success && !result?.simulated ? 'sent' : result?.simulated ? 'simulated' : 'failed';
         if (status === 'sent') sent++; else failed++;

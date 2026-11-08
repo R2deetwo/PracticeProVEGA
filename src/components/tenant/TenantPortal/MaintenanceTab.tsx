@@ -38,7 +38,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
   // Fetch tickets from Convex
   const tickets = useQuery(
     api.portals.getMaintenanceTicketsByTenant,
-    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+    resolvedTenantId ? { tenantId: resolvedTenantId, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   // Mutation for creating a ticket
@@ -69,6 +69,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
           ticketId: ticketId as any,
           cancellationNote: cancelNote.trim(),
           cancelledBy: currentUser.id,
+          sessionToken: bearerToken ?? undefined,
         },
         label: `Cancel maintenance ticket`,
       });
@@ -83,6 +84,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
         ticketId: ticketId as any,
         cancellationNote: cancelNote.trim(),
         cancelledBy: currentUser.id,
+        sessionToken: bearerToken ?? undefined,
       });
       addToast('Ticket cancelled. Your property manager has been notified.', { type: 'success' });
       setCancellingTicketId(null);
@@ -208,6 +210,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
             requestTypeKey: selectedTypeKey,
             requestTypeLabel: typeLabel,
             attachments: undefined,
+            sessionToken: bearerToken ?? undefined,
           },
           label: `Maintenance ticket — ${subject.trim()}`,
         });
@@ -231,6 +234,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
         requestTypeKey: selectedTypeKey,
         requestTypeLabel: typeLabel,
         attachments: attachmentStorageIds.length > 0 ? attachmentStorageIds : undefined,
+        sessionToken: bearerToken ?? undefined,
       });
       addToast('Maintenance ticket submitted successfully. Your property manager has been notified.', { type: 'success' });
       setSubject('');

@@ -5,10 +5,12 @@ import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { MailIcon } from '../../constants';
 import { useProduct } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const SendPostActivationEmailModal: React.FC = () => {
   const { closeModal, modalContext, addToast } = useUI();
   const { coreState, isDataLoaded } = useCoreState();
+  const { bearerToken } = useAuth();
   const convex = useConvex();
   const { isProperty } = useProduct();
   const { email, name, content } = modalContext || {};
@@ -30,6 +32,7 @@ const SendPostActivationEmailModal: React.FC = () => {
         htmlContent: editableContent.replace(/\n/g, '<br/>'),
         firmId: coreState.firmDetails?.id || '',
         recordLog: true,
+        sessionToken: bearerToken ?? undefined,
       });
 
       if (result.success) {

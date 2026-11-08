@@ -39,7 +39,7 @@ import { DocumentsTab } from './DocumentsTab';
 import { HelpAndSupportTab } from './HelpAndSupportTab';
 
 const TenantPortal: React.FC = () => {
-  const { currentUser, isImpersonating, revertToOriginalUser, logout } = useAuth();
+  const { currentUser, bearerToken, isImpersonating, revertToOriginalUser, logout } = useAuth();
   const { addToast, theme, setTheme } = useUI();
   const { canUseTenantPortal } = useFeatures();
 
@@ -83,19 +83,19 @@ const TenantPortal: React.FC = () => {
 
   const tenantInfo = useQuery(
     api.portals.getTenantInfo,
-    effectiveFirmId && userId ? { firmId: effectiveFirmId, userId, email } : 'skip'
+    effectiveFirmId && userId ? { firmId: effectiveFirmId, userId, email, sessionToken: bearerToken ?? undefined } : 'skip'
   );
 
   // Fetch firm portal settings for messaging toggle
   const portalSettings = useQuery(
     api.portals.getFirmPortalSettings,
-    effectiveFirmId ? { firmId: effectiveFirmId } : 'skip'
+    effectiveFirmId ? { firmId: effectiveFirmId, sessionToken: bearerToken ?? undefined } : 'skip'
   );
 
 
   // ── Orchestrator hooks (bodies verbatim, see ./hooks.ts) ──
   // Wallet-funding redirect verification runs regardless of active tab.
-  useWalletFundingVerify({ userId, effectiveFirmId, tenantInfo, addToast });
+  useWalletFundingVerify({ userId, effectiveFirmId, tenantInfo, addToast, sessionToken: bearerToken ?? undefined });
   const { hasAttemptedRelink } = usePortalSelfHealing({
     email, effectiveFirmId, firmResolution, tenantInfo, repairFirmId, relinkToProperty,
   });

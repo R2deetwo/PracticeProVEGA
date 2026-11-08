@@ -28,6 +28,7 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
+import { assertSameFirm } from "./callerAuth";
 
 // ════════════════════════════════════════════════════════════════════════
 // ACCESS GATE — Estate Community is Pro+ included or ₦5,000/mo add-on.
@@ -168,8 +169,11 @@ export const createBooking = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    await requireEstateCommunityAccess(ctx, args.firmId);
-    const firmId = auth.firmId || args.firmId;
+    // ── ROUND A (C5): the access gate previously ran on the CALLER-SUPPLIED
+    //    firmId (bypassable by pointing at a Pro firm); now on the caller's
+    //    own firm, and the booking is created under the caller's firm only.
+    await requireEstateCommunityAccess(ctx, auth.firmId);
+    const firmId = auth.firmId;
 
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity || !amenity.isActive) throw new Error("Amenity not available");
@@ -269,15 +273,16 @@ export const cancelBooking = mutation({
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Booking not found");
+    // ── ROUND A (C5): the firm check previously only gated the ACCESS
+    //    TIER, and the fallback `requireAdmin` check verified the caller's
+    //    OWN role without ever comparing the booking's firm — so an Admin
+    //    of Firm A could cancel Firm B's bookings. Now the booking's firm
+    //    is bound to the caller's firm FIRST, unconditionally.
+    assertSameFirm(auth.user, booking.firmId);
     await requireEstateCommunityAccess(ctx, booking.firmId);
     // Resident can cancel their own; admin can cancel any in their firm
-    if (booking.residentUserId !== auth.userId && booking.firmId !== auth.firmId) {
-      // Check admin role for cross-resident cancels
-      try {
-        await requireAdmin(ctx, args.userEmail, args.sessionToken);
-      } catch {
-        throw new Error("Not authorized to cancel this booking");
-      }
+    if (booking.residentUserId !== auth.userId && auth.user?.role !== "Admin" && auth.user?.role !== "Founder") {
+      throw new Error("Not authorized to cancel this booking");
     }
     await ctx.db.patch(args.bookingId, { status: "cancelled", updatedAt: Date.now() });
   },
@@ -468,11 +473,16 @@ export const deleteServiceProvider = mutation({
 export const getAmenities = query({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), includeInactive: v.optional(v.boolean()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    await requireEstateCommunityAccess(ctx, args.firmId);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ── ROUND A (C5): cross-firm IDOR fix — the caller-supplied firmId was
+    //    previously passed straight to the query: an authenticated user of
+    //    Firm A could read Firm B's amenities/bookings/bulletins/providers.
+    //    Now every read is bound to the CALLER's own firm.
+    assertSameFirm(auth.user, args.firmId);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     let q = ctx.db
       .query("estate_amenities")
-      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId));
+      .withIndex("by_firm", (q) => q.eq("firmId", auth.firmId));
     const all = await q.collect();
     return args.includeInactive ? all : all.filter((a) => a.isActive);
   },
@@ -483,16 +493,22 @@ export const getBookingsForResident = query({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), residentUserId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    await requireEstateCommunityAccess(ctx, args.firmId);
+    // ── ROUND A (C5): firm binding (was missing — cross-firm resident
+    //    bookings were readable) + results filtered to the caller's firm.
+    assertSameFirm(auth.user, args.firmId);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     // Resident can only see their own bookings unless admin/founder
     const isAdmin = auth.user?.role === "Admin" || auth.user?.role === "Founder";
     const targetResidentId = (args.residentUserId === auth.userId) || isAdmin
       ? args.residentUserId
       : auth.userId;
-    return await ctx.db
+    const allBookings = await ctx.db
       .query("estate_amenity_bookings")
       .withIndex("by_resident", (q) => q.eq("residentUserId", targetResidentId))
       .collect();
+    // ROUND A (C5): even for an admin, only the caller's OWN firm's
+    // bookings are returned (the by_resident index is firm-agnostic).
+    return allBookings.filter((b: any) => b.firmId === auth.firmId);
   },
 });
 
@@ -501,10 +517,13 @@ export const getBookingsForFirm = query({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), status: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
-    await requireEstateCommunityAccess(ctx, auth.firmId || args.firmId);
+    // ── ROUND A (C5): firm binding — an Admin of Firm A could previously
+    //    list Firm B's entire booking queue by passing their firmId.
+    assertSameFirm(auth.user, args.firmId);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     let q = ctx.db
       .query("estate_amenity_bookings")
-      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId));
+      .withIndex("by_firm", (q) => q.eq("firmId", auth.firmId));
     const all = await q.collect();
     return args.status ? all.filter((b) => b.status === args.status) : all;
   },
@@ -514,11 +533,13 @@ export const getBookingsForFirm = query({
 export const getBulletins = query({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), propertyId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    await requireEstateCommunityAccess(ctx, args.firmId);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ── ROUND A (C5): firm binding (was cross-firm readable).
+    assertSameFirm(auth.user, args.firmId);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     const all = await ctx.db
       .query("estate_bulletins")
-      .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "active"))
+      .withIndex("by_firm_status", (q) => q.eq("firmId", auth.firmId).eq("status", "active"))
       .collect();
     // Filter by property scope — show estate-wide + scoped to this property
     if (!args.propertyId) return all;
@@ -533,11 +554,14 @@ export const getBulletins = query({
 export const getServiceProviders = query({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), category: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    await requireEstateCommunityAccess(ctx, args.firmId);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // ── ROUND A (C5): firm binding — the vendor directory (phone/email/
+    //    WhatsApp PII) was previously readable cross-firm.
+    assertSameFirm(auth.user, args.firmId);
+    await requireEstateCommunityAccess(ctx, auth.firmId);
     let q = ctx.db
       .query("estate_service_providers")
-      .withIndex("by_firm_active", (q) => q.eq("firmId", args.firmId).eq("isActive", true));
+      .withIndex("by_firm_active", (q) => q.eq("firmId", auth.firmId).eq("isActive", true));
     const all = await q.collect();
     if (args.category) {
       return all.filter((p) => p.category === args.category);
@@ -550,9 +574,12 @@ export const getServiceProviders = query({
 export const getServiceProvider = query({
   args: { sessionToken: v.optional(v.string()), providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const provider = await ctx.db.get(args.providerId);
     if (!provider || !provider.isActive) return null;
+    // ── ROUND A (C5): firm binding — any authenticated user of any firm
+    //    could previously read any provider's contact details.
+    assertSameFirm(auth.user, provider.firmId);
     await requireEstateCommunityAccess(ctx, provider.firmId);
     // Strip internal admin notes from resident view
     const { notes, ...publicFields } = provider as any;

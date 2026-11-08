@@ -5,6 +5,7 @@ import { handleChakraWebhook } from "./sentryWebhook";
 import { handlePaystackWebhookImpl } from "./paystack";
 import { decodeUnsubscribeToken } from "./emailBranding";
 import { verifyReplyToken } from "./pushReplyAuth";
+import { resolveUserBySessionToken } from "./sessions";
 
 const http = httpRouter();
 
@@ -59,9 +60,27 @@ http.route({
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization, x-session-token",
         },
       });
+    }
+    // ── ROUND A (H18): session auth on the AI proxy. ──────────────────
+    //    /ai/stream previously spent the platform Gemini key for
+    //    UNAUTHENTICATED callers from any origin. Every call now requires
+    //    a valid bearer session (Authorization: Bearer <token> or
+    //    x-session-token), resolved through the action-safe session
+    //    lookup. A client-supplied `apiKey` in the body still works, but
+    //    only for an authenticated caller.
+    const authHeader = request.headers.get("Authorization") || "";
+    const bearer = authHeader.toLowerCase().startsWith("bearer ")
+      ? authHeader.slice(7).trim()
+      : request.headers.get("x-session-token") || "";
+    const sessionUser = bearer ? await resolveUserBySessionToken(ctx, bearer) : null;
+    if (!sessionUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized. A valid session is required (Authorization: Bearer <token>)." }),
+        { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+      );
     }
     const { model, contents, systemInstruction, apiKey: providedApiKey } = await request.json();
     // CRO AUDIT FIX (Track D — D5): removed hard-coded fallback Gemini API key.
@@ -186,6 +205,10 @@ http.route({
     }
 
     // Auth check
+    // ── ROUND A (H18): the gate was INVERTED — when AGENT_INSPECT_SECRET
+    //    was unset the endpoint was fully OPEN (it only checked the key
+    //    when a secret existed). Mirrors the drill endpoint's pattern:
+    //    unset secret → 404 (never an open inspection surface).
     const secret = process.env.AGENT_INSPECT_SECRET;
     if (secret) {
       const providedKey = request.headers.get("x-agent-inspect-key");
@@ -195,6 +218,12 @@ http.route({
           headers: { "Content-Type": "application/json" },
         });
       }
+    } else {
+      // Never allow an unconfigured inspection endpoint.
+      return new Response(JSON.stringify({ error: "Inspect endpoint not configured" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const url = new URL(request.url);

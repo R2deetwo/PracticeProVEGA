@@ -225,6 +225,7 @@ export const DashboardTab: React.FC<{
                     propertyId,
                     amount,
                     email: email || '',
+                    sessionToken: bearerToken ?? undefined,
                   });
                   if (init?.authorizationUrl) {
                     addToast('Redirecting to the secure payment page…', { type: 'info' });

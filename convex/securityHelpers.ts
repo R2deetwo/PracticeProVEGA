@@ -27,6 +27,27 @@ import { requireFounder } from "./founderMetrics";
 const WINDOW_MS = 60 * 1000; // 1 minute
 
 /**
+ * ROUND A (C6/C8): atomic rate-limit consumption for ACTIONS.
+ *
+ * checkRateLimit above needs ctx.db, which actions don't have. This
+ * internal mutation runs the whole check-and-increment inside one
+ * serializable transaction, so public actions (communications senders,
+ * gatehouse verify) can consume a rate limit via
+ * `ctx.runMutation(internal.securityHelpers.consumeRateLimit, {...})`
+ * and get a plain boolean back.
+ */
+export const consumeRateLimit = internalMutation({
+  args: {
+    key: v.string(),
+    maxRequests: v.number(),
+    windowMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    return await checkRateLimit(ctx, args.key, args.maxRequests, args.windowMs ?? WINDOW_MS);
+  },
+});
+
+/**
  * Check if a request is within the rate limit.
  * Returns true if the request is ALLOWED, false if it should be throttled.
  * Uses a simple counter per key with a rolling window.

@@ -4417,7 +4417,7 @@ export const createTask = mutation({
               // `firmId`, causing the scheduled action to fail.
               if (email) {
                 try {
-                  await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+                  await ctx.scheduler.runAfter(0, internal.communications.sendEmailCore as any, {
                     to: email,
                     subject: `New Task Assigned: ${args.title}`,
                     htmlContent: `<!DOCTYPE html>
@@ -4473,7 +4473,7 @@ export const createTask = mutation({
               // Schedule WhatsApp dispatch (secondary, only if opted in)
               if (phone && whatsappOptIn) {
                 try {
-                  await ctx.scheduler.runAfter(0, api.communications.sendWhatsApp as any, {
+                  await ctx.scheduler.runAfter(0, internal.communications.sendWhatsAppCore as any, {
                     to: phone,
                     messageText: `New task assigned: "${args.title}"${args.dueDate ? ` — due ${new Date(args.dueDate).toLocaleDateString('en-GB')}` : ''}. Log in to your portal to view and complete it.`,
                     firmId,
@@ -7266,7 +7266,7 @@ async function sendTaskReminder(ctx: any, task: any, type: 'halfway' | 'final') 
             // scheduler rejected it at validation on every run (silently —
             // swallowed by the .catch) and external task reminder emails
             // NEVER went out.
-            await ctx.scheduler.runAfter(0, api.communications.sendEmail as any, {
+            await ctx.scheduler.runAfter(0, internal.communications.sendEmailCore as any, {
               to: email,
               subject: `${type === 'halfway' ? 'Task Reminder' : 'Final Reminder'}: ${task.title}`,
               htmlContent: `<p>Hi ${user.name || 'there'},</p><p>${messageText}</p><p>Please log in to your portal to complete this task.</p>`,
@@ -7276,7 +7276,7 @@ async function sendTaskReminder(ctx: any, task: any, type: 'halfway' | 'final') 
           const phone = user.phone || user.whatsappNumber;
           const whatsappOptIn = user.whatsappOptIn === true || user.notificationSettings?.whatsapp === true;
           if (phone && whatsappOptIn) {
-            await ctx.scheduler.runAfter(0, api.communications.sendWhatsApp as any, {
+            await ctx.scheduler.runAfter(0, internal.communications.sendWhatsAppCore as any, {
               to: phone,
               messageText: messageText,
               firmId: task.firmId,
@@ -7966,13 +7966,15 @@ export const approveSubscriptionRequest = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // NOTE: this is a FOUNDER-only action, not a firm-admin action.
-    // requireAdmin checks firm admin role; we additionally check founder below.
-    const { user } = await requireAdmin(ctx, args.userEmail, args.sessionToken);
-    // Allow either 'Founder' or 'Admin' for now — TODO: tighten to Founder only
-    // once all founders have the Founder role assigned.
-    if (user?.role !== 'Founder' && user?.role !== 'Admin') {
-      throw new Error("Only founder admins can approve subscription requests.");
+    // ROUND A (H15): FOUNDER-ONLY, unconditionally. The previous gate
+    // (requireAdmin + a role check that also accepted plain 'Admin') let
+    // firm Admins approve their own subscription upgrades — the TODO that
+    // admitted the intent is now closed. requireFirmUser blocks portal
+    // roles as usual; the explicit role check admits ONLY Founders (an
+    // Admin attempt throws).
+    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    if (String(user?.role || "") !== 'Founder') {
+      throw new Error("Only Founders can approve subscription requests.");
     }
 
     const request: any = await ctx.db.get(args.requestId as any);

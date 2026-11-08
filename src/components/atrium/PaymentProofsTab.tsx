@@ -11,6 +11,7 @@ import {
     CreditCard as CreditCardIcon,
 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { translateError } from '../../utils/errorTranslator';
 
 /**
@@ -94,9 +95,10 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
     properties,
 }) => {
     const { addToast } = useUI();
+    const { bearerToken } = useAuth();
     const proofs = useQuery(
         api.portals.getPaymentProofsByFirm,
-        firmId ? { firmId } : 'skip'
+        firmId ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip'
     ) as any[] | undefined;
 
     const updateStatus = useMutation(api.portals.updatePaymentProofStatus);
@@ -140,6 +142,7 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
                 status,
                 adminNote: adminNote?.trim() || undefined,
                 userEmail: userEmail || undefined,
+                sessionToken: bearerToken ?? undefined,
             });
             addToast(
                 status === 'approved'

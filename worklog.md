@@ -15464,3 +15464,96 @@ floating. No obvious defects" — and /vega still serves the video hero
 hairline at the far right — it sits inside the ticker's 64px edge
 fade (no text beneath), the same floating-chrome overlap it has over
 every section edge; left as-is.
+
+### R75 — ROUND A (Wave S1): security stop-the-bleed (2026-11-08)
+The first remediation round of the R75 audit register (ATRIUM_AUDIT_R75.md
+§12): every Critical (C1–C8) plus H15/H17/H18/H19 is closed SERVER-SIDE,
+each pinned by regression tests in both directions (unauthorized call →
+throw; legitimate authenticated workflow → succeeds).
+
+- C1 wallets: fundWallet is idempotent on paystackReference (new
+  wallet_transactions.by_paystack_reference index + check-then-insert in
+  Convex's serializable transaction); initiate/verifyWalletFunding now
+  require the portal bearer and bind the credit to the PAYSTACK METADATA
+  set at initiation (tenant/firm/property + amount cross-check) —
+  caller-supplied ids are ignored, replays no-op, only the wallet's own
+  owner can complete their funding.
+- C2 portals: the unauthenticated tenant-read layer is dead. getTenantInfo/
+  Ledger/ServiceCharges/Documents/LeaseDetails (session-derived tenant
+  identity + firm binding), InboundMessages/PaymentProofsByTenant/
+  MaintenanceTicketsByTenant (ownership binding), staff reads
+  (TicketsByFirm/ProofsByFirm/ScheduledMessages) and getActiveNotices/
+  getFirmPortalSettings/ensure+getPortalAccessToken all auth now.
+- C3 portals: forged tickets (createMaintenanceTicket/
+  createClientServiceRequest), forged cancels (cancelMaintenanceTicket/
+  cancelClientServiceRequest), message impersonation (sendPortalMessage
+  split-brain auth: staff session for admin-origin, portal session for
+  resident/client, senderId must be the caller's own alias),
+  sendAdminReply (adminId bound), mark-read family, and the previously
+  unauthenticated user-record write ensurePortalAccessToken.
+- C4 portals: the conditional-auth anti-pattern is gone —
+  updatePaymentProofStatus and updateMaintenanceTicketStatus (plus the
+  same-class siblings updateFirmPortalSettings and createNotice) now
+  authenticate UNCONDITIONALLY with firm binding; the PaymentProofsTab
+  approve flow passes the bearer, so the in-app approve/reject that
+  ALWAYS failed now works, while anonymous callers are rejected.
+- H19: submitPaymentProof derives the initial status server-side
+  (bank_transfer → pending_review, paystack → pending_verification);
+  the caller-supplied status string is never trusted.
+- C5 estateCommunity: assertSameFirm on every read (amenities, bookings
+  x2, bulletins, providers x2); cancelBooking binds the booking's firm
+  FIRST (an Admin of firm A can no longer cancel firm B's bookings);
+  createBooking gates on the caller's own firm.
+- C6 communications: sendEmail/sendWhatsApp split into internal cores
+  (sendEmailCore/sendWhatsAppCore) + auth-gated public wrappers
+  (resolveCaller + assertSameFirm + 30/min per-caller rate limit via the
+  new consumeRateLimit internal mutation). The open relay through the
+  platform Brevo/Chakra accounts is closed; every trusted server-side
+  caller (crons, schedulers, portal flows, retry dispatcher) was
+  re-pointed at the cores.
+- C7 sentryWebhook: real HMAC-SHA256 verification of the raw body
+  (Web Crypto, constant-time compare, sha256= prefix supported),
+  mirroring the Paystack webhook: unset secret → 503, missing header →
+  400, garbage signature → 401. Forged inbound WhatsApp is dead.
+- C8 visitorManagement: verifyToken throttled (30/min per property,
+  rate_limit_exceeded security event on the 31st) and its response
+  minimized (no visitorPhone, no address, no internal ids; failure
+  responses carry no PII); checkIn/checkOut now require POSSESSION OF
+  THE 6-DIGIT CODE (resolved by property+code, not enumerable tokenIds
+  leaked by the public board); getGatekeeperProperties drops street
+  addresses; getGatehouseLogs throttled (60/min).
+- H15 myFunctions: approveSubscriptionRequest is FOUNDER-ONLY (the
+  Admin-fallback TODO is closed; an Admin attempt throws).
+- H17 seedSentry: env-gated (ALLOW_DEMO_SEED, unset = refuses, even for
+  the founder) + ledger rows are VOIDED (recordStatus/voidedAt), never
+  hard-deleted; runs are recorded in securityEvents.
+- H18 http: /ai/stream requires a session bearer (Authorization: Bearer /
+  x-session-token, action-safe session lookup, 401 otherwise; the
+  frontend proxy fallback sends it from practicepro_session_bearer);
+  /api/agent/inspect's inverted gate fixed — unset secret → 404 like
+  the drill endpoint.
+
+Frontend bearer sweep: every affected call site now passes the bearer
+(resident portal orchestrator + all tabs, PaymentsTab proof submits
+(which were silently failing since R8 — now visible and working),
+MessagesView staff paths incl. the previously-broken ticket-status
+branch, PaymentProofsScreen/Tab, ClientDashboard, ComposeModal,
+AutomationCenter, ReceiptModal, ServiceChargeBars, ServiceChargeMonitor,
+useCommunications, useFinance, SendPostActivationEmailModal, AuthContext
++ both portal login components, geminiService /ai/stream fallback).
+
+Quality gates: app tsc 125 (baseline, ZERO new), vitest 1,495 passed
+(1,424 baseline + 71 new roundASecurity.test.ts), vite build green in
+25.2s, eslint 0 errors / 77 warnings (baseline). Two existing
+source-scan tests updated for the new internal-core call targets and a
+widened scan window (contracts unchanged). No Vega OS / Komplete module
+touched; the shared portal/comms surfaces they use gained auth with all
+call sites re-wired.
+
+OWNER ACTIONS from this round: (1) set CHAKRA_WEBHOOK_SECRET on
+production — inbound WhatsApp now fails CLOSED without it (same rule as
+the Paystack webhook); (2) leave ALLOW_DEMO_SEED unset everywhere except
+dev/demo deployments (never production); (3) /api/agent/inspect now
+404s while AGENT_INSPECT_SECRET is unset — set the secret if the
+inspection tool is still wanted; (4) CLOUDFLARE_API_TOKEN rotation
+(standing, unchanged).

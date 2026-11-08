@@ -31,6 +31,7 @@ import { v } from "convex/values";
 import { resolveCaller } from "./callerAuth";
 import { api, internal } from "./_generated/api";
 import { paddedDigitCode } from "./secureRandom";
+import { checkRateLimit } from "./securityHelpers";
 
 // ─── Token Code Generation ───────────────────────────────────────────────
 
@@ -309,7 +310,7 @@ export const sendVisitorWhatsApp = internalAction({
     );
 
     try {
-      const result = await ctx.runAction(api.communications.sendWhatsApp, {
+      const result = await ctx.runAction(internal.communications.sendWhatsAppCore, {
         to: args.visitorPhone,
         messageText,
         firmId: args.firmId,
@@ -359,6 +360,25 @@ export const verifyToken = query({
   handler: async (ctx, args) => {
     const now = Date.now();
 
+    // ── ROUND A (C8): brute-force throttle + PII minimization. ─────────
+    //    verifyToken previously returned visitor phone + resident name +
+    //    estate address for a 6-digit code with NO rate limit — a scripted
+    //    sweep over the 10^6 code space (propertyId is public in the
+    //    gatehouse URL) harvested visitor/resident PII. Now: 30 verifies
+    //    per minute per property (checkRateLimit logs a rate_limit_exceeded
+    //    security event on the 31st), and the response carries ONLY what
+    //    the gate display and the check-in flow actually need — fields
+    //    already printed on the visitor's own Sentry Pass message. No
+    //    phone numbers, no street addresses, no internal Convex ids.
+    const allowed = await checkRateLimit(ctx, `vms-verify:${args.propertyId}`, 30, 60_000);
+    if (!allowed) {
+      return {
+        valid: false,
+        reason: "rate_limited",
+        message: "Too many verification attempts. Please wait a moment and try again.",
+      };
+    }
+
     // Find token by code + property
     const token: any = await ctx.db
       .query("visitor_tokens")
@@ -375,11 +395,12 @@ export const verifyToken = query({
 
     // Check if revoked
     if (token.status === "revoked") {
+      // ROUND A (C8): failure responses no longer echo the visitor's name —
+      // an invalid probe learns nothing beyond the code's status.
       return {
         valid: false,
         reason: "revoked",
         message: "This code has been revoked by the resident.",
-        visitorName: token.visitorName,
       };
     }
 
@@ -388,9 +409,7 @@ export const verifyToken = query({
       return {
         valid: false,
         reason: "already_inside",
-        message: `${token.visitorName} is already checked in.`,
-        visitorName: token.visitorName,
-        checkedInAt: token.checkedInAt,
+        message: "This visitor is already checked in.",
       };
     }
 
@@ -400,7 +419,6 @@ export const verifyToken = query({
         valid: false,
         reason: "used",
         message: "This code has already been used.",
-        visitorName: token.visitorName,
       };
     }
 
@@ -415,7 +433,6 @@ export const verifyToken = query({
         valid: false,
         reason: "not_yet_valid",
         message: `This code is valid from ${new Date(validFrom).toLocaleString("en-GB")}.`,
-        visitorName: token.visitorName,
         validFrom,
       };
     }
@@ -425,19 +442,18 @@ export const verifyToken = query({
         valid: false,
         reason: "expired",
         message: "This code has expired.",
-        visitorName: token.visitorName,
         expiredAt: token.expiresAt,
       };
     }
 
-    // Valid!
+    // Valid! Minimal projection — these fields are all already printed on
+    // the visitor's own Sentry Pass message (buildVisitorMessage); nothing
+    // beyond them is exposed. visitorPhone / address / internal ids are
+    // deliberately absent (ROUND A C8).
     return {
       valid: true,
-      tokenId: token._id,
       visitorName: token.visitorName,
-      visitorPhone: token.visitorPhone,
       estateName: token.propertyName,
-      address: token.propertyAddress,
       unitName: token.unitName,
       residentName: token.residentName,
       expiresAt: token.expiresAt,
@@ -451,20 +467,34 @@ export const verifyToken = query({
 
 export const checkInVisitor = mutation({
   args: {
-    tokenId: v.id("visitor_tokens"),
+    tokenCode: v.string(),
+    propertyId: v.string(),
     gatekeeperId: v.optional(v.string()),
     gatekeeperName: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const token: any = await ctx.db.get(args.tokenId);
-    if (!token) throw new Error("Token not found");
+    // ── ROUND A (C8): check-in now requires POSSESSION OF THE 6-DIGIT
+    //    CODE. It previously took a bare tokenId — an enumerable Convex id
+    //    leaked by the public getGatehouseLogs board — so anyone could
+    //    check any visitor in/out of any estate. The token row is now
+    //    resolved by (propertyId, tokenCode) exactly like verifyToken, and
+    //    the same per-property throttle applies.
+    const allowed = await checkRateLimit(ctx, `vms-checkin:${args.propertyId}`, 30, 60_000);
+    if (!allowed) {
+      throw new Error("Too many check-in attempts. Please wait a moment and try again.");
+    }
+    const token: any = await ctx.db
+      .query("visitor_tokens")
+      .withIndex("by_property_code", (q: any) => q.eq("propertyId", args.propertyId).eq("tokenCode", args.tokenCode))
+      .first();
+    if (!token) throw new Error("Code not recognized for this estate — cannot check in");
     if (token.status !== "active") throw new Error(`Token is ${token.status}, cannot check in`);
 
     const now = Date.now();
-    await ctx.db.patch(args.tokenId, {
+    await ctx.db.patch(token._id, {
       status: "used",
       checkedInAt: now,
-      checkedInBy: args.gatekeeperName || args.gatekeeperId || "Gatekeeper",
+      checkedInBy: args.gatekeeperName || args.gatekeeperId || "Gatekeeper device",
       updatedAt: now,
     });
 
@@ -476,15 +506,26 @@ export const checkInVisitor = mutation({
 
 export const checkOutVisitor = mutation({
   args: {
-    tokenId: v.id("visitor_tokens"),
+    tokenCode: v.string(),
+    propertyId: v.string(),
   },
   handler: async (ctx, args) => {
-    const token: any = await ctx.db.get(args.tokenId);
-    if (!token) throw new Error("Token not found");
+    // ── ROUND A (C8): same code-possession requirement as checkInVisitor
+    //    (was a bare tokenId — anyone could check visitors out of any
+    //    estate by id). Plus the per-property throttle.
+    const allowed = await checkRateLimit(ctx, `vms-checkout:${args.propertyId}`, 30, 60_000);
+    if (!allowed) {
+      throw new Error("Too many check-out attempts. Please wait a moment and try again.");
+    }
+    const token: any = await ctx.db
+      .query("visitor_tokens")
+      .withIndex("by_property_code", (q: any) => q.eq("propertyId", args.propertyId).eq("tokenCode", args.tokenCode))
+      .first();
+    if (!token) throw new Error("Code not recognized for this estate — cannot check out");
     if (!token.checkedInAt) throw new Error("Visitor has not checked in");
 
     const now = Date.now();
-    await ctx.db.patch(args.tokenId, {
+    await ctx.db.patch(token._id, {
       checkedOutAt: now,
       updatedAt: now,
     });
@@ -603,6 +644,12 @@ export const getGatehouseLogs = query({
     date: v.optional(v.string()), // YYYY-MM-DD, defaults to today
   },
   handler: async (ctx, args) => {
+    // ── ROUND A (C8): same minimal projection as before (this board is
+    //    public-by-design for the gatehouse tablet), now throttled.
+    const allowed = await checkRateLimit(ctx, `vms-logs:${args.propertyId}`, 60, 60_000);
+    if (!allowed) {
+      throw new Error("Too many requests. Please wait a moment and try again.");
+    }
     const targetDate = args.date || new Date().toISOString().split("T")[0];
     const dayStart = new Date(targetDate + "T00:00:00").getTime();
     const dayEnd = dayStart + 24 * 60 * 60 * 1000;
@@ -641,6 +688,14 @@ export const getGatehouseLogs = query({
 export const getGatekeeperProperties = query({
   args: { firmId: v.string() },
   handler: async (ctx, args) => {
+    // ── ROUND A (C8): this was a fully public directory of firm property
+    //    names + addresses. The estate picker only needs names; the
+    //    address is dropped from the response and the listing is throttled
+    //    (30/min per firm) to stop scripted enumeration.
+    const allowed = await checkRateLimit(ctx, `vms-properties:${args.firmId}`, 30, 60_000);
+    if (!allowed) {
+      throw new Error("Too many requests. Please wait a moment and try again.");
+    }
     const properties = await ctx.db
       .query("properties")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
@@ -649,7 +704,6 @@ export const getGatekeeperProperties = query({
     return properties.map((p: any) => ({
       id: p._id,
       name: p.name,
-      address: p.address,
     }));
   },
 });

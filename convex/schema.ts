@@ -2803,7 +2803,17 @@ export default defineSchema({
     .index("by_tenant", ["tenantId"])
     .index("by_firm", ["firmId"])
     .index("by_type", ["type"])
-    .index("by_timestamp", ["timestamp"]),
+    .index("by_timestamp", ["timestamp"])
+    // ROUND A (C1): dedup lookup index for Paystack funding credits. The
+    // wallet top-up path previously had NO index on paystackReference —
+    // fundWallet could not check "was this reference already credited?" and
+    // a replayed reference re-credited the wallet on every call. Convex
+    // transactions are serializable, so the check-then-insert dedup in
+    // fundWallet (guarded by this index) is atomic: concurrent replays of
+    // the same reference serialize, the second sees the first's row and
+    // no-ops. Documents without paystackReference (auto-deduct rows,
+    // manual top-ups) are excluded from the index.
+    .index("by_paystack_reference", ["paystackReference"]),
 
   // ═══════════════════════════════════════════════════════════════════════
   // ESTATE COMMUNITY FEATURES — admin-controllable, resident-facing

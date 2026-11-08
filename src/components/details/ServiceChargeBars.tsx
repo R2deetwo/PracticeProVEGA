@@ -871,6 +871,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                 senderId: currentUser?.id || '',
                 senderName: currentUser?.name || 'Property Manager',
                 senderRole: 'admin',
+                sessionToken: bearerToken ?? undefined,
                 subject: `Receipt ${receiptNumber} — ${chargeTypeLabel} (${billingPeriod})`,
                 content: buildReceiptContent({
                     receiptNumber,
@@ -942,6 +943,7 @@ export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
                 const emailResult = await sendEmail({
                     to: tenantEmail,
                     toName: tenantName,
+                    sessionToken: bearerToken ?? undefined,
                     subject: buildReceiptEmailSubject({ receiptNumber, chargeTypeLabel, billingPeriod }),
                     htmlContent: buildReceiptEmailHtml({
                         firmName: coreState?.firmDetails?.name || 'PracticePro',

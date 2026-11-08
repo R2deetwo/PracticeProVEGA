@@ -85,7 +85,7 @@ describe('chat sender identity (source-scanned contract)', () => {
         const portals = read(PORTALS);
         const idx = portals.indexOf('export const sendPortalMessage');
         expect(idx).toBeGreaterThan(-1);
-        const body = portals.slice(idx, idx + 5000);
+        const body = portals.slice(idx, idx + 8000); // ROUND A: widened — the sendPortalMessage auth block sits above the name-guard
         expect(body).toContain('typeof effectiveParticipantName === "string" && effectiveParticipantName.trim()');
         expect(body).toContain('typeof effectiveParticipantEmail === "string" && effectiveParticipantEmail.trim()');
     });

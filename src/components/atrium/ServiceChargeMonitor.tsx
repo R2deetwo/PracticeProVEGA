@@ -710,6 +710,7 @@ const ServiceChargeMonitor: React.FC<{
         to: phone,
         messageText: preview,
         firmId,
+        sessionToken: (bearerToken ?? undefined),
       });
       await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'access_restriction', channel: 'whatsapp', recipient: phone, messagePreview: preview, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
       showToast(result?.simulated ? 'Logged (WhatsApp not configured for this firm yet)' : result?.success ? 'Access restriction notice sent via WhatsApp' : `Send failed: ${result?.error || 'provider error'}`);
@@ -755,6 +756,7 @@ const ServiceChargeMonitor: React.FC<{
         to: phone,
         messageText,
         firmId,
+        sessionToken: (bearerToken ?? undefined),
       });
       await logAuto({ firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), unitId: charge.unitId, tenantId: charge.tenantId, messageType: 'service_charge_alert', channel: 'whatsapp', recipient: phone, messagePreview: messageText, status: result?.simulated ? 'simulated' : (result?.success ? 'sent' : 'failed'), triggeredBy: currentUser?.id });
       showToast(result?.simulated ? 'Logged (WhatsApp not configured for this firm yet)' : result?.success ? 'WhatsApp reminder sent' : `Send failed: ${result?.error || 'provider error'}`);

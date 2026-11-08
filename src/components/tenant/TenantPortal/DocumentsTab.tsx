@@ -22,7 +22,7 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
   // Fetch lease details
   const leaseDetails = useQuery(
     api.portals.getTenantLeaseDetails,
-    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   // Fetch consent records
@@ -34,13 +34,13 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
   // Fetch documents shared with the tenant
   const tenantDocs = useQuery(
     api.portals.getTenantDocuments,
-    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   // Fetch payment proofs (they are also documents)
   const paymentProofs = useQuery(
     api.portals.getPaymentProofsByTenant,
-    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+    resolvedTenantId ? { tenantId: resolvedTenantId, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   // View document content in a new window

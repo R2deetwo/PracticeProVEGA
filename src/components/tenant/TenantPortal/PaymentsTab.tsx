@@ -116,7 +116,8 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
           storageIds: [],
           paymentMethod: 'paystack',
           paystackReference: response.reference,
-          status: 'pending_review',
+          // ROUND A (H19): status is server-derived now — never caller-supplied.
+          sessionToken: bearerToken ?? undefined,
         }).then(() => {
           addToast('Payment record sent to your property manager for confirmation.', { type: 'info', duration: 5000 });
         }).catch((e: any) => {
@@ -138,7 +139,7 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // Fetch existing payment proofs
   const paymentProofs = useQuery(
     api.portals.getPaymentProofsByTenant,
-    resolvedTenantId ? { tenantId: resolvedTenantId } : 'skip'
+    resolvedTenantId ? { tenantId: resolvedTenantId, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,7 +214,8 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
         description: description.trim() || undefined,
         storageIds,
         paymentMethod: 'bank_transfer',
-        status: 'pending_review',
+        // ROUND A (H19): status is server-derived now — never caller-supplied.
+        sessionToken: bearerToken ?? undefined,
       });
 
       addToast('Payment proof submitted successfully. Your property manager will review it and issue an official receipt.', { type: 'success' });

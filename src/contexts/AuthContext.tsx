@@ -593,7 +593,7 @@ export const AuthProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         if ((currentUser as any).portalAccessToken) return; // Already has token
 
         // Use the Convex client directly to call the mutation (can't use hooks here)
-        convex.mutation(api.portals.ensurePortalAccessToken, { email: currentUser.email || '' })
+        convex.mutation(api.portals.ensurePortalAccessToken, { email: currentUser.email || '', sessionToken: bearerToken ?? undefined })
             .then((token: string | null) => {
                 if (token) {
                     // Update the local user object with the new token

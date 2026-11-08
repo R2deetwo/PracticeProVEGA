@@ -34,7 +34,7 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
 
   const ledgerEntries = useQuery(
     api.portals.getTenantLedger,
-    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   // Fetch service charges from Convex to compute current SC/MV.
@@ -43,7 +43,7 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
   // tenant's charges into the tenant portal before client-side filtering.
   const serviceCharges = useQuery(
     api.portals.getTenantServiceCharges,
-    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   const isLoading = ledgerEntries === undefined || serviceCharges === undefined;

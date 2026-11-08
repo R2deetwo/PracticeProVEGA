@@ -6,6 +6,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useAction } from 'convex/react';
 import { api } from '../../../../convex/_generated/api';
+import { useAuth } from '../../../contexts/AuthContext';
+
+// ROUND A (C1/C2/C3): the portal endpoints these hooks call now require the
+// caller's bearer session server-side. Each hook pulls the bearer from
+// AuthContext and passes it as `sessionToken` — the caller-supplied identity
+// fields (tenantId/userId/email) remain for legacy data resolution but are
+// only honored when they match the session's own alias keys.
 
 /** Portal theme isolation: portal users only ever see standard light/dark.
  *  Separate localStorage key so the portal preference is independent of admin. */
@@ -56,6 +63,7 @@ export function useSentryPassRequest(opts: {
 }) {
   const { tenantInfo, currentUser, effectiveFirmId, userId, addToast } = opts;
   const [isRequestingVms, setIsRequestingVms] = useState(false);
+  const { bearerToken } = useAuth();
 
   const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
   // Sentry Pass Request Handler — sends an automated message to the property manager
@@ -79,6 +87,7 @@ export function useSentryPassRequest(opts: {
         content: `Hello,\n\nI would like to request that the Sentry Pass be enabled for ${unitLabel}. This will allow me to generate 6-digit access codes for my visitors, contractors, and delivery personnel.\n\nPlease enable this feature in Portal Access Settings at your earliest convenience.\n\nThank you,\n${residentName}${unitName ? ` (Unit ${unitName})` : ''}`,
         propertyId: tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || undefined,
         unitId: tenantInfo?.primaryUnitId || tenantInfo?.units?.[0]?.id || undefined,
+        sessionToken: bearerToken ?? undefined,
       });
       addToast('Request sent to your property manager. They will enable Sentry Pass from Portal Access Settings.', { type: 'success' });
     } catch (e: any) {
@@ -97,12 +106,15 @@ export function useSentryPassRequest(opts: {
 export function useWalletFundingVerify(opts: {
   userId: string; effectiveFirmId: string; tenantInfo: any;
   addToast: (msg: React.ReactNode, opts?: any) => void;
+  sessionToken?: string;
 }) {
   const { userId, effectiveFirmId, tenantInfo, addToast } = opts;
   // Check for Paystack redirect after wallet funding (?wallet_funded=REF).
   // FIX: previously the reference was read and DISCARDED — no verification,
   // no credit. Now we call wallets.verifyWalletFunding (server-side Paystack
   // verify) so the balance actually updates and the resident gets feedback.
+  // ROUND A (C1): the call now carries the portal bearer; the server binds
+  // the credit to the PAYSTACK METADATA and dedups the reference.
   const verifyWalletFundingAction = useAction(api.wallets.verifyWalletFunding);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -117,6 +129,7 @@ export function useWalletFundingVerify(opts: {
             tenantId: userId,
             firmId: effectiveFirmId,
             propertyId,
+            sessionToken: opts.sessionToken ?? undefined,
           });
           if (result?.success) {
             addToast(`Wallet funded successfully${result.newBalance !== undefined ? ` — new balance: ₦${Number(result.newBalance).toLocaleString('en-NG')}` : ''}.`, { type: 'success' });
@@ -200,6 +213,7 @@ export function usePortalSelfHealing(opts: {
 /** Badge counts for the tab bar (messages, notices, open maintenance). */
 export function usePortalBadges(opts: { userId: string; effectiveFirmId: string; tenantInfo: any }) {
   const { userId, effectiveFirmId, tenantInfo } = opts;
+  const { bearerToken } = useAuth();
 
   // ── Unread message count for Messages tab badge ──
   const portalConversations = useQuery(
@@ -208,7 +222,7 @@ export function usePortalBadges(opts: { userId: string; effectiveFirmId: string;
   );
   const unresolvedInboundMsgs = useQuery(
     api.portals.getInboundMessagesByTenant,
-    tenantInfo?.tenantId || userId ? { tenantId: tenantInfo?.tenantId || userId } : 'skip'
+    tenantInfo?.tenantId || userId ? { tenantId: tenantInfo?.tenantId || userId, sessionToken: bearerToken ?? undefined } : 'skip'
   );
   const unreadMessageCount = useMemo(() => {
     let count = 0;
@@ -232,6 +246,7 @@ export function usePortalBadges(opts: { userId: string; effectiveFirmId: string;
       firmId: effectiveFirmId,
       propertyId: tenantInfo?.primaryPropertyId || undefined,
       unitId: tenantInfo?.primaryUnitId || undefined,
+      sessionToken: bearerToken ?? undefined,
     } : 'skip'
   );
   const unreadNoticesCount = useMemo(() => {
@@ -245,6 +260,7 @@ export function usePortalBadges(opts: { userId: string; effectiveFirmId: string;
     api.portals.getMaintenanceTicketsByTenant,
     (tenantInfo?.tenantId || userId) ? {
       tenantId: tenantInfo?.tenantId || userId,
+      sessionToken: bearerToken ?? undefined,
     } : 'skip'
   );
   const openMaintenanceCount = useMemo(() => {

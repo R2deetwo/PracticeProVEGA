@@ -874,6 +874,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 senderId: currentUser?.id || '',
                 senderName: currentUser?.name || 'Property Manager',
                 senderRole: 'admin',
+                sessionToken: bearerToken ?? undefined,
                 subject: getMsgTypeLabel(msgType),
                 content: personalizedMessage,
                 propertyId: r.propertyId || undefined,
@@ -895,6 +896,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 to: finalRecipient,
                 messageText: personalizedMessage,
                 firmId,
+                sessionToken: bearerToken ?? undefined,
                 ...(fallbackArgs.fallback ? { fallback: fallbackArgs.fallback } : {}),
               }),
               {
@@ -907,6 +909,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
             sendResult = await convex.action(api.communications.sendEmail, {
               to: finalRecipient,
               toName: name,
+              sessionToken: bearerToken ?? undefined,
               senderName: firmName,
               replyTo: currentUser?.email || undefined,
               subject: `${getMsgTypeLabel(msgType)} — ${firmName}`,

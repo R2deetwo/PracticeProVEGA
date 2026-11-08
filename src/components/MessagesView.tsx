@@ -168,6 +168,9 @@ const InlineTicketReply: React.FC<{
     sendAdminReply: any;
     addToast: (msg: string, opts?: any) => void;
 }> = ({ ticketId, conversationId, firmId, adminId, adminName, onSent, onCancel, sendAdminReply, addToast }) => {
+    // ROUND A (C3): the reply carries the staff bearer (server-side
+    // admin-identity binding on sendAdminReply).
+    const { bearerToken } = useAuth();
     const [text, setText] = useState('');
     const [sending, setSending] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -192,6 +195,7 @@ const InlineTicketReply: React.FC<{
                 adminName,
                 content: text.trim(),
                 threadTicketId: ticketId,
+                sessionToken: bearerToken ?? undefined,
             });
             addToast('Reply sent to portal user.', { type: 'success' });
             setText('');
@@ -770,7 +774,7 @@ const MessagesView: React.FC = () => {
     const activeNoticesCount = useMemo(() => (allNotices as any[]).filter((n: any) => n.status === 'active').length, [allNotices]);
 
     // ── Scheduled — count for tab badge (content rendered by ScheduledTab) ──
-    const scheduledMessagesCount = useQuery(api.portals.getScheduledMessagesByFirm, firmId && !mvIsDemo ? { firmId } : 'skip') || [];
+    const scheduledMessagesCount = useQuery(api.portals.getScheduledMessagesByFirm, firmId && !mvIsDemo ? { firmId, sessionToken: (bearerToken ?? undefined), } : 'skip') || [];
     const pendingScheduled = useMemo(() => (scheduledMessagesCount as any[]).filter((m: any) => m.status === 'scheduled').length, [scheduledMessagesCount]);
     // Failed sends badge on the Outbox tab — draws attention to delivery
     // problems the moment they exist (was invisible before this round).
@@ -888,7 +892,7 @@ const MessagesView: React.FC = () => {
                         ? api.portals.getTicketById
                         : api.portals.getServiceRequestById;
                     const argKey = t.kind === 'maintenance' ? 'ticketId' : 'requestId';
-                    const rec = await convex.query(queryFn, { [argKey]: t.id } as any);
+                    const rec = await convex.query(queryFn, { [argKey]: t.id, sessionToken: (bearerToken ?? undefined), } as any);
                     records[t.id] = rec;
                 } catch {
                     records[t.id] = null;
@@ -931,6 +935,7 @@ const MessagesView: React.FC = () => {
                     ticketId: ticketInfo.id as any,
                     status: newStatus,
                     resolution,
+                    userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
                 });
             } else {
                 await updateRequestStatus({
@@ -1714,7 +1719,7 @@ const MessagesView: React.FC = () => {
                                                         onClick={() => {
                                                             setSelectedInboxId(convId);
                                                             setSelectedSection('client_tenant');
-                                                            if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
+                                                            if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId, sessionToken: (bearerToken ?? undefined), });
                                                             // BADGE FIX: clear notifications linked to this thread
                                                             markConversationNotifsRead({
                                                                 conversationId: convId,
@@ -1811,7 +1816,7 @@ const MessagesView: React.FC = () => {
                                                         onClick={() => {
                                                             setSelectedInboxId(convId);
                                                             setSelectedSection('client_tenant');
-                                                            if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId });
+                                                            if ((conv.unreadByAdmin || 0) > 0) markConvReadByAdmin({ conversationId: convId, sessionToken: (bearerToken ?? undefined), });
                                                             // BADGE FIX: clear notifications linked to this thread
                                                             markConversationNotifsRead({
                                                                 conversationId: convId,

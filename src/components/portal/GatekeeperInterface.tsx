@@ -171,10 +171,11 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
 
     // ─── Approve entry (check in) ───────────────────────────────────────
     const handleApproveEntry = async () => {
-        if (!verification?.tokenId) return;
+        if (!verification || !codeInput || codeInput.length !== 6 || !selectedPropertyId) return; // ROUND A (C8): check-in carries the typed code (possession proof)
         try {
             await checkIn({
-                tokenId: verification.tokenId as any,
+                tokenCode: codeInput,
+                propertyId: selectedPropertyId,
                 gatekeeperName: 'Gatekeeper',
             });
             setVerification({ ...verification, valid: false, reason: 'checked_in', message: `${verification.visitorName} checked in successfully.` });
@@ -186,9 +187,10 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
     };
 
     // ─── Check out ──────────────────────────────────────────────────────
-    const handleCheckOut = async (tokenId: string) => {
+    const handleCheckOut = async (tokenCode: string) => { // ROUND A (C8): code + property, not a bare tokenId
+        if (!tokenCode || !selectedPropertyId) return;
         try {
-            await checkOut({ tokenId: tokenId as any });
+            await checkOut({ tokenCode, propertyId: selectedPropertyId });
         } catch (err: any) {
             console.error('Checkout failed:', err);
         }
@@ -397,7 +399,7 @@ export const GatekeeperInterface: React.FC<{ firmId: string; onBack?: () => void
                                         </span>
                                         {log.status === 'used' && log.checkedInAt && !log.checkedOutAt && (
                                             <button
-                                                onClick={() => handleCheckOut(log._id)}
+                                                onClick={() => handleCheckOut(log.tokenCode)}
                                                 className="text-3xs px-2 py-0.5 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-full font-bold hover:bg-slate-200 dark:hover:bg-zinc-600"
                                             >
                                                 Check Out

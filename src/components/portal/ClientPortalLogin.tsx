@@ -133,7 +133,14 @@ const ClientPortalLogin: React.FC = () => {
                 localStorage.setItem('practicepro_portal_type', 'client');
                 // Try to get the portal access token for a token-based URL
                 try {
-                    const token = await ensureToken({ email: email.trim().toLowerCase() });
+                    const token = await ensureToken({
+                        email: email.trim().toLowerCase(),
+                        // ROUND A (C3): the access-token mint now requires the
+                        // caller's own portal session — read the bearer the
+                        // login gateway just persisted (AuthContext.login
+                        // writes it synchronously before this runs).
+                        sessionToken: (sessionStorage.getItem('practicepro_session_bearer') || localStorage.getItem('practicepro_session_bearer')) ?? undefined,
+                    });
                     if (token) {
                         navigate(`/portal/client/${token}`, { replace: true });
                     } else {

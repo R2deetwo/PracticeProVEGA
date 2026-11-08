@@ -148,7 +148,7 @@ const FilterSvgIcon: React.FC<{ className?: string }> = ({ className }) => (
 // ─── Main Component ─────────────────────────────────────────────────────
 const ClientDashboard: React.FC = () => {
     // ── ALL HOOKS CALLED FIRST (before any conditional returns) ──────────
-    const { currentUser, isImpersonating, revertToOriginalUser, logout } = useAuth();
+    const { currentUser, bearerToken, isImpersonating, revertToOriginalUser, logout } = useAuth();
     const { coreState } = useCoreState();
     const { navigateTo, openModal, addToast, theme, setTheme } = useUI();
     const { canUseClientPortal } = useFeatures();
@@ -290,7 +290,7 @@ const ClientDashboard: React.FC = () => {
 
     // Convex queries — always called, use "skip" when args not ready
     const portalQueryArgs = (clientContactId && effectiveFirmId)
-        ? { firmId: effectiveFirmId, contactId: clientContactId }
+        ? { firmId: effectiveFirmId, contactId: clientContactId, sessionToken: bearerToken ?? undefined }
         : 'skip';
 
     const clientDocs = useQuery(api.portals.getClientDocuments, portalQueryArgs);
@@ -341,7 +341,7 @@ const ClientDashboard: React.FC = () => {
     // Mark the open conversation as read (best-effort; matches the admin side).
     useEffect(() => {
         if (activeConversationId) {
-            markRead({ conversationId: activeConversationId }).catch(() => { /* non-blocking */ });
+            markRead({ conversationId: activeConversationId, sessionToken: bearerToken ?? undefined }).catch(() => { /* non-blocking */ });
         }
     }, [activeConversationId, conversationMessages, markRead]);
     const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
@@ -562,6 +562,7 @@ const ClientDashboard: React.FC = () => {
                 attachmentNames: fileNames.length > 0 ? fileNames : undefined,
                 // THREADING FIX: Pass the active conversation ID to continue in same thread
                 conversationId: activeConversationId || undefined,
+                sessionToken: bearerToken ?? undefined,
             });
             setMessageText('');
             setPendingFiles([]);
@@ -1498,6 +1499,7 @@ const ClientDashboard: React.FC = () => {
                 senderRole: 'Client',
                 subject: `Payment Notification: ${invoiceLabel}`,
                 content: `I have made payment of ${formatNairaStatic(amount)} for invoice "${invoiceLabel}". Please confirm receipt and update the invoice status.\n\nInvoice details:\n- Amount: ${formatNairaStatic(amount)}\n- Due date: ${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}\n- Status: ${inv.status}\n\nThank you.`,
+                sessionToken: bearerToken ?? undefined,
             });
             addToast('Payment notification sent. Your legal team will confirm receipt shortly.', { type: 'success' });
             setExpandedInvoiceId(null);
@@ -1522,6 +1524,7 @@ const ClientDashboard: React.FC = () => {
                 requestId: requestId as any,
                 cancellationNote: cancelNote.trim(),
                 cancelledBy: currentUser.id,
+                sessionToken: bearerToken ?? undefined,
             });
             addToast('Request cancelled. Your legal team has been notified.', { type: 'success' });
             setCancellingRequestId(null);
@@ -1584,6 +1587,7 @@ const ClientDashboard: React.FC = () => {
                 description: requestDescription.trim(),
                 attachments: attachmentStorageIds.length > 0 ? attachmentStorageIds : undefined,
                 attachmentNames: attachmentNames.length > 0 ? attachmentNames : undefined,
+                sessionToken: bearerToken ?? undefined,
             });
             addToast('Your request has been submitted. Your legal team will respond shortly.', { type: 'success' });
             setRequestSubject('');

@@ -21,7 +21,7 @@ export const ReceiptsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // Fetch ledger entries — receipts are cleared entries
   const ledgerEntries = useQuery(
     api.portals.getTenantLedger,
-    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email } : 'skip'
+    firmId && resolvedTenantId ? { firmId, tenantId: resolvedTenantId, email: currentUser?.email, sessionToken: bearerToken ?? undefined, } : 'skip'
   );
 
   const isLoading = ledgerEntries === undefined;

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { logError } from "./observability";
 import { api, internal } from "./_generated/api";
 import { requireFirmUser } from "./authHelpers";
+import { resolveCaller, assertSameFirm } from "./callerAuth";
 
 // Chakra's WhatsApp plan-upgrade billing page — the action link surfaced in
 // admin UI whenever the gateway returns the 402 billing gate (Task 37 live
@@ -12,9 +13,11 @@ export const CHAKRA_WHATSAPP_BILLING_URL =
   "https://app.chakrahq.com/admin/billing/chakra-whatsapp-upgrade";
 
 // ─── INTERNAL WRAPPER: sendWhatsAppInternal ──────────────────────────────
-// internalMutation (like sentry.ts cron jobs) can't call ctx.runAction on
-// public actions. This internal action wraps the public sendWhatsApp so
-// internal mutations can call it via ctx.runAction(internal.communications.sendWhatsAppInternal).
+// ROUND A (C6): the send logic lives in the INTERNAL cores
+// (sendWhatsAppCore / sendEmailCore) so trusted server-side callers
+// (crons, schedulers, portal flows, the retry dispatcher) can reach it
+// directly. This wrapper is kept for the established
+// internal.communications.sendWhatsAppInternal convention.
 export const sendWhatsAppInternal = internalAction({
   args: {
     to: v.string(),
@@ -41,12 +44,101 @@ export const sendWhatsAppInternal = internalAction({
     retryTemplateLocales: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; errorClass?: string; messageId?: string; usedTemplate?: boolean }> => {
-    return await ctx.runAction(api.communications.sendWhatsApp, args);
+    return await ctx.runAction(internal.communications.sendWhatsAppCore, args);
+  },
+});
+
+// ─── ROUND A (C6): PUBLIC SENDER GATES ────────────────────────────────────
+// sendEmail/sendWhatsApp were previously PUBLIC actions with no caller
+// auth — an open relay through the platform's Brevo/Chakra accounts, with
+// the WhatsApp quota charged to a caller-supplied firmId. The send logic
+// now lives in the internal cores (sendEmailCore / sendWhatsAppCore —
+// renamed below, bodies unchanged); these PUBLIC wrappers add, in order:
+//   1. session auth (staff or portal — resolveCaller),
+//   2. firm binding — sends are only allowed for the caller's OWN firm, so
+//      the quota charge and platform accounts can only ever be used on
+//      the caller's own firm's behalf (assertSameFirm),
+//   3. a per-caller rate limit (30 sends/minute/channel).
+// Trusted server-side callers use internal.communications.*Core / the
+// *Internal wrappers directly.
+export const sendEmail = action({ // ROUND A (C6): public gate — auth + firm binding + per-caller rate limit, then delegates to internal.communications.sendEmailCore.
+  args: {
+    to: v.string(),
+    toName: v.optional(v.string()),
+    subject: v.string(),
+    htmlContent: v.string(),
+    firmId: v.string(),
+    senderName: v.optional(v.string()),
+    replyTo: v.optional(v.string()),
+    recordLog: v.optional(v.boolean()),
+    attachment: v.optional(v.object({
+      name: v.string(),
+      contentBase64: v.string(),
+    })),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; messageId?: string }> => {
+    const { sessionToken, userEmail, ...coreArgs } = args as any;
+    const caller = await resolveCaller(ctx, { sessionToken, userEmail });
+    assertSameFirm(caller, args.firmId);
+    const allowed = await ctx.runMutation(internal.securityHelpers.consumeRateLimit, {
+      key: `comms-email:${String(caller._id)}`,
+      maxRequests: 30,
+      windowMs: 60_000,
+    });
+    if (!allowed) {
+      return { success: false, simulated: false, error: "Rate limit exceeded (30 emails/minute). Please try again shortly." };
+    }
+    return await ctx.runAction(internal.communications.sendEmailCore, coreArgs);
+  },
+});
+
+export const sendWhatsApp = action({
+  args: {
+    to: v.string(),
+    messageText: v.string(),
+    templateName: v.optional(v.string()),
+    templateVars: v.optional(v.array(v.string())),
+    templateLanguage: v.optional(v.string()),
+    firmId: v.string(),
+    fallback: v.optional(v.object({
+      messageType: v.string(),
+      templateVarsData: v.optional(v.object({
+        tenantName: v.optional(v.string()),
+        amount: v.optional(v.number()),
+        totalPayable: v.optional(v.number()),
+        serviceCharge: v.optional(v.number()),
+        address: v.optional(v.string()),
+        firmName: v.optional(v.string()),
+        dueDate: v.optional(v.string()),
+        messageText: v.optional(v.string()),
+      })),
+    })),
+    retryTemplateLocales: v.optional(v.boolean()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ success: boolean; simulated?: boolean; error?: string; errorClass?: string; messageId?: string; usedTemplate?: boolean }> => {
+    const { sessionToken, userEmail, ...coreArgs } = args as any;
+    const caller = await resolveCaller(ctx, { sessionToken, userEmail });
+    assertSameFirm(caller, args.firmId);
+    const allowed = await ctx.runMutation(internal.securityHelpers.consumeRateLimit, {
+      key: `comms-whatsapp:${String(caller._id)}`,
+      maxRequests: 30,
+      windowMs: 60_000,
+    });
+    if (!allowed) {
+      return { success: false, simulated: false, errorClass: "rate_limited", error: "Rate limit exceeded (30 WhatsApp messages/minute). Please try again shortly." };
+    }
+    return await ctx.runAction(internal.communications.sendWhatsAppCore, coreArgs);
   },
 });
 
 // ─── Email: Brevo (formerly Sendinblue) ─────────────────────────────────────
-export const sendEmail = action({
+// ROUND A (C6): renamed to the INTERNAL core — the public sendEmail gate
+// (auth + firm binding + rate limit) is defined above and delegates here.
+export const sendEmailCore = internalAction({
   args: {
     to: v.string(),
     toName: v.optional(v.string()),
@@ -170,7 +262,7 @@ export const sendEmail = action({
 //   CHAKRA_PHONE_NUMBER_ID  — Found in Chakra Chat → WhatsApp setup → gear icon
 //   CHAKRA_WA_API_VERSION   — e.g. "v19.0" (default used if not set)
 //
-export const sendWhatsApp = action({
+export const sendWhatsAppCore = internalAction({ // ROUND A (C6): internal core (was the public sendWhatsApp). The public gate (auth + firm binding + rate limit) is defined above and delegates here.
   args: {
     to: v.string(),           // Recipient phone number in international format: +2348012345678
     messageText: v.string(),  // Plain text message body (for session/free-form messages)
@@ -875,7 +967,7 @@ export const retryFailedWhatsApp = action({
         const context = log.unitId
           ? await ctx.runQuery(internal.communications.getLogRecipientContext, { propertyId: log.unitId })
           : null;
-        const res: any = await ctx.runAction(api.communications.sendWhatsApp, {
+        const res: any = await ctx.runAction(internal.communications.sendWhatsAppCore, {
           firmId: auth.firmId,
           to: log.recipient,
           messageText: log.messageContent || log.messagePreview || "",
