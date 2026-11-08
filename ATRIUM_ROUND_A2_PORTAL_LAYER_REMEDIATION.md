@@ -236,6 +236,8 @@ clean (46/46).
 | `vitest run` | **1,600 / 1,600 passed** (85 files; Round A's 1,495 + 105 new) |
 | `vite build` | green in 22.2 s |
 | `eslint .` | 0 errors / 77 warnings (baseline) |
+| CI on push (`44d60e6d`) | Tests **PASS** · Build Android APK **PASS** · Deploy to Staging **PASS** (quality gate; the staging Convex backend is not configured — standing repo state) |
+| Production Convex | **NOT YET PROMOTED** — pre-Round-A surface still live (live-probed). Owner action: run "Deploy to Production (promote)", then re-probe (§10.7) |
 
 ## 10. Residual exposure (honest list)
 
@@ -263,6 +265,15 @@ clean (46/46).
    founder-gated security tooling).
 6. Standing owner actions from Round A remain open (CHAKRA_WEBHOOK_SECRET on
    production, ALLOW_DEMO_SEED unset, CLOUDFLARE_API_TOKEN rotation).
+7. **Deployment**: both rounds are committed and pushed (CI green), but the
+   production Convex deployment has NOT been promoted — a live probe of
+   `gregarious-malamute-537.convex.cloud` still answers unauthenticated
+   `getTenantLedger`/`getPortalConversationsByFirm` (pre-Round-A code). Until
+   "Deploy to Production (promote)" runs, the fixes exist only in the
+   repository. Post-promote verification probes (expect strict rejection +
+   `portals:getNotice` gone):
+   `POST /api/query {"path":"portals:getPortalConversationsByFirm","args":{"firmId":"x"}}`
+   `POST /api/query {"path":"portals:getTenantLedger","args":{"firmId":"x","tenantId":"y","email":"z"}}`
 
 ## 11. Files changed (this round)
 

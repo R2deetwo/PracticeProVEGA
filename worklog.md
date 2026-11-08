@@ -15635,3 +15635,17 @@ contracts), vite build green in 22.2s, eslint 0 errors / 77 warnings
 (baseline). Round A commit 3992a360 untouched; this round is a separate
 commit on top. No Vega OS / Komplete module touched (zero callers there —
 verified before every deletion).
+
+
+Post-push record (Round A2): both rounds pushed to origin/main (merge commit
+44d60e6d over the CI version bumps; Round A 3992a360 and Round A2 0c1bf2fa
+distinct and intact). CI on 44d60e6d: Tests PASS, Build Android APK PASS,
+Deploy to Staging PASS (quality-gate portion only — the staging Convex
+backend is not configured, standing). PRODUCTION IS NOT YET PROMOTED: the
+production Convex deployment (gregarious-malamute-537) still serves the
+pre-Round-A surface (live-probed: getTenantLedger/getPortalConversationsByFirm
+still answer unauthenticated queries there). OWNER ACTION to go live: run the
+"Deploy to Production (promote)" workflow (same flow as every round), then
+re-probe: the same two calls must throw Unauthenticated, and portals:getNotice
+must be gone. Standing owner actions from Round A remain open
+(CHAKRA_WEBHOOK_SECRET, ALLOW_DEMO_SEED, CLOUDFLARE_API_TOKEN).
