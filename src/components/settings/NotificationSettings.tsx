@@ -58,7 +58,7 @@ export const NotificationSettings: React.FC = () => {
   const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
 
   // Fetch notification preferences (merged with defaults)
-  const prefsData = useQuery(api.portals.getNotificationPreferences, firmId ? { firmId } : 'skip');
+  const prefsData = useQuery(api.portals.getNotificationPreferences, firmId ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip');
   const updatePrefs = useMutation(api.portals.updateNotificationPreferences);
 
   // Local state for optimistic updates

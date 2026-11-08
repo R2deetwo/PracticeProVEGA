@@ -418,10 +418,10 @@ const MessagesView: React.FC = () => {
     const atriumInboundResult = useQuery(api.sentry.getInboundMessages, firmId && !mvIsDemo ? { firmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip');
     const atriumInbound = atriumInboundResult || [];
     // Atrium: portal conversations (conversation-based, replaces flat portal messages)
-    const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId && !mvIsDemo ? { firmId } : 'skip');
+    const portalConversationsResult = useQuery(api.portals.getPortalConversationsByFirm, firmId && !mvIsDemo ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip');
     const portalConversations = portalConversationsResult || [];
     // Legacy: still fetch portal messages for backward compat
-    const portalMessagesResult = useQuery(api.portals.getPortalMessagesByFirm, firmId && !mvIsDemo ? { firmId } : 'skip');
+    const portalMessagesResult = useQuery(api.portals.getPortalMessagesByFirm, firmId && !mvIsDemo ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip');
     const portalMessages = portalMessagesResult || [];
     // Vega: client messages on matters
     const clientMessages = matterState?.clientMessages || [];
@@ -761,7 +761,7 @@ const MessagesView: React.FC = () => {
     // ── Portal conversation messages (when a conversation is selected) ──
     const conversationMessages = useQuery(
         api.portals.getConversationMessages,
-        (selectedSection === 'client_tenant' && selectedInboxId && !mvIsDemo) ? { conversationId: selectedInboxId } : 'skip'
+        (selectedSection === 'client_tenant' && selectedInboxId && !mvIsDemo) ? { conversationId: selectedInboxId, sessionToken: bearerToken ?? undefined } : 'skip'
     );
 
     // ── Admin file upload for replies ──
@@ -770,7 +770,7 @@ const MessagesView: React.FC = () => {
     const adminFileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Notice Board — count for tab badge (content rendered by NoticeBoardTab) ──
-    const allNotices = useQuery(api.portals.getAllNotices, firmId && !mvIsDemo ? { firmId } : 'skip') || [];
+    const allNotices = useQuery(api.portals.getAllNotices, firmId && !mvIsDemo ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip') || [];
     const activeNoticesCount = useMemo(() => (allNotices as any[]).filter((n: any) => n.status === 'active').length, [allNotices]);
 
     // ── Scheduled — count for tab badge (content rendered by ScheduledTab) ──
@@ -971,6 +971,8 @@ const MessagesView: React.FC = () => {
                 assignedToName: userName,
                 assignedBy: currentUser.id,
                 firmId,
+                // ROUND A2: server verifies the staff session + firm binding.
+                sessionToken: bearerToken ?? undefined,
             });
             addToast(`Ticket assigned to ${userName}. Portal user has been notified.`, { type: 'success' });
             await refreshTicketRecord(ticketInfo);
@@ -1034,7 +1036,7 @@ const MessagesView: React.FC = () => {
             for (const convId of selectedConvIds) {
                 try {
                     // Fetch messages for this conversation and delete them
-                    const msgs: any = await convex.query(api.portals.getConversationMessages, { conversationId: convId });
+                    const msgs: any = await convex.query(api.portals.getConversationMessages, { conversationId: convId, sessionToken: bearerToken ?? undefined });
                     if (Array.isArray(msgs)) {
                         for (const msg of msgs) {
                             try {
@@ -1042,13 +1044,15 @@ const MessagesView: React.FC = () => {
                                     messageId: String(msg._id),
                                     adminId: currentUser.id,
                                     firmId: currentUser.firmId || '',
+                                    // ROUND A2: server verifies the staff session.
+                                    sessionToken: bearerToken ?? undefined,
                                 });
                             } catch { /* message may already be deleted */ }
                         }
                     }
                     // Delete the conversation record itself
                     try {
-                        await hardDeleteConv({ conversationId: convId });
+                        await hardDeleteConv({ conversationId: convId, sessionToken: bearerToken ?? undefined });
                     } catch { /* may not exist */ }
                 } catch (e) {
                     console.warn('[MessagesView] Bulk delete failed for conversation:', convId, e);
@@ -1118,6 +1122,8 @@ const MessagesView: React.FC = () => {
                     messageId: selectedInboxId as any,
                     replyContent: inboxReply.trim(),
                     replierName: currentUser?.name || 'Admin',
+                    // ROUND A2: server verifies the staff session + firm.
+                    sessionToken: bearerToken ?? undefined,
                 });
                 addToast('Reply sent to portal user.', { type: 'success' });
                 setInboxReply('');
@@ -2293,6 +2299,8 @@ const MessagesView: React.FC = () => {
                                                                         messageId: String(m.id),
                                                                         adminId: currentUser.id,
                                                                         firmId: currentUser.firmId || '',
+                                                                        // ROUND A2: server verifies the staff session.
+                                                                        sessionToken: bearerToken ?? undefined,
                                                                     });
                                                                     addToast('Message deleted.', { type: 'success', duration: 2500 });
                                                                 } catch (err: any) {

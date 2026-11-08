@@ -28,7 +28,7 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
   // Fetch consent records
   const consentRecords = useQuery(
     api.portals.getPortalUserConsentRecords,
-    email ? { email } : 'skip'
+    email ? { email, sessionToken: bearerToken ?? undefined } : 'skip'
   );
 
   // Fetch documents shared with the tenant

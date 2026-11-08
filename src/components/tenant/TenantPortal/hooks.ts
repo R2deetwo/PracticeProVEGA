@@ -152,6 +152,9 @@ export function usePortalSelfHealing(opts: {
   repairFirmId: any; relinkToProperty: any;
 }) {
   const { email, effectiveFirmId, firmResolution, tenantInfo, repairFirmId, relinkToProperty } = opts;
+  // ROUND A2: relinkPortalUserToProperty requires the resident's session
+  // server-side (it rewrites property tenancy links).
+  const { bearerToken } = useAuth();
   const [hasAttemptedRelink, setHasAttemptedRelink] = useState(false);
   const [hasAttemptedFirmRepair, setHasAttemptedFirmRepair] = useState(false);
 
@@ -194,7 +197,7 @@ export function usePortalSelfHealing(opts: {
 
     if (hasNoData) {
       setHasAttemptedRelink(true);
-      relinkToProperty({ email, firmId: effectiveFirmId })
+      relinkToProperty({ email, firmId: effectiveFirmId, sessionToken: bearerToken ?? undefined })
         .then((result: any) => {
           if (result.success && result.linked) {
           } else {
@@ -218,7 +221,7 @@ export function usePortalBadges(opts: { userId: string; effectiveFirmId: string;
   // ── Unread message count for Messages tab badge ──
   const portalConversations = useQuery(
     api.portals.getPortalConversationsByParticipant,
-    userId ? { participantId: userId } : 'skip'
+    userId ? { participantId: userId, sessionToken: bearerToken ?? undefined } : 'skip'
   );
   const unresolvedInboundMsgs = useQuery(
     api.portals.getInboundMessagesByTenant,

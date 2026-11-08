@@ -159,7 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     // 'unread') that never render as list rows, so the badge could never be
     // cleared by opening anything. Conversations drop one thread at a time
     // as each is opened (markConversationReadByAdmin on click).
-    const portalConvs = useQuery(api.portals.getPortalConversationsByFirm, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId } : 'skip') || [];
+    const portalConvs = useQuery(api.portals.getPortalConversationsByFirm, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId, sessionToken: bearerToken ?? undefined } : 'skip') || [];
     const portalUnread = (portalConvs as any[]).reduce((sum: number, c: any) => sum + (c.unreadByAdmin || 0), 0);
 
     const chatNotificationCount = (coreState.notifications || []).filter(n => n.userId === currentUser.id && !n.isRead && n.link?.view === 'messaging').length;

@@ -939,7 +939,7 @@ export const PortalAccessSettings: React.FC = () => {
   // Fetch ALL portal invites for this firm
   const invites = useQuery(
     api.portals.getPortalInvitesByFirm,
-    firmId ? { firmId } : 'skip'
+    firmId ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip'
   );
 
   // Fetch portal settings for messaging toggles
@@ -1044,7 +1044,7 @@ export const PortalAccessSettings: React.FC = () => {
         try {
           const allInvitesForEmail: any = await convex.query(
             api.portals.getPortalInvitesByEmail,
-            { email: inviteEmail }
+            { email: inviteEmail, sessionToken: (bearerToken ?? undefined) || undefined }
           );
           if (Array.isArray(allInvitesForEmail)) {
             for (const inv of allInvitesForEmail) {

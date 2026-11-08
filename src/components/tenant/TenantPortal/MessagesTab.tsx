@@ -25,7 +25,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // Conversation-based queries
   const conversations = useQuery(
     api.portals.getPortalConversationsByParticipant,
-    userId ? { participantId: userId } : 'skip'
+    userId ? { participantId: userId, sessionToken: bearerToken ?? undefined } : 'skip'
   );
 
   // Also fetch legacy inbound messages (WhatsApp/Email from PM)
@@ -38,7 +38,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const conversationMessages = useQuery(
     api.portals.getConversationMessages,
-    activeConversationId ? { conversationId: activeConversationId } : 'skip'
+    activeConversationId ? { conversationId: activeConversationId, sessionToken: bearerToken ?? undefined } : 'skip'
   );
 
   // Mutations
@@ -728,7 +728,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
             if (!ok) return;
             setDeletingMessageId(String(target._id));
             try {
-              await deleteMessage({ messageId: String(target._id), requesterId: userId });
+              await deleteMessage({ messageId: String(target._id), requesterId: userId, sessionToken: bearerToken ?? undefined });
               addToast('Message deleted.', { type: 'success', duration: 2500 });
             } catch (err: any) {
               addToast(err.message || 'Failed to delete message.', { type: 'error' });

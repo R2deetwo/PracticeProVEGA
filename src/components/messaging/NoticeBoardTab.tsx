@@ -33,7 +33,7 @@ const NOTICE_PRIORITY_COLORS: Record<string, string> = {
 };
 
 export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotices }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
   const { coreState } = useCoreState();
   const { addToast } = useUI();
   // Product-aware terminology. For Vega (legal-only) firms, notices go to
@@ -289,7 +289,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                               </div>
                             </div>
                             <button
-                              onClick={() => archiveNotice({ noticeId: notice._id }).then(() => addToast('Notice archived.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to archive.', { type: 'error' }))}
+                              onClick={() => archiveNotice({ noticeId: notice._id, sessionToken: bearerToken ?? undefined }).then(() => addToast('Notice archived.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to archive.', { type: 'error' }))}
                               className="p-1.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-colors flex-shrink-0"
                               title="Archive notice (move to the archived list below)"
                             >
@@ -314,7 +314,7 @@ export const NoticeBoardTab: React.FC<NoticeBoardTabProps> = ({ firmId, allNotic
                       <div key={notice._id} className="flex items-center justify-between gap-3 p-3 bg-slate-50/50 dark:bg-zinc-800/50 rounded-lg opacity-60">
                         <span className="text-xs text-slate-500 dark:text-zinc-400 truncate">{notice.title}</span>
                         <button
-                          onClick={() => restoreNotice({ noticeId: notice._id }).then(() => addToast('Notice restored.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to restore.', { type: 'error' }))}
+                          onClick={() => restoreNotice({ noticeId: notice._id, sessionToken: bearerToken ?? undefined }).then(() => addToast('Notice restored.', { type: 'success' })).catch((e: any) => addToast(e.message || 'Failed to restore.', { type: 'error' }))}
                           className="text-2xs font-bold text-amber-600 hover:text-amber-500 flex-shrink-0"
                         >
                           Restore

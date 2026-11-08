@@ -273,6 +273,8 @@ const NewTypeForm: React.FC<{
 }> = ({ portalType, firmId, onCreated }) => {
   const createType = useMutation(api.portals.createServiceRequestType);
   const { addToast } = useUI();
+  // ROUND A2: createServiceRequestType requires the staff session server-side.
+  const { bearerToken } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [label, setLabel] = useState('');
   const [icon, setIcon] = useState('FileText');
@@ -303,6 +305,7 @@ const NewTypeForm: React.FC<{
       await createType({
         firmId,
         portalType,
+        sessionToken: (bearerToken ?? undefined) || undefined,
         key: slugify(label),
         label: label.trim(),
         icon: icon || undefined,
@@ -424,7 +427,7 @@ export const ServiceRequestTypesConfig: React.FC<{ portalType: PortalType }> = (
 
   const allTypes = useQuery(
     api.portals.getAllServiceRequestTypes,
-    firmId ? { firmId, portalType } : 'skip'
+    firmId ? { firmId, portalType, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip'
   );
 
   const updateType = useMutation(api.portals.updateServiceRequestType);

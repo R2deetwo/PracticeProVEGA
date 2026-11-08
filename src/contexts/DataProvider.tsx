@@ -718,7 +718,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const portalFirmResolution = useQuery(
         api.portals.resolveFirmFromInvite,
         !isDemo && isPortalUser && !currentUser?.firmId && currentUser?.email
-            ? { email: currentUser!.email }
+            ? { email: currentUser!.email, sessionToken: bearerToken ?? undefined }
             : 'skip'
     );
     const effectiveFirmId = currentUser?.firmId || portalFirmResolution?.firmId || '';

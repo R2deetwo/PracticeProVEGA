@@ -57,6 +57,34 @@ function portalCallerAliases(caller: any): Set<string> {
   return aliases;
 }
 
+// ─── ROUND A2: portal-caller aliases extended with the caller's linked
+// contact record. Client-portal rows (matters, service requests, client
+// messages, invoices) key on the CONTACT id, not the user id — the alias
+// set must cover both shapes so identity rebinding preserves legacy data
+// while still refusing every foreign id.
+async function portalCallerExtendedAliases(
+  ctx: any,
+  caller: any,
+  firmId?: string
+): Promise<{ aliases: Set<string>; contact: any | null }> {
+  const aliases = portalCallerAliases(caller);
+  let contact: any = null;
+  const firm = firmId || (caller as any).firmId;
+  if (firm) {
+    const contacts = await ctx.db
+      .query("contacts")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firm))
+      .take(2000);
+    const email = String((caller as any).email || "").toLowerCase();
+    contact = contacts.find((c: any) =>
+      String(c.userId || "") === String(caller._id) ||
+      (email && String(c.email || "").toLowerCase() === email)
+    ) || null;
+    if (contact) aliases.add(String(contact._id));
+  }
+  return { aliases, contact };
+}
+
 // ─── Maintenance Tickets ────────────────────────────────────────────────
 
 export const createMaintenanceTicket = mutation({
@@ -690,12 +718,27 @@ export const assignTicketToTeamMember = mutation({
     assignedToName: v.optional(v.string()),
     assignedBy: v.string(),
     firmId: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: this was an UNAUTHENTICATED staff write — anyone could
+    //    reassign any ticket and post a message as "Admin". Staff auth +
+    //    the record's own firm binding + the assigner bound to the session.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const now = Date.now();
     const table = args.requestKind === "maintenance" ? "maintenance_tickets" : "client_service_requests";
     const record: any = await ctx.db.get(args.requestId as any);
     if (!record) throw new Error("Ticket/request not found");
+    assertSameFirm(caller, (record as any).firmId ?? args.firmId);
+    // The assigner is always the session caller (audit trail cannot be forged).
+    const assignedBy = String(caller._id);
+    // The assignee must belong to the caller's firm when the id resolves.
+    let assignee: any = null;
+    try { assignee = await ctx.db.get(args.assignedToUserId as any); } catch {}
+    if (assignee && (assignee as any).firmId && String((assignee as any).firmId) !== String((caller as any).firmId)) {
+      throw new Error("Not authorized: the assignee belongs to a different firm.");
+    }
 
     await ctx.db.patch(args.requestId as any, {
       assignedTo: args.assignedToUserId,
@@ -716,7 +759,7 @@ export const assignTicketToTeamMember = mutation({
         status: "todo",
         priority: record.priority || "medium",
         assignedUsers: [args.assignedToUserId],
-        creatorId: args.assignedBy,
+        creatorId: assignedBy,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
@@ -731,7 +774,7 @@ export const assignTicketToTeamMember = mutation({
         await ctx.db.insert("portal_messages", {
           firmId: args.firmId,
           conversationId: record.conversationId,
-          senderId: args.assignedBy,
+          senderId: assignedBy,
           senderName: "Admin",
           senderRole: "Admin",
           subject: `Assigned: ${record.subject}`,
@@ -807,8 +850,14 @@ export const getServiceRequestTypes = query({
   args: {
     firmId: v.string(),
     portalType: v.union(v.literal("resident"), v.literal("client")),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: firm-scoped catalog read → authenticated caller (portal
+    //    or staff — both surfaces render it post-login) + firm binding.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     const types = await ctx.db
       .query("service_request_types")
       .withIndex("by_firm_portal", (q) =>
@@ -851,8 +900,13 @@ export const getAllServiceRequestTypes = query({
   args: {
     firmId: v.string(),
     portalType: v.union(v.literal("resident"), v.literal("client")),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: admin config read (includes disabled types) → staff
+    //    auth + firm binding.
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const types = await ctx.db
       .query("service_request_types")
       .withIndex("by_firm_portal", (q) =>
@@ -940,8 +994,13 @@ export const createServiceRequestType = mutation({
     // When true (default), auto-creates a notice board entry highlighting
     // the new service type to portal users. Set to false to skip.
     announceToPortal: v.optional(v.boolean()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: admin catalog write (also posts a pinned notice) →
+    //    staff auth + firm binding.
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const now = Date.now();
     // Compute next sortOrder
     const existing = await ctx.db
@@ -1177,8 +1236,14 @@ export const createClientServiceRequest = mutation({
 });
 
 export const getClientServiceRequestsByClient = query({
-  args: { clientId: v.string() },
+  args: { clientId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated client read (bare clientId) → portal
+    //    auth + identity rebinding: a foreign clientId is replaced with
+    //    the caller's own, so only the caller's requests can ever return.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller);
+    if (!aliases.has(String(args.clientId))) args.clientId = contact ? String(contact._id) : String(caller._id);
     return await ctx.db
       .query("client_service_requests")
       .withIndex("by_client", (q) => q.eq("clientId", args.clientId))
@@ -1187,16 +1252,9 @@ export const getClientServiceRequestsByClient = query({
   },
 });
 
-export const getClientServiceRequestsByFirm = query({
-  args: { firmId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("client_service_requests")
-      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .order("desc")
-      .take(500);
-  },
-});
+// ─── ROUND A2: DELETED `getClientServiceRequestsByFirm` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: firm-wide client request read (duplicate of the staff-gated getServiceRequestsByFirm path).
 
 export const updateClientServiceRequestStatus = mutation({
   args: {
@@ -1292,34 +1350,9 @@ export const updateClientServiceRequestStatus = mutation({
   },
 });
 
-/**
- * getServiceRequestsByFirm — Unified query that returns ALL open service
- * requests (both maintenance tickets AND client service requests) for a firm.
- * Used by the practitioner's unified inbox to surface pending tickets that
- * haven't yet been linked to a conversation (legacy data + safety net).
- */
-export const getServiceRequestsByFirm = query({
-  args: { firmId: v.string() },
-  handler: async (ctx, args) => {
-    const [tickets, clientRequests] = await Promise.all([
-      ctx.db
-        .query("maintenance_tickets")
-        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-        .order("desc")
-        .take(500),
-      ctx.db
-        .query("client_service_requests")
-        .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-        .order("desc")
-        .take(500),
-    ]);
-
-    return {
-      maintenanceTickets: tickets,
-      clientServiceRequests: clientRequests,
-    };
-  },
-});
+// ─── ROUND A2: DELETED `getServiceRequestsByFirm` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: firm-wide ticket read (superseded by getMaintenanceTicketsByFirm + staff gate).
 
 /**
  * getMaintenanceTicketsByProperty — Returns all maintenance tickets for a
@@ -1330,8 +1363,21 @@ export const getServiceRequestsByFirm = query({
  * have open tickets, and to flag tickets that have been sitting too long.
  */
 export const getMaintenanceTicketsByProperty = query({
-  args: { propertyId: v.string() },
+  args: { propertyId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: bare-propertyId ticket read (subjects carry tenant
+    //    context) → staff auth + the property's own firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    let property: any = null;
+    try { property = await ctx.db.get(args.propertyId as any); } catch {}
+    if (!property) {
+      property = await ctx.db
+        .query("properties")
+        .filter((q: any) => q.eq(q.field("id"), args.propertyId))
+        .first();
+    }
+    if (!property) throw new Error("Property not found");
+    assertSameFirm(caller, (property as any).firmId);
     const tickets = await ctx.db
       .query("maintenance_tickets")
       .withIndex("by_property", (q) => q.eq("propertyId", args.propertyId))
@@ -1352,80 +1398,9 @@ export const getMaintenanceTicketsByProperty = query({
   },
 });
 
-/**
- * respondToServiceRequest — Unified admin response mutation. Admin can update
- * a ticket/request's status AND optionally send a reply message to the portal
- * user in one call. Routes to the correct underlying mutation based on
- * `requestKind`.
- */
-export const respondToServiceRequest = mutation({
-  args: {
-    requestKind: v.union(v.literal("maintenance"), v.literal("client_service")),
-    requestId: v.string(),
-    firmId: v.string(),
-    adminId: v.string(),
-    adminName: v.optional(v.string()),
-    status: v.union(v.literal("open"), v.literal("in_progress"), v.literal("resolved"), v.literal("closed")),
-    priority: v.optional(v.union(v.literal("low"), v.literal("medium"), v.literal("high"), v.literal("urgent"))),
-    resolution: v.optional(v.string()),
-    replyMessage: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const record: any = await ctx.db.get(args.requestId as any);
-    if (!record) throw new Error("Service request not found");
-
-    // Update the request record
-    await ctx.db.patch(args.requestId as any, {
-      status: args.status,
-      priority: args.priority ?? record.priority,
-      resolution: args.resolution ?? record.resolution,
-      assignedTo: args.adminId,
-      updatedAt: now,
-    } as any);
-
-    // Post a reply message to the linked conversation (if any)
-    const conversationId = record.conversationId;
-    if (conversationId && (args.replyMessage || args.resolution)) {
-      const replyText = args.replyMessage || `Status updated to "${args.status}". ${args.resolution ? `Resolution: ${args.resolution}` : ''}`;
-      await ctx.db.insert("portal_messages", {
-        firmId: args.firmId,
-        conversationId,
-        senderId: args.adminId,
-        senderName: args.adminName || "Admin",
-        senderRole: "Admin",
-        subject: `Update: ${record.subject}`,
-        content: replyText,
-        attachments: [],
-        attachmentNames: [],
-        propertyId: record.propertyId,
-        unitId: record.unitId,
-        matterId: record.matterId,
-        status: "read",
-        isRead: false,
-        linkedTicketId: args.requestKind === "maintenance" ? args.requestId : undefined,
-        linkedRequestId: args.requestKind === "client_service" ? args.requestId : undefined,
-        requestTypeKey: record.requestTypeKey,
-        requestTypeLabel: record.requestTypeLabel || record.category,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      const conv: any = await ctx.db.get(conversationId as any);
-      if (conv) {
-        await ctx.db.patch(conv._id, {
-          lastMessageAt: now,
-          lastMessagePreview: `✅ ${replyText.substring(0, 70)}`,
-          lastMessageBy: "admin",
-          unreadByParticipant: (conv.unreadByParticipant || 0) + 1,
-          updatedAt: now,
-        });
-      }
-    }
-
-    return { ok: true };
-  },
-});
+// ─── ROUND A2: DELETED `respondToServiceRequest` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: unauthenticated status patch + message post (superseded by updateMaintenanceTicketStatus / updateClientServiceRequestStatus).
 
 // ─── Portal Invites ─────────────────────────────────────────────────────
 
@@ -2018,7 +1993,7 @@ export const resendPortalInvite = action({
     // Round 8 auth retrofit: was a bare-id action that regenerated invite
     // tokens and re-sent email/WhatsApp — verify the caller owns the invite.
     const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
-    const existing: any = await ctx.runQuery(api.portals.getPortalInviteById, { inviteId: args.inviteId });
+    const existing: any = await ctx.runQuery(internal.portals.getPortalInviteById, { inviteId: args.inviteId });
     if (!existing) throw new Error("Invitation not found");
     if (existing.status === "revoked") throw new Error("Cannot resend a revoked invitation");
     assertSameFirm(caller, existing.firmId as any);
@@ -2165,8 +2140,12 @@ export const updateInviteRecord = internalMutation({
 
 
 
-/** Get a single invite by its ID (used by resendPortalInvite) */
-export const getPortalInviteById = query({
+// ─── ROUND A2: `getPortalInviteById` was a PUBLIC bare-id invite read
+//    (returned live invitation tokens to anyone). Its only caller is the
+//    staff-authenticated resendPortalInvite action, so the function is now
+//    INTERNAL — off the public API surface entirely, and unreachable except
+//    from trusted server-side code.
+export const getPortalInviteById = internalQuery({
   args: { inviteId: v.id("portal_invites") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.inviteId);
@@ -2174,8 +2153,12 @@ export const getPortalInviteById = query({
 });
 
 export const getPortalInvitesByFirm = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: the invite directory contains LIVE invitation tokens —
+    //    it was readable by anyone. Staff auth + firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     return await ctx.db
       .query("portal_invites")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -2442,12 +2425,16 @@ export const acceptPortalInviteByToken = mutation({
 });
 
 export const getPortalInvitesByEmail = query({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    return await ctx.db
+    // ─── ROUND A2: email probe over invite records (returns live tokens)
+    //    → staff auth + results scoped to the caller's own firm only.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const rows = await ctx.db
       .query("portal_invites")
       .withIndex("by_email", (q) => q.eq("inviteeEmail", args.email))
       .take(100);
+    return rows.filter((inv: any) => String(inv.firmId ?? "") === String((caller as any).firmId));
   },
 });
 
@@ -3141,9 +3128,15 @@ export const repairPortalUserFirmId = mutation({
  * tenant by email and updates the currentTenantId to the user's Convex _id.
  */
 export const relinkPortalUserToProperty = mutation({
-  args: { email: v.string(), firmId: v.string() },
+  args: { email: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const emailLower = args.email.toLowerCase().trim();
+    // ─── ROUND A2: this mutation REWRITES PROPERTY TENANCY LINKS and was
+    //    callable by anyone for any email in any firm. Portal auth: the
+    //    caller may only relink THEMSELVES (a foreign email is rebound to
+    //    the session's own) and only inside their own firm.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const emailLower = String((caller as any).email || args.email || "").toLowerCase().trim();
 
     // Find the user by email
     const user = await ctx.db
@@ -4083,9 +4076,19 @@ export const getTenantInfo = query({
  * user was deleted and re-invited cleanly.
  */
 export const resolveFirmFromInvite = query({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const email = args.email.toLowerCase().trim();
+    // ─── ROUND A2: this was an UNAUTHENTICATED account-existence oracle —
+    //    probing any email returned which firm that person belongs to (and
+    //    confirm they are a resident/client of it). Every caller is a
+    //    POST-LOGIN surface resolving the signed-in user's own firm, so it
+    //    now requires a session and rebinds a foreign email to the caller's.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const aliases = portalCallerAliases(caller);
+    const probed = String(args.email || "").toLowerCase().trim();
+    const email = aliases.has(probed)
+      ? probed
+      : String((caller as any).email || probed).toLowerCase().trim();
 
     // 1. Check portal_invites for the most recent invite with a firmId.
     //    (Includes revoked/accepted — REVOKE keeps the record; DELETE removes it.
@@ -4384,8 +4387,15 @@ export const getClientDocuments = query({
 // ─── Client Messages for Portal ─────────────────────────────────────────
 
 export const getClientMessages = query({
-  args: { firmId: v.string(), contactId: v.string() },
+  args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated client message read (bare contactId) → portal
+    //    auth + firm binding + contactId rebound to the caller's own
+    //    contact/user aliases (a foreign contactId returns nothing).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller, args.firmId);
+    if (!aliases.has(String(args.contactId))) args.contactId = contact ? String(contact._id) : String(caller._id);
     // Find matters for this contact
     const matters = await ctx.db
       .query("matters")
@@ -4444,8 +4454,15 @@ export const getClientMessages = query({
 // ─── Client Activity for Portal ─────────────────────────────────────────
 
 export const getClientActivity = query({
-  args: { firmId: v.string(), contactId: v.string() },
+  args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated client activity read (bare contactId) → portal
+    //    auth + firm binding + contactId rebound to the caller's own
+    //    contact/user aliases (a foreign contactId returns nothing).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller, args.firmId);
+    if (!aliases.has(String(args.contactId))) args.contactId = contact ? String(contact._id) : String(caller._id);
     // Find matters for this contact
     const matters = await ctx.db
       .query("matters")
@@ -4487,8 +4504,15 @@ export const getClientActivity = query({
 // ─── Client Invoices for Portal ─────────────────────────────────────────
 
 export const getClientInvoices = query({
-  args: { firmId: v.string(), contactId: v.string() },
+  args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated client invoice read (bare contactId) → portal
+    //    auth + firm binding + contactId rebound to the caller's own
+    //    contact/user aliases (a foreign contactId returns nothing).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller, args.firmId);
+    if (!aliases.has(String(args.contactId))) args.contactId = contact ? String(contact._id) : String(caller._id);
     // Find matters for this contact
     const matters = await ctx.db
       .query("matters")
@@ -4526,8 +4550,16 @@ export const getClientInvoices = query({
  * before the portal user account existed).
  */
 export const getClientContactByUserId = query({
-  args: { firmId: v.string(), userId: v.string() },
+  args: { firmId: v.string(), userId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated contact-record read (name, email,
+    //    phone, address) → portal auth + firm binding + userId rebound to
+    //    the caller's own aliases — a foreign userId can only ever resolve
+    //    the caller's own contact.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.userId))) args.userId = String(caller._id);
     const contacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -4579,8 +4611,14 @@ export const getClientContactByUserId = query({
  * getClientContactByUserId.
  */
 export const getClientMattersByUserId = query({
-  args: { firmId: v.string(), userId: v.string() },
+  args: { firmId: v.string(), userId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated matter-list read → portal auth + firm
+    //    binding + userId rebound to the caller's own aliases.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const aliases = portalCallerAliases(caller);
+    if (!aliases.has(String(args.userId))) args.userId = String(caller._id);
     // Find the contact for this user
     const contacts = await ctx.db
       .query("contacts")
@@ -5111,8 +5149,12 @@ export const sendAdminReply = mutation({
  * Returns conversations sorted by most recent message first.
  */
 export const getPortalConversationsByFirm = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: staff inbox read (participant names/emails/previews) →
+    //    staff auth + firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     const conversations = await ctx.db
       .query("portal_conversations")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
@@ -5157,8 +5199,14 @@ export const getPortalConversationsByFirm = query({
  * getPortalConversationsByParticipant — Gets conversations for a specific portal user.
  */
 export const getPortalConversationsByParticipant = query({
-  args: { participantId: v.string() },
+  args: { participantId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: unauthenticated conversation read (bare participantId)
+    //    → portal auth + participantId rebound to the caller's own aliases
+    //    (user _id, email, legacy contact id). Foreign ids return nothing.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller);
+    if (!aliases.has(String(args.participantId))) args.participantId = contact ? String(contact._id) : String(caller._id);
     return await ctx.db
       .query("portal_conversations")
       .withIndex("by_participant", (q: any) => q.eq("participantId", args.participantId))
@@ -5171,8 +5219,26 @@ export const getPortalConversationsByParticipant = query({
  * chronologically (oldest first) for chat-style display.
  */
 export const getConversationMessages = query({
-  args: { conversationId: v.string() },
+  args: { conversationId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: bare-conversationId message read served BOTH the staff
+    //    inbox and resident/client threads with no auth — knowing a
+    //    conversation id returned the whole thread. Session auth: staff
+    //    must match the conversation's firm; a portal user must BE the
+    //    conversation's participant (IDOR closed).
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const conversation: any = await ctx.db.get(args.conversationId as any);
+    if (!conversation) throw new Error("Conversation not found");
+    const callerRole = String((caller as any).role || "");
+    if (callerRole === "Tenant" || callerRole === "Client") {
+      const { aliases } = await portalCallerExtendedAliases(ctx, caller, (conversation as any).firmId);
+      const pid = String((conversation as any).participantId || "");
+      if (!aliases.has(pid)) {
+        throw new Error("Not authorized: this conversation belongs to another user.");
+      }
+    } else {
+      assertSameFirm(caller, (conversation as any).firmId);
+    }
     const messages = await ctx.db
       .query("portal_messages")
       .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
@@ -5181,7 +5247,6 @@ export const getConversationMessages = query({
     // (older send paths / empty-string client fields) resolve their display
     // name from the conversation's participant record so threads never
     // render "Unknown sender" mid-conversation. In-memory only.
-    const conversation: any = await ctx.db.get(args.conversationId as any);
     const participantName = conversation?.participantName;
     const needsLookup = messages.some(
       (m: any) => !(typeof m.senderName === "string" && m.senderName.trim())
@@ -5347,20 +5412,27 @@ export const markInboundMessagesReadByTenant = mutation({
  * Admin users cannot delete portal messages — they are the record keepers.
  */
 export const softDeletePortalMessage = mutation({
-  args: { messageId: v.string(), requesterId: v.string() },
+  args: { messageId: v.string(), requesterId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: the requesterId was CALLER-SUPPLIED — anyone could pair
+    //    a known message id with the victim's sender id and delete it.
+    //    Session auth runs FIRST (an unauthenticated caller learns nothing,
+    //    not even whether the message exists); the caller must BE one of the
+    //    message sender's aliases; deletedBy binds to the session caller.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const message = await ctx.db.get(args.messageId as any) as any;
     if (!message) throw new Error("Message not found");
 
-    // Only the sender can delete their own messages
-    if (message.senderId !== args.requesterId) {
+    const { aliases } = await portalCallerExtendedAliases(ctx, caller, message.firmId);
+    if (!aliases.has(String(message.senderId || ""))) {
       throw new Error("You can only delete your own messages");
     }
+    const requesterId = String(caller._id);
 
     const now = Date.now();
     await ctx.db.patch(message._id, {
       isDeleted: true,
-      deletedBy: args.requesterId,
+      deletedBy: requesterId,
       deletedAt: now,
       updatedAt: now,
     });
@@ -5417,15 +5489,19 @@ export const adminDeletePortalMessage = mutation({
   args: {
     messageId: v.string(),
     sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
     adminId: v.string(),
     firmId: v.string(),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: the previous "cross-firm guard" compared against a
+    //    CALLER-SUPPLIED firmId and verified NO session at all — anyone
+    //    could soft-delete any portal message by id. Staff auth + the
+    //    server-side record's firm + deletedBy bound to the session caller.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const message = await ctx.db.get(args.messageId as any) as any;
     if (!message) throw new Error("Message not found");
 
-    // SECURITY: Cross-firm guard — admin can only delete messages in their own firm.
-    // The message may have a firmId directly, or we look it up via the conversation.
     let messageFirmId = message.firmId;
     if (!messageFirmId && message.conversationId) {
       const conversation = await ctx.db.get(message.conversationId as any) as any;
@@ -5433,14 +5509,15 @@ export const adminDeletePortalMessage = mutation({
         messageFirmId = conversation.firmId;
       }
     }
-    if (messageFirmId && messageFirmId !== args.firmId) {
-      throw new Error("You can only delete messages in your own firm.");
+    if (messageFirmId) {
+      assertSameFirm(caller, messageFirmId);
     }
+    const adminId = String(caller._id);
 
     const now = Date.now();
     await ctx.db.patch(message._id, {
       isDeleted: true,
-      deletedBy: args.adminId,
+      deletedBy: adminId,
       deletedAt: now,
       updatedAt: now,
     });
@@ -5484,17 +5561,15 @@ export const adminDeletePortalMessage = mutation({
  *   conversationId: The _id of the portal_conversations record to delete.
  */
 export const hardDeleteConversation = mutation({
-  args: { conversationId: v.string() },
+  args: { conversationId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: the old comment literally admitted there was no firm
+    //    check ("the caller already verifies") — a client-side check is
+    //    not security. Staff auth + the conversation's own firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const conversation = await ctx.db.get(args.conversationId as any) as any;
     if (!conversation) return { success: true, message: "Already deleted" };
-
-    // SECURITY: We don't have a firmId check here because the caller
-    // (MessagesView) already verifies the admin's firm before calling.
-    // The adminDeletePortalMessage mutation that soft-deletes the messages
-    // DOES have a cross-firm guard. If a malicious caller tried to delete
-    // a conversation in another firm, the messages would already be
-    // protected — only the empty conversation shell would be removed.
+    assertSameFirm(caller, (conversation as any).firmId);
 
     await ctx.db.delete(args.conversationId as any);
     return { success: true };
@@ -5506,8 +5581,12 @@ export const hardDeleteConversation = mutation({
  * Kept for backward compat; new code should use getPortalConversationsByFirm.
  */
 export const getPortalMessagesByFirm = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: firm-wide message read (legacy staff surface) → staff
+    //    auth + firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     return await ctx.db
       .query("portal_messages")
       .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
@@ -5516,20 +5595,9 @@ export const getPortalMessagesByFirm = query({
   },
 });
 
-/**
- * getPortalMessagesBySender — Gets messages sent by a specific portal user.
- * Kept for backward compat; new code should use getPortalConversationsByParticipant.
- */
-export const getPortalMessagesBySender = query({
-  args: { senderId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("portal_messages")
-      .withIndex("by_sender", (q: any) => q.eq("senderId", args.senderId))
-      .order("desc")
-      .take(500);
-  },
-});
+// ─── ROUND A2: DELETED `getPortalMessagesBySender` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: per-sender message read (superseded by getPortalConversationsByParticipant).
 
 /**
  * markPortalMessageRead — Marks a portal message as read.
@@ -5558,11 +5626,23 @@ export const replyToPortalMessage = mutation({
     messageId: v.id("portal_messages"),
     replyContent: v.string(),
     replierName: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: deprecated-but-live admin reply — was UNAUTHENTICATED
+    //    (anyone could patch any message and post as "Admin"). Staff auth +
+    //    the message's own firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const now = Date.now();
     const originalMsg = await ctx.db.get(args.messageId);
     if (!originalMsg) throw new Error("Message not found");
+    let msgFirmId = (originalMsg as any).firmId;
+    if (!msgFirmId && (originalMsg as any).conversationId) {
+      const conv: any = await ctx.db.get((originalMsg as any).conversationId as any);
+      if (conv) msgFirmId = conv.firmId;
+    }
+    if (msgFirmId) assertSameFirm(caller, msgFirmId as any);
 
     // Legacy: patch the original message
     await ctx.db.patch(args.messageId, {
@@ -5612,15 +5692,9 @@ export const replyToPortalMessage = mutation({
   },
 });
 
-/**
- * getPortalMessageById — Fetch a single portal message by its Convex document ID.
- */
-export const getPortalMessageById = query({
-  args: { messageId: v.id("portal_messages") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.messageId);
-  },
-});
+// ─── ROUND A2: DELETED `getPortalMessageById` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: bare-id message read (message threads are served by getConversationMessages).
 
 // ─── Payment Proof Upload ────────────────────────────────────────────────
 
@@ -5921,9 +5995,15 @@ export const getTenantDocuments = query({
  * Looks up portal_invites for the user's email and returns terms acceptance info.
  */
 export const getPortalUserConsentRecords = query({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const email = args.email.toLowerCase().trim();
+    // ─── ROUND A2: consent records by bare email → portal auth + the
+    //    email rebound to the caller's own aliases (the resident portal
+    //    reads ITS OWN records; probing anyone else's returns their own).
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const aliases = portalCallerAliases(caller);
+    const probed = String(args.email || "").toLowerCase().trim();
+    const email = aliases.has(probed) ? probed : String((caller as any).email || "").toLowerCase().trim();
     if (!email) return [];
 
     const invites = await ctx.db
@@ -6061,9 +6141,14 @@ export const getTenantLeaseDetails = query({
  * separately for semantic clarity in the client dashboard.
  */
 export const getClientConsentRecords = query({
-  args: { email: v.string() },
+  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const email = args.email.toLowerCase().trim();
+    // ─── ROUND A2: consent records by bare email → portal auth + the
+    //    email rebound to the caller's own aliases.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const aliases = portalCallerAliases(caller);
+    const probed = String(args.email || "").toLowerCase().trim();
+    const email = aliases.has(probed) ? probed : String((caller as any).email || "").toLowerCase().trim();
     if (!email) return [];
 
     const invites = await ctx.db
@@ -6281,38 +6366,24 @@ export const createNotice = mutation({
   },
 });
 
-/** Update an existing notice (admin only) */
-export const updateNotice = mutation({
-  args: {
-    sessionToken: v.optional(v.string()),
-    noticeId: v.id("portal_notices"),
-    title: v.optional(v.string()),
-    body: v.optional(v.string()),
-    priority: v.optional(v.union(v.literal("normal"), v.literal("important"), v.literal("urgent"))),
-    isPinned: v.optional(v.boolean()),
-    propertyId: v.optional(v.string()),
-    unitId: v.optional(v.string()),
-    expiresAt: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const { noticeId, sessionToken: _st, ...updates } = args;
-    // Remove undefined fields so we don't overwrite with undefined
-    const cleanUpdates: Record<string, any> = { updatedAt: Date.now() };
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) cleanUpdates[key] = value;
-    }
-    await ctx.db.patch(noticeId, cleanUpdates);
-  },
-});
+// ─── ROUND A2: DELETED `updateNotice` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: bare-id notice patch, zero callers, and its sessionToken arg was never checked.
 
 /** Archive (soft-delete) a notice (admin only) */
 export const archiveNotice = mutation({
-  args: { noticeId: v.id("portal_notices") },
+  args: { noticeId: v.id("portal_notices"), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: was UNAUTHENTICATED (bare-id patch + activity log) →
+    //    staff auth + the notice's own firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const notice = await ctx.db.get(args.noticeId);
+    if (!notice) throw new Error("Notice not found");
+    assertSameFirm(caller, notice.firmId as any);
+
     await ctx.db.patch(args.noticeId, { status: "archived", updatedAt: Date.now() });
 
     // Log activity
-    const notice = await ctx.db.get(args.noticeId);
     if (notice) {
       await ctx.runMutation(internal.myFunctions.logActivity, {
         firmId: notice.firmId as string,
@@ -6327,12 +6398,18 @@ export const archiveNotice = mutation({
 
 /** Restore an archived notice (admin only) */
 export const restoreNotice = mutation({
-  args: { noticeId: v.id("portal_notices") },
+  args: { noticeId: v.id("portal_notices"), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: was UNAUTHENTICATED (bare-id patch) → staff auth +
+    //    the notice's own firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const notice = await ctx.db.get(args.noticeId);
+    if (!notice) throw new Error("Notice not found");
+    assertSameFirm(caller, notice.firmId as any);
+
     await ctx.db.patch(args.noticeId, { status: "active", updatedAt: Date.now() });
 
     // Log activity
-    const notice = await ctx.db.get(args.noticeId);
     if (notice) {
       await ctx.runMutation(internal.myFunctions.logActivity, {
         firmId: notice.firmId as string,
@@ -6405,8 +6482,14 @@ export const getAllNotices = query({
     firmId: v.string(),
     status: v.optional(v.union(v.literal("active"), v.literal("archived"))),
     propertyId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: admin notice board read (includes archived/draft
+    //    content) → staff auth + firm binding.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     // TASK 20: Use a simple table scan instead of index-based query.
     // This is less efficient but more resilient — if an index is missing
     // or not yet deployed, the query still works. For a typical firm with
@@ -6433,46 +6516,13 @@ export const getAllNotices = query({
   },
 });
 
-/** Get a single notice by ID */
-export const getNotice = query({
-  args: { noticeId: v.id("portal_notices") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.noticeId);
-  },
-});
+// ─── ROUND A2: DELETED `getNotice` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: bare-id notice read (superseded by getAllNotices, staff-gated).
 
-// ─── Portal Access Token ────────────────────────────────────────────────────
-// These functions manage the unique, random-looking tokens used in portal URLs
-// (e.g. /portal/tenant/2e71135d-003e-42dd-83ff-9f7988e7c6ac).
-// Tokens are NOT used for authentication — only for routing and identification.
-
-/**
- * resolvePortalUserByToken — Looks up a portal user by their access token.
- * Returns the user's email, role, and token if found. Used by the frontend
- * to determine which portal to display when loading a token-based URL.
- */
-export const resolvePortalUserByToken = query({
-  args: { token: v.string() },
-  handler: async (ctx, args) => {
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_portal_access_token", (q) => q.eq("portalAccessToken", args.token))
-      .first();
-
-    if (!user) return null;
-    // Only return info for portal users (Client/Tenant)
-    const role = (user as any).role;
-    if (role !== "Client" && role !== "Tenant") return null;
-
-    return {
-      email: (user as any).email,
-      role,
-      name: (user as any).name,
-      portalAccessToken: (user as any).portalAccessToken,
-      firmId: (user as any).firmId,
-    };
-  },
-});
+// ─── ROUND A2: DELETED `resolvePortalUserByToken` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: portalAccessToken → email/name/firmId lookup with no callers (App.tsx reads the token from the session user object, not the API).
 
 /**
  * ensurePortalAccessToken — Generates a portal access token for a user if they
@@ -6762,8 +6812,11 @@ export const NOTIFICATION_TYPE_DEFAULTS: Record<string, {
 
 /** Get notification preferences for a firm (returns merged with defaults) */
 export const getNotificationPreferences = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // ─── ROUND A2: firm settings read → staff auth + firm binding (the
+    //    paired updateNotificationPreferences mutation was already gated).
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const row = await ctx.db
       .query("notification_preferences")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -7034,19 +7087,9 @@ export const getFirmPortalInvitesInternal = internalQuery({
   },
 });
 
-/**
- * getFirmPortalInvites — Helper query to fetch all portal invites for a firm.
- * Used by sendNoticeEmails to find resident recipients.
- */
-export const getFirmPortalInvites = query({
-  args: { firmId: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("portal_invites")
-      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
-      .take(100);
-  },
-});
+// ─── ROUND A2: DELETED `getFirmPortalInvites` — zero callers anywhere in the
+//    repository and no authentication (Round 8 precedent: dead +
+//    unauthenticated exports are removed, not kept). Was: duplicate of getPortalInvitesByFirm (which is now staff-gated).
 
 /**
  * buildLightModeNotificationEmail — Generates a professional light-mode HTML

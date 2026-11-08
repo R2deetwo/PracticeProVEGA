@@ -75,24 +75,24 @@ const ClientMatterDetailViewContent: React.FC = () => {
     // matters / invoices / documents through the dedicated portal queries
     // (the same ones ClientDashboard already uses), with a fallback to the
     // firm data for non-portal contexts (impersonation/demo).
-    const { currentUser: portalUser } = useAuth();
+    const { currentUser: portalUser, bearerToken: portalBearer } = useAuth();
     const firmResolution = useQuery(
         api.portals.resolveFirmFromInvite,
-        !portalUser?.firmId && portalUser?.email ? { email: portalUser.email } : 'skip'
+        !portalUser?.firmId && portalUser?.email ? { email: portalUser.email, sessionToken: portalBearer ?? undefined } : 'skip'
     );
     const effectiveFirmId = portalUser?.firmId || firmResolution?.firmId || '';
     const clientContactResult = useQuery(
         api.portals.getClientContactByUserId,
-        (portalUser?.id && effectiveFirmId) ? { firmId: effectiveFirmId, userId: portalUser.id } : 'skip'
+        (portalUser?.id && effectiveFirmId) ? { firmId: effectiveFirmId, userId: portalUser.id, sessionToken: portalBearer ?? undefined } : 'skip'
     );
     const clientContactId = clientContactResult ? (String((clientContactResult as any)._id || (clientContactResult as any).id)) : null;
     const portalMatters = useQuery(
         api.portals.getClientMattersByUserId,
-        (portalUser?.id && effectiveFirmId) ? { firmId: effectiveFirmId, userId: portalUser.id } : 'skip'
+        (portalUser?.id && effectiveFirmId) ? { firmId: effectiveFirmId, userId: portalUser.id, sessionToken: portalBearer ?? undefined } : 'skip'
     );
     const portalInvoices = useQuery(
         api.portals.getClientInvoices,
-        (effectiveFirmId && clientContactId) ? { firmId: effectiveFirmId, contactId: clientContactId } : 'skip'
+        (effectiveFirmId && clientContactId) ? { firmId: effectiveFirmId, contactId: clientContactId, sessionToken: portalBearer ?? undefined } : 'skip'
     );
     const portalDocuments = useQuery(
         api.portals.getClientDocuments,

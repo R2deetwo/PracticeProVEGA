@@ -105,7 +105,13 @@ export const NoPropertyAssignment: React.FC<{
                   // First try to repair the firmId (it might be wrong/stale)
                   const firmResult = await repairFirmId({ email });
                   // Then try to relink to property
-                  const result = await relinkToProperty({ email, firmId: firmResult?.firmId || effectiveFirmId });
+                  const result = await relinkToProperty({
+                    email,
+                    firmId: firmResult?.firmId || effectiveFirmId,
+                    // ROUND A2: the relink mutation now requires the
+                    // resident's session (server-side identity binding).
+                    sessionToken: (sessionStorage.getItem('practicepro_session_bearer') || localStorage.getItem('practicepro_session_bearer')) ?? undefined,
+                });
                   if ((result.success && result.linked) || (firmResult?.success && firmResult?.firmId)) {
                     addToast('Account repaired! Refreshing...', { type: 'success' });
                     setTimeout(() => window.location.reload(), 1500);

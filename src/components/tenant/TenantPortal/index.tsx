@@ -77,7 +77,7 @@ const TenantPortal: React.FC = () => {
   // Fallback: if firmId is missing, try to resolve it from the invite record
   const firmResolution = useQuery(
     api.portals.resolveFirmFromInvite,
-    !firmId && email ? { email } : 'skip'
+    !firmId && email ? { email, sessionToken: bearerToken ?? undefined } : 'skip'
   );
   const effectiveFirmId = firmId || firmResolution?.firmId || '';
 

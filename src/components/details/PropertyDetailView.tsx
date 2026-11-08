@@ -125,7 +125,7 @@ const PropertyDetailViewContent: React.FC = () => {
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
     const { updateItem, onAddMatter, handleDeleteProperty, addUnit, removeUnit } = useDataActions() as any;
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const convex = useConvex();
     const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
     const { openWithContext } = useAloa();
@@ -447,7 +447,7 @@ const PropertyDetailViewContent: React.FC = () => {
     const parentPropertyId = (property as any)?.id || (property as any)?._id || propertyId || '';
     const ticketsForProperty = useQuery(
         api.portals.getMaintenanceTicketsByProperty,
-        parentPropertyId ? { propertyId: String(parentPropertyId) } : 'skip'
+        parentPropertyId ? { propertyId: String(parentPropertyId), sessionToken: bearerToken ?? undefined } : 'skip'
     );
     // Group tickets by unitId for quick lookup
     const ticketsByUnit = React.useMemo(() => {
@@ -2646,6 +2646,9 @@ const PropertyNoticeBoard: React.FC<{
     authorName: string;
 }> = ({ propertyId, firmId, authorId, authorName }) => {
     const { addToast } = useUI();
+    // ROUND A2: getAllNotices/archiveNotice/restoreNotice require the staff
+    // session server-side.
+    const { bearerToken } = useAuth();
     const [showForm, setShowForm] = useState(false);
     const [newTitle, setNewTitle] = useState('');
     const [newBody, setNewBody] = useState('');
@@ -2656,7 +2659,7 @@ const PropertyNoticeBoard: React.FC<{
     // Fetch notices scoped to this property
     const notices = useQuery(
         api.portals.getAllNotices,
-        firmId ? { firmId, propertyId } : 'skip'
+        firmId ? { firmId, propertyId, sessionToken: bearerToken ?? undefined } : 'skip'
     );
 
     const createNotice = useMutation(api.portals.createNotice);
@@ -2846,7 +2849,7 @@ const PropertyNoticeBoard: React.FC<{
                                             <button
                                                 onClick={async () => {
                                                     try {
-                                                        await archiveNotice({ noticeId: notice._id });
+                                                        await archiveNotice({ noticeId: notice._id, sessionToken: bearerToken ?? undefined });
                                                         addToast('Notice archived.', { type: 'success' });
                                                     } catch (err: any) {
                                                         addToast(err.message || 'Failed to archive.', { type: 'error' });
@@ -2909,7 +2912,7 @@ const PropertyNoticeBoard: React.FC<{
                                 <button
                                     onClick={async () => {
                                         try {
-                                            await restoreNotice({ noticeId: notice._id });
+                                            await restoreNotice({ noticeId: notice._id, sessionToken: bearerToken ?? undefined });
                                             addToast('Notice restored.', { type: 'success' });
                                         } catch (err: any) {
                                             addToast(err.message || 'Failed to restore.', { type: 'error' });

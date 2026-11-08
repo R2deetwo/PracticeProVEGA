@@ -32,7 +32,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
   // returned by the backend if the firm hasn't configured any yet).
   const requestTypes = useQuery(
     api.portals.getServiceRequestTypes,
-    firmId ? { firmId, portalType: 'resident' as const } : 'skip'
+    firmId ? { firmId, portalType: 'resident' as const, sessionToken: bearerToken ?? undefined } : 'skip'
   );
 
   // Fetch tickets from Convex

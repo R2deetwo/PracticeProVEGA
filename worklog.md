@@ -15557,3 +15557,81 @@ dev/demo deployments (never production); (3) /api/agent/inspect now
 404s while AGENT_INSPECT_SECRET is unset — set the secret if the
 inspection tool is still wanted; (4) CLOUDFLARE_API_TOKEN rotation
 (standing, unchanged).
+
+### R75 — ROUND A2: the portal-layer sweep — every remaining unauthenticated surface classified and closed (2026-11-08)
+Follow-up to Round A, ordered by the owner: the 44 additional portal-layer
+functions flagged as potentially vulnerable in the Round A report were each
+reviewed, classified by their ACTUAL access model (not blindly gated), and
+remediated. Full per-function table in ATRIUM_ROUND_A2_PORTAL_LAYER_REMEDIATION.md.
+
+Classification of all 59 unauth-marked public functions across the portal
+layer (43 portals.ts + 11 estateCommunity.ts + 5 visitorManagement.ts):
+- 29 LIVE functions fixed (staff auth / portal auth / firm binding /
+  identity rebinding per function — see the report for each one's model);
+- 9 DEAD functions DELETED (zero callers anywhere; Round 8 precedent:
+  dead + unauthenticated = removed, not kept);
+- 1 internalised (getPortalInviteById → internalQuery: its only caller is
+  the staff-gated resendPortalInvite action; off the public api surface);
+- 4 token flows PRESERVED public by design (getInviteByToken,
+  acceptPortalInviteByToken, verifyInviteToken, setupPortalPassword — the
+  crypto-random invite token IS the capability; pinned by regression
+  tests so they can never be silently over-authenticated);
+- 11 estateCommunity mutations were FALSE POSITIVES (requireAdmin =
+  strict session + Admin role + entity firm binding, verified by test);
+- 5 gatehouse functions stay intentionally public (the tablet surface;
+  Round A's throttling + code-possession + PII minimisation unchanged).
+
+Headline fixes (all server-side, all in convex/portals.ts):
+- adminDeletePortalMessage: the "cross-firm guard" compared against a
+  CALLER-SUPPLIED firmId with no session check at all — anyone could
+  soft-delete any portal message by id. Staff auth + server-side record
+  firm + deletedBy bound to the session caller.
+- hardDeleteConversation: the code literally commented "We don't have a
+  firmId check here because the caller (MessagesView) already verifies" —
+  a client-side check is not security. Staff auth + conversation firm.
+- getConversationMessages: the IDOR — a bare conversation id returned the
+  whole thread to anyone. Staff must match the firm; a portal user must
+  BE the participant.
+- resolveFirmFromInvite: an unauthenticated account-existence oracle
+  (probe any email → their firm + portal type). Now session-gated with
+  the email rebound to the caller's own aliases (every caller is
+  post-login).
+- relinkPortalUserToProperty: an unauthenticated mutation that REWRITES
+  property tenancy links for any email in any firm. Portal auth; the
+  caller can only relink themselves inside their own firm.
+- getPortalInvitesByFirm / getPortalInvitesByEmail: the invite directory
+  carries LIVE invitation tokens and was readable/probeable by anyone;
+  staff-gated, results scoped to the caller's firm.
+- The client-portal data cluster (contact, matters, messages, activity,
+  invoices, service requests, consent records) + the conversation
+  cluster + notices + notification preferences + the service-request
+  catalog: portal/staff auth + firm binding + IDOR-proof identity
+  rebinding (foreign ids are rebound to the caller's own aliases — a new
+  portalCallerExtendedAliases helper covers the legacy contact-id keying
+  so rebinding preserves historical data).
+- assignTicketToTeamMember: unauthenticated staff write (reassign any
+  ticket, post as "Admin") → staff auth + record firm + assignee firm
+  + assigner bound to the session caller.
+
+Frontend bearer sweep: 46 call sites across 16 files now pass the session
+token (MessagesView incl. bulk-delete + reply + assign flows, Sidebar,
+PropertyDetailView, NoticeBoardTab, ServiceRequestTypesConfig,
+PortalAccessSettings, NotificationSettings, the resident portal
+orchestrator + Maintenance/Messages/Documents tabs + hooks + PortalStates,
+ClientDashboard, ClientMatterDetailView, DataProvider). A window-based
+verifier script asserts every call site of every secured function passes
+the bearer (scripts/roundA2_verify_callsites2.py pattern, run clean).
+
+Deleted (zero callers, verified repo-wide incl. convex cross-references):
+respondToServiceRequest, getClientServiceRequestsByFirm,
+getServiceRequestsByFirm, getPortalMessagesBySender, getPortalMessageById,
+getNotice, resolvePortalUserByToken, getFirmPortalInvites, updateNotice.
+
+Quality gates: app tsc 126 (HEAD baseline 126, ZERO new), vitest 1,600
+passed (1,495 + 105 new tests/unit/portalLayerSecurity.test.ts — the
+unauthenticated sweep over all 29 + both-direction behavioural tests per
+class + the public-flow preservation pins + the deletion source
+contracts), vite build green in 22.2s, eslint 0 errors / 77 warnings
+(baseline). Round A commit 3992a360 untouched; this round is a separate
+commit on top. No Vega OS / Komplete module touched (zero callers there —
+verified before every deletion).

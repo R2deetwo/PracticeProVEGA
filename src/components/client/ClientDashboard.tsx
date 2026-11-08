@@ -243,7 +243,7 @@ const ClientDashboard: React.FC = () => {
     // Fallback: if firmId is missing, try to resolve it from invite records
     const firmResolution = useQuery(
         api.portals.resolveFirmFromInvite,
-        !currentUser?.firmId && currentUser?.email ? { email: currentUser.email } : 'skip'
+        !currentUser?.firmId && currentUser?.email ? { email: currentUser.email, sessionToken: bearerToken ?? undefined } : 'skip'
     );
     const effectiveFirmId = currentUser?.firmId || firmResolution?.firmId || '';
 
@@ -251,7 +251,7 @@ const ClientDashboard: React.FC = () => {
     const clientContactResult = useQuery(
         api.portals.getClientContactByUserId,
         (currentUser?.id && effectiveFirmId)
-            ? { firmId: effectiveFirmId, userId: currentUser.id }
+            ? { firmId: effectiveFirmId, userId: currentUser.id, sessionToken: bearerToken ?? undefined }
             : 'skip'
     );
 
@@ -281,7 +281,7 @@ const ClientDashboard: React.FC = () => {
     const clientMattersResult = useQuery(
         api.portals.getClientMattersByUserId,
         (currentUser?.id && effectiveFirmId)
-            ? { firmId: effectiveFirmId, userId: currentUser.id }
+            ? { firmId: effectiveFirmId, userId: currentUser.id, sessionToken: bearerToken ?? undefined }
             : 'skip'
     );
 
@@ -299,7 +299,7 @@ const ClientDashboard: React.FC = () => {
     const clientInvoices = useQuery(api.portals.getClientInvoices, portalQueryArgs);
     const clientConsentRecords = useQuery(
         api.portals.getClientConsentRecords,
-        currentUser?.email ? { email: currentUser.email } : 'skip'
+        currentUser?.email ? { email: currentUser.email, sessionToken: bearerToken ?? undefined } : 'skip'
     );
 
     // ── Loading-state helpers ────────────────────────────────────────────────
@@ -322,12 +322,12 @@ const ClientDashboard: React.FC = () => {
     // Conversation-based portal messages (new system)
     const portalConversations = useQuery(
         api.portals.getPortalConversationsByParticipant,
-        currentUser?.id ? { participantId: currentUser.id } : 'skip'
+        currentUser?.id ? { participantId: currentUser.id, sessionToken: bearerToken ?? undefined } : 'skip'
     );
     const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
     const conversationMessages = useQuery(
         api.portals.getConversationMessages,
-        activeConversationId ? { conversationId: activeConversationId } : 'skip'
+        activeConversationId ? { conversationId: activeConversationId, sessionToken: bearerToken ?? undefined } : 'skip'
     );
     const markRead = useMutation(api.portals.markConversationReadByParticipant);
     // SPLIT-BRAIN FIX: auto-select the most recent conversation so the client
@@ -502,12 +502,12 @@ const ClientDashboard: React.FC = () => {
     // backend if firm hasn't configured any yet).
     const clientRequestTypes = useQuery(
         api.portals.getServiceRequestTypes,
-        effectiveFirmId ? { firmId: effectiveFirmId, portalType: 'client' as const } : 'skip'
+        effectiveFirmId ? { firmId: effectiveFirmId, portalType: 'client' as const, sessionToken: bearerToken ?? undefined } : 'skip'
     );
     // Fetch this client's previously submitted requests (history)
     const clientServiceRequests = useQuery(
         api.portals.getClientServiceRequestsByClient,
-        currentUser?.id ? { clientId: currentUser.id } : 'skip'
+        currentUser?.id ? { clientId: currentUser.id, sessionToken: bearerToken ?? undefined } : 'skip'
     );
     const createClientServiceRequest = useMutation(api.portals.createClientServiceRequest);
     const cancelClientServiceRequest = useMutation(api.portals.cancelClientServiceRequest);
@@ -1424,6 +1424,8 @@ const ClientDashboard: React.FC = () => {
                                 await softDeleteOwnMessage({
                                     messageId: String(target._id),
                                     requesterId: currentUser.id,
+                                    // ROUND A2: server binds the delete to the session caller.
+                                    sessionToken: bearerToken ?? undefined,
                                 });
                                 addToast('Message deleted.', { type: 'success', duration: 2500 });
                             } catch (err: any) {
