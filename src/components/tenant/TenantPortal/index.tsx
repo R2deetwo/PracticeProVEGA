@@ -222,6 +222,7 @@ const TenantPortal: React.FC = () => {
                   propertyId={tenantInfo?.primaryPropertyId || tenantInfo?.properties?.[0]?.id || ''}
                   residentUserId={userId || ''}
                   residentName={tenantInfo?.tenantName || currentUser?.name || 'Resident'}
+                  bearerToken={bearerToken}
                   communityFeatures={(tenantInfo as any)?.communityFeatures}
                   userEmail={email || currentUser?.email || ''}
                 />

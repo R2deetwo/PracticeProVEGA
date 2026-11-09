@@ -98,6 +98,15 @@ export const SubscriptionRequestsCenter: React.FC = () => {
   const [discountReason, setDiscountReason] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState<Record<string, boolean>>({});
 
+  // ─── ROUND D (Wave 2, D2): Add-ons approval tab ─────────────────────
+  // getAddonRequests / approveAddonRequestAsFounder / rejectAddonRequestAsFounder
+  // shipped in the CRO audit with ZERO UI — add-on requests piled up in
+  // pending_review forever (and before the D2 paid-path fix, even PAID
+  // purchases landed there). This tab is their surface.
+  const [viewTab, setViewTab] = useState<'plans' | 'addons'>('plans');
+  const [addonStatusFilter, setAddonStatusFilter] = useState<'pending_review' | 'active' | 'cancelled' | 'all'>('pending_review');
+  const [addonRequests, setAddonRequests] = useState<any[] | undefined>(undefined);
+
   // Data — DEFENSIVE PATTERN.
   // The new founderMetrics mutations (getSubscriptionRequestStats,
   // getSubscriptionRequests) require a Convex deploy to exist on the backend.
@@ -130,7 +139,29 @@ export const SubscriptionRequestsCenter: React.FC = () => {
     fetchData();
     const interval = setInterval(fetchData, 30_000);  // refresh every 30s
     return () => { cancelled = true; clearInterval(interval); };
-  }, [tokenIdentifier, convex, statusFilter]);
+  }, [tokenIdentifier, convex, statusFilter, viewTab]);
+
+  // ─── D2: Add-on requests fetch (same defensive pattern) ────────────
+  useEffect(() => {
+    if (!tokenIdentifier || !convex || viewTab !== 'addons') return;
+    let cancelled = false;
+    const fetchAddons = async () => {
+      try {
+        const r = await convex.query(api.founderMetrics.getAddonRequests, {
+          tokenIdentifier,
+          sessionToken: bearerToken ?? undefined,
+          status: addonStatusFilter,
+        });
+        if (!cancelled) setAddonRequests(r || []);
+      } catch (e: any) {
+        console.warn('[SubscriptionRequestsCenter] getAddonRequests failed:', e?.message || e);
+        if (!cancelled) setAddonRequests([]);
+      }
+    };
+    fetchAddons();
+    const interval = setInterval(fetchAddons, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [tokenIdentifier, convex, addonStatusFilter, viewTab]);
 
   // Mutations — also defensive (use convex.mutation directly in handlers).
   // The useMutation hook itself doesn't throw at render time even if the
@@ -138,6 +169,9 @@ export const SubscriptionRequestsCenter: React.FC = () => {
   // So we keep useMutation here; the handlers wrap calls in try/catch.
   const approveMutation = useMutation(api.founderMetrics.approveSubscriptionRequestAsFounder);
   const rejectMutation  = useMutation(api.founderMetrics.rejectSubscriptionRequestAsFounder);
+  // D2: the add-on approval pair — previously orphaned (zero UI).
+  const approveAddonMutation = useMutation(api.founderMetrics.approveAddonRequestAsFounder);
+  const rejectAddonMutation  = useMutation(api.founderMetrics.rejectAddonRequestAsFounder);
 
   // Filtered requests (search by firm name, user email, reference)
   const filtered = useMemo(() => {
@@ -201,14 +235,90 @@ export const SubscriptionRequestsCenter: React.FC = () => {
     }
   };
 
+  // ─── D2: Add-on approve / reject handlers ───────────────────────────
+  const handleAddonApprove = async (requestId: string) => {
+    setIsProcessing(prev => ({ ...prev, ['addon_' + requestId]: true }));
+    try {
+      await approveAddonMutation({
+        tokenIdentifier,
+        sessionToken: bearerToken ?? undefined,
+        requestId,
+        adminNotes: adminNotes[requestId] || undefined,
+        discountPercent: discountPercent[requestId] || undefined,
+        discountReason: discountReason[requestId] || undefined,
+      });
+      const dp = discountPercent[requestId] || 0;
+      addToast(
+        dp > 0
+          ? `Add-on approved with ${dp}% discount. Firm notified.`
+          : 'Add-on approved and activated. Firm notified.',
+        { type: 'success' }
+      );
+      setExpandedId(null);
+      setAdminNotes(prev => { const n = { ...prev }; delete n[requestId]; return n; });
+      setDiscountPercent(prev => { const n = { ...prev }; delete n[requestId]; return n; });
+      setDiscountReason(prev => { const n = { ...prev }; delete n[requestId]; return n; });
+      // Refresh the queue (drop the approved row)
+      try {
+        const r = await convex.query(api.founderMetrics.getAddonRequests, {
+          tokenIdentifier, sessionToken: bearerToken ?? undefined, status: addonStatusFilter,
+        });
+        setAddonRequests(r || []);
+      } catch {}
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to approve add-on.', { type: 'error' });
+    } finally {
+      setIsProcessing(prev => ({ ...prev, ['addon_' + requestId]: false }));
+    }
+  };
+
+  const handleAddonReject = async (requestId: string) => {
+    setIsProcessing(prev => ({ ...prev, ['addon_' + requestId]: true }));
+    try {
+      await rejectAddonMutation({
+        tokenIdentifier,
+        sessionToken: bearerToken ?? undefined,
+        requestId,
+        reason: rejectReason[requestId] || undefined,
+      });
+      addToast('Add-on request rejected. Firm notified.', { type: 'success' });
+      setExpandedId(null);
+      setRejectReason(prev => { const n = { ...prev }; delete n[requestId]; return n; });
+      try {
+        const r = await convex.query(api.founderMetrics.getAddonRequests, {
+          tokenIdentifier, sessionToken: bearerToken ?? undefined, status: addonStatusFilter,
+        });
+        setAddonRequests(r || []);
+      } catch {}
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to reject add-on.', { type: 'error' });
+    } finally {
+      setIsProcessing(prev => ({ ...prev, ['addon_' + requestId]: false }));
+    }
+  };
+
   // ─── Loading state ────────────────────────────────────────────────
-  if (requests === undefined || stats === undefined) {
+  const plansLoading = requests === undefined || stats === undefined;
+  const addonsLoading = viewTab === 'addons' && addonRequests === undefined;
+  if (plansLoading || addonsLoading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
       </div>
     );
   }
+
+  // D2: add-on queue stats (computed client-side from the fetched queue).
+  const addonStats = (() => {
+    const rows = addonRequests || [];
+    return {
+      count: rows.length,
+      pendingCount: rows.filter((r: any) => r.status === 'pending_review').length,
+      volume: rows
+        .filter((r: any) => r.status === 'pending_review')
+        .reduce((s: number, r: any) => s + (r.discountedAmount || r.amount || 0), 0),
+    };
+  })();
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-20 overflow-x-hidden">
@@ -218,8 +328,253 @@ export const SubscriptionRequestsCenter: React.FC = () => {
         <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
           Approve or reject bank-transfer upgrade requests. Auto-reverts after 72h.
         </p>
+        {/* ─── D2: Plans / Add-ons tab switcher ───────────────────── */}
+        <div className="flex gap-1 mt-3 p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg w-fit">
+          <button
+            onClick={() => setViewTab('plans')}
+            className={`px-4 py-1.5 rounded-md text-2xs font-bold transition-colors ${
+              viewTab === 'plans'
+                ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            Plan Upgrades
+          </button>
+          <button
+            onClick={() => setViewTab('addons')}
+            className={`px-4 py-1.5 rounded-md text-2xs font-bold transition-colors ${
+              viewTab === 'addons'
+                ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white shadow-sm'
+                : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'
+            }`}
+          >
+            Add-ons
+          </button>
+        </div>
       </div>
 
+      {/* ═══ D2: ADD-ONS APPROVAL QUEUE ═══ */}
+      {viewTab === 'addons' ? (
+        <div className="px-4 space-y-4">
+          {/* Stats strip */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className={CARD}>
+              <p className={LABEL}>Pending Add-ons</p>
+              <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">{addonStats.pendingCount}</p>
+            </div>
+            <div className={CARD}>
+              <p className={LABEL}>Pending Volume</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+                <NairaSymbol />{formatNaira(addonStats.volume)}
+              </p>
+            </div>
+            <div className={CARD}>
+              <p className={LABEL}>In View</p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{addonStats.count}</p>
+            </div>
+          </div>
+
+          {/* Status filters */}
+          <div className={CARD}>
+            <p className={SECTION_TITLE}>Add-on Requests</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+              Firms requesting add-ons without Paystack (bank-transfer flow). Approving activates the add-on immediately;
+              paid purchases activate themselves (verified server-side) and never appear here.
+            </p>
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              {([
+                { id: 'pending_review', label: 'Pending', color: 'bg-amber-500' },
+                { id: 'active', label: 'Active', color: 'bg-emerald-500' },
+                { id: 'cancelled', label: 'Rejected/Cancelled', color: 'bg-slate-500' },
+                { id: 'all', label: 'All', color: 'bg-primary-600' },
+              ] as const).map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => setAddonStatusFilter(f.id)}
+                  className={`px-3 py-1.5 rounded-md text-2xs font-bold transition-colors whitespace-nowrap flex-shrink-0 ${
+                    addonStatusFilter === f.id
+                      ? `${f.color} text-white shadow-sm`
+                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Empty state */}
+          {(addonRequests || []).length === 0 && (
+            <div className={CARD + ' text-center py-12'}>
+              <h3 className="text-sm font-bold text-slate-700 dark:zinc-300">No add-on requests</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {addonStatusFilter === 'pending_review'
+                  ? 'When a firm requests an add-on via bank transfer, it will appear here. Paystack purchases activate automatically and never need approval.'
+                  : 'Try a different filter.'}
+              </p>
+            </div>
+          )}
+
+          {/* Request list */}
+          <div className="space-y-3">
+            {(addonRequests || []).map((r: any) => {
+              const isExpanded = expandedId === r.id;
+              const isPending = r.status === 'pending_review';
+              const qty = r.quantity || 1;
+              return (
+                <div key={r.id} className={CARD + ' transition-all ' + (isPending ? 'border-l-4 border-l-amber-500' : '')}>
+                  {/* Header row */}
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : r.id)}
+                    className="w-full flex items-center justify-between gap-3 text-left"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-2xs font-black uppercase tracking-widest px-2 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400">
+                          Add-on
+                        </span>
+                        <span
+                          className={`text-2xs font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                            r.status === 'active'
+                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                              : r.status === 'pending_review'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                                : 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-400'
+                          }`}
+                        >
+                          {(r.status || '—').replace('_', ' ')}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">{r.addonName || r.addonId}</h3>
+                      <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
+                        {r.firmName || 'Unknown firm'} • {r.userEmail || '—'} • {timeAgo(r.requestedAt)}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-base font-black text-slate-900 dark:text-white">
+                        <NairaSymbol />{formatNaira(r.discountedAmount || r.amount || 0)}
+                      </p>
+                      <p className="text-2xs text-slate-400 uppercase tracking-widest">
+                        {qty > 1 ? `${qty} × ` : ''}{r.billingInterval || 'monthly'}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-700 space-y-3 animate-fade-in">
+                      {r.notes && (
+                        <div className="bg-slate-50 dark:bg-zinc-700/30 rounded-lg p-3">
+                          <p className={LABEL}>User Note</p>
+                          <p className="text-xs text-slate-600 dark:text-zinc-300 mt-1 italic">"{r.notes}"</p>
+                        </div>
+                      )}
+
+                      {isPending ? (
+                        <div className="space-y-3 pt-2">
+                          {/* Discount (same convention as plan upgrades) */}
+                          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3">
+                            <label className={LABEL + ' block mb-2'}>Discount (optional)</label>
+                            <div className="flex items-center gap-2 mb-2">
+                              <input
+                                type="range" min={0} max={100} step={5}
+                                value={discountPercent[r.id] || 0}
+                                onChange={e => setDiscountPercent(prev => ({ ...prev, [r.id]: parseInt(e.target.value) }))}
+                                className="flex-1 accent-emerald-600"
+                              />
+                              <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm w-12 text-right">
+                                {discountPercent[r.id] || 0}%
+                              </span>
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Discount reason (e.g. Annual bundle loyalty)"
+                              value={discountReason[r.id] || ''}
+                              onChange={e => setDiscountReason(prev => ({ ...prev, [r.id]: e.target.value }))}
+                              className="w-full px-2 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-1 focus:ring-emerald-500/30 outline-none"
+                            />
+                            <div className="mt-2 flex justify-between items-center text-xs">
+                              <span className="text-slate-500 dark:text-zinc-400">
+                                Original: <NairaSymbol />{formatNaira(r.amount || 0)}
+                              </span>
+                              {(discountPercent[r.id] || 0) > 0 && (
+                                <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                                  Final: <NairaSymbol />{formatNaira(Math.round((r.amount || 0) * (1 - (discountPercent[r.id] || 0) / 100)))}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className={LABEL + ' block mb-1'}>Approval Notes (optional)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Confirmed ₦20,000 transfer received"
+                              value={adminNotes[r.id] || ''}
+                              onChange={e => setAdminNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
+                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className={LABEL + ' block mb-1'}>Rejection Reason (if rejecting)</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Payment not received. Contact support."
+                              value={rejectReason[r.id] || ''}
+                              onChange={e => setRejectReason(prev => ({ ...prev, [r.id]: e.target.value }))}
+                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-red-500/30 focus:border-red-500 outline-none"
+                            />
+                          </div>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => handleAddonApprove(r.id)}
+                              disabled={isProcessing['addon_' + r.id]}
+                              className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all active:scale-95"
+                            >
+                              {isProcessing['addon_' + r.id] ? 'Activating…' : 'Approve & Activate'}
+                            </button>
+                            <button
+                              onClick={() => handleAddonReject(r.id)}
+                              disabled={isProcessing['addon_' + r.id]}
+                              className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest rounded-lg transition-all active:scale-95"
+                            >
+                              {isProcessing['addon_' + r.id] ? 'Working…' : 'Reject'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <p className={LABEL}>Status</p>
+                            <p className="font-bold text-slate-700 dark:text-zinc-300 mt-1 capitalize">
+                              {(r.status || '—').replace('_', ' ')}
+                            </p>
+                          </div>
+                          <div>
+                            <p className={LABEL}>Reviewed</p>
+                            <p className="font-bold text-slate-700 dark:text-zinc-300 mt-1">
+                              {r.reviewedBy || '—'}{r.activatedAt ? ` • ${timeAgo(r.activatedAt)}` : ''}
+                            </p>
+                          </div>
+                          {r.discountPercent && r.discountPercent > 0 && (
+                            <div className="col-span-2">
+                              <p className={LABEL}>Discount</p>
+                              <p className="font-bold text-emerald-700 dark:text-emerald-400 mt-1">
+                                {r.discountPercent}% — <NairaSymbol />{formatNaira(r.discountedAmount || 0)}
+                                <span className="ml-1 text-2xs text-slate-400 line-through"><NairaSymbol />{formatNaira(r.amount || 0)}</span>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
       <div className="px-4 space-y-4">
         {/* ─── Stats Strip ─────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -507,6 +862,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 };

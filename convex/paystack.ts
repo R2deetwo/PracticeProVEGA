@@ -364,6 +364,37 @@ export async function handlePaystackWebhookImpl(
 
     const reference = tx.reference;
 
+    // ─── ROUND D (Wave 2, D2): add-on purchases settle on their own path ──
+    // The client generates ADDON-{addonId}-{epochMs} references for add-on
+    // purchases. The client callback normally settles them via
+    // purchaseAddonWithPayment, but the callback can fail after a successful
+    // charge (popup closed / browser crash) — this signature-verified webhook
+    // is the self-healing settlement path. Idempotent: a reference the client
+    // already settled short-circuits inside settleAddonPaymentWebhook.
+    if (typeof reference === 'string' && reference.startsWith('ADDON-')) {
+      let quantity: number | undefined;
+      try {
+        const fields = tx.metadata?.custom_fields;
+        const qtyField = Array.isArray(fields)
+          ? fields.find((f: any) => f?.variable_name === 'quantity')
+          : null;
+        const parsed = Number(qtyField?.value);
+        if (Number.isFinite(parsed) && parsed >= 1) quantity = Math.floor(parsed);
+      } catch { /* metadata is optional — default quantity applies */ }
+      const settled = await ctx.runMutation(internal.myFunctions.settleAddonPaymentWebhook, {
+        reference,
+        amount: tx.amount / 100, // kobo → NGN
+        paidAt: tx.paid_at,
+        channel: tx.channel,
+        customerEmail: tx.customer?.email,
+        quantity,
+      });
+      return new Response(JSON.stringify({ status: "addon_settled", ...settled }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     // Update the invoice — this is the ONLY path that sets Paid for Paystack
     await ctx.runMutation(internal.payments.completePaystackPayment, {
       reference,

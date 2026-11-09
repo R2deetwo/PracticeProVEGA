@@ -37,6 +37,9 @@ import { roundMoney, sanitizeMoney } from "./moneyUtils";
 // R12: subscription dunning + grace + soft downgrade — pure decision logic
 // (kept separate so tests/unit/dunning.test.ts can lock the stage machine).
 import { computeDunningAction, DunningAction } from "./dunning";
+// ROUND D (Wave 2, D2): canonical add-on catalog — the paid activation path
+// validates charged amounts against these server-side prices.
+import { getAddonById, expectedAddonAmount } from "./addonCatalog";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
@@ -8773,45 +8776,349 @@ export const createAddonRequest = mutation({
 });
 
 /**
- * mutation: purgeStalePendingAddons
- * Founder-only — deletes all add-on requests with status 'pending_review'
- * that are older than 72 hours. These stale requests clog the admin queue.
- * Also purges any mock/test add-on requests.
+ * ROUND D (Wave 2, D2) — purgeStalePendingAddons DELETED.
+ * ────────────────────────────────────────────────────────────────────────
+ * The mutation hard-DELETED every pending_review add-on request older than
+ * 72h (plus any whose addonName/email matched a 'test'/'mock'/'demo'
+ * heuristic, regardless of age). Under the pre-D2 flow a PAID purchase
+ * (Paystack callback) wrote exactly such a pending_review row — with no
+ * paymentReference to distinguish it — so the purge semantics were "delete
+ * paid-but-unapproved money after 3 days". It had zero callers (no UI, no
+ * cron — a public-API footgun), and the approval queue it claimed to clean
+ * never existed. Deleting the function closes the paid-request purge class
+ * permanently; stale UNPAID requests are already handled by the user's own
+ * cancelAddon (hard-delete of pending rows) and by the founder Add-ons tab
+ * (reject → cancelled, never deleted — the money-relevant records survive).
  */
-export const purgeStalePendingAddons = mutation({
+
+/**
+ * internalQuery: resolveSessionForAddonPurchase — session → caller profile
+ * for the purchaseAddonWithPayment ACTION (actions have no ctx.db; this is
+ * the db-having half). Mirrors requireFirmUser semantics exactly.
+ */
+export const resolveSessionForAddonPurchase = internalQuery({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, args) => {
+    const { firmId, userId, user } = await requireFirmUser(ctx, undefined, args.sessionToken);
+    return {
+      firmId,
+      userId,
+      email: user?.email || user?.tokenIdentifier || '',
+      name: user?.name || '',
+    };
+  },
+});
+
+/**
+ * internalMutation: insertPaidAddonActivation — the write half of the paid
+ * path. IDEMPOTENT on paymentReference: the Paystack webhook and the client
+ * callback race each other (either may arrive first), and the client
+ * callback may fire twice on a flaky connection. The first settlement wins;
+ * every later call returns the existing row.
+ */
+export const insertPaidAddonActivation = internalMutation({
   args: {
-    founderEmail: v.string(),
-    sessionToken: v.optional(v.string()),
+    firmId: v.string(),
+    userId: v.string(),
+    userEmail: v.string(),
+    addonId: v.string(),
+    quantity: v.number(),
+    amount: v.number(),               // catalog-listed amount (unit price × qty)
+    paidAmount: v.number(),           // NGN actually charged (verified)
+    paidAt: v.optional(v.string()),
+    channel: v.optional(v.string()),
+    paymentReference: v.string(),
+    reviewedBy: v.string(),           // 'paystack:verified' (client path) | 'paystack:webhook' (webhook path)
   },
   handler: async (ctx, args) => {
-    // Round 8 auth retrofit: the founderEmail allowlist was spoofable —
-    // knowing founder@practicepro.ng was enough. Resolve the user and
-    // require the Founder role (the Founder App admission rule).
-    await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.founderEmail });
-
-    const CUTOFF_HOURS = 72;
-    const cutoffTime = new Date(Date.now() - CUTOFF_HOURS * 60 * 60 * 1000).toISOString();
-
-    const allPending = await ctx.db
+    // Idempotency — a reference settles exactly once, no matter how many
+    // racers (webhook, client callback, retry) reach this mutation.
+    const existing = await ctx.db
       .query("subscriptionAddons")
-      .filter((q: any) => q.eq(q.field("status"), "pending_review"))
-      .take(500);
-
-    let purged = 0;
-    for (const req of allPending) {
-      const requestedAt = (req as any).requestedAt || '';
-      const isStale = requestedAt < cutoffTime;
-      const isMock = (req as any).addonName?.toLowerCase().includes('test') ||
-                     (req as any).addonName?.toLowerCase().includes('mock') ||
-                     (req as any).userEmail?.includes('test') ||
-                     (req as any).userEmail?.includes('demo');
-      if (isStale || isMock) {
-        await ctx.db.delete(req._id);
-        purged++;
-      }
+      .withIndex("by_payment_reference", (q: any) => q.eq("paymentReference", args.paymentReference))
+      .first();
+    if (existing) {
+      return { requestId: existing._id, alreadyActive: true, addonName: existing.addonName };
     }
 
-    return { success: true, purged, remaining: allPending.length - purged };
+    const addon = getAddonById(args.addonId);
+    if (!addon) throw new Error(`Unknown add-on: ${args.addonId}`);
+
+    const now = new Date().toISOString();
+    const requestId = await ctx.db.insert("subscriptionAddons", {
+      firmId: args.firmId,
+      userId: args.userId,
+      userEmail: args.userEmail,
+      addonId: addon.id,
+      addonName: addon.name,
+      billingInterval: addon.billingInterval,
+      amount: args.amount,
+      quantity: args.quantity,
+      status: 'active',
+      paymentReference: args.paymentReference,
+      paidAmount: args.paidAmount,
+      paidAt: args.paidAt || now,
+      notes: args.channel ? `Paid via Paystack (${args.channel}).` : 'Paid via Paystack.',
+      requestedAt: now,
+      activatedAt: now,
+      reviewedBy: args.reviewedBy,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Money movement audit trail (Round B convention — every paid activation
+    // is observable, attribution included).
+    try {
+      await ctx.db.insert("analytics_events", {
+        firmId: args.firmId,
+        userId: args.userId,
+        event: 'ADDON_PURCHASE_PAID_ACTIVATION',
+        properties: {
+          addonId: addon.id,
+          addonName: addon.name,
+          quantity: args.quantity,
+          listedAmount: args.amount,
+          paidAmount: args.paidAmount,
+          paymentReference: args.paymentReference,
+          channel: args.channel || 'unknown',
+          settledBy: args.reviewedBy,
+          timestamp: Date.now(),
+        },
+        timestamp: Date.now(),
+      } as any);
+    } catch {}
+
+    return { requestId, alreadyActive: false, addonName: addon.name };
+  },
+});
+
+/**
+ * action: purchaseAddonWithPayment — the PAID add-on path (D2 fix).
+ *
+ * Before D2 the client's Paystack callback called createAddonRequest — the
+ * SAME pending_review row as an unpaid request, with no payment reference —
+ * then told the user the add-on "will be ready momentarily" while NOTHING
+ * could ever activate it (the founder approval functions had no UI). Money
+ * was taken; the row waited for an approval that never came.
+ *
+ * This action settles the truth server-side:
+ *   1. requireFirmUser — the caller must hold a verified session.
+ *   2. Catalog validation — addonId must exist; the expected amount is the
+ *      CATALOG price × quantity (client-claimed amounts are never trusted).
+ *   3. verifyPaystackPayment — the reference is verified against Paystack
+ *      with the server's secret key (client callbacks are spoofable).
+ *   4. The verified amount must COVER the catalog price — a manipulated
+ *      popup that charged ₦1 for a ₦20,000 add-on is rejected, not
+ *      activated.
+ *   5. insertPaidAddonActivation — idempotent (webhook/client race + retry
+ *      safe); the row lands ACTIVE with the full payment audit trail.
+ */
+export const purchaseAddonWithPayment = action({
+  args: {
+    addonId: v.string(),
+    quantity: v.optional(v.number()),
+    paymentReference: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  // Explicit return type: the handler references `internal` (cast), and the
+  // typed api tree would otherwise make this const's inference circular
+  // (TS7022/TS7023 — same-module internal reference).
+  handler: async (ctx, args): Promise<{ requestId: any; alreadyActive: boolean; addonName: string }> => {
+    // 1. Session-resolved caller (strict identity — the email arg is ignored).
+    // (internal as any): same-module internal references must be cast — the
+    // typed api tree would create a circular inference (this file's exports
+    // feed internal.myFunctions, which this handler references).
+    const auth: { firmId: string; userId: string; email: string; name?: string } =
+      await ctx.runQuery((internal as any).myFunctions.resolveSessionForAddonPurchase, {
+        sessionToken: args.sessionToken || '',
+      });
+
+    // 2. Catalog validation — the price the SERVER expects.
+    const addon = getAddonById(args.addonId);
+    if (!addon) {
+      throw new Error(`Unknown add-on: ${args.addonId}`);
+    }
+    const quantity = Math.max(1, Math.floor(args.quantity ?? 1));
+    const expected = expectedAddonAmount(args.addonId, quantity);
+    if (expected === null) {
+      throw new Error(`Unknown add-on: ${args.addonId}`);
+    }
+
+    // 3. Server-side Paystack verification of the reference (cast — see above:
+    // paystack's webhook handler references this module's settlement
+    // mutation, so the typed tree is circular).
+    const verification: any = await ctx.runAction((internal as any).paystack.verifyPaystackPayment, {
+      reference: args.paymentReference,
+    });
+    if (verification?.status !== 'success') {
+      throw new Error(
+        `Payment could not be verified (status: ${verification?.status || 'unknown'}). ` +
+        'If you were charged, contact support with your payment reference.'
+      );
+    }
+
+    // 4. The verified charge must cover the catalog price — no self-serve
+    //    discounts via a manipulated popup amount.
+    const paidAmount = Number(verification.amount) || 0;
+    if (paidAmount + 0.01 < expected) {
+      throw new Error(
+        `Payment mismatch: ₦${paidAmount.toLocaleString()} verified vs ₦${expected.toLocaleString()} ` +
+        `required for ${quantity} × ${addon.name}. Contact support with your payment reference.`
+      );
+    }
+
+    // 5. Idempotent activation.
+    return await ctx.runMutation((internal as any).myFunctions.insertPaidAddonActivation, {
+      firmId: auth.firmId,
+      userId: auth.userId,
+      userEmail: auth.email,
+      addonId: args.addonId,
+      quantity,
+      amount: expected,
+      paidAmount,
+      paidAt: verification.paidAt,
+      channel: verification.channel,
+      paymentReference: args.paymentReference,
+      reviewedBy: 'paystack:verified',
+    });
+  },
+});
+
+/**
+ * internalMutation: settleAddonPaymentWebhook — webhook-side settlement for
+ * ADDON-* references (called from convex/paystack.ts handlePaystackWebhook).
+ *
+ * Why this exists: the client callback can fail after a successful charge
+ * (popup closed, browser crashed, network drop) — money taken, no row, no
+ * activation. The signature-verified webhook is the self-healing settlement
+ * path (same doctrine as Round B's H7 for rent payments). It resolves the
+ * buyer from the transaction's customer email, validates the paid amount
+ * against the catalog, and lands the same idempotent ACTIVE row. A
+ * reference the client already settled is a no-op (first settlement wins).
+ *
+ * addonId is parsed from the reference format the client generates:
+ *   ADDON-{addonId}-{epochMs}   (catalog ids contain no dashes)
+ * quantity comes from the transaction metadata custom_fields (variable_name
+ * 'quantity'), defaulting to 1.
+ */
+export const settleAddonPaymentWebhook = internalMutation({
+  args: {
+    reference: v.string(),
+    amount: v.number(),               // NGN (kobo already normalized by the webhook)
+    paidAt: v.optional(v.string()),
+    channel: v.optional(v.string()),
+    customerEmail: v.optional(v.string()),
+    quantity: v.optional(v.number()),
+  },
+  // Explicit return type — breaks the same-module internal-reference
+  // inference cycle (see purchaseAddonWithPayment above).
+  handler: async (ctx, args): Promise<{ settled: boolean; reason?: string; requestId?: any; alreadyActive?: boolean; alreadySettled?: boolean; addonName?: string }> => {
+    // Idempotency first — the client callback may have already settled it.
+    const existing = await ctx.db
+      .query("subscriptionAddons")
+      .withIndex("by_payment_reference", (q: any) => q.eq("paymentReference", args.reference))
+      .first();
+    if (existing) {
+      return { settled: true, alreadySettled: true, requestId: existing._id };
+    }
+
+    // Parse the addonId out of the reference.
+    const m = /^ADDON-(.+?)-(\d+)$/.exec(args.reference);
+    if (!m) {
+      await logError(ctx, {
+        scope: "payment", name: "myFunctions:settleAddonPaymentWebhook:badReference",
+        error: new Error(`Unparseable ADDON reference: ${args.reference}`),
+        severity: "warning",
+        context: { reference: args.reference },
+      });
+      return { settled: false, reason: 'bad_reference' as const };
+    }
+    const addonId = m[1];
+    const addon = getAddonById(addonId);
+    if (!addon) {
+      await logError(ctx, {
+        scope: "payment", name: "myFunctions:settleAddonPaymentWebhook:unknownAddon",
+        error: new Error(`No catalog add-on for reference ${args.reference} (addonId ${addonId})`),
+        severity: "warning",
+        context: { reference: args.reference, addonId },
+      });
+      return { settled: false, reason: 'unknown_addon' as const };
+    }
+
+    // Resolve the buyer from the transaction's customer email (the email the
+    // Paystack popup collected — the same one the client passed at setup).
+    const email = String(args.customerEmail || '').toLowerCase().trim();
+    if (!email) {
+      await logError(ctx, {
+        scope: "payment", name: "myFunctions:settleAddonPaymentWebhook:noCustomerEmail",
+        error: new Error(`ADDON charge with no customer email: ${args.reference}`),
+        severity: "warning",
+        context: { reference: args.reference },
+      });
+      return { settled: false, reason: 'no_customer_email' as const };
+    }
+    let buyer: any = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", email))
+      .first();
+    if (!buyer) {
+      buyer = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q: any) => q.eq("email", email))
+        .first();
+    }
+    if (!buyer || !buyer.firmId) {
+      await logError(ctx, {
+        scope: "payment", name: "myFunctions:settleAddonPaymentWebhook:unresolvableBuyer",
+        error: new Error(`ADDON charge for unresolvable buyer ${email}: ${args.reference}`),
+        severity: "warning",
+        context: { reference: args.reference, email },
+      });
+      return { settled: false, reason: 'unresolvable_buyer' as const };
+    }
+
+    // Amount validation — same rule as the client path: the verified charge
+    // must cover the catalog price × quantity.
+    const quantity = Math.max(1, Math.floor(args.quantity ?? 1));
+    const expected = expectedAddonAmount(addonId, quantity);
+    if (expected === null) {
+      return { settled: false, reason: 'unknown_addon' as const };
+    }
+    if (args.amount + 0.01 < expected) {
+      await logError(ctx, {
+        scope: "payment", name: "myFunctions:settleAddonPaymentWebhook:underpaid",
+        error: new Error(
+          `ADDON underpayment for ${args.reference}: paid ₦${args.amount}, ` +
+          `expected ₦${expected} (${quantity} × ${addon.name})`
+        ),
+        severity: "error",
+        context: { reference: args.reference, paid: args.amount, expected, quantity },
+      });
+      return { settled: false, reason: 'underpaid' as const };
+    }
+
+    // Settle — the shared idempotent insert (cast: same-module internal ref).
+    const settled: { requestId: any; alreadyActive: boolean; addonName: string } =
+      await ctx.runMutation((internal as any).myFunctions.insertPaidAddonActivation, {
+      firmId: buyer.firmId,
+      userId: buyer._id,
+      userEmail: buyer.email || email,
+      addonId,
+      quantity,
+      amount: expected,
+      paidAmount: args.amount,
+      paidAt: args.paidAt,
+      channel: args.channel,
+      paymentReference: args.reference,
+      reviewedBy: 'paystack:webhook',
+    });
+    return {
+      settled: true,
+      requestId: (settled as any)?.requestId,
+      alreadyActive: (settled as any)?.alreadyActive ?? false,
+      addonName: (settled as any)?.addonName ?? addon.name,
+    };
   },
 });
 

@@ -785,11 +785,17 @@ describe('ROUND A2 — token-based invitation flows remain public (by design)', 
 // 11. estateCommunity + gatehouse: documented false-positives / intentional
 // ═══════════════════════════════════════════════════════════════════════════
 describe('ROUND A2 — estateCommunity mutations stay strict (false positives)', () => {
-  it('every admin-catalog mutation calls requireAdmin (strict session + role + firm)', () => {
+  // ROUND D (Wave 2, D3): the gate moved from authHelpers.requireAdmin
+  // (Admin-only) to the local requireEstateAdmin — same strict session +
+  // firm binding via requireStaffCaller, but Admin OR Founding Partner
+  // (requireAdmin locked firm Founders out of the whole estate surface).
+  // This contract pins the STRONGER gate.
+  it('every admin-catalog mutation calls requireEstateAdmin (strict session + Admin/Founder role + firm)', () => {
     const src = read('convex/estateCommunity.ts');
-    for (const name of ['createAmenity', 'updateAmenity', 'deleteAmenity', 'reviewBooking', 'createBulletin', 'updateBulletin', 'archiveBulletin', 'createServiceProvider', 'updateServiceProvider', 'deleteServiceProvider']) {
-      const body = src.split(`export const ${name} = mutation`)[1].split('\nexport const')[0];
-      expect(body).toContain('requireAdmin(');
+    for (const name of ['createAmenity', 'updateAmenity', 'deleteAmenity', 'reviewBooking', 'createBulletin', 'updateBulletin', 'archiveBulletin', 'createServiceProvider', 'updateServiceProvider', 'deleteServiceProvider', 'getBookingsForFirm']) {
+      const body = src.split(`export const ${name} = `)[1].split('\nexport const')[0];
+      expect(body).toContain('requireEstateAdmin(');
+      expect(body).not.toContain('requireAdmin(');
     }
   });
 

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-04T16:20:47.359Z",
+  "generatedAt": "2026-11-09T16:58:34.193Z",
   "totals": {
-    "button": 1687,
-    "input": 421,
-    "select": 143,
+    "button": 1684,
+    "input": 420,
+    "select": 142,
     "textarea": 61
   },
-  "total": 2312,
+  "total": 2307,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -970,11 +970,6 @@
     },
     "src/components/settings/TemplatesSettings.tsx": {
       "button": 22
-    },
-    "src/components/tenant/EstateCommunityResidentView.tsx": {
-      "button": 3,
-      "input": 1,
-      "select": 1
     },
     "src/components/tenant/TenantPortal/DashboardTab.tsx": {
       "button": 11,

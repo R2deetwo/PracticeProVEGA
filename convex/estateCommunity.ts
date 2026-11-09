@@ -7,8 +7,9 @@
  *   2. Estate Bulletin — community announcements (events, meetings)
  *   3. Service Provider Directory — admin-curated vendor list
  *
- * All mutations require admin role (requireAdmin). Queries are resident-facing
- * but scoped to the resident's firm.
+ * All mutations require a firm-admin role (Admin or Founding Partner — see
+ * requireEstateAdmin below). Resident reads/booking go through the D3 portal
+ * surface (requirePortalCaller); staff use the firm-facing endpoints.
  *
  * ─── PRICING / ACCESS GATE (Aug 2026) ───────────────────────────────────
  * Estate Community is included free with Pro/Enterprise/Komplete. Below Pro,
@@ -27,8 +28,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { requireFirmUser, requireAdmin } from "./authHelpers";
-import { assertSameFirm } from "./callerAuth";
+import { requireFirmUser } from "./authHelpers";
+import { requireStaffCaller, requirePortalCaller, assertSameFirm } from "./callerAuth";
 
 // ════════════════════════════════════════════════════════════════════════
 // ACCESS GATE — Estate Community is Pro+ included or ₦5,000/mo add-on.
@@ -66,6 +67,37 @@ async function requireEstateCommunityAccess(ctx: any, firmId: string) {
   }
 }
 
+// ════════════════════════════════════════════════════════════════════
+// ROUND D (Wave 2, D3) — ESTATE ADMIN GATE
+// ════════════════════════════════════════════════════════════════════
+// The admin functions below used authHelpers.requireAdmin, which accepts
+// role === 'Admin' ONLY. A firm's Founding Partner (role 'Founder') — the
+// primary admin of single-founder estate-management firms — was locked out
+// of the entire Estate Community management surface (amenities, booking
+// approvals, bulletins, providers). This local gate mirrors the R77
+// isFirmAdminRole convention (Admin OR Founder are firm-admin roles) and
+// keeps portal roles out via requireStaffCaller. authHelpers.requireAdmin
+// itself is untouched — other modules rely on its exact semantics.
+async function requireEstateAdmin(ctx: any, userEmail?: string, sessionToken?: string | null) {
+  const user = await requireStaffCaller(ctx, { userEmail: userEmail ?? null, sessionToken: sessionToken ?? null });
+  const role = String(user.role || "");
+  if (role !== "Admin" && role !== "Founder") {
+    throw new Error("Permission denied. Estate Community management requires Administrator or Founding Partner privileges.");
+  }
+  return { firmId: user.firmId as string, userId: user._id as string, user };
+}
+
+// ════════════════════════════════════════════════════════════════════
+// PORTAL SURFACE (ROUND D, Wave 2 — D3)
+// ════════════════════════════════════════════════════════════════════
+// The resident view (EstateCommunityResidentView) originally called the
+// STAFF endpoints (requireFirmUser) — with no bearer (dead under R16 Phase B
+// strict identity) and, even with one, Tenants are rejected by design
+// ("Portal users do not have access to this feature"). The whole resident
+// surface was dead. These portal-caller endpoints follow the portals.ts
+// convention (maintenance/messages/ledger): Tenants and Clients only,
+// session-verified, firm-scoped. Staff keep the original endpoints above.
+
 // ════════════════════════════════════════════════════════════════════════
 // AMENITIES (admin CRUD)
 // ════════════════════════════════════════════════════════════════════════
@@ -86,7 +118,7 @@ export const createAmenity = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
@@ -125,7 +157,7 @@ export const updateAmenity = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity) throw new Error("Amenity not found");
@@ -142,7 +174,7 @@ export const updateAmenity = mutation({
 export const deleteAmenity = mutation({
   args: { sessionToken: v.optional(v.string()), amenityId: v.id("estate_amenities"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const amenity = await ctx.db.get(args.amenityId);
     if (!amenity) throw new Error("Amenity not found");
@@ -244,7 +276,7 @@ export const reviewBooking = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) throw new Error("Booking not found");
@@ -307,7 +339,7 @@ export const createBulletin = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
@@ -346,7 +378,7 @@ export const updateBulletin = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const bulletin = await ctx.db.get(args.bulletinId);
     if (!bulletin) throw new Error("Bulletin not found");
@@ -363,7 +395,7 @@ export const updateBulletin = mutation({
 export const archiveBulletin = mutation({
   args: { sessionToken: v.optional(v.string()), bulletinId: v.id("estate_bulletins"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const bulletin = await ctx.db.get(args.bulletinId);
     if (!bulletin) throw new Error("Bulletin not found");
@@ -395,7 +427,7 @@ export const createServiceProvider = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const firmId = auth.firmId || args.firmId;
     const now = Date.now();
@@ -438,7 +470,7 @@ export const updateServiceProvider = mutation({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const provider = await ctx.db.get(args.providerId);
     if (!provider) throw new Error("Service provider not found");
@@ -455,7 +487,7 @@ export const updateServiceProvider = mutation({
 export const deleteServiceProvider = mutation({
   args: { sessionToken: v.optional(v.string()), providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     await requireEstateCommunityAccess(ctx, auth.firmId);
     const provider = await ctx.db.get(args.providerId);
     if (!provider) throw new Error("Service provider not found");
@@ -516,7 +548,7 @@ export const getBookingsForResident = query({
 export const getBookingsForFirm = query({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), status: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireEstateAdmin(ctx, args.userEmail, args.sessionToken);
     // ── ROUND A (C5): firm binding — an Admin of Firm A could previously
     //    list Firm B's entire booking queue by passing their firmId.
     assertSameFirm(auth.user, args.firmId);
@@ -584,5 +616,199 @@ export const getServiceProvider = query({
     // Strip internal admin notes from resident view
     const { notes, ...publicFields } = provider as any;
     return publicFields;
+  },
+});
+
+// ════════════════════════════════════════════════════════════════════════
+// ROUND D (Wave 2, D3) — RESIDENT PORTAL SURFACE
+// Tenant/Client self-service endpoints. Every one: requirePortalCaller
+// (session-verified, portal roles only), firm-scoped to the CALLER's own
+// firm, access-gated. Mirrors the portals.ts portal-layer conventions.
+// ════════════════════════════════════════════════════════════════════════
+
+// Active amenities for the resident's own firm.
+export const getAmenitiesForResident = query({
+  args: { sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    const firmId = (user as any).firmId as string;
+    await requireEstateCommunityAccess(ctx, firmId);
+    const all = await ctx.db
+      .query("estate_amenities")
+      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+      .collect();
+    return (all as any[]).filter((a) => a.isActive);
+  },
+});
+
+// Active bulletins for the resident's own firm (optionally property-scoped).
+export const getBulletinsForResident = query({
+  args: { sessionToken: v.optional(v.string()), propertyId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    const firmId = (user as any).firmId as string;
+    await requireEstateCommunityAccess(ctx, firmId);
+    const all = await ctx.db
+      .query("estate_bulletins")
+      .withIndex("by_firm_status", (q) => q.eq("firmId", firmId).eq("status", "active"))
+      .collect();
+    const rows = all as any[];
+    if (!args.propertyId) return rows;
+    return rows.filter((b) => {
+      if (!b.propertyIds || b.propertyIds.length === 0) return true; // estate-wide
+      return b.propertyIds.includes(args.propertyId as any);
+    });
+  },
+});
+
+// Active service providers for the resident's own firm (PII is firm-scoped).
+export const getServiceProvidersForResident = query({
+  args: { sessionToken: v.optional(v.string()), category: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    const firmId = (user as any).firmId as string;
+    await requireEstateCommunityAccess(ctx, firmId);
+    const all = await ctx.db
+      .query("estate_service_providers")
+      .withIndex("by_firm_active", (q) => q.eq("firmId", firmId).eq("isActive", true))
+      .collect();
+    const rows = all as any[];
+    if (args.category) return rows.filter((p) => p.category === args.category);
+    return rows;
+  },
+});
+
+// Resident books an amenity. Same slot-conflict and requiresApproval
+// semantics as the staff createBooking, but portal-authenticated and bound
+// to the caller's own firm + identity (no caller-supplied names).
+export const createBookingAsResident = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    amenityId: v.id("estate_amenities"),
+    bookingDate: v.string(),
+    slotStart: v.number(),
+    slotEnd: v.number(),
+    residentNotes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    const firmId = (user as any).firmId as string;
+    await requireEstateCommunityAccess(ctx, firmId);
+
+    const amenity: any = await ctx.db.get(args.amenityId);
+    if (!amenity || !amenity.isActive) throw new Error("Amenity not available");
+    if (amenity.firmId !== firmId) throw new Error("Not authorized");
+
+    // Slot conflicts (approved + pending both count, same as staff path).
+    const existing = await ctx.db
+      .query("estate_amenity_bookings")
+      .withIndex("by_amenity", (q) => q.eq("amenityId", args.amenityId))
+      .filter((q: any) =>
+        q.and(
+          q.eq(q.field("bookingDate"), args.bookingDate),
+          q.or(
+            q.eq(q.field("status"), "approved"),
+            q.eq(q.field("status"), "pending"),
+          ),
+          q.lt(q.field("slotStart"), args.slotEnd),
+          q.gt(q.field("slotEnd"), args.slotStart),
+        ),
+      )
+      .collect();
+    const maxConcurrent = amenity.maxConcurrentBookings ?? 1;
+    if ((existing as any[]).length >= maxConcurrent) {
+      throw new Error("This slot is fully booked. Please pick another time.");
+    }
+
+    const now = Date.now();
+    const bookingId = await ctx.db.insert("estate_amenity_bookings", {
+      firmId,
+      amenityId: args.amenityId,
+      residentUserId: user._id,
+      residentName: (user as any).name || "Resident",
+      propertyId: undefined,
+      unitId: undefined,
+      bookingDate: args.bookingDate,
+      slotStart: args.slotStart,
+      slotEnd: args.slotEnd,
+      status: amenity.requiresApproval ? "pending" : "approved",
+      residentNotes: args.residentNotes,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Activity log (non-blocking, same as the staff path).
+    try {
+      await ctx.runMutation(internal.myFunctions.logActivity, {
+        firmId,
+        userId: user._id,
+        userName: (user as any).name || undefined,
+        action: `Booked ${amenity.name} for ${args.bookingDate}`,
+        targetType: "amenity_booking",
+        targetId: String(bookingId),
+        targetName: amenity.name,
+      });
+    } catch {}
+
+    return bookingId;
+  },
+});
+
+// The resident's own bookings, enriched with the amenity name so the portal
+// list renders without a second lookup. OWN bookings only — the caller's
+// session IS the filter.
+export const getMyBookings = query({
+  args: { sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    const firmId = (user as any).firmId as string;
+    await requireEstateCommunityAccess(ctx, firmId);
+    const all = await ctx.db
+      .query("estate_amenity_bookings")
+      .withIndex("by_resident", (q) => q.eq("residentUserId", user._id))
+      .collect();
+    // Firm-bound (the by_resident index is firm-agnostic).
+    const mine = (all as any[]).filter((b) => b.firmId === firmId);
+    // Resolve amenity names once per DISTINCT amenity (bounded by the
+    // resident's own booking count — a single resident cannot blow this up).
+    const amenityNames = new Map<string, string>();
+    for (const b of mine) {
+      const key = String(b.amenityId);
+      if (!amenityNames.has(key)) {
+        try {
+          const amenity: any = await ctx.db.get(b.amenityId);
+          amenityNames.set(key, amenity?.name || '');
+        } catch {
+          amenityNames.set(key, '');
+        }
+      }
+    }
+    return mine
+      .map((b) => ({ ...b, amenityName: amenityNames.get(String(b.amenityId)) || null }))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  },
+});
+
+// Resident cancels their OWN booking (pending or approved). Ownership is
+// enforced against the session identity — not a caller-supplied id.
+export const cancelMyBooking = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    bookingId: v.id("estate_amenity_bookings"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requirePortalCaller(ctx, { sessionToken: args.sessionToken });
+    const firmId = (user as any).firmId as string;
+    const booking: any = await ctx.db.get(args.bookingId);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.firmId !== firmId) throw new Error("Not authorized");
+    if (booking.residentUserId !== user._id) {
+      throw new Error("You can only cancel your own bookings.");
+    }
+    if (booking.status === "cancelled" || booking.status === "rejected") {
+      return { success: true, noOp: true };
+    }
+    await ctx.db.patch(args.bookingId, { status: "cancelled", updatedAt: Date.now() });
+    return { success: true };
   },
 });

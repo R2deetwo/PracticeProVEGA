@@ -2634,6 +2634,14 @@ export default defineSchema({
     id: nullableString,                     // Legacy field — frontend copy of _id
     // P11: Idempotency key for dedup on double-submit (payment-critical)
     idempotencyKey: v.optional(v.string()),
+    // ROUND D (Wave 2, D2) — paid-activation audit trail. Before this, a
+    // Paystack-paid add-on and a free approval-request add-on were
+    // indistinguishable rows: the paid path wrote the same pending_review
+    // row with no payment reference, so nothing (including the founder
+    // approval queue) could tell money had changed hands.
+    paymentReference: nullableString,       // Paystack reference (ADDON-…), paid path only
+    paidAmount: nullableNumber,             // NGN actually charged (verified, kobo-normalized)
+    paidAt: nullableString,                 // ISO timestamp from the verified transaction
     createdAt: nullableString,
     updatedAt: nullableString,
   })
@@ -2641,7 +2649,10 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_addon", ["addonId"])
     .index("by_custom_id", ["id"])
-    .index("by_idempotency", ["idempotencyKey"]),
+    .index("by_idempotency", ["idempotencyKey"])
+    // D2: webhook/client double-settlement dedup looks the reference up
+    // directly (the webhook may arrive before OR after the client callback).
+    .index("by_payment_reference", ["paymentReference"]),
 
   // ─── REFUND REQUESTS (P3 — 30-day money-back guarantee backend) ─────────
   // Minimal refund pipeline. Marketing promises a "30-day money-back

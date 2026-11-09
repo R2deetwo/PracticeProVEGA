@@ -1066,26 +1066,32 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
     const [seatCount, setSeatCount] = useState(5);
 
     // Fetch active + pending add-ons defensively
+    // ROUND D (Wave 2, D2): these queries now carry the bearer sessionToken.
+    // They shipped without one — under R16 Phase B strict identity every call
+    // threw "Unauthenticated" and the catch silently rendered [] — the active
+    // add-ons list NEVER showed, even for firms with active add-ons (the
+    // same silent-death class as the R77 FirmSettings finding).
     useEffect(() => {
         if (!currentUser?.email || !convex) return;
         let cancelled = false;
         const email = currentUser.email;
+        const token = (bearerToken ?? undefined) || undefined;
         (async () => {
             try {
-                const active = await convex.query(api.myFunctions.getActiveAddonsForFirm, { userEmail: email });
+                const active = await convex.query(api.myFunctions.getActiveAddonsForFirm, { userEmail: email, sessionToken: token });
                 if (!cancelled) setActiveAddons(active || []);
             } catch (e: any) {
                 if (!cancelled) setActiveAddons([]);
             }
             try {
-                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: email });
+                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: email, sessionToken: token });
                 if (!cancelled) setPendingAddons(pending || []);
             } catch (e: any) {
                 if (!cancelled) setPendingAddons([]);
             }
         })();
         return () => { cancelled = true; };
-    }, [currentUser?.email, convex]);
+    }, [currentUser?.email, convex, bearerToken]);
 
     const product = firmDetails.product || 'unified';
     const applicableAddons = getAddonsForProduct(product);
@@ -1154,23 +1160,41 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                         ],
                     },
                     callback: async (response: any) => {
-                        // Payment successful — auto-activate the add-on
+                        // ROUND D (Wave 2, D2): the paid path now settles
+                        // SERVER-SIDE. The old callback called
+                        // createAddonRequest — the same pending_review row as
+                        // an UNPAID request, with no payment reference — then
+                        // told the user the add-on "will be ready momentarily"
+                        // while nothing could ever activate it (the founder
+                        // approval functions had no UI). Money taken, add-on
+                        // never delivered.
+                        //
+                        // purchaseAddonWithPayment verifies the reference and
+                        // the amount against the SERVER-side catalog price and
+                        // lands the row ACTIVE with the payment audit trail
+                        // (idempotent — the webhook settles the same reference
+                        // if this callback dies mid-flight).
                         try {
-                            await convex.mutation(api.myFunctions.createAddonRequest, {
+                            const result = await convex.action(api.myFunctions.purchaseAddonWithPayment, {
                                 addonId: addon.id,
-                                addonName: addon.name,
-                                billingInterval: addon.billingInterval,
-                                amount: totalAmount,
                                 quantity: addon.category === 'seats' ? seatCount : 1,
-                                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
+                                paymentReference: response.reference || reference,
+                                userEmail: currentUser?.email,
+                                sessionToken: (bearerToken ?? undefined),
                             });
-                            addToast('Payment confirmed. Your new seats/add-ons are being activated and will be ready momentarily.', { type: 'success', duration: 6000 });
+                            if (result?.alreadyActive) {
+                                addToast('Payment verified — this add-on is already active on your workspace.', { type: 'success', duration: 6000 });
+                            } else {
+                                addToast(`Payment verified — ${result?.addonName || addon.name} is now active.`, { type: 'success', duration: 6000 });
+                            }
+                            // Refresh the ACTIVE list (the add-on just landed
+                            // there — not the pending list it used to hide in).
                             try {
-                                const pending = await convex.query(api.myFunctions.getPendingAddonsForFirm, { userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || '' });
-                                setPendingAddons(pending || []);
+                                const active = await convex.query(api.myFunctions.getActiveAddonsForFirm, { userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || '' });
+                                setActiveAddons(active || []);
                             } catch {}
                         } catch (e: any) {
-                            addToast('Payment successful but activation failed. Contact support.', { type: 'warning' });
+                            addToast(e?.message || 'Payment succeeded but activation failed. Contact support with your payment reference.', { type: 'warning', duration: 10000 });
                         }
                     },
                     onClose: () => {

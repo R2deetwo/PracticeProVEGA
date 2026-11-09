@@ -28,6 +28,10 @@ import { useFeatures } from '../../hooks/useFeatures';
 import { SettingsCard } from './FirmSettings';
 import { SubscriptionPlan } from '../../types';
 import NairaSymbol from '../NairaSymbol';
+// ROUND D (Wave 2, D3): the management console the texts below always
+// promised but never had — amenity CRUD, the booking approval queue,
+// bulletins and providers, mounted right under the toggles.
+import EstateCommunityAdminPanel from './EstateCommunityAdminPanel';
 
 const EstateCommunitySettings: React.FC = () => {
   const { coreState } = useCoreState();
@@ -205,9 +209,9 @@ const EstateCommunitySettings: React.FC = () => {
             {m.enabled && (
               <div className="mt-3 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/50">
                 <p className="text-2xs text-slate-500 dark:text-zinc-500">
-                  {m.key === 'amenityBooking' && 'Manage amenities and review booking requests from the Estate tab.'}
-                  {m.key === 'bulletin' && 'Post bulletins from the Estate tab — they appear in resident portals immediately.'}
-                  {m.key === 'serviceProviderDirectory' && 'Add vetted providers from the Estate tab — residents browse and contact directly.'}
+                  {m.key === 'amenityBooking' && 'Manage amenities and review booking requests in the “Manage Community” console below.'}
+                  {m.key === 'bulletin' && 'Post bulletins in the “Manage Community” console below — they appear in resident portals immediately.'}
+                  {m.key === 'serviceProviderDirectory' && 'Add vetted providers in the “Manage Community” console below — residents browse and contact them directly.'}
                 </p>
               </div>
             )}
@@ -223,6 +227,11 @@ const EstateCommunitySettings: React.FC = () => {
           you probably don't need them — leave all three disabled.
         </p>
       </div>
+
+      {/* ─── D3: THE MANAGEMENT CONSOLE (was promised, never existed) ─── */}
+      {canUseEstateCommunity && (
+        <EstateCommunityAdminPanel communityFeatures={communityFeatures} />
+      )}
     </SettingsCard>
   );
 };
