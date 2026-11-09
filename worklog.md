@@ -15725,3 +15725,30 @@ Stage Summary:
   deployment today.
 - Round C (Wave S3 interaction truth) is next per the sequence, gated on the
   owner's review of this round. NOT started.
+
+---
+Task ID: R77 (Round D, Wave 1 — D1 security)
+Agent: Main agent (Super Z)
+Task: Round D audit approved; Wave 1 = D1 — close the spoofable-string admin gates in myFunctions.ts (re-verified on origin/main after the Round C local commit was lost with the sandbox recycle; every finding re-confirmed, and the audit EXTENDED: activateVmsAddon / activateEstateCommunityAddon had NO session resolution at all)
+
+Work Log:
+- ENVIRONMENT RECOVERY: the sandbox recycled pprepo back to a stale rounds-8/9-era clone; Round C's local-only commit 6c82b26c (frozen pending review, never pushed) is lost. Round A (3992a360) + A2 (0c1bf2fa) + B (5b9a78ed/b0c1101f) are safe on origin/main (6afc4a46, v1.0.748/build-1142) — the owner published them after the R76 PAT block. Tree reset to origin/main; the stale uncommitted Task-16 tree was stashed (backup-stale-task16-tree-*), never committed.
+- D1 root cause (re-confirmed on this tree): admin mutations gated on CALLER-SUPPLIED identity strings. requireFirmUser ignores those strings (R16 Phase B), but the gates read them directly — FOUNDER_EMAILS.includes(args.deactivatedBy / args.reactivatedBy / args.userEmail) — so any authenticated user could clear a founder gate by typing a founder email; no cross-firm check on targets; audit attribution recorded the forged string. updateItem's users path let ANY firm member patch role/deactivation fields on ANY same-firm user (self-promotion to Admin, colleague deactivation — bypassing deactivateTeamMember's guards).
+- EXTENSION over the audit (both directions re-verified): activateVmsAddon and activateEstateCommunityAddon had NO session resolution AT ALL — the spoofable string was the only "auth" on publicly-callable mutations (activate paid add-ons for any firm with the deployment URL). FirmSettings' deactivation calls shipped WITHOUT sessionToken — under R16 Phase B strict identity every deactivation/reactivation threw "Unauthenticated" (silent feature death, the exact class strictIdentityCallSites.test.ts pins for Vega).
+- FIX (convex/myFunctions.ts, 10 functions + 1 gate):
+  - New session-derived helpers: PLATFORM_FOUNDER_EMAILS (Set) + isPlatformFounder(user) + isFirmAdminRole(user) + requirePlatformFounder(ctx, sessionToken) (resolveCaller + membership).
+  - deactivateTeamMember / reactivateTeamMember: deactivatedBy/reactivatedBy args DELETED; role gate reads the session-resolved user; assertSameFirm(target) for non-platform callers; self-check compares real _ids; deactivatedBy attribution = session email.
+  - getFirmMembersWithDeactivationStatus: firm-scoped (assertSameFirm; platform founders exempt) — was: any authenticated user could enumerate any firm's roster.
+  - updateItem users path: privilege fields (role, deactivatedAt/By/Reason, firmId, joinedFirmIds, tokenIdentifier, password) require a session-resolved Admin/Founder; granting/editing the Founding Partner role is platform-founder-only. Ordinary self-service profile edits unaffected.
+  - startVmsAddonTrial / cancelVmsAddon / startEstateCommunityTrial / cancelEstateCommunityAddon: session-resolved role gate + assertSameFirm(firmId); spoofable string checks deleted.
+  - activateVmsAddon / activateEstateCommunityAddon: requirePlatformFounder (bearer session mandatory); activatedBy args DELETED; activation records now attribute the session-derived email.
+  - getVmsAddonStatus / getEstateCommunityAddonStatus: firm-scoped reads (assertSameFirm).
+  - feedback.ts FOUNDER_EMAILS inspected — already correct (checks the session-resolved email); untouched.
+- FIX (src/components/settings/FirmSettings.tsx): deactivation/reactivation calls now pass sessionToken: (bearerToken ?? undefined) and no longer self-supply deactivatedBy/reactivatedBy — the feature WORKS again under strict identity.
+- TESTS: +39 in tests/unit/roundDAdminSurfaces.test.ts (Round A/B harness + a REAL filter() evaluator for the firms lookup): spoof-dead (valid non-admin session + forged founder string rejected, every family), no-session rejected, cross-firm rejected (every family), self-deactivation rejected, privilege self-promotion rejected, Founder-role grant/edit platform-only, and the legitimate paths (own-firm admin deactivate/reactivate/role-edit/trial/cancel/status, platform-founder cross-firm + activations with session-derived attribution) + FirmSettings source contracts + the spoofable-pattern-is-gone source contract (comment-aware).
+- GATES: vitest 1,683/1,683 (87 files; 1,644 Round B baseline + 39 D1, zero regressions), convex tsc 0, root tsc 126 = 126 baseline (zero new), eslint changed files 0 errors, ui-primitives ratchet HELD at 2312, vite build green (26s). No Vega OS / Komplete surface touched. Round C's local-only tests were never pushed — origin's baseline is unaffected by their loss.
+- BLOCKER (standing): push requires a fresh GitHub PAT — the remote's embedded token and every recoverable PAT are dead (401). Remote to be sanitized per the R72 convention. OWNER ACTION: publish R77 by pushing this commit to origin/main, then let CI + the production promote run (the standard flow).
+
+Stage Summary:
+- The spoofable-string admin-gate class is closed across myFunctions.ts: every admin surface now derives identity, role, firm scope and attribution from the verified bearer session; the two add-on activations that had NO auth are now platform-founder-session-gated; the users table can no longer be privilege-patched through the generic update path by non-admins.
+- Round D Wave 2 next: D2 (add-on approval flow orphaned — purgeStalePendingAddons deletes 72h-old PAID requests; founderMetrics approval functions have zero UI) + D3 (booking approval queue orphaned — reviewBooking/getBookingsForFirm never called; approval-needed bookings stay pending forever).

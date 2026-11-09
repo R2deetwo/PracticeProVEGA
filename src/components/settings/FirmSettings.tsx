@@ -103,7 +103,7 @@ interface FirmSettingsProps {
 const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDetails, openModal, users, currentUser, openUserModal, onDeleteUser, onEnableDevMode }) => {
     const permissions = usePermissions();
     const { isProperty } = useProduct();
-    const { loginAsUser } = useAuth();
+    const { loginAsUser, bearerToken } = useAuth();
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const { addToast, navigateTo, closeModal, activePeers } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
@@ -132,9 +132,14 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             message: `${user.name} will lose login access immediately. Their matters, tasks, and messages will remain attributed to them. They can be reactivated later.`,
             onConfirm: async () => {
                 try {
+                    // D1: the backend derives the acting admin from the
+                    // bearer session — no self-supplied email is trusted
+                    // (and the call now actually authenticates: pre-D1 the
+                    // missing sessionToken made every deactivation throw
+                    // under R16 Phase B strict identity).
                     await deactivateMutation({
                         userId: user._id || (user as any).id,
-                        deactivatedBy: currentUser.email,
+                        sessionToken: (bearerToken ?? undefined) || undefined,
                         reason: reason || undefined,
                     });
                     addToast(`${user.name} deactivated.`, { type: 'success' });
@@ -150,9 +155,10 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
 
     const handleReactivateUser = async (user: User) => {
         try {
+            // D1: session-derived identity — see handleDeactivateUser.
             await reactivateMutation({
                 userId: user._id || (user as any).id,
-                reactivatedBy: currentUser.email,
+                sessionToken: (bearerToken ?? undefined) || undefined,
             });
             addToast(`${user.name} reactivated. They can now log in again.`, { type: 'success' });
         } catch (e: any) {

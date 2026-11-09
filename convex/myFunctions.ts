@@ -2019,6 +2019,38 @@ export const updateUserSecurity = mutation({
   }
 });
 
+// ─── ROUND D / D1 (R77): SESSION-RESOLVED ADMIN SURFACES ───────────────────
+// Pre-D1, several admin mutations in this file gated on a CALLER-SUPPLIED
+// email string (FOUNDER_EMAILS.includes(args.deactivatedBy) and friends).
+// requireFirmUser ignores that string (R16 Phase B strict identity), but
+// these gates read it DIRECTLY — so any authenticated user could pass a
+// founder address and clear the gate. Cross-firm targets were never
+// checked, and the audit trail recorded the forged string as the actor.
+// D1 replaces every instance of the pattern with the session-resolved
+// identity: the role comes from the users row the bearer token resolves
+// to, firm scope is enforced with assertSameFirm, and attribution is
+// written from the session-derived email. The two activate* add-on
+// mutations had NO session resolution at all — they now require one.
+const PLATFORM_FOUNDER_EMAILS = new Set(['founder@practicepro.ng', 'admin@practicepro.ng']);
+
+function isPlatformFounder(user: { email?: string | null }): boolean {
+  return PLATFORM_FOUNDER_EMAILS.has(String(user.email || '').toLowerCase());
+}
+
+function isFirmAdminRole(user: { role?: string | null }): boolean {
+  return user.role === 'Admin' || user.role === 'Founder';
+}
+
+/** Session-resolved platform-founder gate (D1) for the add-on activation
+ *  mutations — replaces the spoofable FOUNDER_EMAILS string check. */
+async function requirePlatformFounder(ctx: any, sessionToken?: string | null) {
+  const caller = await resolveCaller(ctx, { sessionToken });
+  if (!isPlatformFounder(caller)) {
+    throw new Error("Only the platform founder can activate add-ons");
+  }
+  return caller;
+}
+
 /**
  * mutation: deactivateTeamMember
  * Soft-deactivates a team member. The user record is preserved (so their
@@ -2026,8 +2058,10 @@ export const updateUserSecurity = mutation({
  * but they can no longer log in. They appear with a "Deactivated" badge in
  * the team directory, grayed out and sorted to the bottom.
  *
- * AUTH: only firm admins (role='Admin' or 'Founding Partner') can deactivate.
- * The founder@practicepro.ng email can also deactivate any user.
+ * AUTH (D1, session-resolved): the caller is resolved from the bearer
+ * session ONLY. Platform founders (session-proven) can deactivate any
+ * user; firm Admins/Founding Partners can deactivate members of their OWN
+ * firm. The legacy caller-supplied `deactivatedBy` email is gone.
  *
  * SAFETY: deactivating yourself is blocked (would lock the firm out).
  */
@@ -2035,26 +2069,30 @@ export const deactivateTeamMember = mutation({
   args: {
     userId: v.id("users"),
     sessionToken: v.optional(v.string()),
-    deactivatedBy: v.string(),        // admin's email
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.deactivatedBy, args.sessionToken);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("Admin user not found");
 
-    // AUTH CHECK: only Admin or Founder (or platform founder) can deactivate
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
-    if (!FOUNDER_EMAILS.includes(args.deactivatedBy) && !isAdminRole) {
+    // AUTH CHECK (D1): session-resolved role — the spoofable email-string
+    // bypass is closed.
+    if (!isPlatformFounder(adminUser) && !isFirmAdminRole(adminUser)) {
       throw new Error("Only administrators can deactivate team members");
     }
 
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) throw new Error("User not found");
 
-    // SAFETY: can't deactivate yourself
-    if (targetUser.email === args.deactivatedBy) {
+    // D1: cross-firm guard — firm admins may only touch their own firm's
+    // members (platform founders operate every firm).
+    if (!isPlatformFounder(adminUser)) {
+      assertSameFirm(adminUser, targetUser.firmId);
+    }
+
+    // SAFETY: can't deactivate yourself (real identities, not claimed ones)
+    if (String(targetUser._id) === String(adminUser._id)) {
       throw new Error("You cannot deactivate your own account");
     }
 
@@ -2072,7 +2110,7 @@ export const deactivateTeamMember = mutation({
 
     await ctx.db.patch(args.userId, {
       deactivatedAt: Date.now(),
-      deactivatedBy: args.deactivatedBy,
+      deactivatedBy: adminUser.email, // D1: session-derived attribution
       deactivationReason: args.reason || null,
       updatedAt: new Date().toISOString(),
     });
@@ -2084,26 +2122,33 @@ export const deactivateTeamMember = mutation({
 /**
  * mutation: reactivateTeamMember
  * Clears the deactivatedAt field, restoring login access.
+ *
+ * AUTH (D1, session-resolved): platform founders or the target's own-firm
+ * Admin/Founding Partner. The legacy caller-supplied `reactivatedBy`
+ * email is gone.
  */
 export const reactivateTeamMember = mutation({
   args: {
     userId: v.id("users"),
     sessionToken: v.optional(v.string()),
-    reactivatedBy: v.string(),
   },
   handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.reactivatedBy, args.sessionToken);
+    const auth = await requireFirmUser(ctx, undefined, args.sessionToken);
     const adminUser = auth.user;
     if (!adminUser) throw new Error("Admin user not found");
 
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
-    if (!FOUNDER_EMAILS.includes(args.reactivatedBy) && !isAdminRole) {
+    if (!isPlatformFounder(adminUser) && !isFirmAdminRole(adminUser)) {
       throw new Error("Only administrators can reactivate team members");
     }
 
     const targetUser = await ctx.db.get(args.userId);
     if (!targetUser) throw new Error("User not found");
+
+    // D1: cross-firm guard — firm admins may only touch their own firm's
+    // members (platform founders operate every firm).
+    if (!isPlatformFounder(adminUser)) {
+      assertSameFirm(adminUser, targetUser.firmId);
+    }
 
     await ctx.db.patch(args.userId, {
       deactivatedAt: undefined,
@@ -2121,6 +2166,10 @@ export const reactivateTeamMember = mutation({
  * Returns all users for a firm, sorted with active members first and
  * deactivated members at the bottom. Each row includes deactivatedAt,
  * deactivatedBy, and deactivationReason for the team directory UI.
+ *
+ * AUTH (D1): firm-scoped — the caller's session must resolve to a member
+ * of the requested firm (or a platform founder). Pre-D1, any authenticated
+ * user could enumerate any firm's roster.
  */
 export const getFirmMembersWithDeactivationStatus = query({
   args: {
@@ -2129,7 +2178,10 @@ export const getFirmMembersWithDeactivationStatus = query({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    if (!isPlatformFounder(auth.user)) {
+      assertSameFirm(auth.user, args.firmId);
+    }
     const users = await ctx.db
       .query("users")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
@@ -4741,8 +4793,40 @@ export const updateItem = mutation({
       await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     }
 
-    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const { firmId, user: callerUser } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
     const { docId } = await resolveRecordForUpdate(ctx, table, id, firmId);
+
+    // ─── D1 SECURITY GATE (users table): privilege fields ────────────────
+    // Pre-D1, ANY firm member could patch ANY same-firm user record via
+    // this generic path — including promoting themselves to Admin/Founder
+    // or deactivating colleagues, bypassing deactivateTeamMember's guards
+    // entirely. Privilege-bearing fields now require a session-resolved
+    // Admin/Founder caller; the Founding Partner role and firm moves stay
+    // platform-founder-only. Ordinary self-service profile edits (name,
+    // title, preferences) are unaffected.
+    if (table === 'users') {
+      const USERS_PRIVILEGE_FIELDS = new Set([
+        'role', 'deactivatedAt', 'deactivatedBy', 'deactivationReason',
+        'firmId', 'joinedFirmIds', 'tokenIdentifier', 'password',
+      ]);
+      const touchedPrivilege = Object.keys(data || {}).filter((k) => USERS_PRIVILEGE_FIELDS.has(k));
+      if (touchedPrivilege.length > 0) {
+        const platformCaller = isPlatformFounder(callerUser);
+        if (!platformCaller && !isFirmAdminRole(callerUser)) {
+          throw new Error(
+            "Only administrators can change team member roles or access status."
+          );
+        }
+        if (!platformCaller && 'role' in (data || {})) {
+          const targetUserDoc: any = await ctx.db.get(docId);
+          if (data.role === 'Founder' || targetUserDoc?.role === 'Founder') {
+            throw new Error(
+              "The Founding Partner role can only be changed by the platform founder."
+            );
+          }
+        }
+      }
+    }
 
     // ─── AUTOMATION RULE ENGINE (Task 48): capture the PRE-patch stage ──
     // Needed to detect an actual matter_stage_change after the patch.
@@ -8891,7 +8975,12 @@ export const getVmsAddonStatus = query({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const vmsAuth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // D1: firm-scoped read — the session must resolve into the firm whose
+    // add-on status is requested (platform founders exempt).
+    if (!isPlatformFounder(vmsAuth.user)) {
+      assertSameFirm(vmsAuth.user, args.firmId);
+    }
     // Look up firm by custom id field OR by Convex _id (try-as-Id fallback)
     let firm: any = await ctx.db
       .query("firms")
@@ -8936,10 +9025,15 @@ export const startVmsAddonTrial = mutation({
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
-    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+    // AUTH (D1, session-resolved): firm Admin/Founder (or a session-proven
+    // platform founder) may start a trial — for their OWN firm only. The
+    // spoofable FOUNDER_EMAILS.includes(args.userEmail) string check is
+    // gone; args.userEmail is ignored (R16 Phase B).
+    if (!isPlatformFounder(adminUser) && !isFirmAdminRole(adminUser)) {
       throw new Error("Only firm administrators can start add-on trials");
+    }
+    if (!isPlatformFounder(adminUser)) {
+      assertSameFirm(adminUser, args.firmId);
     }
 
     let firm: any = await ctx.db
@@ -8984,18 +9078,21 @@ export const startVmsAddonTrial = mutation({
  * Founder-only — activates the VMS add-on for a firm after payment is
  * confirmed. Used by the founder admin dashboard to flip trial/expired
  * firms to 'active' once their subscription payment is processed.
+ *
+ * AUTH (D1): pre-D1 this mutation had NO session resolution at all — the
+ * FOUNDER_EMAILS.includes(args.activatedBy) string check was spoofable by
+ * anyone with the deployment URL. The caller must now present a bearer
+ * session that resolves to a platform founder account; the activation
+ * record attributes the session-derived email.
  */
 export const activateVmsAddon = mutation({
   args: {
     firmId: v.string(),
-    activatedBy: v.string(),
+    sessionToken: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    if (!FOUNDER_EMAILS.includes(args.activatedBy)) {
-      throw new Error("Only the platform founder can activate add-ons");
-    }
+    const founder = await requirePlatformFounder(ctx, args.sessionToken);
 
     let firm: any = await ctx.db
       .query("firms")
@@ -9011,6 +9108,7 @@ export const activateVmsAddon = mutation({
       vms: {
         status: 'active',
         activatedAt: Date.now(),
+        activatedBy: founder.email, // D1: session-derived attribution
         expiresAt: args.expiresAt || null,
         trialStartsAt: (firm.subscriptionAddons as any)?.vms?.trialStartsAt,
         trialEndsAt: (firm.subscriptionAddons as any)?.vms?.trialEndsAt,
@@ -9042,10 +9140,13 @@ export const cancelVmsAddon = mutation({
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
-    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+    // AUTH (D1, session-resolved): firm Admin/Founder for their OWN firm;
+    // spoofable string check removed.
+    if (!isPlatformFounder(adminUser) && !isFirmAdminRole(adminUser)) {
       throw new Error("Only firm administrators can cancel add-ons");
+    }
+    if (!isPlatformFounder(adminUser)) {
+      assertSameFirm(adminUser, args.firmId);
     }
 
     let firm: any = await ctx.db
@@ -9124,7 +9225,11 @@ export const getEstateCommunityAddonStatus = query({
     userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const ecAuth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // D1: firm-scoped read (platform founders exempt).
+    if (!isPlatformFounder(ecAuth.user)) {
+      assertSameFirm(ecAuth.user, args.firmId);
+    }
     let firm: any = await ctx.db
       .query("firms")
       .filter((q: any) => q.eq(q.field("id"), args.firmId))
@@ -9160,10 +9265,13 @@ export const startEstateCommunityTrial = mutation({
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
-    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+    // AUTH (D1, session-resolved): firm Admin/Founder for their OWN firm;
+    // spoofable string check removed.
+    if (!isPlatformFounder(adminUser) && !isFirmAdminRole(adminUser)) {
       throw new Error("Only firm administrators can start add-on trials");
+    }
+    if (!isPlatformFounder(adminUser)) {
+      assertSameFirm(adminUser, args.firmId);
     }
 
     let firm: any = await ctx.db
@@ -9214,18 +9322,19 @@ export const startEstateCommunityTrial = mutation({
  * Founder-only — activates the Estate Community add-on for a firm after
  * payment is confirmed. Used by the founder admin dashboard to flip
  * trial/expired firms to 'active' once their subscription payment is processed.
+ *
+ * AUTH (D1): pre-D1 this mutation had NO session resolution at all — see
+ * activateVmsAddon. Now requires a session-proven platform founder, and
+ * the activation record attributes the session-derived email.
  */
 export const activateEstateCommunityAddon = mutation({
   args: {
     firmId: v.string(),
-    activatedBy: v.string(),
+    sessionToken: v.optional(v.string()),
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    if (!FOUNDER_EMAILS.includes(args.activatedBy)) {
-      throw new Error("Only the platform founder can activate add-ons");
-    }
+    const founder = await requirePlatformFounder(ctx, args.sessionToken);
 
     let firm: any = await ctx.db
       .query("firms")
@@ -9241,6 +9350,7 @@ export const activateEstateCommunityAddon = mutation({
       estateCommunity: {
         status: 'active',
         activatedAt: Date.now(),
+        activatedBy: founder.email, // D1: session-derived attribution
         expiresAt: args.expiresAt || null,
         trialStartsAt: (firm.subscriptionAddons as any)?.estateCommunity?.trialStartsAt,
         trialEndsAt: (firm.subscriptionAddons as any)?.estateCommunity?.trialEndsAt,
@@ -9272,10 +9382,13 @@ export const cancelEstateCommunityAddon = mutation({
     const adminUser = auth.user;
     if (!adminUser) throw new Error("User not found");
 
-    const FOUNDER_EMAILS = ['founder@practicepro.ng', 'admin@practicepro.ng'];
-    const isAdminRole = adminUser.role === 'Admin' || adminUser.role === 'Founder';
-    if (!FOUNDER_EMAILS.includes(args.userEmail) && !isAdminRole) {
+    // AUTH (D1, session-resolved): firm Admin/Founder for their OWN firm;
+    // spoofable string check removed.
+    if (!isPlatformFounder(adminUser) && !isFirmAdminRole(adminUser)) {
       throw new Error("Only firm administrators can cancel add-ons");
+    }
+    if (!isPlatformFounder(adminUser)) {
+      assertSameFirm(adminUser, args.firmId);
     }
 
     let firm: any = await ctx.db
