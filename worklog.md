@@ -15781,3 +15781,22 @@ Work Log:
 Stage Summary:
 - The calendar now tells the truth in every view: recurring events appear in month, week AND day views; clicking any event (recurring instance, virtual lease/rent event) opens its details; rent due dates — promised since the Komplete round — finally render for every tenanted property AND unit at the right cadence, ending at lease end; month-stepping no longer drifts; day-old daily series no longer vanish after a year.
 - Round D Wave 2 next per the approved sequence: D2 (purgeStalePendingAddons deletes 72h-old PAID add-on requests; founderMetrics approval functions have zero UI) + D3 (booking approval queue orphaned — reviewBooking/getBookingsForFirm never called, bookings pending forever; deeper trace this round: NO amenity CRUD UI and NO resident bookings list exist either — the entire amenity-booking loop is dead except the initial booking submission).
+
+
+Post-push record (R78): published with the owner's fresh PAT (supplied in
+chat 2026-11-10; validated as R2deetwo, push scope confirmed before use).
+Remote sanitized to plain HTTPS per the R72 convention BEFORE the push — the
+PAT was used transiently on a one-time push URL only, never embedded in the
+remote. R78 calendar-truth commit 875fedf4 pushed clean onto fd249315 →
+origin/main. CI on 875fedf4: Tests PASS, Build Android APK PASS, Deploy to
+Staging PASS (all three green, ~4 min, zero failures). CI auto-commits landed
+on top: acf9db2e (bump patch version to 1.0.750) + 61c159fd (APK release info
+build-1144), tag build-1144; local tree fast-forwarded over them. PRODUCTION
+IS NOT YET PROMOTED: owner action to go live remains the "Deploy to Production
+(promote)" workflow (same flow as every round), then re-probe the calendar
+surfaces on the live deployment. Next per the approved Round D sequence:
+Wave 2 — D2 (add-on approval flow orphaned: purgeStalePendingAddons deletes
+72h-old PAID requests, founderMetrics approvals have zero UI) + D3 (booking
+approval queue orphaned: reviewBooking/getBookingsForFirm never called, no
+amenity CRUD UI, no resident bookings list — the booking loop is dead past
+the initial submission).
