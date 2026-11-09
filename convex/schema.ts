@@ -1395,6 +1395,56 @@ export default defineSchema({
     .index("by_table_record", ["tableName", "recordId"])
     .index("by_firm_created", ["firmId", "createdAt"]),
 
+  // ─── Financial Counters (ROUND B, M8 — server-side sequential numbering) ──
+  // Per-firm monotonic counters for financial document numbers. The receipt
+  // number previously came from the CLIENT: CollectRentModal stamped
+  // `REC-{timestamp}-{random}` (collisions possible, no sequence) while
+  // invoiceHelpers counted existing rows client-side (two same-second
+  // creations both compute N+1 — duplicate numbers, no uniqueness anywhere).
+  // Server-side, the counter row is read-modify-written inside the booking
+  // transaction: Convex's serializable isolation makes two concurrent
+  // collects conflict on the same row, so one retries and gets the next
+  // number — sequential AND unique by construction.
+  financial_counters: defineTable({
+    firmId: v.string(),
+    // 'receipts' | 'invoices' (invoice numbering can migrate here later)
+    scope: v.string(),
+    value: v.number(),                       // last issued number (1-based)
+    updatedAt: v.number(),
+  })
+    .index("by_firm_scope", ["firmId", "scope"]),
+
+  // ─── Financial Reconciliation Reports (ROUND B — the reconciliation cron) ──
+  // One row per run of financialIntegrity.runFinancialReconciliation (daily
+  // cron + on-demand). The checker joins ledger_entries ↔ service_charges ↔
+  // wallet_transactions ↔ payment_proofs and proves every post-Round-B money
+  // movement is booked exactly once. `ok` is the green/red gate; pre-Round-B
+  // rows that predate the fixes are counted in separate `legacy*` buckets so
+  // historical data never reds a healthy deployment.
+  financial_reconciliation_reports: defineTable({
+    ranAt: v.number(),
+    ok: v.boolean(),
+    // Structural gaps that indicate money moved without a ledger row (or a
+    // booked row lost its source): post-cutoff only — these are FAILURES.
+    walletDebitsWithoutLedger: v.number(),
+    approvedProofsUnbooked: v.number(),
+    // Invariant violations in freshly written rows — FAILURES.
+    invalidAmountRows: v.number(),
+    duplicateIdempotencyKeys: v.number(),
+    duplicateReceiptNumbers: v.number(),
+    // Informational: wallet stored balances that no longer equal the sum of
+    // their transaction rows (legacy manual patches pre-Round-B). Reported
+    // for staff follow-up; does not fail the run by itself.
+    balanceDriftWallets: v.number(),
+    // Pre-Round-B rows lacking the new links — expected on upgraded data,
+    // informational only.
+    legacyWalletDebits: v.number(),
+    legacyApprovedProofs: v.number(),
+    firmsAffected: v.array(v.string()),
+    details: v.optional(v.any()),            // bounded sample of offending row ids per check
+  })
+    .index("by_ran_at", ["ranAt"]),
+
   service_charges: defineTable({
     firmId: v.string(),
     unitId: v.string(),
@@ -1434,6 +1484,12 @@ export default defineSchema({
     remindersMuted: v.optional(v.boolean()),
     // Auto-paused by cool-off mechanism after max consecutive reminders
     remindersPaused: v.optional(v.boolean()),
+    // ─── ROUND B (M5, overpayment credit carry-forward) ───────────────────
+    // When a tenant pays MORE than the cycle amount (markChargeAsPaid with
+    // paidAmount > outstanding), the excess is recorded here instead of
+    // silently vanishing. The next cycle reset (and the overdue flagger)
+    // consume it: outstanding = max(0, amount - creditCarriedForward).
+    creditCarriedForward: v.optional(v.number()),
   })
     .index("by_firm", ["firmId"])
     .index("by_unit", ["unitId"])
@@ -2083,6 +2139,11 @@ export default defineSchema({
     paystackReference: nullableString,
     // P11: Idempotency key for dedup on double-submit (mobile retries, double-tap)
     idempotencyKey: v.optional(v.string()),
+    // ─── ROUND B (H1, money truth): the ledger entry booked when this proof
+    // was approved/verified. Set in the SAME transaction as the approval —
+    // the reconciliation checker verifies every approved proof with money
+    // carries this link and that the ledger row still exists.
+    ledgerEntryId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -2797,6 +2858,9 @@ export default defineSchema({
     chargeType: v.optional(v.string()),
     chargeId: v.optional(v.string()),
     paystackReference: v.optional(v.string()),
+    // ROUND B (H2): ledger idempotency key of the ledger_entries row written
+    // atomically with this debit — the reconciliation join key.
+    ledgerIdempotencyKey: v.optional(v.string()),
     timestamp: v.number(),
   })
     .index("by_wallet", ["walletId"])

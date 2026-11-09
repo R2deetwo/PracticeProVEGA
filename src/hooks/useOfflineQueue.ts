@@ -65,6 +65,10 @@ const MUTATION_NAMES = [
     'addLedgerEntry',
     'markChargeAsPaid',
     'recordTrustTransaction',
+    // ROUND B (M6): atomic rent collection — receipt number + property
+    // history + rent/mgmt-fee ledger entries in ONE server transaction,
+    // deduped by idempotencyKey (a reconnect replay can never double-book).
+    'collectRentPayment',
     // Tier-2 additions:
     'createTask',           // useTasks.ts — task creation in the field
     'updateTask',           // useTasks.ts — task edits
@@ -185,6 +189,8 @@ export function useOfflineQueue() {
     const addLedgerEntryMutation = useMutation(api.sentry.addLedgerEntry);
     const markChargeAsPaidMutation = useMutation(api.sentry.markChargeAsPaid);
     const recordTrustTransactionMutation = useMutation(api.trustAccount.recordTrustTransaction);
+    // ROUND B (M6):
+    const collectRentPaymentMutation = useMutation(api.sentry.collectRentPayment);
     // Tier-2 mutations:
     const createTaskMutation = useMutation(api.myFunctions.createTask);
     const updateTaskMutation = useMutation(api.myFunctions.updateTask);
@@ -201,6 +207,7 @@ export function useOfflineQueue() {
         addLedgerEntry: addLedgerEntryMutation,
         markChargeAsPaid: markChargeAsPaidMutation,
         recordTrustTransaction: recordTrustTransactionMutation,
+        collectRentPayment: collectRentPaymentMutation,
         createTask: createTaskMutation,
         updateTask: updateTaskMutation,
         updateTaskStatus: updateTaskStatusMutation,
@@ -217,6 +224,7 @@ export function useOfflineQueue() {
         addLedgerEntry: addLedgerEntryMutation,
         markChargeAsPaid: markChargeAsPaidMutation,
         recordTrustTransaction: recordTrustTransactionMutation,
+        collectRentPayment: collectRentPaymentMutation,
         createTask: createTaskMutation,
         updateTask: updateTaskMutation,
         updateTaskStatus: updateTaskStatusMutation,

@@ -36,20 +36,20 @@ The outbox exists so automated billing is **reviewable** — a core trust featur
 Invoices display the firm's Nigerian bank account details. There is no pretend card form — clients transfer directly and upload payment proof. This is deliberate: for the Nigerian market, bank transfer is the dominant reliable rail.
 
 - Residents/clients upload payment proof via the portal (`portals:submitPaymentProof`).
-- Admin reviews proofs in Billing (`getPaymentProofsByFirm`) and marks them `updatePaymentProofStatus` → confirmed/rejected.
-- Confirming a proof records the payment against the ledger/invoice.
+- Admin reviews proofs in Financials → Inbox → Payment Proofs (`getPaymentProofsByFirm`) and approves/rejects via `updatePaymentProofStatus`.
+- **Approving a proof BOOKS the money (Round B, 2026-11):** the status change, the `ledger_entries` row (idempotency key `proof-approved-{proofId}`), the proof↔ledger link and the optional linked service-charge settlement all commit in ONE Convex transaction. The approver confirms the amount (required when the tenant stated none) and may link an open service charge. Paystack-verified proofs settle the same way from the webhook — with the Paystack-verified amount, correcting a tenant's mis-typed figure.
 
-**Payment processors (Paystack + Flutterwave):**
-Processor integrations exist in `convex/paystack.ts` and `convex/payments.ts` for card/USSD rails (activating). Recorded payments carry `processor`, `reference`, and an **idempotency key** — double-submits and webhook replays cannot double-credit a ledger (see the `by_idempotency` index on `ledger_entries`).
+**Payment processors (Paystack):**
+Processor integrations exist in `convex/paystack.ts` and `convex/payments.ts` for card/USSD rails (activating). Recorded payments carry `processor`, `reference`, and an **idempotency key** — double-submits and webhook redeliveries cannot double-credit a ledger (see the `by_idempotency` index on `ledger_entries` and the `by_paystack_reference` index on `wallet_transactions`). Wallet top-ups credit exactly once per Paystack reference (Round A), and wallet auto-deductions each write their own ledger row (`wallet-deduct-{chargeId}-{cycle}`, Round B) — wallet-collected revenue is no longer invisible to the books.
 
-**Ledger writes:** every confirmed payment writes a real `ledger_entries` row atomically with the invoice/payment/tenancy updates — single-transaction integrity (no "payment recorded but ledger empty" states).
+**Ledger writes:** every confirmed payment writes a real `ledger_entries` row atomically with the invoice/payment/tenancy updates — single-transaction integrity (no "payment recorded but ledger empty" states). Rent collections (`sentry.collectRentPayment`, Round B) book the receipt number, the property's rent history and the rent + management-fee ledger entries in one transaction, deduped by the caller's idempotency key.
 
 ---
 
 ## 4. Receipts
 
 Every confirmed payment can generate a receipt (`receiptDetail` view):
-- Sequential receipt ID per firm
+- Sequential receipt ID per firm — **issued server-side since Round B** (`financial_counters`, format `REC-00001…`): two same-second collections get distinct consecutive numbers by construction, and a retried collection returns the ORIGINAL number instead of double-booking. (Legacy receipts keep their historical formats.)
 - Payment date, amount, payer, method, and the invoice(s) it settles
 - Downloadable / printable from the Billing view and from the **Resident Portal** (residents can download their own rent receipts)
 

@@ -58,7 +58,12 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   const { financeState } = useFinanceState();
   const { updateItem, handleGenerateInvoice, logActivity, addItem } = useDataActions();
   const { addToast, modalContext, navigateTo } = useUI();
-  const addLedgerEntry = useMutation(api.sentry.addLedgerEntry);
+  // ROUND B (M6/M8): the atomic server-side rent collection — receipt number
+  // + property history + rent ledger + management-fee ledger in ONE Convex
+  // transaction, deduped by idempotencyKey. Replaces the old four-write
+  // client sequence (updateItem properties + updateItem contacts + two
+  // addLedgerEntry calls) that could half-commit on a network retry.
+  const collectRentPayment = useMutation(api.sentry.collectRentPayment);
   const { queueMutation, isOnline } = useOfflineQueue();
   const { currentUser, bearerToken } = useAuth();
 
@@ -131,114 +136,53 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       // ─── OFFLINE PATH ────────────────────────────────────────────────────
       // Rent collection is the single most likely field flow to happen with
       // poor connectivity — an agent standing in a building with a tenant
-      // collecting cash. If we're offline, queue the critical mutations
-      // (property update + ledger entries) and generate the receipt PDF
-      // locally (already client-side). Defer invoice generation and the
-      // portal message send — the landlord can generate the invoice from
-      // the matter detail page later when online, and the portal message
-      // is a notification (not a financial record) so dropping it is fine.
+      // collecting cash. ROUND B (M6): the offline queue now replays the ONE
+      // atomic collectRentPayment mutation (server-side receipt number +
+      // property history + rent ledger + management-fee ledger in a single
+      // transaction, deduped by idempotencyKey) instead of four separate
+      // writes that could half-commit or double-book on reconnect. The
+      // official receipt number is assigned server-side when the payment
+      // syncs; the offline PDF carries the sync reference until then.
       if (!isOnline) {
-        const newPayment = {
-          id: uuidv4(),
-          dueDate: paymentDate,
-          paidDate: paymentDate,
-          amount: amountValue,
-          status: 'paid' as const,
-          paymentMethod,
-          receiptNumber: `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`,
-          periodStart,
-          periodEnd,
-          transactionRef,
-        };
-        const updatedHistory = [...(property.rentPaymentHistory || []), newPayment];
-
-        // 1. Queue property update (status → Occupied, append to rent history)
-        queueMutation({
-          mutationName: 'updateItem',
-          args: {
-            table: 'properties',
-            id: property.id,
-            data: { rentPaymentHistory: updatedHistory, status: 'Occupied' },
-            itemName: 'Property Payment',
-          },
-          label: `Rent payment — ${unitDisplayLabel}`,
-        });
-
-        // 2. Queue the same update on the nested contact.properties if applicable
-        if (owner.properties?.some(p => p.id === property.id)) {
-          const updatedProperties = owner.properties.map(p =>
-            p.id === property.id ? { ...p, rentPaymentHistory: updatedHistory, status: 'Occupied' as const } : p
-          );
-          queueMutation({
-            mutationName: 'updateItem',
-            args: {
-              table: 'contacts',
-              id: owner.id,
-              data: { properties: updatedProperties },
-              itemName: 'Property Payment',
-            },
-            label: `Owner record — ${owner.name || 'Owner'}`,
-          });
-        }
-
-        // 3. Queue the rent ledger entry — the critical financial record
+        const idempotencyKey = uuidv4();
         const targetUnitId = overrideUnitId || property.id;
         const tenantContact = matterState.contacts.find(c =>
           (c.email && c.email === property.rentalDetails?.tenantEmail) ||
           (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
           (c.name && c.name === property.rentalDetails?.tenantName)
         );
-        if (targetUnitId) {
-          queueMutation({
-            mutationName: 'addLedgerEntry',
-            args: {
-              firmId: property.firmId || coreState.firmDetails?.id || '',
-              propertyId: property.id,
-              unitId: targetUnitId,
-              tenantId: tenantContact?.id || 'tenant-legacy',
-              amount: amountValue,
-              type: 'rent',
-              status: 'cleared',
-              description: `Rent collection for ${unitDisplayLabel}`,
-              period: `${periodStart} to ${periodEnd}`,
-              channel: transactionRef,
-              userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
-            },
-            label: `Rent ledger — ${unitDisplayLabel}`,
-          });
 
-          // 4. Queue management fee ledger entry (if applicable)
-          if (feeAmount > 0 && feePercentage > 0) {
-            queueMutation({
-              mutationName: 'addLedgerEntry',
-              args: {
-                firmId: property.firmId || coreState.firmDetails?.id || '',
-                propertyId: property.id,
-                unitId: targetUnitId,
-                tenantId: owner.id,
-                amount: feeAmount,
-                type: 'management_fee',
-                status: 'pending',
-                description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
-                period: `${periodStart} to ${periodEnd}`,
-                channel: transactionRef,
-                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
-              },
-              label: `Management fee ledger — ${unitDisplayLabel}`,
-            });
-          }
-        }
+        queueMutation({
+          mutationName: 'collectRentPayment',
+          args: {
+            firmId: property.firmId || coreState.firmDetails?.id || '',
+            propertyId: property.id,
+            unitId: targetUnitId,
+            tenantId: tenantContact?.id || 'tenant-legacy',
+            amount: amountValue,
+            paymentMethod,
+            transactionRef,
+            periodStart,
+            periodEnd,
+            paymentDate,
+            ...(feeAmount > 0 && feePercentage > 0 ? { feeAmount } : {}),
+            idempotencyKey,
+            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
+          },
+          label: `Rent collection — ${unitDisplayLabel}`,
+        });
 
-        // 5. Still generate the receipt PDF locally — it's client-side, works offline.
-        // Pass `true` for silent mode — we show our own offline toast above.
+        // Still generate the receipt PDF locally — it's client-side, works
+        // offline. The official number arrives with the sync; the PDF carries
+        // the sync reference so the tenant can match it later.
         try {
-          handleDownloadTenantReceipt(true);
+          handleDownloadTenantReceipt(true, `OFFLINE-${transactionRef}`);
         } catch (pdfError) {
           console.error('[CollectRentModal] Offline receipt PDF failed:', pdfError);
         }
 
         logActivity(
-          `Collected rent OFFLINE for ${unitDisplayLabel} — will sync when reconnecting. Receipt: ${newPayment.receiptNumber}.`,
+          `Collected rent OFFLINE for ${unitDisplayLabel} — will sync when reconnecting (ref ${transactionRef}). Official receipt number is assigned on sync.`,
           'Contact',
           property.id,
           unitDisplayLabel
@@ -246,25 +190,51 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
         addToast(
           `Rent receipt issued offline for ${formatNaira(amountValue)}. ` +
-          `${feeAmount > 0 ? `Management fee of ${formatNaira(feeAmount)} will need to be invoiced when online. ` : ''}` +
-          `Ledger and property record will sync automatically when you reconnect.`,
+          `${feeAmount > 0 ? `Management fee of ${formatNaira(feeAmount)} will be booked when online. ` : ''}` +
+          `The official receipt number and ledger entry are assigned automatically when you reconnect (sync ref ${transactionRef}).`,
           { type: 'info', duration: 8000 }
         );
         onClose();
         return;
       }
 
-      // ─── ONLINE PATH (existing flow, unchanged) ────────────────────────
+      // ─── ONLINE PATH (ROUND B, M6/M8: ONE atomic server transaction) ────
+      // collectRentPayment books, in a single Convex transaction: the
+      // server-issued sequential receipt number (unique per firm — two
+      // same-second collections get consecutive numbers), the property's
+      // rentPaymentHistory append + status, the rent ledger entry (cleared)
+      // and the management-fee ledger entry (pending). A network retry
+      // re-sends the same idempotencyKey and gets the ORIGINAL receipt back
+      // instead of double-booking.
+      const idempotencyKey = uuidv4();
+      const targetUnitId = overrideUnitId || property.id;
+      const tenantContact = matterState.contacts.find(c =>
+        (c.email && c.email === property.rentalDetails?.tenantEmail) ||
+        (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
+        (c.name && c.name === property.rentalDetails?.tenantName)
+      );
 
-      // 1. Update Property Rent History — receipt records FULL amount
-      // BRIEF #3: Extract receiptNumber to a local variable so it can be
-      // referenced later (for the document record and the toast link).
-      const receiptNumber = `REC-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const newPayment = {
-        id: uuidv4(),
+      const collection: any = await collectRentPayment({
+        firmId: property.firmId || coreState.firmDetails?.id || '',
+        propertyId: property.id,
+        unitId: targetUnitId,
+        tenantId: tenantContact?.id || 'tenant-legacy',
+        amount: amountValue, // FULL amount — receipt is always for what was paid
+        paymentMethod,
+        transactionRef,
+        periodStart,
+        periodEnd,
+        paymentDate,
+        ...(feeAmount > 0 && feePercentage > 0 ? { feeAmount } : {}),
+        idempotencyKey,
+        userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
+      });
+      const receiptNumber: string = collection?.receiptNumber || `REC-PENDING-${transactionRef}`;
+      const newPayment = (collection?.newPayment as RentPayment) || {
+        id: idempotencyKey,
         dueDate: paymentDate,
         paidDate: paymentDate,
-        amount: amountValue, // FULL amount — receipt is always for what was paid
+        amount: amountValue,
         status: 'paid' as const,
         paymentMethod,
         receiptNumber,
@@ -273,20 +243,22 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         transactionRef,
       };
 
-      const updatedHistory = [...(property.rentPaymentHistory || []), newPayment];
-      
-      // Update standalone property record
-      await updateItem('properties', { id: property.id, rentPaymentHistory: updatedHistory, status: 'Occupied' }, 'Property Payment');
-
-      // Legacy support: also update contact if it has the nested property
-      if (owner.properties?.some(p => p.id === property.id)) {
-        const updatedProperties = owner.properties.map(p => 
-          p.id === property.id ? { ...p, rentPaymentHistory: updatedHistory, status: 'Occupied' as const } : p
-        );
-        await updateItem('contacts', { id: owner.id, properties: updatedProperties }, 'Property Payment');
+      // Legacy support: mirror the payment onto the contact's nested
+      // properties copy when one exists (best-effort — the property record
+      // and the ledger are already booked atomically above).
+      try {
+        if (owner.properties?.some(p => p.id === property.id)) {
+          const updatedHistory = [...(property.rentPaymentHistory || []), newPayment];
+          const updatedProperties = owner.properties.map(p =>
+            p.id === property.id ? { ...p, rentPaymentHistory: updatedHistory, status: 'Occupied' as const } : p
+          );
+          await updateItem('contacts', { id: owner.id, properties: updatedProperties }, 'Property Payment');
+        }
+      } catch (mirrorError) {
+        console.warn('[CollectRentModal] Legacy contact mirror failed (non-blocking):', mirrorError);
       }
 
-      // 2. Generate Invoice for Management Fee (if applicable)
+      // Generate Invoice for Management Fee (if applicable)
       //  This is a SEPARATE invoice the landlord owes the agent — not deducted from the receipt.
       //  It is tied back to the rent transaction via transactionRef.
       if (feeAmount > 0 && feePercentage > 0) {
@@ -318,49 +290,8 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         );
       }
 
-      // 3. Record in Atrium Ledger — full rent received
-      const targetUnitId = overrideUnitId || property.id;
-      const tenantContact = matterState.contacts.find(c => 
-        (c.email && c.email === property.rentalDetails?.tenantEmail) || 
-        (c.phone && c.phone === property.rentalDetails?.tenantPhone) ||
-        (c.name && c.name === property.rentalDetails?.tenantName)
-      );
-
-      if (targetUnitId) {
-        await addLedgerEntry({
-          firmId: property.firmId || coreState.firmDetails?.id || '',
-          propertyId: property.id,
-          unitId: targetUnitId,
-          tenantId: tenantContact?.id || 'tenant-legacy', 
-          amount: amountValue, // Full rent amount
-          type: 'rent',
-          status: 'cleared',
-          description: `Rent collection for ${unitDisplayLabel}`,
-          period: `${periodStart} to ${periodEnd}`,
-          channel: transactionRef,
-          userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
-        });
-
-        // If there's a management fee, record it as a separate payable entry
-        if (feeAmount > 0 && feePercentage > 0) {
-          await addLedgerEntry({
-            firmId: property.firmId || coreState.firmDetails?.id || '',
-            propertyId: property.id,
-            unitId: targetUnitId,
-            tenantId: owner.id, // Payable TO the firm, FROM the landlord
-            amount: feeAmount,
-            type: 'management_fee',
-            status: 'pending', // Not yet paid — landlord owes this
-            description: `Management fee (${feePercentage}%) for ${unitDisplayLabel}`,
-            period: `${periodStart} to ${periodEnd}`,
-            channel: transactionRef, // Linked to the same transaction
-            userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
-          });
-        }
-      }
-
       logActivity(
-        `Collected rent for ${unitDisplayLabel}${feeAmount > 0 ? `. Mgmt fee invoice: ${formatNaira(feeAmount)}` : ''}`,
+        `Collected rent for ${unitDisplayLabel} — receipt ${receiptNumber}${feeAmount > 0 ? `. Mgmt fee invoice: ${formatNaira(feeAmount)}` : ''}`,
         'Contact',
         property.id,
         unitDisplayLabel
@@ -369,10 +300,11 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       // 4. Automatically trigger receipt generation — FULL amount, no deductions
       // BRIEF #3: Track receipt generation success/failure. If generation fails,
       // we must NOT show a success banner — only show the accurate error.
+      // ROUND B (M8): the PDF carries the SERVER-ISSUED receipt number.
       let receiptGenerated = false;
       let receiptDocId: string | null = null;
       try {
-        handleDownloadTenantReceipt(true);
+        handleDownloadTenantReceipt(true, receiptNumber);
         receiptGenerated = true;
       } catch (receiptError: any) {
         console.error('[CollectRentModal] Receipt PDF generation failed:', receiptError);
@@ -399,7 +331,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
           dateFiled: paymentDate,
           assignedUsers: [],
           file: {
-            name: `Receipt_${receiptNumber || `REC-${Date.now()}`}.pdf`,
+            name: `Receipt_${receiptNumber}.pdf`,
             type: 'application/pdf',
             size: 0,
             dataUrl: '', // PDF is generated client-side; record serves as index
@@ -421,7 +353,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
       // brief confirmation; no notification is pushed to the notification center.
       // The receipt is dispatched to the RESIDENT via the portal message (if configured).
       if (receiptGenerated) {
-        addToast(`Rent receipt issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, {
+        addToast(`Rent receipt ${receiptNumber} issued for ${formatNaira(amountValue)}${feeAmount > 0 ? `. Management fee invoice of ${formatNaira(feeAmount)} generated.` : ''}`, {
           type: 'success',
           duration: 6000,
           link: receiptDocId ? {
@@ -431,7 +363,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         });
       } else {
         // Receipt generation failed — show accurate error, NOT a success banner
-        addToast(`Payment recorded for ${formatNaira(amountValue)}, but receipt generation failed. You can download it manually from the property detail page.`, {
+        addToast(`Payment recorded for ${formatNaira(amountValue)} (receipt ${receiptNumber}), but receipt PDF generation failed. You can download it manually from the property detail page.`, {
           type: 'warning',
           duration: 8000,
         });
@@ -445,17 +377,21 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
     }
   };
 
-  const handleDownloadTenantReceipt = async (isSilentOrPayment: boolean | RentPayment = false) => {
+  // ROUND B (M8): optional receiptNumberOverride — the freshly collected
+  // payment's SERVER-ISSUED number (online: from collectRentPayment; offline:
+  // the sync reference). Older call sites (re-downloading a past payment)
+  // keep using the payment's own stored receiptNumber.
+  const handleDownloadTenantReceipt = async (isSilentOrPayment: boolean | RentPayment = false, receiptNumberOverride?: string) => {
     const isSilent = typeof isSilentOrPayment === 'boolean' ? isSilentOrPayment : false;
     const payment = typeof isSilentOrPayment === 'object' ? isSilentOrPayment : null;
 
     try {
 
-      
+
       // Receipt ALWAYS reflects the FULL amount paid — no deductions
       const receiptAmount = payment ? payment.amount : amountValue;
       const receiptDate = payment ? (payment.paidDate || payment.dueDate) : paymentDate;
-      const receiptNumber = payment?.receiptNumber || generateReceiptNumber({
+      const receiptNumber = receiptNumberOverride || payment?.receiptNumber || generateReceiptNumber({
         firmName: coreState.firmDetails?.name,
         users: coreState.users || [],
         existingInvoiceCount: financeState.invoices?.length || 0,

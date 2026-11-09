@@ -38,7 +38,11 @@ export const DashboardTab: React.FC<{
   // consumer, so the query + funding UI state live here now. (The Paystack
   // redirect VERIFY effect stays in index.tsx via useWalletFundingVerify —
   // it must run on portal mount regardless of active tab.)
-  const walletData = useQuery(api.wallets.getMyWallet, userId ? { tenantId: userId, userEmail: email || undefined } : 'skip');
+  // ROUND B (H8): the session bearer is passed. Without it getMyWallet's
+  // portal auth threw on every load, so the card showed ₦0 FOREVER (and the
+  // auto-deduct toggle never rendered even when the wallet existed) — a
+  // displayed financial figure that could never reconcile to the real balance.
+  const walletData = useQuery(api.wallets.getMyWallet, userId ? { tenantId: userId, userEmail: email || undefined, sessionToken: bearerToken ?? undefined } : 'skip');
   const toggleAutoDeduct = useMutation(api.wallets.toggleAutoDeduct);
   const initiateWalletFunding = useAction(api.wallets.initiateWalletFunding);
   const [walletFundAmount, setWalletFundAmount] = useState('');
@@ -182,7 +186,7 @@ export const DashboardTab: React.FC<{
             </div>
             {walletData?.wallet && (
               <button
-                onClick={() => toggleAutoDeduct?.({ tenantId: userId || '', enabled: !walletData.wallet.autoDeductEnabled, userEmail: email || undefined })}
+                onClick={() => toggleAutoDeduct?.({ tenantId: userId || '', enabled: !walletData.wallet.autoDeductEnabled, userEmail: email || undefined, sessionToken: bearerToken ?? undefined })}
                 className={`text-2xs font-bold px-2.5 py-1 rounded-full transition-colors ${
                   walletData.wallet.autoDeductEnabled
                     ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'

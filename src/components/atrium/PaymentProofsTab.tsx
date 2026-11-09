@@ -13,6 +13,9 @@ import {
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { translateError } from '../../utils/errorTranslator';
+// ADR-0004: no new raw form elements — the review inputs use the ui/ primitives
+// (bare variant with the verbatim legacy classes, the established escape hatch).
+import { Input, Select } from '../ui';
 
 /**
  * PaymentProofsTab — firm-side review of tenant payment proof submissions.
@@ -103,10 +106,23 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
 
     const updateStatus = useMutation(api.portals.updatePaymentProofStatus);
 
+    // ─── ROUND B (H1): approval now BOOKS the money — the review UI supplies
+    // what the booking needs: a confirmed amount when the tenant submitted
+    // none (or a wrong one), and an optional open service charge to settle
+    // in the same transaction (the charge's status/outstanding/reminder
+    // ladder then reflect the payment immediately).
+    const firmCharges = useQuery(
+        api.sentry.getServiceChargesByFirm,
+        firmId ? { firmId, sessionToken: bearerToken ?? undefined } : 'skip'
+    ) as any[] | undefined;
+
     // Review actions
     const [busyId, setBusyId] = useState<string | null>(null);
     const [rejectingId, setRejectingId] = useState<string | null>(null);
     const [rejectNote, setRejectNote] = useState('');
+    // Per-proof approval inputs (ROUND B): confirmed amount + charge link.
+    const [amountInputs, setAmountInputs] = useState<Record<string, string>>({});
+    const [chargeLinks, setChargeLinks] = useState<Record<string, string>>({});
 
     // Attachment viewing — resolve one storageId at a time on demand.
     const [viewStorageId, setViewStorageId] = useState<string | null>(null);
@@ -137,21 +153,50 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
     const act = async (proof: PaymentProof, status: 'approved' | 'rejected', adminNote?: string) => {
         setBusyId(proof._id);
         try {
-            await updateStatus({
+            // ROUND B (H1): build the booking args for approvals.
+            let confirmedAmount: number | undefined;
+            let serviceChargeId: string | undefined;
+            let chargeType: string | undefined;
+            if (status === 'approved') {
+                const typed = parseFloat(amountInputs[proof._id] || '');
+                const claimed = typeof proof.amount === 'number' ? proof.amount : 0;
+                // A usable amount: the reviewer's confirmed figure wins; else
+                // the proof's own claim. Neither exists → the approval cannot
+                // book money — stop and ask rather than silently booking ₦0.
+                if (!isNaN(typed) && typed > 0) {
+                    confirmedAmount = typed;
+                } else if (claimed > 0) {
+                    confirmedAmount = claimed;
+                } else {
+                    addToast('Enter the confirmed amount before approving — an approval must book real money to the ledger.', { type: 'error', duration: 6000 });
+                    setBusyId(null);
+                    return;
+                }
+                const linkedId = chargeLinks[proof._id];
+                if (linkedId) {
+                    serviceChargeId = linkedId;
+                    chargeType = 'service_charge';
+                }
+            }
+            const result: any = await updateStatus({
                 proofId: proof._id as any,
                 status,
                 adminNote: adminNote?.trim() || undefined,
                 userEmail: userEmail || undefined,
                 sessionToken: bearerToken ?? undefined,
+                ...(confirmedAmount !== undefined ? { confirmedAmount } : {}),
+                ...(serviceChargeId ? { serviceChargeId: serviceChargeId as any, chargeType } : {}),
             });
             addToast(
                 status === 'approved'
-                    ? `Approved${proof.tenantName ? ` — ${proof.tenantName}` : ''} will see it in their Payment History.`
+                    ? `Approved${proof.tenantName ? ` — ${proof.tenantName}` : ''}${result?.bookedAmount ? ` — ₦${Number(result.bookedAmount).toLocaleString()} booked to the ledger${result?.chargeSettled ? ' and the linked charge settled' : ''}.` : ' will see it in their Payment History.'}`
                     : 'Rejected. The tenant will be asked to resubmit.',
-                { type: 'success' }
+                { type: 'success', duration: 6000 }
             );
             setRejectingId(null);
             setRejectNote('');
+            setAmountInputs(prev => { const n = { ...prev }; delete n[proof._id]; return n; });
+            setChargeLinks(prev => { const n = { ...prev }; delete n[proof._id]; return n; });
         } catch (e: any) {
             addToast(translateError(e, 'update payment proof'), { type: 'error' });
         } finally {
@@ -274,6 +319,64 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
                 {/* Pending actions */}
                 {group === 'pending' && (
                     <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-700/60">
+                        {/* ROUND B (H1): booking inputs. Amount is REQUIRED when
+                            the tenant stated none (an approval must book real
+                            money); the reviewer may also override a stated
+                            figure that is wrong. The optional charge link
+                            settles an open service charge in the same
+                            transaction. */}
+                        <div className="space-y-2 mb-3">
+                            <div className="flex items-center gap-2">
+                                <label className="text-2xs font-bold text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                                    {proof.amount ? 'Confirm amount (₦)' : 'Amount received (₦)'}
+                                </label>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    step="0.01"
+                                    aria-label="Confirmed amount"
+                                    value={amountInputs[proof._id] ?? (proof.amount != null ? String(proof.amount) : '')}
+                                    onChange={e => setAmountInputs(prev => ({ ...prev, [proof._id]: e.target.value }))}
+                                    placeholder={proof.amount != null ? String(proof.amount) : 'e.g. 250000'}
+                                    styleVariant="bare"
+                                    containerClassName="flex-1 min-w-0"
+                                    inputClassName={`px-2.5 py-1.5 rounded-md border text-xs bg-white dark:bg-zinc-900 text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 ${
+                                        proof.amount == null
+                                            ? 'border-amber-300 dark:border-amber-700'
+                                            : 'border-slate-200 dark:border-zinc-700'
+                                    }`}
+                                />
+                            </div>
+                            {(() => {
+                                const openCharges = (firmCharges || []).filter(
+                                    (c: any) =>
+                                        c.serviceChargeStatus !== 'PAID_FULLY' &&
+                                        !c.remindersMuted &&
+                                        String(c.unitId) === String(proof.unitId || '')
+                                );
+                                if (!proof.unitId || openCharges.length === 0) return null;
+                                return (
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-2xs font-bold text-slate-500 dark:text-zinc-400 whitespace-nowrap">Apply to charge</label>
+                                        <Select
+                                            aria-label="Apply to service charge"
+                                            value={chargeLinks[proof._id] || ''}
+                                            onChange={e => setChargeLinks(prev => ({ ...prev, [proof._id]: e.target.value }))}
+                                            styleVariant="bare"
+                                            containerClassName="flex-1 min-w-0"
+                                            selectClassName="w-full px-2.5 py-1.5 rounded-md border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-xs text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                                        >
+                                            <option value="">Don't settle a charge (book as rent)</option>
+                                            {openCharges.map((c: any) => (
+                                                <option key={c._id} value={c._id}>
+                                                    {c.category} — ₦{Number(c.outstandingBalance ?? c.amount).toLocaleString()} outstanding
+                                                </option>
+                                            ))}
+                                        </Select>
+                                    </div>
+                                );
+                            })()}
+                        </div>
                         {!isRejecting ? (
                             <div className="flex items-center gap-2">
                                 <button

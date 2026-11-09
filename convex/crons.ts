@@ -364,4 +364,22 @@ crons.weekly(
   {}
 );
 
+// ─── ROUND B (Wave S2): FINANCIAL RECONCILIATION ─────────────────────────
+// Daily at 7:15 UTC (8:15 AM WAT) — after the wallet auto-deduct (6:15),
+// the automation engine (6:30) and the rule sweep (6:45) have all settled,
+// so the checker sees the finished books for the day. Proves every
+// post-Round-B money movement is booked exactly once: wallet auto-deduct
+// debits ↔ ledger rows (H2), approved/verified payment proofs ↔ ledger
+// entries (H1), amount validity + idempotency + receipt-number uniqueness
+// (M5/M8), and wallet balance drift. Writes a financial_reconciliation_reports
+// row (ok/red + counts); pre-Round-B rows are bucketed as legacy so
+// historical data never reds a healthy deployment. Founder can also run it
+// on demand: financialIntegrity.runFinancialReconciliationNow.
+crons.daily(
+  "financialReconciliation",
+  { hourUTC: 7, minuteUTC: 15 },
+  internal.financialIntegrity.runFinancialReconciliation,
+  {}
+);
+
 export default crons;

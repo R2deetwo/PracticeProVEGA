@@ -382,6 +382,13 @@ const ChargeRow: React.FC<{
             {/* Status badge */}
             {isPaidFully && <span className="text-3xs font-bold text-emerald-400">Paid</span>}
             {isPartial && <span className="text-3xs font-bold text-amber-400">Partial (₦{(charge.outstandingBalance ?? 0).toLocaleString()} owed)</span>}
+            {/* ROUND B (M5): overpayment credit carried to the next cycle —
+                surfaced so staff can answer "where is the tenant's extra money?" */}
+            {(charge.creditCarriedForward ?? 0) > 0 && (
+              <span className="text-2xs font-bold text-sky-400" title="Excess payment carried forward — it reduces (or covers) this charge's next cycle automatically">
+                ₦{(charge.creditCarriedForward ?? 0).toLocaleString()} credit → next cycle
+              </span>
+            )}
             <span className="text-2xs text-slate-500">{charge.cycle}</span>
             {charge.isDefaulter && !isPaidFully && <span className="text-2xs text-rose-400 font-bold">{charge.daysOverdue ?? 0}d overdue</span>}
           </div>
@@ -632,8 +639,15 @@ const ServiceChargeMonitor: React.FC<{
       showToast(`${charge.category} charge saved offline. Will sync when you reconnect.`);
       return;
     }
-    await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), idempotencyKey });
-    showToast(`${charge.category} charge marked as fully paid`);
+    // ROUND B (H13): a money mutation that throws must SURFACE — the old
+    // bare await left the failure silent (charge stays unpaid, nobody knows
+    // the recording failed).
+    try {
+      await markPaidMutation({ serviceChargeId: charge._id as any, paidAmount: charge.amount, firmId, channel: 'Bank Transfer', userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), idempotencyKey });
+      showToast(`${charge.category} charge marked as fully paid`);
+    } catch (e: any) {
+      showToast(`Failed to record the payment — ${e?.message || 'please try again'}. The charge is still unpaid.`);
+    }
   };
 
   const handlePartialPayment = async () => {
@@ -663,8 +677,14 @@ const ServiceChargeMonitor: React.FC<{
       return;
     }
 
-    await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), idempotencyKey: uuidv4() });
-    showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
+    // ROUND B (H13): same error-surfacing contract as full mark-paid.
+    try {
+      await markPaidMutation({ serviceChargeId: partialPaymentCharge._id as any, paidAmount: amount, firmId, channel: 'Bank Transfer', isPartialPayment: true, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined), idempotencyKey: uuidv4() });
+      showToast(`Partial payment of ₦${amount.toLocaleString()} recorded`);
+    } catch (e: any) {
+      showToast(`Failed to record the partial payment — ${e?.message || 'please try again'}. Nothing was saved.`);
+      return;
+    }
     setPartialPaymentCharge(null);
     setPartialAmount('');
   };

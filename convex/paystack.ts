@@ -540,24 +540,52 @@ export const recordPaystackEvent = internalMutation({
       }
     } else if (args.eventType === 'charge.success') {
       handled = 'charge_success';
-      // UNIFIED PAYMENT PIPELINE (2026-09-14): a tenant rent payment made
-      // via Paystack Inline creates a payment_proof with status
-      // 'pending_verification' and paystackReference set. This webhook is
-      // the authoritative confirmation — verify the proof and release the
+      // UNIFIED PAYMENT PIPELINE + ROUND B (M7 + H1): a tenant rent payment
+      // made via Paystack Inline creates a payment_proof carrying the
+      // paystackReference. This webhook is the authoritative confirmation:
+      // it now SETTLES the proof through the shared settlement core
+      // (portals.settleApprovedProof) — booking the Paystack-VERIFIED amount
+      // to the ledger (the tenant's claimed figure on the proof is corrected
+      // when it differs), linking proof↔ledger, and releasing the
       // automation-engine payment suppression (paused collection-ladder
       // messages for that tenant are cancelled: payment verified by
       // Paystack, exactly as the user specified).
+      //
+      // M7 history: the original webhook only matched proofs in
+      // 'pending_verification', while the UI submitted 'pending_review' —
+      // the branch was dead code and Paystack payments waited for manual
+      // review forever. Round A (H19) made the server derive
+      // pending_verification for Paystack submissions; Round B additionally
+      // (a) accepts legacy 'pending_review' rows that carry a reference
+      // (pre-H19 data), (b) books the money, and (c) if the webhook beat the
+      // proof submission, the submission self-heals off this event row.
       if (args.reference) {
         try {
           const proof = await ctx.db
             .query("payment_proofs")
             .withIndex("by_paystack_reference", (q: any) => q.eq("paystackReference", args.reference))
             .first();
-          if (proof && (proof as any).status === 'pending_verification') {
-            const nowIso = new Date().toISOString();
+          if (proof && ((proof as any).status === 'pending_verification' || (proof as any).status === 'pending_review')) {
+            try {
+              // The event's amount is the Paystack-verified figure (kobo →
+              // NGN was applied when the event was recorded).
+              await ctx.runMutation(internal.portals.settleApprovedProof, {
+                proofId: String((proof as any)._id),
+                source: 'webhook',
+                confirmedAmount: typeof args.amount === 'number' && args.amount > 0 ? args.amount : undefined,
+              });
+            } catch (settleErr: any) {
+              // A proof with no usable amount cannot auto-book — leave it
+              // for staff review rather than failing the webhook.
+              await logError(ctx, {
+                scope: "payment", name: "paystack:webhook:proofSettlement",
+                error: settleErr, severity: "warning",
+                context: { reference: args.reference, proofId: String((proof as any)._id) },
+              });
+            }
             await ctx.db.patch(proof._id, {
               status: 'verified',
-              updatedAt: nowIso,
+              updatedAt: new Date().toISOString(),
             } as any);
             await ctx.runMutation(internal.automationEngine.onPaymentProofApproved, {
               firmId: String((proof as any).firmId),

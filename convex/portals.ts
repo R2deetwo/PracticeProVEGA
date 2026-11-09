@@ -9,6 +9,11 @@ import { buildAutomatedEmailHtml } from "./emailBranding";
 // Task 48: Automation Studio rule engine — participant-sent portal
 // attachments fire the document_uploaded trigger (see sendPortalMessage).
 import { dispatchRulesForEvent } from "./automationRules";
+// ROUND B (money truth): ledger booking for proof settlements (H1), amount
+// rounding (M5) and registry-validated charge types.
+import { makeTxHash } from "./sentry";
+import { assertValidChargeType } from "./chargeTypes";
+import { roundMoney } from "./moneyUtils";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED. Unbounded `.collect()` calls were
@@ -4022,6 +4027,30 @@ export const getTenantInfo = query({
       || tenantProperties.find(p => p.tenantName)?.tenantName
       || null;
 
+    // ─── ROUND B (H10): SERVER-SIDE OUTSTANDING BALANCE ───────────────────
+    // The resident dashboard's "Outstanding Balance" card read
+    // `tenantInfo.outstandingBalance` — a field this query NEVER returned, so
+    // every defaulting resident saw "All Caught Up" / ₦0 regardless of
+    // arrears. Now the figure is computed from the same obligations store the
+    // dues tab, reminder engine and wallet auto-deduct use (service_charges):
+    // for every charge of THIS tenant that is not PAID_FULLY, the outstanding
+    // is (outstandingBalance ?? amount) minus any credit carried forward —
+    // so the dashboard card, the Dues tab and the collections engine can
+    // never disagree by construction.
+    let outstandingBalance = 0;
+    try {
+      const firmCharges = await ctx.db
+        .query("service_charges")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
+        .take(2000);
+      for (const charge of firmCharges) {
+        if (charge.serviceChargeStatus === "PAID_FULLY") continue;
+        if (!charge.tenantId || !possibleIds.has(String(charge.tenantId))) continue;
+        const owed = Math.max(0, roundMoney((charge.outstandingBalance ?? charge.amount) - (charge.creditCarriedForward ?? 0)));
+        outstandingBalance = roundMoney(outstandingBalance + owed);
+      }
+    } catch { /* never block the portal shell on the arrears sum */ }
+
     return {
       tenantId: resolvedTenantId,
       properties: tenantProperties,
@@ -4056,6 +4085,9 @@ export const getTenantInfo = query({
       primaryCustomFees: primaryPropertyRecord?.customFees || [],
       // Canonical tenant name from the property record (source of truth)
       tenantName: resolvedTenantName,
+      // ROUND B (H10): the resident's real arrears figure (see computation
+      // above) — the dashboard card now displays actual outstanding dues.
+      outstandingBalance,
       // ESTATE COMMUNITY FEATURES — surfaced so the resident portal can show
       // the Community tab only when at least one module is enabled by the
       // admin. Admin controls this via Settings → Estate Community.
@@ -5698,6 +5730,161 @@ export const replyToPortalMessage = mutation({
 
 // ─── Payment Proof Upload ────────────────────────────────────────────────
 
+// ─── ROUND B (H1): the shared proof-settlement core ────────────────────────
+// Approving/verifying a payment proof used to be a FINANCIAL NO-OP: the
+// status flipped and reminders cancelled, but no ledger entry was written,
+// no charge was settled, no invoice was paid — money received through the
+// PRIMARY collection rail (manual transfer proofs + Paystack verifications)
+// was invisible in every ledger, cash-flow and reconciliation view unless a
+// staff member manually double-entered it. This core books the money
+// ATOMICALLY with the approval, exactly once per proof (idempotency key
+// `proof-approved-{proofId}`), and is shared by all three settlement paths:
+//   1. staff approval (updatePaymentProofStatus — this module),
+//   2. the Paystack webhook verification (paystack.ts → settleApprovedProof),
+//   3. submitPaymentProof's self-heal (webhook landed before the proof row).
+async function settleProofInternal(
+  ctx: any,
+  opts: {
+    proof: any;
+    proofId: string;
+    source: "staff" | "webhook" | "submit_selfheal";
+    actorEmail?: string | null;
+    confirmedAmount?: number;
+    chargeType?: string;
+    serviceChargeId?: string;
+  }
+): Promise<{ ledgerEntryId: any; duplicate: boolean; chargeSettled: boolean; bookedAmount: number }> {
+  const { proof, proofId } = opts;
+  const idempotencyKey = `proof-approved-${proofId}`;
+
+  // Idempotent: a proof settles EXACTLY once. Re-approval, a webhook
+  // redelivery or a staff/webhook race all find the existing ledger row and
+  // no-op. (Retiring a booked proof is the audited VOID lifecycle — never a
+  // second settlement or a silent edit.)
+  const existing = await ctx.db
+    .query("ledger_entries")
+    .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", idempotencyKey))
+    .first();
+  if (existing) {
+    return { ledgerEntryId: existing._id, duplicate: true, chargeSettled: false, bookedAmount: (existing as any).amount };
+  }
+
+  // The amount that actually moved. Priority: the confirmed figure (staff
+  // review input, or the Paystack-verified amount for webhook settlements)
+  // over the tenant-supplied claim on the proof.
+  const claimed = typeof proof.amount === "number" ? proof.amount : 0;
+  const bookedAmount = opts.confirmedAmount !== undefined ? opts.confirmedAmount : claimed;
+  if (typeof bookedAmount !== "number" || !isFinite(bookedAmount) || roundMoney(bookedAmount) <= 0) {
+    throw new Error(
+      "This proof has no usable amount. Enter the confirmed amount before approving — an approval must book real money to the ledger."
+    );
+  }
+  const amount = roundMoney(bookedAmount);
+
+  // The ledger type is registry-validated like every other ledger write.
+  const chargeType = opts.chargeType || "rent";
+  await assertValidChargeType(ctx, String(proof.firmId), "ledger", chargeType);
+
+  const now = Date.now();
+  const ledgerEntryId = await ctx.db.insert("ledger_entries", {
+    firmId: proof.firmId,
+    propertyId: proof.propertyId ?? undefined,
+    unitId: proof.unitId || proof.propertyId || "unassigned",
+    tenantId: proof.tenantId ?? undefined,
+    amount,
+    type: chargeType,
+    status: "cleared",
+    timestamp: now,
+    txHash: makeTxHash(String(proof.firmId), proof.unitId || proof.propertyId || "unassigned", amount, now, chargeType),
+    channel: proof.paymentMethod === "paystack"
+      ? `Paystack${proof.paystackReference ? ` (${proof.paystackReference})` : ""}`
+      : "Payment proof (approved)",
+    paymentRef: proofId,
+    idempotencyKey,
+    description: `Payment proof approved — ${proof.tenantName || proof.tenantEmail || "tenant"}${proof.period ? ` (${proof.period})` : ""}` +
+      (opts.confirmedAmount !== undefined && Math.abs(opts.confirmedAmount - claimed) > 0.01
+        ? ` [verified amount ₦${amount.toLocaleString()} — proof claimed ₦${roundMoney(claimed).toLocaleString()}]`
+        : ""),
+  });
+
+  // Link the proof to its ledger row (reconciliation join key) and correct
+  // the proof's amount to the verified figure when they differ.
+  await ctx.db.patch(proofId as any, {
+    ledgerEntryId: String(ledgerEntryId),
+    ...(opts.confirmedAmount !== undefined && Math.abs(opts.confirmedAmount - claimed) > 0.01
+      ? { amount }
+      : {}),
+  } as any);
+
+  // Optional charge linkage: settle the referenced service charge in the
+  // same transaction (the approver picked it in the review UI).
+  let chargeSettled = false;
+  if (opts.serviceChargeId) {
+    const sc: any = await ctx.db.get(opts.serviceChargeId as any);
+    if (!sc) throw new Error("Linked service charge not found.");
+    if (String(sc.firmId) !== String(proof.firmId)) {
+      throw new Error("Not authorized: linked service charge belongs to a different firm.");
+    }
+    const totalAmount = sc.amount;
+    const previouslyPaid = sc.amountPaidThisCycle ?? 0;
+    const rawOutstanding = roundMoney(totalAmount - previouslyPaid - amount);
+    const outstanding = Math.max(0, rawOutstanding);
+    const credit = rawOutstanding < 0 ? roundMoney(-rawOutstanding) : (sc.creditCarriedForward ?? 0);
+    const fullyPaid = outstanding <= 0;
+    await ctx.db.patch(sc._id, {
+      serviceChargeStatus: fullyPaid ? "PAID_FULLY" : "PARTIALLY_PAID",
+      outstandingBalance: fullyPaid ? 0 : outstanding,
+      amountPaidThisCycle: fullyPaid ? 0 : roundMoney(previouslyPaid + amount),
+      creditCarriedForward: credit,
+      lastPaidDate: now,
+      ...(fullyPaid ? {
+        nextDueDate: now + (sc.cycle === "Monthly" ? 30 * 86400000 : sc.cycle === "Quarterly" ? 90 * 86400000 : 365 * 86400000),
+        isDefaulter: false, daysOverdue: 0, penaltyApplied: false,
+      } : {}),
+      consecutiveReminderCount: 0,
+      remindersPaused: false,
+    } as any);
+    chargeSettled = true;
+  }
+
+  // Audit trail (M24 for the money path): who/when/what settled this proof.
+  try {
+    await ctx.db.insert("financial_audit_log", {
+      firmId: String(proof.firmId),
+      tableName: "payment_proofs",
+      recordId: proofId,
+      action: "settle",
+      actorEmail: opts.actorEmail ?? null,
+      actorUserId: null,
+      reason: `Payment proof settled via ${opts.source} — ledger entry booked (₦${amount.toLocaleString()}, ${chargeType})`,
+      afterState: { ledgerEntryId: String(ledgerEntryId), amount, chargeType, serviceChargeId: opts.serviceChargeId ?? null },
+      metadata: { source: opts.source },
+      createdAt: now,
+    });
+  } catch { /* audit write must never fail the settlement */ }
+
+  return { ledgerEntryId, duplicate: false, chargeSettled, bookedAmount: amount };
+}
+
+/** ROUND B (H1): cross-module settlement entry point (the Paystack webhook
+ *  calls this after verifying charge.success for a proof's reference). */
+export const settleApprovedProof = internalMutation({
+  args: {
+    proofId: v.string(),
+    source: v.string(),                    // 'webhook' | 'submit_selfheal'
+    confirmedAmount: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const proof: any = await ctx.db.get(args.proofId as any);
+    if (!proof) throw new Error("Payment proof not found.");
+    return await settleProofInternal(ctx, {
+      proof, proofId: args.proofId,
+      source: args.source === "webhook" ? "webhook" : "submit_selfheal",
+      confirmedAmount: args.confirmedAmount,
+    });
+  },
+});
+
 /**
  * submitPaymentProof — Allows a tenant to submit proof of payment (receipt/stub)
  * for review by their property manager. Creates a record with the uploaded file.
@@ -5757,6 +5944,15 @@ export const submitPaymentProof = mutation({
     //    uploads are always pending_verification (the webhook/verify flow
     //    is the only thing that can confirm them).
     const initialStatus = args.paymentMethod === 'paystack' ? 'pending_verification' : 'pending_review';
+    // ── ROUND B (M5): a stated amount must be a positive number — a 0 /
+    //    negative / NaN "payment" claim must never enter the review queue.
+    if (args.amount !== undefined) {
+      const validated = roundMoney(args.amount);
+      if (!isFinite(validated) || validated <= 0) {
+        throw new Error("The payment amount must be greater than zero.");
+      }
+      args.amount = validated;
+    }
     const proofId = await ctx.db.insert("payment_proofs", {
       firmId: args.firmId,
       tenantId: args.tenantId,
@@ -5775,6 +5971,37 @@ export const submitPaymentProof = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // ── ROUND B (M7): the webhook/proof race, self-healed. The Paystack
+    //    webhook (recordPaystackEvent) only settles a proof it can FIND —
+    //    if it lands before this insert commits, the proof used to strand in
+    //    'pending_verification' forever (the event row was already recorded,
+    //    so even Paystack's redelivery short-circuited as a duplicate).
+    //    Now the submission itself checks whether a verified charge.success
+    //    for THIS reference already exists and settles in the same
+    //    transaction — exactly-once either way (shared idempotency key).
+    if (args.paymentMethod === 'paystack' && args.paystackReference) {
+      try {
+        const priorEvent = await ctx.db
+          .query("paystackEvents")
+          .withIndex("by_reference", (q: any) => q.eq("reference", args.paystackReference))
+          .filter((q: any) => q.eq(q.field("eventType"), "charge.success"))
+          .first();
+        if (priorEvent) {
+          const inserted: any = await ctx.db.get(proofId);
+          await settleProofInternal(ctx, {
+            proof: inserted, proofId: String(proofId),
+            source: "submit_selfheal",
+            confirmedAmount: typeof priorEvent.amount === "number" ? priorEvent.amount : undefined,
+          });
+          await ctx.db.patch(proofId, { status: "verified", updatedAt: Date.now() } as any);
+        }
+      } catch (e: any) {
+        // Self-heal is best-effort: the webhook path (or staff review)
+        // remains the fallback — never fail the proof submission for it.
+        console.warn("[paymentProof] webhook self-heal failed:", e?.message);
+      }
+    }
 
     // PAYMENT SUPPRESSION (restored 2026-09-14, Automation Engine): the
     // moment a tenant uploads a receipt, HOLD their pending automated
@@ -5846,6 +6073,15 @@ export const updatePaymentProofStatus = mutation({
     status: v.union(v.literal("pending_review"), v.literal("approved"), v.literal("rejected")),
     adminNote: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    // ─── ROUND B (H1): approval is now a BOOKING. The approver may supply:
+    //    confirmedAmount — the verified figure when the proof has no usable
+    //    amount (or the tenant's claim is wrong); chargeType — what the
+    //    payment was for (registry-validated, default 'rent');
+    //    serviceChargeId — an open service charge to settle with this
+    //    payment in the same transaction.
+    confirmedAmount: v.optional(v.number()),
+    chargeType: v.optional(v.string()),
+    serviceChargeId: v.optional(v.id("service_charges")),
   },
   handler: async (ctx, args) => {
     // ── ROUND A (C4): UNCONDITIONAL staff auth. Previously auth ran only
@@ -5871,8 +6107,33 @@ export const updatePaymentProofStatus = mutation({
       } catch {}
       throw new Error("Not authorized: payment proof belongs to a different firm.");
     }
-    const { proofId, sessionToken: _st, ...updates } = args;
-    await ctx.db.patch(proofId, { ...updates, updatedAt: Date.now() });
+    const { proofId, sessionToken: _st, confirmedAmount, chargeType, serviceChargeId, ...updates } = args;
+
+    // ── ROUND B (H1): approving a proof BOOKS THE MONEY — same transaction.
+    //    Before this round the approval was a financial no-op (status flip +
+    //    reminder cancellation only): every naira collected through the proof
+    //    rail was missing from the ledger until someone re-entered it by
+    //    hand. Rejection books nothing; re-approval of an already-settled
+    //    proof is an idempotent no-op (the original entry stays booked —
+    //    retiring it is the audited void lifecycle).
+    let settlement: { ledgerEntryId: any; duplicate: boolean; chargeSettled: boolean; bookedAmount: number } | null = null;
+    if (args.status === "approved") {
+      settlement = await settleProofInternal(ctx, {
+        proof, proofId: String(args.proofId),
+        source: "staff",
+        actorEmail: (caller as any).email ?? args.userEmail ?? null,
+        confirmedAmount,
+        chargeType,
+        serviceChargeId,
+      });
+    }
+
+    await ctx.db.patch(proofId, {
+      ...updates,
+      reviewedAt: Date.now(),
+      reviewedBy: String((caller as any).email || args.userEmail || "staff"),
+      updatedAt: Date.now(),
+    });
 
     // PAYMENT SUPPRESSION OUTCOMES (Automation Engine, 2026-09-14):
     //   approved → cancel the paused collection ladder for this tenant
@@ -5899,6 +6160,10 @@ export const updatePaymentProofStatus = mutation({
     } catch (e: any) {
       console.warn("[paymentProof] suppression outcome hook failed:", e?.message);
     }
+
+    return settlement
+      ? { success: true, ledgerEntryId: settlement.ledgerEntryId, bookedAmount: settlement.bookedAmount, chargeSettled: settlement.chargeSettled, duplicate: settlement.duplicate }
+      : { success: true };
   },
 });
 

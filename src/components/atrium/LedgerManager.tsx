@@ -118,8 +118,16 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
         onClose();
         return;
       }
-      await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef, idempotencyKey, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-      onClose();
+      // ROUND B (H13): money mutations must not fail SILENTLY. The old
+      // try/finally had no catch — a rejected addEntry left the modal open
+      // with no error surfaced (an unhandled promise rejection in dev
+      // console only), so staff believed a failed booking had landed.
+      try {
+        await addEntry({ firmId, unitId: form.unitId, amount: parseFloat(form.amount), type: form.type, status: form.status, channel: form.channel, description: form.description, paymentRef: form.paymentRef, idempotencyKey, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+        onClose();
+      } catch (e: any) {
+        addToast(`Failed to save the ledger entry — ${e?.message || 'please try again'}. Nothing was booked.`, { type: 'error', duration: 7000 });
+      }
     } finally { setLoading(false); }
   };
 

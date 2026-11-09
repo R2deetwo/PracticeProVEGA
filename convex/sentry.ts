@@ -4,6 +4,7 @@ import { requireFirmUser } from "./authHelpers";
 import { createUnitResolver, canonicalTenantId } from "./unitLookup";
 import { withCronReporting } from "./observability";
 import { assertValidChargeType } from "./chargeTypes";
+import { assertPositiveAmount, assertNonNegativeAmount, roundMoney } from "./moneyUtils";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED. Firm-scoped reads (by_firm index)
@@ -63,8 +64,10 @@ async function requirePropertyAccess(ctx: any, auth: { firmId: string }, propert
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
-/** Simple deterministic hash for append-only enforcement */
-function makeTxHash(firmId: string, unitId: string, amount: number, timestamp: number, type: string): string {
+/** Simple deterministic hash for append-only enforcement.
+ *  ROUND B: exported so wallets.ts can stamp identical txHash provenance on
+ *  the ledger rows written by the auto-deduct cron. */
+export function makeTxHash(firmId: string, unitId: string, amount: number, timestamp: number, type: string): string {
   const raw = `${firmId}|${unitId}|${amount}|${timestamp}|${type}`;
   let h = 0;
   for (let i = 0; i < raw.length; i++) {
@@ -104,6 +107,10 @@ export const addLedgerEntry = mutation({
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
     const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
 
+    // ── ROUND B (M5): money mutations validate the amount server-side.
+    //    Zero/negative/NaN ledger amounts used to commit silently.
+    const amount = assertPositiveAmount(args.amount, "Ledger entry amount");
+
     // EXTENSIBLE CHARGES (Task 51): reject unknown types BEFORE any write —
     // system types pass, custom types must be active registry entries.
     await assertValidChargeType(ctx, auth.firmId, "ledger", args.type);
@@ -122,9 +129,10 @@ export const addLedgerEntry = mutation({
 
     const { userEmail: _u, firmId: _f, sessionToken: _st, ...data } = args;
     const timestamp = Date.now();
-    const txHash = makeTxHash(auth.firmId, args.unitId, args.amount, timestamp, args.type);
+    const txHash = makeTxHash(auth.firmId, args.unitId, amount, timestamp, args.type);
     return await ctx.db.insert("ledger_entries", {
       ...data,
+      amount,
       firmId: auth.firmId,
       timestamp,
       txHash,
@@ -236,6 +244,169 @@ export const getLedgerByFirm = query({
   },
 });
 
+// ─── ATOMIC RENT COLLECTION (ROUND B — M6 + M8, money truth) ────────────────
+
+/**
+ * collectRentPayment — ONE server-side transaction for a rent collection.
+ *
+ * WHY THIS EXISTS (audit M6/M8): the CollectRentModal online path used to be
+ * FOUR separate writes — (1) updateItem('properties', …rentPaymentHistory…),
+ * (2) a legacy updateItem('contacts', …) mirror, (3) addLedgerEntry(rent),
+ * (4) addLedgerEntry(management_fee) — with the receipt number minted on the
+ * CLIENT (`REC-{timestamp}-{random}`: collisions possible, no sequence, no
+ * uniqueness anywhere) and NO idempotency key on the ledger writes. A network
+ * retry mid-sequence left the books in EITHER of two broken states: rent
+ * history says paid but the ledger never heard of it, or the ledger booked
+ * the rent twice while the property row advanced once.
+ *
+ * NOW: receipt number (server-side sequential counter per firm — two
+ * same-second collections get distinct consecutive numbers by construction),
+ * property rentPaymentHistory append, rent ledger entry and the optional
+ * management-fee entry ALL commit in this single Convex transaction, deduped
+ * by the caller's idempotencyKey (an offline-queue replay is a no-op that
+ * returns the original receipt number).
+ */
+export const collectRentPayment = mutation({
+  args: {
+    firmId: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    // The property record the rent history lives on (custom id or Convex id).
+    propertyId: v.string(),
+    // The ledger's unitId — may be an embedded/composite unit key, exactly
+    // like the unitId addLedgerEntry receives elsewhere.
+    unitId: v.string(),
+    tenantId: v.optional(v.string()),
+    amount: v.number(),                     // FULL rent received (receipt is always for what was paid)
+    paymentMethod: v.optional(v.string()),
+    transactionRef: v.optional(v.string()),
+    periodStart: v.optional(v.string()),
+    periodEnd: v.optional(v.string()),
+    paymentDate: v.optional(v.string()),    // ISO date (defaults to today)
+    // Management fee (separate obligation the landlord owes the firm — booked
+    // as a PENDING ledger entry; the client still generates its invoice).
+    feeAmount: v.optional(v.number()),
+    // One key per SUBMIT (client-generated uuid, shared by the offline queue
+    // replay) — a retried collection returns the original receipt instead of
+    // double-booking.
+    idempotencyKey: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
+
+    // ── ROUND B (M5): validate money server-side before anything is read.
+    const amount = assertPositiveAmount(args.amount, "Rent amount");
+    const feeAmount = args.feeAmount !== undefined
+      ? assertNonNegativeAmount(args.feeAmount, "Management fee amount")
+      : 0;
+
+    // ── IDEMPOTENCY: a replayed collection (offline queue, retry, double-tap)
+    //    must return the ORIGINAL receipt, never book twice. The rent entry
+    //    carries the key; its paymentRef IS the receipt number.
+    if (args.idempotencyKey) {
+      const existing = await ctx.db
+        .query("ledger_entries")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", args.idempotencyKey!))
+        .first();
+      if (existing) {
+        return {
+          success: true,
+          duplicate: true,
+          receiptNumber: (existing as any).paymentRef ?? null,
+          rentLedgerId: existing._id,
+        };
+      }
+    }
+
+    // ── Property access + current history (read inside the transaction so
+    //    the append is atomic: two concurrent collections of the same
+    //    property serialize here and each sees the other's append).
+    const prop = await requirePropertyAccess(ctx, auth, args.propertyId);
+    const now = Date.now();
+    const paidDate = args.paymentDate || new Date(now).toISOString();
+
+    // ── M8: server-side sequential receipt number, unique per firm. The
+    //    financial_counters row is read-modify-written INSIDE this
+    //    transaction — Convex's serializable isolation makes concurrent
+    //    collections conflict on the same counter row, so one retries and
+    //    takes the next number. Sequential AND unique by construction.
+    const counter = await ctx.db
+      .query("financial_counters")
+      .withIndex("by_firm_scope", (q: any) => q.eq("firmId", auth.firmId).eq("scope", "receipts"))
+      .first();
+    let sequence: number;
+    if (counter) {
+      sequence = counter.value + 1;
+      await ctx.db.patch(counter._id, { value: sequence, updatedAt: now });
+    } else {
+      sequence = 1;
+      await ctx.db.insert("financial_counters", { firmId: auth.firmId, scope: "receipts", value: sequence, updatedAt: now });
+    }
+    const receiptNumber = `REC-${String(sequence).padStart(5, "0")}`;
+
+    // ── 1. Property rent history — the receipt records the FULL amount.
+    const newPayment = {
+      id: args.idempotencyKey ?? `rent-${now}`,
+      dueDate: paidDate,
+      paidDate,
+      amount,
+      status: "paid" as const,
+      paymentMethod: args.paymentMethod,
+      receiptNumber,
+      periodStart: args.periodStart,
+      periodEnd: args.periodEnd,
+      transactionRef: args.transactionRef,
+    };
+    const updatedHistory = [...((prop as any).rentPaymentHistory || []), newPayment];
+    await ctx.db.patch(prop._id, {
+      rentPaymentHistory: updatedHistory,
+      status: "Occupied",
+    } as any);
+
+    // ── 2. Ledger: rent received (cleared).
+    const txHash = makeTxHash(auth.firmId, args.unitId, amount, now, "rent");
+    const rentLedgerId = await ctx.db.insert("ledger_entries", {
+      firmId: auth.firmId,
+      propertyId: args.propertyId,
+      unitId: args.unitId,
+      tenantId: args.tenantId,
+      amount,
+      type: "rent",
+      status: "cleared",
+      timestamp: now,
+      txHash,
+      channel: args.transactionRef || args.paymentMethod || "Rent collection",
+      paymentRef: receiptNumber,
+      idempotencyKey: args.idempotencyKey ?? undefined,
+      description: `Rent collection for ${args.unitId}${args.periodStart ? ` (${args.periodStart}${args.periodEnd ? ` to ${args.periodEnd}` : ""})` : ""}`,
+    });
+
+    // ── 3. Ledger: management fee (pending — the landlord owes the firm;
+    //    the client generates the matching invoice separately).
+    let feeLedgerId: any = null;
+    if (feeAmount > 0) {
+      const feeHash = makeTxHash(auth.firmId, args.unitId, feeAmount, now, "management_fee");
+      feeLedgerId = await ctx.db.insert("ledger_entries", {
+        firmId: auth.firmId,
+        propertyId: args.propertyId,
+        unitId: args.unitId,
+        tenantId: args.tenantId,
+        amount: feeAmount,
+        type: "management_fee",
+        status: "pending",
+        timestamp: now,
+        txHash: feeHash,
+        channel: args.transactionRef || args.paymentMethod || "Rent collection",
+        paymentRef: receiptNumber,
+        idempotencyKey: args.idempotencyKey ? `${args.idempotencyKey}:fee` : undefined,
+        description: `Management fee for rent collection ${receiptNumber}`,
+      });
+    }
+
+    return { success: true, receiptNumber, rentLedgerId, feeLedgerId, newPayment };
+  },
+});
+
 export const getLedgerByUnit = query({
   args: { sessionToken: v.optional(v.string()), unitId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, { unitId, userEmail , sessionToken }) => {
@@ -336,6 +507,11 @@ export const upsertServiceCharge = mutation({
     // SECURITY: verify caller + firm ownership; write with session-derived firmId
     const auth = await requireSentryAuth(ctx, args.userEmail, args.firmId, args.sessionToken);
 
+    // ── ROUND B (M5): a charge obligation must be a positive amount —
+    //    zero/negative recurring charges poisoned auto-deduct and the
+    //    overdue flagger (a negative charge could even CREDIT a wallet).
+    const validatedAmount = assertPositiveAmount(args.amount, "Service charge amount");
+
     // EXTENSIBLE CHARGES (Task 51): reject unknown categories BEFORE any write.
     await assertValidChargeType(ctx, auth.firmId, "service", args.category);
 
@@ -373,11 +549,12 @@ export const upsertServiceCharge = mutation({
       // (a bare patch with undefined would otherwise WIPE it — pre-existing
       // data-loss footgun, closed with the same change).
       const tenantId = resolvedTenantId ?? existing.tenantId;
-      await ctx.db.patch(existing._id, { ...data, tenantId, firmId: auth.firmId, isDefaulter: false });
+      await ctx.db.patch(existing._id, { ...data, amount: validatedAmount, tenantId, firmId: auth.firmId, isDefaulter: false });
       return existing._id;
     }
     return await ctx.db.insert("service_charges", {
       ...data,
+      amount: validatedAmount,
       tenantId: resolvedTenantId,
       firmId: auth.firmId,
       isDefaulter: false,
@@ -420,6 +597,9 @@ export const applyLatePenalty = mutation({
   },
   handler: async (ctx, { firmId, serviceChargeId, penaltyAmount, triggeredBy, userEmail , sessionToken }) => {
     const auth = await requireSentryAuth(ctx, userEmail, firmId, sessionToken);
+    // ── ROUND B (M5): penalties are money too — validate + round server-side
+    //    (a negative penalty used to write a negative pending ledger row).
+    const validatedPenalty = assertPositiveAmount(penaltyAmount, "Penalty amount");
     const sc = await ctx.db.get(serviceChargeId);
     if (!sc) throw new Error("Service charge not found");
     if (sc.firmId !== auth.firmId) {
@@ -429,12 +609,12 @@ export const applyLatePenalty = mutation({
     await ctx.db.patch(serviceChargeId, { penaltyApplied: true });
     // Write penalty to ledger
     const timestamp = Date.now();
-    const txHash = makeTxHash(auth.firmId, sc.unitId, penaltyAmount, timestamp, "penalty");
+    const txHash = makeTxHash(auth.firmId, sc.unitId, validatedPenalty, timestamp, "penalty");
     await ctx.db.insert("ledger_entries", {
       firmId: auth.firmId,
       unitId: sc.unitId,
       tenantId: sc.tenantId,
-      amount: penaltyAmount,
+      amount: validatedPenalty,
       type: "penalty",
       status: "pending",
       timestamp,
@@ -491,10 +671,24 @@ export const markChargeAsPaid = mutation({
       throw new Error("Not authorized: service charge belongs to a different firm.");
     }
 
+    // ── ROUND B (M5): the paid amount is validated + rounded server-side —
+    //    zero/negative "payments" used to commit silently (and a negative
+    //    amount could REDUCE amountPaidThisCycle).
+    const validatedPaidAmount = assertPositiveAmount(paidAmount, "Paid amount");
+
+    // ── ROUND B (M5): overpayment credit is CARRIED FORWARD, not discarded.
+    //    Previously paying ₦150k on a ₦100k charge booked ₦150k revenue but
+    //    the extra ₦50k simply vanished (outstanding clamped to 0, cycle
+    //    tracker reset) — the tenant's money disappeared from the books.
+    //    Now the excess lands in creditCarriedForward, is consumed by the
+    //    next cycle's reset / overdue flagger / wallet auto-deduct, and the
+    //    ledger description records it.
     const totalAmount = sc.amount;
     const previouslyPaid = sc.amountPaidThisCycle ?? 0;
-    const newTotalPaid = previouslyPaid + paidAmount;
-    const outstandingBalance = Math.max(0, totalAmount - newTotalPaid);
+    const newTotalPaid = roundMoney(previouslyPaid + validatedPaidAmount);
+    const rawOutstanding = roundMoney(totalAmount - newTotalPaid);
+    const outstandingBalance = Math.max(0, rawOutstanding);
+    const creditCarriedForward = rawOutstanding < 0 ? roundMoney(-rawOutstanding) : (sc.creditCarriedForward ?? 0);
 
     // Determine new status
     let newStatus: "PAID_FULLY" | "PARTIALLY_PAID" | "UNPAID";
@@ -529,6 +723,7 @@ export const markChargeAsPaid = mutation({
       serviceChargeStatus: newStatus,
       outstandingBalance: newStatus === "PAID_FULLY" ? 0 : outstandingBalance,
       amountPaidThisCycle: newStatus === "PAID_FULLY" ? 0 : newTotalPaid,
+      creditCarriedForward,
       // Reset reminder tracking on any payment
       consecutiveReminderCount: 0,
       remindersPaused: false,
@@ -536,12 +731,12 @@ export const markChargeAsPaid = mutation({
 
     // Ledger entry
     const timestamp = Date.now();
-    const txHash = makeTxHash(auth.firmId, sc.unitId, paidAmount, timestamp, "service_charge");
+    const txHash = makeTxHash(auth.firmId, sc.unitId, validatedPaidAmount, timestamp, "service_charge");
     await ctx.db.insert("ledger_entries", {
       firmId: auth.firmId,
       unitId: sc.unitId,
       tenantId: sc.tenantId,
-      amount: paidAmount,
+      amount: validatedPaidAmount,
       type: "service_charge",
       status: newStatus === "PAID_FULLY" ? "cleared" : "pending",
       timestamp,
@@ -549,7 +744,7 @@ export const markChargeAsPaid = mutation({
       channel,
       idempotencyKey: idempotencyKey ?? undefined,
       description: newStatus === "PAID_FULLY"
-        ? `${sc.category} service charge — full payment`
+        ? `${sc.category} service charge — full payment${creditCarriedForward > 0 ? ` (₦${creditCarriedForward.toLocaleString()} credit carried to next cycle)` : ""}`
         : `${sc.category} service charge — partial payment (₦${newTotalPaid.toLocaleString()} of ₦${totalAmount.toLocaleString()})`,
     });
 
@@ -665,14 +860,18 @@ export const flagOverdueCharges = internalMutation({
         const daysOverdue = Math.floor((now - charge.nextDueDate) / 86400000);
         // If no partial payment has been made, status stays UNPAID (or becomes UNPAID if not set)
         const currentStatus = charge.serviceChargeStatus || (charge.isDefaulter ? "UNPAID" : "UNPAID");
+        // ROUND B (M5): carried-forward credit reduces what the tenant
+        // actually owes for this cycle — the flagger must not chase money
+        // the tenant already paid last cycle.
+        const credit = Math.max(0, charge.creditCarriedForward ?? 0);
         await ctx.db.patch(charge._id, {
           isDefaulter: true,
           daysOverdue,
           // Preserve PARTIALLY_PAID if tenant has made a partial payment, otherwise UNPAID
           serviceChargeStatus: currentStatus === "PARTIALLY_PAID" ? "PARTIALLY_PAID" : "UNPAID",
           outstandingBalance: currentStatus === "PARTIALLY_PAID"
-            ? (charge.outstandingBalance ?? charge.amount - (charge.amountPaidThisCycle ?? 0))
-            : charge.amount,
+            ? Math.max(0, roundMoney((charge.outstandingBalance ?? charge.amount - (charge.amountPaidThisCycle ?? 0)) - credit))
+            : Math.max(0, roundMoney(charge.amount - credit)),
         });
         flagged++;
       }
@@ -1677,11 +1876,19 @@ export const resetMonthlyServiceCharges = internalMutation({
         }
       }
 
-      // Reset to UNPAID, clear cycle payment tracking
+      // Reset to UNPAID, clear cycle payment tracking.
+      // ROUND B (M5): overpayment credit carried from the previous cycle is
+      // CONSUMED here — it reduces (or covers) this cycle's obligation and is
+      // decremented by exactly the amount used. The credit was already
+      // booked to the ledger in the cycle it was overpaid, so no new ledger
+      // row is written for the credited part.
+      const credit = Math.max(0, charge.creditCarriedForward ?? 0);
+      const creditUsed = Math.min(credit, charge.amount);
       await ctx.db.patch(charge._id, {
         serviceChargeStatus: "UNPAID",
-        outstandingBalance: charge.amount,
+        outstandingBalance: roundMoney(Math.max(0, charge.amount - creditUsed)),
         amountPaidThisCycle: 0,
+        creditCarriedForward: roundMoney(credit - creditUsed),
         lastResetAt: now,
         // Recalculate nextDueDate for the new month
         nextDueDate: now + 30 * 86400000,

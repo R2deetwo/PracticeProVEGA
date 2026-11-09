@@ -13,6 +13,8 @@ import { randomHex } from "./secureRandom";
 import { createUnitResolver } from "./unitLookup";
 import { requirePortalCaller } from "./callerAuth";
 import { withCronReporting } from "./observability";
+import { assertPositiveAmount, roundMoney } from "./moneyUtils";
+import { makeTxHash } from "./sentry";
 
 // ─── ROUND A (C1): wallet top-up replay + unauthenticated funding ────────
 // Before this round, initiateWalletFunding and verifyWalletFunding were
@@ -171,6 +173,9 @@ export const fundWallet = internalMutation({
     paystackReference: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ success: boolean; newBalance?: number; reference?: string; alreadyCredited?: boolean }> => {
+    // ── ROUND B (M5): the credited amount is validated + rounded server-side.
+    //    A zero/negative/NaN "top-up" must never touch a balance.
+    const amount = assertPositiveAmount(args.amount, "Wallet top-up amount");
     // ── ROUND A (C1): idempotency guard — a Paystack reference must credit
     //    exactly once, ever. Replaying verifyWalletFunding with the same
     //    reference (the reference is public in the redirect URL) now finds
@@ -201,7 +206,7 @@ export const fundWallet = internalMutation({
     if (!wallet) return { success: false };
 
     const previousBalance = wallet.balance;
-    const newBalance = previousBalance + args.amount;
+    const newBalance = roundMoney(previousBalance + amount);
     const reference = generateTransactionReference();
     const newStatus = newBalance >= (wallet.lowBalanceThreshold ?? DEFAULT_LOW_BALANCE_THRESHOLD) ? "active" : "low_balance";
 
@@ -209,7 +214,7 @@ export const fundWallet = internalMutation({
 
     await ctx.db.insert("wallet_transactions", {
       walletId: wallet._id, tenantId: args.tenantId, firmId: args.firmId,
-      type: "credit", amount: args.amount, previousBalance, newBalance,
+      type: "credit", amount, previousBalance, newBalance,
       currency: wallet.currency,
       reason: args.paystackReference ? `Wallet top-up via Paystack (${args.paystackReference})` : "Manual wallet top-up",
       reference, paystackReference: args.paystackReference, timestamp: Date.now(),
@@ -425,7 +430,30 @@ export const processAutoDeductions = internalMutation({
       if (!wallet || !wallet.autoDeductEnabled) { autoDeductDisabled++; continue; }
       const tenantId = wallet.tenantId; // canonical id for this wallet's transaction rows
 
-      const amount = sc.outstandingBalance ?? sc.amount;
+      // ── ROUND B (M5): validate + round the obligation, then apply any
+      //    overpayment credit carried forward from a previous cycle. The
+      //    credit part of the settlement was ALREADY booked to the ledger in
+      //    the cycle it was overpaid — only the wallet-funded remainder moves
+      //    money now and only that remainder gets a new ledger row.
+      const cycleObligation = roundMoney(Math.max(0, sc.outstandingBalance ?? sc.amount));
+      if (cycleObligation <= 0) { continue; } // nothing due this cycle
+      const creditAvailable = Math.max(0, sc.creditCarriedForward ?? 0);
+      const creditApplied = Math.min(creditAvailable, cycleObligation);
+      const amount = roundMoney(cycleObligation - creditApplied); // wallet-funded part
+
+      // Full credit coverage: settle the charge WITHOUT touching the wallet
+      // (no money moves this cycle) and consume the used credit.
+      if (amount <= 0) {
+        await ctx.db.patch(sc._id, {
+          serviceChargeStatus: "PAID_FULLY", outstandingBalance: 0, amountPaidThisCycle: cycleObligation,
+          lastPaidDate: now, nextDueDate: now + (sc.cycle === "Monthly" ? 30 * 86400000 : sc.cycle === "Quarterly" ? 90 * 86400000 : 365 * 86400000),
+          isDefaulter: false, daysOverdue: 0,
+          penaltyApplied: false, consecutiveReminderCount: 0, lastReminderSentAt: undefined, remindersPaused: false,
+          creditCarriedForward: roundMoney(creditAvailable - creditApplied),
+        });
+        deductionsMade++;
+        continue;
+      }
 
       if (wallet.balance < amount) {
         const reference = generateTransactionReference();
@@ -441,8 +469,24 @@ export const processAutoDeductions = internalMutation({
         continue;
       }
 
+      // ── ROUND B (H2): idempotency key for THIS deduction. The pre-advance
+      //    nextDueDate is the cycle identity — a charge due the same cycle
+      //    always produces the same key, so a re-run (or a retried cron after
+      //    a partial failure — impossible in one txn, but belt-and-braces)
+      //    can never double-book the same cycle.
+      const ledgerIdempotencyKey = `wallet-deduct-${sc._id}-${sc.nextDueDate}`;
+      const alreadyBooked = await ctx.db
+        .query("ledger_entries")
+        .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", ledgerIdempotencyKey))
+        .first();
+      if (alreadyBooked) {
+        // The wallet debit + charge settlement already committed for this
+        // cycle — skip rather than double-deduct/double-book.
+        continue;
+      }
+
       const previousBalance = wallet.balance;
-      const newBalance = previousBalance - amount;
+      const newBalance = roundMoney(previousBalance - amount);
       const reference = generateTransactionReference();
       const newWalletStatus = newBalance < (wallet.lowBalanceThreshold ?? DEFAULT_LOW_BALANCE_THRESHOLD) ? "low_balance" : "active";
 
@@ -451,14 +495,37 @@ export const processAutoDeductions = internalMutation({
         walletId: wallet._id, tenantId, firmId: sc.firmId,
         type: "debit", amount, previousBalance, newBalance, currency: wallet.currency,
         reason: `Auto-deduct: ${sc.isMinimumVend ? "Electricity / Minimum Vend" : "Service Charge"} (${sc.category}) — ${new Date(now).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`,
-        reference, chargeType: sc.isMinimumVend ? "electricity" : "service_charge", chargeId: sc._id, timestamp: now,
+        reference, chargeType: sc.isMinimumVend ? "electricity" : "service_charge", chargeId: sc._id,
+        ledgerIdempotencyKey, timestamp: now,
+      });
+
+      // ── ROUND B (H2): THE LEDGER ROW. Wallet-collected revenue previously
+      //    vanished from every financial view (LedgerManager, cash-flow,
+      //    reconciliation) — the wallet moved money and the charge flipped to
+      //    PAID_FULLY, but ledger_entries never heard about it. Now the
+      //    debit, the charge settlement and this row commit in the SAME
+      //    Convex transaction: either all three land or none do.
+      await ctx.db.insert("ledger_entries", {
+        firmId: sc.firmId,
+        unitId: sc.unitId,
+        tenantId: sc.tenantId ?? tenantId,
+        amount,
+        type: "service_charge",
+        status: "cleared",
+        timestamp: now,
+        txHash: makeTxHash(sc.firmId, sc.unitId, amount, now, "service_charge"),
+        channel: "Wallet Auto-Deduct",
+        paymentRef: reference,
+        idempotencyKey: ledgerIdempotencyKey,
+        description: `Auto-deduct: ${sc.isMinimumVend ? "Electricity / Minimum Vend" : "Service Charge"} (${sc.category})${creditApplied > 0 ? ` — ₦${formatNGN(creditApplied)} covered by carried-forward credit` : ""}`,
       });
 
       const cycleMs = sc.cycle === "Monthly" ? 30 * 86400000 : sc.cycle === "Quarterly" ? 90 * 86400000 : 365 * 86400000;
       await ctx.db.patch(sc._id, {
-        serviceChargeStatus: "PAID_FULLY", outstandingBalance: 0, amountPaidThisCycle: amount,
+        serviceChargeStatus: "PAID_FULLY", outstandingBalance: 0, amountPaidThisCycle: cycleObligation,
         lastPaidDate: now, nextDueDate: now + cycleMs, isDefaulter: false, daysOverdue: 0,
         penaltyApplied: false, consecutiveReminderCount: 0, lastReminderSentAt: undefined, remindersPaused: false,
+        creditCarriedForward: roundMoney(creditAvailable - creditApplied),
       });
       deductionsMade++;
     }

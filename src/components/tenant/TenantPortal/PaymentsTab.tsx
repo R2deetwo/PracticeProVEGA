@@ -41,6 +41,24 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   const submitProof = useMutation(api.portals.submitPaymentProof);
   const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
+  // ─── ROUND B (M18): Paystack availability comes from the SERVER, not a
+  // hardcoded `pk_test_…` fallback in the bundle. The old check silently
+  // diverted residents to bank transfer whenever the client env var was
+  // missing — the resident never learned online payment existed. The
+  // server query is the single source of truth (checks PAYSTACK_ENABLED +
+  // the public key in Convex env) and hands us the live public key, so the
+  // client key can never drift from what the backend will actually accept.
+  const paystackConfig = useQuery(api.paystack.isPaystackActive, {});
+  const paystackActive = !!paystackConfig?.active;
+  const paystackPublicKey = paystackConfig?.publicKey || '';
+  // While the config is loading, keep the toggle on Paystack to avoid a
+  // flash of the bank-transfer form; handlePaystack re-checks before opening.
+  React.useEffect(() => {
+    if (paystackConfig !== undefined && !paystackActive && paymentMethod === 'paystack') {
+      setPaymentMethod('bank_transfer');
+    }
+  }, [paystackConfig, paystackActive, paymentMethod]);
+
   // ─── Dynamic bank details from organization_payout_details ────────
   // Fetches the active corporate bank account configured by the Founder
   // App. NO hardcoded mock data — if no config exists, shows clean
@@ -58,12 +76,14 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
       addToast('Please enter the amount to pay.', { type: 'info' });
       return;
     }
-    // Paystack Inline SDK — loads the Paystack popup.
-    // In production, the key should come from environment variables.
-    const PAYSTACK_PUBLIC_KEY = (import.meta as any).env?.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx';
-    if (PAYSTACK_PUBLIC_KEY.startsWith('pk_test_xxx')) {
-      addToast('Paystack is not configured yet. Please use Manual Bank Transfer for now.', { type: 'info', duration: 5000 });
+    // ROUND B (M18): server-truth gate + server-provided public key. The
+    // hardcoded `pk_test_xxx…` fallback (which silently switched the rail to
+    // bank transfer) is gone — if the platform has not activated card
+    // payments, say so plainly and switch, with the bank details one tap away.
+    if (!paystackActive || !paystackPublicKey) {
+      addToast('Online card payments are not activated yet — please use Manual Bank Transfer for now.', { type: 'info', duration: 5000 });
       setPaymentMethod('bank_transfer');
+      setShowBankDetails(true);
       return;
     }
     // Load Paystack inline script if not already loaded
@@ -81,7 +101,7 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
       return;
     }
     const handler = (window as any).PaystackPop.setup({
-      key: PAYSTACK_PUBLIC_KEY,
+      key: paystackPublicKey,
       email: currentUser?.email || '',
       amount: Math.round(parseFloat(amount) * 100), // Paystack uses kobo
       currency: 'NGN',
@@ -285,11 +305,17 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
               </div>
             </div>
 
-            {/* Method toggle — Paystack vs Bank Transfer */}
+            {/* Method toggle — Paystack vs Bank Transfer.
+                ROUND B (M18): the Paystack option reflects SERVER truth —
+                disabled with a clear reason when the platform has not
+                activated card payments (previously it looked available and
+                silently diverted to bank transfer at pay time). */}
             <div className="grid grid-cols-2 gap-3 mb-4">
               <button
                 onClick={() => setPaymentMethod('paystack')}
-                className={`p-3 rounded-lg border-2 transition-all ${
+                disabled={!paystackActive}
+                title={paystackActive ? 'Pay online with Paystack' : 'Online card payments are not activated yet'}
+                className={`p-3 rounded-lg border-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                   paymentMethod === 'paystack'
                     ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
                     : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'
@@ -303,7 +329,7 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
                   </svg>
                   <span className="text-sm font-bold text-slate-800 dark:text-zinc-200">Paystack</span>
                 </div>
-                <p className="text-2xs text-slate-500 dark:text-zinc-400">Card, Bank, USSD</p>
+                <p className="text-2xs text-slate-500 dark:text-zinc-400">{paystackActive ? 'Card, Bank, USSD' : 'Not activated yet'}</p>
               </button>
               <button
                 onClick={() => setPaymentMethod('bank_transfer')}

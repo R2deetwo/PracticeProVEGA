@@ -491,9 +491,13 @@ describe('C4 — proof/ticket status updates need unconditional staff auth', () 
   });
 
   it('updatePaymentProofStatus with a matching staff session succeeds (the in-app approve flow)', async () => {
+    // ROUND B (H1) note: approval now BOOKS the money — the proof fixture
+    // carries an amount so the settlement core has a figure to book (an
+    // amount-less approval requires confirmedAmount; pinned in
+    // roundBMoneyTruth.test.ts).
     const { ctx, writes } = makeCtx({
       session: ADMIN_SESSION, user: ADMIN,
-      tables: { payment_proofs: [{ _id: 'proof1', firmId: 'firm-1', status: 'pending_review', tenantId: 'u-tenant-1' }] },
+      tables: { payment_proofs: [{ _id: 'proof1', firmId: 'firm-1', status: 'pending_review', tenantId: 'u-tenant-1', amount: 250000, unitId: 'u1' }] },
     });
     await (updatePaymentProofStatus as any)._handler(ctx, {
       proofId: 'proof1', status: 'approved', adminNote: 'ok', sessionToken: 'tok-admin-xyz',

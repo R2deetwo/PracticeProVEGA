@@ -809,6 +809,8 @@ export interface ServiceCharge {
   outstandingBalance?: number;
   // Amount paid so far in current cycle
   amountPaidThisCycle?: number;
+  // ROUND B (M5): overpayment credit carried to the next cycle
+  creditCarriedForward?: number;
   // Last reset timestamp (monthly reset cron)
   lastResetAt?: number;
   // Whether this is a minimum vend charge

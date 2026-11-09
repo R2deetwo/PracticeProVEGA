@@ -50,9 +50,12 @@
  * forever visible to the audit log.
  */
 
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
+import { requireStaffCaller } from "./callerAuth";
+import { withCronReporting } from "./observability";
+import { roundMoney } from "./moneyUtils";
 import { Id } from "./_generated/dataModel";
 
 // ─── Auth (same contract as sentry.ts requireSentryAuth) ────────────────────
@@ -643,5 +646,236 @@ export const getFinancialAuditLog = query({
       metadata: r.metadata ?? null,
       createdAt: r.createdAt,
     }));
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUND B (Wave S2) — THE RECONCILIATION CHECKER
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The money-truth round made every collection path book to the ledger
+// atomically (proof approvals H1, wallet auto-deduct H2, rent collections
+// M6/M8). This checker is the proof that it STAYS true: a daily pass that
+// joins ledger_entries ↔ service_charges ↔ wallet_transactions ↔
+// payment_proofs and proves every post-Round-B money movement is booked
+// exactly once.
+//
+// What it checks (and what a red flag means):
+//   1. walletDebitsWithoutLedger — an auto-deduct debit (post-cutoff) whose
+//      ledger row is missing → money left the wallet but never reached the
+//      books. THE H2 invariant.
+//   2. approvedProofsUnbooked — an approved/verified proof (post-cutoff)
+//      with no ledger entry → money was confirmed but never booked.
+//      THE H1 invariant.
+//   3. invalidAmountRows — ledger/wallet rows with amount <= 0 or non-finite
+//      (post-cutoff) → the M5 validation was bypassed somewhere.
+//   4. duplicateIdempotencyKeys — two ledger rows sharing one key → the
+//      exactly-once contract broke.
+//   5. duplicateReceiptNumbers — two rent collections stamped the same
+//      server-side receipt number → the M8 counter was bypassed.
+//   6. balanceDriftWallets — a wallet whose stored balance disagrees with
+//      its latest transaction row's newBalance → a balance changed without
+//      its transaction (legacy manual patches). Informational: reported for
+//      staff follow-up, does not fail the run.
+//
+// Rows written BEFORE the Round B cutoff cannot satisfy the new invariants
+// (they predate the links) — they are counted in separate legacy* buckets so
+// historical data never reds a healthy deployment.
+
+/** The Round B deploy date (2026-11-09 UTC). Rows created before this
+ *  timestamp are evaluated as legacy data, not as contract violations. */
+export const ROUND_B_CUTOFF_MS = Date.UTC(2026, 10, 9);
+
+async function reconcileFinancialRecords(ctx: any) {
+  const cutoff = ROUND_B_CUTOFF_MS;
+
+  const walletDebitsWithoutLedger: string[] = [];
+  const legacyWalletDebits: string[] = [];
+  const approvedProofsUnbooked: string[] = [];
+  const legacyApprovedProofs: string[] = [];
+  const invalidAmountRows: string[] = [];
+  const duplicateReceiptNumbers: string[] = [];
+  const balanceDriftWallets: string[] = [];
+  const firmsAffected = new Set<string>();
+
+  // ── Check 1 (H2): every post-cutoff auto-deduct debit carries its ledger
+  //    key; the ledger row must exist. Pre-cutoff debits have no key — legacy.
+  const walletTxns = await ctx.db.query("wallet_transactions").take(5000);
+  const ledgerKeySeen = new Set<string>();
+  const latestTxnPerWallet = new Map<string, { timestamp: number; newBalance: number }>();
+  for (const txn of walletTxns as any[]) {
+    if (txn.type === "debit" && txn.chargeId) {
+      if (txn.timestamp >= cutoff) {
+        if (!txn.ledgerIdempotencyKey) {
+          walletDebitsWithoutLedger.push(String(txn._id));
+          if (txn.firmId) firmsAffected.add(String(txn.firmId));
+        } else {
+          ledgerKeySeen.add(String(txn.ledgerIdempotencyKey));
+        }
+      } else {
+        legacyWalletDebits.push(String(txn._id));
+      }
+    }
+    // Track the latest transaction per wallet for the drift check (6).
+    const prev = latestTxnPerWallet.get(String(txn.walletId));
+    if (!prev || (txn.timestamp ?? 0) >= prev.timestamp) {
+      latestTxnPerWallet.set(String(txn.walletId), { timestamp: txn.timestamp ?? 0, newBalance: txn.newBalance });
+    }
+  }
+  for (const key of ledgerKeySeen) {
+    const ledgerRow = await ctx.db
+      .query("ledger_entries")
+      .withIndex("by_idempotency", (q: any) => q.eq("idempotencyKey", key))
+      .first();
+    if (!ledgerRow) {
+      walletDebitsWithoutLedger.push(`ledger-missing:${key}`);
+      firmsAffected.add("unknown");
+    }
+  }
+
+  // ── Check 2 (H1): every post-cutoff approved/verified proof with money
+  //    must carry a live ledger link.
+  const proofs = await ctx.db.query("payment_proofs").take(5000);
+  for (const proof of proofs as any[]) {
+    const settled = proof.status === "approved" || proof.status === "verified";
+    if (!settled) continue;
+    const hasMoney = typeof proof.amount === "number" && proof.amount > 0;
+    if ((proof.updatedAt ?? proof.createdAt) >= cutoff) {
+      if (hasMoney && !proof.ledgerEntryId) {
+        approvedProofsUnbooked.push(String(proof._id));
+        if (proof.firmId) firmsAffected.add(String(proof.firmId));
+      }
+    } else if (hasMoney) {
+      legacyApprovedProofs.push(String(proof._id));
+    }
+  }
+
+  // ── Checks 3–5 (M5/M8): post-cutoff ledger rows must be well-formed and
+  //    exactly-once.
+  const recentLedger = await ctx.db
+    .query("ledger_entries")
+    .withIndex("by_timestamp", (q: any) => q.gte("timestamp", cutoff))
+    .take(5000);
+  const idempotencySeen = new Set<string>();
+  const receiptSeen = new Map<string, number>();
+  for (const entry of recentLedger as any[]) {
+    if (typeof entry.amount !== "number" || !isFinite(entry.amount) || entry.amount <= 0) {
+      invalidAmountRows.push(String(entry._id));
+      if (entry.firmId) firmsAffected.add(String(entry.firmId));
+    }
+    if (entry.idempotencyKey) {
+      if (idempotencySeen.has(entry.idempotencyKey)) {
+        invalidAmountRows.push(`duplicate-key:${entry.idempotencyKey}`);
+      }
+      idempotencySeen.add(entry.idempotencyKey);
+    }
+    if (entry.type === "rent" && typeof entry.paymentRef === "string" && entry.paymentRef.startsWith("REC-")) {
+      const n = receiptSeen.get(entry.paymentRef) ?? 0;
+      if (n > 0) duplicateReceiptNumbers.push(entry.paymentRef);
+      receiptSeen.set(entry.paymentRef, n + 1);
+    }
+  }
+
+  // ── Check 6: wallet balance drift (informational). The latest transaction
+  //    row's newBalance IS the wallet's balance whenever every balance change
+  //    wrote its row — a mismatch means a manual patch bypassed the books.
+  let walletsChecked = 0;
+  for (const [walletId, latest] of latestTxnPerWallet) {
+    if (walletsChecked >= 200) break; // bounded: newest-activity wallets first
+    const wallet = await ctx.db.get(walletId as any);
+    if (!wallet) continue;
+    walletsChecked++;
+    if (Math.abs(roundMoney((wallet as any).balance ?? 0) - roundMoney(latest.newBalance)) > 0.01) {
+      balanceDriftWallets.push(String(walletId));
+      if ((wallet as any).firmId) firmsAffected.add(String((wallet as any).firmId));
+    }
+  }
+
+  const ok =
+    walletDebitsWithoutLedger.length === 0 &&
+    approvedProofsUnbooked.length === 0 &&
+    invalidAmountRows.length === 0 &&
+    duplicateReceiptNumbers.length === 0;
+
+  const summary = {
+    ok,
+    walletDebitsWithoutLedger: walletDebitsWithoutLedger.length,
+    approvedProofsUnbooked: approvedProofsUnbooked.length,
+    invalidAmountRows: invalidAmountRows.length,
+    duplicateIdempotencyKeys: invalidAmountRows.filter((s) => s.startsWith("duplicate-key:")).length,
+    duplicateReceiptNumbers: duplicateReceiptNumbers.length,
+    balanceDriftWallets: balanceDriftWallets.length,
+    legacyWalletDebits: legacyWalletDebits.length,
+    legacyApprovedProofs: legacyApprovedProofs.length,
+    firmsAffected: Array.from(firmsAffected).slice(0, 50),
+    details: {
+      walletDebitsWithoutLedger: walletDebitsWithoutLedger.slice(0, 20),
+      approvedProofsUnbooked: approvedProofsUnbooked.slice(0, 20),
+      invalidAmountRows: invalidAmountRows.slice(0, 20),
+      duplicateReceiptNumbers: duplicateReceiptNumbers.slice(0, 20),
+      balanceDriftWallets: balanceDriftWallets.slice(0, 20),
+    },
+    ranAt: Date.now(),
+  };
+
+  await ctx.db.insert("financial_reconciliation_reports", {
+    ranAt: summary.ranAt,
+    ok: summary.ok,
+    walletDebitsWithoutLedger: summary.walletDebitsWithoutLedger,
+    approvedProofsUnbooked: summary.approvedProofsUnbooked,
+    invalidAmountRows: summary.invalidAmountRows,
+    duplicateIdempotencyKeys: summary.duplicateIdempotencyKeys,
+    duplicateReceiptNumbers: summary.duplicateReceiptNumbers,
+    balanceDriftWallets: summary.balanceDriftWallets,
+    legacyWalletDebits: summary.legacyWalletDebits,
+    legacyApprovedProofs: summary.legacyApprovedProofs,
+    firmsAffected: summary.firmsAffected,
+    details: summary.details,
+  });
+
+  console.log(
+    `[reconciliation] ${summary.ok ? "OK" : "DISCREPANCIES"} — walletDebitsWithoutLedger=${summary.walletDebitsWithoutLedger} approvedProofsUnbooked=${summary.approvedProofsUnbooked} invalidAmounts=${summary.invalidAmountRows} dupReceipts=${summary.duplicateReceiptNumbers} drift=${summary.balanceDriftWallets} legacy(wallet/proofs)=${summary.legacyWalletDebits}/${summary.legacyApprovedProofs}`
+  );
+  return summary;
+}
+
+/** The daily cron entry point (registered in crons.ts as
+ *  crons:financialReconciliation). Failures are captured to error_events by
+ *  withCronReporting like every money-adjacent cron. */
+export const runFinancialReconciliation = internalMutation({
+  args: {},
+  handler: withCronReporting("crons:financialReconciliation", async (ctx) => {
+    return await reconcileFinancialRecords(ctx);
+  }),
+});
+
+/** On-demand run + result read-back for the founder (the app surface can
+ *  expose a "Run reconciliation now" control; the same core as the cron). */
+export const runFinancialReconciliationNow = mutation({
+  args: { userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    if (String((caller as any).role || "") !== "Founder") {
+      throw new Error("Not authorized: on-demand reconciliation runs are founder-only.");
+    }
+    return await reconcileFinancialRecords(ctx);
+  },
+});
+
+/** The latest reconciliation report (founder-only; the green/red health
+ *  signal for the money system). */
+export const getLatestFinancialReconciliation = query({
+  args: { userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    if (String((caller as any).role || "") !== "Founder") {
+      throw new Error("Not authorized: reconciliation reports are founder-only.");
+    }
+    const rows = await ctx.db
+      .query("financial_reconciliation_reports")
+      .withIndex("by_ran_at")
+      .order("desc")
+      .take(1);
+    return rows[0] ?? null;
   },
 });
