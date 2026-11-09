@@ -15819,3 +15819,21 @@ Stage Summary:
 - D2: the add-on money loop tells the truth end-to-end — paid purchases activate themselves (server-verified, idempotent, auditable, webhook self-healing), unpaid requests finally have their approval queue in the Founder App, and the paid-record purge class is deleted.
 - D3: the amenity-booking loop is alive end-to-end — residents can actually book (portal-authenticated, which never worked before), see their bookings, cancel them; firm admins AND Founding Partners manage amenities, approve bookings, post bulletins, curate providers — from the console the settings always claimed existed.
 - Round D Wave 3 next per the approved sequence (D4–D8 remain).
+
+
+Post-push record (R79): published with the owner's fresh PAT (supplied in
+chat 2026-11-10; the same token as the R78 publish — validated, used on a
+one-time push URL only, remote stays plain HTTPS per the R72 convention).
+R79 commit 6d5a62fd pushed clean onto 431f3b56. CI on 6d5a62fd: Tests PASS,
+Build Android APK PASS, Build Admin APK PASS (the admin APK workflow picked
+up the Founder App Add-ons tab changes — admin-build-104), Deploy to
+Staging PASS — all four green. CI auto-commits landed on top: 24b6890f
+(bump patch version to 1.0.751) + ea2a1ffc (APK release info build-1145),
+tags build-1145 + admin-build-104; release build-1145 carries
+PracticePro-v1.0.751.apk. Local tree fast-forwarded. PRODUCTION IS NOT YET
+PROMOTED: owner action to go live remains the "Deploy to Production
+(promote)" workflow (same flow as every round), then re-probe: paid add-on
+purchases should activate immediately (subscriptionAddons rows landing
+ACTIVE with paymentReference), and the Estate Community tab should finally
+render for residents. Next per the approved Round D sequence: Wave 3
+(D4–D8).
