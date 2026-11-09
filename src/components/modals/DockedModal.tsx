@@ -10,10 +10,10 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useIsProperty } from '../../contexts/ProductContext';
+import { useIsProperty, useProduct } from '../../contexts/ProductContext';
 import { ModalType } from '../../types';
 import { DismissIcon } from '../../constants';
-import { expandRecurringEvents } from '../../utils/calendarUtils';
+import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
 
 // Import forms directly
 import { MatterForm } from '../forms/MatterForm';
@@ -68,6 +68,9 @@ export const DockedModal: React.FC = () => {
   const dataHandlers = useDataActions();
   const { currentUser, appMode, bearerToken } = useAuth();
   const isProperty = useIsProperty();
+  // Calendar round: virtual events render for every property-featured product
+  // (Atrium AND Komplete/unified) — the modal resolution must match that gate.
+  const { hasPropertyFeatures } = useProduct();
   // TASK 64 — dedicated bank-account writer (mirrors ModalManager; see the
   // fuller rationale there and on convex manageBankAccount).
   const manageBankAccountMutation = useMutation(api.myFunctions.manageBankAccount);
@@ -452,13 +455,39 @@ export const DockedModal: React.FC = () => {
       case 'viewEvent': {
         let event: any = executionState.events.find((e: any) => e.id === editingId);
 
+        // BUG FIX (calendar round): virtual Atrium auto-events are generated
+        // at render time and are NOT in executionState.events — clicking one
+        // fell through to the '_'-split branch (virtual ids contain
+        // underscores), found nothing, and opened a BLANK modal. Resolve from
+        // live property data instead.
+        if (!event && hasPropertyFeatures && typeof editingId === 'string' && editingId.startsWith('virtual_')) {
+          const virtuals = computeAtriumVirtualEvents(coreState.properties || []);
+          event = virtuals.find((v: any) => v.id === editingId);
+          if (!event) {
+            // Recurring rent-due instance — the original id itself contains
+            // underscores, so match by prefix.
+            const original = virtuals.find((v: any) => v.recurrence && editingId.startsWith(`${v.id}_`));
+            if (original) {
+              const dateInstanceStr = modalContext?.instanceDate || editingId.slice(original.id.length + 1);
+              const instanceDate = parseDateString(dateInstanceStr);
+              const endDateLimit = new Date(instanceDate);
+              endDateLimit.setDate(endDateLimit.getDate() + 1);
+              const instances = expandRecurringEvents([original], instanceDate, endDateLimit);
+              event = instances.find((inst: any) => inst.id === editingId);
+            }
+          }
+        }
+
         // Handle recurring instances that aren't in the main array
         if (!event && editingId?.includes('_')) {
           const [originalId] = editingId.split('_');
           const originalEvent = executionState.events.find((e: any) => e.id === originalId);
           if (originalEvent && (originalEvent as any).recurrence) {
+            // BUG FIX (calendar round): parseDateString parses 'YYYY-MM-DD' as
+            // LOCAL midnight (new Date() parsed it as UTC midnight — east of
+            // UTC the window started at 01:00 and the modal opened blank).
             const dateInstanceStr = modalContext?.instanceDate || editingId.split('_')[1];
-            const instanceDate = new Date(dateInstanceStr);
+            const instanceDate = parseDateString(dateInstanceStr);
             const endDateLimit = new Date(instanceDate);
             endDateLimit.setDate(endDateLimit.getDate() + 1);
             const instances = expandRecurringEvents([originalEvent], instanceDate, endDateLimit);
@@ -467,8 +496,12 @@ export const DockedModal: React.FC = () => {
         }
 
         if (event && currentUser) {
+          // Auto-generated lease/rent events are read-only views over property
+          // data — Edit/Delete would write phantom rows to the events table.
+          const isVirtualEvent = (event as any).source === 'atrium_auto';
           content = <EventDetailModal
             event={event}
+            readOnly={isVirtualEvent}
             matters={matterState.matters}
             users={coreState.users}
             eventTypes={coreState.eventTypes}

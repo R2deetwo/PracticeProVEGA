@@ -16,6 +16,11 @@ interface EventDetailModalProps {
   onNavigateToCalendar?: (date: string, eventId: string) => void;
   openedFrom?: 'calendar' | 'matterDetail';
   hasConflict?: boolean;
+  /** Read-only mode for auto-generated events (Atrium lease/rent virtual
+   * events): hides Edit/Delete/Assign, which would otherwise write phantom
+   * rows to the events table for data that actually lives on the property
+   * record. (Calendar round.) */
+  readOnly?: boolean;
 }
 
 const DetailItem: React.FC<{ label: string; value: React.ReactNode }> = ({ label, value }) => (
@@ -51,7 +56,7 @@ const safeFormatTime = (date: string | Date, options: Intl.DateTimeFormatOptions
     return d.toLocaleTimeString('en-US', options);
 }
 
-export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matters, users, eventTypes, onEdit, onDelete, onAssign, onNavigateToMatter, onNavigateToCalendar, openedFrom, hasConflict }) => {
+export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matters, users, eventTypes, onEdit, onDelete, onAssign, onNavigateToMatter, onNavigateToCalendar, openedFrom, hasConflict, readOnly }) => {
     
   const getColorForEventType = (typeName: string) => {
     return eventTypes.find(et => et.name === typeName)?.color || 'gray';
@@ -148,7 +153,9 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
         <div className="space-y-3">
             <div className="flex justify-between items-center px-1">
                 <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wide-label">ASSIGNED TEAM</p>
-                <button onClick={onAssign} className="text-2xs font-black text-primary-600 hover:underline uppercase tracking-widest">ASSIGN NEW</button>
+                {!readOnly && (
+                    <button onClick={onAssign} className="text-2xs font-black text-primary-600 hover:underline uppercase tracking-widest">ASSIGN NEW</button>
+                )}
             </div>
             <div className="p-4 bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 rounded-2xl flex items-center justify-between">
                 {assignedUsers.length > 0 ? (
@@ -197,14 +204,22 @@ export const EventDetailModal: React.FC<EventDetailModalProps> = ({ event, matte
         </div>
        
         <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 flex flex-wrap sm:flex-nowrap justify-between gap-3">
-            <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
+            {readOnly ? (
+                <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest self-center">
+                    Auto-generated from lease data — manage it on the property record.
+                </p>
+            ) : (
+                <button type="button" onClick={onDelete} className="px-6 py-2.5 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all shadow-sm">Delete</button>
+            )}
             <div className="flex flex-1 justify-end items-center gap-2 w-full sm:w-auto">
                 {event.date && openedFrom !== 'calendar' && onNavigateToCalendar && (
                     <button type="button" onClick={() => onNavigateToCalendar(new Date(event.date).toISOString().split('T')[0], event.id)} className="px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:bg-zinc-800 dark:text-zinc-300 rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all shadow-sm whitespace-nowrap">
                         View in Calendar
                     </button>
                 )}
-                <button type="button" onClick={onEdit} className="px-6 py-2.5 flex-1 sm:flex-none bg-primary-600 text-white rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">Edit Event Details</button>
+                {!readOnly && (
+                    <button type="button" onClick={onEdit} className="px-6 py-2.5 flex-1 sm:flex-none bg-primary-600 text-white rounded-lg font-black text-2xs uppercase tracking-widest hover:bg-primary-700 transition-all shadow-lg hover:shadow-primary-500/20 active:scale-[0.98]">Edit Event Details</button>
+                )}
             </div>
         </div>
     </div>

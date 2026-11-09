@@ -11,8 +11,8 @@ import { useDocumentState } from '../../contexts/DocumentContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useIsProperty, useTerminology } from '../../contexts/ProductContext';
-import { ModalType, FileDetails } from '../../types';
+import { useIsProperty, useTerminology, useProduct } from '../../contexts/ProductContext';
+import { ModalType, FileDetails, CalendarEvent } from '../../types';
 
 // Auth
 import Login from '../auth/Login';
@@ -75,7 +75,7 @@ import LeadCaptureModal from './LeadCaptureModal';
 import WorkspaceSetupModal from './WorkspaceSetupModal';
 import SendPostActivationEmailModal from './SendPostActivationEmailModal';
 import FolderPermissionsModal from './FolderPermissionsModal';
-import { expandRecurringEvents } from '../../utils/calendarUtils';
+import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
 import AIConsentModal from './AIConsentModal';
 
 // Wrapper that gives AIConsentModal access to React hooks (recordConsent mutation)
@@ -133,6 +133,10 @@ const ModalManager: React.FC = () => {
   const dataHandlers = useDataActions();
   const { currentUser, appMode, bearerToken } = useAuth();
   const isProperty = useIsProperty();
+  // Calendar round: virtual events render for every property-featured product
+  // (Atrium AND Komplete/unified) — the modal resolution must match that gate,
+  // not the Atrium-only isProperty flag.
+  const { hasPropertyFeatures } = useProduct();
   const terminology = useTerminology();
   // TASK 64 — dedicated, field-scoped bank-account writer (see convex
   // manageBankAccount). Replaces the full-firmDetails updateItem spread that
@@ -376,6 +380,30 @@ const ModalManager: React.FC = () => {
     case 'viewEvent': {
       let event = executionState.events.find(e => e.id === editingId);
 
+      // BUG FIX (calendar round): virtual Atrium auto-events (lease expiry /
+      // warning / midpoint / maintenance / recurring rent-due) are generated
+      // at render time and are NOT in executionState.events — clicking one on
+      // the calendar used to fall through to the '_'-split branch below (every
+      // virtual id contains underscores), find nothing, and open a BLANK
+      // modal. Resolve them from the live property data instead.
+      if (!event && hasPropertyFeatures && typeof editingId === 'string' && editingId.startsWith('virtual_')) {
+        const virtuals = computeAtriumVirtualEvents(coreState.properties || []);
+        event = virtuals.find(v => v.id === editingId) as CalendarEvent | undefined;
+        if (!event) {
+          // Recurring rent-due instance: `${virtual_rentdue_${propId}_${unitId}}_${localDate}`
+          // — the original id itself contains underscores, so match by prefix.
+          const original = virtuals.find(v => v.recurrence && editingId.startsWith(`${v.id}_`));
+          if (original) {
+            const dateInstanceStr = modalContext?.instanceDate || editingId.slice(original.id.length + 1);
+            const instanceDate = parseDateString(dateInstanceStr);
+            const endDateLimit = new Date(instanceDate);
+            endDateLimit.setDate(endDateLimit.getDate() + 1);
+            const instances = expandRecurringEvents([original], instanceDate, endDateLimit);
+            event = instances.find(inst => inst.id === editingId) as CalendarEvent | undefined;
+          }
+        }
+      }
+
       // Handle recurring instances that aren't in the main array
       if (!event && editingId?.includes('_')) {
         const [originalId] = editingId.split('_');
@@ -384,8 +412,13 @@ const ModalManager: React.FC = () => {
         if (originalEvent && originalEvent.recurrence) {
           // Re-expand to find this specific instance. We use the date from context if available, 
           // or parse it from the synthetic ID.
+          // BUG FIX (calendar round): this used `new Date(dateInstanceStr)`, which parses
+          // 'YYYY-MM-DD' as UTC midnight — east of UTC (Lagos +1) the window start
+          // landed at 01:00 local, the fast-forward skipped the day's early
+          // instances, and the modal opened blank. parseDateString parses the
+          // date-only form as LOCAL midnight (same rule as getEventsForDay).
           const dateInstanceStr = modalContext?.instanceDate || editingId.split('_')[1];
-          const instanceDate = new Date(dateInstanceStr);
+          const instanceDate = parseDateString(dateInstanceStr);
           const endDateLimit = new Date(instanceDate);
           endDateLimit.setDate(endDateLimit.getDate() + 1);
 
@@ -395,8 +428,12 @@ const ModalManager: React.FC = () => {
       }
 
       if (event && currentUser) {
+        // Auto-generated lease/rent events are read-only views over property
+        // data — Edit/Delete would write phantom rows to the events table.
+        const isVirtualEvent = (event as any).source === 'atrium_auto';
         content = <EventDetailModal
           event={event}
+          readOnly={isVirtualEvent}
           matters={matterState.matters}
           users={coreState.users}
           eventTypes={coreState.eventTypes}

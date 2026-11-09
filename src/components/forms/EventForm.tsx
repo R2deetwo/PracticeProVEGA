@@ -70,7 +70,10 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
     const [reminderUnit, setReminderUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
 
     const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
-    const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('weekly');
+    // Calendar round: the union matches CalendarEvent['recurrence']['frequency']
+    // — 'quarterly'/'biannually' arrive on virtual rent-due events (they render
+    // read-only, but the state must type-accept the full persisted union).
+    const [recurrenceFrequency, setRecurrenceFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'quarterly' | 'biannually' | 'yearly'>('weekly');
     const [recurrenceEndDate, setRecurrenceEndDate] = useState<string>('');
 
     const [court, setCourt] = useState<CourtType | undefined>(undefined);

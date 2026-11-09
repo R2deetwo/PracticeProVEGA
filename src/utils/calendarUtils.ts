@@ -47,12 +47,37 @@ const toLocalISOString = (date: Date): string => {
 };
 
 
+/** Month-based stepping with day-of-month clamping — the SAME convention
+ * as the billing engine's computeNextBillingDate (Monthly +1mo clamped to
+ * month-end). An event on Jan 31 recurs Jan 31 → Feb 28 → Mar 31 → Apr 30…
+ * instead of JS setMonth() rolling Feb 31 into Mar 3 and drifting forever.
+ * Yearly steps clamp too (Feb 29 → Feb 28 on non-leap years). */
+const addMonthsClamped = (d: Date, months: number, anchorDay: number): Date => {
+    const target = new Date(d.getFullYear(), d.getMonth() + months, 1, d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds());
+    const lastDayOfMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    target.setDate(Math.min(anchorDay, lastDayOfMonth));
+    return target;
+};
+
+/** Advance one recurrence step. `anchorDay` is the original event's
+ * day-of-month, kept stable across month-based frequencies. */
+const stepOccurrence = (current: Date, frequency: NonNullable<CalendarEvent['recurrence']>['frequency'], anchorDay: number): Date => {
+    switch (frequency) {
+        case 'daily': { const d = new Date(current.getTime()); d.setDate(d.getDate() + 1); return d; }
+        case 'weekly': { const d = new Date(current.getTime()); d.setDate(d.getDate() + 7); return d; }
+        case 'monthly': return addMonthsClamped(current, 1, anchorDay);
+        case 'quarterly': return addMonthsClamped(current, 3, anchorDay);
+        case 'biannually': return addMonthsClamped(current, 6, anchorDay);
+        case 'yearly': return addMonthsClamped(current, 12, anchorDay);
+    }
+};
+
 export const expandRecurringEvents = (events: CalendarEvent[], startDate: Date, endDate: Date): CalendarEvent[] => {
     const expanded: CalendarEvent[] = [];
 
     events.forEach(event => {
         const eventDate = parseDateString(event.date);
-        
+
         // Add non-recurring events that fall within the range
         if (!event.recurrence) {
             if (eventDate >= startDate && eventDate <= endDate) {
@@ -63,30 +88,32 @@ export const expandRecurringEvents = (events: CalendarEvent[], startDate: Date, 
 
         // Handle recurring events
         const recurrenceEndDate = event.recurrence.endDate ? parseDateString(event.recurrence.endDate) : null;
+        const anchorDay = eventDate.getDate();
         let currentDate = new Date(eventDate.getTime());
-        let occurrences = 0;
-        
-        // Fast-forward to the first occurrence that might be in the window to avoid unnecessary iterations
-        while (currentDate < startDate && occurrences < MAX_OCCURRENCES) {
-             if (recurrenceEndDate && currentDate > recurrenceEndDate) {
-                break; // Stop if we've passed the recurrence end date
+
+        // Fast-forward to the first occurrence that might be in the window.
+        // BUG FIX (calendar round): this loop previously shared the
+        // MAX_OCCURRENCES budget with the output loop, so a daily event
+        // created more than ~1 year before the window exhausted the budget
+        // while skipping and NEVER rendered again. The fast-forward is now
+        // bounded only by a generous infinite-loop guard, and MAX_OCCURRENCES
+        // counts pushed instances only.
+        let fastForwardSteps = 0;
+        while (currentDate < startDate && fastForwardSteps < 10000) {
+            if (recurrenceEndDate && currentDate > recurrenceEndDate) {
+                break; // The series ended before the window begins
             }
-            // Move to the next date without adding it
-            switch (event.recurrence.frequency) {
-                case 'daily': currentDate.setDate(currentDate.getDate() + 1); break;
-                case 'weekly': currentDate.setDate(currentDate.getDate() + 7); break;
-                case 'monthly': currentDate.setMonth(currentDate.getMonth() + 1); break;
-                case 'yearly': currentDate.setFullYear(currentDate.getFullYear() + 1); break;
-            }
-            occurrences++;
+            currentDate = stepOccurrence(currentDate, event.recurrence.frequency, anchorDay);
+            fastForwardSteps++;
         }
-        
+
+        let occurrences = 0;
         while (currentDate <= endDate && occurrences < MAX_OCCURRENCES) {
             if (currentDate >= startDate) {
                  if (!recurrenceEndDate || currentDate <= recurrenceEndDate) {
                     const duration = event.endDate ? Math.max(0, parseDateString(event.endDate).getTime() - eventDate.getTime()) : 0;
                     const currentEndDate = event.endDate ? new Date(currentDate.getTime() + duration) : undefined;
-                    
+
                     expanded.push({
                         ...event,
                         id: `${event.id}_${toLocalISOString(currentDate)}`, // Create unique ID for this instance
@@ -94,29 +121,15 @@ export const expandRecurringEvents = (events: CalendarEvent[], startDate: Date, 
                         date: new Date(currentDate.getTime()).toISOString(),
                         endDate: currentEndDate ? currentEndDate.toISOString() : undefined
                     });
+                    occurrences++;
                  }
             }
 
             if (recurrenceEndDate && currentDate > recurrenceEndDate) {
                 break;
             }
-            
-            // Move to the next date
-            switch (event.recurrence.frequency) {
-                case 'daily':
-                    currentDate.setDate(currentDate.getDate() + 1);
-                    break;
-                case 'weekly':
-                    currentDate.setDate(currentDate.getDate() + 7);
-                    break;
-                case 'monthly':
-                    currentDate.setMonth(currentDate.getMonth() + 1);
-                    break;
-                case 'yearly':
-                    currentDate.setFullYear(currentDate.getFullYear() + 1);
-                    break;
-            }
-            occurrences++;
+
+            currentDate = stepOccurrence(currentDate, event.recurrence.frequency, anchorDay);
         }
     });
 
@@ -234,56 +247,129 @@ export const processDayEventsForLayout = (dayEvents: CalendarEvent[], hourHeight
 };
 
 // Atrium Virtual Events computation
+//
+// Two defect families fixed in the calendar round:
+//  1. RENT DUE DATES were promised (CalendarView's comment + the Komplete
+//     product-aware round) but never generated — only lease events existed.
+//  2. UNITS were invisible: units embedded in `properties.units[]` (the
+//     multi-unit building model — see usePropertyGroups) carry their own
+//     leaseStart/leaseEnd/rent and never produced any calendar events.
+//
+// Rent-due events are emitted as RECURRING virtual events (frequency mapped
+// from rentFrequency, recurrence.endDate = leaseEnd) so every consumer's own
+// expandRecurringEvents window renders them — month grid, week columns, day
+// diary and the dashboard mini-calendar — without any window plumbing.
+const RENT_FREQUENCY_TO_RECURRENCE: Record<string, NonNullable<CalendarEvent['recurrence']>['frequency']> = {
+    'Monthly': 'monthly',
+    'Quarterly': 'quarterly',
+    'Bi-Annually': 'biannually',
+    'Annually': 'yearly',
+};
+
+const formatNairaShort = (amount?: number): string => {
+    if (!amount || amount <= 0) return '';
+    return `₦${amount.toLocaleString('en-NG')}`;
+};
+
 export const computeAtriumVirtualEvents = (properties: any[]): CalendarEvent[] => {
     const virtualEvents: CalendarEvent[] = [];
 
-    properties.forEach(p => {
-        const leaseEnd = p.rentalDetails?.leaseEnd;
-        if (leaseEnd) {
-            const endDateObj = parseDateString(leaseEnd);
-            
-            // 1. Lease Expiry (T-0)
+    /** Lease lifecycle events (expiry, T-30 warning, midpoint) for one
+     * tenancy scope — a property record or an embedded unit. */
+    const pushLeaseEvents = (key: string, firmId: string, label: string, leaseStart?: string, leaseEnd?: string) => {
+        if (!leaseEnd) return;
+        const endDateObj = parseDateString(leaseEnd);
+
+        // 1. Lease Expiry (T-0)
+        virtualEvents.push({
+            id: `virtual_expiry_${key}`,
+            firmId,
+            title: `Lease Expiry — ${label}`,
+            date: endDateObj.toISOString(),
+            type: 'Atrium Automation',
+            status: 'pending',
+            source: 'atrium_auto'
+        } as any);
+
+        // 2. T-30 Warning
+        const warningDate = new Date(endDateObj.getTime());
+        warningDate.setDate(warningDate.getDate() - 30);
+        virtualEvents.push({
+            id: `virtual_warning_${key}`,
+            firmId,
+            title: `Lease Expiry Warning (30 Days) — ${label}`,
+            date: warningDate.toISOString(),
+            type: 'Atrium Automation',
+            status: 'pending',
+            source: 'atrium_auto'
+        } as any);
+
+        // 3. Mid-Point Review (needs both ends to compute the midpoint)
+        if (leaseStart) {
+            const startDateObj = parseDateString(leaseStart);
+            const midpointTime = startDateObj.getTime() + (endDateObj.getTime() - startDateObj.getTime()) / 2;
             virtualEvents.push({
-                id: `virtual_expiry_${p.id}`,
-                firmId: p.firmId,
-                title: `Lease Expiry — ${p.address}`,
-                date: endDateObj.toISOString(),
+                id: `virtual_midpoint_${key}`,
+                firmId,
+                title: `Lease Mid-Point Review — ${label}`,
+                date: new Date(midpointTime).toISOString(),
                 type: 'Atrium Automation',
                 status: 'pending',
                 source: 'atrium_auto'
             } as any);
-
-            // 2. T-30 Warning
-            const warningDate = new Date(endDateObj.getTime());
-            warningDate.setDate(warningDate.getDate() - 30);
-            virtualEvents.push({
-                id: `virtual_warning_${p.id}`,
-                firmId: p.firmId,
-                title: `Lease Expiry Warning (30 Days) — ${p.address}`,
-                date: warningDate.toISOString(),
-                type: 'Atrium Automation',
-                status: 'pending',
-                source: 'atrium_auto'
-            } as any);
-
-            // 3. T-Halfway (6 months in, assuming 1 year lease for simplicity, or calc midpoint if leaseStart is present)
-            const leaseStart = p.rentalDetails?.leaseStart;
-            if (leaseStart) {
-                const startDateObj = parseDateString(leaseStart);
-                const midpointTime = startDateObj.getTime() + (endDateObj.getTime() - startDateObj.getTime()) / 2;
-                virtualEvents.push({
-                    id: `virtual_midpoint_${p.id}`,
-                    firmId: p.firmId,
-                    title: `Lease Mid-Point Review — ${p.address}`,
-                    date: new Date(midpointTime).toISOString(),
-                    type: 'Atrium Automation',
-                    status: 'pending',
-                    source: 'atrium_auto'
-                } as any);
-            }
         }
-        
-        // 4. Maintenance Cycle (if automationSettings.autoCreateMaintenanceTask is on, schedule 6 months from createdAt)
+    };
+
+    /** Recurring rent-due series for one tenancy scope, anchored at
+     * leaseStart, ending at leaseEnd. Only for tenanted scopes with a
+     * rent amount (vacant units produce nothing). */
+    const pushRentDueEvent = (key: string, firmId: string, label: string, leaseStart: string, leaseEnd: string | undefined, rentAmount: number | undefined, rentFrequency: string | undefined) => {
+        const frequency = RENT_FREQUENCY_TO_RECURRENCE[rentFrequency || ''] || 'monthly';
+        const amountStr = formatNairaShort(rentAmount);
+        const title = `Rent Due${amountStr ? ` (${amountStr})` : ''} — ${label}`;
+        virtualEvents.push({
+            id: `virtual_rentdue_${key}`,
+            firmId,
+            title,
+            date: parseDateString(leaseStart).toISOString(),
+            type: 'Atrium Automation',
+            status: 'pending',
+            source: 'atrium_auto',
+            recurrence: { frequency, ...(leaseEnd ? { endDate: leaseEnd } : {}) }
+        } as any);
+    };
+
+    properties.forEach(p => {
+        const propRental = p.rentalDetails || {};
+
+        // ── Property-level tenancy (single-unit records) ─────────────
+        pushLeaseEvents(p.id, p.firmId, p.address, propRental.leaseStart, propRental.leaseEnd);
+        if (propRental.leaseStart && (propRental.tenantName || propRental.tenantEmail) && (propRental.rentAmount ?? 0) > 0) {
+            pushRentDueEvent(p.id, p.firmId, p.address, propRental.leaseStart, propRental.leaseEnd, propRental.rentAmount, propRental.rentFrequency);
+        }
+
+        // ── Embedded units (multi-unit buildings) ────────────────────
+        // Units carry lease fields FLAT on the unit object (see
+        // usePropertyGroups) and may additionally nest a rentalDetails.
+        (p.units || []).forEach((unit: any, idx: number) => {
+            const unitRental = unit.rentalDetails || {};
+            const unitName = unit.unitName || unitRental.unitName || `Unit ${idx + 1}`;
+            const unitId = unit.id || unitName || String(idx);
+            const label = unitName ? `${p.address} · ${unitName}` : p.address;
+            const leaseStart = unitRental.leaseStart || unit.leaseStart;
+            const leaseEnd = unitRental.leaseEnd || unit.leaseEnd;
+            const rentAmount = unitRental.rentAmount ?? unit.rentAmount;
+            const rentFrequency = unitRental.rentFrequency || unit.rentFrequency;
+            const tenantName = unitRental.tenantName || unit.tenantName;
+            const tenantEmail = unitRental.tenantEmail || unit.tenantEmail;
+
+            pushLeaseEvents(`${p.id}_${unitId}`, p.firmId, label, leaseStart, leaseEnd);
+            if (leaseStart && (tenantName || tenantEmail) && (rentAmount ?? 0) > 0) {
+                pushRentDueEvent(`${p.id}_${unitId}`, p.firmId, label, leaseStart, leaseEnd, rentAmount, rentFrequency);
+            }
+        });
+
+        // ── Maintenance Cycle (if automationSettings.autoCreateMaintenanceTask is on, schedule 6 months from createdAt)
         if (p.automationSettings?.autoCreateMaintenanceTask && p.createdAt) {
             const createdObj = parseDateString(p.createdAt);
             const maintDate = new Date(createdObj.getTime());

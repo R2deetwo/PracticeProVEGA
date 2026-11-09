@@ -476,6 +476,9 @@ export const CalendarView: React.FC = () => {
     // Use hasPropertyFeatures (true for Atrium AND Komplete) so Komplete firms
     // also see rent due dates and lease expirations on the calendar.
     // Previously used !isLegal which was false for Komplete (isLegal=true for unified).
+    // (Calendar round: rent-due dates are now ACTUALLY generated — they were
+    // promised by this comment since the Komplete round but never emitted; see
+    // computeAtriumVirtualEvents.)
     const virtualEvents = hasPropertyFeatures ? computeAtriumVirtualEvents(properties) : [];
     const events = [...standardEvents, ...virtualEvents];
     const eventTypes = coreState.eventTypes;
@@ -514,6 +517,19 @@ export const CalendarView: React.FC = () => {
         return expandRecurringEvents(events, startExpansion, endExpansion);
     }, [events, daysInMonth]);
 
+    // BUG FIX (calendar round): the Day/diary view used to receive the RAW
+    // events array, so recurring instances (and recurring virtual rent-due
+    // events) NEVER appeared in the agenda — only in month/week. Expand the
+    // selected day's window instead; DiaryModeView's internal date filter
+    // then keeps exactly that day's instances.
+    const diaryEvents = useMemo(() => {
+        const dayStart = new Date(selectedDateObj);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(selectedDateObj);
+        dayEnd.setHours(23, 59, 59, 999);
+        return expandRecurringEvents(events, dayStart, dayEnd);
+    }, [events, selectedDateObj]);
+
     useEffect(() => {
         if (highlightTarget?.filter?.id && scrollContainerRef.current) {
             const eventId = highlightTarget.filter.id;
@@ -546,7 +562,22 @@ export const CalendarView: React.FC = () => {
         }
     };
 
-    const handleViewSwitch = (mode: 'month' | 'week' | 'diary') => { setLocalViewMode(mode); onViewModeChange(mode); };
+    const handleViewSwitch = (mode: 'month' | 'week' | 'diary') => {
+        // BUG FIX (calendar round): month navigation only moved currentMonthDate,
+        // never selectedDate — so paging 3 months forward then switching to
+        // week/diary jumped back to a week/month around the stale selectedDate.
+        // Sync selectedDate into the month the user was just viewing.
+        if (localViewMode === 'month' && mode !== 'month') {
+            const sel = parseDateString(selectedDate);
+            const sameMonth = sel.getFullYear() === currentMonthDate.getFullYear() && sel.getMonth() === currentMonthDate.getMonth();
+            if (!sameMonth) {
+                const lastDay = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 0).getDate();
+                const day = Math.min(Math.max(1, sel.getDate()), lastDay);
+                onDateSelect(toLocalISOString(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), day)));
+            }
+        }
+        setLocalViewMode(mode); onViewModeChange(mode);
+    };
     const isLocked = localViewMode === currentUser?.defaultViewModes?.calendar;
 
     const weekDays = useMemo(() => {
@@ -668,7 +699,7 @@ export const CalendarView: React.FC = () => {
                        3. Office Tasks & Client Consultations */
                     <DiaryModeView
                         selectedDate={selectedDateObj}
-                        events={events}
+                        events={diaryEvents}
                         tasks={executionState.tasks || []}
                         openModal={openModal}
                         eventTypes={eventTypes}
