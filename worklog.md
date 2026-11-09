@@ -15649,3 +15649,79 @@ still answer unauthenticated queries there). OWNER ACTION to go live: run the
 re-probe: the same two calls must throw Unauthenticated, and portals:getNotice
 must be gone. Standing owner actions from Round A remain open
 (CHAKRA_WEBHOOK_SECRET, ALLOW_DEMO_SEED, CLOUDFLARE_API_TOKEN).
+---
+### R76 — ROUND B (Wave S2): money truth (2026-11-09)
+The second remediation round of the R75 register: every confirmed money-path
+defect in Wave S2 (H1, H2, H10, H13-money, M5, M6, M7, M8 + M18) closed
+SERVER-SIDE with atomic booking, plus the reconciliation checker the wave's
+gate demanded. Full 6-element per-vulnerability report in
+ATRIUM_ROUND_B_MONEY_TRUTH_REMEDIATION.md. Commit 5b9a78ed (21 files,
++2,672/−224), separate on top of Round A 3992a360 + A2 0c1bf2fa (both intact).
+
+- H1 proof approval BOOKS: shared settleProofInternal core (portals.ts) —
+  ledger entry (cleared, key proof-approved-{proofId}), proof↔ledger link,
+  optional linked-charge settlement, financial_audit_log row, reviewedBy/At —
+  one transaction; staff/webhook/self-heal paths all share it; amount-less
+  approvals demand a confirmed figure (loud error, never a silent ₦0).
+- H2 auto-deduct BOOKS: processAutoDeductions writes each deduction's ledger
+  row in the same txn as the debit + charge settlement; wtx rows carry the
+  join key; pre-booked cycle keys short-circuit.
+- M5: assertPositiveAmount/roundMoney wired into every dedicated money
+  mutation; overpayment credit carried (service_charges.creditCarriedForward)
+  and consumed by resetMonthlyServiceCharges / flagOverdueCharges /
+  auto-deduct; "₦X credit → next cycle" chip in ServiceChargeMonitor.
+- M6/M8: new sentry.collectRentPayment — financial_counters per-firm
+  sequential receipts (REC-00001…, conflict-serialized: two same-second
+  collections take consecutive numbers), rent history + rent/mgmt-fee ledger
+  rows in ONE txn, idempotencyKey dedup returns the ORIGINAL receipt on
+  replay; CollectRentModal online+offline paths rebuilt on it (offline queue
+  replays the single mutation; offline PDF carries the sync reference).
+- M7: webhook settles proofs via the shared core with the Paystack-VERIFIED
+  amount (tenant claims corrected, both figures recorded); legacy
+  pending_review+reference rows picked up; submitPaymentProof self-heals the
+  webhook-first race via paystackEvents.by_reference — exactly-once either way.
+- H10: getTenantInfo returns a real outstandingBalance computed from the same
+  service_charges store the dues tab / collections engine use (dashboard card
+  and dues can no longer disagree by construction).
+- H13 money paths: LedgerManager AddEntry + ServiceChargeMonitor
+  mark-paid/partial catch and surface failures ("Nothing was booked").
+- M18: tenant Paystack rail now driven by server isPaystackActive (server key
+  too); pk_test fallback + silent bank-transfer diversion gone.
+- NEW reconciliation checker: financialIntegrity.runFinancialReconciliation
+  daily cron 07:15 UTC (after auto-deduct/engine/sweep) + founder-gated
+  runFinancialReconciliationNow/getLatestFinancialReconciliation; proves
+  wallet↔ledger, proofs↔ledger, amount validity, key uniqueness, receipt
+  uniqueness per run; wallet balance drift informational; pre-Round-B rows in
+  legacy buckets (history never reds a healthy deployment). Live run on
+  dev:gregarious-malamute-537: ok:true, all counts 0.
+- Schema (additive, push-validated): payment_proofs.ledgerEntryId,
+  service_charges.creditCarriedForward, wallet_transactions.ledgerIdempotencyKey,
+  paystackEvents.by_reference, NEW financial_counters,
+  NEW financial_reconciliation_reports. INVOICE_GENERATION.md §3/§4 corrected
+  (was materially wrong per H1/M8).
+
+Quality gates: vitest 1,644/1,644 (+44 roundBMoneyTruth.test.ts, both
+directions per fix; one Round A fixture updated for the strengthened H1
+contract, noted in-file), convex tsc 0, root tsc 126 < 131 baseline (zero
+new), vite build green, eslint 0 errors/77 warnings baseline, UI-primitives
+ratchet HELD at 2312 (review inputs built on ui/ Input/Select primitives).
+Round B code deployed and verified on dev:gregarious-malamute-537 (collect
++ reconcile + founder-gate surfaces live-probed; reconciliation ok:true).
+No Vega OS / Komplete surface touched.
+
+BLOCKER (same class as the why-floater session): the remote URL carried a
+dead embedded token — push failed "Invalid username or token". Remote
+sanitized to plain HTTPS per the R72 convention. OWNER ACTION to publish:
+supply a fresh GitHub PAT (it will be set in the credential store, used once,
+and cleared); then push 5b9a78ed → origin/main and let CI + the production
+promote run (Round A + A2 + B promote together). Standing owner actions
+unchanged: CHAKRA_WEBHOOK_SECRET, CLOUDFLARE_API_TOKEN, Paystack go-live
+decision (its M7 prerequisite has now landed), production promote.
+
+Stage Summary:
+- Money truth is enforced and PROVEN: every collection path books to the
+  ledger atomically and exactly-once, and a daily checker (plus on-demand
+  founder runs) verifies the invariants against live data — green on the dev
+  deployment today.
+- Round C (Wave S3 interaction truth) is next per the sequence, gated on the
+  owner's review of this round. NOT started.
