@@ -16968,3 +16968,17 @@ aiAudit, the geminiService tool surface, AloaChat's execution layer)
 and shipped Round G (G1+G2 in 5008d679, G3 in 8488cae1) — CI green,
 v1.0.759/build-1154, promote dispatched (see the R91 promote record
 below).
+
+Post-push record (R91 promote outcome): promote run 42886715580
+dispatched on latest main (blank sha → 9f8cd9e5). Quality gate GREEN
+on the promoted commit (convex tsc 0, root tsc = baseline, identity
+audit, ui-primitives ratchet, vitest 2,016/2,016). Deploy to
+production (Vercel + Convex) GREEN — production verified live on
+9f8cd9e5 / v1.0.759 / build-1154 (status healthy, direct probe).
+Cloudflare mirror job RED at the same dead-token verify step as R89's
+run (CLOUDFLARE_API_TOKEN unusable — user verify not active, account
+probe failed); the mirror still serves the 2026-09-18 build. ONE
+owner fix unblocks it: new Cloudflare token (Edit Cloudflare Workers
+template, account-scoped) → repo secret CLOUDFLARE_API_TOKEN → re-run
+"Deploy to Production (promote)" with blank sha. Everything else was
+green on both promote runs.
