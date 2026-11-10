@@ -584,9 +584,9 @@ describe('E2(c) — the consolidated resident profile', () => {
 // E2(d) — source contracts
 // ═══════════════════════════════════════════════════════════════════════════
 describe('E2(d) — source contracts', () => {
-  it('the lifecycle module: 10 staff-authed publics, union-merge documented', () => {
+  it('the lifecycle module: 11 staff-authed publics, union-merge documented', () => {
     const mod = read('convex/tenancyLifecycle.ts');
-    expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(10); // 8 E1 + 2 E2 reads
+    expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(11); // 8 E1 + 2 E2 reads + 1 E3 read (property financial summary — roundEWave3.test.ts)
     expect(mod).toContain('groupResidentRows');
     expect(mod).toContain('union-merge'); // documented invariant
     expect(mod).toContain('READ-ONLY');

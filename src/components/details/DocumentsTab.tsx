@@ -7,6 +7,8 @@ import { formatBytes } from '../../utils/formatting';
 import { UploadIcon, UserUploadIcon, ShareIcon, DocumentIcon, EyeIcon, EditIcon, TrashIcon, DownloadIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useConvex } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import Tooltip from '../Tooltip';
 
 interface DocumentsTabProps {
@@ -19,6 +21,11 @@ interface DocumentsTabProps {
     hideUploadButton?: boolean;
     variant?: 'default' | 'embedded';
     lastViewedAt?: number;
+    /** ROUND E (WAVE E3): extra context merged into every upload modal
+     *  open — e.g. { propertyId } from the property surface so uploads
+     *  get stamped with the REAL property link (DocumentForm already
+     *  honours context.propertyId). */
+    uploadContext?: Record<string, any>;
 }
 
 export const DocumentsTab: React.FC<DocumentsTabProps> = ({
@@ -30,17 +37,19 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     onDraftDocument,
     hideUploadButton = false,
     variant = 'default',
-    lastViewedAt = 0
+    lastViewedAt = 0,
+    uploadContext
 }) => {
     const { deleteItem } = useDataActions();
     const { currentUser } = useAuth();
     const { closeModal, addToast } = useUI();
+    const convex = useConvex();
     const [isDragging, setIsDragging] = useState(false);
     const [editorChoiceDoc, setEditorChoiceDoc] = useState<Document | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleFile = (file: File) => {
-        openModal('newDocument', null, { matterId, droppedFile: file });
+        openModal('newDocument', null, { matterId, ...uploadContext, droppedFile: file });
     };
 
     const handleDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -51,7 +60,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
         if (droppedFiles.length === 1) {
             handleFile(droppedFiles[0]);
         } else if (droppedFiles.length > 1) {
-            openModal('batchUpload', null, { matterId, files: droppedFiles });
+            openModal('batchUpload', null, { matterId, ...uploadContext, files: droppedFiles });
         }
     };
 
@@ -60,16 +69,35 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
         if (selectedFiles.length === 1) {
             handleFile(selectedFiles[0]);
         } else if (selectedFiles.length > 1) {
-            openModal('batchUpload', null, { matterId, files: selectedFiles });
+            openModal('batchUpload', null, { matterId, ...uploadContext, files: selectedFiles });
         }
     };
 
-    const handleDownload = (e: React.MouseEvent, doc: Document) => {
+    // ROUND E (WAVE E3): the download path now handles ALL THREE file
+    // shapes in production data — inline base64 (file.dataUrl), the
+    // storage-id OBJECT ({ storageId } — DraftPro saves), and the bare
+    // storage-id STRING (portal message attachments). The old path read
+    // file.dataUrl only, so storage-backed documents silently failed to
+    // download from every surface that renders this tab.
+    const handleDownload = async (e: React.MouseEvent, doc: Document) => {
         e.stopPropagation();
-        if (!doc.file?.dataUrl) return;
+        const f: any = doc.file;
+        let href: string | null = f?.dataUrl ?? null;
+        const name = f?.name || doc.title || 'document';
+        if (!href) {
+            const storageId = typeof f === 'string' ? f : f?.storageId;
+            if (storageId) {
+                try {
+                    href = await convex.query(api.myFunctions.getFileUrl, { storageId: String(storageId) });
+                } catch {
+                    href = null;
+                }
+            }
+        }
+        if (!href) return;
         const link = document.createElement('a');
-        link.href = doc.file.dataUrl;
-        link.download = doc.file.name;
+        link.href = href;
+        link.download = name;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

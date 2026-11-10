@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Contact, Property, FileDetails, PropertyStatus, PropertyCategory, ContactType } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -25,7 +25,10 @@ import {
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
-import { Select, Input } from '../ui';
+import { Select, Input, Textarea } from '../ui';
+// ROUND E (WAVE E3) — intelligent forms: the validation + duplicate-
+// detection brain, extracted pure so every rule is unit-testable.
+import { validatePropertyForm, scanForDuplicateUnits, type FormErrors, type UnitErrors } from '../../utils/propertyFormValidation';
 import { OnboardUnitLedgerModal } from '../modals/OnboardUnitLedgerModal';
 import { ServiceChargePeriod } from '../../types';
 import { matchResidentContact, planContactSync } from '../../utils/residentContactSync';
@@ -196,6 +199,28 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     const [images, setImages] = useState<FileDetails[]>(propertyToEdit?.images || []);
     const formTouched = React.useRef(false);
 
+    // ─── ROUND E (WAVE E3) — INTELLIGENT FORMS ─────────────────────────
+    // Inline field errors (form-level + per-unit). Errors render through
+    // the ui/ primitives' error contract (aria-invalid + role="alert");
+    // each field clears its own error on change. The old form's only
+    // guards were two toasts (address + Unit-1 rent) — see handleSubmit.
+    const [errors, setErrors] = useState<FormErrors>({});
+    const [unitErrors, setUnitErrors] = useState<UnitErrors>({});
+    const clearFormError = (field: string) =>
+        setErrors(prev => {
+            if (!prev[field]) return prev;
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    const clearUnitError = (index: number, field: string) =>
+        setUnitErrors(prev => {
+            if (!prev[index] || !prev[index][field]) return prev;
+            const next = { ...prev, [index]: { ...prev[index] } };
+            delete next[index][field];
+            return next;
+        });
+
     // Minimum Vend / Estate Fees
     const [minimumVendEnabled, setMinimumVendEnabled] = useState(propertyToEdit?.minimumVendEnabled || false);
     const [minimumVendAmount, setMinimumVendAmount] = useState<string>(String(propertyToEdit?.minimumVendAmount || 0));
@@ -325,7 +350,10 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             unitName: unitLabelForIndex(newUnitNum, unitNaming),
             unitDescription: '',
             rentAmount: 0,
-            rentFrequency: 'Annually',
+            // E3 defaults harmonization: the seed unit defaults to Monthly
+            // but auto-added units defaulted to Annually — same form, two
+            // different defaults depending on HOW the unit was added.
+            rentFrequency: 'Monthly',
             leaseStart: '',
             leaseEnd: '',
             tenantName: '',
@@ -576,7 +604,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                     for (let i = 1; i < newUnits.length; i++) {
                         const targetValue = prev[i][field];
                         // If the other unit had the exact same old value as Unit 1, or was empty/default, it inherits the new value
-                        if (targetValue === oldValue || !targetValue || targetValue === 'Annually' || targetValue === (false as any) || targetValue === 0) {
+                        // (E3: 'Monthly' joins 'Annually' as a recognised default — the two seed paths are harmonized now.)
+                        if (targetValue === oldValue || !targetValue || targetValue === 'Annually' || targetValue === 'Monthly' || targetValue === (false as any) || targetValue === 0) {
                             newUnits[i] = { 
                                 ...newUnits[i], 
                                 [field]: newUnits[index][field],
@@ -607,6 +636,36 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     };
 
     const activeUnit = unitsData[activeUnitIndex];
+
+    // ─── E3 LIVE DUPLICATE DETECTION ─────────────────────────────────
+    // Same normalized address + same normalized unit name on a row
+    // OUTSIDE this edit session = a duplicate hit. The same-address
+    // sibling rows INSIDE the session are the legitimate multi-unit
+    // model — never hits. A same-address row under a different owner
+    // contact is reported separately (two owners claiming one building).
+    // Warning-only: the manager can always save anyway (multi-unit
+    // buildings make same-address rows normal; the names disambiguate).
+    const duplicateScan = useMemo(() => scanForDuplicateUnits({
+        properties: coreState.properties || [],
+        address,
+        units: unitsData,
+        editingIds: propertyToEdit ? [propertyToEdit.id, (propertyToEdit as any)._id] : [],
+        ownerContactId: contact?.id ?? null,
+    }), [coreState.properties, address, unitsData, propertyToEdit, contact?.id]);
+
+    // ─── E3 RESIDENT LIVE MATCH (no re-entry of known info) ──────────
+    // While typing a resident's phone/email, surface the existing Contact
+    // the save-time auto-sync WILL match (phone-first, ≥7 digits) — the
+    // manager sees the linkage before saving instead of discovering it
+    // in the post-save toast. Pure read; no writes.
+    const residentMatch = useMemo(() => {
+        const u = unitsData[activeUnitIndex];
+        if (!u) return null;
+        const phone = (u.tenantPhone || '').trim();
+        const email = (u.tenantEmail || '').trim();
+        if (!phone && !email) return null;
+        return matchResidentContact({ contacts: appState.contacts || [], tenantPhone: phone, tenantEmail: email });
+    }, [unitsData, activeUnitIndex, appState.contacts]);
     // Task 59: itemised move-in figures. The old single lump-sum "package"
     // total (rent + service charge + one-time fees + refundable deposit)
     // mixed categories that must never be added together; these
@@ -670,17 +729,39 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         e.preventDefault();
         if (isSubmitting) return;
 
-        if (!address.trim()) {
-            addToast('Address is required.', { type: 'info' });
-            return;
-        }
-
-        // SIMPLIFY FIX: rent amount is now required for rent-collecting tenanted
-        // properties — a property saved without rent silently breaks revenue
-        // views, receipts, and automations downstream.
-        if (rentCollectionMode === 'Full (Collect Rent)' && category === 'Tenanted Property' && !((unitsData[0]?.rentAmount ?? 0) > 0)) {
-            setOpenSections(prev => ({ ...prev, rental: true, primary: false }));
-            addToast('Please enter the Rent Amount for Unit 1 (opened below).', { type: 'info', duration: 5000 });
+        // ─── ROUND E (WAVE E3) — full-form validation with inline errors.
+        // Replaces the two toast guards (address non-empty + Unit-1 rent
+        // only): rent is now required on EVERY rent-collecting unit, lease
+        // windows must not invert, resident email/phone must be valid when
+        // present, and money fields cannot go negative. Errors render on
+        // the fields themselves (ui/ error contract); the offending
+        // section auto-opens and the first offending unit tab is selected.
+        const rentCollectingNow = rentCollectionMode !== 'Management Only (No Rent)';
+        const validation = validatePropertyForm({
+            address,
+            units: unitsData.slice(0, numberOfUnits),
+            rentCollecting: rentCollectingNow,
+            isTenanted: category === 'Tenanted Property',
+            managementFee,
+            minimumVendAmount,
+        });
+        if (Object.keys(validation.errors).length > 0 || Object.keys(validation.unitErrors).length > 0) {
+            setErrors(validation.errors);
+            setUnitErrors(validation.unitErrors);
+            const firstUnitIdx = Number(Object.keys(validation.unitErrors)[0] ?? NaN);
+            if (!Number.isNaN(firstUnitIdx)) {
+                setActiveUnitIndex(firstUnitIdx);
+                setOpenSections(prev => ({ ...prev, rental: true, primary: false, fees: false }));
+            } else if (validation.errors.address) {
+                setOpenSections(prev => ({ ...prev, primary: true, rental: false, fees: false }));
+            } else if (validation.errors.minimumVendAmount) {
+                setOpenSections(prev => ({ ...prev, fees: true, primary: false, rental: false }));
+            } else {
+                setOpenSections(prev => ({ ...prev, rental: true, primary: false, fees: false }));
+            }
+            const errorCount = Object.keys(validation.errors).length
+                + Object.values(validation.unitErrors).reduce((s, e) => s + Object.keys(e).length, 0);
+            addToast(`Please fix ${errorCount} highlighted field${errorCount > 1 ? 's' : ''} before saving.`, { type: 'info', duration: 5000 });
             return;
         }
 
@@ -873,7 +954,11 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             }));
 
             // 2. Handle unit deletions (if numberOfUnits was decreased)
-            // FIX: Also parallelize deletions
+            // E3: CONFIRM before deleting unit rows — lowering the count
+            // used to hard-delete the removed units' property rows with no
+            // dialog at all. History on the ledger/receipts survives (they
+            // key by unit ids, not the row), but the rows vanish from the
+            // portfolio — that is a major change and now says so.
             if (isEditing && propertyToEdit) {
                 const keptIds = new Set([
                     ...currentUnits.map(u => u.id).filter(Boolean),
@@ -886,6 +971,28 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             !keptIds.has(p.id) &&
                             !keptIds.has(convexId);
                     });
+
+                if (siblingsToRemove.length > 0) {
+                    const ok = await confirm({
+                        title: `Remove ${siblingsToRemove.length} unit row${siblingsToRemove.length > 1 ? 's' : ''}?`,
+                        message: `Lowering the unit count deletes the removed units' property rows (${siblingsToRemove.map(p => p.rentalDetails?.unitName || String(p.address || '').split(',')[0]).join(', ')}). Ledger history, receipts and tenancy records are preserved — but the units disappear from the portfolio. Cancel keeps every unit row as-is.`,
+                        confirmLabel: 'Remove Units',
+                        cancelLabel: 'Keep Units',
+                        danger: true,
+                    });
+                    if (!ok) {
+                        // Restore the count to the saved row count so a
+                        // cancelled removal doesn't leave the form silently
+                        // out of sync with the database.
+                        const rowCount = (coreState.properties || []).filter(p =>
+                            normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address) &&
+                            (p.status as string) !== 'Deleted'
+                        ).length;
+                        setNumberOfUnits(rowCount);
+                        setUnitsInputStr(String(rowCount));
+                        return;
+                    }
+                }
 
                 await Promise.all(siblingsToRemove.map(p =>
                     deleteItem('properties', p.id, 'Property')
@@ -1192,13 +1299,18 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                         <div className={`grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3 sm:gap-4`}>
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Address</label>
-                                <textarea
+                                {/* E3: migrated to the ui/ primitive — inline error
+                                    contract (aria-invalid + role=alert) replaces the
+                                    toast-only guard. */}
+                                <Textarea
                                     rows={2}
                                     value={address}
-                                    onChange={e => setAddress(e.target.value)}
-                                    className={`${commonInputClass} resize-none`}
+                                    onChange={e => { setAddress(e.target.value); clearFormError('address'); }}
+                                    styleVariant="bare"
+                                    textareaClassName={`${commonInputClass} resize-none`}
                                     placeholder="Enter the full property address..."
                                     required
+                                    error={errors.address}
                                 />
                             </div>
                             {!activeUnitId && (
@@ -1229,6 +1341,32 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             </div>
                             )}
                         </div>
+
+                        {/* ─── E3 LIVE DUPLICATE DETECTION (warning-only) ───────
+                            Same address + same unit name on a row outside this
+                            edit session. Multi-unit buildings legitimately
+                            share addresses — the unit names disambiguate, so
+                            this is a check-the-numbers warning, not a block. */}
+                        {duplicateScan.duplicateUnits.length > 0 && (
+                            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/40 text-2xs leading-relaxed" role="status">
+                                <p className="font-bold text-amber-700 dark:text-amber-400">
+                                    Possible duplicate unit{duplicateScan.duplicateUnits.length > 1 ? 's' : ''} at this address
+                                </p>
+                                <p className="text-amber-700/90 dark:text-amber-400/80 mt-0.5">
+                                    {duplicateScan.duplicateUnits.map(d => d.existingUnitName).join(', ')} already exist{duplicateScan.duplicateUnits.length === 1 ? 's' : ''} in the portfolio. Check the unit numbers — or save anyway if this is intentional.
+                                </p>
+                            </div>
+                        )}
+                        {duplicateScan.otherOwnerRows > 0 && duplicateScan.duplicateUnits.length === 0 && (
+                            <div className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 text-2xs leading-relaxed" role="status">
+                                <p className="font-bold text-slate-600 dark:text-zinc-300">
+                                    {duplicateScan.otherOwnerRows} row{duplicateScan.otherOwnerRows > 1 ? 's' : ''} at this address belong{duplicateScan.otherOwnerRows === 1 ? 's' : ''} to a different owner contact
+                                </p>
+                                <p className="text-slate-500 dark:text-zinc-400 mt-0.5">
+                                    Two owners on one building is usually a data issue — verify the address before saving.
+                                </p>
+                            </div>
+                        )}
 
                         {!activeUnitId && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
@@ -1385,13 +1523,18 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="space-y-2 group">
                                 <label className={labelClass}>Minimum Vend Amount</label>
                                 <div className="relative rounded-lg shadow-xs">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">₦</span>
-                                    <input autoComplete="off" data-lpignore="true"
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold z-10">₦</span>
+                                    <Input autoComplete="off" data-lpignore="true"
                                         type="text"
+                                        styleVariant="bare"
+                                        inputClassName={`${commonInputClass} pl-8`}
                                         value={formatNumberWithCommas(parseFormattedNumber(minimumVendAmount))}
-                                        onChange={e => setMinimumVendAmount(String(parseFormattedNumber(e.target.value)))}
-                                        className={`${commonInputClass} pl-8`}
+                                        onChange={e => {
+                                            setMinimumVendAmount(String(parseFormattedNumber(e.target.value)));
+                                            clearFormError('minimumVendAmount');
+                                        }}
                                         placeholder="0.00"
+                                        error={errors.minimumVendAmount}
                                     />
                                 </div>
                             </div>
@@ -1589,7 +1732,9 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         unitName: unitLabelForIndex(newUnitNum, unitNaming),
                                         unitDescription: '',
                                         rentAmount: 0,
-                                        rentFrequency: 'Annually',
+                                        // E3 defaults harmonization (matches the seed + the
+                                        // auto-add effect — was 'Annually' here).
+                                        rentFrequency: 'Monthly',
                                         leaseStart: '',
                                         leaseEnd: '',
                                         tenantName: '',
@@ -1726,12 +1871,19 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <>
                                         <div className="space-y-2 group">
                                             <label className={labelClass}>Rent Amount (<NairaSymbol />)</label>
-                                            <input autoComplete="off" data-lpignore="true"
+                                            {/* E3: ui/ primitive — rent is validated on EVERY
+                                                unit now (the old guard checked Unit 1 only). */}
+                                            <Input autoComplete="off" data-lpignore="true"
                                                 type="text"
+                                                styleVariant="bare"
+                                                inputClassName={commonInputClass}
                                                 value={formatNumberWithCommas(unitsData[activeUnitIndex].rentAmount)}
-                                                onChange={e => updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value))}
-                                                className={commonInputClass}
+                                                onChange={e => {
+                                                    updateUnit(activeUnitIndex, 'rentAmount', parseFormattedNumber(e.target.value));
+                                                    clearUnitError(activeUnitIndex, 'rentAmount');
+                                                }}
                                                 placeholder="0.00"
+                                                error={unitErrors[activeUnitIndex]?.rentAmount}
                                             />
                                         </div>
                                         <div className="space-y-2 group">
@@ -2094,29 +2246,34 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         a decision users don't need to make. First + Last
                                         name compose tenantName; existing titles round-trip. */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        <input autoComplete="off" data-lpignore="true"  
-                                            type="text" 
-                                            value={unitsData[activeUnitIndex].occupantFirstName || ''} 
+                                        {/* E3: migrated to ui/ primitives (same composition
+                                            semantics — the name fields still compose
+                                            tenantName on every keystroke). */}
+                                        <Input autoComplete="off" data-lpignore="true"
+                                            type="text"
+                                            styleVariant="bare"
+                                            inputClassName={`${commonInputClass} min-w-0 w-full`}
+                                            value={unitsData[activeUnitIndex].occupantFirstName || ''}
                                             onChange={e => {
                                                 const firstName = e.target.value;
                                                 updateUnit(activeUnitIndex, 'occupantFirstName', firstName);
                                                 const u = unitsData[activeUnitIndex];
                                                 updateUnit(activeUnitIndex, 'tenantName', [u.occupantTitle, firstName, u.occupantLastName].filter(Boolean).join(' '));
-                                            }} 
-                                            className={`${commonInputClass} min-w-0 w-full`} 
-                                            placeholder="First Name" 
+                                            }}
+                                            placeholder="First Name"
                                         />
-                                        <input autoComplete="off" data-lpignore="true"  
-                                            type="text" 
-                                            value={unitsData[activeUnitIndex].occupantLastName || ''} 
+                                        <Input autoComplete="off" data-lpignore="true"
+                                            type="text"
+                                            styleVariant="bare"
+                                            inputClassName={`${commonInputClass} min-w-0 w-full`}
+                                            value={unitsData[activeUnitIndex].occupantLastName || ''}
                                             onChange={e => {
                                                 const lastName = e.target.value;
                                                 updateUnit(activeUnitIndex, 'occupantLastName', lastName);
                                                 const u = unitsData[activeUnitIndex];
                                                 updateUnit(activeUnitIndex, 'tenantName', [u.occupantTitle, u.occupantFirstName, lastName].filter(Boolean).join(' '));
-                                            }} 
-                                            className={`${commonInputClass} min-w-0 w-full`} 
-                                            placeholder="Last Name" 
+                                            }}
+                                            placeholder="Last Name"
                                         />
                                     </div>
                                     {!unitsData[activeUnitIndex].occupantFirstName && !unitsData[activeUnitIndex].occupantLastName && unitsData[activeUnitIndex].tenantName && (
@@ -2125,12 +2282,36 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Resident Phone</label>
-                                    <input autoComplete="off" data-lpignore="true"  type="tel" value={unitsData[activeUnitIndex].tenantPhone} onChange={e => updateUnit(activeUnitIndex, 'tenantPhone', e.target.value)} className={commonInputClass} placeholder="+234..." />
+                                    <Input autoComplete="off" data-lpignore="true" type="tel" styleVariant="bare" inputClassName={commonInputClass}
+                                        value={unitsData[activeUnitIndex].tenantPhone}
+                                        onChange={e => {
+                                            updateUnit(activeUnitIndex, 'tenantPhone', e.target.value);
+                                            clearUnitError(activeUnitIndex, 'tenantPhone');
+                                        }}
+                                        placeholder="+234..."
+                                        error={unitErrors[activeUnitIndex]?.tenantPhone}
+                                    />
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Resident Email <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(required for portal invite)</span></label>
-                                    <input autoComplete="off" data-lpignore="true"  type="email" value={unitsData[activeUnitIndex].tenantEmail || ''} onChange={e => updateUnit(activeUnitIndex, 'tenantEmail', e.target.value)} className={commonInputClass} placeholder="resident@example.com" />
+                                    <Input autoComplete="off" data-lpignore="true" type="email" styleVariant="bare" inputClassName={commonInputClass}
+                                        value={unitsData[activeUnitIndex].tenantEmail || ''}
+                                        onChange={e => {
+                                            updateUnit(activeUnitIndex, 'tenantEmail', e.target.value);
+                                            clearUnitError(activeUnitIndex, 'tenantEmail');
+                                        }}
+                                        placeholder="resident@example.com"
+                                        error={unitErrors[activeUnitIndex]?.tenantEmail}
+                                    />
                                 </div>
+                                {/* E3 RESIDENT LIVE MATCH — the contact the save-time
+                                    auto-sync WILL link to, surfaced before saving (the
+                                    owner brief's "never re-enter known info" affordance). */}
+                                {residentMatch && (
+                                    <div className="md:col-span-2 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 text-2xs text-emerald-700 dark:text-emerald-400" role="status">
+                                        Matches <span className="font-bold">{residentMatch.name}</span> in the Contacts directory — saving links this unit to that contact (no duplicate resident is created).
+                                    </div>
+                                )}
                             </div>
 
                             {/* Save to Contacts toggle — default ON. When checked, the
@@ -2152,7 +2333,14 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Lease Start</label>
-                                    <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].leaseStart} onChange={e => updateUnit(activeUnitIndex, 'leaseStart', e.target.value)} className={commonInputClass} />
+                                    <Input autoComplete="off" data-lpignore="true" type="date" styleVariant="bare" inputClassName={commonInputClass}
+                                        value={unitsData[activeUnitIndex].leaseStart}
+                                        onChange={e => {
+                                            updateUnit(activeUnitIndex, 'leaseStart', e.target.value);
+                                            clearUnitError(activeUnitIndex, 'leaseStart');
+                                            clearUnitError(activeUnitIndex, 'leaseEnd');
+                                        }}
+                                    />
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Tenancy Period</label>
@@ -2171,7 +2359,14 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Lease End</label>
-                                    <input autoComplete="off" data-lpignore="true"  type="date" value={unitsData[activeUnitIndex].leaseEnd} onChange={e => updateUnit(activeUnitIndex, 'leaseEnd', e.target.value)} className={commonInputClass} />
+                                    <Input autoComplete="off" data-lpignore="true" type="date" styleVariant="bare" inputClassName={commonInputClass}
+                                        value={unitsData[activeUnitIndex].leaseEnd}
+                                        onChange={e => {
+                                            updateUnit(activeUnitIndex, 'leaseEnd', e.target.value);
+                                            clearUnitError(activeUnitIndex, 'leaseEnd');
+                                        }}
+                                        error={unitErrors[activeUnitIndex]?.leaseEnd}
+                                    />
                                 </div>
                             </div>
 
@@ -2180,13 +2375,18 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                     <div className="space-y-2 group">
                                         <label className={labelClass}>Management Fee (%)</label>
                                         <div className="flex bg-white dark:bg-zinc-800 p-1.5 rounded-lg ring-1 ring-slate-200 dark:ring-zinc-700 shadow-sm">
-                                            <input autoComplete="off" data-lpignore="true" 
+                                            <Input autoComplete="off" data-lpignore="true"
                                                 type="number"
+                                                styleVariant="bare"
+                                                inputClassName="flex-grow bg-transparent border-none text-sm font-bold text-primary-600 dark:text-primary-300 focus:ring-0 placeholder:text-slate-300"
                                                 value={managementFee}
-                                                onChange={e => setManagementFee(parseFloat(e.target.value) || 0)}
-                                                className="flex-grow bg-transparent border-none text-sm font-bold text-primary-600 dark:text-primary-300 focus:ring-0 placeholder:text-slate-300"
+                                                onChange={e => {
+                                                    setManagementFee(parseFloat(e.target.value) || 0);
+                                                    clearFormError('managementFee');
+                                                }}
                                                 max={100}
                                                 placeholder="0"
+                                                error={errors.managementFee}
                                             />
                                             <span className="px-3 text-2xs font-black text-slate-400 uppercase tracking-widest border-l border-slate-100 dark:border-zinc-700 flex items-center">%</span>
                                         </div>

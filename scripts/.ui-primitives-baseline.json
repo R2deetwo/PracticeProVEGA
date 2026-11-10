@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-09T16:58:34.193Z",
+  "generatedAt": "2026-11-10T13:15:11.086Z",
   "totals": {
     "button": 1684,
-    "input": 420,
+    "input": 411,
     "select": 142,
-    "textarea": 61
+    "textarea": 60
   },
-  "total": 2307,
+  "total": 2297,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -589,9 +589,8 @@
     },
     "src/components/forms/PropertyForm.tsx": {
       "button": 14,
-      "input": 35,
-      "select": 10,
-      "textarea": 1
+      "input": 26,
+      "select": 10
     },
     "src/components/forms/RequestFinancialDocumentForm.tsx": {
       "button": 2,

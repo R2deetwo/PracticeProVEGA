@@ -815,6 +815,6 @@ describe('E1 — source contracts', () => {
     const mod = read('convex/tenancyLifecycle.ts');
     expect(mod).toContain('requireStaffCaller');
     expect(mod).toContain('are read-only here'); // documented invariant
-    expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(10); // 10 public functions (8 E1 + the 2 Wave E2 reads — see roundEWave2.test.ts)
+    expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(11); // 11 public functions (8 E1 + the 2 Wave E2 reads + the Wave E3 property financial summary — see roundEWave2/3.test.ts)
   });
 });

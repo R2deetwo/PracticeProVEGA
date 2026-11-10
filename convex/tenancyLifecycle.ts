@@ -1645,3 +1645,313 @@ export const getResidentProfile = query({
     };
   },
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUND E (WAVE E3) — the per-property financial summary
+// ═══════════════════════════════════════════════════════════════════════════
+// The property-side aggregate mirroring E2's resident-side aggregate. The
+// owner brief (§1) asks for a property financial summary; until now the
+// only per-property figures were CLIENT-side StatCards that read the
+// denormalized rentalDetails snapshot — they missed embedded-unit rows
+// (composite unit ids) and the service_charges table entirely, and could
+// not resolve a charge stored under the custom unit id against a tenancy
+// stored under the Convex _id.
+//
+// This read computes the rollup server-side from the LEDGER truth:
+//   • the property group = every firm row sharing the anchor's NORMALIZED
+//     address (the sibling-row multi-unit model) plus their embedded units
+//   • charges/ledger rows are matched SHAPE-PROOF via the E1 resolver —
+//     all four unitId shapes land on the same unitKey set
+//   • voided/test ledger records are annotations, not money (the
+//     accounting-integrity round's rule) — excluded and COUNTED
+//   • rent receipts use the unit-first attribution rule (embedded unit
+//     history before property-level; property-level only when unambiguous)
+//   • occupancy comes from the E1 tenancy ledger (active rows), with the
+//     denormalized unit status reported alongside as the legacy snapshot
+//   • read-only: nothing here writes, and history is never deleted
+
+/**
+ * getPropertyFinancialSummary — the server-computed per-property rollup
+ * (staff-only, firm-scoped). `propertyId` accepts the Convex _id OR the
+ * legacy custom id; the summary covers the whole address group.
+ */
+export const getPropertyFinancialSummary = query({
+  args: {
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    firmId: v.string(),
+    propertyId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      firmId: args.firmId,
+    });
+    const firmId = args.firmId;
+
+    // Resolve the anchor property (Convex _id first, then legacy custom id).
+    let anchor: any = null;
+    try {
+      const direct: any = await ctx.db.get(args.propertyId as any);
+      if (direct && direct.firmId !== undefined && direct.address !== undefined) {
+        anchor = direct;
+      }
+    } catch {
+      // not a Convex id — fall through to the custom-id lookup
+    }
+    if (!anchor) {
+      anchor = await ctx.db
+        .query("properties")
+        .withIndex("by_custom_id", (q: any) => q.eq("id", args.propertyId))
+        .first();
+    }
+    if (!anchor || String(anchor.firmId ?? "") !== firmId) {
+      throw new Error("Property not found.");
+    }
+
+    const resolver = createUnitResolver(ctx, firmId);
+    const normAddr = (s: any) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    const anchorKey = normAddr(anchor.address);
+
+    // The address group: every firm row at the same normalized address.
+    const firmProps = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+    const siblings = (firmProps || []).filter((p: any) => normAddr(p.address) === anchorKey);
+
+    // The unit set: each sibling row is one unit (standalone model) or
+    // contributes its embedded units (legacy model) — same unitKey
+    // semantics as the ledger's duplicate guard.
+    interface SummaryUnit {
+      key: string;
+      label: string;
+      rowId: string;
+      status: string | null;
+      tenantName: string | null;
+      rentAmount: number;
+      rentFrequency: string | null;
+      leaseStart: string | null;
+      leaseEnd: string | null;
+      activeTenancy: boolean;
+      chargesOutstanding: number;
+      receiptsPaid: number;
+      receiptsCount: number;
+    }
+    const units: SummaryUnit[] = [];
+    const unitRefs: Array<{ property: any; unit: any | null }> = [];
+    const addr0 = String(anchor.address || "").split(",")[0] || "Property";
+    for (const p of siblings) {
+      const pAddr0 = String(p.address || "").split(",")[0] || addr0;
+      const embedded: any[] = Array.isArray(p.units) ? p.units : [];
+      if (embedded.length > 0) {
+        for (const u of embedded) {
+          const unitPart = String(u.id ?? u.unitName ?? "");
+          const rd = u.rentalDetails || {};
+          units.push({
+            key: unitPart ? `${String(p._id)}_${unitPart}` : String(p._id),
+            label: u.unitName ? `${String(u.unitName)} · ${pAddr0}` : pAddr0,
+            rowId: p.id != null ? String(p.id) : String(p._id),
+            status: u.status ?? p.status ?? null,
+            tenantName: u.tenantName ?? rd.tenantName ?? null,
+            rentAmount: Number(u.rentAmount ?? rd.rentAmount) || 0,
+            rentFrequency: u.rentFrequency ?? rd.rentFrequency ?? null,
+            leaseStart: u.leaseStart ?? rd.leaseStart ?? null,
+            leaseEnd: u.leaseEnd ?? rd.leaseEnd ?? null,
+            activeTenancy: false,
+            chargesOutstanding: 0,
+            receiptsPaid: 0,
+            receiptsCount: 0,
+          });
+          unitRefs.push({ property: p, unit: u });
+        }
+      } else {
+        const rd = p.rentalDetails || {};
+        units.push({
+          key: String(p._id),
+          label: rd.unitName ? `${String(rd.unitName)} · ${pAddr0}` : pAddr0,
+          rowId: p.id != null ? String(p.id) : String(p._id),
+          status: p.status ?? null,
+          tenantName: rd.tenantName ?? null,
+          rentAmount: Number(rd.rentAmount) || 0,
+          rentFrequency: rd.rentFrequency ?? null,
+          leaseStart: rd.leaseStart ?? null,
+          leaseEnd: rd.leaseEnd ?? null,
+          activeTenancy: false,
+          chargesOutstanding: 0,
+          receiptsPaid: 0,
+          receiptsCount: 0,
+        });
+        unitRefs.push({ property: p, unit: null });
+      }
+    }
+    const unitByKey = new Map<string, SummaryUnit>();
+    for (const u of units) unitByKey.set(u.key, u);
+    const unitKeySet = new Set(unitByKey.keys());
+
+    // Every id spelling of every sibling row (for propertyId-keyed rows).
+    const siblingIds = new Set<string>();
+    for (const p of siblings) {
+      siblingIds.add(String(p._id));
+      if (p.id != null) siblingIds.add(String(p.id));
+    }
+
+    // Resolve ANY unitId shape to a unitKey in this property group (memoized).
+    const keyCache = new Map<string, string | null>();
+    const keyForUnitId = async (unitId: any): Promise<string | null> => {
+      const id = String(unitId || "");
+      if (!id) return null;
+      if (keyCache.has(id)) return keyCache.get(id) ?? null;
+      let key: string | null = null;
+      try {
+        const ref = await resolver.resolveUnit(id);
+        if (ref && String(ref.property.firmId ?? "") === firmId) {
+          const k = unitKeyFor(ref);
+          if (unitKeySet.has(k)) key = k;
+        }
+      } catch {
+        key = null;
+      }
+      keyCache.set(id, key);
+      return key;
+    };
+
+    // ── Service charges (shape-proof, credit-netted) ─────────────────────────
+    const charges = await ctx.db
+      .query("service_charges")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+    const sc = { count: 0, unpaid: 0, partial: 0, paid: 0, defaulters: 0, outstanding: 0, creditCarriedForward: 0 };
+    for (const c of charges || []) {
+      const key = await keyForUnitId(c.unitId);
+      if (!key) continue;
+      const u = unitByKey.get(key);
+      if (!u) continue;
+      sc.count++;
+      const status = String(c.serviceChargeStatus ?? "");
+      if (status === "PAID_FULLY") sc.paid++;
+      else if (status === "PARTIALLY_PAID") sc.partial++;
+      else sc.unpaid++;
+      if (c.isDefaulter === true) sc.defaulters++;
+      const out = chargeOutstanding(c);
+      sc.outstanding += out;
+      sc.creditCarriedForward += Number(c.creditCarriedForward) || 0;
+      u.chargesOutstanding += out;
+    }
+
+    // ── Ledger entries (propertyId-keyed OR shape-proof unitId) ──────────────
+    const ledgerRows = await ctx.db
+      .query("ledger_entries")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+    const ledger = {
+      cleared: 0,
+      pending: 0,
+      defaulted: 0,
+      voidedExcluded: 0,
+      testExcluded: 0,
+      byType: {} as Record<string, { cleared: number; pending: number; defaulted: number; total: number }>,
+    };
+    const nowYear = String(new Date().getFullYear());
+    let rentClearedYtd = 0;
+    for (const e of ledgerRows || []) {
+      const rs = String(e.recordStatus ?? "");
+      if (rs === "voided") { ledger.voidedExcluded++; continue; }
+      if (rs === "test") { ledger.testExcluded++; continue; }
+      let matched = false;
+      if (e.propertyId && siblingIds.has(String(e.propertyId))) matched = true;
+      if (!matched && e.unitId) {
+        const key = await keyForUnitId(e.unitId);
+        matched = !!key;
+      }
+      if (!matched) continue;
+      const type = String(e.type ?? "other");
+      const bucket = (ledger.byType[type] ||= { cleared: 0, pending: 0, defaulted: 0, total: 0 });
+      const amount = Number(e.amount) || 0;
+      const status = String(e.status ?? "");
+      if (status === "cleared") { ledger.cleared += amount; bucket.cleared += amount; }
+      else if (status === "defaulted") { ledger.defaulted += amount; bucket.defaulted += amount; }
+      else { ledger.pending += amount; bucket.pending += amount; }
+      bucket.total += amount;
+      if (status === "cleared" && type === "rent") {
+        const ts = Number(e.timestamp) || 0;
+        if (ts > 0 && new Date(ts).getFullYear() === Number(nowYear)) rentClearedYtd += amount;
+      }
+    }
+
+    // ── Rent receipts (unit-first attribution — the E1 rentHistoryFor rule) ──
+    const receipts = { count: 0, totalPaid: 0, ytdPaid: 0 };
+    for (let i = 0; i < units.length; i++) {
+      const ref = unitRefs[i];
+      const history = rentHistoryFor(ref as ResolvedUnitRef);
+      let unitPaid = 0;
+      for (const p of history || []) {
+        if (p?.status !== "paid") continue;
+        const amount = Number(p.amount) || 0;
+        receipts.count++;
+        receipts.totalPaid += amount;
+        unitPaid += amount;
+        const day = String(p?.paidDate || "").slice(0, 4);
+        if (day === nowYear) receipts.ytdPaid += amount;
+      }
+      units[i].receiptsPaid = unitPaid;
+      units[i].receiptsCount = (history || []).filter((p: any) => p?.status === "paid").length;
+    }
+
+    // ── Maintenance (counts, no money) ───────────────────────────────────────
+    const tickets = await ctx.db
+      .query("maintenance_tickets")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(1000);
+    const maintenance = { total: 0, open: 0 };
+    for (const t of tickets || []) {
+      if (!t.propertyId || !siblingIds.has(String(t.propertyId))) continue;
+      maintenance.total++;
+      if (!["resolved", "closed", "cancelled"].includes(String(t.status ?? ""))) maintenance.open++;
+    }
+
+    // ── Occupancy from the tenancy ledger (the E1 truth) ─────────────────────
+    const tenancyRows = await ctx.db
+      .query("tenancies")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+    let activeTenancies = 0;
+    let totalTenancies = 0;
+    for (const t of tenancyRows || []) {
+      if (!t.unitKey || !unitKeySet.has(String(t.unitKey))) continue;
+      totalTenancies++;
+      if (String(t.status ?? "") === "active") {
+        activeTenancies++;
+        const u = unitByKey.get(String(t.unitKey));
+        if (u) u.activeTenancy = true;
+      }
+    }
+
+    return {
+      property: {
+        _id: String(anchor._id),
+        id: anchor.id != null ? String(anchor.id) : null,
+        address: anchor.address ?? null,
+        category: anchor.category ?? null,
+        ownershipType: anchor.ownershipType ?? null,
+        rentCollectionMode: anchor.rentCollectionMode ?? null,
+        propertyType: anchor.propertyType ?? null,
+        managementFeePercentage: Number(anchor.managementFeePercentage) || 0,
+      },
+      units,
+      counts: {
+        units: units.length,
+        activeTenancies,
+        totalTenancies,
+        statusOccupied: units.filter((u) => String(u.status ?? "") === "Occupied").length,
+        statusVacant: units.filter((u) => String(u.status ?? "") === "Vacant").length,
+      },
+      ledger,
+      rentCollected: { ytdLedger: rentClearedYtd },
+      receipts,
+      serviceCharges: sc,
+      maintenance,
+    };
+  },
+});

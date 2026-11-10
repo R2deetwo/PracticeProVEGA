@@ -25,6 +25,7 @@ import { PropertyRelationshipsTab } from './PropertyRelationshipsTab';
 // renew / end / transfer + per-unit tenancy history, backed by the
 // tenancies ledger (convex/tenancyLifecycle.ts).
 import { TenancyLifecyclePanel } from './TenancyLifecyclePanel';
+import { PropertyFinancialSummaryPanel } from './PropertyFinancialSummaryPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
@@ -513,17 +514,33 @@ const PropertyDetailViewContent: React.FC = () => {
     }, [allPropertyLedgerEntries]);
 
     const propertyDocuments = useMemo(() => {
+        // ROUND E (WAVE E3) REVIVAL: match on documents.propertyId — the
+        // REAL link — accepting both id forms (custom id + Convex _id) of
+        // every address-sibling row, plus the legacy `prop_<id>` fake
+        // matterId bridge for rows uploaded from this surface before the
+        // revival (that fake id was the only thing those uploads stamped).
+        // The old heuristic (categoryId `prop_<id>_` prefix — nothing ever
+        // wrote it — or title containing the street name — over-matching)
+        // never looked at propertyId, which is why the section read dead.
         // Use hasPropertyFeatures (not isProperty) so Komplete firms also
-        // see property documents when viewing a property. Previously this
-        // used isProperty, which is only true for pure Atrium — so Komplete
-        // users fell into the else branch and saw matter documents instead.
+        // see property documents when viewing a property.
         if (hasPropertyFeatures && property) {
-            const propPrefix = `prop_${property.id}_`;
-            const addressPart = (property.address || '').split(',')[0].toLowerCase();
+            const addrKey = normalizeAddress(property.address || '');
+            const groupIds = new Set<string>();
+            const legacyMatterIds = new Set<string>();
+            const addRow = (p: any) => {
+                if (!p) return;
+                if (p.id != null) { groupIds.add(String(p.id)); legacyMatterIds.add(`prop_${p.id}`); }
+                if (p._id != null) { groupIds.add(String(p._id)); legacyMatterIds.add(`prop_${p._id}`); }
+            };
+            addRow(property);
+            (coreState.properties || []).forEach(p => {
+                if (normalizeAddress(p.address || '') === addrKey) addRow(p);
+            });
             return documentState.documents.filter(d => {
                 if (!d) return false;
-                if (d.categoryId?.startsWith(propPrefix)) return true;
-                if (d.title?.toLowerCase().includes(addressPart)) return true;
+                if (d.propertyId && groupIds.has(String(d.propertyId))) return true;
+                if (d.matterId && legacyMatterIds.has(String(d.matterId))) return true;
                 return false;
             });
         } else {
@@ -531,7 +548,7 @@ const PropertyDetailViewContent: React.FC = () => {
             const matterIds = linkedMatters.map(m => m.id);
             return documentState.documents.filter(d => d && matterIds.includes(d.matterId!));
         }
-    }, [documentState.documents, linkedMatters, hasPropertyFeatures, property, property?.id, property?.address]);
+    }, [documentState.documents, coreState.properties, linkedMatters, hasPropertyFeatures, property, property?.id, property?.address]);
 
     // --- Now safe to early-return after all hooks have been called ---
     if (!property) return (
@@ -2542,6 +2559,15 @@ const PropertyDetailViewContent: React.FC = () => {
                             />
                         </div>
 
+                        {/* ROUND E (WAVE E3) — the server-computed ledger-truth
+                            rollup (per-property financial summary). The
+                            StatCards above read the denormalized
+                            rentalDetails snapshot; this panel aggregates
+                            ledger entries, service charges (shape-proof
+                            across all four unit-id shapes), receipts and
+                            the E1 tenancy ledger. */}
+                        <PropertyFinancialSummaryPanel propertyId={property.id} />
+
                         {/* Mini Ledger + Invoices */}
                         <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-5 shadow-sm">
                             <div className="flex items-start gap-4">
@@ -2633,6 +2659,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                 <DocumentsTab
                                     documents={propertyDocuments}
                                     matterId={`prop_${property.id}`}
+                                    uploadContext={{ propertyId: property.id }}
                                     openModal={openModal}
                                     onViewDocumentDetails={(id) => navigateTo('documentDetail', id)}
                                     users={coreState.users}
