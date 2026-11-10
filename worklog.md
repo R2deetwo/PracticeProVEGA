@@ -16103,3 +16103,130 @@ CI auto-commits 6233c307 (bump patch version to 1.0.754) + f899ab1d
 (APK release info build-1149), tag build-1149, release "PracticePro
 v1.0.754"; local tree fast-forwarded. Production promote for R82
 remains the owner action (same flow as every round).
+
+---
+Task ID: R83 (Round E, Wave E2 — the resident directory + consolidated resident profile)
+Agent: Main agent (Super Z)
+Task: Second wave of ROUND E — the resident-management half of the owner
+brief (§2): registration/profile/unit assignment views, lease records,
+payment history, outstanding balances, maintenance, documents,
+communications, resident history, and role-based privacy. Wave E1 gave
+the firm the tenancy LEDGER; Wave E2 gives staff the two consuming
+surfaces the brief asked for — a firm-wide resident directory and the
+consolidated per-resident profile — both built on the ledger so a
+resident is ONE row regardless of how many units, spellings, contact
+rows or portal accounts their history spans.
+
+Work Log:
+- convex/tenancyLifecycle.ts (+2 public reads, both staff-session-
+  authed via requireStaffCaller + assertSameFirm, firm-scoped,
+  read-only — no new writers, the ledger stays append-history):
+  * getResidentDirectory — the firm-wide roster derived from the
+    TENANCY LEDGER with UNION-MERGE grouping: ledger rows sharing ANY
+    of tenantContactId / tenantUserId / tenantEmail / exact
+    tenantName collapse into ONE resident (a bridging row — e.g. one
+    lease via a Contact row and a later lease typed free-form under
+    the same email — merges its two groups), closing the "same person
+    twice" fragmentation behind the 2026-09-12 contact-sync report.
+    Includes residents never linked to any Contact row (they were
+    invisible to every contact-based view before). Per resident: the
+    current-tenancy projection (unit label, property, dates, rent,
+    status), maintenance counts keyed user-id-OR-exact-name, and
+    outstanding service-charge balances matched SHAPE-PROOF on the
+    active unit through the E1 unit resolver — a charge stored under
+    the custom unit id matches a tenancy stored under the Convex _id
+    (UNPAID less Round B credit-notes, PARTIALLY_PAID by
+    outstandingBalance, PAID_FULLY = zero). Active-first sort.
+  * getResidentProfile — the consolidated aggregate the owner brief
+    §2 asked for: identity + emergency contact from the latest ledger
+    row; current + previous tenancies each with in-window attributed
+    payments (a deliberate SUPERSET twin of getResidentHistory — the
+    E1 read stays byte-stable for the same resident key, so every
+    existing consumer is untouched); balances on the ACTIVE unit only
+    (current-state charges; per-past-resident balance attribution is
+    never invented — history receipts are attributed by window, and
+    that is all); documents from the resident's tenancy properties
+    ONLY (the documents table links by propertyId — a resident sees
+    docs from properties they actually lived in, not the firm's whole
+    library); portal conversations by participant id; maintenance by
+    user id with the bounded exact-name fallback.
+- FRONTEND: src/components/details/ResidentProfilePanel.tsx (NEW) —
+  the consolidated profile view, wired into ContactDetailView's
+  Properties tab: identity + emergency contact, current lease card,
+  balances with per-charge status badges + defaulter flags, lease
+  history with attributed receipts and end reasons, maintenance,
+  documents, communications, totals strip, and the privacy line
+  (staff-only, firm-scoped, history never deleted). ui/ primitives
+  only, read-only, and it HIDES ITSELF for contacts with no ledger
+  rows (no empty shell).
+- src/components/atrium/ResidentDirectory.tsx (NEW) — the Financials
+  → Residents console: KPI chips (residents / active leases / with
+  balance due / open maintenance), status + search filters, roster
+  rows with active/past + outstanding badges and linked-contact /
+  portal markers, click-to-expand the full profile inline. Wired into
+  BillingView as a 'residents' tab beside Vacancies/Maintenance
+  (productTag Property).
+- BillingView: void-modal rounded-xl → rounded-2xl (modal class per
+  STYLE_GUIDE §2).
+- TESTS: tests/unit/roundEWave2.test.ts (NEW, +20, the E1 harness):
+  the auth quartet (anonymous, dead token, portal Tenant, cross-firm
+  assertSameFirm) + firm-2 isolation with zero-leak; union-merge of
+  the contact-less + contact-linked eras (bridging row merges
+  groups); the ledger-derived roster + shape-proof balances
+  (custom-id charge ↔ Convex-_id tenancy) + active-first sort;
+  profile aggregation (emergency contact, payment windows, balances,
+  documents scoping to tenancy properties, communications, OR-keyed
+  maintenance, email→user resolution, past-resident completeness);
+  the E1-twin byte-stability of getResidentHistory; source contracts.
+  roundEWave1.test.ts: the E1 public-contract count 8→10 (8 E1 + 2
+  E2 reads).
+- GATES: vitest 1,852/1,852 (93 files; 1,832 R82 baseline + 20, zero
+  regressions), root tsc 126 = the documented baseline (zero in
+  changed files), convex tsc 0, eslint changed files 0 errors / 0
+  warnings, ui-primitives ratchet HELD at 2307, design-token gate
+  green (gray=0), vite build green. All six gates RE-RUN on the
+  pristine commit immediately before this push (the commit had sat
+  locally across a session boundary; every gate matched its commit-
+  time record — convex tsc 0, root tsc 126≤131, identity audit pass,
+  gray=0, ratchet 2307, vitest 1852/1852).
+
+Stage Summary:
+- Resident management now has its two missing surfaces: a single
+  directory where every resident appears exactly once (regardless of
+  contact rows, portal accounts or spelling drift), and a one-stop
+  profile per resident — identity, emergency contact, current lease,
+  balances, full lease history with attributed receipts, maintenance,
+  documents, communications. Staff-only, firm-scoped, read-only over
+  an append-only ledger: privacy and the never-delete-history
+  safeguard are structural, not policy.
+- SHIPPED: a67ff021 pushed → CI all green (Tests / Deploy to Staging
+  / Build Android APK) on a67ff0216b85ea72d9227e53e7401fcc60ed42db
+  → v1.0.755, build-1150, APK released. Production promote = owner
+  action (same flow as every round: "Deploy to Production (promote)",
+  blank sha). Post-promote spot-checks: Financials → Residents tab
+  (roster, KPI chips, filters, expand a profile inline); Contacts →
+  any contact with ledger rows → Properties tab → Resident Profile
+  panel.
+- NOTE FOR THE OWNER: the E2 commit was finished and gated in the
+  prior session but could not be pushed (session token lost across
+  the boundary); it shipped this session after a full gate re-run.
+  The PAT was ROTATED by the owner this session (thank you) — the
+  fresh token is stored in a 600-perm file OUTSIDE the repo and used
+  only on one-time push URLs; the remote stays pure HTTPS per the
+  R72 convention. Rotate again whenever one transits chat.
+- ROUND E NEXT (per the wave plan): Wave E3 — intelligent forms
+  (PropertyForm validation/grouping/defaults/conditional fields/
+  duplicate detection) + server-side per-property financial summary
+  (owner brief §1) + property documents (the dead documents section);
+  Wave E4 — list search/sort/pagination, bulk operations for
+  authorised users, document generation from existing templates, and
+  the full acceptance demo. Standing item unchanged: the Cloudflare
+  mirror needs CLOUDFLARE_API_TOKEN re-pasted (stale since 04d798b3).
+
+Post-push record (R83): published with the owner's fresh PAT on a
+one-time push URL only (remote stays pure HTTPS per the R72
+convention). CI on a67ff021: Tests PASS, Build Android APK PASS,
+Deploy to Staging PASS; CI auto-commits f6cf72ff (bump patch version
+to 1.0.755) + 5e5e9d58 (APK release info build-1150), tag build-1150,
+release "PracticePro v1.0.755"; local tree fast-forwarded. Production
+promote for R83 remains the owner action (same flow as every round).
