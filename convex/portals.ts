@@ -5706,9 +5706,13 @@ async function settleProofInternal(
   });
 
   // Link the proof to its ledger row (reconciliation join key) and correct
-  // the proof's amount to the verified figure when they differ.
+  // the proof's amount to the verified figure when they differ. ROUND F (F2):
+  // when the approver linked an open charge, persist THAT linkage too — the
+  // unallocated-payments queue distinguishes "tied to an obligation" from
+  // "money with no obligation attached" by this field.
   await ctx.db.patch(proofId as any, {
     ledgerEntryId: String(ledgerEntryId),
+    ...(opts.serviceChargeId ? { linkedChargeId: String(opts.serviceChargeId) } : {}),
     ...(opts.confirmedAmount !== undefined && Math.abs(opts.confirmedAmount - claimed) > 0.01
       ? { amount }
       : {}),

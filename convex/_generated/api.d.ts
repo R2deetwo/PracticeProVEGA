@@ -52,6 +52,7 @@ import type * as paystack from "../paystack.js";
 import type * as portalSecurity from "../portalSecurity.js";
 import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
+import type * as reconciliationWorkflow from "../reconciliationWorkflow.js";
 import type * as propertyRelationships from "../propertyRelationships.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushNotificationsNode from "../pushNotificationsNode.js";
@@ -132,6 +133,7 @@ declare const fullApi: ApiFromModules<{
   portalSecurity: typeof portalSecurity;
   portals: typeof portals;
   proactive: typeof proactive;
+  reconciliationWorkflow: typeof reconciliationWorkflow;
   propertyRelationships: typeof propertyRelationships;
   pushNotifications: typeof pushNotifications;
   pushNotificationsNode: typeof pushNotificationsNode;

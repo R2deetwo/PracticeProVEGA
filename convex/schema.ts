@@ -1488,6 +1488,12 @@ export default defineSchema({
     // their transaction rows (legacy manual patches pre-Round-B). Reported
     // for staff follow-up; does not fail the run by itself.
     balanceDriftWallets: v.number(),
+    // ─── ROUND F (Wave F2): the unallocated work queues, reported by the
+    // daily checker so the reconciliation console always has the current
+    // shape even before anyone opens it. INFORMATIONAL — a non-empty queue
+    // is work waiting, not a broken invariant (that's what ok means).
+    unmatchedSettledProofs: v.optional(v.number()),
+    creditsWaiting: v.optional(v.number()),
     // Pre-Round-B rows lacking the new links — expected on upgraded data,
     // informational only.
     legacyWalletDebits: v.number(),
@@ -1496,6 +1502,45 @@ export default defineSchema({
     details: v.optional(v.any()),            // bounded sample of offending row ids per check
   })
     .index("by_ran_at", ["ranAt"]),
+
+  // ─── ROUND F (Wave F2): reconciliation matches ───────────────────────
+  // One row per staff match action: a settled payment proof (money already
+  // booked to the ledger by the H1 settlement) tied to the service charge it
+  // was paying. The match moves NO money — the proof's ledger row already
+  // booked it; the match only settles the CHARGE's state (the same state
+  // math the settlement-time linkage uses) and records the join.
+  //
+  // Reversible by design: reverseMatch restores the charge to the exact
+  // pre-match state from the stored before-snapshot (the same forensic
+  // pattern as reinstateLedgerEntry — faithful, never guessed) and re-opens
+  // the proof in the unallocated queue. Every action is audited in
+  // financial_audit_log; the money itself is never rewritten.
+  reconciliation_matches: defineTable({
+    firmId: v.string(),
+    // The settled proof (its ledger row booked the money at settlement).
+    proofId: v.string(),
+    ledgerEntryId: v.optional(v.string()),
+    matchedAmount: v.number(),
+    // The obligation the payment was matched to.
+    chargeId: v.string(),
+    // Full pre-match snapshot of the charge row — the reversal restores
+    // from THIS, exactly (no recomputation, no drift).
+    chargeBefore: v.optional(v.any()),
+    // Who/when/why (the reason is REQUIRED — the same audit contract as
+    // every financial lifecycle action).
+    matchedBy: v.optional(v.string()),
+    matchedAt: v.number(),
+    reason: v.string(),
+    // 'active' | 'reversed'
+    status: v.string(),
+    reversedAt: v.optional(v.number()),
+    reversedBy: v.optional(v.string()),
+    reversalReason: v.optional(v.string()),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_proof", ["proofId"])
+    .index("by_charge", ["chargeId"])
+    .index("by_status", ["status"]),
 
   service_charges: defineTable({
     firmId: v.string(),
@@ -2196,6 +2241,14 @@ export default defineSchema({
     // the reconciliation checker verifies every approved proof with money
     // carries this link and that the ledger row still exists.
     ledgerEntryId: v.optional(v.string()),
+    // ─── ROUND F (Wave F2, reconciliation workflow): the service charge this
+    // settled proof was LINKED to at settlement time (the approver's optional
+    // open-charge pick) — persisted so the unallocated-payments queue can
+    // distinguish "payment already tied to an obligation" from "money
+    // received with no obligation attached". Absent on historical proofs:
+    // they surface in the queue until staff match them explicitly (the
+    // match action is the audited, reversible way to tie them).
+    linkedChargeId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

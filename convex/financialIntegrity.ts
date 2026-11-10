@@ -690,6 +690,38 @@ async function reconcileFinancialRecords(ctx: any) {
     }
   }
 
+  // ── ROUND F (Wave F2): the unallocated work queues (INFORMATIONAL — work
+  //    waiting, never a broken invariant; `ok` answers "is every money
+  //    movement booked exactly once", which is a different question than
+  //    "is every booked payment tied to its obligation").
+  const unmatchedSettledProofs: string[] = [];
+  const activeMatchedProofs = new Set<string>();
+  const matchRows = (await ctx.db.query("reconciliation_matches").take(5000)) as any[];
+  for (const m of matchRows || []) {
+    if (String((m as any).status ?? "") === "active") {
+      activeMatchedProofs.add(String((m as any).proofId));
+    }
+  }
+  for (const proof of proofs as any[]) {
+    const settled = proof.status === "approved" || proof.status === "verified";
+    if (!settled) continue;
+    const hasMoney = typeof proof.amount === "number" && proof.amount > 0;
+    if (!hasMoney) continue;
+    if (proof.linkedChargeId) continue;
+    if (activeMatchedProofs.has(String(proof._id))) continue;
+    unmatchedSettledProofs.push(String(proof._id));
+  }
+  let creditsWaitingCount = 0;
+  let creditsWaitingTotal = 0;
+  const chargeRows = (await ctx.db.query("service_charges").take(5000)) as any[];
+  for (const c of chargeRows || []) {
+    const credit = Number((c as any).creditCarriedForward) || 0;
+    if (credit > 0) {
+      creditsWaitingCount++;
+      creditsWaitingTotal += roundMoney(credit);
+    }
+  }
+
   const ok =
     walletDebitsWithoutLedger.length === 0 &&
     approvedProofsUnbooked.length === 0 &&
@@ -706,6 +738,9 @@ async function reconcileFinancialRecords(ctx: any) {
     balanceDriftWallets: balanceDriftWallets.length,
     legacyWalletDebits: legacyWalletDebits.length,
     legacyApprovedProofs: legacyApprovedProofs.length,
+    unmatchedSettledProofs: unmatchedSettledProofs.length,
+    creditsWaiting: creditsWaitingCount,
+    creditsWaitingTotal: roundMoney(creditsWaitingTotal),
     firmsAffected: Array.from(firmsAffected).slice(0, 50),
     details: {
       walletDebitsWithoutLedger: walletDebitsWithoutLedger.slice(0, 20),
@@ -713,6 +748,7 @@ async function reconcileFinancialRecords(ctx: any) {
       invalidAmountRows: invalidAmountRows.slice(0, 20),
       duplicateReceiptNumbers: duplicateReceiptNumbers.slice(0, 20),
       balanceDriftWallets: balanceDriftWallets.slice(0, 20),
+      unmatchedSettledProofs: unmatchedSettledProofs.slice(0, 20),
     },
     ranAt: Date.now(),
   };
@@ -728,12 +764,14 @@ async function reconcileFinancialRecords(ctx: any) {
     balanceDriftWallets: summary.balanceDriftWallets,
     legacyWalletDebits: summary.legacyWalletDebits,
     legacyApprovedProofs: summary.legacyApprovedProofs,
+    unmatchedSettledProofs: summary.unmatchedSettledProofs,
+    creditsWaiting: summary.creditsWaiting,
     firmsAffected: summary.firmsAffected,
     details: summary.details,
   });
 
   console.log(
-    `[reconciliation] ${summary.ok ? "OK" : "DISCREPANCIES"} — walletDebitsWithoutLedger=${summary.walletDebitsWithoutLedger} approvedProofsUnbooked=${summary.approvedProofsUnbooked} invalidAmounts=${summary.invalidAmountRows} dupReceipts=${summary.duplicateReceiptNumbers} drift=${summary.balanceDriftWallets} legacy(wallet/proofs)=${summary.legacyWalletDebits}/${summary.legacyApprovedProofs}`
+    `[reconciliation] ${summary.ok ? "OK" : "DISCREPANCIES"} — walletDebitsWithoutLedger=${summary.walletDebitsWithoutLedger} approvedProofsUnbooked=${summary.approvedProofsUnbooked} invalidAmounts=${summary.invalidAmountRows} dupReceipts=${summary.duplicateReceiptNumbers} drift=${summary.balanceDriftWallets} legacy(wallet/proofs)=${summary.legacyWalletDebits}/${summary.legacyApprovedProofs} queue(unmatchedProofs/credits)=${summary.unmatchedSettledProofs}/${summary.creditsWaiting}`
   );
   return summary;
 }

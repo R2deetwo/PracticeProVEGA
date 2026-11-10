@@ -30,6 +30,8 @@ import ResidentDirectory from './atrium/ResidentDirectory';
 // ROUND F (Wave F1): the financial overview console + the resident bill statement panel.
 import FinancialOverview from './atrium/FinancialOverview';
 import { ResidentBillPanel } from './atrium/ResidentBillPanel';
+// ROUND F (Wave F2): the interactive reconciliation workflow console.
+import ReconciliationConsole from './atrium/ReconciliationConsole';
 // MESSAGES OVERHAUL: the unified composer is hosted here so the Service
 // Charges tab's per-charge WhatsApp button opens it (prefilled) — one
 // compose experience across the whole app.
@@ -354,7 +356,7 @@ export const BillingView: React.FC = () => {
     type ProductScope = 'legal' | 'property' | 'combined';
     const [productScope, setProductScope] = useState<ProductScope>(isUnified ? 'combined' : isProperty ? 'property' : 'legal');
 
-    type FinancialsTab = 'overview' | 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust' | 'maintenance' | 'residents';
+    type FinancialsTab = 'overview' | 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'reconcile' | 'monitor' | 'trust' | 'maintenance' | 'residents';
     const [activeTab, setActiveTab] = useState<FinancialsTab>(() => {
         const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
         return t || 'invoices';
@@ -381,6 +383,9 @@ export const BillingView: React.FC = () => {
             { id: 'vacancies', label: 'Vacancies', productTag: 'Property' },
             { id: 'automations', label: 'Reminder Rules', productTag: 'Property' },
             { id: 'inbox', label: 'Payment Proofs', productTag: 'Property' },
+            // ROUND F (Wave F2): the reconciliation workflow — the unallocated
+            // queue, match-to-obligation, authorized reversal, checker history.
+            { id: 'reconcile', label: 'Reconciliation', productTag: 'Property' },
             // ROUND D (D7): the firm-wide maintenance queue — the staff triage
             // surface that never existed (getMaintenanceTicketsByFirm was
             // orphaned; ticket actions only lived inside message threads).
@@ -595,6 +600,9 @@ export const BillingView: React.FC = () => {
                     </div>
                 )}
 
+                {activeTab === 'reconcile' && (isProperty || isUnified) && productScope !== 'legal' && (
+                    <ReconciliationConsole firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} />
+                )}
                 {activeTab === 'vacancies' && (isProperty || isUnified) && productScope !== 'legal' && (
                     <div className="min-h-[500px]">
                         <VacancyPipeline />
