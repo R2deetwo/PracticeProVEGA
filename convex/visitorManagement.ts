@@ -1135,13 +1135,20 @@ export const getSentrySecurityReport = mutation({
       .withIndex("by_firm", (q: any) => q.eq("firmId", user.firmId))
       .collect();
     // by_firm only covers rows written WITH a firmId (denied/attempt rows
-    // are firm-agnostic by design) — sweep the type index too and merge.
+    // are firm-agnostic by design) — sweep the type indexes too and merge.
+    // ROUND SENTRY fix: throttle rows (rate_limit_exceeded) carry no firmId
+    // either, so they need their OWN type sweep or the "throttled" count
+    // silently reads zero in production.
     const globalish: any[] = (await ctx.db
       .query("securityEvents")
       .withIndex("by_type", (q: any) => q.eq("eventType", "sentry_denied_entry"))
       .collect()).concat(
       await ctx.db.query("securityEvents")
         .withIndex("by_type", (q: any) => q.eq("eventType", "sentry_pass_attempt_rejected"))
+        .collect(),
+    ).concat(
+      await ctx.db.query("securityEvents")
+        .withIndex("by_type", (q: any) => q.eq("eventType", "rate_limit_exceeded"))
         .collect(),
     );
 

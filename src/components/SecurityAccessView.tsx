@@ -16,6 +16,7 @@
  */
 import React from 'react';
 import { Shield, KeyRound, Eye, FileCheck, Lock, Server, Smartphone, Wifi } from 'lucide-react';
+import { SentryReportsPanel } from './settings/SentryReportsPanel';
 
 interface SecurityAccessViewProps {
   onBack?: () => void;
@@ -315,6 +316,13 @@ const SecurityAccessView: React.FC<SecurityAccessViewProps> = ({ onBack }) => {
                 scoped to the firm, never shared across tenants.
               </p>
             </div>
+          </div>
+
+          {/* ROUND SENTRY 5: the live §5 report suite (daily / on-site /
+              historical / security). Each pull is authenticated and
+              audit-logged before the data is returned. */}
+          <div className="mt-8">
+            <SentryReportsPanel />
           </div>
         </div>
       </div>
