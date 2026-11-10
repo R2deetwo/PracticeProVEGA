@@ -297,7 +297,6 @@ export const diagnoseConnectivity = mutation({
   }
 });
 
-
 export const repairAccountConnection = mutation({
   args: { sessionToken: v.optional(v.string()), email: v.string(), targetFirmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -1078,75 +1077,76 @@ export const getChatMessages = query({
 });
 
 /**
- * PHASE 2+3: Firm Activity — paginated log. NOT loaded on app start.
- * Uses .filter() safely since by_firm on firmActivity may not be deployed yet.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getFirmActivity removed: UNGATED cross-firm read — caller-supplied firmId, no session, no binding; returned any firm's activity log. Zero product callers (the live surfaces read firmActivity through their own gated queries: portals.ts / founderMetrics).
  */
-export const getFirmActivity = query({
-  args: {
-    firmId: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    try {
-      if (!args.firmId) return [];
-      const limit = args.limit ?? 50;
-
-      // by_firm serves this directly (the index is deployed — portals.ts
-      // has read firmActivity through it for weeks).
-      const results = await ctx.db
-        .query("firmActivity")
-        .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-        .order("desc")
-        .take(limit);
-
-      return results;
-    } catch (e) {
-      console.error("getFirmActivity error:", e);
-      return [];
-    }
-  },
-});
 
 /**
  * PHASE 2+3: Research Messages — loaded per notebook, NOT globally.
  * This prevents all chat history from all research notebooks being loaded.
+ *
+ * ROUND D (D8): was an UNAUTHENTICATED read — a bare notebookId, so anyone
+ * who knew/guessed a notebook id could read any firm's research chat.
+ * Retrofitted with the Round 8 pattern (requireStaffCaller + assertSameFirm
+ * bound to the NOTEBOOK's own firmId); ResearchView passes the bearer +
+ * email. Unbound legacy notebooks (firmId == null) return [] — they are
+ * already invisible to the firm-scoped bootstrap (getFirmData fetchByFirm).
+ * Auth failures now THROW (the D6 convention) instead of silently [].
  */
 export const getResearchMessages = query({
   args: {
     notebookId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    try {
-      if (!args.notebookId) return [];
-      return await ctx.db
-        .query("researchMessages")
-        .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
-        .take(500);
-    } catch (e) {
-      console.error("getResearchMessages error:", e);
-      return [];
-    }
+    if (!args.notebookId) return [];
+    const caller = await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
+    const notebook: any = await ctx.db.get(args.notebookId as any);
+    if (!notebook) return [];
+    const nbFirmId: string | null = notebook.firmId ?? null;
+    if (!nbFirmId) return [];
+    assertSameFirm(caller, nbFirmId);
+    return await ctx.db
+      .query("researchMessages")
+      .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
+      .take(500);
   },
 });
 
 /**
  * PHASE 2+3: Research Analysis Results — loaded per notebook.
+ *
+ * ROUND D (D8): same retrofit as getResearchMessages — was an
+ * UNAUTHENTICATED read (bare notebookId); now requireStaffCaller +
+ * assertSameFirm bound to the notebook's own firmId, bearer passed by
+ * ResearchView. Auth failures THROW (the D6 convention).
  */
 export const getResearchAnalysisResults = query({
   args: {
     notebookId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    try {
-      if (!args.notebookId) return [];
-      return await ctx.db
-        .query("researchAnalysisResults")
-        .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
-        .take(200);
-    } catch (e) {
-      console.error("getResearchAnalysisResults error:", e);
-      return [];
-    }
+    if (!args.notebookId) return [];
+    const caller = await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+    });
+    const notebook: any = await ctx.db.get(args.notebookId as any);
+    if (!notebook) return [];
+    const nbFirmId: string | null = notebook.firmId ?? null;
+    if (!nbFirmId) return [];
+    assertSameFirm(caller, nbFirmId);
+    return await ctx.db
+      .query("researchAnalysisResults")
+      .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
+      .take(200);
   },
 });
 
@@ -1180,18 +1180,11 @@ export const getDocumentContent = query({
   },
 });
 
-export const getResearchSourceContent = query({
-  args: { sourceId: v.string(), firmId: v.string() },
-  handler: async (ctx, args) => {
-    const src: any = await ctx.db.get(args.sourceId as any);
-    if (!src) return null;
-    if (src.firmId !== args.firmId) {
-      console.warn(`[getResearchSourceContent] SECURITY ALERT: Cross-firm access blocked for ${args.sourceId} by ${args.firmId}`);
-      return null;
-    }
-    return src;
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getResearchSourceContent removed: UNGATED on-demand read — the only 'gate' was knowing the source's firmId (caller-supplied); no session anywhere. Zero product callers (the wired research surface loads sources via getFirmData and the now-gated research reads).
+ */
 
 // --- CORE QUERIES ---
 
@@ -1322,121 +1315,25 @@ export const getUserForAuth = internalQuery({
   },
 });
 
-export const dumpAll = query({
-  args: {},
-  handler: async (ctx) => {
-    // SECURE: Endpoint disabled. Data export should be done via proper scoped user/firm exports.
-    return { users: [], firms: [] };
-  }
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * dumpAll removed: the original full-database dump, already neutered to a no-op stub ({users:[],firms:[]}) in a prior round but still a PUBLIC endpoint. Zero product callers — the only references were the dead scripts/checkDB*.ts probes against a long-retired Convex deployment (keen-jaguar-204; deleted with this round). A public no-op is pure attack surface; exports go through scoped user/firm surfaces.
+ */
 
 /**
- * findDuplicateEmails — DIAGNOSTIC QUERY (admin only)
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
  *
- * Returns every email (tokenIdentifier) that has MORE THAN ONE user record.
- * Used to identify the data corruption that caused the "residents see admin
- * dashboard" bug: the same email existed as BOTH an Admin record AND a Tenant
- * record, and getUser() was returning whichever came first in the index.
- *
- * The query also flags each duplicate group with a `conflict` field describing
- * the combination of roles present (e.g. "Admin+Tenant", "Admin+Client",
- * "Lawyer+Tenant") so the admin can prioritize cleanup.
- *
- * Returns: Array of {
- *   email: string,
- *   count: number,
- *   roles: string[],                    // unique roles across all records
- *   conflict: string,                   // joined role names for quick scan
- *   records: Array<{ id, name, role, firmId, isVerified, product }>
- * }
- *
- * NOTE: This query is intentionally bounded by .take(2000) — sufficient for
- * thousands of users. If the user count exceeds this, increase the limit or
- * paginate. Disabled for non-admin callers (returns empty array).
+ * findDuplicateEmails removed — THE SPOOFABLE CENSUS. Its 'admin only' gate read args.requesterRole, a CALLER-SUPPLIED string — and OMITTING the arg entirely PASSED the gate, so any unauthenticated caller could run a full user census (up to 2000 users: emails, roles, firmIds, names, verification state, product). It was a one-time diagnostic for the 2026 duplicate-email data corruption (long resolved); zero product callers. Removed with the class, not re-gated: the diagnostic is obsolete and a census has no legitimate unauthenticated use.
  */
-export const findDuplicateEmails = query({
-  args: { requesterRole: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    // Only admins should be able to run this diagnostic. If the frontend
-    // forgets to pass the role, return empty (defensive).
-    if (args.requesterRole && args.requesterRole !== "Admin") return [];
-
-    const allUsers = await ctx.db.query("users").take(2000);
-
-    // Group by lowercased tokenIdentifier (email)
-    const groups = new Map<string, any[]>();
-    for (const u of allUsers as any[]) {
-      const email = (u.tokenIdentifier || "").toLowerCase().trim();
-      if (!email) continue;
-      if (!groups.has(email)) groups.set(email, []);
-      groups.get(email)!.push(u);
-    }
-
-    const duplicates: Array<{
-      email: string;
-      count: number;
-      roles: string[];
-      conflict: string;
-      records: Array<{ id: string; name: string; role: string; firmId: string | null; isVerified: boolean; product: string | null }>;
-    }> = [];
-
-    for (const [email, records] of groups.entries()) {
-      if (records.length < 2) continue;
-      const roles = Array.from(new Set(records.map((r) => r.role || "(none)")));
-      duplicates.push({
-        email,
-        count: records.length,
-        roles,
-        conflict: roles.join("+"),
-        records: records.map((r) => ({
-          id: String(r._id),
-          name: r.name || "",
-          role: r.role || "(none)",
-          firmId: r.firmId || null,
-          isVerified: !!r.isVerified,
-          product: r.product || null,
-        })),
-      });
-    }
-
-    // Sort: biggest conflict groups first, then alphabetically by email
-    duplicates.sort((a, b) => b.count - a.count || a.email.localeCompare(b.email));
-    return duplicates;
-  }
-});
 
 // --- MUTATIONS ---
 
-export const checkIncompleteRegistration = query({
-  args: { email: v.string() },
-  handler: async (ctx, args) => {
-    const token = args.email.toLowerCase().trim();
-    if (!token) return null;
-
-    // 500-cap audit: indexed lookup (take(500)+find broke past the 500th user)
-    const user = await findUserByTokenUncapped(ctx, token);
-
-    // Case 1: Fully verified account with a firm — already registered
-    if (user && user.isVerified && user.firmId) {
-      return {
-        alreadyVerified: true,
-        product: user.product || 'legal',
-      };
-    }
-
-    // Case 2: Incomplete registration — unverified, no firmId
-    if (user && !user.isVerified && !user.firmId) {
-      return {
-        isIncomplete: true,
-        email: user.email,
-        name: user.name,
-        product: user.product || 'legal',
-      };
-    }
-
-    return null;
-  }
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * checkIncompleteRegistration removed: public email-status lookup with no session — an enumeration oracle (reveals whether an email is registered and its firm state). Zero product callers; the live signup flow uses its own checks.
+ */
 
 // --- HELPER INTERNAL MUTATIONS (used by actions that can't write DB directly) ---
 
@@ -2359,7 +2256,6 @@ export const manageBankAccount = mutation({
   },
 });
 
-
 /**
  * query: getUserApiKey
  * Retrieves the user's stored Gemini API key from their user record.
@@ -3212,37 +3108,11 @@ export const joinFirm = mutation({
   }
 });
 
-export const removeUserFromFirm = mutation({
-  args: { sessionToken: v.optional(v.string()), userId: v.id("users"), firmId: v.string() },
-  handler: async (ctx, args) => {
-    // RLS: Require admin — only firm admins can remove users.
-    // R16: the previous call passed NO identity (requireAdmin(ctx, undefined))
-    // which always threw under the anonymous fallback — this path was dead.
-    // Resolve the admin from the bearer session and scope to the firm.
-    const auth = await requireAdmin(ctx, undefined, args.sessionToken);
-    if (auth.firmId !== args.firmId) {
-      throw new Error("Unauthorized. You can only remove users from your own firm.");
-    }
-    const user = await ctx.db.get(args.userId) as any;
-    if (!user) return;
-
-    // 1. Remove the firm from their joined list
-    const joinedIds = (user.joinedFirmIds || []).filter((id: string) => id !== args.firmId);
-    
-    // 2. If this was their active firm, switch them to another firm in their list (or null)
-    let newFirmId = user.firmId;
-    if (user.firmId === args.firmId) {
-       newFirmId = joinedIds.length > 0 ? joinedIds[0] : null;
-    }
-
-    await ctx.db.patch(args.userId, { 
-      firmId: newFirmId, 
-      joinedFirmIds: joinedIds,
-      // If we remove them from their last firm, optionally wipe onboarding but usually not
-      onboardingCompleted: newFirmId ? true : false
-    });
-  }
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * removeUserFromFirm removed: dead twin of the R77-wired deactivateTeamMember/reactivateTeamMember path (FirmSettings). Zero product callers.
+ */
 
 // ─── TRANSACTIONAL FIRM-USER REMOVAL (Phase 3, data integrity) ───────────────
 /**
@@ -3379,22 +3249,10 @@ async function performFirmUserRemoval(
 }
 
 /**
- * removeFirmUserAndCleanup — public, transactional user removal.
- * Replaces the old removeUserFromFirm (which had no cleanup, no guards, and
- * zero callers). Also invoked by deleteItem when table === 'users', so every
- * existing UI path (FirmSettings, SettingsView) gets the safe semantics.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * removeFirmUserAndCleanup removed: dead twin of the same removal family (superseded by the R77 session-gated paths). Zero product callers.
  */
-export const removeFirmUserAndCleanup = mutation({
-  args: {
-    userId: v.id("users"),
-    sessionToken: v.optional(v.string()),
-    firmId: v.string(),
-    userEmail: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    return await performFirmUserRemoval(ctx, args);
-  },
-});
 
 export const updateFirmSettings = mutation({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
@@ -3479,7 +3337,6 @@ export const getJoinedFirms = query({
     return results;
   }
 });
-
 
 /**
  * deleteAccount (NUCLEAR IDENTITY DELETE)
@@ -3636,7 +3493,6 @@ export const deleteFirm = mutation({
     return { success: true };
   }
 });
-
 
 // --- CONSENT AUDIT LOG ---
 // ISO 27001 / NDPA 2023 — Records explicit user consent events to the database
@@ -4970,7 +4826,6 @@ export const updateItem = mutation({
   },
 });
 
-
 /**
  * markNotificationsAsRead — Marks one or more notifications as read by
  * setting isRead=true on each. Accepts an array of notification IDs
@@ -5091,49 +4946,10 @@ export const clearAllNotifications = mutation({
 });
 
 /**
- * markMessagingNotificationsRead — BADGE FIX (2026-09-14).
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
  *
- * PROBLEM: the sidebar/bottom-nav Messages badge counts notifications rows
- * where link.view === 'messaging'. Those rows are created by notifyFirmAdmins
- * (portal messages, tickets, service requests) with NO conversation link, so
- * opening a thread in MessagesView never marked them read — a user with 24
- * opened messages kept a "24" badge forever (only the bell's "Mark all read"
- * could clear it). Opening the Messages page IS viewing those messages: mark
- * every messaging-scoped notification for this user as read.
+ * markMessagingNotificationsRead removed: gated orphan (requireFirmUser session) with zero product callers — no UI ever marked messaging notifications read through it.
  */
-export const markMessagingNotificationsRead = mutation({
-  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    const userIdStr = String(user._id);
-    const userLegacyId = String((user as any).id || '');
-    const now = new Date().toISOString();
-
-    let updated = 0;
-    const candidateSets = await Promise.all([
-      ctx.db.query("notifications").withIndex("by_user", (q: any) => q.eq("userId", userIdStr)).take(500),
-      userLegacyId
-        ? ctx.db.query("notifications").withIndex("by_user", (q: any) => q.eq("userId", userLegacyId)).take(500)
-        : Promise.resolve([] as any[]),
-    ]);
-
-    const seen = new Set<string>();
-    for (const set of candidateSets) {
-      for (const n of set as any[]) {
-        const id = String(n._id);
-        if (seen.has(id)) continue;
-        seen.add(id);
-        if (n.isRead) continue;
-        if (n.link?.view !== 'messaging') continue;
-        try {
-          await ctx.db.patch(n._id, { isRead: true, updatedAt: now } as any);
-          updated++;
-        } catch {}
-      }
-    }
-    return { success: true, updated };
-  },
-});
 
 /**
  * markConversationNotificationsRead — BADGE FIX companion.
@@ -5217,7 +5033,6 @@ export const pruneReadNotifications = internalMutation({
     return { success: true, scanned: stale.length, deleted };
   },
 });
-
 
 /**
  * updateTaskStatus — Dedicated mutation for updating a task's status.
@@ -5990,7 +5805,6 @@ export const reassignMattersFromContact = mutation({
   },
 });
 
-
 export const generateUploadUrl = mutation({
   args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -6003,7 +5817,6 @@ export const getFileUrl = query({
   args: { storageId: v.string() },
   handler: async (ctx, args) => await ctx.storage.getUrl(args.storageId),
 });
-
 
 /**
  * purgeFirmData - Wipes all records for a firm.
@@ -6755,7 +6568,6 @@ export const deleteAloaConversation = mutation({
   },
 });
 
-
 export const markAloaActionCompleted = mutation({
   args: { sessionToken: v.optional(v.string()), messageId: v.id("aloaMessages"), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -6787,7 +6599,6 @@ export const deleteMatterCascade = mutation({
     }
     const { matterId, firmId } = args;
     const results: Record<string, number> = {};
-
 
     // 0. Fetch the matter itself
     const matter = await ctx.db.get(matterId as Id<"matters">);
@@ -6849,9 +6660,6 @@ export const deleteMatterCascade = mutation({
   },
 });
 
-
-
-
 export const deletePropertyCascade = mutation({
   args: { sessionToken: v.optional(v.string()), propertyId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -6910,70 +6718,10 @@ export const deletePropertyCascade = mutation({
 });
 
 /**
- * ISO 27001 COMPLIANCE: Contact Cascade Deletion
- * Removes all PII and associated operational data when a contact is removed.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * deleteContactCascade removed: gated orphan (admin-gated cascade) with zero product callers — the live contact-delete path is the generic surface; the cascade safety only existed in a function nobody could reach.
  */
-export const deleteContactCascade = mutation({
-  args: { sessionToken: v.optional(v.string()), contactId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    // SECURITY: Require admin auth and verify firm ownership.
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
-    if (!auth.firmId || auth.firmId !== args.firmId) {
-      throw new Error("Unauthorized. You can only delete contacts in your own firm.");
-    }
-    const { contactId, firmId } = args;
-    const results: Record<string, number> = { properties: 0, matters: 0, matterOperationalData: 0 };
-
-    // 1. Delete associated standalone properties
-    const properties = await ctx.db
-      .query("properties")
-      .withIndex("by_contact", (q) => q.eq("contactId", contactId))
-      .take(2000);
-    
-    for (const prop of properties) {
-      await ctx.db.delete(prop._id);
-    }
-    results["properties"] = properties.length;
-
-    // 2. Find and delete associated matters and their cascades
-    const matters = await ctx.db
-      .query("matters")
-      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .filter((q) => q.eq(q.field("clientId"), contactId))
-      .take(2000);
-
-    const tablesToCascade = ["tasks", "documents", "events", "timeEntries", "expenses", "clientMessages", "notePages"];
-
-    for (const matter of matters) {
-        // Wipe operational data for this matter
-        for (const table of tablesToCascade) {
-            const items = await ctx.db
-                .query(table as any)
-                .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-                .take(2000);
-            
-            const toDelete = items.filter((i: any) => {
-                const mId = i.matterId || i.matter?.id || i.matter;
-                return mId === matter._id;
-            });
-
-            for (const item of toDelete) {
-                await ctx.db.delete(item._id);
-                results["matterOperationalData"]++;
-            }
-        }
-        
-        // Delete the matter itself
-        await ctx.db.delete(matter._id);
-        results["matters"]++;
-    }
-
-    // 3. Delete the contact itself
-    await ctx.db.delete(contactId as any);
-
-    return { success: true, summary: results };
-  },
-});
 
 // ─── ADMIN ACCOUNT RECOVERY TOOL MUTATIONS ────────────────────────────────
 
@@ -7083,7 +6831,6 @@ export const resetWhatsAppQuotaMonthly = internalMutation({
   },
 });
 
-
 /**
  * Add a single unit to a property's embedded units array.
  * Dedicated mutation to avoid the generic updateItem optimistic-update bug
@@ -7189,36 +6936,10 @@ export const setMatterPrivacy = mutation({
 });
 
 /**
- * fixCorporateName — One-time migration to correct the deprecated
- * "LAKE NURE INVESTMENTS LTD" name to "LAKE-NUWA Investment LTD"
- * across all contact records in the firm.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * fixCorporateName removed: one-time data-repair artifact; zero product callers.
  */
-export const fixCorporateName = mutation({
-  args: { sessionToken: v.optional(v.string()), userEmail: v.string() },
-  handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    const contacts = await ctx.db
-      .query("contacts")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-      .take(2000);
-
-    let patched = 0;
-    for (const contact of contacts) {
-      if (
-        contact.name &&
-        /LAKE\s+NURE\s+INVESTMENTS\s+LTD/i.test(contact.name)
-      ) {
-        const corrected = contact.name.replace(
-          /LAKE\s+NURE\s+INVESTMENTS\s+LTD/gi,
-          "LAKE-NUWA Investment LTD"
-        );
-        await ctx.db.patch(contact._id, { name: corrected, updatedAt: new Date().toISOString() });
-        patched++;
-      }
-    }
-    return { success: true, patched };
-  },
-});
 
 /**
  * scanTaskHalfwayReminders — Cron-triggered internal mutation.

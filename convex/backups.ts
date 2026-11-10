@@ -265,7 +265,6 @@ export const runBackup = internalAction({
     const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/[:]/g, ""); // HHMMSS
     const backupKey = `${dateStr}/convex-backup-${timeStr}.json.gz`;
 
-
     // ─── Export each table ──────────────────────────────────────────────
     const exportData: Record<string, any> = {
       _metadata: {
@@ -296,7 +295,6 @@ export const runBackup = internalAction({
     const jsonStr = JSON.stringify(exportData);
     const compressed = await gzip(jsonStr);
     const compressedSize = compressed.byteLength;
-
 
     const results: any = { backupKey, totalDocs, rawBytes: totalBytes, compressedBytes: compressedSize, targets: {} };
 
@@ -422,44 +420,13 @@ export const getOldBackupLogs = internalQuery({
 });
 
 // ─── Manual trigger (for testing) ────────────────────────────────────────
-export const triggerBackupNow = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await ctx.scheduler.runAfter(0, internal.backups.runBackup, {});
-    return { scheduled: true, message: "Backup scheduled. Check Convex logs for progress." };
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * triggerBackupNow + getBackupStatus removed (this record covers both): UNGATED public backup trigger/status with zero product callers — the backup drill is workflow-driven. The internal log helpers remain (out of the D8 public-surface charter).
+ */
 
 // ─── Backup status query ─────────────────────────────────────────────────
-export const getBackupStatus = query({
-  args: {},
-  handler: async (ctx) => {
-    const githubConfigured = getGitHubConfig() !== null;
-    const telegramConfigured = getTelegramConfig() !== null;
-
-    // Get last 10 backup log entries
-    const recentLogs: any[] = await ctx.db
-      .query("backup_log")
-      .withIndex("by_created", (q: any) => q)
-      .order("desc")
-      .take(10);
-
-    return {
-      githubConfigured,
-      telegramConfigured,
-      tableCount: ALL_TABLES.length,
-      recentBackups: recentLogs.map((l: any) => ({
-        target: l.target,
-        backupKey: l.backupKey,
-        success: l.success,
-        sizeBytes: l.sizeBytes,
-        error: l.error,
-        createdAt: l.createdAt,
-        url: l.fileUrl,
-      })),
-    };
-  },
-});
 
 // ─── Internal query: fetch all documents from a table ────────────────────
 export const getAllDocuments = internalQuery({

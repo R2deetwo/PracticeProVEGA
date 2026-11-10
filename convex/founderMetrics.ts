@@ -331,22 +331,10 @@ export const getFounderMetrics = query({
 });
 
 /**
- * mutation: triggerManualRefresh
- * Force-records a system refresh event.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * Seven requireFounder-gated orphans removed (this record covers triggerManualRefresh, recordFounderSignalSeen, cleanupDuplicateBroadcastNotifications, globalSearch, setFeatureFlag, getFeatureFlags, getVisitorAnalytics): all had zero product callers — the Founder App never shipped surfaces for them. The wired founder console functions (getSecurityEventsForAdmin, getAllPresenceForAdmin, the approvals, the metrics feeds) are untouched.
  */
-export const triggerManualRefresh = mutation({
-    args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
-    handler: async (ctx, args) => {
-        await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-        await ctx.db.insert("analytics_events", {
-            firmId: "system",
-            userId: "admin",
-            event: "Manual Refresh Executed",
-            properties: { timestamp: new Date().toISOString() },
-            timestamp: Date.now()
-        });
-    }
-});
 
 /**
  * query: getAllFirmsForAdmin
@@ -752,31 +740,6 @@ export const getFounderAlerts = query({
 });
 
 /**
- * mutation: recordFounderSignalSeen
- * Lightweight marker so the founder's device can dedupe notifications
- * (we store a tiny "lastSeenSignalsAt" per admin in localStorage as well,
- * but this server-side record makes it work across reinstalls).
- */
-export const recordFounderSignalSeen = mutation({
-  args: {
-    sessionToken: v.optional(v.string()),
-    tokenIdentifier: v.string(),
-    signalIds: v.array(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-    await ctx.db.insert("analytics_events", {
-      firmId: "system",
-      userId: "founder",
-      event: "Founder signals acknowledged",
-      properties: { signalIds: args.signalIds, ts: Date.now() },
-      timestamp: Date.now(),
-    });
-    return { success: true };
-  },
-});
-
-/**
  * action: createFounderAccount
  *
  * Creates a new user with role='Founder'. This is the signup flow for
@@ -979,54 +942,6 @@ export const broadcastNotification = action({
     });
 
     return { success: true, recipientCount };
-  },
-});
-
-/**
- * mutation: cleanupDuplicateBroadcastNotifications
- * Removes duplicate broadcast notifications from the DB.
- *
- * When a user has multiple records in the users table (e.g., from
- * joining multiple firms), the old broadcast code created one
- * notification per record — so a user with 6 records saw the same
- * broadcast 6 times. This mutation cleans up those duplicates by
- * keeping only ONE notification per (userId, title, message) combo.
- *
- * SAFE TO RUN: This only affects notifications with type starting
- * 'broadcast_'. Non-broadcast notifications are untouched.
- */
-export const cleanupDuplicateBroadcastNotifications = mutation({
-  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-
-    // Fetch all broadcast notifications
-    // HOTFIX 2026-08-31 (production outage): removed the q.startsWith
-    // server-side pushdown — Convex 1.40.0's FilterBuilder has no
-    // startsWith method (threw "r.startsWith is not a function" on every
-    // call). Filter in JS instead.
-    const allNotes = await ctx.db
-      .query("notifications")
-      .take(5000);
-    const broadcastNotes = allNotes.filter((n: any) =>
-      (typeof n.type === 'string' ? n.type : '').startsWith('broadcast_')
-    );
-
-    // Group by (userId, title, message) — keep the first, delete the rest
-    const seen = new Set<string>();
-    let deleted = 0;
-    for (const note of broadcastNotes) {
-      const key = `${note.userId}|||${note.title || ''}|||${note.message || ''}`;
-      if (seen.has(key)) {
-        // Duplicate — delete it
-        await ctx.db.delete(note._id);
-        deleted++;
-      } else {
-        seen.add(key);
-      }
-    }
-
-    return { success: true, deleted, totalChecked: broadcastNotes.length };
   },
 });
 
@@ -1251,61 +1166,6 @@ export const getAdminActionLog = query({
 });
 
 /**
- * query: globalSearch
- * Global search across firms, users, and properties by email, name, or phone.
- * Returns matching entities with type labels.
- */
-export const globalSearch = query({
-  args: { tokenIdentifier: v.string(), query: v.string(), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-
-    const q = args.query.toLowerCase().trim();
-    if (!q || q.length < 2) return [];
-
-    const [firms, users] = await Promise.all([
-      ctx.db.query("firms").take(500),
-      ctx.db.query("users").take(1000),
-    ]);
-
-    const results: any[] = [];
-
-    // Search firms
-    firms.forEach((f: any) => {
-      const name = (f.name || '').toLowerCase();
-      const inviteCode = (f.inviteCode || '').toLowerCase();
-      if (name.includes(q) || inviteCode.includes(q)) {
-        results.push({
-          type: 'Firm',
-          id: f._id,
-          name: f.name || 'Unnamed',
-          subtitle: `Plan: ${f.subscriptionPlan || 'Core'} · Product: ${f.product || 'legal'}`,
-          firmId: f._id,
-        });
-      }
-    });
-
-    // Search users
-    users.forEach((u: any) => {
-      const email = (u.email || '').toLowerCase();
-      const name = (u.name || '').toLowerCase();
-      const phone = (u.phone || '').toLowerCase();
-      if (email.includes(q) || name.includes(q) || phone.includes(q)) {
-        results.push({
-          type: 'User',
-          id: u._id,
-          name: u.name || u.email || 'Unknown',
-          subtitle: `${u.email || ''} · Role: ${u.role || 'Unknown'}`,
-          firmId: u.firmId,
-        });
-      }
-    });
-
-    return results.slice(0, 50);
-  },
-});
-
-/**
  * query: getSystemErrors
  * Returns recent system errors from analytics_events — Gemini failures,
  * PDF generation failures, Convex errors.
@@ -1441,71 +1301,6 @@ export const getExportData = query({
         lastActive: lastActivity > 0 ? new Date(lastActivity).toISOString().split('T')[0] : 'Unknown',
       };
     }).sort((a: any, b: any) => b.daysSinceActive - a.daysSinceActive);
-  },
-});
-
-/**
- * mutation: setFeatureFlag
- * Sets a per-firm feature flag (enable/disable a feature for one firm).
- */
-export const setFeatureFlag = mutation({
-  args: {
-    sessionToken: v.optional(v.string()),
-    tokenIdentifier: v.string(),
-    firmId: v.string(),
-    flagKey: v.string(),
-    enabled: v.boolean(),
-  },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-
-    // Check if flag already exists
-    const existing = await ctx.db
-      .query("feature_flags")
-      .withIndex("by_firm_flag", (q: any) => q.eq("firmId", args.firmId).eq("flagKey", args.flagKey))
-      .first();
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        enabled: args.enabled,
-        setBy: args.tokenIdentifier,
-        setAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert("feature_flags", {
-        firmId: args.firmId,
-        flagKey: args.flagKey,
-        enabled: args.enabled,
-        setBy: args.tokenIdentifier,
-        setAt: Date.now(),
-      });
-    }
-
-    // Log the action
-    await ctx.db.insert("analytics_events", {
-      firmId: "system",
-      userId: args.tokenIdentifier,
-      event: `ADMIN ACTION: Feature flag '${args.flagKey}' ${args.enabled ? 'enabled' : 'disabled'} for firm ${args.firmId}`,
-      properties: { firmId: args.firmId, flagKey: args.flagKey, enabled: args.enabled },
-      timestamp: Date.now(),
-    });
-
-    return { success: true };
-  },
-});
-
-/**
- * query: getFeatureFlags
- * Returns all feature flags for a firm.
- */
-export const getFeatureFlags = query({
-  args: { tokenIdentifier: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-    return await ctx.db
-      .query("feature_flags")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-      .take(500);
   },
 });
 
@@ -2441,64 +2236,3 @@ export const getAloaUsageStats = query({
   },
 });
 
-/**
- * query: getVisitorAnalytics
- *
- * Landing page visitor tracking for the founder app.
- * Tracks visits to public routes (landing, privacy, terms, portal logins)
- * so the founder can see landing page effectiveness.
- *
- * Data is collected from analytics_events with event='page_view' that
- * originate from unauthenticated routes.
- */
-export const getVisitorAnalytics = query({
-  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-
-    const now = Date.now();
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
-
-    // Fetch recent page view events
-    const pageViews = await ctx.db
-      .query("analytics_events")
-      .filter((q: any) => q.eq(q.field("event"), "page_view"))
-      .order("desc")
-      .take(5000);
-
-    const viewsToday = pageViews.filter((e: any) => e.timestamp > oneDayAgo).length;
-    const views7d = pageViews.filter((e: any) => e.timestamp > sevenDaysAgo).length;
-    const views30d = pageViews.filter((e: any) => e.timestamp > thirtyDaysAgo).length;
-
-    // Route breakdown
-    const routeCounts: Record<string, number> = {};
-    for (const view of pageViews) {
-      const route = view.properties?.route || '/';
-      routeCounts[route] = (routeCounts[route] || 0) + 1;
-    }
-
-    // Unique visitors (by IP or session ID if available)
-    const uniqueIps = new Set(pageViews.map((e: any) => e.properties?.ip || 'unknown'));
-
-    // Portal login attempts (interest signal)
-    const portalLogins = pageViews.filter((e: any) =>
-      e.properties?.route?.includes('/portal/') && e.properties?.route?.includes('/login')
-    ).length;
-
-    return {
-      totalViews: pageViews.length,
-      viewsToday,
-      views7d,
-      views30d,
-      uniqueVisitors: uniqueIps.size,
-      portalLoginViews: portalLogins,
-      routeBreakdown: Object.entries(routeCounts)
-        .sort((a, b) => b[1] - a[1])
-        .map(([route, count]) => ({ route, count }))
-        .slice(0, 10),
-      conversionSignal: portalLogins > 0 ? Math.round((portalLogins / pageViews.length) * 100) : 0,
-    };
-  },
-});

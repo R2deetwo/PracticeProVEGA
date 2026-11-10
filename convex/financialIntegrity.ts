@@ -375,74 +375,10 @@ export const unmarkLedgerEntryAsTest = mutation({
 });
 
 /**
- * bulkVoidLedgerEntries — the batch path for the testing-cleanup use case.
- * Each entry gets its own audit row (per-record forensics); the shared
- * reason + metadata.bulkCount tie the batch together.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * bulkVoidLedgerEntries + markInvoiceAsTest + getLatestFinancialReconciliation removed (this record covers all three): requireFinancialAuth/staff-gated orphans with zero product callers — the reconciliation console reads through the wired paths.
  */
-export const bulkVoidLedgerEntries = mutation({
-  args: {
-    entryIds: v.array(v.string()),
-    reason: v.string(),
-    mode: v.union(v.literal("void"), v.literal("test")),
-    userEmail: v.optional(v.string()),
-    sessionToken: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const auth = await requireFinancialAuth(ctx, args.userEmail, args.sessionToken);
-    const reason = assertReason(args.reason);
-    if (args.entryIds.length === 0) return { success: true, affected: 0 };
-    if (args.entryIds.length > 500) {
-      throw new Error("Bulk lifecycle actions are capped at 500 records per call.");
-    }
-
-    let affected = 0;
-    const skipped: string[] = [];
-    for (const entryId of args.entryIds) {
-      let entry: any;
-      try {
-        entry = await loadFirmLedgerEntry(ctx, auth.firmId, entryId);
-      } catch {
-        skipped.push(entryId);
-        continue;
-      }
-      if (args.mode === "void") {
-        if (entry.recordStatus === "voided") { skipped.push(entryId); continue; }
-      } else {
-        if (entry.recordStatus !== undefined) { skipped.push(entryId); continue; }
-      }
-
-      const auditId = await writeAudit(ctx, {
-        firmId: auth.firmId,
-        tableName: "ledger_entries",
-        recordId: entryId,
-        action: args.mode === "void" ? "void" : "mark_test",
-        actorEmail: args.userEmail ?? auth.user?.email ?? null,
-        actorUserId: String(auth.user?._id ?? auth.userId ?? ""),
-        reason,
-        beforeState: snapshot(entry),
-        metadata: { bulkCount: args.entryIds.length },
-      });
-
-      if (args.mode === "void") {
-        await ctx.db.patch(entryId as Id<"ledger_entries">, {
-          recordStatus: "voided",
-          voidedAt: Date.now(),
-          voidedByEmail: args.userEmail ?? auth.user?.email ?? null,
-          voidReason: reason,
-          auditId,
-        });
-      } else {
-        await ctx.db.patch(entryId as Id<"ledger_entries">, {
-          recordStatus: "test",
-          auditId,
-        });
-      }
-      affected++;
-    }
-
-    return { success: true, affected, skipped: skipped.length };
-  },
-});
 
 // ─── Invoice lifecycle ──────────────────────────────────────────────────────
 
@@ -551,43 +487,6 @@ export const reinstateInvoice = mutation({
       auditId,
       updatedAt: new Date().toISOString(),
     });
-
-    return { success: true, auditId };
-  },
-});
-
-/**
- * markInvoiceAsTest — quarantine an invoice as test data (same rationale as
- * ledger entries; leaves status untouched so the lifecycle stays inspectable).
- */
-export const markInvoiceAsTest = mutation({
-  args: {
-    invoiceId: v.string(),
-    reason: v.string(),
-    userEmail: v.optional(v.string()),
-    sessionToken: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const auth = await requireFinancialAuth(ctx, args.userEmail, args.sessionToken);
-    const reason = assertReason(args.reason);
-    const { invoice, rowId, recordId } = await loadFirmInvoice(ctx, auth.firmId, args.invoiceId);
-
-    if (invoice.recordStatus !== undefined) {
-      throw new Error(`This invoice already has a lifecycle status ('${invoice.recordStatus}'). Clear it first.`);
-    }
-
-    const auditId = await writeAudit(ctx, {
-      firmId: auth.firmId,
-      tableName: "invoices",
-      recordId,
-      action: "mark_test",
-      actorEmail: args.userEmail ?? auth.user?.email ?? null,
-      actorUserId: String(auth.user?._id ?? auth.userId ?? ""),
-      reason,
-      beforeState: snapshot(invoice),
-    });
-
-    await ctx.db.patch(rowId, { recordStatus: "test", auditId });
 
     return { success: true, auditId };
   },
@@ -862,20 +761,3 @@ export const runFinancialReconciliationNow = mutation({
   },
 });
 
-/** The latest reconciliation report (founder-only; the green/red health
- *  signal for the money system). */
-export const getLatestFinancialReconciliation = query({
-  args: { userEmail: v.optional(v.string()), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
-    if (String((caller as any).role || "") !== "Founder") {
-      throw new Error("Not authorized: reconciliation reports are founder-only.");
-    }
-    const rows = await ctx.db
-      .query("financial_reconciliation_reports")
-      .withIndex("by_ran_at")
-      .order("desc")
-      .take(1);
-    return rows[0] ?? null;
-  },
-});

@@ -25,51 +25,11 @@ import { createUnitResolver, canonicalTenantId } from "./unitLookup";
 // lookups (upsert dedupe) and the client-side bridge "tracked" check key on
 // the existing shapes; consumers resolve all four shapes via unitLookup.
 
-export const reportUnlinkedServiceCharges = query({
-  args: {},
-  handler: async (ctx) => {
-    const rows = await ctx.db.query("service_charges").collect();
-    // Resolver per firm (property list is memoized per resolver instance).
-    const resolvers = new Map<string, ReturnType<typeof createUnitResolver>>();
-    const getResolver = (firmId: string) => {
-      let r = resolvers.get(firmId);
-      if (!r) {
-        r = createUnitResolver(ctx, firmId);
-        resolvers.set(firmId, r);
-      }
-      return r;
-    };
-
-    const report: any[] = [];
-    for (const sc of rows) {
-      if (sc.tenantId) continue; // already linked — not a migration target
-      const ref = await getResolver(sc.firmId).resolveUnit(sc.unitId);
-      if (!ref) {
-        report.push({ id: sc._id, unitId: sc.unitId, firmId: sc.firmId, resolvable: false });
-        continue;
-      }
-      const tenant = await getResolver(sc.firmId).tenantFor(ref);
-      const canonical = canonicalTenantId(tenant);
-      report.push({
-        id: sc._id,
-        unitId: sc.unitId,
-        firmId: sc.firmId,
-        resolvable: true,
-        match: ref.match,
-        unitLabel: ref.label,
-        tenantName: tenant.name,
-        tenantEmail: tenant.email,
-        candidateTenantId: canonical,
-      });
-    }
-    return {
-      totalRows: rows.length,
-      alreadyLinked: rows.length - report.length,
-      unlinked: report.length,
-      detail: report,
-    };
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * Two ungated one-time migration reports removed (this record covers reportUnlinkedServiceCharges, reportNotificationTimestamps): zero product callers; the migrations they reported on are long applied.
+ */
 
 export const backfillServiceChargeTenants = mutation({
   args: { dryRun: v.optional(v.boolean()) },
@@ -161,43 +121,6 @@ function toEpochMsOrNull(value: any, fallback: number | null): number | null {
   }
   return fallback;
 }
-
-export const reportNotificationTimestamps = query({
-  args: {},
-  handler: async (ctx) => {
-    const rows = await ctx.db.query("notifications").collect();
-    let numericRows = 0;
-    let stringRows = 0;
-    let missingTimestamp = 0;
-    let unparseable = 0;
-    const sample: any[] = [];
-    for (const n of rows as any[]) {
-      const ts = n.timestamp;
-      const created = n.createdAt;
-      const updated = n.updatedAt;
-      const hasString = [ts, created, updated].some((x) => typeof x === "string");
-      const allNumeric = [ts, created, updated].every((x) => x == null || typeof x === "number");
-      if (hasString) {
-        stringRows++;
-        // would it parse?
-        const creation = typeof n._creationTime === "number" ? n._creationTime : null;
-        if (toEpochMsOrNull(ts, creation) === null && ts != null) unparseable++;
-        if (sample.length < 50) sample.push({ id: n._id, timestamp: ts, createdAt: created, updatedAt: updated });
-      } else if (allNumeric) {
-        numericRows++;
-      }
-      if (ts == null) missingTimestamp++;
-    }
-    return {
-      totalRows: rows.length,
-      rowsAlreadyNumeric: numericRows,
-      rowsWithStringValues: stringRows,
-      rowsMissingTimestamp: missingTimestamp,
-      unparseableValues: unparseable,
-      stringSample: sample,
-    };
-  },
-});
 
 export const backfillNotificationTimestamps = mutation({
   args: { dryRun: v.optional(v.boolean()), limit: v.optional(v.number()) },

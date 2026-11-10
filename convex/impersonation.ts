@@ -136,31 +136,7 @@ export const verifyImpersonationToken = mutation({
 });
 
 /**
- * Optional: list recent impersonation tokens for a founder (audit log).
- * Founder-only. Returns tokens created in the last 24 hours.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getMyImpersonationHistory removed: founder-gated orphan with zero product callers (the impersonation start/stop paths are live; the history read never got UI).
  */
-export const getMyImpersonationHistory = query({
-  args: {
-    sessionToken: v.optional(v.string()),
-    founderEmail: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.founderEmail, args.sessionToken);
-
-    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-    const tokens = await ctx.db
-      .query("impersonation_tokens")
-      .withIndex("by_founder", (q: any) =>
-        q.eq("founderEmail", args.founderEmail.toLowerCase().trim())
-      )
-      .filter((q: any) => q.gte(q.field("createdAt"), oneDayAgo))
-      .take(100);
-
-    return tokens.map((t: any) => ({
-      targetEmail: t.targetEmail,
-      createdAt: t.createdAt,
-      usedAt: t.usedAt,
-      expiresAt: t.expiresAt,
-    }));
-  },
-});

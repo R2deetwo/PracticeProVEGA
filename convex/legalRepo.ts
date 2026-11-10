@@ -21,29 +21,20 @@ export const getAllModules = query({
     },
 });
 
-export const getModulesByCategory = query({
-    args: { category: v.string() },
-    handler: async (ctx, { category }) => {
-        return await ctx.db
-            .query("legal_modules")
-            .withIndex("by_category", q => q.eq("category", category))
-            .take(100);
-    },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * Two UNGATED reference reads removed (this record covers getModulesByCategory,
+ * getStatutesByModule): zero product callers. getStatuteById was checked for the
+ * same class and KEPT — it is a live internal dependency of searchStatutes
+ * (ctx.runQuery(api.legalRepo.getStatuteById, …) resolves vector-search hits
+ * into full statute records); the convex tsc gate caught the near-miss before
+ * commit and the function is restored below, untouched.
+ */
 
 // ─────────────────────────────────────────────────────────────────────────────
 // STATUTES & SEMANTIC SEARCH
 // ─────────────────────────────────────────────────────────────────────────────
-
-export const getStatutesByModule = query({
-    args: { moduleKey: v.string() },
-    handler: async (ctx, { moduleKey }) => {
-        return await ctx.db
-            .query("statutes")
-            .withIndex("by_moduleKey", q => q.eq("moduleKey", moduleKey))
-            .take(500);
-    },
-});
 
 export const getStatuteById = query({
     args: { id: v.id("statutes") },

@@ -194,32 +194,8 @@ export const createChargeType = mutation({
   },
 });
 
-/** Archive (soft-delete) a custom charge type. System types cannot be removed. */
-export const archiveChargeType = mutation({
-  args: {
-    sessionToken: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-    firmId: v.string(),
-    key: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const caller = await requireStaffCaller(ctx, {
-      sessionToken: args.sessionToken,
-      userEmail: args.userEmail,
-      firmId: args.firmId,
-    });
-    const firmId = caller.firmId as string;
-
-    const existing = await ctx.db
-      .query("charge_types")
-      .withIndex("by_firm_key", (q) => q.eq("firmId", firmId).eq("key", args.key))
-      .first();
-    if (!existing) throw new Error("Charge type not found.");
-    if (existing.isSystem) throw new Error("System charge types cannot be archived.");
-
-    // Archiving keeps historical ledger rows readable (label resolution
-    // falls back to the raw key) but blocks new charges of this type.
-    await ctx.db.patch(existing._id, { status: "archived" });
-    return { ok: true };
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * archiveChargeType removed: staff-gated orphan with zero product callers (the console edits charge types through the wired paths).
+ */

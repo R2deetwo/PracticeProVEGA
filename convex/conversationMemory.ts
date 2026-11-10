@@ -27,53 +27,11 @@ import { BACKGROUND_MODEL } from "./aiModels";
 
 // ─── QUERIES ────────────────────────────────────────────────────────────────
 
-/** Get all summaries for a user, newest first. */
-export const getSummaries = query({
-  args: {
-    firmId: v.string(),
-    userId: v.string(),
-    limit: v.optional(v.number()),
-    sessionToken: v.optional(v.string()),
-  },
-  handler: async (ctx, { firmId, userId, limit, sessionToken }) => {
-    // R16b: session-verified — the caller must belong to the firm and can
-    // only read their OWN memory rows (was: caller-supplied firmId+userId).
-    const caller = await resolveCaller(ctx, { sessionToken });
-    assertSameFirm(caller, firmId);
-    return await ctx.db
-      .query("conversation_summaries")
-      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", String(caller._id)))
-      .order("desc")
-      .take(limit ?? 20);
-  },
-});
-
-/** Get recent summaries for context injection (last 5 conversations). */
-export const getRecentContextSummaries = query({
-  args: {
-    firmId: v.string(),
-    userId: v.string(),
-    sessionToken: v.optional(v.string()),
-  },
-  handler: async (ctx, { firmId, userId, sessionToken }) => {
-    // R16b: session-verified own-data read (was caller-supplied ids).
-    const caller = await resolveCaller(ctx, { sessionToken });
-    assertSameFirm(caller, firmId);
-    const summaries = await ctx.db
-      .query("conversation_summaries")
-      .withIndex("by_firm_user", (q) => q.eq("firmId", firmId).eq("userId", String(caller._id)))
-      .order("desc")
-      .take(5);
-
-    // Return a compact format suitable for system instruction injection
-    return summaries.map((s) => ({
-      title: s.title,
-      summary: s.summary,
-      keyTopics: s.keyTopics,
-      createdAt: s.createdAt,
-    }));
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getSummaries + getRecentContextSummaries removed (this record covers both): session-verified own-data reads (R16b) with zero product callers — the live memory surface reads via getInjectionContext (wired by AloaChat).
+ */
 
 /** Get the raw context string for injection into a new ARIA session. */
 export const getInjectionContext = query({

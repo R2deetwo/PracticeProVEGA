@@ -239,49 +239,11 @@ export const getTrustBalance = query({
 // exactly how much is held for each client. This is the view that should
 // be used for trust accounting compliance reports.
 
-export const getTrustBalancesByMatter = query({
-  args: { sessionToken: v.optional(v.string()), firmId: v.optional(v.string()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    const firmId = auth.firmId;
-
-    const allTxs: any[] = await ctx.db
-      .query("trust_transactions")
-      .withIndex("by_firm_created", (q: any) => q.eq("firmId", firmId))
-      .collect();
-
-    // Group by matterId and compute balances
-    const byMatter = new Map<string, { matterId: string; clientName?: string; balance: number; depositCount: number; withdrawalCount: number }>();
-
-    for (const tx of allTxs) {
-      // Use matterId if available, otherwise group by clientName
-      const key = tx.matterId || `client:${tx.clientName || 'unattributed'}`;
-      const existing = byMatter.get(key) || {
-        matterId: tx.matterId || key,
-        clientName: tx.clientName,
-        balance: 0,
-        depositCount: 0,
-        withdrawalCount: 0,
-      };
-
-      if (tx.type === 'deposit') {
-        existing.balance += tx.amount;
-        existing.depositCount++;
-      } else {
-        existing.balance -= tx.amount;
-        existing.withdrawalCount++;
-      }
-
-      if (!existing.clientName && tx.clientName) {
-        existing.clientName = tx.clientName;
-      }
-
-      byMatter.set(key, existing);
-    }
-
-    return Array.from(byMatter.values()).sort((a, b) => b.balance - a.balance);
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getTrustBalancesByMatter removed: firm-gated orphan with zero product callers (the live trust surface reads via the wired trust functions).
+ */
 
 // ─── Delete a Trust Transaction (admin only, with balance recalculation) ─
 

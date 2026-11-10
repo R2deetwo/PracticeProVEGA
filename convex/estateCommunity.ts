@@ -521,28 +521,11 @@ export const getAmenities = query({
 });
 
 // Get bookings for a resident
-export const getBookingsForResident = query({
-  args: { sessionToken: v.optional(v.string()), firmId: v.string(), residentUserId: v.string(), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    // ── ROUND A (C5): firm binding (was missing — cross-firm resident
-    //    bookings were readable) + results filtered to the caller's firm.
-    assertSameFirm(auth.user, args.firmId);
-    await requireEstateCommunityAccess(ctx, auth.firmId);
-    // Resident can only see their own bookings unless admin/founder
-    const isAdmin = auth.user?.role === "Admin" || auth.user?.role === "Founder";
-    const targetResidentId = (args.residentUserId === auth.userId) || isAdmin
-      ? args.residentUserId
-      : auth.userId;
-    const allBookings = await ctx.db
-      .query("estate_amenity_bookings")
-      .withIndex("by_resident", (q) => q.eq("residentUserId", targetResidentId))
-      .collect();
-    // ROUND A (C5): even for an admin, only the caller's OWN firm's
-    // bookings are returned (the by_resident index is firm-agnostic).
-    return allBookings.filter((b: any) => b.firmId === auth.firmId);
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getBookingsForResident + getServiceProvider removed (this record covers both): dead twins of the R79-wired estate surface — residents list their bookings via getMyBookings, the console lists via getBookingsForFirm, and the provider directory reads via getServiceProviders. Both were properly gated (requireFirmUser/assertSameFirm/requireEstateCommunityAccess) but unreachable.
+ */
 
 // Get all bookings for a firm (admin view — for approval queue)
 export const getBookingsForFirm = query({
@@ -603,21 +586,6 @@ export const getServiceProviders = query({
 });
 
 // Get a single service provider (resident view — strips internal notes)
-export const getServiceProvider = query({
-  args: { sessionToken: v.optional(v.string()), providerId: v.id("estate_service_providers"), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    const provider = await ctx.db.get(args.providerId);
-    if (!provider || !provider.isActive) return null;
-    // ── ROUND A (C5): firm binding — any authenticated user of any firm
-    //    could previously read any provider's contact details.
-    assertSameFirm(auth.user, provider.firmId);
-    await requireEstateCommunityAccess(ctx, provider.firmId);
-    // Strip internal admin notes from resident view
-    const { notes, ...publicFields } = provider as any;
-    return publicFields;
-  },
-});
 
 // ════════════════════════════════════════════════════════════════════════
 // ROUND D (Wave 2, D3) — RESIDENT PORTAL SURFACE

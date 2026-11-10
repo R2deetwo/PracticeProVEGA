@@ -136,16 +136,11 @@ async function logSecurityEventInline(ctx: any, data: {
 
 // ── Admin Queries (founder-gated) ──────────────────────────────────────────
 
-export const getSecurityEvents = query({
-  args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-    return await ctx.db
-      .query("securityEvents")
-      .order("desc")
-      .take(100);
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getSecurityEvents removed: the D4 twin — superseded by founderMetrics.getSecurityEventsForAdmin, which the SecurityCenter actually reads (R80). getSuspendedUsers / getBlockedIps / isIpBlocked / the response suite stay (wired by the SecurityCenter and the /ai/stream chokepoint).
+ */
 
 export const getBlockedIps = query({
   args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },

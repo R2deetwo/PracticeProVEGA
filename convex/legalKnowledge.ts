@@ -172,65 +172,11 @@ export const fetchInstrumentsByKeys = internalQuery({
 // COVERAGE MANIFEST — "what does ALOA know?"
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getCoverageManifest = query({
-  args: {
-    sessionToken: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    await requireStaffCaller(ctx, {
-      sessionToken: args.sessionToken,
-      userEmail: args.userEmail,
-    });
-
-    const institutions = await ctx.db.query("institutions").collect();
-    const instruments = await ctx.db.query("instruments").collect();
-
-    const instrumentsByInstitution = new Map<string, any[]>();
-    for (const ins of instruments) {
-      const list = instrumentsByInstitution.get(ins.institutionKey) ?? [];
-      list.push({
-        key: ins.key,
-        title: ins.title,
-        kind: ins.kind,
-        year: ins.year ?? null,
-        versionLabel: ins.versionLabel ?? null,
-        status: ins.status,
-        lastVerifiedAt: ins.lastVerifiedAt ?? null,
-        provisionCount: ins.provisionCount ?? 0,
-        formCount: ins.formCount ?? 0,
-      });
-      instrumentsByInstitution.set(ins.institutionKey, list);
-    }
-
-    const buildEntry = (inst: any) => ({
-      key: inst.key,
-      name: inst.name,
-      type: inst.type,
-      level: inst.level,
-      jurisdictionKey: inst.jurisdictionKey ?? null,
-      coverageTier: inst.coverageTier,
-      instruments: (instrumentsByInstitution.get(inst.key) ?? []).sort((a: any, b: any) =>
-        (b.provisionCount + b.formCount) - (a.provisionCount + a.formCount)
-      ),
-    });
-
-    const totalProvisions = instruments.reduce((sum: number, i: any) => sum + (i.provisionCount ?? 0), 0);
-    const totalForms = instruments.reduce((sum: number, i: any) => sum + (i.formCount ?? 0), 0);
-
-    return {
-      federal: institutions.filter((i) => i.level === "federal").map(buildEntry),
-      registries: institutions.filter((i) => i.type === "registry").map(buildEntry),
-      states: institutions.filter((i) => i.level !== "federal" && i.type === "court").map(buildEntry),
-      totals: {
-        institutions: institutions.length,
-        instruments: instruments.length,
-        provisions: totalProvisions,
-        forms: totalForms,
-      },
-    };
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * Four orphans removed (this record covers getCoverageManifest, getRecentChanges, getProvisionsForInstrument, getFormsForInstitution): the first two were staff-gated orphans with zero callers; the latter two were UNGATED instrument/institution reference reads with zero callers. The live legal surfaces read through the wired functions.
+ */
 
 /** Index status for the "Build Legal Index" flow + manifest badges. */
 export const getIndexStatus = query({
@@ -372,31 +318,6 @@ export const logInstrumentChange = mutation({
   },
 });
 
-/** Recent change-log entries (staff-visible — powers "what changed" UI). */
-export const getRecentChanges = query({
-  args: {
-    sessionToken: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-    instrumentKey: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    await requireStaffCaller(ctx, {
-      sessionToken: args.sessionToken,
-      userEmail: args.userEmail,
-    });
-    const q = ctx.db.query("instrument_changes").withIndex("by_detected");
-    const rows = await (args.instrumentKey
-      ? ctx.db
-          .query("instrument_changes")
-          .withIndex("by_instrument", (i) => i.eq("instrumentKey", args.instrumentKey!))
-          .order("desc")
-          .take(args.limit ?? 50)
-      : q.order("desc").take(args.limit ?? 50));
-    return rows;
-  },
-});
-
 /**
  * Founder review: confirm a change (stamps the instrument's lastVerifiedAt and
  * updates its version label) or dismiss it. Confirmed changes are what ALOA's
@@ -444,22 +365,3 @@ export const reviewChange = mutation({
 // BROWSE — drill-down lists for the knowledge browser UI
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const getProvisionsForInstrument = query({
-  args: { instrumentKey: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("instrument_provisions")
-      .withIndex("by_instrument", (q) => q.eq("instrumentKey", args.instrumentKey))
-      .collect();
-  },
-});
-
-export const getFormsForInstitution = query({
-  args: { institutionKey: v.string() },
-  handler: async (ctx, args) => {
-    return await ctx.db
-      .query("court_forms")
-      .withIndex("by_institution", (q) => q.eq("institutionKey", args.institutionKey))
-      .collect();
-  },
-});

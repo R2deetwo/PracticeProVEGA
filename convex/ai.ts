@@ -57,38 +57,8 @@ export const generateContent = action({
   }
 });
 
-export const extractContactInfo = action({
-  args: { text: v.string() },
-  handler: async (ctx, args) => {
-    const prompt = `
-Extract contact information from the following text. Return ONLY a JSON object with these fields (set to null if not found):
-{
-  "name": "Full name",
-  "email": "Email address",
-  "phone": "Phone number",
-  "address": "Physical address"
-}
-
-Text to analyze:
-${args.text}
-`.trim();
-
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY not configured in backend environment.");
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${QUALITY_MODEL}:generateContent?key=${apiKey}`;
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { response_mime_type: "application/json" }
-      })
-    });
-
-    if (!response.ok) throw new Error("AI Extraction Failed");
-    const data = await response.json();
-    const content = data.candidates[0].content.parts[0].text;
-    return JSON.parse(content);
-  }
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * extractContactInfo removed: an UNGATED public AI action (bare text arg, no session) — unauthenticated AI spend. Zero product callers.
+ */

@@ -191,76 +191,10 @@ export const getActiveBroadcasts = query({
 });
 
 /**
- * getBroadcastHistory
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
  *
- * Fetches ALL broadcast notifications (read and unread) for the
- * notification center / history view. Used by the "Platform Notices"
- * tab in the consumer app's notification panel.
- *
- * Args:
- *   userId — the Convex _id of the user
- *   email  — the user's email (fallback)
- *
- * Returns:
- *   Array of all broadcast notifications (read + unread), sorted by
- *   timestamp descending. Includes isRead flag so the UI can show
- *   read/unread state.
+ * getBroadcastHistory removed: session-verified own-data read (R16b) with zero product callers.
  */
-export const getBroadcastHistory = query({
-  args: {
-    userId: v.string(),
-    email: v.optional(v.string()),
-    sessionToken: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // R16b: session-verified own-data read (was caller-supplied userId/email).
-    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken });
-
-    // HOTFIX 2026-08-31: removed the q.startsWith server-side pushdown —
-    // Convex 1.40.0's FilterBuilder has no startsWith (threw on every
-    // call). Filter in JS below instead.
-    const allNotes = await ctx.db
-      .query("notifications")
-      .take(5000);
-
-    const targetUserId = String(caller._id || '');
-
-    const broadcasts = allNotes.filter((n: Doc<"notifications">) => {
-      const type = typeof n.type === 'string' ? n.type : '';
-      if (!type.startsWith('broadcast_')) return false;
-
-      const nUserId = String(n.userId || '');
-
-      // Same matching logic as getActiveBroadcasts
-      if (nUserId && nUserId === targetUserId) return true;
-      if (!nUserId || nUserId === 'undefined' || nUserId === 'null' || nUserId === '') return true;
-      if (n.firmId === 'system') return true;
-
-      return false;
-    });
-
-    const sorted = broadcasts.sort((a, b) => {
-      const tsA = new Date(a.timestamp || a._creationTime || 0).getTime();
-      const tsB = new Date(b.timestamp || b._creationTime || 0).getTime();
-      return tsB - tsA;
-    });
-
-    return sorted.map((n) => ({
-      _id: n._id,
-      id: n.id,
-      title: n.title,
-      message: n.message,
-      type: n.type,
-      isRead: n.isRead,
-      timestamp: n.timestamp,
-      _creationTime: n._creationTime,
-      link: n.link,
-      firmId: n.firmId,
-      targetProduct: (n.link as any)?.context?.targetProduct || 'all',
-      deepLink: (n.link as any)?.context?.deepLink || null,
-    }));
-  },
-});
 
 /**
  * deleteBroadcastNotification
@@ -276,7 +210,6 @@ export const getBroadcastHistory = query({
 // callers). It deleted ANY notification row by raw id with no auth — the
 // "worst case" comment above understated it: an anonymous caller could
 // delete ANY user's notifications, not just their own broadcast copy.
-
 
 /**
  * getActiveBroadcastsForAdmin

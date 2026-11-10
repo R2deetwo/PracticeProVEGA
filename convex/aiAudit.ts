@@ -68,24 +68,8 @@ export const logAiOutput = mutation({
   },
 });
 
-/** Firm-scoped audit trail — most recent first, bounded to 200 rows. */
-export const listAiOutputLogs = query({
-  args: {
-    firmId: v.string(),
-    userEmail: v.optional(v.string()),
-    sessionToken: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    if (args.firmId && args.firmId !== auth.firmId) {
-      throw new Error("Not authorized: cannot read another firm's AI audit log.");
-    }
-    const limit = Math.max(1, Math.min(200, Math.floor(args.limit ?? 50)));
-    return await ctx.db
-      .query("ai_output_logs")
-      .withIndex("by_firm_logged", (q) => q.eq("firmId", auth.firmId))
-      .order("desc")
-      .take(limit);
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * listAiOutputLogs removed: properly gated (requireFirmUser + firm binding) but zero product callers — the audit console never shipped a log viewer.
+ */

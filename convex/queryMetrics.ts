@@ -70,20 +70,8 @@ export const recordTableSizes = internalMutation({
   }),
 });
 
-/** Founder-guarded: the weekly size history, newest first. */
-export const getTableSizeHistory = query({
-  args: {
-    tokenIdentifier: v.string(),
-    sessionToken: v.optional(v.string()),
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
-    const limit = Math.min(Math.max(args.limit ?? 12, 1), 52);
-    return await ctx.db
-      .query("table_size_records" as any)
-      .withIndex("by_recorded_at")
-      .order("desc")
-      .take(limit);
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getTableSizeHistory removed: founder-gated orphan with zero product callers.
+ */

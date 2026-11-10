@@ -291,20 +291,11 @@ export async function reportToSentry(
 
 // ─── Readers (founder-only — the in-app observability surface) ──────────────
 
-export const getRecentErrorEvents = query({
-  args: { sessionToken: v.optional(v.string()), limit: v.optional(v.number()) },
-  handler: async (ctx, args) => {
-    // Founder-only: error events can contain messages with firm context.
-    await requireFounder(ctx, undefined, args.sessionToken ?? null);
-    const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
-    const rows = await ctx.db
-      .query("error_events")
-      .withIndex("by_timestamp")
-      .order("desc")
-      .take(limit);
-    return rows;
-  },
-});
+/**
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * getRecentErrorEvents removed: founder-gated orphan with zero product callers.
+ */
 
 export const getErrorEventCounts = internalQuery({
   args: {},

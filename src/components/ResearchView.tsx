@@ -54,7 +54,7 @@ const ResearchView: React.FC = () => {
     const { coreState } = useCoreState();
     const dataHandlers = useDataActions();
     const { openModal, closeModal, currentHistoryEntry, updateCurrentHistoryEntry, navigateTo } = useUI();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { canUseResearchStudio } = useFeatures();
 
     const [activeTab, setActiveTab] = useState<ResearchTab>('research_notes');
@@ -215,14 +215,21 @@ const ResearchView: React.FC = () => {
     const selectedNotebook = userNotebooks.find(nb => nb.id === selectedNotebookId);
     const sourcesForNotebook = selectedNotebook ? documentState.researchSources.filter(s => s.notebookId === selectedNotebook.id) : [];
 
+    // ROUND D (D8): the research reads are now staff-session-authenticated
+    // server-side (was: bare notebookId, a cross-firm read hole) — pass the
+    // bearer + email. Skipped until a notebook is selected AND a session exists.
     const messagesForNotebook = (useQuery(
         api.myFunctions.getResearchMessages,
-        selectedNotebook ? { notebookId: selectedNotebook.id } : "skip"
+        selectedNotebook && bearerToken
+            ? { notebookId: selectedNotebook.id, sessionToken: bearerToken ?? undefined, userEmail: currentUser?.email ?? undefined }
+            : "skip"
     ) || []).map((m: any) => ({ ...m, id: m._id || m.id }));
 
     const analysisResultsForNotebook = useQuery(
         api.myFunctions.getResearchAnalysisResults,
-        selectedNotebook ? { notebookId: selectedNotebook.id } : "skip"
+        selectedNotebook && bearerToken
+            ? { notebookId: selectedNotebook.id, sessionToken: bearerToken ?? undefined, userEmail: currentUser?.email ?? undefined }
+            : "skip"
     ) || [];
 
     const toggleSourceSelection = (sourceId: string) => {

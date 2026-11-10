@@ -479,76 +479,10 @@ export const updateMaintenanceTicketStatus = mutation({
 });
 
 /**
- * completePortalTask — Called by external stakeholders (clients/residents)
- * from their portal when they mark a task as "Done".
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
  *
- * Instead of directly setting status='done', routes to 'pending_verification'
- * so the assigned team member can review the work before fully closing it.
- *
- * Sends an in-app notification to the task creator / firm admins so they
- * know the external stakeholder has completed their part.
+ * Four gated orphans removed (this record covers completePortalTask, getPendingScheduledMessages, markPortalMessageRead, getPortalAccessToken): Round A / Round 8 retrofits, all with zero product callers — the live portal surface completes tasks, reads and marks messages, and issues access tokens through the wired paths.
  */
-export const completePortalTask = mutation({
-  args: {
-    taskId: v.string(),
-    sessionToken: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    const now = new Date().toISOString();
-
-    // Fetch the task — by_custom_id serves the client-visible id directly
-    // (was: by_firm + post-filter, which scans every firm task row).
-    const allTasks = await ctx.db
-      .query("tasks")
-      .withIndex("by_custom_id", (q: any) => q.eq("id", args.taskId))
-      .first();
-
-    if (!allTasks) {
-      throw new Error("Task not found.");
-    }
-
-    const task = allTasks;
-
-    if (task.firmId !== auth.firmId) {
-      throw new Error("Unauthorized. This task does not belong to your firm.");
-    }
-
-    // Route to 'pending_verification' instead of 'done'
-    await ctx.db.patch(task._id, {
-      status: "pending_verification",
-      updatedAt: now,
-    });
-
-    // Notify the task creator + firm admins
-    const firmAdmins = await ctx.db
-      .query("users")
-      .withIndex("by_firm_role", (q: any) => q.eq("firmId", auth.firmId).eq("role", "Admin"))
-      .take(200);
-
-    const notifyPromises = (firmAdmins.length > 0 ? firmAdmins : [auth.user]).map((admin: any) => {
-      const notificationId = crypto.randomUUID();
-      return ctx.db.insert("notifications", {
-        id: notificationId,
-        firmId: auth.firmId,
-        userId: admin._id.toString(),
-        title: "Task Pending Verification",
-        message: `${auth.user.name || 'A portal user'} marked "${task.title}" as done. Please review and close it.`,
-        type: "task_pending_verification",
-        isRead: false,
-        link: { view: "tasks", id: args.taskId, context: { taskId: args.taskId } },
-        timestamp: Date.now(),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    });
-
-    await Promise.all(notifyPromises);
-
-    return { success: true, status: "pending_verification" };
-  },
-});
 
 /**
  * cancelMaintenanceTicket — Allows a portal user (tenant) to cancel their
@@ -2143,8 +2077,6 @@ export const updateInviteRecord = internalMutation({
   },
 });
 
-
-
 // ─── ROUND A2: `getPortalInviteById` was a PUBLIC bare-id invite read
 //    (returned live invitation tokens to anyone). Its only caller is the
 //    staff-authenticated resendPortalInvite action, so the function is now
@@ -2174,7 +2106,6 @@ export const getPortalInvitesByFirm = query({
 
 // Round 8 auth retrofit: acceptPortalInvite was DELETED (zero callers,
 // unauthenticated patch of any invite/user record by raw id).
-
 
 export const revokePortalInvite = mutation({
   args: { sessionToken: v.optional(v.string()), inviteId: v.id("portal_invites"), userEmail: v.optional(v.string()) },
@@ -2954,7 +2885,6 @@ export const registerForPushNotifications = mutation({
 // Round 8 auth retrofit: unregisterFromPushNotifications was DELETED (zero callers,
 // unauthenticated patch of any invite/user record by raw id).
 
-
 /**
  * repairPortalUserFirmId — Repairs a portal user whose firmId is missing.
  * Called from the frontend when the portal detects it can't resolve a firmId.
@@ -3229,21 +3159,6 @@ export const getScheduledMessagesByFirm = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .order("desc")
       .take(500);
-  },
-});
-
-export const getPendingScheduledMessages = query({
-  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    // ── ROUND A (C2): unauthenticated firm read → staff auth + firm binding.
-    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    assertSameFirm(auth.user, args.firmId);
-    const now = Date.now();
-    const all = await ctx.db
-      .query("scheduled_messages")
-      .withIndex("by_firm_status", (q) => q.eq("firmId", args.firmId).eq("status", "scheduled"))
-      .take(500);
-    return all.filter(m => m.scheduledFor > now).sort((a, b) => a.scheduledFor - b.scheduledFor);
   },
 });
 
@@ -5632,23 +5547,6 @@ export const getPortalMessagesByFirm = query({
 //    unauthenticated exports are removed, not kept). Was: per-sender message read (superseded by getPortalConversationsByParticipant).
 
 /**
- * markPortalMessageRead — Marks a portal message as read.
- */
-export const markPortalMessageRead = mutation({
-  args: { sessionToken: v.optional(v.string()), messageId: v.id("portal_messages"), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    // Round 8 auth retrofit: bare-id patch — verify caller owns the message.
-    // (portal_messages.firmId is nullable: unscoped rows are only mutable by
-    // a caller whose firm matches, or by any staff caller when null.)
-    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
-    const message = await ctx.db.get(args.messageId);
-    if (!message) throw new Error("Message not found");
-    if (message.firmId) assertSameFirm(caller, message.firmId as any);
-    await ctx.db.patch(args.messageId, { status: "read", isRead: true, updatedAt: Date.now() });
-  },
-});
-
-/**
  * replyToPortalMessage — Admin replies to a portal message.
  * DEPRECATED: New code should use sendAdminReply for conversation-based threading.
  * Kept for backward compat — creates a legacy reply on the original message.
@@ -6833,29 +6731,6 @@ export const ensurePortalAccessToken = mutation({
   },
 });
 
-/**
- * getPortalAccessToken — Gets the portal access token for the current user.
- * If they don't have one, generates one. Used by the frontend to build URLs.
- */
-export const getPortalAccessToken = query({
-  args: { email: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    // ── ROUND A (C3 sibling): unauthenticated read of any user's portal
-    //    access token by email → portal auth + self-only.
-    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
-    if (!portalCallerAliases(caller).has(String(args.email).toLowerCase())) {
-      args.email = String((caller as any).email || args.email);
-    }
-    const email = args.email.toLowerCase().trim();
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) => q.eq("tokenIdentifier", email))
-      .first();
-
-    if (!user) return null;
-    return (user as any).portalAccessToken || null;
-  },
-});
 // ═══════════════════════════════════════════════════════════════════════════════
 // NOTIFICATION PREFERENCES — Per-firm email toggle settings
 // ═══════════════════════════════════════════════════════════════════════════════

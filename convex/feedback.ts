@@ -350,33 +350,10 @@ export const deleteFeedbackThread = mutation({
 });
 
 /**
- * mutation: restoreFeedbackThread
- * Reverses a soft-delete. Founder-only — used for compliance review or
- * accidental-deletion recovery.
+ * ROUND D (D8) — DELETION RECORD (Wave 3b, R81, 2026-11-10).
+ *
+ * restoreFeedbackThread removed: founder-gated orphan (R16b-fixed) with zero product callers.
  */
-export const restoreFeedbackThread = mutation({
-  args: {
-    feedbackId: v.id("user_feedback"),
-    userEmail: v.string(),
-    sessionToken: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // R16b: the previous "gate" was a hardcoded founder-email list checked
-    // against the CALLER-SUPPLIED email — a pure spoof (know the email,
-    // pass the gate, undelete any thread). Session-verified founder only.
-    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
-    const feedback = await ctx.db.get(args.feedbackId);
-    if (!feedback) throw new Error("Feedback thread not found");
-
-    await ctx.db.patch(args.feedbackId, {
-      deletedAt: undefined,
-      deletedBy: undefined,
-      status: feedback.status === 'Deleted' ? 'Replied' : feedback.status,
-    } as any);
-
-    return { success: true };
-  },
-});
 
 /**
  * mutation: submitDataRestoreRequest
