@@ -18,7 +18,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { VisitorIcon, CheckIcon, ClockIcon, XCircleIcon, SendIcon, ShareIcon, MapPinIcon } from '../../constants';
+import { Button, Input, Textarea } from '../ui';
+import { VisitorIcon, CheckIcon, ClockIcon, XCircleIcon, SendIcon, ShareIcon, MapPinIcon, BellIcon } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -64,11 +65,21 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     const [expiryWindow, setExpiryWindow] = useState(portalSettings?.vmsDefaultExpiryHours ?? 6);
     const [deliveryMethod, setDeliveryMethod] = useState<'client_share' | 'portal_api'>('client_share');
     const [isGenerating, setIsGenerating] = useState(false);
-    const [lastGenerated, setLastGenerated] = useState<{ tokenCode: string; message: string } | null>(null);
+    const [lastGenerated, setLastGenerated] = useState<{ tokenCode: string; passRef?: string; message: string } | null>(null);
+    // ROUND SENTRY 1: optional display-only extras (never widen the window)
+    const [expectedArrival, setExpectedArrival] = useState('');
+    const [accessNote, setAccessNote] = useState('');
+
+    // ROUND SENTRY 2: arrival-request desk (gatehouse → resident → decision)
+    const [rejectOpenFor, setRejectOpenFor] = useState<string | null>(null);
+    const [rejectText, setRejectText] = useState('');
+    const [decidingId, setDecidingId] = useState<string | null>(null);
+    const [decisionError, setDecisionError] = useState<string | null>(null);
 
     // ─── Mutations ──────────────────────────────────────────────────────
     const generateToken = useMutation(api.visitorManagement.generateVisitorToken);
     const revokeToken = useMutation(api.visitorManagement.revokeVisitorToken);
+    const decideRequest = useMutation(api.sentryRequests.decideArrivalRequest);
     // ─── Queries ────────────────────────────────────────────────────────
     const activeTokens = useQuery(
         api.visitorManagement.getResidentTokens,
@@ -77,6 +88,10 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
     const pastTokens = useQuery(
         api.visitorManagement.getResidentTokens,
         firmId && residentId ? { firmId, residentId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip'
+    );
+    const myRequests = useQuery(
+        api.sentryRequests.getSentryResidentRequests,
+        firmId && residentId ? { firmId, residentId, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
 
     // ─── Handlers ───────────────────────────────────────────────────────
@@ -103,10 +118,12 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                 expiryWindowHours: expiryWindow,
                 deliveryMethod,
                 sessionToken: (bearerToken ?? undefined),
+                expectedArrival: expectedArrival.trim() || undefined,
+                accessNote: accessNote.trim() || undefined,
             });
 
             if (deliveryMethod === 'client_share' && result.message) {
-                setLastGenerated({ tokenCode: result.tokenCode!, message: result.message });
+                setLastGenerated({ tokenCode: result.tokenCode!, passRef: (result as any).passRef, message: result.message });
             } else if (deliveryMethod === 'portal_api') {
                 addToast(`Code ${result.tokenCode} sent to ${visitorPhone} via WhatsApp.`, { type: 'success' });
             } else {
@@ -116,6 +133,8 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
             // Reset form
             setVisitorName('');
             setVisitorPhone('');
+            setExpectedArrival('');
+            setAccessNote('');
         } catch (err: any) {
             addToast(err.message || 'Failed to generate code.', { type: 'error' });
         } finally {
@@ -142,6 +161,38 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
             addToast('Code revoked.', { type: 'success' });
         } catch (err: any) {
             addToast(err.message || 'Failed to revoke.', { type: 'error' });
+        }
+    };
+
+    // ── ROUND SENTRY 2: decide a gatehouse arrival request ────────────
+    const handleDecide = async (requestId: string, decision: 'approved' | 'rejected') => {
+        if (!residentId) return;
+        setDecidingId(requestId);
+        setDecisionError(null);
+        try {
+            const out: any = await decideRequest({
+                requestId: requestId as any,
+                decision,
+                rejectReason: decision === 'rejected' ? (rejectText.trim() || undefined) : undefined,
+                residentId,
+                sessionToken: (bearerToken ?? undefined),
+            });
+            if (decision === 'approved') {
+                addToast(
+                    out?.delivered === 'whatsapp'
+                        ? `Approved — pass ${out.tokenCode} WhatsApped to the visitor.`
+                        : `Approved — today's pass is ${out.tokenCode}.`,
+                    { type: 'success' },
+                );
+            } else {
+                addToast('Request rejected — the gatehouse has been told.', { type: 'success' });
+            }
+            setRejectOpenFor(null);
+            setRejectText('');
+        } catch (err: any) {
+            setDecisionError(err.message || 'Could not record the decision.');
+        } finally {
+            setDecidingId(null);
         }
     };
 
@@ -196,6 +247,15 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                     <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 mb-3 max-h-32 overflow-y-auto">
                         <p className="text-xs text-slate-600 dark:text-zinc-400 whitespace-pre-wrap">{lastGenerated.message}</p>
                     </div>
+                    {lastGenerated.passRef && (
+                        <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 mb-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="text-2xs font-bold uppercase tracking-wider text-slate-400">Pass ID</p>
+                                <p className="text-sm font-mono font-bold tracking-wider text-slate-700 dark:text-zinc-300 select-all">{lastGenerated.passRef}</p>
+                            </div>
+                            <p className="text-2xs text-slate-400 text-right flex-shrink-0 max-w-[10rem]">The 6-digit code or this ID both work at the gate.</p>
+                        </div>
+                    )}
                     <div className="flex gap-2">
                         <button
                             onClick={handleShareViaWhatsApp}
@@ -303,6 +363,30 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                         </div>
                     </div>
 
+                    {/* ROUND SENTRY 1: expected arrival + gate instructions (optional, display-only) */}
+                    <div className="grid grid-cols-1 gap-3">
+                        <div>
+                            <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Expected Arrival (optional)</label>
+                            <Input
+                                type="time"
+                                value={expectedArrival}
+                                onChange={(e: any) => setExpectedArrival(e.target.value)}
+                                placeholder="--:--"
+                            />
+                            <p className="text-2xs text-slate-400 mt-1">Shown to the gate — never widens the code's validity window.</p>
+                        </div>
+                        <div>
+                            <label className="block text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1.5">Instructions for the gate (optional)</label>
+                            <Textarea
+                                value={accessNote}
+                                onChange={(e: any) => setAccessNote(e.target.value)}
+                                placeholder="e.g. Delivery to door 2 — call on arrival"
+                                rows={2}
+                                maxLength={120}
+                            />
+                        </div>
+                    </div>
+
                     {/* Auto-filled address preview */}
                     <div className="bg-slate-50 dark:bg-zinc-900 rounded-lg p-3 flex items-start gap-2">
                         <MapPinIcon className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
@@ -337,6 +421,94 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                 </div>
             )}
 
+            {/* ROUND SENTRY 2: arrival requests from the gatehouse */}
+            {myRequests && myRequests.length > 0 && (
+                <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                        <div className="w-8 h-8 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+                            <BellIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <h3 className="font-bold text-slate-900 dark:text-white text-base">At the gate ({myRequests.filter((r: any) => r.status === 'pending').length} waiting)</h3>
+                    </div>
+                    <p className="text-2xs text-slate-500 dark:text-zinc-400 mb-3">The gatehouse raised these visitors. Approving mints a pass for today (6h) and sends it to the visitor when a phone was left.</p>
+                    <div className="space-y-2.5">
+                        {myRequests.map((r: any) => (
+                            <div key={r.requestId} className={`p-3 rounded-lg border ${
+                                r.status === 'pending'
+                                    ? 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/40'
+                                    : 'bg-slate-50 dark:bg-zinc-900 border-slate-200 dark:border-zinc-700'
+                            }`}>
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-slate-900 dark:text-white text-sm">{r.visitorName}</span>
+                                            {r.unitName && <span className="text-2xs text-slate-500 dark:text-zinc-400">· {r.unitName}</span>}
+                                        </div>
+                                        <div className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                                            Asked {new Date(r.requestedAt).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })} by {r.requestedBy}
+                                        </div>
+                                        {r.notes && <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 italic">“{r.notes}”</p>}
+                                        {r.status === 'rejected' && r.rejectReason && (
+                                            <p className="text-2xs text-rose-500 mt-1">Rejected: {r.rejectReason}</p>
+                                        )}
+                                        {r.status === 'approved' && (
+                                            <p className="text-2xs text-emerald-600 dark:text-emerald-400 mt-1 font-bold">Approved — pass sent for today.</p>
+                                        )}
+                                        {r.status === 'expired' && (
+                                            <p className="text-2xs text-slate-400 mt-1">Unanswered for 12h — expired.</p>
+                                        )}
+                                    </div>
+                                    {r.status === 'pending' && (
+                                        <div className="flex flex-col gap-1.5 flex-shrink-0">
+                                            <Button
+                                                size="sm"
+                                                variant="primary"
+                                                disabled={decidingId === r.requestId}
+                                                onClick={() => handleDecide(r.requestId, 'approved')}
+                                            >
+                                                {decidingId === r.requestId ? '…' : 'Approve'}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="danger-soft"
+                                                disabled={decidingId === r.requestId}
+                                                onClick={() => setRejectOpenFor(rejectOpenFor === r.requestId ? null : r.requestId)}
+                                            >
+                                                Reject
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                                {rejectOpenFor === r.requestId && (
+                                    <div className="mt-3 p-3 rounded-lg bg-white dark:bg-zinc-800 space-y-2">
+                                        <Textarea
+                                            value={rejectText}
+                                            onChange={(e: any) => setRejectText(e.target.value)}
+                                            placeholder="Reason (optional, kept on the record)"
+                                            rows={2}
+                                            maxLength={200}
+                                        />
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="ghost" className="flex-1" onClick={() => setRejectOpenFor(null)}>Cancel</Button>
+                                            <Button
+                                                size="sm"
+                                                variant="danger"
+                                                className="flex-1"
+                                                disabled={decidingId === r.requestId}
+                                                onClick={() => handleDecide(r.requestId, 'rejected')}
+                                            >
+                                                Confirm rejection
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    {decisionError && <p className="text-2xs text-rose-600 dark:text-rose-400 mt-2 font-bold">{decisionError}</p>}
+                </div>
+            )}
+
             {/* Active tokens */}
             {activeTokens && activeTokens.length > 0 && (
                 <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-soft p-5">
@@ -352,10 +524,14 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                                     <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400">
                                         <ClockIcon className="w-3 h-3" />
                                         <span>Expires {new Date(token.expiresAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                                        {token.expectedArrival && <span>· ~{token.expectedArrival}</span>}
                                         {token.deliveryMethod === 'portal_api' && (
                                             <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full font-bold">Sent via WhatsApp</span>
                                         )}
                                     </div>
+                                    {token.accessNote && (
+                                        <p className="text-2xs text-slate-400 mt-1 italic truncate">“{token.accessNote}”</p>
+                                    )}
                                 </div>
                                 <button
                                     onClick={() => handleRevoke(token._id, token.visitorName)}
