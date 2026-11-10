@@ -28,6 +28,9 @@ export type { SelectProps, SelectStyle, SelectOption } from './Select';
 export { Card } from './Card';
 export type { CardProps } from './Card';
 
+export { Pagination } from './Pagination';
+export type { PaginationProps } from './Pagination';
+
 export { Badge } from './Badge';
 export type { BadgeProps, BadgeTone } from './Badge';
 

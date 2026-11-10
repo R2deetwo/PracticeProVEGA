@@ -1270,6 +1270,7 @@ const PropertyDetailViewContent: React.FC = () => {
                                     <TenancyLifecyclePanel
                                         firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
                                         propertyAddress={property.address || ''}
+                                        propertyId={property.id}
                                         units={[{
                                             id: property.id,
                                             label: d?.name || rd.unitName || property.address || 'Unit',
@@ -2223,6 +2224,7 @@ const PropertyDetailViewContent: React.FC = () => {
                             <TenancyLifecyclePanel
                                 firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
                                 propertyAddress={property.address || ''}
+                                propertyId={property.id}
                                 units={units.map((u: any) => {
                                     const d = getUnitDisplay(u);
                                     const rd = (u.rentalDetails || {}) as any;

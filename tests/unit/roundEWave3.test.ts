@@ -556,9 +556,9 @@ describe('E3(c) — intelligent forms: pure validation + duplicate detection', (
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('E3(d) — source contracts', () => {
-    it('the lifecycle module: 11 staff-authed publics (8 E1 + 2 E2 + 1 E3)', () => {
+    it('the lifecycle module: 11 staff-authed publics (8 E1 + 2 E2 + 1 E3) — pinned by E3; E4 raised it to 12 (see roundEWave4)', () => {
         const mod = read('convex/tenancyLifecycle.ts');
-        expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(11);
+        expect((mod.match(/requireStaffCaller\(/g) || []).length).toBeGreaterThanOrEqual(11);
         expect(mod).toContain('getPropertyFinancialSummary');
         expect(mod).toContain('Property not found.');
     });

@@ -1955,3 +1955,164 @@ export const getPropertyFinancialSummary = query({
     };
   },
 });
+
+// ROUND E (WAVE E4) — authorised bulk operations
+// ═══════════════════════════════════════════════════════════════════════════
+// The owner brief (§4) asks for bulk operations for AUTHORISED users, with
+// §6 demanding backend validation and data consistency. Until now the only
+// bulk path was the client fan-out in useProperties.handleBulkUpdateProperties
+// — N sequential updateItem calls, each gated by requireFirmUser (any firm
+// member, not staff) with no enum validation, no consistency checks and a
+// partial-failure state (half the rows updated, half not, one toast).
+//
+// bulkUpdateProperties replaces it with ONE staff-authed mutation:
+//   • requireStaffCaller + assertSameFirm — staff only, firm-scoped.
+//   • Whitelist: only `status` and `category` are patchable. Everything
+//     else a caller smuggles in is rejected with an error (the generic
+//     updateItem path can patch anything; this mutation cannot).
+//   • Enum validation: status must be a real PropertyStatus, category a
+//     real PropertyCategory (the old modal wrote 'Available'/'Leased'/
+//     'Under Renovation' — statuses no surface recognises).
+//   • Ledger-consistency guard: the tenancy ledger is the truth for
+//     occupancy (E1). Marking a unit Vacant/Listed/Sold while an ACTIVE
+//     tenancy exists would contradict the ledger — the row is SKIPPED and
+//     reported as a conflict ("end the tenancy first"). The same applies
+//     to every EMBEDDED unit under a property row.
+//   • Financial history is untouchable here: the whitelist means
+//     rentPaymentHistory / ledger_entries / service_charges can never be
+//     reached from this mutation at all.
+//
+// Idempotent by nature: re-running the same bulk update just re-patches
+// the same two fields. Unknown or cross-firm ids are skipped and counted
+// (a firm-2 id inside a firm-1 bulk list is ignored, never patched).
+
+const BULK_PROPERTY_STATUSES = ["Occupied", "Vacant", "Listed", "Maintenance", "Sold"] as const;
+const BULK_PROPERTY_CATEGORIES = [
+  "Tenanted Property",
+  "Property For Sale",
+  "Disputed Property",
+  "Personal Residence",
+  "Other",
+] as const;
+/** Statuses that assert "nobody lives here" — ledger-guarded. */
+const VACANT_CLASS_STATUSES = new Set(["Vacant", "Listed", "Sold"]);
+
+/** Resolve a property row by Convex _id OR legacy custom id (any input shape). */
+async function resolveBulkProperty(ctx: any, id: string): Promise<any | null> {
+  try {
+    const direct: any = await ctx.db.get(id as any);
+    if (direct && direct.firmId !== undefined && direct.address !== undefined) return direct;
+  } catch {
+    // not a Convex id — fall through to the custom-id lookup
+  }
+  return await ctx.db
+    .query("properties")
+    .withIndex("by_custom_id", (q: any) => q.eq("id", id))
+    .first();
+}
+
+/** Every unitKey a property row covers (the row itself + embedded units).
+ *  Mirrors unitKeyFor: the ledger's key is the property Convex _id
+ *  (optionally + embedded unit id/name) — see convex/unitLookup.ts. */
+function propertyUnitKeys(row: any): string[] {
+  const propKey = String(row._id ?? "");
+  if (!propKey) return [];
+  const keys = [propKey];
+  for (const u of Array.isArray(row.units) ? row.units : []) {
+    const unitPart = String(u?.id ?? u?.unitName ?? "");
+    if (unitPart) keys.push(`${propKey}_${unitPart}`);
+  }
+  return keys;
+}
+
+export const bulkUpdateProperties = mutation({
+  args: {
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    firmId: v.string(),
+    propertyIds: v.array(v.string()),
+    status: v.optional(v.string()),
+    category: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const caller = await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      firmId: args.firmId,
+    });
+    const firmId = String(caller.firmId || args.firmId);
+
+    const status = args.status != null ? String(args.status) : null;
+    const category = args.category != null ? String(args.category) : null;
+    // Selection shape first (the user must pick rows before picking values),
+    // then payload, then enums.
+    if (!Array.isArray(args.propertyIds) || args.propertyIds.length === 0) {
+      throw new Error("Select at least one property.");
+    }
+    if (args.propertyIds.length > 500) {
+      throw new Error("Bulk updates are capped at 500 properties per call.");
+    }
+    if (!status && !category) {
+      throw new Error("Nothing to update — provide a status or a category.");
+    }
+    if (status && !(BULK_PROPERTY_STATUSES as readonly string[]).includes(status)) {
+      throw new Error(`Status must be one of: ${BULK_PROPERTY_STATUSES.join(", ")}.`);
+    }
+    if (category && !(BULK_PROPERTY_CATEGORIES as readonly string[]).includes(category)) {
+      throw new Error(`Category must be one of: ${BULK_PROPERTY_CATEGORIES.join(", ")}.`);
+    }
+
+    const now = new Date().toISOString();
+    let updated = 0;
+    let conflicts = 0;
+    let skipped = 0;
+    const conflictLabels: string[] = [];
+
+    // Deduplicate by the RESOLVED row (the same unit listed twice — or once by
+    // Convex _id and once by legacy custom id — patches exactly once).
+    const seenRowIds = new Set<string>();
+    for (const rawId of args.propertyIds) {
+      const id = String(rawId ?? "").trim();
+      if (!id) continue;
+
+      const row = await resolveBulkProperty(ctx, id);
+      // Unknown ids and other firms' rows are skipped, never patched, and
+      // never leak their existence beyond the count.
+      if (!row || String(row.firmId ?? "") !== firmId) {
+        skipped += 1;
+        continue;
+      }
+      const rowId = String(row._id);
+      if (seenRowIds.has(rowId)) continue;
+      seenRowIds.add(rowId);
+
+      // Ledger-consistency guard: a vacant-class status may not be applied
+      // to a row whose units still have an ACTIVE tenancy.
+      if (status && VACANT_CLASS_STATUSES.has(status)) {
+        let activeOn: string | null = null;
+        for (const key of propertyUnitKeys(row)) {
+          const active = await findActiveTenancy(ctx, firmId, key);
+          if (active) {
+            activeOn = key;
+            break;
+          }
+        }
+        if (activeOn) {
+          conflicts += 1;
+          conflictLabels.push(
+            `${row.address ?? "Property"}${row.rentalDetails?.unitName ? ` (${row.rentalDetails.unitName})` : ""}`
+          );
+          continue;
+        }
+      }
+
+      const patch: any = { updatedAt: now, _lastModifiedBy: String(caller.email || caller._id || ""), _version: ((row._version as number) || 0) + 1 };
+      if (status) patch.status = status;
+      if (category) patch.category = category;
+      await ctx.db.patch(row._id, patch);
+      updated += 1;
+    }
+
+    return { updated, conflicts, skipped, conflictLabels: conflictLabels.slice(0, 20) };
+  },
+});

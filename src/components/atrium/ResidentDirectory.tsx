@@ -29,10 +29,12 @@ import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
-import { Badge, EmptyState, Input, Select } from '../ui';
+import { Badge, EmptyState, Input, Select, Button, Pagination } from '../ui';
 import { ResidentProfilePanel } from '../details/ResidentProfilePanel';
 import { formatNaira } from '../../utils/formatting';
-import { Users, Wallet, Wrench, ChevronDown, ChevronRight, Search } from 'lucide-react';
+// E4 (§5): sort + pagination through the shared pure list brain.
+import { applyListControls, SortDirection } from '../../utils/listControls';
+import { Users, Wallet, Wrench, ChevronDown, ChevronRight, Search, ArrowDownUp } from 'lucide-react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -54,6 +56,22 @@ type DirectoryEntry = {
     outstanding: { amount: number; charges: number; unpaid: number; partial: number; paid: number; defaulters: number } | null;
 };
 
+// E4 (§5): the roster columns a manager actually orders residents by.
+const RESIDENT_SORTERS: Record<string, (r: DirectoryEntry) => unknown> = {
+    name: (r) => r.name,
+    leaseStart: (r) => r.currentTenancy?.startDate ?? null,
+    leaseEnd: (r) => r.currentTenancy?.endDate ?? null,
+    balance: (r) => r.outstanding?.amount ?? 0,
+    maintenance: (r) => r.totals?.maintenanceCount ?? 0,
+};
+const RESIDENT_SORT_OPTIONS = [
+    { value: 'name', label: 'Sort: Name' },
+    { value: 'leaseStart', label: 'Sort: Lease start' },
+    { value: 'leaseEnd', label: 'Sort: Lease end' },
+    { value: 'balance', label: 'Sort: Balance due' },
+    { value: 'maintenance', label: 'Sort: Open maintenance' },
+];
+
 const day = (v: any): string => {
     if (v === null || v === undefined || v === '') return '—';
     const d = typeof v === 'number' ? new Date(v) : new Date(String(v));
@@ -68,6 +86,12 @@ export const ResidentDirectory: React.FC = () => {
     const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'past'>('all');
     const [search, setSearch] = useState('');
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
+    // E4 (§5): sort + pagination state — the page resets whenever the
+    // filters narrow so the roster never lands on an empty page.
+    const [sortKey, setSortKey] = useState('name');
+    const [sortDir, setSortDir] = useState<SortDirection>('asc');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
 
     const directory = useQuery(
         api.tenancyLifecycle.getResidentDirectory,
@@ -91,6 +115,19 @@ export const ResidentDirectory: React.FC = () => {
         }
         return rows;
     }, [residents, statusFilter, search]);
+
+    // E4 (§5): sort + paginate through the shared pure brain (nulls last:
+    // a past resident with no current lease sorts after every active one
+    // when ordering by lease dates, not before them).
+    const paged = useMemo(
+        () => applyListControls(filtered, {
+            sortKey: RESIDENT_SORTERS[sortKey] ?? RESIDENT_SORTERS.name,
+            sortDir,
+            page,
+            pageSize,
+        }),
+        [filtered, sortKey, sortDir, page, pageSize]
+    );
 
     if (directory === undefined) {
         return (
@@ -126,11 +163,11 @@ export const ResidentDirectory: React.FC = () => {
 
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-3">
-                <div className="w-full sm:w-56">
+                <div className="w-full sm:w-44">
                     <Select
                         label="Status"
                         value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'past')}
+                        onChange={(e) => { setStatusFilter(e.target.value as 'all' | 'active' | 'past'); setPage(1); }}
                         options={[
                             { value: 'all', label: 'All residents' },
                             { value: 'active', label: 'Active leases' },
@@ -143,7 +180,26 @@ export const ResidentDirectory: React.FC = () => {
                         label="Search"
                         placeholder="Name, phone, email, or unit…"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    />
+                </div>
+                {/* E4 (§5): sort key + direction — ui/ primitives, ratchet-safe. */}
+                <div className="w-full sm:w-44">
+                    <Select
+                        label="Sort"
+                        value={sortKey}
+                        onChange={(e) => { setSortKey(e.target.value); setPage(1); }}
+                        options={RESIDENT_SORT_OPTIONS}
+                    />
+                </div>
+                <div className="flex items-end">
+                    <Button
+                        aria-label={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                        title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+                        icon={ArrowDownUp}
+                        iconOnly
+                        variant="secondary"
+                        onClick={() => { setSortDir((d) => (d === 'asc' ? 'desc' : 'asc')); setPage(1); }}
                     />
                 </div>
             </div>
@@ -163,7 +219,7 @@ export const ResidentDirectory: React.FC = () => {
                 </div>
             ) : (
                 <div className="space-y-3">
-                    {filtered.map((r) => {
+                    {paged.pageRows.map((r) => {
                         const isOpen = selectedKey !== null && r.key === selectedKey;
                         const outstanding = r.outstanding;
                         return (
@@ -225,6 +281,18 @@ export const ResidentDirectory: React.FC = () => {
                     })}
                 </div>
             )}
+
+            {/* E4 (§5): shared pagination footer (ui primitive). */}
+            <Pagination
+                page={paged.page}
+                pageCount={paged.pageCount}
+                total={paged.total}
+                from={paged.from}
+                to={paged.to}
+                pageSize={pageSize}
+                onPageChange={setPage}
+                onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+            />
 
             {residents.length > 0 && (
                 <p className="text-2xs text-slate-400 dark:text-zinc-500 flex items-center gap-1">

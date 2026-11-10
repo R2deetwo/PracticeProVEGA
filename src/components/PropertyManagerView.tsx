@@ -7,6 +7,11 @@ import { useHighlight } from '../hooks/useHighlight';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { OfficeBuildingIcon, LockClosedIcon, SearchIcon, PlusIcon, CheckCircleIcon, TrashIcon, XIcon } from '../constants';
+// ROUND E (Wave E4): list controls (§5) — sort + pagination through the
+// shared pure brain + ui/ primitives (the ratchet-safe controls).
+import { Select, Button, Pagination } from './ui';
+import { applyListControls, sortRows, SortDirection } from '../utils/listControls';
+import { ArrowDownUp } from 'lucide-react';
 import { useFeatures } from '../hooks/useFeatures';
 import StatCard from './StatCard';
 import NairaSymbol from './NairaSymbol';
@@ -33,6 +38,24 @@ const PROP_PRESETS: { id: PropPreset; label: string }[] = [
     { id: 'occupied', label: 'Occupied' },
     { id: 'vacant', label: 'Vacant' },
     { id: 'expiring', label: 'Expiring' },
+];
+
+// ─── E4 Sort options (§5): the roster columns a manager actually orders by ───
+const PROPERTY_SORTERS: Record<string, (row: { property: Property; ownerName: string; unitCount: number }) => unknown> = {
+    address: (r) => r.property.address,
+    owner: (r) => r.ownerName,
+    status: (r) => r.property.status,
+    units: (r) => r.unitCount,
+    leaseEnd: (r) => (r.property.rentalDetails as any)?.leaseEnd ?? null,
+    value: (r) => Number(r.property.value) || 0,
+};
+const PROPERTY_SORT_OPTIONS = [
+    { value: 'address', label: 'Sort: Address' },
+    { value: 'owner', label: 'Sort: Owner' },
+    { value: 'status', label: 'Sort: Status' },
+    { value: 'units', label: 'Sort: Units' },
+    { value: 'leaseEnd', label: 'Sort: Lease end' },
+    { value: 'value', label: 'Sort: Portfolio value' },
 ];
 
 // Helper to compute days remaining on a lease
@@ -148,6 +171,14 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [preset, setPreset] = useState<PropPreset>('all');
+    // E4 list controls (§5): sort + pagination state. Page resets whenever
+    // the search/preset narrows so the user never lands on a now-empty page.
+    const [sortKey, setSortKey] = useState<string>('address');
+    const [sortDir, setSortDir] = useState<SortDirection>('asc');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+
+    const resetPage = () => setPage(1);
 
     // NOTE: useCoreState must be called BEFORE any conditional return
     // (Rules of Hooks). Previously this was AFTER the feature-gate early
@@ -232,13 +263,24 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
             });
         }
         // Then apply search
-        if (!searchTerm) return presetFiltered;
         const lower = searchTerm.toLowerCase();
-        return presetFiltered.filter(p =>
-            p.property.address.toLowerCase().includes(lower) ||
-            p.ownerName.toLowerCase().includes(lower)
-        );
-    }, [allProperties, searchTerm, preset]);
+        const searched = lower
+            ? presetFiltered.filter(p =>
+                p.property.address.toLowerCase().includes(lower) ||
+                p.ownerName.toLowerCase().includes(lower)
+            )
+            : presetFiltered;
+        // E4: stable sort (nulls last) — see src/utils/listControls.ts.
+        return sortRows(searched, PROPERTY_SORTERS[sortKey] ?? PROPERTY_SORTERS.address, sortDir);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allProperties, searchTerm, preset, sortKey, sortDir]);
+
+    // E4: pagination slice of the sorted+filtered roster (page clamps
+    // automatically when the roster shrinks — see applyListControls).
+    const paged = useMemo(
+        () => applyListControls(filteredProperties, { page, pageSize }),
+        [filteredProperties, page, pageSize]
+    );
 
     // Feature Gating
     // Property firms (Atrium/Unified): any paid plan gets access.
@@ -419,22 +461,47 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                         </button>
                     </div>
                     {/* Filter Preset — consolidated dropdown (was a row of pills) */}
-                    <select
-                        value={preset}
-                        onChange={(e) => setPreset(e.target.value as PropPreset)}
-                        className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
-                    >
-                        {PROP_PRESETS.map(p => (
-                            <option key={p.id} value={p.id}>{p.label}</option>
-                        ))}
-                    </select>
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                            <select
+                                value={preset}
+                                onChange={(e) => { setPreset(e.target.value as PropPreset); resetPage(); }}
+                                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-700 dark:text-zinc-300 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                            >
+                                {PROP_PRESETS.map(p => (
+                                    <option key={p.id} value={p.id}>{p.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* E4 (§5): sort key + direction — ui/ primitives, ratchet-safe. */}
+                        <div className="w-40 flex-shrink-0">
+                            <Select
+                                aria-label="Sort properties"
+                                value={sortKey}
+                                onChange={(e) => { setSortKey(e.target.value); resetPage(); }}
+                                options={PROPERTY_SORT_OPTIONS}
+                                selectClassName="!py-1.5 text-xs"
+                            />
+                        </div>
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            icon={ArrowDownUp}
+                            iconOnly
+                            aria-label={sortDir === 'asc' ? 'Sort ascending' : 'Sort descending'}
+                            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
+                            onClick={() => { setSortDir(d => (d === 'asc' ? 'desc' : 'asc')); resetPage(); }}
+                        />
+                    </div>
                     <div className="relative">
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input autoComplete="off" data-lpignore="true"  type="search" placeholder="Search properties..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
+                        <input autoComplete="off" data-lpignore="true"  type="search" placeholder="Search properties..." value={searchTerm} onChange={e => { setSearchTerm(e.target.value); resetPage(); }} className="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all" />
                     </div>
                 </div>
                 <div className="flex-grow flex flex-col overflow-hidden">
-                    {/* Bulk Actions Bar (Compact) */}
+                    {/* Bulk Actions Bar (Compact) — E4: select-all + counts follow
+                        the PAGINATED view (you act on what you can see), while the
+                        per-row checkboxes remain the selection source of truth. */}
                     {selectedIds.size > 0 && (
                         <div className="bg-primary-600 px-4 py-2 flex items-center justify-between animate-in slide-in-from-top-2 duration-300 relative z-20">
                             <span className="text-2xs font-black text-white uppercase tracking-widest">
@@ -470,23 +537,50 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                     <div className="bg-slate-50 dark:bg-zinc-900/50 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
                         <div
                             onClick={() => {
-                                if (selectedIds.size === filteredProperties.length) setSelectedIds(new Set());
-                                else setSelectedIds(new Set(filteredProperties.map(p => p.property.id)));
+                                const visibleIds = paged.pageRows.map(p => p.property.id);
+                                const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+                                if (allVisibleSelected) {
+                                    setSelectedIds(prev => {
+                                        const next = new Set(prev);
+                                        visibleIds.forEach(id => next.delete(id));
+                                        return next;
+                                    });
+                                } else {
+                                    setSelectedIds(prev => new Set([...prev, ...visibleIds]));
+                                }
                             }}
                             className="flex items-center gap-2 cursor-pointer group"
                         >
-                            <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${selectedIds.size === filteredProperties.length && filteredProperties.length > 0 ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}>
-                                {selectedIds.size === filteredProperties.length && filteredProperties.length > 0 && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
-                                {selectedIds.size > 0 && selectedIds.size < filteredProperties.length && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
+                            <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${(() => {
+                                const visibleIds = paged.pageRows.map(p => p.property.id);
+                                const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+                                const someVisibleSelected = visibleIds.some(id => selectedIds.has(id));
+                                return allVisibleSelected
+                                    ? 'bg-primary-600 border-primary-600'
+                                    : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400';
+                            })()}`}>
+                                {(() => {
+                                    const visibleIds = paged.pageRows.map(p => p.property.id);
+                                    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selectedIds.has(id));
+                                    const someVisibleSelected = visibleIds.some(id => selectedIds.has(id)) && !allVisibleSelected;
+                                    return (
+                                        <>
+                                            {allVisibleSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
+                                            {someVisibleSelected && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
+                                        </>
+                                    );
+                                })()}
                             </div>
-                            <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
+                            <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select page</span>
                         </div>
-                        <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredProperties.length} Total Properties</span>
+                        <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
+                            {filteredProperties.length} Total{paged.pageCount > 1 ? ` · Page ${paged.page}/${paged.pageCount}` : ''}
+                        </span>
                     </div>
 
                     <div className="flex-grow overflow-y-auto custom-scrollbar p-2 pb-16 md:pb-2">
-                        {filteredProperties.length > 0 ? (
-                            filteredProperties.map((item, idx) => (
+                        {paged.pageRows.length > 0 ? (
+                            paged.pageRows.map((item, idx) => (
                                 <PropertyListItem
                                     key={item.property.id}
                                     dataItemId={idx === 0 ? 'checklist-cta-hasTenantOnProperty' : undefined}
@@ -518,6 +612,18 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
                                 onAction={searchTerm || preset !== 'all' ? undefined : () => openModal('newProperty')}
                             />
                         )}
+                        {/* E4 (§5): shared pagination footer (ui primitive). */}
+                        <Pagination
+                            page={paged.page}
+                            pageCount={paged.pageCount}
+                            total={paged.total}
+                            from={paged.from}
+                            to={paged.to}
+                            pageSize={pageSize}
+                            onPageChange={setPage}
+                            onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
+                            className="mt-2"
+                        />
                     </div>
                 </div>
             </div>

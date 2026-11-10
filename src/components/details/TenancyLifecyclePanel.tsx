@@ -27,10 +27,13 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCoreState } from '../../contexts/CoreContext';
 import { Button, Input, Select, Card, Badge, EmptyState, useToastFeedback, useConfirm } from '../ui';
 import { matchResidentContact } from '../../utils/residentContactSync';
 import { formatNaira } from '../../utils/formatting';
-import { UserPlus, ClipboardCheck, RefreshCw, LogOut, ArrowLeftRight, History as HistoryIcon, Home } from 'lucide-react';
+// ROUND E (Wave E4): template document generation per tenancy row.
+import { TenancyDocumentGenerator } from './TenancyDocumentGenerator';
+import { UserPlus, ClipboardCheck, RefreshCw, LogOut, ArrowLeftRight, History as HistoryIcon, Home, FileText } from 'lucide-react';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -62,9 +65,11 @@ interface TenancyLifecyclePanelProps {
     propertyAddress: string;
     units: TenancyPanelUnit[];
     contacts: TenancyPanelContact[];
+    /** E4: the property id — stamps propertyId on generated documents. */
+    propertyId?: string;
 }
 
-type FormKind = 'allocate' | 'renew' | 'end' | 'transfer' | 'history';
+type FormKind = 'allocate' | 'renew' | 'end' | 'transfer' | 'history' | 'document';
 
 const RENT_FREQUENCIES = ['Annually', 'Bi-Annually', 'Quarterly', 'Monthly'];
 const END_REASON_OPTIONS = [
@@ -94,10 +99,17 @@ export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
     propertyAddress,
     units,
     contacts,
+    propertyId,
 }) => {
     const { bearerToken } = useAuth() as { bearerToken: string | null };
     const toast = useToastFeedback();
     const { confirm, ConfirmDialog } = useConfirm();
+    // E4: firm identity + the firm's own document templates feed the
+    // tenancy document generator (firm templates take precedence over the
+    // built-in starter pack).
+    const { coreState } = useCoreState();
+    const firmTemplates = (coreState as any).documentTemplates || [];
+    const firmName = (coreState as any).firmDetails?.name || '';
     const [open, setOpen] = useState<{ unitId: string; kind: FormKind } | null>(null);
 
     const unitIds = useMemo(() => units.map((u) => u.id).slice(0, 60), [units]);
@@ -202,6 +214,16 @@ export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                     {active ? (
                                         <>
+                                            {/* E4: generate paperwork for the ACTIVE tenancy from
+                                                the firm's templates / built-in starter pack. */}
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                icon={FileText}
+                                                onClick={() => setOpen(isOpen && open?.kind === 'document' ? null : { unitId: unit.id, kind: 'document' })}
+                                            >
+                                                Document
+                                            </Button>
                                             <Button size="sm" variant="secondary" icon={RefreshCw} onClick={() => setOpen({ unitId: unit.id, kind: 'renew' })}>
                                                 Renew
                                             </Button>
@@ -276,7 +298,31 @@ export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
                                     onCancel={() => setOpen(null)}
                                 />
                             )}
-                            {isOpen && open?.kind === 'history' && <HistoryBlock unitId={unit.id} firmId={firmId} bearer={bearerToken} />}
+                            {isOpen && open?.kind === 'document' && active && (
+                                <div className="mt-3">
+                                    <TenancyDocumentGenerator
+                                        tenancy={active}
+                                        unitLabel={unit.label}
+                                        propertyAddress={propertyAddress}
+                                        propertyId={propertyId || unit.id}
+                                        firmName={firmName}
+                                        firmTemplates={firmTemplates}
+                                        onDone={() => setOpen(null)}
+                                    />
+                                </div>
+                            )}
+                            {isOpen && open?.kind === 'history' && (
+                                <HistoryBlock
+                                    unitId={unit.id}
+                                    unitLabel={unit.label}
+                                    firmId={firmId}
+                                    bearer={bearerToken}
+                                    propertyAddress={propertyAddress}
+                                    propertyId={propertyId}
+                                    firmName={firmName}
+                                    firmTemplates={firmTemplates}
+                                />
+                            )}
                         </div>
                     );
                 })}
@@ -667,11 +713,34 @@ const TransferForm: React.FC<{
 
 // ── History (ledger + attributed payments) ──────────────────────────────────
 
-const HistoryBlock: React.FC<{ unitId: string; firmId: string; bearer: string | null }> = ({ unitId, firmId, bearer }) => {
+interface HistoryBlockProps {
+    unitId: string;
+    unitLabel?: string;
+    firmId: string;
+    bearer: string | null;
+    /** E4: context for per-row document generation. */
+    propertyAddress: string;
+    propertyId?: string;
+    firmName: string;
+    firmTemplates: any[];
+}
+
+const HistoryBlock: React.FC<HistoryBlockProps> = ({
+    unitId,
+    unitLabel,
+    firmId,
+    bearer,
+    propertyAddress,
+    propertyId,
+    firmName,
+    firmTemplates,
+}) => {
     const history = useQuery(
         api.tenancyLifecycle.getUnitTenancyHistory,
         firmId && bearer ? { firmId, unitId, sessionToken: bearer } : 'skip'
     ) as any;
+    // E4: which history row has its generator open (by tenancy _id).
+    const [docRowId, setDocRowId] = useState<string | null>(null);
 
     if (history === undefined) {
         return <p className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700 text-2xs text-slate-400">Loading history…</p>;
@@ -685,8 +754,10 @@ const HistoryBlock: React.FC<{ unitId: string; firmId: string; bearer: string | 
     }
     return (
         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700 space-y-2">
-            {history.tenancies.map((t: any) => (
-                <div key={String(t._id)} className="rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 p-2.5">
+            {history.tenancies.map((t: any) => {
+                const rowId = String(t._id);
+                return (
+                <div key={rowId} className="rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 p-2.5">
                     <div className="flex flex-wrap items-center gap-2">
                         {String(t.status) === 'active' ? (
                             <Badge tone="success" size="xs">Active</Badge>
@@ -702,6 +773,17 @@ const HistoryBlock: React.FC<{ unitId: string; firmId: string; bearer: string | 
                                 {formatNaira(t.rentAmount)} {t.paymentFrequency || ''}
                             </span>
                         )}
+                        {/* E4: per-row document generation (renewal letters, demand
+                            notices, move-out confirmations for PAST residents too —
+                            the ledger row carries everything the template needs). */}
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            icon={FileText}
+                            onClick={() => setDocRowId(docRowId === rowId ? null : rowId)}
+                        >
+                            Document
+                        </Button>
                     </div>
                     <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
                         {Array.isArray(t.payments) ? t.payments.length : 0} payment{Array.isArray(t.payments) && t.payments.length === 1 ? '' : 's'} in
@@ -715,8 +797,22 @@ const HistoryBlock: React.FC<{ unitId: string; firmId: string; bearer: string | 
                             {t.emergencyContactRelationship ? ` — ${t.emergencyContactRelationship}` : ''}
                         </p>
                     )}
+                    {docRowId === rowId && (
+                        <div className="mt-2">
+                            <TenancyDocumentGenerator
+                                tenancy={t}
+                                unitLabel={unitLabel || 'Unit'}
+                                propertyAddress={propertyAddress}
+                                propertyId={propertyId || unitId}
+                                firmName={firmName}
+                                firmTemplates={firmTemplates}
+                                onDone={() => setDocRowId(null)}
+                            />
+                        </div>
+                    )}
                 </div>
-            ))}
+                );
+            })}
         </div>
     );
 };

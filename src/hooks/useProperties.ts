@@ -10,11 +10,13 @@ import { useAuth } from '../contexts/AuthContext';
  * Hook for managing properties and rental portfolios.
  */
 export const useProperties = (appState: AppState, actions: any) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { addToast } = useUI();
 
     // Convex Mutations
     const deletePropertyCascadeMutation = useMutation(api.myFunctions.deletePropertyCascade);
+    // E4: the ONE staff-authed bulk mutation (see handleBulkUpdateProperties).
+    const bulkUpdatePropertiesMutation = useMutation(api.tenancyLifecycle.bulkUpdateProperties);
 
     /**
      * Delete a property and unlink it from all associated matters.
@@ -40,17 +42,50 @@ export const useProperties = (appState: AppState, actions: any) => {
 
     /**
      * Bulk update property statuses or categories.
+     *
+     * ROUND E (Wave E4): this used to fan out N sequential updateItem calls
+     * (each gated by requireFirmUser — any firm member) with no enum
+     * validation and a partial-failure state. It now calls the dedicated
+     * staff-authed bulkUpdateProperties mutation ONCE:
+     *   - staff-only (requireStaffCaller + assertSameFirm server-side),
+     *   - status/category whitelisted to the real enums,
+     *   - the tenancy ledger guards consistency (a unit with an ACTIVE
+     *     tenancy cannot be bulk-marked Vacant/Listed/Sold — end the
+     *     tenancy first),
+     *   - local state updates arrive through the reactive getFirmData
+     *     re-merge (the same path every dedicated lifecycle mutation uses).
      */
     const handleBulkUpdateProperties = useCallback(async (ids: string[], data: { status?: PropertyStatus, category?: PropertyCategory }) => {
-        const promises = ids.map(id => actions.updateItem('properties', { id, ...data }, 'Property'));
-        await Promise.all(promises);
-        addToast(`Successfully updated ${ids.length} properties.`, { type: 'success' });
-    }, [actions, addToast]);
+        try {
+            const res: any = await bulkUpdatePropertiesMutation({
+                firmId: currentUser?.firmId || '',
+                propertyIds: ids,
+                status: data.status,
+                category: data.category,
+                userEmail: currentUser?.email,
+                sessionToken: (bearerToken ?? undefined) || undefined,
+            });
+            const { updated = 0, conflicts = 0, skipped = 0, conflictLabels = [] } = res || {};
+            if (updated > 0 && conflicts === 0) {
+                addToast(`Updated ${updated} propert${updated === 1 ? 'y' : 'ies'}.`, { type: 'success' });
+            } else if (conflicts > 0) {
+                addToast(
+                    `${updated} updated · ${conflicts} skipped (active tenancy — end the tenancy first${conflictLabels.length ? `: ${conflictLabels.slice(0, 3).join(', ')}${conflictLabels.length > 3 ? '…' : ''}` : ''})${skipped ? ` · ${skipped} not found` : ''}.`,
+                    { type: 'info', duration: 6000 }
+                );
+            } else if (updated === 0) {
+                addToast('No properties were updated.', { type: 'info' });
+            }
+        } catch (e: any) {
+            console.error('Bulk update failed:', e);
+            addToast(String(e?.message || 'Bulk update failed.'), { type: 'error' });
+        }
+    }, [currentUser, bearerToken, bulkUpdatePropertiesMutation, addToast]);
 
     /**
      * Update contact's property portfolio link.
      */
-    const onUpdateContactProperties = useCallback((contactId: string, properties: any[]) => 
+    const onUpdateContactProperties = useCallback((contactId: string, properties: any[]) =>
         actions.updateItem('contacts', { id: contactId, properties }, 'Property Portfolio'), [actions]);
 
     return {

@@ -43,35 +43,42 @@ export const BulkEditPropertyModal: React.FC<BulkEditPropertyModalProps> = ({ pr
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-3">
               <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Update Status</label>
+              {/* E4 FIX: the options were 'Available'/'Leased'/'For Sale'/
+                  'Under Renovation' — values in NO enum (PropertyStatus is
+                  Occupied/Vacant/Listed/Maintenance/Sold), so a bulk edit
+                  wrote a status no surface recognised (the row's chip fell
+                  to the default gray). Aligned to the real enum now — and
+                  the server-side bulk mutation enforces the same list. */}
               <select 
                 value={status} 
                 onChange={(e) => setStatus(e.target.value as PropertyStatus)}
                 className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
               >
                 <option value="">Keep Original Status</option>
-                <option value="Available">Available</option>
-                <option value="Leased">Leased</option>
-                <option value="For Sale">For Sale</option>
-                <option value="Maintenance">Maintenance</option>
-                <option value="Under Renovation">Under Renovation</option>
+                <option value="Occupied">Occupied</option>
+                <option value="Vacant">Vacant</option>
+                <option value="Listed">Listed on Market</option>
+                <option value="Maintenance">Under Maintenance</option>
+                <option value="Sold">Sold</option>
               </select>
-              <p className="text-3xs text-slate-400 italic px-1">This will override the current status of all selected properties.</p>
+              <p className="text-3xs text-slate-400 italic px-1">This will override the current status of all selected properties — except units with an active tenancy, which the ledger protects from being marked vacant.</p>
             </div>
 
             <div className="space-y-3">
               <label className="block text-2xs font-black text-slate-400 uppercase tracking-widest ml-1">Update Category</label>
+              {/* E4 FIX: aligned to the real PropertyCategory enum (the old
+                  Residential/Commercial/… options matched no surface). */}
               <select 
                 value={category} 
                 onChange={(e) => setCategory(e.target.value as PropertyCategory)}
                 className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 dark:text-zinc-300 focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 outline-none transition-all"
               >
                 <option value="">Keep Original Category</option>
-                <option value="Residential">Residential</option>
-                <option value="Commercial">Commercial</option>
-                <option value="Industrial">Industrial</option>
-                <option value="Agricultural">Agricultural</option>
-                <option value="Mixed-Use">Mixed-Use</option>
-                <option value="Special-Purpose">Special-Purpose</option>
+                <option value="Tenanted Property">Tenanted Property</option>
+                <option value="Property For Sale">Property For Sale</option>
+                <option value="Disputed Property">Disputed Property</option>
+                <option value="Personal Residence">Personal Residence</option>
+                <option value="Other">Other</option>
               </select>
             </div>
           </div>
