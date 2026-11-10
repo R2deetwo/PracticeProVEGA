@@ -16825,3 +16825,146 @@ Workers", scoped to the account) → repo Settings → Secrets and
 variables → Actions → update CLOUDFLARE_API_TOKEN → re-run "Deploy to
 Production (promote)" with sha 9830747c (or blank — Vercel/Convex will
 simply redeploy the same commit). Everything else on the run was green.
+
+Task ID: R90 (Round G, Waves G1+G2 — ARIA reads the REAL books +
+major actions require explicit confirmation; owner brief §2+§3+§6)
+Agent: Main agent (Super Z)
+Task: First Round G chat-layer waves — natural-language financial
+queries grounded in the real database (§2), and the deterministic
+confirmation gate for major AI actions (§3), both under the §6
+reliability rule: the LLM never directly executes arbitrary database
+operations — it only ever sees authed server results and proposes
+actions a human confirms.
+
+Work Log:
+- G1 THE REAL BOOKS (§2+§6): src/utils/ariaFinancials.ts (NEW, the
+  dispatch layer) + the query_financials tool declaration +
+  the AloaChat handler — ARIA can now answer money questions from the
+  server's own numbers: 'overview' (getFinancialOverview), the six
+  report-suite slices (getFinancialReports → rent roll / arrears
+  aging / collections / revenue by type / payment history / period
+  comparison) and 'resident_bill' (getResidentBill). The auth triple
+  (firmId + sessionToken + userEmail) is forwarded on EVERY path;
+  resident_bill without a unitId instructs the model to resolve the
+  unit via query_firm_data — it never guesses a bill; every result
+  carries the anti-fabrication grounding note. The ARIA identity
+  prompt gains the MONEY FIGURES rule: roster = terms, tool = live
+  balances — never compute, estimate or recall a money figure.
+- G2 THE CONFIRMATION GATE (§3+§6): src/utils/quickActionPolicy.ts
+  (NEW, deterministic policy — delete_item on ANY target and
+  update_status/archive on properties are confirm-first; task/matter
+  status tweaks, priorities and assignments stay immediate — no
+  confirmation fatigue) + QuickActionConfirmCard.tsx (NEW, ui Button
+  primitives only) + the AloaChat rework: execute_quick_action gates
+  on the policy BEFORE any mutation runs; the confirm path performs
+  NO mutation, renders the two-button card (plain-English description
+  of exactly what will happen), and tells the model the action was
+  NOT executed; ONE shared runQuickActionMutation serves both the
+  immediate path and the Confirm click (identical auth, identical
+  constrained writes); Cancel runs nothing, ever; unsupported verbs
+  now throw an honest error — the old code reported PHANTOM SUCCESS
+  for 'archive' (claimed success, did nothing).
+- TESTS: +32 (16 roundGWave1 + 14 roundGWave2... G1: the dispatch —
+  auth-forwarding on every path, per-report slice isolation, the
+  resident_bill unit-resolution instruction, unknown-report refusal,
+  the grounding note on every result, the tool-registry enum, the
+  AloaChat wiring, the prompt rule; G2: the policy matrix (delete on
+  all 5 target types, property status/archive, the immediate set),
+  card copy contracts, gate-BEFORE-mutation ordering, the
+  no-mutation confirm path, the single shared runner, cancel-runs-
+  nothing, honest-error for unsupported verbs, the render branch, the
+  prompt's confirmation language).
+- GATES: vitest 2,016/2,016 (102 files; 1,968 R89 baseline + 48 with
+  G3, zero regressions) / root tsc 126 = baseline / eslint 0 errors
+  0 warnings on changed files / ui-primitives ratchet HELD at 2297 /
+  vite build green.
+
+Task ID: R91 (Round G, Wave G3 — the property-portfolio proactive
+scan; owner brief §4; ROUND G CLOSEOUT)
+Agent: Main agent (Super Z)
+Task: The proactive-engine wave — what a property manager needs to
+hear about unprompted: leases about to lapse and money sitting in the
+reconciliation queues.
+
+Work Log:
+- THE SCAN (§4): convex/proactive.ts +scanPropertyPortfolio (daily,
+  read-only scan + insight inserts — mutates NOTHING but
+  proactive_insights): ① LEASE EXPIRY escalation — every unit in
+  BOTH storage shapes (nested rentalDetails + bare unit fields) plus
+  the legacy single-unit property shape, classified by the pure
+  leaseExpiryWindow (expired → critical, ≤30 days → critical, 31-60
+  → warning, farther → silence; unparsable never invents a window),
+  deduped per unit+window+month so a lease escalates exactly once per
+  stage and the expired nag repeats monthly at most; ② MONEY WAITING
+  — the Round F reconciliation queues with EXACTLY
+  getUnallocatedPayments' semantics (settled = approved OR verified,
+  with money, no linkedChargeId, no ACTIVE match; a reversed match
+  re-opens the proof) plus charges holding creditCarriedForward —
+  ONE weekly-deduped warning per firm pointing at Financials →
+  Reconcile.
+- SCHEMA + CRON: proactive_insights.category union + 'property'
+  (additive); scanPropertyPortfolio daily at 06:05 UTC — after
+  detectAnomalies (06:00), before the morning briefing (06:15), so
+  property insights land in the same day's briefing.
+- TESTS: +18 roundGWave3 — the window/week classifiers exact (30/60
+  boundaries, junk refusal), the scan through the REAL handler
+  (severities, both unit shapes + legacy shape, dedup on re-run,
+  per-firm scoping, the queue semantics incl. verified-is-settled and
+  linked/matched/reversed exclusions, clean books → silence, weekly
+  dedup), wiring contracts incl. cron ordering and the
+  no-mutation-but-insights guarantee.
+- GATES: vitest 2,016/2,016 / root tsc 126 = baseline / convex tsc
+  0 / vite build green.
+
+ROUND G COMPLETE (R90–R91) — the ARIA smart-upgrade owner brief,
+section by section:
+- §1 context-aware property intelligence: the portfolio roster +
+  active-property context + deep-context injection were already in
+  place (portfolioContext.ts, injectedContext); Round G completed the
+  missing dimension — live financial context via the G1 tool (on
+  demand, never prompt-bloat).
+- §2 natural-language queries over the REAL DB, no fabrication: G1 —
+  every money figure now comes from the server's own reads with a
+  grounding note; unknown reports throw; unitless bills instruct.
+- §3 controlled actions with explicit confirmation: G2 — the
+  deterministic policy + the confirm card; deletes and property
+  status changes NEVER auto-execute.
+- §4 proactive intelligence: G3 — lease-expiry escalation + the
+  reconciliation-queue watch, in the same insights feed and morning
+  briefing as everything else.
+- §5 conversation experience: unchanged surfaces (streaming, voice,
+  memory, model tiers, packets) + the confirmation card as a richer
+  action interaction; the prompt teaches the new tool and the
+  confirmation language.
+- §6 reliability: the LLM still never touches the database — reads
+  go through authed server queries, writes through the shared
+  constrained mutation runner behind a human click; unsupported verbs
+  fail honestly instead of reporting phantom success.
+- §7 acceptance: pinned by the three new wave suites (48 tests) on
+  top of the existing ARIA suites (intentGate, portfolioContext,
+  aloaSendIntegrity, aloaAccountContext).
+- UNTOUCHED, as demanded: Vega OS complete and intact, Komplete zero
+  file changes, Paystack zero file changes.
+- SHIPPED: 8488cae1 pushed → CI all green (Tests / Build Android APK
+  / Deploy to Staging) on 8488cae1bfa2703e49f6da3703f8aa3b838bf8f1 →
+  v1.0.759, build-1154, APK released, staging live. Production
+  promote dispatched this session (same flow as R89).
+- OUTSTANDING (owner actions, unchanged): rotate the PAT (4th chat
+  transit); re-paste CLOUDFLARE_API_TOKEN + re-run the promote so the
+  mirror catches up to 8488cae1; brand/* branch disposal.
+
+Post-push record (R91): Round F's four waves were found committed but
+UNPUSHED when this session began (the previous session ran out of
+context before the push — the owner rightly noticed nothing had
+moved). This session pushed them (R86–R89, v1.0.758/build-1153),
+explained the stale-production cause (R81–R85 promotes all pending —
+pushes to main auto-deploy STAGING only), dispatched the promote
+(run 42881412972: quality gate GREEN, Vercel + Convex production LIVE
+on 9830747c / v1.0.758, Cloudflare mirror blocked by the dead
+CLOUDFLARE_API_TOKEN — owner fix recorded in the R89 addendum), then
+surveyed ARIA's architecture (AgencyHub, PropertyManagementAgent,
+portfolioContext, intentGate, proactive engine, conversation memory,
+aiAudit, the geminiService tool surface, AloaChat's execution layer)
+and shipped Round G (G1+G2 in 5008d679, G3 in 8488cae1) — CI green,
+v1.0.759/build-1154, promote dispatched (see the R91 promote record
+below).
