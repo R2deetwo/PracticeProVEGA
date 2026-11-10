@@ -16362,3 +16362,190 @@ CI auto-commits bd2b5dba (bump patch version to 1.0.756) + 81b8af6c
 (APK release info build-1151), tag build-1151, release "PracticePro
 v1.0.756"; local tree fast-forwarded. Production promote for R84
 remains the owner action (same flow as every round).
+
+Task ID: R85 (Round E, Wave E4 — list controls, authorised bulk
+operations, template document generation, and the 8-workflow acceptance
+chain; ROUND E CLOSEOUT)
+Agent: Main agent (Super Z)
+Task: Fourth and final wave of ROUND E — the remainder of the owner
+brief: §5's list search/sort/pagination across the property + resident
+surfaces, §4's authorised bulk operations and template document
+generation, and §7's eight acceptance workflows demonstrated end-to-end.
+
+Work Log:
+- LIST CONTROLS (§5): src/utils/listControls.ts (NEW, the pure list
+  brain) — applyListControls composes filter → multi-field
+  case-insensitive search → stable sort → clamped 1-based pagination.
+  Sorting rules pinned by test: STABLE (equal keys keep input order),
+  NULLS LAST in BOTH directions (a resident with no lease end is
+  "unknown", not "the earliest lease in history" — the old insertion
+  order gave no ordering at all), numeric-aware comparisons (₦90,000
+  after ₦45,000, not string order), ISO dates compare correctly by
+  construction. Out-of-range pages clamp to the last real page;
+  pageSize 0 = show all. src/components/ui/Pagination.tsx (NEW, the
+  shared footer primitive): prev/next Buttons, "Showing X–Y of Z",
+  page counter, rows-per-page Select (25/50/100/all), self-hiding for
+  empty rosters — Button/Select primitives ONLY (ADR-0004; exported
+  from ui/index). Wired into BOTH consoles: PropertyManagerView (sort
+  by address/owner/status/units/lease-end/portfolio-value + direction
+  toggle + pagination; page resets on every search/preset/sort change;
+  select-all is now select-PAGE acting on the paginated view while
+  per-row checkboxes remain the selection source of truth — previously
+  the list rendered the ENTIRE roster in one unpaginated scroll) and
+  ResidentDirectory (sort by name/lease-start/lease-end/balance-due/
+  open-maintenance + pagination on top of E2's search + status
+  filters).
+- AUTHORISED BULK OPERATIONS (§4+§6): convex/tenancyLifecycle.ts (+1
+  public mutation; 12 staff-authed publics now — 8 E1 + 2 E2 + 1 E3 +
+  1 E4): bulkUpdateProperties — ONE staff-authed server call
+  (requireStaffCaller + assertSameFirm) replacing the client fan-out in
+  useProperties.handleBulkUpdateProperties (N sequential updateItem
+  calls, each gated by requireFirmUser = any firm member, no enum
+  validation, partial-failure state with one optimistic toast). The
+  mutation: whitelists status/category ONLY (financial history is
+  unreachable by construction — rentPaymentHistory/ledger_entries/
+  service_charges can never be patched from this path); validates
+  against the REAL PropertyStatus/PropertyCategory enums; dedupes by
+  the RESOLVED row (the same unit passed twice, or once by Convex _id
+  and once by legacy custom id, patches exactly once); skips unknown +
+  cross-firm ids without leaking their existence beyond the count;
+  caps at 500 rows per call; and runs the LEDGER-CONSISTENCY GUARD —
+  a vacant-class status (Vacant/Listed/Sold) is REFUSED for any row
+  whose own unitKey OR ANY EMBEDDED-UNIT key still has an ACTIVE
+  tenancy (reported as a conflict with the address: end the tenancy
+  first; the E1 ledger stays the truth for occupancy). Maintenance
+  while a resident lives there still applies. useProperties now calls
+  the mutation once and toasts updated/conflicts/skipped; the reactive
+  getFirmData re-merge updates local state (the same path every E1
+  lifecycle mutation uses). BULK-MODAL BUG FIXED: BulkEditPropertyModal
+  offered 'Available'/'Leased'/'For Sale'/'Under Renovation' +
+  'Residential'/'Commercial'/… — values in NO enum; every bulk edit
+  ever made through it wrote statuses/categories no surface
+  recognised (the row chip fell to default gray). Aligned to the real
+  enums, with the ledger-guard note in the helper text.
+- TEMPLATE DOCUMENT GENERATION (§4): src/utils/
+  tenancyDocumentGeneration.ts (NEW, the pure generation brain):
+  buildTenancyTemplateContext (ledger row + unit + property + firm →
+  the flat {{token}} dictionary; money formatted exactly once as NGN
+  text; dates humanised; optional facts ABSENT when unknown — never
+  zero-filled), fillTemplate ({{token}}/{{ token }} substitution,
+  case-insensitive keys; a token the ledger cannot supply becomes a
+  VISIBLE [FILL: token] marker and lands in unfilledKeys — the
+  manager sees exactly what is missing, values are never invented),
+  templateTokens, and BUILT_IN_PROPERTY_TEMPLATES (6 starters: Tenancy
+  Agreement, Lease Renewal Confirmation, Rent/Demand Notice, Notice to
+  Vacate/Termination, Move-out & Inspection Confirmation, Welcome
+  Letter — offered only when the firm's own Settings→Templates list
+  has nothing to offer; firm templates always take precedence).
+  TenancyDocumentGenerator.tsx (NEW): the per-tenancy generator —
+  template select, live preview of the substituted draft, unfilled-
+  token warning banner, and "Open in editor" handing the filled draft
+  to the REAL DocumentForm through openModal('newDocument', …,
+  {draftTitle, draftContent, propertyId}) — saving, categorising and
+  analysis reuse the existing document pipeline and the E3 propertyId
+  document link. Wired into TenancyLifecyclePanel: a Document action
+  on every ACTIVE tenancy AND every HISTORY row (renewal letters,
+  demand notices and move-out confirmations for PAST residents too —
+  the ledger row carries everything the templates read), with
+  propertyId threaded from PropertyDetailView's two panel mounts.
+- THE ACCEPTANCE CHAIN (§7): tests/unit/roundEWave4.test.ts — the
+  eight owner-brief workflows driven END-TO-END through the REAL
+  handlers in one shared fixture world, each step asserting the state
+  the next step depends on: ① create property (myFunctions.createItem
+  — the real save path) ② create unit (myFunctions.addUnitToProperty
+  + the sibling-row model the multi-unit form saves) ③④⑤ register
+  resident + allocate + record lease details (one guided
+  allocateTenant flow — full ledger row + denormalized sync asserted)
+  ⑥ renew (ended('renewed') chain with the new terms) ⑦ terminate
+  (unit identity vacated, rentPaymentHistory byte-identical — §6's
+  preservation PROVEN, not promised) ⑧ retrieve complete history
+  (getResidentHistory + getResidentProfile: both tenancies, payments
+  attributed in-window, emergency contact) — plus the ⑦→bulk handoff
+  (the vacated unit can NOW be bulk-marked Listed: the guard opens
+  exactly when the ledger says it should). +33 tests total (auth
+  quartet, enum validation incl. the stale modal values, ledger +
+  embedded-unit guards, row-level dedup, the whitelist patch,
+  listControls sorting/search/pagination/composition, template
+  context/fill/built-ins incl. sparse-row visibility, source
+  contracts). The E1/E2/E3 pinned public counts raised 11 → 12.
+- MANUAL DEMO PATH (for the owner, ~10 minutes): Properties → New →
+  fill the address/owner → save (①; the form validates rent on every
+  rent-collecting unit and warns on duplicate unit names); the
+  property's Units tab → add Unit B1 (②); the unit row → Allocate
+  Resident → name/phone/email + lease window + rent + deposits (③④⑤
+  in one guided form — the resident-match hint shows if the contact
+  already exists); the active row → Renew → new window + rent (⑥);
+  the active row → End → move_out (⑦ — payments survive by
+  construction); Billing → Residents → the resident's row expands to
+  the consolidated profile with both tenancies and attributed
+  payments (⑧); on the way out, try selecting the tenanted unit and
+  bulk-editing it to Vacant (the server refuses with the ledger
+  reason), then generate a Tenancy Agreement from the active row's
+  Document button and open it in the editor.
+- HYGIENE: the stale sandbox snapshot (70 commits behind, 100 dirty
+  files, 190c11b1-era) was reset to origin/main before work began —
+  the stale diff is preserved at tmp/stale-snapshot-backup.patch.
+  The stale snapshot had ALSO left a PAT embedded in git remote
+  origin (an R72 violation from an older session); reset to pure
+  HTTPS after this push — the token transited only a one-time push
+  URL and the 600-perm file outside the repo.
+- MODIFIED FILES: convex/tenancyLifecycle.ts; src/utils/listControls.ts
+  (NEW); src/utils/tenancyDocumentGeneration.ts (NEW);
+  src/components/ui/Pagination.tsx (NEW); src/components/ui/index.ts;
+  src/components/PropertyManagerView.tsx; src/components/atrium/
+  ResidentDirectory.tsx; src/components/details/TenancyLifecyclePanel.
+  tsx; src/components/details/TenancyDocumentGenerator.tsx (NEW);
+  src/components/details/PropertyDetailView.tsx;
+  src/components/modals/BulkEditPropertyModal.tsx;
+  src/hooks/useProperties.ts; tests/unit/roundEWave4.test.ts (NEW);
+  tests/unit/roundEWave{1,2,3}.test.ts (pinned counts 11 → 12).
+- GATES: vitest 1,906/1,906 (95 files; 1,873 R84 baseline + 33, zero
+  regressions), root tsc 126 = the documented baseline (the 13
+  first-pass strict errors in the new test file fixed with non-null
+  assertions), convex tsc 0, eslint changed files 0 errors / 0 new
+  warnings (the single rounded-xl warning in PropertyDetailView is
+  pre-existing on main, verified by stash-diff), ui-primitives
+  ratchet HELD at 2297, design-token gate green (gray=0), vite build
+  green.
+
+Stage Summary — ROUND E COMPLETE (all four waves shipped):
+- E1 (R82): the tenancy lifecycle engine (ledger, allocation, renewal,
+  end, transfer, history) + the PII-safe public property projection.
+- E2 (R83): the resident directory + consolidated resident profile.
+- E3 (R84): intelligent property forms + the per-property financial
+  summary + the property-documents revival.
+- E4 (R85): list controls, authorised bulk operations, template
+  document generation, the 8-workflow acceptance chain.
+- All 7 sections of the owner brief are now demonstrable: §1 property
+  management incl. the aggregate detail view and financial summary;
+  §2 resident management incl. the aggregated profile with role
+  privacy (staff-only reads, firm-scoped, history never deleted);
+  §3 intelligent forms (validation, duplicate detection, resident
+  match, confirmations, no re-entering known info); §4 workflows
+  (guided allocation, renewal, termination, transfer, bulk ops,
+  template generation — with historical leases + payments preserved);
+  §5 UX (search, sort, pagination, status indicators, contextual
+  actions, responsive, empty states); §6 technical safeguards
+  (concurrent-submission guards, backend validation/permissions, the
+  move-out preservation proof, Vega/Komplete untouched — Komplete had
+  zero file changes in Round E); §7 the eight acceptance workflows —
+  pinned by tests AND scripted above for manual demo.
+- SHIPPED: 8d5bd7f7 pushed → CI all green (Tests / Build Android APK /
+  Deploy to Staging) on
+  8d5bd7f736f0f7e5cd566f7a2d16cd8b0b9c47ee → v1.0.757, build-1152, APK
+  released. Production promote = owner action (same flow as every
+  round: "Deploy to Production (promote)", blank sha).
+- OUTSTANDING (owner actions, unchanged): promote R85 to production
+  (R81–R84 also still awaiting promote if not yet run); the Cloudflare
+  mirror needs CLOUDFLARE_API_TOKEN re-pasted (stale since 04d798b3);
+  the PAT has transited chat again — rotate whenever convenient (the
+  current one lives only in the 600-perm file + one-time push URLs).
+
+Post-push record (R85): published on a one-time push URL only (the
+remote stays pure HTTPS per the R72 convention — it had drifted to an
+embedded token from the stale snapshot era and was reset this session).
+CI on 8d5bd7f7: Tests PASS, Build Android APK PASS, Deploy to Staging
+PASS; CI auto-commits 308b9478 (bump patch version to 1.0.757) +
+76c2f4b4 (APK release info build-1152), tag build-1152, release
+"PracticePro v1.0.757"; local tree fast-forwarded. Production promote
+for R85 remains the owner action (same flow as every round).
