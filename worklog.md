@@ -16549,3 +16549,261 @@ PASS; CI auto-commits 308b9478 (bump patch version to 1.0.757) +
 76c2f4b4 (APK release info build-1152), tag build-1152, release
 "PracticePro v1.0.757"; local tree fast-forwarded. Production promote
 for R85 remains the owner action (same flow as every round).
+
+Task ID: R86 (Round F, Wave F1 — the financial overview console + the
+per-resident rent bill statement; owner brief §1+§2 gaps)
+Agent: Main agent (Super Z)
+Task: First wave of ROUND F (Atrium OS financial operations &
+reconciliation upgrade) — §1's unified money console and §2's resident
+rent bill view.
+
+Work Log:
+- FINANCIAL OVERVIEW CONSOLE (§1): convex/financialReporting.ts (NEW,
+  staff-authed firm-scoped read-only) — getFinancialOverview: cash-flow
+  income/risk/counts with voided+test rows excluded by the shared
+  isActiveFinancialRecord predicate, cleared-by-type collections, proof
+  review queue counts, service-charge outstanding credit-netted for
+  UNPAID + outstandingBalance for PARTIAL, credits waiting, recent
+  activity newest-first. Every total computed integer-kobo internally
+  and converted back to naira @2dp once (storage stays naira — the
+  kobo storage migration is a deferred wave). FinancialOverview.tsx
+  (NEW, ui primitives only — income/at-risk/outstanding/credit tiles,
+  6-month income-vs-risk bars, collections-by-type +
+  outstanding-by-category, proof queue badges, recent activity strip;
+  every figure rendered exactly as the server returned it) wired as
+  the FIRST Financials tab (BillingView 'overview', productTag
+  Property).
+- RESIDENT RENT BILL (§2): convex/tenancyLifecycle.ts +1 staff-authed
+  read (requireStaffCaller + assertSameFirm; pinned staff-authed count
+  12→13) — getResidentBill: opening balance from pre-window unsettled
+  obligations; in-window DEBITS from the OBLIGATION stores only
+  (service charges due in-window at full cycle amount + rent derived
+  from the lease terms, never invented — the rent-arrears model Round
+  B flagged as missing, now derivable; a settled charge nets to zero
+  instead of double-counting both stores); in-window CREDITS from the
+  PAYMENT store (rows stamped with a tenantId must carry THIS
+  resident's identity, un-stamped legacy rows count only inside the
+  tenancy window — the E2 in-window twin); pending penalties are
+  debits, cleared penalties are payments; voided rows are visible
+  struck adjustments EXCLUDED from the running total; the Round B
+  overpayment credit applied exactly once as a closing line; ending
+  balance + due / in credit / settled note. ResidentBillPanel.tsx
+  (NEW, ui primitives only — brought-forward row, chronological
+  statement lines with kind badges + debit/credit arrows, struck
+  excluded adjustments with their void reasons, totals strip, ending
+  balance note) embedded in ResidentProfilePanel after the balances
+  section.
+- TESTS: +17 roundFWave1 — auth quartets for both reads (dead token,
+  portal, cross-firm), kobo-exact income with binary-exact decimals,
+  credit-netted outstanding, recent-activity newest-first active-only,
+  empty-firm zeros, statement composition pinned end-to-end (50k
+  opening + 100k charge + 250k lease rent + 10k penalty − 250k payment
+  − 5k credit = 155k ending), running-balance walk, legacy-row
+  in-window attribution, settled-window zero-due, shape-proof
+  custom-id↔Convex-id, source contracts (ui-primitives-only panels, no
+  client-side money recomputation, tab + panel wiring, api registry,
+  kobo-internal conventions), E1/E2/E4 pinned staff-authed counts.
+- GATES: vitest 1,923/1,923 (96 files; 1,906 R85 baseline + 17, zero
+  regressions) / root tsc 126 = baseline / convex tsc 0 / eslint
+  changed files 0 errors 0 warnings / ui-primitives ratchet HELD at
+  2297 / design tokens green (gray=0) / vite build green.
+
+Task ID: R87 (Round F, Wave F2 — the interactive reconciliation
+workflow, the §4 capstone)
+Agent: Main agent (Super Z)
+Task: Second wave of ROUND F — the unallocated payment queue, the
+audited match, the faithful reversal, and status tracking, built on
+the Round B checker.
+
+Work Log:
+- SCHEMA (all additive): payment_proofs.linkedChargeId (the
+  settlement-time charge linkage persisted by portals.settleProofInternal
+  in the SAME transaction when the approver picks an open charge — the
+  queue's source of truth for 'tied to an obligation');
+  financial_reconciliation_reports.unmatchedSettledProofs/creditsWaiting
+  (informational queue fields); NEW reconciliation_matches table
+  (proofId/ledgerEntryId/matchedAmount/chargeId + chargeBefore FULL
+  pre-match snapshot + matchedBy/matchedAt/reason REQUIRED +
+  status active|reversed + reversal cluster; indexes by_firm/by_proof/
+  by_charge/by_status).
+- convex/reconciliationWorkflow.ts (NEW): getUnallocatedPayments (the
+  two REAL queues that exist today — settled proofs with money carrying
+  neither a settlement-time link nor an active match, plus charges
+  holding creditCarriedForward; bounded, firm-scoped, read-only);
+  matchProofToCharge (ties a settled proof to the charge it was paying
+  — moves NO money: the proof's ledger row already booked it at
+  settlement (Round B H1); settles the CHARGE with the exact same math
+  the settlement-time linkage uses, kobo-internal: partial →
+  PARTIALLY_PAID with outstanding, full+overpay → PAID_FULLY with the
+  excess carried as credit, cycle advanced, defaulter cleared,
+  reminder ladder reset; persists the join + the proof linkage; one
+  ACTIVE match per payment — re-match = duplicate no-op returning the
+  original; PAID_FULLY charges refuse loudly; every guard rejects);
+  reverseMatch (the authorized reversal — restores the charge EXACTLY
+  from the stored before-snapshot (the reinstateLedgerEntry forensic
+  pattern: restore what was, never recompute), marks the match
+  reversed with its own reason, re-opens the proof in the queue,
+  audits BOTH the restore and the reversal; the payment's ledger row
+  is NEVER touched — retiring the payment itself is the separate void
+  lifecycle); getReconciliationMatches (newest-first, by_proof/
+  by_charge filters) + getReconciliationReportHistory (the
+  properly-wired successor of Round D's removed orphan read).
+- CHECKER EXTENSION: convex/financialIntegrity.ts — unmatchedSettledProofs
+  + creditsWaiting/creditsWaitingTotal now reported per run
+  (INFORMATIONAL, ok semantics untouched) so the console shows the
+  current shape before anyone opens it — a non-empty queue is work
+  waiting, not a broken invariant.
+- UI: ReconciliationConsole.tsx (NEW, ui primitives only — Button/
+  Input/Select/Badge/EmptyState): the checker card (latest verdict +
+  founder-gated Run Now + history), the unmatched-payments queue with
+  per-proof Match-to-charge forms (open-charge Select + REQUIRED
+  reason Input), the credits-waiting section (no manual action — the
+  next cycle reset and wallet auto-deduct consume them), and the match
+  ledger with reason-gated Reverse forms. Wired as the Financials
+  'reconcile' tab beside Payment Proofs.
+- TESTS: +18 roundFWave2 — auth quartets across queue/match/reverse/
+  status reads, queue composition incl. linked/matched/reversed
+  lifecycle, partial/full/overpay state math pinned end-to-end,
+  money-untouched proof (zero ledger writes), exactly-once re-match,
+  PAID_FULLY refusal, snapshot-faithful reversal + double-reversal
+  refusal, guards incl. cross-firm and short reasons, checker
+  informational fields with ok unchanged, report history newest-first,
+  source contracts incl. case-sensitive raw-element checks.
+- GATES: vitest 1,941/1,941 (97 files; 1,923 F1 baseline + 18, zero
+  regressions) / root tsc 126 = baseline / convex tsc 0 / eslint clean
+  / ui-primitives ratchet HELD at 2297 / vite build green.
+
+Task ID: R88 (Round F, Wave F3 — the report suite + CSV export + the
+four remaining acceptance pins; §5+§7)
+Agent: Main agent (Super Z)
+Task: Third wave of ROUND F — §5's report suite with exports, plus the
+four §7 acceptance scenarios that were still unpinned.
+
+Work Log:
+- REPORT SUITE (§5): convex/financialReporting.ts +1 staff-authed read
+  (getFinancialReports) — six reports computed server-side, every
+  figure from the server, never the client: ① rent roll (every unit in
+  the firm — standalone + embedded — with active-lease state from the
+  E1 tenancy ledger, rent/frequency/lease window from the tenancy
+  terms, newest cleared payment per unit via the shape-proof resolver
+  cache; vacant units included by construction); ② arrears aging
+  (unsettled charges credit-netted for UNPAID and outstandingBalance
+  for PARTIAL, bucketed 0-30/31-60/61-90/90+ by daysOverdue ?? computed
+  from nextDueDate, rows sorted by days overdue); ③ service-charge
+  collections by category (charges/cycleAmount/collectedThisCycle —
+  honestly reconstructed: PAID_FULLY → full amount, else
+  amountPaidThisCycle — /outstanding); ④ revenue by type (last 6
+  months, income + at-risk split, voided/test rows excluded,
+  per-month byType); ⑤ payment history (cleared active newest-first
+  bounded 200); ⑥ period comparison (this month vs previous with
+  exact deltas); plus the §5 totals-vs-transactions proof block
+  (clearedTotal/clearedCount/activeRows/outstandingTotal — the export
+  and the tests assert these equal the raw row sums).
+- CSV EXPORT: src/utils/csvExport.ts (NEW, pure) — csvField (RFC-4180
+  quoting with doubled quotes) + buildCsv (fixed column order, missing
+  keys → empty fields, CRLF) + downloadCsv (UTF-8 BOM so Excel renders
+  ₦, the shared Blob+anchor pattern extracted once).
+  FinancialReports.tsx console (NEW, ui primitives only): six-report
+  switcher + per-report CSV export, every figure rendered exactly as
+  the server returned it; wired as the Financials 'reports' tab.
+- THE FOUR MISSING §7 ACCEPTANCE PINS (end-to-end through the REAL
+  handlers): failed payment (a rejected proof books nothing — zero
+  ledger writes, charge untouched, proof stays unbooked); unmatched
+  payment (settle-unlinked → queue → match → the report suite reflects
+  the settled obligation, the credit deliberately NOT consumed);
+  payment reversal (the audited voidLedgerEntry feeds the bill
+  statement as a struck excluded adjustment carrying the void reason,
+  the surviving payments count, the ending balance rises); period
+  report (the comparison asserted across both months + empty books
+  never throw).
+- TESTS: +17 roundFWave3 — the report suite (auth quartet; rent roll
+  incl. leased+vacant with tenancy-derived rent and newest-payment
+  mapping; aging buckets incl. credit-netting and paid-in-full
+  exclusion; collections incl. the PAID_FULLY reconstruction; revenue
+  months incl. voided exclusion; payment history newest-first; period
+  comparison with exact deltas; the §5 totals-vs-transactions proof),
+  the four acceptance pins above, the CSV pure tests, and source
+  contracts (ui-primitives-only console, no client-side money
+  computation, wiring).
+- GATES: vitest 1,958/1,958 (98 files; 1,941 F2 baseline + 17, zero
+  regressions) / root tsc 126 = baseline / convex tsc 0 / eslint clean
+  / ui-primitives ratchet HELD at 2297 / vite build green.
+
+Task ID: R89 (Round F, Wave F4 — the payment processing audit +
+safeguard hardening; §3+§6; ROUND F CLOSEOUT)
+Agent: Main agent (Super Z)
+Task: Fourth and final wave of ROUND F — the §3 end-to-end audit of
+every collection rail, the §6 safeguard inventory, and the kobo
+arithmetic primitives for every future wave.
+
+Work Log:
+- §3 PAYMENT AUDIT: every collection rail verified end-to-end, all
+  findings green — the webhook's HMAC-SHA512 discipline, 503/400/401
+  posture, R12 event audit trail with dedup + full raw recording,
+  kobo→NGN at the boundary, event-sourced amounts never tenant claims,
+  charge.success-only settlement, the ADDON self-heal path; the atomic
+  proof settlement core; collectRentPayment's server-side sequential
+  receipts; the wallet auto-deduct atomic trio; the direct-ledger
+  lifecycle. Recorded in the companion doc
+  ATRIUM_ROUND_F_FINANCIAL_OPERATIONS.md (the wave map, the audit
+  findings, the §6 safeguard inventory, the kobo convention, the §7
+  acceptance status, the deferred storage migration, the owner
+  actions).
+- FIXED: the webhook's signature comparison is now CONSTANT-TIME
+  (timingSafeEqualHex — char-wise XOR accumulation, length check up
+  front; never branch on the first differing character).
+- KOBO PRIMITIVES: NEW kobo-native arithmetic helpers, server AND
+  client mirror in lockstep (addKobo exact where float addition drifts
+  — 0.1+0.2; subKobo; compareKobo) — the Round F convention primitives
+  for every future wave.
+- TESTS: +10 roundFWave4 — the signature discipline driven through
+  REAL Request objects with REAL computed HMACs (503 unconfigured /
+  400 missing / 401 invalid incl. single-char-tampered and
+  wrong-length cases, nothing recorded by any refused request; valid
+  HMAC → 200 recorded with the kobo→NGN conversion pinned; redelivery
+  → duplicate with zero new rows), the kobo trio exactness + client
+  lockstep + toKobo/fromKobo round-trip, and source contracts
+  (constant-time marker present, straight-compare gone, both money
+  modules export the trio, the audit doc exists).
+- GATES: vitest 1,968/1,968 (99 files; 1,958 F3 baseline + 10, zero
+  regressions) / root tsc 126 = baseline / convex tsc 0 / eslint clean
+  / ui-primitives ratchet HELD at 2297 / vite build green.
+
+ROUND F COMPLETE (R86–R89) — the owner brief's financial operations &
+reconciliation upgrade, all sections closed:
+- §1 unified financial overview console (R86); §2 resident rent bill
+  statement (R86); §3 payment processing audited end-to-end + the
+  constant-time signature fix (R89); §4 interactive reconciliation
+  workflow — unallocated queue, audited match, faithful reversal,
+  status tracking (R87); §5 report suite + CSV export with the
+  totals-vs-transactions proof (R88); §6 safeguards inventoried +
+  kobo arithmetic primitives everywhere (R89; the kobo STORAGE
+  migration deliberately deferred — storage stays naira, computation
+  is kobo); §7 all acceptance scenarios pinned (R88 closed the last
+  four).
+- UNTOUCHED, as demanded: Paystack integration (no changes), Vega OS
+  (complete and intact), Komplete (zero file changes), historical
+  money records (never silently modified — reversals and voids are
+  audited, snapshot-faithful, and visible as struck adjustments).
+- SHIPPED: 89a7e8c2 pushed → CI all green (Tests / Build Android APK /
+  Deploy to Staging) on 89a7e8c25a91931abf04e49de9f6c61c5b9a7312 →
+  v1.0.758, build-1153, APK released, staging live. Production promote
+  dispatched this session (see the post-push record below).
+- OUTSTANDING (owner actions): rotate the PAT (it has transited chat
+  again — 4th time); the Cloudflare mirror may still need
+  CLOUDFLARE_API_TOKEN re-pasted if the promote's mirror job failed
+  (the run reports the exact fix); brand/* branch disposal remains
+  open.
+
+Post-push record (R89): the four F waves had been committed locally
+(6cf09ff0 F1, c5375bd7 F2, f1c9cb54 F3, 89a7e8c2 F4) when the previous
+session ran out of context BEFORE the push — the owner rightly noticed
+nothing had moved. This session: full vitest re-run green (1,968/
+1,968), pushed 441fea75..89a7e8c2 on a one-time URL, CI green on all
+three workflows, CI auto-commits 108df554 (bump 1.0.758) + 6f691d74
+(APK build-1153), tag build-1153. THE STALE-PRODUCTION CAUSE EXPLAINED
+TO THE OWNER: pushes to main auto-deploy STAGING only; production only
+changes when "Deploy to Production (promote)" runs — R81–R85 promotes
+were all still pending (nothing since R80 was live). This session
+dispatched the promote on latest main (blank sha) so R81–R89 go live
+together; see the promote run record in the chat.
