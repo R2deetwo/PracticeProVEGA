@@ -16230,3 +16230,135 @@ Deploy to Staging PASS; CI auto-commits f6cf72ff (bump patch version
 to 1.0.755) + 5e5e9d58 (APK release info build-1150), tag build-1150,
 release "PracticePro v1.0.755"; local tree fast-forwarded. Production
 promote for R83 remains the owner action (same flow as every round).
+
+---
+Task ID: R84 (Round E, Wave E3 — intelligent forms + the per-property
+financial summary + the property-documents revival)
+Agent: Main agent (Super Z)
+Task: Third wave of ROUND E — the property-side half of the owner brief:
+§1's property financial summary + documentation, and §3's intelligent
+forms for PropertyForm (the create/edit gateway for acceptance workflows
+1–2: create property, create unit).
+
+Work Log:
+- convex/tenancyLifecycle.ts (+1 public read; 11 staff-authed publics
+  now — 8 E1 + 2 E2 + 1 E3): getPropertyFinancialSummary — the rollup
+  the client StatCards could never compute. The StatCards read the
+  denormalized rentalDetails snapshot and missed embedded-unit rows
+  (composite unit ids) and the service_charges table entirely. The read
+  resolves the anchor by Convex _id OR legacy custom id, expands the
+  property group to every firm row sharing the NORMALIZED address
+  (sibling rows = units, the multi-unit model) plus embedded units,
+  then matches charges and ledger entries SHAPE-PROOF through the E1
+  resolver (custom-id charge ↔ Convex-_id row; composite
+  `${customId}_${unitName}` ↔ embedded unit). Voided/test ledger
+  records are excluded and COUNTED (annotations, not money). Receipts
+  follow the unit-first attribution rule (embedded-unit history before
+  property-level; property-level only when exactly one embedded unit or
+  exactly one tenanted). Service-charge outstanding is credit-netted
+  (Round B creditCarriedForward). Occupancy from the E1 tenancy ledger,
+  with the denormalized unit status reported alongside (the panel's
+  "occupied*" badge = status says occupied but no ledger row — the
+  Record Current Tenancy bridge is the fix). A foreign firm's row at
+  the SAME ADDRESS never joins the group.
+- src/components/details/PropertyFinancialSummaryPanel.tsx (NEW, ui
+  primitives only): cleared / pending+defaulted / receipts / SC-due
+  money tiles, per-unit table (tenant, rent, receipts, per-unit SC
+  outstanding, active-lease vs occupied-not-recorded badges), defaulter
+  + excluded-records footnotes. Wired into PropertyDetailView's
+  financials tab beside the existing snapshot StatCards.
+- src/utils/propertyFormValidation.ts (NEW, the pure intelligent-forms
+  brain): validatePropertyForm (rent required on EVERY rent-collecting
+  unit — the old guard checked Unit 1 only, so a 6-unit save silently
+  created five rentless rows; lease windows cannot invert; email/phone
+  optional but valid — the same ≥7-digit threshold matchResidentContact
+  matches on; money non-negative; mgmt fee 0–100; SC advance 0–24) and
+  scanForDuplicateUnits (same normalized address + same normalized unit
+  name on a row OUTSIDE the edit session = hit; in-session siblings are
+  the legitimate multi-unit model and never hits; a same-address row
+  under a different owner contact reported separately as an owner
+  clash; Deleted rows skipped; unnamed rows fall back to the address
+  first segment).
+- PropertyForm.tsx — the intelligent-forms wiring: full-form validation
+  with INLINE errors through the ui/ error contract (address → Textarea;
+  rent/phone/email/lease-start/lease-end/mgmt-fee/minimum-vend/
+  first+last-name → Input — 10 raw elements migrated, ratchet IMPROVED
+  2307 → 2297, tighter baseline committed); the offending section
+  auto-opens and the first offending unit tab is selected; live
+  duplicate + other-owner warning banners (warning-only — same-address
+  rows are normal for multi-unit buildings; the unit names
+  disambiguate); the resident LIVE match hint (matchResidentContact on
+  every keystroke — the manager sees which existing contact the save
+  will link BEFORE saving; the §3 "never re-enter known info"
+  affordance); CONFIRM before unit-row deletion (lowering the count
+  used to hard-delete rows with no dialog at all; cancel restores the
+  saved row count); defaults harmonization (the seed unit defaulted
+  Monthly while BOTH add-unit paths defaulted Annually — same form, two
+  defaults depending on how the unit was added; all Monthly now, and
+  the Unit-1 ripple recognizes Monthly as a default value).
+- PROPERTY DOCUMENTS REVIVAL: the property surface's documents section
+  was dead by construction — uploads stamped a FAKE matterId
+  'prop_<id>' that DocumentForm ignored for linkage, while the reader
+  matched a categoryId prefix NOTHING ever wrote plus a fuzzy
+  title-address over-match that never looked at documents.propertyId.
+  Now: PropertyDetailView matches propertyId (both id forms of every
+  address sibling) + the legacy prop_ matterId bridge for pre-revival
+  rows; uploads pass uploadContext={propertyId} (DocumentsTab's new
+  prop, merged into every newDocument/batchUpload open — DocumentForm
+  already honoured context.propertyId); and DocumentsTab's download
+  handles ALL THREE production file shapes (inline dataUrl, storage-id
+  object, bare storage-id string via getFileUrl — storage-backed docs
+  silently failed to download from EVERY surface rendering the tab,
+  matter view included).
+- TESTS: tests/unit/roundEWave3.test.ts (NEW, +21): the auth quartet +
+  unknown-property + firm-2 isolation (the same-address cross-firm row
+  never leaks); the sibling-rollup (custom-id charges, credit-netting,
+  voided/test exclusion, receipts-not-pending, per-unit outstanding);
+  the embedded-units rollup (composite charge, single-tenanted receipt
+  fallback); the zero-state; the pure validators (the Unit-2 rent gap,
+  management-only, lease inversion, email/phone, money bounds);
+  duplicate detection (in-session exclusion, case drift, other-owner,
+  Deleted, unnamed-row fallback); source contracts (the 11-public pin,
+  ui-primitives-only panel, all wiring). roundEWave1/2 pinned counts
+  updated 10 → 11.
+- GATES: vitest 1,873/1,873 (94 files; 1,852 R83 baseline + 21, zero
+  regressions), root tsc 126 = the documented baseline (zero net new —
+  the 3 first-pass errors fixed: the two error-state type widenings +
+  the 'Deleted' comparison), convex tsc 0, eslint changed files 0
+  errors / 0 new warnings (the 5 rounded-xl warnings in
+  PropertyForm/PropertyDetailView are pre-existing, verified by
+  stash-diff), ui-primitives ratchet IMPROVED 2307 → 2297 (baseline
+  committed), design-token gate green (gray=0), vite build green.
+
+Stage Summary:
+- Property management now has its financial truth layer (§1) and a live
+  documents section; the create/edit form validates like a real form
+  (§3) instead of toasting two guards. Round E acceptance criteria 1–2
+  (create property, create unit) now run through an intelligent form;
+  the §1 financial summary and documentation asks are demonstrable in
+  any property's financials tab.
+- SHIPPED: 85cd54f8 pushed → CI all green (Tests / Build Android APK /
+  Deploy to Staging) on 85cd54f82914729d6c686b281f4fe7883036f692 →
+  v1.0.756, build-1151, APK released. Production promote = owner
+  action (same flow as every round: "Deploy to Production (promote)",
+  blank sha). Post-promote spot-checks: any property → Financials tab →
+  "Financial Summary — Ledger Truth" panel; try a duplicate unit name
+  at a known address in the property form (amber banner); upload a
+  document from the property's Documents section and re-open the
+  property (it stays listed — the propertyId link now sticks).
+- ROUND E REMAINING (Wave E4, per the wave plan): list search/sort/
+  pagination across the property + resident surfaces, bulk operations
+  for authorised users, document generation from existing templates,
+  and the full 8-workflow acceptance demo. Standing items unchanged:
+  Cloudflare mirror needs CLOUDFLARE_API_TOKEN re-pasted (stale since
+  04d798b3); the standing PAT was rotated by the owner this session
+  (thank you) — the fresh token lives only in a 600-perm file outside
+  the repo and one-time push URLs.
+
+Post-push record (R84): published with the owner's PAT on a one-time
+push URL only (remote stays pure HTTPS per the R72 convention). CI on
+85cd54f8: Tests PASS, Build Android APK PASS, Deploy to Staging PASS;
+CI auto-commits bd2b5dba (bump patch version to 1.0.756) + 81b8af6c
+(APK release info build-1151), tag build-1151, release "PracticePro
+v1.0.756"; local tree fast-forwarded. Production promote for R84
+remains the owner action (same flow as every round).
