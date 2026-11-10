@@ -963,3 +963,244 @@ export const sendCourtReminders = internalMutation({
     return { created };
   },
 });
+
+// ─── ROUND G (§4): PROPERTY PORTFOLIO PROACTIVE SCAN ─────────────────────────
+//
+// The proactive engine was built legal-practice-first: deadlines scanned
+// tasks/events/court dates and service charges; anomalies scanned
+// matters. NOTHING watched the two things a property manager most needs
+// to hear about unprompted:
+//   1. LEASES ABOUT TO EXPIRE — a lease that lapses silently is a void,
+//      a squatter, or a panicked renewal negotiation, depending on the
+//      week the manager notices it.
+//   2. MONEY WAITING IN THE RECONCILIATION QUEUES (Round F) — settled
+//      payments with no charge linkage and no active match are income
+//      that has arrived but not been applied; credits carried forward
+//      are tenants' money sitting idle. Work waiting, not lost — but
+//      only if someone opens the console.
+//
+// This scan runs daily (crons.ts, 06:05 UTC — right after detectAnomalies
+// so the 06:15 briefing picks the insights up) and writes ordinary
+// proactive_insights rows: deduped, dismissible, and visible in the
+// same feed + morning briefing as every other insight. Read-only scan +
+// insert; it mutates no financial record (§6).
+
+/** Days before lease end at which we escalate. */
+const LEASE_WARN_DAYS = 60;
+const LEASE_CRITICAL_DAYS = 30;
+
+/**
+ * Classify a lease end date into its insight window.
+ * Pure — unit-tested directly.
+ *   - 'expired'    → already past (critical; the lapse has happened)
+ *   - 'critical30' → ends within 30 days
+ *   - 'warning60'  → ends within 31–60 days
+ *   - null         → farther out (or unparsable) → no insight
+ */
+export function leaseExpiryWindow(
+  leaseEndIso: unknown,
+  nowMs: number,
+): "expired" | "critical30" | "warning60" | null {
+  if (typeof leaseEndIso !== "string" || !leaseEndIso.trim()) return null;
+  const end = new Date(leaseEndIso).getTime();
+  if (Number.isNaN(end)) return null;
+  const daysLeft = Math.floor((end - nowMs) / 86400000);
+  if (daysLeft < 0) return "expired";
+  if (daysLeft <= LEASE_CRITICAL_DAYS) return "critical30";
+  if (daysLeft <= LEASE_WARN_DAYS) return "warning60";
+  return null;
+}
+
+/** ISO-8601 week key (e.g. "2026-W46") — the dedup cadence for the
+ *  unallocated-payments insight: once a week is often enough to say
+ *  "there is money waiting", without nagging daily. Pure. */
+export function isoWeekKey(ms: number): string {
+  const d = new Date(ms);
+  const day = (d.getUTCDay() + 6) % 7; // Monday = 0
+  const thursday = new Date(d);
+  thursday.setUTCDate(d.getUTCDate() - day + 3); // this week's Thursday
+  const yearStart = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((thursday.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  return `${thursday.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+
+export const scanPropertyPortfolio = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const todayStr = new Date(now).toISOString().split("T")[0];
+    let created = 0;
+
+    const firms = await ctx.db.query("firms").take(500);
+
+    for (const firm of firms) {
+      const firmId = firm._id as string;
+
+      // ── Batch: this firm's live insights, once ──────────────────────
+      const firmInsights = await ctx.db
+        .query("proactive_insights")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .filter((q) => q.eq(q.field("dismissed"), false))
+        .take(500);
+      const existingDedupKeys = new Set(firmInsights.map((i) => i.dedupKey));
+
+      // ── 1. LEASE EXPIRY — every unit (both storage shapes), plus the
+      //       legacy single-unit rental details on the property itself.
+      const properties = await ctx.db
+        .query("properties")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .take(1000);
+
+      for (const prop of properties) {
+        const address = String(prop.address ?? "Unnamed property");
+        const propId = String(prop._id);
+
+        // Collect (label, leaseEnd, unitKey) for every unit + legacy shape.
+        const leaseTargets: Array<{ label: string; leaseEnd: unknown; unitKey: string }> = [];
+        const units = Array.isArray((prop as any).units) ? (prop as any).units : [];
+        for (const u of units) {
+          const r = (u as any).rentalDetails ?? u;
+          if (r && typeof r === "object" && r.leaseEnd) {
+            const unitName = String(u.unitName ?? "Unit");
+            const tenant = String(
+              r.tenantName ??
+              `${r.occupantFirstName ?? ""} ${r.occupantLastName ?? ""}`.trim() ??
+              "",
+            ).trim();
+            leaseTargets.push({
+              label: tenant ? `${unitName} (${tenant}) at ${address}` : `${unitName} at ${address}`,
+              leaseEnd: r.leaseEnd,
+              unitKey: String(u.id ?? `${propId}:${unitName}`),
+            });
+          }
+        }
+        // Legacy single-unit property: rental details on the property row.
+        const legacy = (prop as any).rentalDetails;
+        if (!units.length && legacy && typeof legacy === "object" && legacy.leaseEnd) {
+          leaseTargets.push({
+            label: address,
+            leaseEnd: legacy.leaseEnd,
+            unitKey: propId,
+          });
+        }
+
+        for (const target of leaseTargets) {
+          const window = leaseExpiryWindow(target.leaseEnd, now);
+          if (!window) continue;
+
+          // Dedup per unit + window-bucket + month, so a lease escalates
+          // warning60 → critical30 → expired exactly once each, and the
+          // expired nag repeats monthly at most.
+          const endMonth = String(target.leaseEnd).slice(0, 7);
+          const dedupKey = `property|lease_expiry|${target.unitKey}|${window}|${window === "expired" ? endMonth : todayStr.slice(0, 7)}`;
+          if (existingDedupKeys.has(dedupKey)) continue;
+
+          const daysLeft = Math.floor(
+            (new Date(String(target.leaseEnd)).getTime() - now) / 86400000,
+          );
+          const severity: InsightSeverity = window === "warning60" ? "warning" : "critical";
+          const title =
+            window === "expired"
+              ? `Lease Expired: ${target.label}`
+              : window === "critical30"
+                ? `Lease Ends in ${Math.max(0, daysLeft)} Day(s): ${target.label}`
+                : `Lease Ends in ${daysLeft} Day(s): ${target.label}`;
+          const body =
+            window === "expired"
+              ? `The lease for ${target.label} has already ended (ended ${String(target.leaseEnd).slice(0, 10)}). Act now: renew, serve a notice to quit, or begin possession proceedings — an unwritten arrangement is how disputes start.`
+              : `The lease for ${target.label} ends on ${String(target.leaseEnd).slice(0, 10)} (${daysLeft} day(s)). Decide early: renew (with a rent review), or start the notice process — statutory notice periods run from weeks to months by tenancy type.`;
+
+          await ctx.db.insert("proactive_insights", {
+            firmId,
+            category: "property",
+            severity,
+            title: title.slice(0, 180),
+            body,
+            entityType: "property",
+            entityId: propId,
+            dedupKey,
+            dismissed: false,
+            createdAt: now,
+          });
+          existingDedupKeys.add(dedupKey);
+          created++;
+        }
+      }
+
+      // ── 2. MONEY WAITING — the Round F reconciliation queues.
+      //       EXACTLY the queue semantics of getUnallocatedPayments
+      //       (reconciliationWorkflow.ts): settled = approved OR verified,
+      //       with money, no linkedChargeId, no ACTIVE match — plus
+      //       charges holding creditCarriedForward. The scan and the
+      //       console must never disagree about what is waiting.
+      const allProofs = await ctx.db
+        .query("payment_proofs")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .take(3000);
+
+      const activeMatches = await ctx.db
+        .query("reconciliation_matches")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .take(3000);
+      const activeMatchProofs = new Set(
+        activeMatches
+          .filter((m) => String(m.status ?? "") === "active")
+          .map((m) => String(m.proofId)),
+      );
+
+      const unmatchedProofs = (allProofs as any[]).filter((p) => {
+        const settled = String(p.status ?? "") === "approved" || String(p.status ?? "") === "verified";
+        if (!settled) return false;
+        const hasMoney = typeof p.amount === "number" && p.amount > 0;
+        if (!hasMoney) return false;
+        if (p.linkedChargeId) return false;
+        if (activeMatchProofs.has(String(p._id))) return false;
+        return true;
+      });
+
+      const chargesWithCredit = await ctx.db
+        .query("service_charges")
+        .withIndex("by_firm", (q) => q.eq("firmId", firmId))
+        .take(500);
+      const creditsWaiting = chargesWithCredit.filter(
+        (c) => Number((c as any).creditCarriedForward) > 0,
+      );
+
+      if (unmatchedProofs.length > 0 || creditsWaiting.length > 0) {
+        // Weekly cadence: the queue state changes as staff work it; a
+        // weekly nudge beats a daily red dot nobody reads.
+        const weekKey = isoWeekKey(now);
+        const dedupKey = `property|unallocated|${weekKey}`;
+        if (!existingDedupKeys.has(dedupKey)) {
+          const parts: string[] = [];
+          if (unmatchedProofs.length > 0) {
+            parts.push(
+              `${unmatchedProofs.length} settled payment(s) with no charge linkage or match — money received but not applied to any obligation`,
+            );
+          }
+          if (creditsWaiting.length > 0) {
+            parts.push(
+              `${creditsWaiting.length} charge(s) holding credit carried forward — residents' money waiting to be consumed by the next cycle`,
+            );
+          }
+          await ctx.db.insert("proactive_insights", {
+            firmId,
+            category: "property",
+            severity: "warning",
+            title: `Money Waiting in Reconciliation: ${unmatchedProofs.length} payment(s), ${creditsWaiting.length} credit(s)`,
+            body: `${parts.join("; ")}. Open Financials → Reconcile to match payments to charges. Nothing is lost — this is work waiting.`,
+            entityType: "firm",
+            entityId: firmId,
+            dedupKey,
+            dismissed: false,
+            createdAt: now,
+          });
+          existingDedupKeys.add(dedupKey);
+          created++;
+        }
+      }
+    }
+
+    return { created };
+  },
+});

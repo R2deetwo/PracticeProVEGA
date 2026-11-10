@@ -2411,7 +2411,10 @@ export default defineSchema({
   // same finding isn't re-created on every cron run.
   proactive_insights: defineTable({
     firmId: v.string(),
-    category: v.union(v.literal("deadline"), v.literal("anomaly"), v.literal("briefing")),
+    // Round G §4: "property" — the property-portfolio scan's insights
+    // (lease expiry escalation + money waiting in the reconciliation
+    // queues). Additive union member.
+    category: v.union(v.literal("deadline"), v.literal("anomaly"), v.literal("briefing"), v.literal("property")),
     severity: v.union(v.literal("info"), v.literal("warning"), v.literal("critical")),
     title: v.string(),
     body: v.string(),

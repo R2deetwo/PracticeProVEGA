@@ -131,6 +131,19 @@ crons.daily(
   {}
 );
 
+// ROUND G (§4) — Property Portfolio Scan: daily at 6:05 AM UTC (7:05 AM WAT)
+// Watches what the legal-first scanners never covered: leases about to
+// expire (60/30-day escalation) and money waiting in the Round F
+// reconciliation queues (unmatched settled payments + credits carried
+// forward, weekly dedup). Runs between detectAnomalies and the morning
+// briefing so property insights land in the same day's briefing.
+crons.daily(
+  "scanPropertyPortfolio",
+  { hourUTC: 6, minuteUTC: 5 },
+  internal.proactive.scanPropertyPortfolio,
+  {}
+);
+
 // AI Morning Briefing: daily at 6:15 AM UTC (7:15 AM WAT)
 // Generates an AI-powered morning briefing for each firm summarizing
 // deadlines, anomalies, revenue at risk, and suggested priorities.
