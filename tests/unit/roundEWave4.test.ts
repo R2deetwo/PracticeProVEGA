@@ -741,7 +741,7 @@ describe('E4(d) — tenancyDocumentGeneration: context, fill, built-ins', () => 
 describe('E4(e) — source contracts', () => {
     it('the lifecycle module: 12 staff-authed publics (8 E1 + 2 E2 + 1 E3 + 1 E4)', () => {
         const mod = read('convex/tenancyLifecycle.ts');
-        expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(12);
+        expect((mod.match(/requireStaffCaller\(/g) || []).length).toBe(13); // + the Round F Wave F1 resident bill
         expect(mod).toContain('export const bulkUpdateProperties');
         // The ledger guard and the whitelist are structural, not incidental.
         expect(mod).toContain('VACANT_CLASS_STATUSES');

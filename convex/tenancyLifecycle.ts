@@ -47,6 +47,7 @@ import { v } from "convex/values";
 import { requireStaffCaller } from "./callerAuth";
 import { createUnitResolver, ResolvedUnitRef } from "./unitLookup";
 import { assertNonNegativeAmount, roundMoney } from "./moneyUtils";
+import { isActiveFinancialRecord } from "./financialIntegrity";
 
 const RENT_FREQUENCIES = ["Annually", "Bi-Annually", "Quarterly", "Monthly"];
 const END_REASONS = ["move_out", "terminated", "other"];
@@ -1669,6 +1670,379 @@ export const getResidentProfile = query({
 //   • occupancy comes from the E1 tenancy ledger (active rows), with the
 //     denormalized unit status reported alongside as the legacy snapshot
 //   • read-only: nothing here writes, and history is never deleted
+
+// ─── ROUND F (Wave F1): the per-resident rent bill / statement ───────────────
+//
+// The owner brief §2 gap: the ledger backend was complete (ledger_entries
+// with tenantId/type/period/paymentRef/channel) but there was no bill view —
+// no way to see ONE resident's money as a statement: what was brought
+// forward, what was raised this period (charges + rent per lease terms),
+// what was paid (their attributed payments), what was adjusted (voided
+// entries stay visible, struck, excluded), and what is due now.
+//
+// Double-counting rule (the reason this is not a naive ledger dump): the
+// debit side comes from the OBLIGATION stores (service_charges rows for the
+// unit, plus rent derived from the lease terms), the credit side from the
+// PAYMENT store (ledger rows attributed to the resident-unit in-window).
+// A settled charge therefore shows its full amount as a debit AND its
+// payment as a credit — netting to zero — instead of double-counting both
+// stores as "money in". Voided ledger rows are ANNOTATIONS (excluded from
+// the running total, shown with their reason) and the Round B overpayment
+// credit is applied once, at the end, as its own closing line.
+//
+// All arithmetic is integer kobo internally (Round F §6: new money code
+// computes in kobo; storage stays naira @2dp — the storage migration is a
+// separate, deliberately deferred wave).
+export const getResidentBill = query({
+  args: {
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    firmId: v.string(),
+    // The unit the bill is for (any id shape the E1 resolver accepts).
+    unitId: v.string(),
+    // Resident identity keys — any one suffices (same union as
+    // getResidentProfile; the bill is for ONE resident on ONE unit).
+    tenantContactId: v.optional(v.string()),
+    tenantUserId: v.optional(v.string()),
+    tenantEmail: v.optional(v.string()),
+    tenantName: v.optional(v.string()),
+    // Statement window. Defaults: to = now, from = 30 days before `to`.
+    from: v.optional(v.string()),
+    to: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      firmId: args.firmId,
+    });
+    const firmId = args.firmId;
+
+    const contactId = String(args.tenantContactId ?? "").trim() || null;
+    const emailLower = String(args.tenantEmail ?? "").trim().toLowerCase() || null;
+    const nameArg = String(args.tenantName ?? "").trim() || null;
+    let userId = String(args.tenantUserId ?? "").trim() || null;
+    if (!contactId && !userId && !emailLower && !nameArg) {
+      throw new Error("Provide a contact, portal user, email or name to look up.");
+    }
+
+    // ── The unit (any id shape → one resolved unit + its key). ──────────
+    const resolver = createUnitResolver(ctx, firmId);
+    const ref = await resolver.resolveUnit(args.unitId).catch(() => null);
+    if (!ref) {
+      throw new Error("Unit not found.");
+    }
+    const targetKey = unitKeyFor(ref);
+    const unitLabel = snapshotUnit(ref).unitLabel;
+
+    if (emailLower && !userId) {
+      const u = await resolver.userByEmail(emailLower);
+      if (u) userId = String(u._id);
+    }
+
+    // ── The resident's tenancy rows ON THIS UNIT (identity union). ──────
+    const identityHit = (t: any): boolean => {
+      if (contactId && String(t.tenantContactId ?? "") === contactId) return true;
+      if (userId && String(t.tenantUserId ?? "") === userId) return true;
+      if (emailLower && String(t.tenantEmail ?? "").toLowerCase() === emailLower) return true;
+      if (nameArg && String(t.tenantName ?? "").trim().toLowerCase() === nameArg.toLowerCase()) return true;
+      return false;
+    };
+    const allTenancies = await ctx.db
+      .query("tenancies")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+    const residentRows = (allTenancies || [])
+      .filter((t: any) => String(t.unitKey ?? "") === targetKey && identityHit(t))
+      .sort((a: any, b: any) => String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")));
+    const activeRow = residentRows.find((t: any) => String(t.status ?? "") === "active") ?? residentRows[0] ?? null;
+
+    // ── Window. ──────────────────────────────────────────────────────────
+    const toMs = args.to ? new Date(args.to).getTime() : Date.now();
+    const fromMs = args.from ? new Date(args.from).getTime() : toMs - 30 * 86400000;
+    if (!isFinite(toMs) || !isFinite(fromMs) || fromMs > toMs) {
+      throw new Error("Invalid statement window.");
+    }
+
+    // ── Obligations: service charges for this unit (E2 shape-proof match). ──
+    const firmCharges = await ctx.db
+      .query("service_charges")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(500);
+    const chargeKeyCache = new Map<string, string | null>();
+    const chargeKey = async (id: string): Promise<string | null> => {
+      const raw = String(id || "");
+      if (!raw) return null;
+      if (chargeKeyCache.has(raw)) return chargeKeyCache.get(raw) ?? null;
+      let key: string | null = null;
+      try {
+        const cref = await resolver.resolveUnit(raw);
+        key = cref ? unitKeyFor(cref) : null;
+      } catch {
+        key = null;
+      }
+      chargeKeyCache.set(raw, key);
+      return key;
+    };
+    const unitCharges: any[] = [];
+    for (const c of firmCharges || []) {
+      const key = await chargeKey(c.unitId);
+      if (key && key === targetKey) unitCharges.push(c);
+    }
+
+    // ── Payments: ledger rows attributed to this resident-unit. ─────────
+    // Attribution rule (the E2 in-window twin): a row with a tenantId must
+    // carry THIS resident's id; a legacy row with no tenantId counts only
+    // inside the resident's tenancy window (never another tenant's payment).
+    const firmLedger = await ctx.db
+      .query("ledger_entries")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(4000);
+    const ledgerKeyCache = new Map<string, string | null>();
+    const ledgerKey = async (row: any): Promise<string | null> => {
+      const raw = String(row.unitId || "");
+      if (!raw) return null;
+      if (ledgerKeyCache.has(raw)) return ledgerKeyCache.get(raw) ?? null;
+      let key: string | null = null;
+      try {
+        const lref = await resolver.resolveUnit(raw);
+        key = lref ? unitKeyFor(lref) : null;
+      } catch {
+        key = null;
+      }
+      ledgerKeyCache.set(raw, key);
+      return key;
+    };
+    const tenancyStartMs = activeRow?.startDate ? new Date(String(activeRow.startDate)).getTime() : null;
+    const tenancyEndMs = activeRow
+      ? (activeRow.endedAt ?? activeRow.endDate)
+        ? new Date(String(activeRow.endedAt ?? activeRow.endDate)).getTime()
+        : Date.now()
+      : Date.now();
+    const rowBelongsToResident = (row: any): boolean => {
+      const rt = String(row.tenantId ?? "").trim();
+      if (rt) {
+        if (contactId && rt === contactId) return true;
+        if (userId && rt === userId) return true;
+        if (emailLower && rt.toLowerCase() === emailLower) return true;
+        if (nameArg && rt.trim().toLowerCase() === nameArg.toLowerCase()) return true;
+        return false;
+      }
+      // No tenant stamp: in-window attribution only.
+      const ts = Number(row.timestamp) || 0;
+      if (tenancyStartMs && ts < tenancyStartMs) return false;
+      return ts <= tenancyEndMs;
+    };
+
+    // ── Kobo-internal arithmetic (Round F §6). ───────────────────────────
+    const kb = (naira: any): number => Math.round((Number(naira) || 0) * 100);
+    const naira = (kobo: number): number => Math.round((kobo / 100) * 100) / 100;
+
+    // Opening balance: unsettled obligations due BEFORE the window, as of
+    // the current state (the charge store is current-state; per-date
+    // history is not tracked — the label says exactly this).
+    let openingKb = 0;
+    const openingCharges: string[] = [];
+    for (const c of unitCharges) {
+      const due = Number(c.nextDueDate) || 0;
+      if (due && due < fromMs) {
+        const out = chargeOutstanding(c);
+        if (out > 0) {
+          openingKb += kb(out);
+          openingCharges.push(String(c.category ?? "Service charge"));
+        }
+      }
+    }
+
+    // In-window lines.
+    interface BillLine {
+      kind: "charge" | "rent" | "payment" | "penalty" | "adjustment" | "credit_applied";
+      date: number;
+      label: string;
+      detail?: string | null;
+      debitKb: number;
+      creditKb: number;
+    }
+    const lines: BillLine[] = [];
+
+    // (a) Charge obligations raised/due in-window — the FULL cycle amount;
+    //     their settlements appear on the ledger side as payments.
+    for (const c of unitCharges) {
+      const due = Number(c.nextDueDate) || 0;
+      if (due && due >= fromMs && due <= toMs) {
+        lines.push({
+          kind: "charge",
+          date: due,
+          label: `${c.category ?? "Service charge"} service charge`,
+          detail: c.cycle ?? null,
+          debitKb: kb(c.amount),
+          creditKb: 0,
+        });
+      }
+    }
+
+    // (b) Rent obligations derived from the lease terms (the rent-arrears
+    //     model Round B flagged as missing — derivable, never invented: the
+    //     amounts come from the tenancy row's terms; a term-less row raises
+    //     no rent line).
+    if (activeRow) {
+      const rentTerms = Number(
+        (activeRow as any).rent ?? (activeRow as any).rentAmount ?? snapshotUnit(ref).rentAmount
+      ) || 0;
+      if (rentTerms > 0) {
+        const d = new Date(fromMs);
+        const end = new Date(toMs);
+        // One debit per calendar month in the window (a rent bill is
+        // monthly by convention; other frequencies are still billed
+        // monthly and the label carries no invented period).
+        let guard = 0;
+        while (d <= end && guard < 36) {
+          guard++;
+          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          lines.push({
+            kind: "rent",
+            date: new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
+            label: `Rent — ${monthKey}`,
+            detail: "per lease terms",
+            debitKb: kb(rentTerms),
+            creditKb: 0,
+          });
+          d.setMonth(d.getMonth() + 1);
+        }
+      }
+    }
+
+    // (c) Ledger rows in-window: payments (cleared) + penalties (pending —
+    //     an obligation) + voided rows (adjustments — visible, excluded).
+    for (const row of firmLedger || []) {
+      // Resolve the unit key ONCE per row (the resolver is shape-proof: a
+      // row stored under the custom unit id matches this unit's Convex id).
+      const rowKey = await ledgerKey(row);
+      if (!rowKey || rowKey !== targetKey) continue;
+      if (!rowBelongsToResident(row)) continue;
+      const ts = Number(row.timestamp) || 0;
+
+      // Voided/test rows are ANNOTATIONS, not money: an in-window voided
+      // row is shown on the statement (struck, with its reason) but never
+      // enters the running total.
+      if (!isActiveFinancialRecord(row.recordStatus)) {
+        if (row.recordStatus === "voided" && ts >= fromMs && ts <= toMs) {
+          lines.push({
+            kind: "adjustment",
+            date: ts,
+            label: String(row.type ?? "entry"),
+            detail: row.voidReason ? `voided — ${row.voidReason}` : "voided",
+            debitKb: 0,
+            creditKb: 0,
+          });
+        }
+        continue;
+      }
+
+      if (ts < fromMs || ts > toMs) continue;
+
+      if (row.type === "penalty") {
+        // A penalty row is an obligation (pending) or already collected
+        // (cleared = it became a payment).
+        if (row.status === "pending") {
+          lines.push({
+            kind: "penalty",
+            date: ts,
+            label: "Late penalty",
+            detail: row.description ?? null,
+            debitKb: kb(row.amount),
+            creditKb: 0,
+          });
+        } else if (row.status === "cleared") {
+          lines.push({
+            kind: "payment",
+            date: ts,
+            label: "Penalty payment",
+            detail: [row.channel, row.paymentRef].filter(Boolean).join(" · ") || null,
+            debitKb: 0,
+            creditKb: kb(row.amount),
+          });
+        }
+        continue;
+      }
+
+      if (row.status === "cleared") {
+        lines.push({
+          kind: "payment",
+          date: ts,
+          label: row.type === "rent" ? "Rent payment" : `${String(row.type ?? "payment")} payment`,
+          detail: [row.channel, row.paymentRef].filter(Boolean).join(" · ") || null,
+          debitKb: 0,
+          creditKb: kb(row.amount),
+        });
+      }
+    }
+
+    lines.sort((a, b) => a.date - b.date);
+
+    // Running balance + closing credit application (Round B
+    // creditCarriedForward — applied ONCE here, as its own closing line).
+    let runningKb = openingKb;
+    const rendered = lines.map((l) => {
+      runningKb += l.debitKb - l.creditKb;
+      return {
+        kind: l.kind,
+        date: l.date,
+        label: l.label,
+        detail: l.detail ?? null,
+        debit: naira(l.debitKb),
+        credit: naira(l.creditKb),
+        balance: naira(runningKb),
+      };
+    });
+
+    const creditKb = unitCharges.reduce((s, c) => s + kb(Number(c.creditCarriedForward) || 0), 0);
+    let endingKb = runningKb;
+    let creditAppliedLine: any = null;
+    if (creditKb > 0) {
+      endingKb -= creditKb;
+      creditAppliedLine = {
+        kind: "credit_applied" as const,
+        date: toMs,
+        label: "Overpayment credit applied",
+        detail: "Round B creditCarriedForward — already paid in a previous period",
+        debit: 0,
+        credit: naira(creditKb),
+        balance: naira(endingKb),
+      };
+      rendered.push(creditAppliedLine);
+    }
+
+    const totalDebitKb = lines.reduce((s, l) => s + l.debitKb, 0);
+    const totalCreditKb = lines.reduce((s, l) => s + l.creditKb, 0);
+    const adjustmentsShown = rendered.filter((l) => l.kind === "adjustment").length;
+
+    return {
+      unitLabel,
+      residentName: activeRow?.tenantName ?? nameArg ?? emailLower ?? null,
+      period: { from: new Date(fromMs).toISOString(), to: new Date(toMs).toISOString() },
+      openingBalance: naira(openingKb),
+      openingNote:
+        openingCharges.length > 0
+          ? `Unsettled charges due before the window (${openingCharges.slice(0, 5).join(", ")}${openingCharges.length > 5 ? ", …" : ""})`
+          : "No unsettled charges due before the window",
+      lines: rendered,
+      totals: {
+        charges: naira(totalDebitKb),
+        payments: naira(totalCreditKb),
+        adjustmentsExcluded: adjustmentsShown,
+        creditApplied: naira(creditKb),
+      },
+      endingBalance: naira(endingKb),
+      endingNote:
+        endingKb > 0
+          ? "Amount currently due from this resident"
+          : endingKb < 0
+            ? "Resident is in credit (paid beyond what is due in this window)"
+            : "Fully settled for this window",
+    };
+  },
+});
 
 /**
  * getPropertyFinancialSummary — the server-computed per-property rollup

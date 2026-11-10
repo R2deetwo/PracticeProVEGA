@@ -31,6 +31,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Badge, EmptyState } from '../ui';
 import { formatNaira } from '../../utils/formatting';
+import { ResidentBillPanel } from '../atrium/ResidentBillPanel';
 import {
     Home, Wallet, Wrench, FileText, MessageSquare, AlertTriangle, ShieldCheck, Phone, Mail, UserRound,
 } from 'lucide-react';
@@ -209,6 +210,18 @@ export const ResidentProfilePanel: React.FC<ResidentProfilePanelProps> = ({
                         ))}
                     </div>
                 </div>
+            ) : null}
+
+            {/* ── ROUND F (Wave F1): the rent bill statement for the active unit ── */}
+            {activeTenancy?.unitId ? (
+                <ResidentBillPanel
+                    firmId={firmId}
+                    unitId={String(activeTenancy.unitId)}
+                    contactId={contactId ?? null}
+                    tenantUserId={tenantUserId ?? null}
+                    contactEmail={contactEmail ?? null}
+                    contactName={contactName ?? null}
+                />
             ) : null}
 
             {/* ── Lease history (never deleted — E1(c)) ── */}

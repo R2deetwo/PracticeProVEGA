@@ -27,6 +27,9 @@ import AutomationCenter from './atrium/AutomationCenter';
 import { MaintenanceQueue } from './atrium/MaintenanceQueue';
 // ROUND E (Wave E2): the firm-wide resident directory (the tenancy-ledger roster).
 import ResidentDirectory from './atrium/ResidentDirectory';
+// ROUND F (Wave F1): the financial overview console + the resident bill statement panel.
+import FinancialOverview from './atrium/FinancialOverview';
+import { ResidentBillPanel } from './atrium/ResidentBillPanel';
 // MESSAGES OVERHAUL: the unified composer is hosted here so the Service
 // Charges tab's per-charge WhatsApp button opens it (prefilled) — one
 // compose experience across the whole app.
@@ -351,7 +354,7 @@ export const BillingView: React.FC = () => {
     type ProductScope = 'legal' | 'property' | 'combined';
     const [productScope, setProductScope] = useState<ProductScope>(isUnified ? 'combined' : isProperty ? 'property' : 'legal');
 
-    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust' | 'maintenance' | 'residents';
+    type FinancialsTab = 'overview' | 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust' | 'maintenance' | 'residents';
     const [activeTab, setActiveTab] = useState<FinancialsTab>(() => {
         const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
         return t || 'invoices';
@@ -367,6 +370,8 @@ export const BillingView: React.FC = () => {
     }, [currentHistoryEntry.context?.billingTab]);
 
     const allTabs: { id: FinancialsTab; label: string; badge?: string; productTag?: 'Legal' | 'Property' }[] = [
+        // ROUND F (Wave F1): the unified money console — first tab for property firms.
+        { id: 'overview', label: 'Overview', productTag: 'Property' },
         { id: 'invoices', label: 'Invoices & Demands' },
     ];
     if (isProperty || isUnified) {
@@ -561,6 +566,9 @@ export const BillingView: React.FC = () => {
                 </div>
 
                 {/* Tab Content */}
+                {activeTab === 'overview' && (isProperty || isUnified) && productScope !== 'legal' && (
+                    <FinancialOverview firmId={coreState.firmDetails?.id || currentUser?.firmId || ''} />
+                )}
                 {activeTab === 'invoices' && (
                     <InvoicesContent
                         invoices={financeState.invoices}
