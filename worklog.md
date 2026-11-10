@@ -15921,3 +15921,185 @@ APK not triggered — no admin-app paths touched). CI auto-commits landed
 on top: 39b67e55 (bump patch version to 1.0.753) + beb62a08 (APK release
 info build-1148), tag build-1148; local tree fast-forwarded. Production
 promote for R81 remains the owner action (same flow as every round).
+
+---
+Task ID: R82 (Round E, Wave E1 — the tenancy lifecycle engine)
+Agent: Main agent (Super Z)
+Task: First wave of ROUND E — the Atrium property & resident workflow
+improvement program (owner brief: property management, resident
+management, intelligent forms, workflows, UX, technical safeguards,
+8 acceptance workflows). Wave-0 recon (4 parallel sweeps over the tree)
+established the structural finding that shapes the whole round: there is
+NO first-class tenancy or resident entity. Tenant identity lives
+denormalized on properties.rentalDetails / embedded units[]; a re-let
+OVERWRITES the previous resident in place; the tenancies table existed
+in the schema since the beginning with ZERO writers; no renewal /
+termination / transfer / move-out operations exist anywhere in the code
+(prior state was expiry badges + a manual status dropdown); no emergency
+contact fields; no manager-side resident history (the only consolidated
+resident view is the resident's own portal). Wave E1 builds the truth
+layer the rest of Round E stacks on.
+
+Work Log:
+- SCHEMA (convex/schema.ts): the dormant tenancies table activated as the
+  canonical TENANCY LEDGER — additive, all-optional fields so any legacy
+  rows remain valid: unit identity (propertyId/propertyCustomId/unitId
+  raw + unitKey NORMALIZED + unitName snapshot), resident identity
+  snapshots (tenantUserId/tenantContactId/tenantName/Phone/Email), the
+  emergency-contact trio (Round E ask #2), lease-term snapshots
+  (cautionDeposit/legalFee/agencyFee), lifecycle audit (endReason
+  renewed|transferred|move_out|terminated|other, endedAt, endNotes,
+  previousTenancyId, renewedToTenancyId, source, idempotencyKey) and four
+  new indexes: by_firm_unit_key (the duplicate guard + history reads),
+  by_tenant_user, by_tenant_contact, by_idempotency.
+- convex/tenancyLifecycle.ts (NEW, 8 public functions, every one
+  staff-session-authed via requireStaffCaller, per the Round D doctrine):
+  * allocateTenant — guided allocation onto a VACANT unit. Resolves the
+    unit through unitLookup's createUnitResolver (all FOUR production
+    unitId shapes), computes the shape-independent unitKey, then runs the
+    duplicate guards INSIDE the serializable transaction: at-most-one
+    active tenancy per unitKey (a different id spelling of the same unit
+    cannot bypass it) + optional idempotencyKey replay + refusal with
+    guidance when the unit is informally occupied (legacy data) — an
+    allocation can never silently evict a sitting resident. Resolves the
+    resident's portal user by email (the canonical id portal alias
+    matching keys on), inserts the ledger row, then syncs the
+    denormalized unit fields (tenantName/Phone/Email, currentTenantId,
+    lease dates, rent, status Occupied — standalone row AND embedded
+    units[] entry, single-embedded-unit property mirror) so every
+    existing surface (portal alias matching, unit cards, WhatsApp sends)
+    keeps working unchanged. Appends a trackingTimeline tenant_change
+    event.
+  * recordExistingTenancy — THE LEGACY BRIDGE: registers the SITTING
+    resident of a pre-ledger occupied unit as an active ledger row read
+    from the unit's own denormalized state. Idempotent (second call
+    returns the existing row). No sync writes — the row mirrors what is
+    already on the unit. This is the on-ramp for every unit let before
+    the ledger existed, and the precondition gate before renew/end/
+    transfer can act on those units.
+  * renewTenancy — ends the current row (endReason 'renewed', superseded
+    at the new commencement) and inserts the successor row (new dates/
+    rent/frequency, identity + emergency contact carried through,
+    previousTenancyId chain, renewedToTenancyId forward link), then syncs
+    the live lease terms onto the unit. Payment history untouched.
+  * endTenancy — ends the row (move_out|terminated|other + effective
+    date + notes) and vacates the unit's IDENTITY fields only (status
+    Vacant, tenantName/Phone/Email cleared, currentTenantId/tenantId
+    null). rentPaymentHistory, ledger_entries and service_charges are
+    read-only here and PRESERVED VERBATIM — the Round E technical
+    safeguard that move-out never deletes historical financial or tenancy
+    information is enforced server-side and pinned by test.
+  * transferTenant — atomic resident move: end ('transferred') + vacate
+    old unit + allocate target unit (own vacancy guards) + successor row
+    chained, all in ONE mutation transaction — a failure anywhere leaves
+    the resident exactly where they were.
+  * Reads: getUnitsTenancyStatus (board read for the detail view —
+    per-unitId active tenancy + row counts, firm-scoped, foreign units
+    resolve to nothing), getUnitTenancyHistory (full unit ledger
+    newest-first, each row attributed its in-window payments from the
+    unit's rent history using the same unambiguity rules as
+    usePropertyGroups), getResidentHistory (the consolidated read for
+    acceptance criterion #8: every tenancy by contact id / portal user /
+    email / exact name, with attributed payments, unit labels, maintenance
+    tickets and totals — a foreign firm's staff gets zero rows, no leak).
+- SECURITY FIX folded in (found by the recon, IDOR-shaped):
+  myFunctions.getPropertyById fed the PUBLIC application form
+  (/apply/:propertyId) but returned the RAW property document — the
+    sitting tenant's PII, the full rentPaymentHistory, owner contact ids
+  and automation settings were readable by ANY anonymous link holder.
+  Now a disclosure-only projection: firmId (lead routing), per-unit
+  move-in figures with isOccupied FLAGS instead of tenant names,
+  coreServices, rentCollectionMode — and nothing else. Standalone
+  (row-per-unit) properties get their single unit synthesized into the
+  units array, which also fixes the latent gap where the /apply form's
+  move-in disclosure showed NO figures for standalone properties.
+- FRONTEND: src/components/details/TenancyLifecyclePanel.tsx (NEW) — the
+  tenancy lifecycle console rendered in PropertyDetailView's Units tab
+  (and on the Summary tab for single-unit non-leased properties, where
+  the property row IS the unit). Per unit: status truth (Active tenancy /
+  Occupied-not-recorded / Vacant) + contextual actions — Allocate
+  Resident (guided form: identity with LIVE duplicate-resident detection
+  via matchResidentContact phone-first matching against the contact
+  directory, lease terms prefilled from the unit's own rentalDetails,
+  cycle-aware default lease end, optional caution deposit + emergency
+  contact, inline field errors — the first adopter of Input's inline
+  error contract), Record Current Tenancy (one click, the bridge),
+  Renew (prefilled successor terms), End (danger useConfirm + reason +
+  notes, with the preservation promise stated in the dialog), Transfer
+  (vacant-target select prefilled, danger useConfirm), and History
+  (ledger rows with attributed payments, emergency contacts and totals).
+  Every interactive element is a ui/ primitive (Button/Input/Select/
+  Card/Badge/EmptyState) — the ratchet is untouched; toasts via
+  useToastFeedback; a per-form-mount idempotencyKey guards double-clicks
+  (the server re-checks the active-tenancy invariant regardless).
+  PropertyDetailView passes the merged unit list (sibling rows + embedded
+  units) and matterState.contacts. useConfirm is now re-exported from
+  ui/index.ts (was reachable only via direct import).
+- TESTS: tests/unit/roundEWave1.test.ts (+37, Round A/B/D harness with
+  real resolver + schema semantics): the auth quartet (anonymous, dead
+  token, cross-firm staff, portal Tenant) + foreign-unit refusal; the
+  duplicate guard incl. the shape-proof composite-id bypass attempt and
+  the idempotency replay; the informal-occupancy guidance; embedded-unit
+  sync incl. the single-unit property mirror; portal-user resolution
+  onto currentTenantId; the record-existing bridge (happy + idempotent +
+  no-sitting-resident); renewal chaining with payment-history
+  preservation (receipt survives); move-out preservation (history
+  verbatim after vacate); atomic transfer (old vacated + target occupied
+  + chain) + occupied-target + same-unit refusals; payment attribution
+  windows (renewal window excludes the prior lease's payment);
+  resident-history aggregation incl. maintenance tickets + the
+  firm-scoped zero-leak read; the public projection PII contract (no
+  rentalDetails/tenantName/contactId/rentPaymentHistory keys in the
+  response); and the source contracts (schema fields/indexes, api.d.ts
+  registration, the panel's ui-primitives-only + matchResidentContact +
+  useConfirm + idempotency wiring, the 8× requireStaffCaller convention).
+- GATES: vitest 1,832/1,832 (92 files; 1,795 R81 baseline + 37, zero
+  regressions), root tsc 126 = the documented baseline (zero net new —
+  the 49 first-pass errors were fixed: 48 strict-null assertions in the
+  test harness + the useConfirm re-export), convex tsc 0, eslint changed
+  files 0 errors / 0 new warnings (one rounded-xl deprecation warning in
+  the panel fixed to rounded-lg before commit), ui-primitives ratchet
+  HELD at 2307, design-token gate green, vite build green.
+
+Stage Summary:
+- The tenancy lifecycle engine is LIVE: allocations, the legacy bridge,
+  renewals, move-outs and transfers now create immutable ledger history
+  instead of overwriting residents in place, with the denormalized unit
+  state kept in sync so no existing surface broke. Round E acceptance
+  criteria 3–8 (register resident, allocate unit, record tenancy,
+  renew, end, complete resident history) are demonstrable end-to-end
+  via the property detail view; criteria 1–2 (property/unit creation)
+  run through the existing PropertyForm (its intelligent-forms overhaul
+  is Wave E3).
+- SHIPPED: 2fb253c6 pushed → CI all green (Tests / Deploy to Staging /
+  Build Android APK) on 2fb253c6dda3576f53ace801c7a442f185a1fe12 →
+  v1.0.754, build-1149, APK released. Production promote = owner action
+  (same flow as every round: "Deploy to Production (promote)", blank
+  sha). Post-promote spot-checks: open a property → Units tab →
+  "Tenancy Lifecycle" console (or Summary tab for single-unit
+  properties); record a sitting tenancy, end it, allocate a new resident,
+  verify history and the /apply link still shows figures.
+- NOTE FOR THE OWNER: first-time use on existing occupied units requires
+  the one-click "Record Current Tenancy" bridge per unit (by design —
+  the ledger refuses to guess); vacant units allocate directly.
+- ROUND E NEXT (per the wave plan): Wave E2 — the resident directory +
+  consolidated resident profile view consuming getResidentHistory
+  (personal/contact, current + previous tenancies, payment history,
+  outstanding balances, maintenance, documents, communications, with
+  role-based privacy); Wave E3 — intelligent forms (PropertyForm
+  validation/grouping/defaults/duplicate detection) + server-side
+  per-property financial summary + property documents (the dead
+  documents section); Wave E4 — list search/sort/pagination, bulk
+  operations for authorised users, document generation from existing
+  templates, and the full acceptance demo. Standing items unchanged:
+  Cloudflare mirror needs the CLOUDFLARE_API_TOKEN re-pasted (stale
+  since 04d798b3), and the standing PAT has transited chat many times —
+  rotate it.
+
+Post-push record (R82): published with the owner's PAT on a one-time
+push URL only (remote stays pure HTTPS per the R72 convention). CI on
+2fb253c6: Tests PASS, Build Android APK PASS, Deploy to Staging PASS;
+CI auto-commits 6233c307 (bump patch version to 1.0.754) + f899ab1d
+(APK release info build-1149), tag build-1149, release "PracticePro
+v1.0.754"; local tree fast-forwarded. Production promote for R82
+remains the owner action (same flow as every round).
