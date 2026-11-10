@@ -7601,11 +7601,60 @@ export const scanLeaseExpiries = internalMutation({
 export const getPropertyById = query({
   args: { propertyId: v.string() },
   handler: async (ctx, args) => {
+    // ROUND E (Wave E1): PUBLIC-READ PROJECTION. This query feeds the PUBLIC
+    // application form (/apply/:propertyId → AtriumPublicApplicationForm) —
+    // anonymous prospective tenants. It previously returned the RAW property
+    // document, which handed anyone with the share link the sitting tenant's
+    // PII (name/phone/email), owner contact ids, automation settings, the
+    // full rentPaymentHistory and every internal field. The projection
+    // returns exactly what the application form reads — firmId (lead
+    // routing), the move-in disclosure figures (per unit: rent, service
+    // charge, legal/agency/caution, occupancy FLAG instead of tenant name),
+    // coreServices and rentCollectionMode — and nothing else. Standalone
+    // (row-per-unit) properties get their single unit synthesized into the
+    // units array so the disclosure works for them too (previously only
+    // embedded-unit properties showed figures).
+    let prop: any = null;
     try {
-      return await ctx.db.get(args.propertyId as any);
+      prop = await ctx.db.get(args.propertyId as any);
     } catch {
       return null;
     }
+    if (!prop) return null;
+
+    const rd = (prop.rentalDetails || {}) as any;
+    const disclosureFields = (u: any) => ({
+      id: u?.id ?? null,
+      unitName: u?.unitName ?? null,
+      status: u?.status ?? null,
+      isOccupied: !!(u?.tenantName || (u?.rentalDetails && u.rentalDetails.tenantName)),
+      rentAmount: typeof u?.rentAmount === "number" ? u.rentAmount : null,
+      rentFrequency: u?.rentFrequency ?? null,
+      serviceChargeAmount: typeof u?.serviceChargeAmount === "number" ? u.serviceChargeAmount : null,
+      serviceChargeFrequency: u?.serviceChargeFrequency ?? null,
+      serviceChargeMonthsInAdvance: typeof u?.serviceChargeMonthsInAdvance === "number" ? u.serviceChargeMonthsInAdvance : null,
+      legalFee: typeof u?.legalFee === "number" ? u.legalFee : null,
+      agencyFee: typeof u?.agencyFee === "number" ? u.agencyFee : null,
+      cautionDeposit: typeof u?.cautionDeposit === "number" ? u.cautionDeposit : null,
+      isLegalNA: !!u?.isLegalNA,
+      isAgencyNA: !!u?.isAgencyNA,
+      isCautionNA: !!u?.isCautionNA,
+    });
+
+    const embeddedUnits: any[] = Array.isArray(prop.units) ? prop.units : [];
+    const units = embeddedUnits.length
+      ? embeddedUnits.map((u: any) => disclosureFields({ ...u, ...(u?.rentalDetails || {}) }))
+      : [disclosureFields({ id: prop.id ?? prop._id, unitName: rd.unitName ?? null, status: prop.status ?? null, ...rd })];
+
+    return {
+      _id: prop._id,
+      id: prop.id ?? null,
+      firmId: prop.firmId ?? null,
+      rentCollectionMode: prop.rentCollectionMode ?? null,
+      coreServices: prop.coreServices ?? null,
+      propertyType: prop.propertyType ?? null,
+      units,
+    };
   },
 });
 

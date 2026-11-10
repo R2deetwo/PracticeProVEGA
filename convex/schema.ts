@@ -993,15 +993,59 @@ export default defineSchema({
     .index("by_matter", ["matterId"])
     .index("by_custom_id", ["id"]),
 
+  // ─── ROUND E (Wave E1): THE TENANCY LEDGER ────────────────────────────────
+  // The tenancies table existed since the original schema but was DORMANT
+  // (zero writers): resident state lived only as denormalized fields on the
+  // property/unit rows, so a re-let OVERWROTE the previous resident in place
+  // and no renewal/termination/transfer history was preserved anywhere.
+  // Round E activates this table as the canonical tenancy lifecycle ledger
+  // (see convex/tenancyLifecycle.ts): one row per occupancy, chained via
+  // previousTenancyId/renewedToTenancyId, with the denormalized unit fields
+  // kept in sync so every existing surface (portal alias matching, unit
+  // cards, WhatsApp sends) keeps working unchanged. All new fields are
+  // OPTIONAL (nullable) so the dormant legacy rows — if any exist — remain
+  // valid documents.
   tenancies: defineTable({
     firmId: nullableString,
-    propertyId: nullableString,
-    tenantId: nullableString,
-    status: nullableString,
-    startDate: nullableString,
-    endDate: nullableString,
+    // ── Unit identity (resolved server-side from any of the 4 unitId shapes
+    //    via convex/unitLookup.ts; unitKey is the NORMALIZED identity used
+    //    for the active-tenancy duplicate guard). ──
+    propertyId: nullableString,          // parent property row (Convex _id, snapshot)
+    propertyCustomId: nullableString,    // parent property legacy custom id (snapshot)
+    unitId: nullableString,              // raw caller-supplied unit key (any of the 4 shapes)
+    unitKey: nullableString,             // normalized unit identity (duplicate guard + history reads)
+    unitName: nullableString,            // human label snapshot, e.g. "Flat 3B · 12 Marina Rd"
+    // ── Resident identity snapshots (survive the resident moving out). ──
+    tenantId: nullableString,            // best id at write time (user _id or contact id)
+    tenantUserId: nullableString,        // Convex users._id when a portal account exists
+    tenantContactId: nullableString,     // linked contacts row (the resident directory)
+    tenantName: nullableString,
+    tenantPhone: nullableString,
+    tenantEmail: nullableString,
+    // ── Emergency contact (Round E ask #2). ──
+    emergencyContactName: nullableString,
+    emergencyContactPhone: nullableString,
+    emergencyContactRelationship: nullableString,
+    // ── Lease terms at signature (snapshots; the LIVE values stay on the
+    //    unit's rentalDetails, synced by the lifecycle mutations). ──
+    status: nullableString,              // 'active' | 'ended' (legacy rows may carry other strings)
+    startDate: nullableString,           // lease commencement
+    endDate: nullableString,             // contractual lease end (or superseded-at on renewal)
     rentAmount: nullableNumber,
     paymentFrequency: nullableString,
+    cautionDeposit: nullableNumber,
+    legalFee: nullableNumber,
+    agencyFee: nullableNumber,
+    // ── Lifecycle audit (how this tenancy ended — never deleted). ──
+    endReason: nullableString,           // 'renewed' | 'transferred' | 'move_out' | 'terminated' | 'other'
+    endedAt: nullableString,             // actual effective end date
+    endNotes: nullableString,
+    previousTenancyId: nullableString,   // renewal/transfer chain (prior occupancy of same resident)
+    renewedToTenancyId: nullableString,  // forward link when superseded by a renewal
+    notes: nullableString,
+    source: nullableString,              // 'allocation' | 'record_existing' | 'renewal' | 'transfer'
+    idempotencyKey: nullableString,      // concurrent-submission duplicate guard
+    // ── Legacy arrears fields (retained from the original schema). ──
     arrearsFrom: nullableString,
     arrearsTo: nullableString,
     totalArrears: nullableNumber,
@@ -1009,7 +1053,15 @@ export default defineSchema({
     updatedAt: nullableString,
     _lastModifiedBy: nullableString,
     _version: nullableNumber,
-  }).index("by_firm", ["firmId"]).index("by_property", ["propertyId"]).index("by_tenant", ["tenantId"]),
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_property", ["propertyId"])
+    .index("by_tenant", ["tenantId"])
+    // Round E: the active-tenancy duplicate guard + per-unit history reads.
+    .index("by_firm_unit_key", ["firmId", "unitKey"])
+    .index("by_tenant_user", ["tenantUserId"])
+    .index("by_tenant_contact", ["tenantContactId"])
+    .index("by_idempotency", ["idempotencyKey"]),
 
   // 4. Pre-typed / System Tables (Maintained as-is)
   memories: defineTable({

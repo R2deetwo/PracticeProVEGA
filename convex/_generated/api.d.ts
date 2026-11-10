@@ -69,6 +69,7 @@ import type * as sentry from "../sentry.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
 import type * as sessions from "../sessions.js";
 import type * as sha256 from "../sha256.js";
+import type * as tenancyLifecycle from "../tenancyLifecycle.js";
 import type * as tierLimits from "../tierLimits.js";
 import type * as trustAccount from "../trustAccount.js";
 import type * as unitLookup from "../unitLookup.js";
@@ -147,6 +148,7 @@ declare const fullApi: ApiFromModules<{
   sentryWebhook: typeof sentryWebhook;
   sessions: typeof sessions;
   sha256: typeof sha256;
+  tenancyLifecycle: typeof tenancyLifecycle;
   tierLimits: typeof tierLimits;
   trustAccount: typeof trustAccount;
   unitLookup: typeof unitLookup;

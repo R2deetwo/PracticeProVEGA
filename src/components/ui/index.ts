@@ -36,6 +36,8 @@ export type { ToastFeedback, ToastFeedbackOptions } from './useToastFeedback';
 
 // Pre-existing primitives, re-exported for one import path.
 export { default as ConfirmDialog } from './ConfirmDialog';
+export { useConfirm } from './ConfirmDialog';
+export type { ConfirmOptions } from './ConfirmDialog';
 export { default as FinancialStatusBadge } from './FinancialStatusBadge';
 
 // EmptyState already exists one level up with 11 adopters — re-export

@@ -21,6 +21,10 @@ import StatCard from '../StatCard';
 import Tooltip from '../Tooltip';
 import PropertyTrackingView from './PropertyTrackingView';
 import { PropertyRelationshipsTab } from './PropertyRelationshipsTab';
+// ROUND E (Wave E1): the tenancy lifecycle console — allocate / record /
+// renew / end / transfer + per-unit tenancy history, backed by the
+// tenancies ledger (convex/tenancyLifecycle.ts).
+import { TenancyLifecyclePanel } from './TenancyLifecyclePanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
@@ -1239,6 +1243,33 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </div>
                                 </div>
                             )}
+                            {/* ROUND E (Wave E1): single-unit properties without
+                                a Units tab still get the lifecycle console on the
+                                Summary tab — the property row IS the unit. */}
+                            {!(isLeased || hasMultipleUnits) && (() => {
+                                const rd = (property.rentalDetails || {}) as any;
+                                const d = getUnitDisplay(property);
+                                return (
+                                    <TenancyLifecyclePanel
+                                        firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
+                                        propertyAddress={property.address || ''}
+                                        units={[{
+                                            id: property.id,
+                                            label: d?.name || rd.unitName || property.address || 'Unit',
+                                            unitName: String(rd.unitName || ''),
+                                            status: property.status || undefined,
+                                            tenantName: rd.tenantName || (property as any).tenantName,
+                                            tenantPhone: rd.tenantPhone,
+                                            tenantEmail: rd.tenantEmail,
+                                            rentAmount: Number(rd.rentAmount) || 0,
+                                            rentFrequency: rd.rentFrequency,
+                                            leaseStart: rd.leaseStart,
+                                            leaseEnd: rd.leaseEnd,
+                                        }]}
+                                        contacts={matterState.contacts || []}
+                                    />
+                                );
+                            })()}
                         </div>
                     </div>
                 )}
@@ -2164,6 +2195,36 @@ const PropertyDetailViewContent: React.FC = () => {
                                     </div>
                                 </details>
                             )}
+
+                            {/* ── ROUND E (Wave E1): TENANCY LIFECYCLE ───────
+                                The per-unit ledger console: guided allocation,
+                                the record-current-tenancy bridge for legacy
+                                occupied units, renewal / end / transfer with
+                                confirmations, and full tenancy history with
+                                attributed payments. History is never deleted
+                                when a resident moves out. */}
+                            <TenancyLifecyclePanel
+                                firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
+                                propertyAddress={property.address || ''}
+                                units={units.map((u: any) => {
+                                    const d = getUnitDisplay(u);
+                                    const rd = (u.rentalDetails || {}) as any;
+                                    return {
+                                        id: String(u.id),
+                                        label: d?.name || rd.unitName || u.unitName || u.name || 'Unit',
+                                        unitName: String(rd.unitName || u.unitName || u.name || ''),
+                                        status: u.status || undefined,
+                                        tenantName: rd.tenantName || u.tenantName,
+                                        tenantPhone: rd.tenantPhone || u.tenantPhone,
+                                        tenantEmail: rd.tenantEmail || u.tenantEmail,
+                                        rentAmount: Number(rd.rentAmount ?? u.rentAmount ?? 0) || 0,
+                                        rentFrequency: rd.rentFrequency || u.rentFrequency,
+                                        leaseStart: rd.leaseStart || u.leaseStart,
+                                        leaseEnd: rd.leaseEnd || u.leaseEnd,
+                                    };
+                                })}
+                                contacts={matterState.contacts || []}
+                            />
                         </div>
                     );
                 })()}
