@@ -16807,3 +16807,21 @@ changes when "Deploy to Production (promote)" runs — R81–R85 promotes
 were all still pending (nothing since R80 was live). This session
 dispatched the promote on latest main (blank sha) so R81–R89 go live
 together; see the promote run record in the chat.
+
+Post-push record (R89 addendum — promote outcome): promote run 42881412972
+dispatched on latest main (blank sha → 9830747c). Quality gate GREEN on
+the promoted commit (convex tsc 0, root tsc = baseline, identity audit,
+ui-primitives ratchet, vitest 1,968/1,968). Deploy to production
+(Vercel + Convex) GREEN — Convex prod backend deployed + live-probed,
+Vercel prod built + deployed + verified: production now serves 9830747c
+/ v1.0.758 / build-1153 (was ce4f7995 / v1.0.752 — R81–R89 all went
+live together; production had been 9 releases behind because every
+promote since R80 was pending). Cloudflare mirror job RED at the
+token-verify step: CLOUDFLARE_API_TOKEN is no longer usable (user
+verify not active AND the account probe failed) — the mirror still
+serves 04d798b3 (2026-09-18). OWNER FIX: dash.cloudflare.com → My
+Profile → API Tokens → Create Token (template "Edit Cloudflare
+Workers", scoped to the account) → repo Settings → Secrets and
+variables → Actions → update CLOUDFLARE_API_TOKEN → re-run "Deploy to
+Production (promote)" with sha 9830747c (or blank — Vercel/Convex will
+simply redeploy the same commit). Everything else on the run was green.
