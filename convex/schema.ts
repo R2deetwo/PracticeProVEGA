@@ -2551,8 +2551,21 @@ export default defineSchema({
     // Visitor details
     visitorName: v.string(),
     visitorPhone: v.string(),         // required for portal-API delivery
+    // ROUND SENTRY 1: expected arrival time ("HH:MM", optional) + optional
+    // short gate note from the resident. Both are display-only — they never
+    // extend the validity window (expiry semantics unchanged, per the
+    // "preserve existing functionality" rule). Collection is minimal:
+    // nothing here is gathered unless the resident chooses to provide it.
+    expectedArrival: v.optional(v.string()),   // "HH:MM" 24h, resident's estimate
+    accessNote: v.optional(v.string()),       // ≤120 chars, e.g. "Gate 2, call on arrival"
     // Token
     tokenCode: v.string(),            // 6-digit code, zero-padded
+    // ROUND SENTRY 4: non-guessable pass identifier. The 6-digit PIN is
+    // convenient for typing but only carries ~20 bits; the passRef is a
+    // 12-char crypto-random base32 string (~59.5 bits) that identifies the
+    // pass for machine links/QR/audit without exposing the PIN. Both are
+    // server-verified; possessing either proves the resident issued the pass.
+    passRef: v.optional(v.string()),  // 12 chars, no I/L/O/0/1
     deliveryMethod: v.union(v.literal("client_share"), v.literal("portal_api")),
     whatsappSentAt: v.optional(v.number()), // timestamp if portal_api delivery succeeded
     // Lifecycle
@@ -2585,8 +2598,56 @@ export default defineSchema({
     .index("by_property_status",     ["propertyId", "status"])
     .index("by_token_code",          ["tokenCode"])
     .index("by_property_code",       ["propertyId", "tokenCode"])
+    // ROUND SENTRY 4: passRef lookups (QR / machine links / audit joins)
+    .index("by_property_passref",    ["propertyId", "passRef"])
     .index("by_expires",             ["expiresAt"])
     .index("by_firm_resident",       ["firmId", "residentId"]),
+
+  // ─── SENTRY ARRIVAL REQUESTS (ROUND SENTRY 2) ──────────────────────────
+  // The resident authorisation workflow the Sentry brief §2 asks for:
+  // a visitor arrives WITHOUT a pass, the gatehouse raises a request, the
+  // resident is notified (app_notifications) and approves or rejects it.
+  // Approving mints a normal visitor_tokens row through the SAME billing
+  // gate + unique-code logic. The row IS the authorisation record —
+  // requestedBy/At, decidedBy/At, rejectReason, and the minted tokenId are
+  // all preserved on it.
+  sentry_arrival_requests: defineTable({
+    firmId: v.string(),
+    propertyId: v.string(),
+    propertyName: v.optional(v.string()),
+    unitId: v.optional(v.string()),     // tenancy unit snapshot
+    unitName: v.optional(v.string()),  // label as typed at the gate
+    residentId: v.string(),            // tenantUserId of the active tenancy
+    residentName: v.optional(v.string()),
+    residentPhone: v.optional(v.string()),
+    // Visitor as announced at the gate
+    visitorName: v.string(),
+    visitorPhone: v.optional(v.string()),   // optional — only if the visitor left one
+    notes: v.optional(v.string()),         // gatekeeper context, ≤200 chars
+    // Lifecycle: pending → approved | rejected; pending → expired (12h cron)
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("expired"),
+    ),
+    requestedBy: v.string(),          // gatekeeper name / device label
+    requestedAt: v.number(),
+    decidedAt: v.optional(v.number()),
+    decidedBy: v.optional(v.string()), // resident userId snapshot
+    rejectReason: v.optional(v.string()),
+    tokenId: v.optional(v.id("visitor_tokens")), // minted on approval
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_firm",                ["firmId"])
+    .index("by_property",            ["propertyId"])
+    .index("by_resident",            ["residentId"])
+    .index("by_status",              ["status"])
+    .index("by_firm_status",         ["firmId", "status"])
+    .index("by_property_status",     ["propertyId", "status"])
+    .index("by_resident_status",     ["residentId", "status"])
+    .index("by_requested_at",        ["requestedAt"]),
 
   // ─── TRUST ACCOUNT TRANSACTIONS ────────────────────────────────────────
   // Trust accounting for legal firms that have it enabled. Tracks client

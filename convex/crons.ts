@@ -223,6 +223,17 @@ crons.interval(
   {}
 );
 
+// ─── ROUND SENTRY 2: STALE ARRIVAL REQUEST EXPIRY ────────────────────────
+// Every 15 minutes (same cadence as the token cleanup), expire pending
+// arrival requests that have gone unanswered for 12 hours. A request can
+// only ever be decided while pending, so this is purely a hygiene sweep.
+crons.interval(
+  "expireStaleArrivalRequests",
+  { minutes: 15 },
+  internal.sentryRequests.expireStaleArrivalRequests,
+  {}
+);
+
 // ─── EXPIRED BROADCAST CLEANUP ──────────────────────────────────────────
 // Every 15 minutes, mark broadcast notifications with expiresAt in the
 // past as isRead=true. This auto-removes expired maintenance notices

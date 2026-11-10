@@ -68,6 +68,7 @@ import type * as seedLegalKnowledge from "../seedLegalKnowledge.js";
 import type * as seedLegalRepo from "../seedLegalRepo.js";
 import type * as seedSentry from "../seedSentry.js";
 import type * as sentry from "../sentry.js";
+import type * as sentryRequests from "../sentryRequests.js";
 import type * as sentryWebhook from "../sentryWebhook.js";
 import type * as sessions from "../sessions.js";
 import type * as sha256 from "../sha256.js";
@@ -149,6 +150,7 @@ declare const fullApi: ApiFromModules<{
   seedLegalRepo: typeof seedLegalRepo;
   seedSentry: typeof seedSentry;
   sentry: typeof sentry;
+  sentryRequests: typeof sentryRequests;
   sentryWebhook: typeof sentryWebhook;
   sessions: typeof sessions;
   sha256: typeof sha256;
