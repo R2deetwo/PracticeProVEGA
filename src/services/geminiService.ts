@@ -237,6 +237,24 @@ export const tools: FunctionDeclaration[] = [
         }
     },
     {
+        name: "query_financials",
+        description: "Reads the firm's REAL financial books — live, server-computed figures for the whole portfolio (property management firms). Use this whenever the user asks about money: income or revenue ('how much have we collected?'), rent owed or arrears ('who owes rent?', 'who is behind on service charge?', 'how old are the debts?'), the rent roll ('what's the rent on each unit?'), collections by category, revenue by type, payment history, month-vs-month comparison ('are we doing better than last month?'), or a specific resident's bill statement ('what does Adaeze owe?', 'show me the bill for unit B2'). Report names: 'overview' (headline cash-flow + collections + service-charge outstanding + queues), 'arrears_aging' (who owes, bucketed 0-30/31-60/61-90/90+ days), 'rent_roll' (every unit with rent/lease state), 'collections' (service-charge collections by category), 'revenue_by_type', 'payment_history', 'period_comparison' (this month vs previous), 'resident_bill' (one resident's full statement — requires unitId; find it first with query_firm_data category='properties'). EVERY figure you quote MUST come from this tool's results — never compute, estimate or recall amounts yourself.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                report: {
+                    type: Type.STRING,
+                    enum: ["overview", "arrears_aging", "rent_roll", "collections", "revenue_by_type", "payment_history", "period_comparison", "resident_bill"],
+                    description: "Which financial report to read. 'overview' for headline figures; 'arrears_aging' for who owes and how old; 'rent_roll' for per-unit rent state; 'resident_bill' for one resident's statement (needs unitId)."
+                },
+                unitId: { type: Type.STRING, description: "The unit ID for report='resident_bill'. Resolve it first via query_firm_data category='properties' — never guess it." },
+                tenantContactId: { type: Type.STRING, description: "Optional: the resident's contact ID, when known, to disambiguate a unit with multiple residents." },
+                tenantUserId: { type: Type.STRING, description: "Optional: the resident's user ID, when known." }
+            },
+            required: ["report"]
+        }
+    },
+    {
         name: "analyze_document",
         description: "Performs a deep semantic analysis of a specific document or note. Use this when the user asks for a summary, risk report, or specific content analysis of a document they just searched for, mentioned, or UPLOADED in the chat. If the user uploaded a document in the chat (via the paperclip button) and asks about 'this document' or 'the uploaded file', do NOT call this tool — instead, just respond naturally about the document content that was already provided to you as context.",
         parameters: {

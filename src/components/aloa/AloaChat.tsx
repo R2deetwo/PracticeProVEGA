@@ -22,6 +22,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { Button } from '../ui';
 import { buildAccountContext as buildAccountContextPure } from '../../utils/aloaAccountContext';
+import { runAriaFinancialQuery, describeAriaFinancialQuery, isAriaFinancialReport } from '../../utils/ariaFinancials';
+import { requiresQuickActionConfirmation, describeQuickAction, confirmButtonLabel } from '../../utils/quickActionPolicy';
+import { QuickActionConfirmCard } from './QuickActionConfirmCard';
 import { handleCleanCopy } from '../../utils/copyUtils';
 import { formatNairaInText } from '../../utils/formatting';
 import { isFormalDocument, extractDocumentTitle, aloaContentToDraftHtml } from '../../utils/formalDocumentDetector';
@@ -1026,6 +1029,42 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
                     toolOutput = { results };
 
+                } else if (name === 'query_financials') {
+                    // ── ROUND G (§2+§6): the REAL books ─────────────────────
+                    // Every figure comes from the server's staff-authed
+                    // financial reads (Round F's money-truth backend):
+                    // getFinancialOverview / getFinancialReports /
+                    // getResidentBill. ARIA never computes, totals or
+                    // invents a money figure client-side — the tool result
+                    // IS the server's answer, with a grounding note.
+                    if (!isAriaFinancialReport(args?.report)) {
+                        toolOutput = { error: `Unknown financial report '${String(args?.report)}'.` };
+                        feedbackMessage = "I can read the overview, arrears aging, rent roll, collections, revenue by type, payment history, period comparison, or a resident's bill.";
+                    } else {
+                        feedbackMessage = describeAriaFinancialQuery(args);
+                        try {
+                            const fidFin = currentUser?.firmId || coreState?.firmDetails?.id || '';
+                            const result = await runAriaFinancialQuery(
+                                args,
+                                {
+                                    firmId: fidFin,
+                                    sessionToken: (bearerToken ?? undefined) || undefined,
+                                    userEmail: currentUser?.email,
+                                },
+                                {
+                                    getFinancialOverview: (a) => convex.query(api.financialReporting.getFinancialOverview, a),
+                                    getFinancialReports: (a) => convex.query(api.financialReporting.getFinancialReports, a),
+                                    getResidentBill: (a) => convex.query(api.tenancyLifecycle.getResidentBill, a),
+                                },
+                            );
+                            toolOutput = { report: result.report, data: result.data, note: result.note };
+                            feedbackMessage = 'Reading your books…';
+                        } catch (err: any) {
+                            toolOutput = { error: err?.message || 'The financial read failed.' };
+                            feedbackMessage = `I couldn't read the books just now: ${err?.message || 'the query failed'}. Say so honestly and offer to retry.`;
+                        }
+                    }
+
                 } else {
                     const mappedAction = mapToolToModal(name, args);
                     if (mappedAction) {
@@ -1424,30 +1463,39 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                     } else if (name === 'execute_quick_action') {
                         const { action, targetType, targetId, value } = args;
-                        feedbackMessage = `Executing ${action.replace('_', ' ')} on ${targetType}...`;
-                        
-                        try {
-                            if (action === 'update_status') {
-                                if (targetType === 'matters') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'matters', id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                                } else if (targetType === 'tasks') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                                } else if (targetType === 'properties') {
-                                    await convex.mutation(api.myFunctions.updateItem, { table: 'properties', id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                                }
-                            } else if (action === 'set_priority' && targetType === 'tasks') {
-                                await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { priority: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                            } else if (action === 'assign_user') {
-                                await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { assignedUserId: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-                            } else if (action === 'delete_item') {
-                                await deleteItem(targetType as any, targetId, 'Item');
+
+                        // ── ROUND G (§3+§6): MAJOR actions NEVER auto-execute.
+                        // delete_item (any target) and update_status/archive on
+                        // properties render an explicit Confirm card; the
+                        // mutation only runs when the user clicks Confirm
+                        // (executeConfirmedQuickAction). Prompt-side rules are
+                        // advisory — THIS deterministic gate is the guarantee
+                        // that the LLM never executes a major mutation alone.
+                        if (requiresQuickActionConfirmation(action, targetType)) {
+                            actionData = {
+                                type: 'confirmQuickAction',
+                                quickAction: { action, targetType, targetId, value },
+                                description: describeQuickAction(action, targetType, value, targetId),
+                                confirmLabel: confirmButtonLabel(action),
+                            };
+                            toolOutput = {
+                                awaitingConfirmation: true,
+                                action,
+                                targetType,
+                                targetId,
+                                note: 'The action was NOT executed. A confirmation card is shown to the user; it will only run if they click Confirm. Do NOT claim the change is done — say it awaits their confirmation, and summarise what will happen if they confirm.',
+                            };
+                            feedbackMessage = `This is a significant change — I've prepared it, but I need your confirmation below before I touch anything.`;
+                        } else {
+                            feedbackMessage = `Executing ${action.replace('_', ' ')} on ${targetType}...`;
+                            try {
+                                await runQuickActionMutation({ action, targetType, targetId, value });
+                                toolOutput = { success: true, action, targetId };
+                                feedbackMessage = `Action "${action.replace('_', ' ')}" executed successfully.`;
+                            } catch (err: any) {
+                                toolOutput = { success: false, error: err.message };
+                                feedbackMessage = `Failed to execute action: ${err.message}`;
                             }
-                            
-                            toolOutput = { success: true, action, targetId };
-                            feedbackMessage = `Action "${action.replace('_', ' ')}" executed successfully.`;
-                        } catch (err: any) {
-                            toolOutput = { success: false, error: err.message };
-                            feedbackMessage = `Failed to execute action: ${err.message}`;
                         }
                     } else if (name === 'update_open_form') {
                         // This tool interacts with the currently open modal's state
@@ -3091,6 +3139,54 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
     };
 
+    // ── ROUND G (§3+§6): the quick-action mutation runner ─────────────
+    // ONE implementation shared by the immediate path and the confirm
+    // card — identical auth (sessionToken + userEmail), identical
+    // constrained writes (status/priority/assignment/delete via the
+    // authed updateItem/deleteItem surfaces — never raw DB access).
+    const runQuickActionMutation = async (proposal: { action: string; targetType: string; targetId: string; value?: string }) => {
+        const { action, targetType, targetId, value } = proposal;
+        if (action === 'update_status') {
+            await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { status: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+        } else if (action === 'set_priority' && targetType === 'tasks') {
+            await convex.mutation(api.myFunctions.updateItem, { table: 'tasks', id: targetId, data: { priority: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+        } else if (action === 'assign_user') {
+            await convex.mutation(api.myFunctions.updateItem, { table: targetType, id: targetId, data: { assignedUserId: value }, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
+        } else if (action === 'delete_item') {
+            await deleteItem(targetType as any, targetId, 'Item');
+        } else {
+            throw new Error(`Unsupported quick action "${action}".`);
+        }
+    };
+
+    // Confirm click on a major-action card: run the mutation, then flip
+    // the card to done (locally + the saved message via the existing
+    // markAloaActionCompleted surface when available). Runs ONLY on the
+    // explicit user click — that is the whole point of the card.
+    const executeConfirmedQuickAction = async (msgId: string, proposal: { action: string; targetType: string; targetId: string; value?: string }) => {
+        try {
+            await runQuickActionMutation(proposal);
+            setMessages(prev => prev.map(m => m.id === msgId
+                ? { ...m, toolAction: { ...m.toolAction, isCompleted: true, error: null } }
+                : m));
+            const savedId = (messages.find(m => m.id === msgId)?.toolAction as any)?.context?.aloaMessageId;
+            if (savedId) {
+                try { await convex.mutation(api.myFunctions.markAloaActionCompleted, { messageId: savedId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) }); } catch { /* best effort — the local card already reflects the truth */ }
+            }
+        } catch (err: any) {
+            setMessages(prev => prev.map(m => m.id === msgId
+                ? { ...m, toolAction: { ...m.toolAction, isCompleted: true, error: err?.message || 'The change failed.' } }
+                : m));
+        }
+    };
+
+    // Cancel click: nothing runs, ever. The card flips to declined.
+    const declineQuickAction = (msgId: string) => {
+        setMessages(prev => prev.map(m => m.id === msgId
+            ? { ...m, toolAction: { ...m.toolAction, declined: true } }
+            : m));
+    };
+
     const executeStoredAction = (action: any) => {
         if (action.type === 'modal') {
             onClose(); // Close ALOA panel first so the modal isn't blurred behind it
@@ -3846,7 +3942,27 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         </div>
                                     )}
 
-                                    {msg.toolAction && msg.toolAction.type !== 'document_packet' && (
+                                    {/* ─── ROUND G (§3): MAJOR QUICK-ACTION CONFIRMATION CARD ──
+                                        delete_item (any target) and update_status/archive on
+                                        properties never auto-execute — this card holds them
+                                        until the user clicks Confirm. Handled BEFORE the
+                                        generic ActionCard so confirmations get the dedicated
+                                        two-button UI. */}
+                                    {msg.toolAction?.type === 'confirmQuickAction' && msg.toolAction.quickAction && (
+                                        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
+                                            <QuickActionConfirmCard
+                                                proposal={msg.toolAction.quickAction}
+                                                description={msg.toolAction.description || describeQuickAction(msg.toolAction.quickAction.action, msg.toolAction.quickAction.targetType, msg.toolAction.quickAction.value, msg.toolAction.quickAction.targetId)}
+                                                confirmLabel={msg.toolAction.confirmLabel || confirmButtonLabel(msg.toolAction.quickAction.action)}
+                                                status={msg.toolAction.isCompleted ? 'done' : msg.toolAction.declined ? 'declined' : 'pending'}
+                                                error={msg.toolAction.error}
+                                                onConfirm={() => executeConfirmedQuickAction(msg.id, msg.toolAction.quickAction)}
+                                                onCancel={() => declineQuickAction(msg.id)}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {msg.toolAction && msg.toolAction.type !== 'document_packet' && msg.toolAction.type !== 'confirmQuickAction' && (
                                         <div className="mt-4 pt-4 border-t border-slate-100 dark:border-zinc-800">
                                             <ActionCard
                                                 actionName={msg.toolAction.modalType || msg.toolAction.type || 'action'}
