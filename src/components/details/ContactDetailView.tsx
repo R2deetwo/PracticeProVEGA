@@ -7,6 +7,8 @@ import { useHighlight } from '../../hooks/useHighlight';
 import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon, EditIcon, TrashIcon, LinkIcon, OfficeBuildingIcon, ChevronRightIcon } from '../../constants';
 import { ExpandablePropertyGroup } from '../sentry/ExpandablePropertyGroup';
+// ROUND E (Wave E2): the consolidated resident profile for contact-linked residents.
+import { ResidentProfilePanel } from './ResidentProfilePanel';
 import { Breadcrumbs } from '../Breadcrumbs';
 import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
@@ -415,6 +417,20 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                             <p className="text-sm text-slate-500">No properties recorded.</p>
                         </div>
                     )}
+
+                    {/* ROUND E (Wave E2): the consolidated resident profile —
+                        rendered only when this contact is/was a resident on the
+                        tenancy ledger; the panel hides itself otherwise, so
+                        non-resident contacts see no empty section. */}
+                    <div className="mt-6">
+                        <ResidentProfilePanel
+                            firmId={coreState.firmDetails?.id || (currentUser as any)?.firmId || ''}
+                            contactId={contact.id}
+                            contactName={contact.name}
+                            contactEmail={contact.email}
+                            contactPhone={contact.phone}
+                        />
+                    </div>
                 </div>
             );
         case 'relationships':

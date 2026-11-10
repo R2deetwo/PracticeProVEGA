@@ -25,6 +25,8 @@ import LedgerManager from './atrium/LedgerManager';
 import VacancyPipeline from './atrium/VacancyPipeline';
 import AutomationCenter from './atrium/AutomationCenter';
 import { MaintenanceQueue } from './atrium/MaintenanceQueue';
+// ROUND E (Wave E2): the firm-wide resident directory (the tenancy-ledger roster).
+import ResidentDirectory from './atrium/ResidentDirectory';
 // MESSAGES OVERHAUL: the unified composer is hosted here so the Service
 // Charges tab's per-charge WhatsApp button opens it (prefilled) — one
 // compose experience across the whole app.
@@ -62,7 +64,7 @@ const VoidInvoiceModal: React.FC<{
     const isVoid = mode === 'void';
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
                     {isVoid ? <><Ban className="w-5 h-5 text-rose-500" /> Void invoice {invoice.invoiceNumber}?</> : <><Undo2 className="w-5 h-5 text-emerald-500" /> Reinstate invoice {invoice.invoiceNumber}?</>}
                 </h3>
@@ -349,7 +351,7 @@ export const BillingView: React.FC = () => {
     type ProductScope = 'legal' | 'property' | 'combined';
     const [productScope, setProductScope] = useState<ProductScope>(isUnified ? 'combined' : isProperty ? 'property' : 'legal');
 
-    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust' | 'maintenance';
+    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust' | 'maintenance' | 'residents';
     const [activeTab, setActiveTab] = useState<FinancialsTab>(() => {
         const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
         return t || 'invoices';
@@ -378,6 +380,9 @@ export const BillingView: React.FC = () => {
             // surface that never existed (getMaintenanceTicketsByFirm was
             // orphaned; ticket actions only lived inside message threads).
             { id: 'maintenance', label: 'Maintenance', productTag: 'Property' },
+            // ROUND E (Wave E2): the resident directory — the tenancy-ledger
+            // roster with the consolidated profile per resident.
+            { id: 'residents', label: 'Residents', productTag: 'Property' },
         );
     }
     if (features.canUseRetainerAutoBilling) {
@@ -604,6 +609,13 @@ export const BillingView: React.FC = () => {
                 {activeTab === 'maintenance' && (isProperty || isUnified) && productScope !== 'legal' && (
                     <div className="min-h-[500px]">
                         <MaintenanceQueue />
+                    </div>
+                )}
+
+                {/* ROUND E (Wave E2): the firm-wide resident directory. */}
+                {activeTab === 'residents' && (isProperty || isUnified) && productScope !== 'legal' && (
+                    <div className="min-h-[500px]">
+                        <ResidentDirectory />
                     </div>
                 )}
 

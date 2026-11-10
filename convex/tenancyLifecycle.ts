@@ -1159,3 +1159,489 @@ export const getResidentHistory = query({
     };
   },
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ROUND E (WAVE E2) — the resident directory + consolidated resident profile
+// ═══════════════════════════════════════════════════════════════════════════
+// The ledger is the truth layer, so the roster is derived from TENANCIES —
+// a resident who was never linked to a Contact row still appears (the E1
+// allocation only links a contact when matchResidentContact finds one).
+//
+// Grouping uses MERGE semantics: two rows are the same resident when they
+// share ANY of contact id / portal user / email / exact name, and a row
+// that bridges two groups merges them — the "three residents linked to the
+// existing contact" fragmentation (2026-09-12 report) cannot happen here.
+//
+// Privacy (owner brief §2): both reads are staff-only (requireStaffCaller)
+// and firm-scoped — a foreign firm's staff receives zero rows. Everything
+// here is a READ-ONLY projection: balances, documents and communications
+// are never written or deleted by this module, and the underlying rows
+// survive move-outs by design (E1(c) — history is never deleted).
+
+/** Outstanding due on a service charge row (read-only; never written here). */
+function chargeOutstanding(c: any): number {
+  const status = String(c.serviceChargeStatus ?? "");
+  const amount = Number(c.amount) || 0;
+  if (status === "PAID_FULLY") return 0;
+  if (status === "PARTIALLY_PAID") {
+    if (typeof c.outstandingBalance === "number") return Math.max(0, c.outstandingBalance);
+    return Math.max(0, amount - (Number(c.amountPaidThisCycle) || 0));
+  }
+  // UNPAID (and legacy rows without a status): the cycle amount less any
+  // Round B overpayment credit carried forward.
+  return Math.max(0, amount - (Number(c.creditCarriedForward) || 0));
+}
+
+/** Identity keys a ledger row contributes to its resident group. */
+function rowIdentityKeys(t: any): string[] {
+  const ks: string[] = [];
+  if (t.tenantContactId) ks.push(`c:${String(t.tenantContactId)}`);
+  if (t.tenantUserId) ks.push(`u:${String(t.tenantUserId)}`);
+  const email = String(t.tenantEmail ?? "").trim().toLowerCase();
+  if (email) ks.push(`e:${email}`);
+  const name = String(t.tenantName ?? "").trim().toLowerCase();
+  if (name) ks.push(`n:${name}`);
+  return ks;
+}
+
+interface ResidentGroup {
+  keys: Set<string>;
+  rows: any[];
+  dead: boolean;
+}
+
+/** Union-merge ledger rows into resident groups (see section header). */
+function groupResidentRows(all: any[]): any[][] {
+  const groups: ResidentGroup[] = [];
+  const keyIndex = new Map<string, number>();
+  for (const t of all || []) {
+    const ks = rowIdentityKeys(t);
+    if (!ks.length) continue;
+    const targets = Array.from(
+      new Set(ks.map((k) => keyIndex.get(k)).filter((x): x is number => x !== undefined))
+    );
+    let gi: number;
+    if (targets.length === 0) {
+      groups.push({ keys: new Set(), rows: [], dead: false });
+      gi = groups.length - 1;
+    } else {
+      gi = targets[0];
+      for (const other of targets.slice(1)) {
+        const g = groups[other];
+        for (const k of g.keys) {
+          keyIndex.set(k, gi);
+          groups[gi].keys.add(k);
+        }
+        groups[gi].rows.push(...g.rows);
+        g.keys = new Set();
+        g.rows = [];
+        g.dead = true;
+      }
+    }
+    for (const k of ks) {
+      keyIndex.set(k, gi);
+      groups[gi].keys.add(k);
+    }
+    groups[gi].rows.push(t);
+  }
+  return groups.filter((g) => !g.dead && g.rows.length > 0).map((g) => g.rows);
+}
+
+/**
+ * getResidentDirectory — the firm-wide resident roster (staff-only).
+ * One entry per resident (union-merged across the ledger), with the
+ * current tenancy, a maintenance count and — for residents with an active
+ * tenancy — the outstanding service-charge balance on that unit (current
+ * state truth; per-past-resident charge attribution does not exist in the
+ * data and is never invented).
+ */
+export const getResidentDirectory = query({
+  args: {
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    firmId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      firmId: args.firmId,
+    });
+    const firmId = args.firmId;
+    const resolver = createUnitResolver(ctx, firmId);
+
+    const all = await ctx.db
+      .query("tenancies")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+
+    const tickets = await ctx.db
+      .query("maintenance_tickets")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(500);
+
+    const charges = await ctx.db
+      .query("service_charges")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(500);
+
+    // Resolve each DISTINCT charge unit id once — shape-proof, the same
+    // resolver that backs the ledger's duplicate guard (a charge stored
+    // under the custom id matches a tenancy stored under the Convex _id).
+    const chargeUnitKeys = new Map<string, string | null>();
+    const keyForCharge = async (unitId: string): Promise<string | null> => {
+      const id = String(unitId || "");
+      if (!id) return null;
+      if (chargeUnitKeys.has(id)) return chargeUnitKeys.get(id) ?? null;
+      let key: string | null = null;
+      try {
+        const ref = await resolver.resolveUnit(id);
+        if (ref && ref.property && String(ref.property.firmId ?? "") === firmId) key = unitKeyFor(ref);
+      } catch {
+        key = null;
+      }
+      chargeUnitKeys.set(id, key);
+      return key;
+    };
+
+    const residents: any[] = [];
+    for (const rows of groupResidentRows(all || [])) {
+      const sorted = rows
+        .slice()
+        .sort((a: any, b: any) => String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")));
+      const latest = sorted[0] || {};
+      const contactId = sorted.map((t: any) => t.tenantContactId).find((x: any) => x) ?? null;
+      const userId = sorted.map((t: any) => t.tenantUserId).find((x: any) => x) ?? null;
+      const activeRow = sorted.find((t: any) => String(t.status ?? "") === "active") ?? null;
+
+      // Current tenancy projection (the live lease terms stay on the unit,
+      // synced by the E1 mutations; the ledger row is the snapshot).
+      let currentTenancy: any = null;
+      if (activeRow) {
+        let unitLabel = String(activeRow.unitName || "");
+        try {
+          const ref = await resolver.resolveUnit(String(activeRow.unitId || ""));
+          if (ref) unitLabel = snapshotUnit(ref).unitLabel;
+        } catch {
+          // keep the row's own snapshot label
+        }
+        currentTenancy = {
+          unitId: activeRow.unitId ?? null,
+          unitKey: activeRow.unitKey ?? null,
+          unitLabel,
+          propertyId: activeRow.propertyId ?? null,
+          startDate: activeRow.startDate ?? null,
+          endDate: activeRow.endDate ?? null,
+          rentAmount: Number(activeRow.rentAmount) || 0,
+          paymentFrequency: activeRow.paymentFrequency ?? null,
+        };
+      }
+
+      // Balances: current-state service charges on the ACTIVE unit only.
+      let outstanding: any = null;
+      if (activeRow && activeRow.unitKey) {
+        const targetKey = String(activeRow.unitKey);
+        const matchedCharges: any[] = [];
+        for (const c of charges || []) {
+          const key = await keyForCharge(String(c.unitId || ""));
+          if (key && key === targetKey) matchedCharges.push(c);
+        }
+        if (matchedCharges.length) {
+          outstanding = {
+            amount: matchedCharges.reduce((s: number, c: any) => s + chargeOutstanding(c), 0),
+            charges: matchedCharges.length,
+            unpaid: matchedCharges.filter((c: any) => String(c.serviceChargeStatus ?? "") === "UNPAID").length,
+            partial: matchedCharges.filter((c: any) => String(c.serviceChargeStatus ?? "") === "PARTIALLY_PAID").length,
+            paid: matchedCharges.filter((c: any) => String(c.serviceChargeStatus ?? "") === "PAID_FULLY").length,
+            defaulters: matchedCharges.filter((c: any) => c.isDefaulter === true).length,
+          };
+        }
+      }
+
+      const name = String(latest.tenantName ?? "").trim();
+      const maintenanceCount = (tickets || []).filter(
+        (m: any) =>
+          (userId && String(m.tenantId ?? "") === String(userId)) ||
+          (name && String(m.tenantName ?? "").trim().toLowerCase() === name.toLowerCase())
+      ).length;
+
+      residents.push({
+        key: rowIdentityKeys(latest)[0] ?? (name ? `n:${name.toLowerCase()}` : null),
+        name: name || null,
+        phone: String(latest.tenantPhone ?? "").trim() || null,
+        email: String(latest.tenantEmail ?? "").trim().toLowerCase() || null,
+        contactId: contactId ? String(contactId) : null,
+        userId: userId ? String(userId) : null,
+        hasPortalAccount: !!userId,
+        active: !!activeRow,
+        currentTenancy,
+        totals: { tenancies: rows.length, maintenanceCount },
+        outstanding,
+      });
+    }
+
+    // Active residents first, then by name.
+    residents.sort((a: any, b: any) => {
+      if (a.active !== b.active) return a.active ? -1 : 1;
+      return String(a.name ?? "").localeCompare(String(b.name ?? ""));
+    });
+
+    return {
+      residents,
+      counts: {
+        total: residents.length,
+        active: residents.filter((r: any) => r.active).length,
+        withOutstanding: residents.filter((r: any) => r.outstanding && r.outstanding.amount > 0).length,
+      },
+    };
+  },
+});
+
+/**
+ * getResidentProfile — the consolidated resident profile (staff-only):
+ * identity + emergency contact, current + previous tenancies with attributed
+ * payments, outstanding service-charge balances on the active unit, the
+ * resident's maintenance tickets, documents filed on their tenancy
+ * properties, and their portal conversations.
+ *
+ * A deliberate SUPERSET twin of getResidentHistory (which stays untouched
+ * so the E1 surface and its pinned tests remain byte-stable). History is
+ * read-only here: ending a tenancy never removed these rows (E1(c)), so a
+ * past resident's profile is complete by construction.
+ */
+export const getResidentProfile = query({
+  args: {
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    firmId: v.string(),
+    tenantContactId: v.optional(v.string()),
+    tenantUserId: v.optional(v.string()),
+    tenantEmail: v.optional(v.string()),
+    tenantName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      firmId: args.firmId,
+    });
+    const firmId = args.firmId;
+
+    const contactId = String(args.tenantContactId ?? "").trim() || null;
+    const emailLower = String(args.tenantEmail ?? "").trim().toLowerCase() || null;
+    const nameArg = String(args.tenantName ?? "").trim() || null;
+    let userId = String(args.tenantUserId ?? "").trim() || null;
+    if (!contactId && !userId && !emailLower && !nameArg) {
+      throw new Error("Provide a contact, portal user, email or name to look up.");
+    }
+
+    const resolver = createUnitResolver(ctx, firmId);
+    if (emailLower && !userId) {
+      const u = await resolver.userByEmail(emailLower);
+      if (u) userId = String(u._id);
+    }
+
+    const all = await ctx.db
+      .query("tenancies")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000);
+    const matched = (all || [])
+      .filter((t: any) => {
+        if (contactId && String(t.tenantContactId ?? "") === contactId) return true;
+        if (userId && String(t.tenantUserId ?? "") === userId) return true;
+        if (emailLower && String(t.tenantEmail ?? "").toLowerCase() === emailLower) return true;
+        if (nameArg && String(t.tenantName ?? "").trim().toLowerCase() === nameArg.toLowerCase()) return true;
+        return false;
+      })
+      .sort((a: any, b: any) => String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")));
+
+    // Unit labels + payment attribution — the E1 twin (see getResidentHistory).
+    const unitCache = new Map<string, { label: string; history: any[] }>();
+    const labelFor = async (unitId: string | null): Promise<string> => {
+      if (!unitId) return "Unit";
+      const cached = unitCache.get(unitId);
+      if (cached) return cached.label;
+      const ref = await resolver.resolveUnit(unitId).catch(() => null);
+      if (!ref) {
+        unitCache.set(unitId, { label: "Unit", history: [] });
+        return "Unit";
+      }
+      const entry = { label: snapshotUnit(ref).unitLabel, history: rentHistoryFor(ref) };
+      unitCache.set(unitId, entry);
+      return entry.label;
+    };
+    const historyFor = async (unitId: string | null): Promise<any[]> => {
+      if (!unitId) return [];
+      await labelFor(unitId); // populates the cache
+      return unitCache.get(unitId)?.history ?? [];
+    };
+
+    const nowDay = new Date().toISOString().slice(0, 10);
+    const tenancies: any[] = [];
+    for (const t of matched) {
+      const label = await labelFor(t.unitId ?? null);
+      const history = await historyFor(t.unitId ?? null);
+      const { payments, totalPaid } = paymentsForWindow(history, t, nowDay);
+      tenancies.push({ ...t, unitLabel: label, payments, totalPaid });
+    }
+
+    const activeRow = matched.find((t: any) => String(t.status ?? "") === "active") ?? null;
+
+    // Balances on the active unit (current-state charges, read-only).
+    let balances: any = null;
+    if (activeRow && activeRow.unitKey) {
+      const charges = await ctx.db
+        .query("service_charges")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .take(500);
+      const targetKey = String(activeRow.unitKey);
+      const chargeKeyCache = new Map<string, string | null>();
+      const matchedCharges: any[] = [];
+      for (const c of charges || []) {
+        const id = String(c.unitId || "");
+        let key: string | null = null;
+        if (id) {
+          if (chargeKeyCache.has(id)) {
+            key = chargeKeyCache.get(id) ?? null;
+          } else {
+            try {
+              const ref = await resolver.resolveUnit(id);
+              key = ref ? unitKeyFor(ref) : null;
+            } catch {
+              key = null;
+            }
+            chargeKeyCache.set(id, key);
+          }
+        }
+        if (key && key === targetKey) {
+          matchedCharges.push({
+            _id: c._id,
+            category: c.category ?? null,
+            amount: Number(c.amount) || 0,
+            cycle: c.cycle ?? null,
+            nextDueDate: c.nextDueDate ?? null,
+            serviceChargeStatus: c.serviceChargeStatus ?? null,
+            outstanding: chargeOutstanding(c),
+            amountPaidThisCycle: c.amountPaidThisCycle ?? null,
+            isDefaulter: c.isDefaulter === true,
+            daysOverdue: c.daysOverdue ?? null,
+            remindersMuted: c.remindersMuted === true,
+          });
+        }
+      }
+      matchedCharges.sort((a: any, b: any) => (b.outstanding || 0) - (a.outstanding || 0));
+      balances = {
+        charges: matchedCharges,
+        totals: {
+          outstanding: matchedCharges.reduce((s: number, c: any) => s + (c.outstanding || 0), 0),
+          unpaid: matchedCharges.filter((c: any) => c.serviceChargeStatus === "UNPAID").length,
+          partial: matchedCharges.filter((c: any) => c.serviceChargeStatus === "PARTIALLY_PAID").length,
+          paid: matchedCharges.filter((c: any) => c.serviceChargeStatus === "PAID_FULLY").length,
+          defaulters: matchedCharges.filter((c: any) => c.isDefaulter).length,
+        },
+      };
+    }
+
+    // Documents on the resident's tenancy properties (the documents table
+    // links by propertyId — read-only here; E3 revives the property
+    // documents section proper).
+    const propertyIds = new Set(
+      (matched || [])
+        .map((t: any) => (t.propertyId ? String(t.propertyId) : null))
+        .filter((x: any): x is string => !!x)
+    );
+    let documents: any[] = [];
+    if (propertyIds.size) {
+      const docsRaw = await ctx.db
+        .query("documents")
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .take(300);
+      documents = (docsRaw || [])
+        .filter((d: any) => d.propertyId && propertyIds.has(String(d.propertyId)))
+        .sort((a: any, b: any) => String(b.dateFiled ?? "").localeCompare(String(a.dateFiled ?? "")))
+        .slice(0, 100)
+        .map((d: any) => ({
+          _id: d._id,
+          title: d.title ?? null,
+          dateFiled: d.dateFiled ?? null,
+          categoryId: d.categoryId ?? null,
+          propertyId: d.propertyId ?? null,
+          source: d.source ?? null,
+        }));
+    }
+
+    // Portal conversations (only exist for residents with portal accounts).
+    let communications: any[] = [];
+    if (userId) {
+      const convs = await ctx.db
+        .query("portal_conversations")
+        .withIndex("by_participant", (q: any) => q.eq("participantId", userId))
+        .take(50);
+      communications = (convs || [])
+        .slice()
+        .sort((a: any, b: any) => (Number(b.lastMessageAt) || 0) - (Number(a.lastMessageAt) || 0))
+        .map((c: any) => ({
+          _id: c._id,
+          propertyId: c.propertyId ?? null,
+          unitId: c.unitId ?? null,
+          lastMessageAt: c.lastMessageAt ?? null,
+          lastMessagePreview: c.lastMessagePreview ?? null,
+          lastMessageBy: c.lastMessageBy ?? null,
+          participantRole: c.participantRole ?? null,
+        }));
+    }
+
+    // Maintenance tickets (same keying as getResidentHistory: portal user id
+    // with a bounded name-snapshot fallback).
+    const ticketsRaw = await ctx.db
+      .query("maintenance_tickets")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(500);
+    const maintenance = (ticketsRaw || []).filter(
+      (m: any) =>
+        (userId && String(m.tenantId ?? "") === userId) ||
+        (nameArg && String(m.tenantName ?? "").trim().toLowerCase() === nameArg.toLowerCase())
+    );
+
+    const activeCount = tenancies.filter((t: any) => String(t.status ?? "") === "active").length;
+    const totalPaid = tenancies.reduce((s: number, t: any) => s + (Number(t.totalPaid) || 0), 0);
+    const paymentsCount = tenancies.reduce(
+      (s: number, t: any) => s + (Array.isArray(t.payments) ? t.payments.length : 0),
+      0
+    );
+    const first = tenancies[0] || null;
+
+    return {
+      resident: {
+        name: first?.tenantName ?? nameArg ?? null,
+        phone: first?.tenantPhone ?? null,
+        email: first?.tenantEmail ?? emailLower ?? null,
+        contactId,
+        userId,
+        hasPortalAccount: !!userId,
+        emergencyContact: first
+          ? {
+              name: first.emergencyContactName ?? null,
+              phone: first.emergencyContactPhone ?? null,
+              relationship: first.emergencyContactRelationship ?? null,
+            }
+          : null,
+      },
+      tenancies,
+      maintenance,
+      balances,
+      documents,
+      communications,
+      totals: {
+        tenancies: tenancies.length,
+        activeCount,
+        paymentsCount,
+        totalPaid,
+        maintenanceCount: maintenance.length,
+        documentsCount: documents.length,
+        conversationsCount: communications.length,
+        outstanding: balances ? balances.totals.outstanding : 0,
+      },
+    };
+  },
+});
