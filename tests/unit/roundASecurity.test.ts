@@ -827,27 +827,45 @@ describe('C8 — gatehouse hardening', () => {
 
 // ═══════════════════════════════════════════════════════════════════════════
 // H15 — subscription approval is Founder-only
+// ROUND D (D5): the dead myFunctions.approveSubscriptionRequest twin was
+// deleted; this pin now targets the WIRED canonical path
+// (founderMetrics.approveSubscriptionRequestAsFounder — the only approval
+// the Founder App's SubscriptionRequestsCenter calls).
 // ═══════════════════════════════════════════════════════════════════════════
-describe('H15 — approveSubscriptionRequest is Founder-only', () => {
+describe('H15 — approveSubscriptionRequestAsFounder is Founder-only', () => {
   it('an Admin session is rejected (was: Admins approved their own upgrades)', async () => {
-    const { approveSubscriptionRequest } = await import('../../convex/myFunctions');
+    const { approveSubscriptionRequestAsFounder } = await import('../../convex/founderMetrics');
     const { ctx } = makeCtx({
       session: ADMIN_SESSION, user: ADMIN,
       tables: { subscriptionRequests: [{ _id: 'req1', firmId: 'firm-1', status: 'pending_review' }] },
     });
     await expect(
-      (approveSubscriptionRequest as any)._handler(ctx, { requestId: 'req1', sessionToken: 'tok-admin-xyz' })
-    ).rejects.toThrow(/Only Founders can approve/);
+      (approveSubscriptionRequestAsFounder as any)._handler(ctx, { requestId: 'req1', tokenIdentifier: 'admin@firm1.com', sessionToken: 'tok-admin-xyz' })
+    ).rejects.toThrow(/founder access required/i);
   });
 
-  it('source contract: the role gate accepts Founder only (no Admin fallback)', () => {
-    const src = read('convex/myFunctions.ts');
-    const fnAt = src.indexOf('export const approveSubscriptionRequest');
+  it('source contract: session-verified requireFounder gate + the revenue-leak guard #9 (ported from the dead twin)', () => {
+    const src = read('convex/founderMetrics.ts');
+    const fnAt = src.indexOf('export const approveSubscriptionRequestAsFounder');
     expect(fnAt).toBeGreaterThan(-1);
-    const body = src.slice(fnAt, fnAt + 900);
-    expect(body).toContain(`user?.role || ""`) ;
-    expect(body).toContain(`!== 'Founder'`);
-    expect(body.includes(`!== 'Founder' && user?.role !== 'Admin'`)).toBe(false);
+    const body = src.slice(fnAt, fnAt + 6000);
+    // Session-verified founder gate (requireFounder — no caller-supplied role strings).
+    expect(body).toContain('await requireFounder(ctx, args.tokenIdentifier, args.sessionToken)');
+    // ROUND D (D5) revenue-leak guard: the firm's product must flip when a
+    // unified firm downgrades, and ambiguous downgrades are refused.
+    expect(body).toContain(`isUnifiedFirm && request.requestedPlan !== 'Komplete' && !normalizedTarget`);
+    expect(body).toContain(`product: normalizedTarget`);
+    expect(body).toContain('Ambiguous downgrade');
+  });
+
+  it('the dead myFunctions twins are gone (D5 deletion record present)', () => {
+    const src = read('convex/myFunctions.ts');
+    expect(src.includes('export const getPendingSubscriptionRequests')).toBe(false);
+    expect(src.includes('export const approveSubscriptionRequest =')).toBe(false);
+    expect(src.includes('export const rejectSubscriptionRequest =')).toBe(false);
+    expect(src).toContain('ROUND D (D5) — DELETION RECORD');
+    // The kept user-side truth query survives.
+    expect(src).toContain('export const getMyPendingSubscriptionRequest');
   });
 });
 

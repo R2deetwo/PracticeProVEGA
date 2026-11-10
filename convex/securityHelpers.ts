@@ -17,7 +17,7 @@
  *   - getBlockedIps / getSuspendedUsers / getSecurityEvents (queries)
  */
 
-import { query, mutation, internalMutation } from "./_generated/server";
+import { query, mutation, internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireFounder } from "./founderMetrics";
@@ -160,6 +160,28 @@ export const getSuspendedUsers = query({
   handler: async (ctx, args) => {
     await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
     return await ctx.db.query("suspendedUsers").collect();
+  },
+});
+
+/**
+ * ROUND D (D4): internal IP-block check for httpAction chokepoints.
+ *
+ * blockedIps rows were written by blockIp but read by NOTHING — the block
+ * "feature" was placebo. Convex mutations/actions cannot see the client IP
+ * (no request context), so enforcement lives at the httpAction layer, which
+ * CAN read x-forwarded-for. /ai/stream consults this before proxying to
+ * Gemini — the expensive public-ish endpoint where IP abuse actually costs
+ * money. (Webhooks stay signature-verified — their callers are payment
+ * providers, not users.)
+ */
+export const isIpBlocked = internalQuery({
+  args: { ip: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("blockedIps")
+      .withIndex("by_ip", (q: any) => q.eq("ip", args.ip))
+      .first();
+    return !!existing;
   },
 });
 

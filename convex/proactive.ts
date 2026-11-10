@@ -34,15 +34,26 @@ type InsightSeverity = "info" | "warning" | "critical";
 
 // ─── QUERIES ────────────────────────────────────────────────────────────────
 
-/** Fetch un-dismissed insights for a firm, newest first. */
+/**
+ * Fetch un-dismissed insights for a firm, newest first.
+ *
+ * ROUND D (D6): this read was UNAUTHENTICATED — any caller with any firmId
+ * could read another firm's deadline/anomaly/briefing insights (matter
+ * titles, client names in the bodies). Retrofit follows dismissInsight's
+ * Round 8 pattern: session-verified staff caller + firm binding.
+ */
 export const getInsights = query({
   args: {
     firmId: v.string(),
     category: v.optional(v.string()),
     dismissed: v.optional(v.boolean()),
     limit: v.optional(v.number()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
-  handler: async (ctx, { firmId, category, dismissed, limit }) => {
+  handler: async (ctx, { firmId, category, dismissed, limit, sessionToken, userEmail }) => {
+    const caller = await requireStaffCaller(ctx, { sessionToken, userEmail });
+    assertSameFirm(caller, firmId as any);
     let q = ctx.db
       .query("proactive_insights")
       .withIndex("by_firm", (q) => q.eq("firmId", firmId));
@@ -59,39 +70,17 @@ export const getInsights = query({
   },
 });
 
-/** Fetch the latest morning briefing for a firm. */
-export const getLatestBriefing = query({
-  args: { firmId: v.string() },
-  handler: async (ctx, { firmId }) => {
-    const briefing = await ctx.db
-      .query("proactive_insights")
-      .withIndex("by_firm_category", (q) =>
-        q.eq("firmId", firmId).eq("category", "briefing")
-      )
-      .order("desc")
-      .first();
-    return briefing ?? null;
-  },
-});
-
-/** Count unread insights per category for badge display. */
-export const getInsightCounts = query({
-  args: { firmId: v.string() },
-  handler: async (ctx, { firmId }) => {
-    const all = await ctx.db
-      .query("proactive_insights")
-      .withIndex("by_firm", (q) => q.eq("firmId", firmId))
-      .take(500);
-
-    const undismissed = all.filter((i) => !i.dismissed);
-    return {
-      deadline: undismissed.filter((i) => i.category === "deadline").length,
-      anomaly: undismissed.filter((i) => i.category === "anomaly").length,
-      briefing: undismissed.filter((i) => i.category === "briefing").length,
-      total: undismissed.length,
-    };
-  },
-});
+/**
+ * ROUND D (D6) — DELETION RECORD.
+ *
+ * getLatestBriefing and getInsightCounts removed: both were UNAUTHENTICATED
+ * firmId-only reads with ZERO frontend callers — a cross-firm read hole with
+ * no product value to preserve. The briefing surface is NOT dead:
+ * storeBriefing writes each morning's briefing BOTH as a proactive_insights
+ * row (rendered via the now-gated getInsights, including the AloaChat
+ * briefing button) AND as an "☀️ Morning Briefing" ARIA conversation, so
+ * the cron's output remains fully visible without these twins.
+ */
 
 // ─── MUTATIONS ──────────────────────────────────────────────────────────────
 

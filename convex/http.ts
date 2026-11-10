@@ -82,6 +82,27 @@ http.route({
         { status: 401, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
       );
     }
+    // ── ROUND D (D4): IP-block enforcement. blockedIps rows were written by
+    //    the admin blockIp mutation but read by NOTHING (placebo feature).
+    //    httpActions are the only layer that can see the client IP
+    //    (x-forwarded-for); /ai/stream is the expensive proxy where IP abuse
+    //    costs real Gemini quota, so the block is enforced HERE.
+    const fwdFor = request.headers.get("x-forwarded-for") || "";
+    const callerIp = fwdFor.split(",")[0].trim();
+    if (callerIp) {
+      const blocked = await ctx.runQuery(internal.securityHelpers.isIpBlocked, { ip: callerIp });
+      if (blocked) {
+        await ctx.runMutation(internal.securityHelpers.logSecurityEventInternal, {
+          eventType: "blocked_ip_request_rejected",
+          ip: callerIp,
+          details: `Blocked IP rejected at /ai/stream (session user ${String((sessionUser as any)?.email ?? "unknown")})`,
+        });
+        return new Response(
+          JSON.stringify({ error: "Forbidden: this network has been blocked." }),
+          { status: 403, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } }
+        );
+      }
+    }
     const { model, contents, systemInstruction, apiKey: providedApiKey } = await request.json();
     // CRO AUDIT FIX (Track D — D5): removed hard-coded fallback Gemini API key.
     // Hard-coding API keys in source is a security issue — anyone with repo

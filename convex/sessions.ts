@@ -197,10 +197,37 @@ export const revokeSession = mutation({
   },
 });
 
-/** Revoke every active session for a user (password change / compromise). */
+/**
+ * Revoke every active session for a user (password change / compromise).
+ *
+ * ROUND D (D4): this was a PUBLIC mutation with NO authentication — any
+ * caller could force-logout ANY user by id (unauthenticated DoS on arbitrary
+ * accounts). Now session-gated with two legitimate paths, mirroring the
+ * R16b requireFounder convention (inlined here because founderMetrics
+ * imports this module — importing requireFounder back would create a cycle):
+ *   • SELF-SERVICE: the caller's own userId (password change → kill my other
+ *     sessions);
+ *   • PLATFORM FOUNDER: any user (the SecurityCenter suspend flow revokes
+ *     the suspended user's sessions so a live bearer can't outlive the ban).
+ */
 export const revokeAllUserSessions = mutation({
-  args: { userId: v.id("users") },
+  args: {
+    userId: v.id("users"),
+    sessionToken: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    if (!args.sessionToken) {
+      throw new Error("Unauthenticated: a verified session is required. Please sign in again.");
+    }
+    const caller: any = await resolveUserBySessionToken(ctx, args.sessionToken);
+    if (!caller) {
+      throw new Error("Unauthenticated: the session token is invalid, expired, or revoked. Please sign in again.");
+    }
+    const isSelf = String(caller._id) === String(args.userId);
+    const isFounder = String(caller.role || "") === "Founder";
+    if (!isSelf && !isFounder) {
+      throw new Error(`Unauthorized: you may only revoke your own sessions (your role is '${caller.role || "unknown"}').`);
+    }
     const sessions = await ctx.db
       .query("sessions")
       .withIndex("by_user", (q: any) => q.eq("userId", args.userId))

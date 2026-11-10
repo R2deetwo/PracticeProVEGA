@@ -1551,7 +1551,7 @@ export const checkFounderRole = internalQuery({
 // ════════════════════════════════════════════════════════════════════════════
 // These queries expose the new subscriptionRequests table to the founder
 // admin app. The founder can see all pending payment reports, approve them
-// (which flips firm.subscriptionPlan via approveSubscriptionRequest), or
+// (which flips firm.subscriptionPlan via approveSubscriptionRequestAsFounder), or
 // reject them (which leaves the firm on its current plan).
 // ════════════════════════════════════════════════════════════════════════════
 
@@ -1668,9 +1668,9 @@ export const getSubscriptionRequestStats = query({
 });
 
 /**
- * approveSubscriptionRequestAsFounder — founder-only wrapper around
- * approveSubscriptionRequest. Logs the admin action and triggers a refresh
- * of the firm's data via updateFirmAdminSettings.
+ * approveSubscriptionRequestAsFounder — founder-only subscription approval
+ * (the canonical path since ROUND D (D5) deleted the dead myFunctions
+ * twin). Logs the admin action and carries the revenue-leak guard #9.
  *
  * CRO AUDIT — DISCOUNTING SYSTEM: founder can pass discountPercent (0-100)
  * and discountReason. The discountedAmount is computed server-side as
@@ -1678,8 +1678,7 @@ export const getSubscriptionRequestStats = query({
  * audit + revenue reporting.
  *
  * NOTE: the actual plan flip happens directly here (founders don't have a
- * firmId, so they bypass the requireAdmin gate in
- * myFunctions.approveSubscriptionRequest).
+ * firmId, so firm-member gates never applied to them).
  */
 export const approveSubscriptionRequestAsFounder = mutation({
   args: {
@@ -1706,9 +1705,40 @@ export const approveSubscriptionRequestAsFounder = mutation({
     const originalAmount = request.amount || 0;
     const discountedAmount = Math.round(originalAmount * (1 - discountPercent / 100));
 
-    // Patch the request directly — bypass the requireAdmin gate in
-    // myFunctions.approveSubscriptionRequest because founders don't have
-    // a firmId (they're platform-level users, not firm members).
+    // ── ROUND D (D5): REVENUE-LEAK FIX #9, ported from the dead twin. ──
+    // myFunctions.approveSubscriptionRequest carried this guard, but that
+    // function had ZERO callers — the twin drift meant every approval ran
+    // through THIS variant, which flipped subscriptionPlan WITHOUT flipping
+    // firm.product. A Komplete (unified) firm downgraded to a single-product
+    // plan kept product='unified', and getTierLimitsForFirm treats ANY
+    // unified-product firm as all-unlimited — every Komplete feature at the
+    // cheaper plan's price (~₦400K+/yr leaked per downgraded firm).
+    const firm: any = await ctx.db.get(request.firmId as any);
+    const firmProduct = String(firm?.product || '').toLowerCase();
+    const isUnifiedFirm = firmProduct === 'unified' || firmProduct === 'komplete';
+    const targetProduct = request.requestedProduct
+      ? String(request.requestedProduct).toLowerCase()
+      : null;
+
+    // Validate target product when present
+    if (targetProduct && targetProduct !== 'property' && targetProduct !== 'legal' && targetProduct !== 'atrium' && targetProduct !== 'vega') {
+      throw new Error(`Invalid requestedProduct '${request.requestedProduct}'. Must be 'property' (Atrium) or 'legal' (Vega).`);
+    }
+    const normalizedTarget = targetProduct === 'atrium' ? 'property' : targetProduct === 'vega' ? 'legal' : targetProduct;
+
+    // GUARD: unified firm + non-Komplete target plan + no product specified
+    // → ambiguous legacy request. Refuse rather than silently leak revenue.
+    if (isUnifiedFirm && request.requestedPlan !== 'Komplete' && !normalizedTarget) {
+      throw new Error(
+        `Ambiguous downgrade: firm is on the Komplete (unified) product but the request targets plan ` +
+        `'${request.requestedPlan}' without specifying the target product. Reject this request and ask the ` +
+        `firm to re-submit from Settings → Billing (the new flow records the target product automatically).`
+      );
+    }
+
+    // Patch the request directly — founders don't have a firmId (they're
+    // platform-level users, not firm members), so the firm-member gate in
+    // the old myFunctions approval path never applied to them.
     const now = new Date().toISOString();
     await ctx.db.patch(args.requestId as any, {
       status: 'approved',
@@ -1722,9 +1752,11 @@ export const approveSubscriptionRequestAsFounder = mutation({
       updatedAt: now,
     } as any);
 
-    // Flip the firm's subscriptionPlan + clear trial fields
+    // Flip the firm's subscriptionPlan (+ product when changing products —
+    // the leak itself) + clear trial fields
     await ctx.db.patch(request.firmId, {
       subscriptionPlan: request.requestedPlan,
+      ...(normalizedTarget && normalizedTarget !== firmProduct ? { product: normalizedTarget } : {}),
       setupFeePaid: true,
       adminStatus: 'active',
       trialStartsAt: null,
@@ -1782,8 +1814,9 @@ export const approveSubscriptionRequestAsFounder = mutation({
 });
 
 /**
- * rejectSubscriptionRequestAsFounder — founder-only wrapper around
- * rejectSubscriptionRequest. Same pattern as approve: patch directly + log.
+ * rejectSubscriptionRequestAsFounder — founder-only subscription rejection
+ * (the canonical path since ROUND D (D5) deleted the dead myFunctions
+ * twin). Same pattern as approve: patch directly + log.
  */
 export const rejectSubscriptionRequestAsFounder = mutation({
   args: {

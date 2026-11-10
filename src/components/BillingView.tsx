@@ -24,6 +24,7 @@ import ServiceChargeMonitor from './atrium/ServiceChargeMonitor';
 import LedgerManager from './atrium/LedgerManager';
 import VacancyPipeline from './atrium/VacancyPipeline';
 import AutomationCenter from './atrium/AutomationCenter';
+import { MaintenanceQueue } from './atrium/MaintenanceQueue';
 // MESSAGES OVERHAUL: the unified composer is hosted here so the Service
 // Charges tab's per-charge WhatsApp button opens it (prefilled) — one
 // compose experience across the whole app.
@@ -348,7 +349,7 @@ export const BillingView: React.FC = () => {
     type ProductScope = 'legal' | 'property' | 'combined';
     const [productScope, setProductScope] = useState<ProductScope>(isUnified ? 'combined' : isProperty ? 'property' : 'legal');
 
-    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust';
+    type FinancialsTab = 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'monitor' | 'trust' | 'maintenance';
     const [activeTab, setActiveTab] = useState<FinancialsTab>(() => {
         const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
         return t || 'invoices';
@@ -373,6 +374,10 @@ export const BillingView: React.FC = () => {
             { id: 'vacancies', label: 'Vacancies', productTag: 'Property' },
             { id: 'automations', label: 'Reminder Rules', productTag: 'Property' },
             { id: 'inbox', label: 'Payment Proofs', productTag: 'Property' },
+            // ROUND D (D7): the firm-wide maintenance queue — the staff triage
+            // surface that never existed (getMaintenanceTicketsByFirm was
+            // orphaned; ticket actions only lived inside message threads).
+            { id: 'maintenance', label: 'Maintenance', productTag: 'Property' },
         );
     }
     if (features.canUseRetainerAutoBilling) {
@@ -592,6 +597,13 @@ export const BillingView: React.FC = () => {
                 {activeTab === 'inbox' && (isProperty || isUnified) && productScope !== 'legal' && (
                     <div className="min-h-[500px]">
                         <PaymentProofsScreen />
+                    </div>
+                )}
+
+                {/* ROUND D (D7): the firm-wide maintenance queue. */}
+                {activeTab === 'maintenance' && (isProperty || isUnified) && productScope !== 'legal' && (
+                    <div className="min-h-[500px]">
+                        <MaintenanceQueue />
                     </div>
                 )}
 

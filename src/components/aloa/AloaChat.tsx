@@ -190,10 +190,14 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
 
     // Fetch un-dismissed proactive insights (deadlines, anomalies, briefings)
     // Only fetch if the user hasn't disabled AI suggestions in settings
+    // ROUND D (D6): getInsights is now staff-session-authenticated server-side
+    // (was: firmId-only, a cross-firm read hole) — pass the bearer + email.
     const showAiSuggestions = (currentUser as any).showAiSuggestions !== false;
     const proactiveInsights = useQuery(
         api.proactive.getInsights,
-        showAiSuggestions && firmId ? { firmId, dismissed: false, limit: 10 } : 'skip'
+        showAiSuggestions && firmId && bearerToken
+            ? { firmId, dismissed: false, limit: 10, sessionToken: bearerToken ?? undefined, userEmail: currentUser?.email ?? undefined }
+            : 'skip'
     );
 
     // ─── TASK 64 — ACCOUNT / TIER / ONBOARDING AWARENESS ─────────────────

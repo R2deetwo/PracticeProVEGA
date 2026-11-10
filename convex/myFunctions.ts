@@ -8009,25 +8009,28 @@ export const createSubscriptionRequest = mutation({
 });
 
 /**
- * getPendingSubscriptionRequests — for the founder admin dashboard.
- * Returns all requests with status='pending_review', ordered newest first.
- */
-export const getPendingSubscriptionRequests = query({
-  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx, args.userEmail, args.sessionToken);
-    const requests = await ctx.db
-      .query("subscriptionRequests")
-      .withIndex("by_status", (q: any) => q.eq("status", "pending_review"))
-      .order("desc")
-      .take(100);
-    return requests;
-  },
-});
-
-/**
- * getMyPendingSubscriptionRequest — for the user's own settings page.
- * Returns the most recent pending request for the calling user's firm.
+ * ROUND D (D5) — DELETION RECORD.
+ *
+ * Three dead twins removed (zero frontend callers, superseded by the wired
+ * founderMetrics console variants used by the Founder App's
+ * SubscriptionRequestsCenter):
+ *
+ *   • getPendingSubscriptionRequests — superseded by
+ *     founderMetrics.getSubscriptionRequests.
+ *   • approveSubscriptionRequest — superseded by
+ *     founderMetrics.approveSubscriptionRequestAsFounder. IMPORTANT: before
+ *     deletion its REVENUE-LEAK FIX #9 (unified-firm downgrade must also
+ *     flip firm.product, and ambiguous downgrades are refused) was PORTED
+ *     into the wired variant — the twins had drifted, and the live approval
+ *     path was silently leaking ~₦400K+/yr per downgraded Komplete firm
+ *     because only the DEAD twin carried the guard.
+ *   • rejectSubscriptionRequest — superseded by
+ *     founderMetrics.rejectSubscriptionRequestAsFounder (which is also the
+ *     stricter gate: requireFounder instead of Founder||Admin).
+ *
+ * getMyPendingSubscriptionRequest is KEPT and now wired — it is the
+ * user-side truth surface for the firm's latest subscription request
+ * (SubscriptionSettings D5 banner).
  */
 export const getMyPendingSubscriptionRequest = query({
   args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
@@ -8039,160 +8042,6 @@ export const getMyPendingSubscriptionRequest = query({
       .order("desc")
       .first();
     return request;
-  },
-});
-
-/**
- * approveSubscriptionRequest — founder-only mutation that flips the firm's
- * subscriptionPlan AND marks the request as approved.
- */
-export const approveSubscriptionRequest = mutation({
-  args: {
-    requestId: v.string(),
-    sessionToken: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    // ROUND A (H15): FOUNDER-ONLY, unconditionally. The previous gate
-    // (requireAdmin + a role check that also accepted plain 'Admin') let
-    // firm Admins approve their own subscription upgrades — the TODO that
-    // admitted the intent is now closed. requireFirmUser blocks portal
-    // roles as usual; the explicit role check admits ONLY Founders (an
-    // Admin attempt throws).
-    const { user } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
-    if (String(user?.role || "") !== 'Founder') {
-      throw new Error("Only Founders can approve subscription requests.");
-    }
-
-    const request: any = await ctx.db.get(args.requestId as any);
-    if (!request) throw new Error("Subscription request not found.");
-    if (request.status !== 'pending_review') {
-      throw new Error(`Request is not pending (current status: ${request.status}).`);
-    }
-
-    const now = new Date().toISOString();
-
-    // REVENUE-LEAK FIX (#9): a downgrade from Komplete (product='unified')
-    // to a single-product plan MUST also flip firm.product. Previously this
-    // mutation only patched subscriptionPlan — a Komplete firm downgraded to
-    // 'Pro' kept product='unified', and getTierLimitsForFirm treats ANY
-    // unified-product firm as all-unlimited. The firm then kept every
-    // Komplete feature while paying Atrium Pro (₦2.1M) or Vega Pro (₦768K)
-    // instead of Komplete (₦2.5M) — ~₦400K+/yr leaked per downgraded firm.
-    const firm: any = await ctx.db.get(request.firmId as any);
-    const firmProduct = String(firm?.product || '').toLowerCase();
-    const isUnifiedFirm = firmProduct === 'unified' || firmProduct === 'komplete';
-    const targetProduct = request.requestedProduct
-      ? String(request.requestedProduct).toLowerCase()
-      : null;
-
-    // Validate target product when present
-    if (targetProduct && targetProduct !== 'property' && targetProduct !== 'legal' && targetProduct !== 'atrium' && targetProduct !== 'vega') {
-      throw new Error(`Invalid requestedProduct '${request.requestedProduct}'. Must be 'property' (Atrium) or 'legal' (Vega).`);
-    }
-    const normalizedTarget = targetProduct === 'atrium' ? 'property' : targetProduct === 'vega' ? 'legal' : targetProduct;
-
-    // GUARD: unified firm + non-Komplete target plan + no product specified
-    // → ambiguous legacy request. Refuse rather than silently leak revenue.
-    if (isUnifiedFirm && request.requestedPlan !== 'Komplete' && !normalizedTarget) {
-      throw new Error(
-        `Ambiguous downgrade: firm is on the Komplete (unified) product but the request targets plan ` +
-        `'${request.requestedPlan}' without specifying the target product. Reject this request and ask the ` +
-        `firm to re-submit from Settings → Billing (the new flow records the target product automatically).`
-      );
-    }
-
-    // Flip the firm's subscriptionPlan (+ product when changing products)
-    await ctx.db.patch(request.firmId, {
-      subscriptionPlan: request.requestedPlan,
-      ...(normalizedTarget && normalizedTarget !== firmProduct ? { product: normalizedTarget } : {}),
-      setupFeePaid: true,
-      adminStatus: 'active',
-      // Clear trial fields if present
-      trialStartsAt: null,
-      trialEndsAt: null,
-      trialPlan: null,
-      billingInterval: request.billingInterval,
-      nextBillingDate: computeNextBillingDate(request.billingInterval, now),
-      updatedAt: now,
-    } as any);
-
-    // Mark the request as approved
-    await ctx.db.patch(args.requestId as any, {
-      status: 'approved',
-      reviewedAt: now,
-      reviewedBy: user?.email || args.userEmail,
-      updatedAt: now,
-    } as any);
-
-    // Notify ALL users in the firm (not just the requesting user) that
-    // the plan has been activated. Uses a celebratory tone.
-    const firmUsers = await ctx.db
-      .query("users")
-      .withIndex("by_firm", (q: any) => q.eq("firmId", request.firmId))
-      .take(200);
-    for (const u of firmUsers) {
-      await ctx.db.insert("notifications", {
-        firmId: request.firmId,
-        userId: u._id,
-        title: 'Plan Activated',
-        message: `Your account has been updated to the ${request.requestedPlan} plan! All associated features, higher limits, and modules are now active.`,
-        type: 'subscription_activated',
-        link: { view: 'settings', id: null, context: { settingsTargetId: 'billing' } },
-        timestamp: Date.now(),
-        isRead: false,
-      } as any);
-    }
-
-    return { success: true };
-  },
-});
-
-/**
- * rejectSubscriptionRequest — founder-only mutation that marks the request
- * as rejected without flipping the firm's plan.
- */
-export const rejectSubscriptionRequest = mutation({
-  args: {
-    requestId: v.string(),
-    sessionToken: v.optional(v.string()),
-    reason: v.optional(v.string()),
-    userEmail: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const { user } = await requireAdmin(ctx, args.userEmail, args.sessionToken);
-    if (user?.role !== 'Founder' && user?.role !== 'Admin') {
-      throw new Error("Only founder admins can reject subscription requests.");
-    }
-
-    const request: any = await ctx.db.get(args.requestId as any);
-    if (!request) throw new Error("Subscription request not found.");
-    if (request.status !== 'pending_review') {
-      throw new Error(`Request is not pending (current status: ${request.status}).`);
-    }
-
-    const now = new Date().toISOString();
-    await ctx.db.patch(args.requestId as any, {
-      status: 'rejected',
-      reviewedAt: now,
-      reviewedBy: user?.email || args.userEmail,
-      adminNotes: args.reason || null,
-      updatedAt: now,
-    } as any);
-
-    if (request.userId) {
-      await ctx.db.insert("notifications", {
-        firmId: request.firmId,
-        userId: request.userId,
-        title: 'Subscription Request Update',
-        message: `Your upgrade request could not be verified. Reason: ${args.reason || 'Payment not confirmed. Please contact support.'}`,
-        type: 'subscription_rejected',
-        timestamp: Date.now(),
-        isRead: false,
-      } as any);
-    }
-
-    return { success: true };
   },
 });
 

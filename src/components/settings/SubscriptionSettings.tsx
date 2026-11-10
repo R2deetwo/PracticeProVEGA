@@ -762,6 +762,20 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
     const { currentUser, bearerToken } = useAuth();
     const [isFixingProduct, setIsFixingProduct] = useState(false);
     const fixProductModeMutation = useMutation(api.myFunctions.fixProductMode);
+
+    // ─── ROUND D (D5): PENDING SUBSCRIPTION REQUEST TRUTH ──────────────
+    // The bank-transfer fallback (PaymentGatewayModal → createSubscriptionRequest)
+    // writes a pending_review row, then NOTHING ever showed its status again —
+    // getMyPendingSubscriptionRequest had zero callers. A user who paid by
+    // transfer could not see that their request existed, was awaiting founder
+    // approval, or had been rejected. This surfaces the firm's latest request
+    // (firm-scoped server-side via requireFirmUser).
+    const pendingSubscriptionRequest = useQuery(
+        api.myFunctions.getMyPendingSubscriptionRequest,
+        currentUser?.email && bearerToken
+            ? { userEmail: currentUser.email, sessionToken: bearerToken ?? undefined }
+            : 'skip'
+    );
     const needsProductFix = !isUnified && (
         currentPlan === SubscriptionPlan.Komplete ||
         currentPlan === SubscriptionPlan.Enterprise
@@ -825,6 +839,46 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     </p>
                 </div>
             </div>
+
+            {/* ─── ROUND D (D5): Pending subscription request banner ────
+                The truth loop for bank-transfer plan changes: pending shows
+                what the founder will review; rejected shows the outcome. */}
+            {pendingSubscriptionRequest && pendingSubscriptionRequest.status === 'pending_review' && (
+                <div className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-300 dark:border-blue-700 rounded-lg p-4 flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0 animate-pulse" />
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-blue-800 dark:text-blue-300">
+                            Plan change to {pendingSubscriptionRequest.requestedPlan || 'a new plan'} is awaiting approval
+                        </p>
+                        <p className="text-xs text-blue-700/80 dark:text-blue-400/80 mt-0.5">
+                            {pendingSubscriptionRequest.amount != null && `₦${Number(pendingSubscriptionRequest.amount).toLocaleString()} · `}
+                            {pendingSubscriptionRequest.billingInterval === 'annual' ? 'annual billing' : 'monthly billing'}
+                            {pendingSubscriptionRequest.requestedAt ? ` · submitted ${new Date(String(pendingSubscriptionRequest.requestedAt)).toLocaleDateString()}` : ''}
+                            {pendingSubscriptionRequest.transactionReference ? ` · ref ${pendingSubscriptionRequest.transactionReference}` : ''}
+                        </p>
+                        <p className="text-xs text-blue-600/70 dark:text-blue-500/70 mt-1">
+                            Your firm's plan changes once a founder approves this request. If you paid by bank transfer, approval is confirmed after the payment is verified.
+                        </p>
+                    </div>
+                </div>
+            )}
+            {pendingSubscriptionRequest && pendingSubscriptionRequest.status === 'rejected' && (
+                <div className="w-full bg-rose-50 dark:bg-rose-900/20 border border-rose-300 dark:border-rose-700 rounded-lg p-4 flex items-start gap-3">
+                    <div className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 flex-shrink-0" />
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-rose-800 dark:text-rose-300">
+                            Your request to change to {pendingSubscriptionRequest.requestedPlan || 'a new plan'} was not approved
+                        </p>
+                        <p className="text-xs text-rose-700/80 dark:text-rose-400/80 mt-0.5">
+                            {pendingSubscriptionRequest.reviewedAt ? `Reviewed ${new Date(String(pendingSubscriptionRequest.reviewedAt)).toLocaleDateString()}` : ''}
+                            {pendingSubscriptionRequest.transactionReference ? ` · ref ${pendingSubscriptionRequest.transactionReference}` : ''}
+                        </p>
+                        <p className="text-xs text-rose-600/70 dark:text-rose-500/70 mt-1">
+                            Your current plan is unchanged. You can contact support or choose a different plan below.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* ─── Fix Product Mode Warning ─────────────────────────── */}
             {needsProductFix && (
