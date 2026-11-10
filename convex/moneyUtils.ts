@@ -104,3 +104,33 @@ export function assertNonNegativeAmount(amount: number, label: string): number {
     }
     return rounded;
 }
+
+// ─── ROUND F (Wave F4, §6): kobo-native arithmetic helpers ──────────────────
+//
+// The Round F convention: NEW money code computes in integer kobo internally
+// and converts back to naira @2dp once, at the end (storage stays naira —
+// the kobo STORAGE migration is a deliberately deferred separate wave).
+// These are the shared primitives every Round F module uses (and every
+// future wave should reach for first).
+
+/** Add amounts as integer kobo (no float accumulation). Inputs are naira
+ *  @2dp; the sum is exact because each operand is converted once. */
+export function addKobo(...nairaAmounts: number[]): number {
+  let kobo = 0;
+  for (const n of nairaAmounts) {
+    kobo += Math.round((Number(n) || 0) * 100);
+  }
+  return Math.round((kobo / 100) * 100) / 100;
+}
+
+/** Subtract as integer kobo (minuend − subtrahend). */
+export function subKobo(a: number, b: number): number {
+  const kobo = Math.round((Number(a) || 0) * 100) - Math.round((Number(b) || 0) * 100);
+  return Math.round((kobo / 100) * 100) / 100;
+}
+
+/** Compare two naira amounts exactly in kobo (no float drift):
+ *  negative when a < b, 0 when equal, positive when a > b. */
+export function compareKobo(a: number, b: number): number {
+  return Math.round((Number(a) || 0) * 100) - Math.round((Number(b) || 0) * 100);
+}

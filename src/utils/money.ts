@@ -96,3 +96,25 @@ export function sanitizeMoney(amount: any): number {
     if (typeof amount !== 'number' || isNaN(amount)) return 0;
     return roundMoney(amount);
 }
+
+// ─── ROUND F (Wave F4, §6): kobo-native arithmetic — client mirror ──────────
+// The same contract as convex/moneyUtils.ts: new money code computes in
+// integer kobo internally, converts back to naira @2dp once. Kept in
+// lockstep so client and server can never disagree by drift.
+
+export function addKobo(...nairaAmounts: number[]): number {
+    let kobo = 0;
+    for (const n of nairaAmounts) {
+        kobo += Math.round((Number(n) || 0) * 100);
+    }
+    return Math.round((kobo / 100) * 100) / 100;
+}
+
+export function subKobo(a: number, b: number): number {
+    const kobo = Math.round((Number(a) || 0) * 100) - Math.round((Number(b) || 0) * 100);
+    return Math.round((kobo / 100) * 100) / 100;
+}
+
+export function compareKobo(a: number, b: number): number {
+    return Math.round((Number(a) || 0) * 100) - Math.round((Number(b) || 0) * 100);
+}

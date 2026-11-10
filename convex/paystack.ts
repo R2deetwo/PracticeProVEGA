@@ -287,6 +287,21 @@ export const verifyPaystackPayment = internalAction({
 // This is the ONLY path that should set invoice status to 'Paid' for Paystack
 // transactions — NOT the client-side auto-flip.
 
+// ─── ROUND F (Wave F4, §6 hardening): constant-time signature comparison. ───
+// The old `signature !== expectedSignature` is a straight string compare —
+// timing-leaky in principle. An HMAC verification is not a secret-bearing
+// comparison in the password sense, but the standard hardening is cheap and
+// costs nothing on the hot path: compare every char, accumulate the
+// difference, branch once at the end.
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 export async function handlePaystackWebhookImpl(
   ctx: any,
   request: Request
@@ -322,7 +337,9 @@ export async function handlePaystackWebhookImpl(
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
 
-    if (signature !== expectedSignature) {
+    // ROUND F (F4): constant-time comparison — never branch on the first
+    // differing character.
+    if (!timingSafeEqualHex(signature, expectedSignature)) {
       return new Response("Invalid signature", { status: 401 });
     }
 
