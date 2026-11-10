@@ -16982,3 +16982,124 @@ owner fix unblocks it: new Cloudflare token (Edit Cloudflare Workers
 template, account-scoped) → repo secret CLOUDFLARE_API_TOKEN → re-run
 "Deploy to Production (promote)" with blank sha. Everything else was
 green on both promote runs.
+
+Task ID: R92 (Round SENTRY, Wave S1 — the core backend: passRef +
+display-only extras, the §2 authorisation workflow, denied-entry
+audit, the authenticated §5 reports; owner brief §1 §2 §4 §5)
+Agent: Main agent (Super Z)
+Task: First wave of the SENTRY PASS AND SECURITY WORKFLOW UPGRADE (the
+owner's new brief, taken ahead of the pending Atrium follow-ups). The
+existing VMS (visitor_tokens + visitorManagement.ts, Round A C8's
+hardened surface) is PRESERVED throughout — every change is additive.
+
+Work Log:
+- schema.ts (additive only): visitor_tokens gains expectedArrival
+  ("HH:MM", display-only) + accessNote (≤120-char gate instructions) +
+  passRef — a 12-char crypto-secure base32 identifier (~59.5 bits,
+  ambiguity-free alphabet without I/L/O/0/1) with a by_property_passref
+  index; NEW sentry_arrival_requests table is the §2 authorisation
+  record (requestedBy/At, decidedBy/At, rejectReason, minted tokenId;
+  pending → approved | rejected | expired).
+- visitorManagement.ts: generateVisitorToken takes the optional
+  display-only extras (HH:MM-validated, never widens the validity
+  window) and mints a collision-checked passRef; verifyToken accepts
+  code OR passRef (upper-cased, same state machine, same minimal
+  projection + the two new display fields); checkIn/checkOut accept
+  either identifier; check-in failures persist
+  'sentry_pass_attempt_rejected' security events; NEW recordDeniedEntry
+  (public, throttled) writes 'sentry_denied_entry' events and joins the
+  tokenId WITHOUT mutating the pass lifecycle; NEW searchExpectedVisitors
+  (name/code/passRef); NEW §5 reports as AUTHENTICATED MUTATIONS
+  (requireFirmUser) that write audit_logs BEFORE returning — daily
+  (visitDate-scoped), on-site, historical (capped 500), security
+  (denied entries + rejected pass attempts + vms-* throttles).
+- NEW convex/sentryRequests.ts: createArrivalRequest (public, 10/min,
+  resident resolved SERVER-SIDE from the ACTIVE tenancy of the
+  announced unit — never caller-supplied) + in-app notification;
+  decideArrivalRequest (resident possession-gated; approval passes the
+  SAME VMS billing gate and the SAME 24h unique-code rule, mints a 6h
+  today-pass, schedules the existing WhatsApp deliverer when a phone
+  was left at the gate); getSentryResidentRequests +
+  getGatehouseRequests (minimal projections); expireStaleArrivalRequests
+  cron (12h, registered in crons.ts at the token-cleanup cadence).
+- _generated/api.d.ts: sentryRequests entries (api + derived internal).
+- Gates: vitest 2,016/2,016 (zero regressions) / root tsc 126 =
+  baseline / convex tsc 0.
+- Commit: ab184a22.
+
+Task ID: R93 (Round SENTRY, Wave S2 — the gatehouse + resident portal
+UX; owner brief §1 §2 §3 §6)
+Agent: Main agent (Super Z)
+Task: The frontend half: every gate step the brief demands, on the
+existing visual language, mobile-first for low-power gatehouse
+hardware.
+
+Work Log:
+- GatekeeperInterface: ONE input takes the 6-digit PIN OR the 12-char
+  Pass ID (auto-detected; PIN auto-verifies at 6 digits, Pass ID at 12
+  — fewer steps at the gate); the valid card shows the resident's
+  expected arrival + a dedicated Access-instructions panel; denial
+  recording is ONE tap + ONE reason (quick-pick chips + Other, from
+  both the valid-but-suspect and invalid states); fast search over
+  today's expected visitors (400ms debounce); Today's board labels
+  Expired passes; the arrival-request desk shows the resident's
+  decision live and hosts the raise-a-request form; a namable gate
+  post (localStorage) stamps every check-in, denial and request.
+- VisitorPortal: optional expected-arrival (time) + gate instructions
+  (≤120 chars, marked as never widening the validity window) flow into
+  generateVisitorToken; the share sheet carries the new Pass ID; NEW
+  At-the-gate card lists the resident's requests with
+  Approve / Reject-with-reason.
+- Every new form element uses the ui/ primitives ONLY — the
+  ui-primitives ratchet HELD at 2297; rounded-xl eliminated from the
+  new code.
+- Gates: vitest 2,016/2,016 / root tsc 126 = baseline / eslint clean /
+  vite build green.
+- Commit: 3fa8b284.
+
+Task ID: R94 (Round SENTRY, Wave S3 — the §5 report UI + the full
+10-point acceptance suite)
+Agent: Main agent (Super Z)
+Task: The estate-admin report panel and the owner brief's TEN
+acceptance criteria, every one driven through the REAL handlers.
+
+Work Log:
+- NEW SentryReportsPanel (Settings → Security & Access): four
+  deliberate pulls — Daily (expected/on-site/completed/expired/revoked
+  counts), On-site now, Historical (capped 500, truncation flagged),
+  Security over the last 7 days (denied entries + rejected passes +
+  throttles) — each an authenticated mutation that audits BEFORE
+  returning; estate scoper; all ui/ primitives.
+- getSentrySecurityReport fix: throttle rows (rate_limit_exceeded)
+  carry no firmId, so they now get their OWN by_type sweep — the
+  'throttled' count silently read zero before this.
+- tests/unit/roundSentry.test.ts (36 tests): the roundG harness
+  extended (filter() now EVALUATES the Convex q-DSL per row; patch()
+  mutates the stored row) and all ten acceptance criteria pass through
+  the real handlers — 1 pre-authorisation, 2 pass generation, 3 valid
+  verification (code OR passRef, case-insensitive), 4 expired
+  rejection, 5 cancelled rejection, 6 duplicate-entry prevention,
+  7 arrival recording, 8 departure recording, 9 permission enforcement
+  (possession everywhere, reports firm-gated, approval does NOT bypass
+  the billing gate), 10 audit history — plus source-scanned §4
+  contracts (crypto entropy, charset, all throttling keys, PII
+  minimisation across ALL projections, expiry cron still sweeping).
+- Gates: vitest 2,052/2,052 (103 files; 2,016 + 36, zero regressions) /
+  root tsc 126 = baseline / convex tsc 0 / eslint clean / ratchet HELD
+  at 2297 / vite build green.
+- Commit: 6b4e59c4.
+
+Post-push record (R95): the three waves pushed as 6b4e59c4 → CI green
+on 6b4e59c4 (Tests / Build Android APK / Deploy to Staging all
+success); CI auto-commits 947a0f60 (bump patch to 1.0.760) + b0ab17ec
+(APK release info build-1155), staging live. The Sentry work ships as
+v1.0.760 / build-1155. UNTOUCHED, as demanded: existing Sentry Pass
+functionality preserved (every change additive — the vmsEntitlement
+pins still pass byte-for-byte), Vega OS complete and intact, Komplete
+zero file changes, Paystack zero file changes, no hardware
+integrations or biometric collection introduced. Production promote
+for R95 remains the owner action (blank sha). OUTSTANDING owner
+actions, unchanged: the Cloudflare mirror is STILL blocked by the dead
+CLOUDFLARE_API_TOKEN (the mirror still serves the 2026-09-18 build —
+new token → repo secret → re-run promote); the PAT has transited chat
+again (5th time) — rotate whenever convenient; brand/* disposal.
