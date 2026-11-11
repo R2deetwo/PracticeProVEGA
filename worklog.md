@@ -18152,3 +18152,29 @@ Stage Summary:
   archives instead of ghost rows, a delete that protects the books,
   durable stage history, a living activity feed, contact identity that
   survives merging, and a conflict screen with a human in the loop.
+
+---
+Task ID: V2+V3 (production promote record — 2026-11-11)
+Agent: Main agent (Super Z)
+Task: Record the V2+V3 production promote (the thing that had been
+completed and CI-greened on main but never promoted — production was
+still serving the V1-D build).
+
+Work Log:
+- CI on 688ccae9 (the V3 push): Tests ✅ / Staging ✅ / APK ✅ (Admin APK
+  correctly not triggered; build-1162 tag + v1.0.767 version bump
+  followed). Promote run 43027479336 on d4c7057b (blank sha = latest
+  main): quality-gate PASS (convex tsc 0, root tsc under baseline,
+  identity audit, ui-primitives ratchet, vitest), Vercel + Convex
+  production deploy PASS; Cloudflare mirror FAIL at the dead
+  CLOUDFLARE_API_TOKEN (standing owner action, unchanged since the V1-D
+  record).
+- PRODUCTION VERIFIED LIVE (double cache-bust probes):
+  https://practice-pro-vega.vercel.app serves d4c7057b / v1.0.767 /
+  build-1162 / status healthy. V3 markers confirmed in the live bundle:
+  'has unbilled time or expenses' (MatterList-C_fst-he.js) and
+  'Potential conflict of interest' (ConflictReviewDialog-Bo_5VAuG.js).
+  The V2 (financial truth) and V3 (matter lifecycle) campaigns are fully
+  closed and live in production.
+- Rounds stopped for review per the brief.
+[skip ci]
