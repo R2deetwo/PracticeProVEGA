@@ -17812,3 +17812,21 @@ Work Log:
   green. CI on 59672a74: Tests ✅ / Staging ✅ / APK ✅ (Admin APK
   correctly not triggered — no admin files changed).
 [skip ci]
+
+Task ID: V1-D (production promote record — 2026-11-11)
+Agent: Main agent (Super Z)
+Task: Record the V1-D production promote.
+
+Work Log:
+- CI on 59672a74: Tests ✅ / Staging ✅ / APK ✅ (Admin APK correctly
+  not triggered). Promote run 42961932417 on 5aa91a31 (the CI
+  version-bump commit): Typecheck+tests PASS, Vercel+Convex production
+  deploy PASS, Cloudflare mirror FAIL at the dead token (standing
+  owner action).
+- PRODUCTION VERIFIED LIVE (double cache-bust probes):
+  https://practice-pro-vega.vercel.app serves 5aa91a31 / v1.0.766 /
+  status healthy. All V1-D closures (privacy truth + the two rescan
+  endpoint gates) are enforced in production. The V1 campaign
+  (V1-A/B/C/D) is fully closed and live.
+- Round stopped for review per the brief — no V2 work started.
+[skip ci]
