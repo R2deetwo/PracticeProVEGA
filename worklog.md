@@ -17629,3 +17629,15 @@ Work Log:
   eslint 0 errors / ui-primitives ratchet held 2297 / gray=0 / identity
   audit PASSED / main + admin builds green.
 [skip ci-not-yet — this entry ships with the round commit]
+
+Task ID: V1-B (CI record + production promote)
+Agent: Main agent (Super Z)
+Task: Record the V1-B CI result; promote the security closure to
+production (the standing direction: security fixes must actually be
+live, not just merged).
+
+Work Log:
+- CI on 0672d2fe (V1-B): Tests ✅ / Deploy to Staging ✅ / Build Android
+  APK ✅ / Build Admin APK ✅ — all green, zero failed runs.
+- Production promote dispatched on main (blank sha) immediately after.
+[skip ci]
