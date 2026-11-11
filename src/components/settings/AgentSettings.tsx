@@ -427,14 +427,14 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
     const agentList = isProperty ? [
         { icon: <ZapIcon className="w-3.5 h-3.5" />, name: 'ARIA Chat', desc: 'Conversational assistant for portfolio & tenant queries.', trigger: 'On Demand' },
         { icon: <DocumentIcon className="w-3.5 h-3.5" />, name: 'ALDIA', desc: 'Document intelligence — summaries, key clauses, risks.', trigger: 'On Upload' },
-        { icon: <LockClosedIcon className="w-3.5 h-3.5" />, name: 'PII Shield', desc: 'Strips NIN, BVN, account numbers before AI processing.', trigger: 'Auto' },
+        { icon: <LockClosedIcon className="w-3.5 h-3.5" />, name: 'PII Shield', desc: 'Redacts NIN, BVN, account numbers from TEXT before AI processing. Attached/binary files are transmitted for analysis unredacted.', trigger: 'Auto' },
         { icon: <BrainIcon className="w-3.5 h-3.5" />, name: 'Brain Memory', desc: 'Vector recall over your firm\'s documents & notes.', trigger: 'On Search' },
         { icon: <SearchIcon className="w-3.5 h-3.5" />, name: 'Research', desc: 'Multi-source legal research with citations.', trigger: 'In Studio' },
     ] : [
         { icon: <ZapIcon className="w-3.5 h-3.5" />, name: 'ALOA Chat', desc: 'Conversational assistant for matters, drafting & finance.', trigger: 'On Demand' },
         { icon: <DocumentIcon className="w-3.5 h-3.5" />, name: 'ALDIA', desc: 'Document intelligence — summaries, key clauses, risks.', trigger: 'On Upload' },
         { icon: <ShieldCheckIcon className="w-3.5 h-3.5" />, name: 'RPC Review', desc: 'Ethics & accuracy check, built into ALDIA.', trigger: 'After Analysis' },
-        { icon: <LockClosedIcon className="w-3.5 h-3.5" />, name: 'PII Shield', desc: 'Strips NIN, BVN, account numbers before AI processing.', trigger: 'Auto' },
+        { icon: <LockClosedIcon className="w-3.5 h-3.5" />, name: 'PII Shield', desc: 'Redacts NIN, BVN, account numbers from TEXT before AI processing. Attached/binary files are transmitted for analysis unredacted.', trigger: 'Auto' },
         { icon: <BrainIcon className="w-3.5 h-3.5" />, name: 'Brain Memory', desc: 'Vector recall over your firm\'s documents & notes.', trigger: 'On Search' },
         { icon: <SearchIcon className="w-3.5 h-3.5" />, name: 'Research', desc: 'Multi-source legal research with citations.', trigger: 'In Studio' },
         { icon: <ScalesIcon className="w-3.5 h-3.5" />, name: 'Tax Compliance', desc: 'Nigerian tax analysis on expenses.', trigger: 'In Expense Form' },

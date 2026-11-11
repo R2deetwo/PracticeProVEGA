@@ -1440,11 +1440,17 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                     report,
                                     label: 'View Full Analysis'
                                 };
-                                // Include PII stripping info in the feedback message
+                                // Include PII stripping info in the feedback message.
+                                // V1-D: also state WHAT was transmitted — a file-mode
+                                // analysis sends the document itself, and the user must
+                                // never be told otherwise.
                                 const piiNote = report.piiTotalStripped && report.piiTotalStripped > 0
-                                    ? ` 🛡️ ${report.piiTotalStripped} PII item(s) were detected and stripped before AI analysis.`
+                                    ? ` 🛡️ ${report.piiTotalStripped} PII item(s) were detected and stripped from the text before AI analysis.`
                                     : '';
-                                feedbackMessage = `Deep analysis complete. ${report.summary}${piiNote}`;
+                                const transmissionNote = report.transmission?.mode === 'file'
+                                    ? ` 📄 The document file itself was transmitted to the AI provider for analysis (file contents are not redacted — text analyses are).`
+                                    : '';
+                                feedbackMessage = `Deep analysis complete. ${report.summary}${piiNote}${transmissionNote}`;
                             } catch (err: any) {
                                 toolOutput = { error: err.message || "Analysis failed." };
                                 feedbackMessage = `Analysis failed: ${err.message}`;
@@ -1844,7 +1850,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
 
         // ─── PII Scan — check the user's message for PII before sending ──
-        const { stripPIIWithReport } = await import('../../utils/aiUtils');
+        const { stripPIIWithReport, toPersistablePiiReport } = await import('../../utils/aiUtils');
         const piiResult = stripPIIWithReport(content);
 
         const userMessagesCount = messages.filter(m => m.role === 'user').length;
@@ -1880,8 +1886,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // card are created together. The input tray clears instantly for
         // responsive feedback. The actual AI call is enqueued below.
         const streamMsgId = uuidv4();
-        // Store PII result on the user message so PIIShieldBadge can render
-        (newUserMsg as any).piiResult = piiResult.totalStripped > 0 ? piiResult : undefined;
+        // Store PII result on the user message so PIIShieldBadge can render.
+        // V1-D (AI privacy truth): the persisted record carries MASKED
+        // previews only — the original values exist solely in the in-memory
+        // scan and are never saved with the message row (saveAloaMessage
+        // spreads this object into the aloaMessages table). When the message
+        // carries attachments, the flag tells the badge to render the honest
+        // caveat: extracted attachment text is redacted, image/scanned files
+        // are transmitted for analysis as-is.
+        (newUserMsg as any).piiResult = piiResult.totalStripped > 0 ? toPersistablePiiReport(piiResult) : undefined;
+        (newUserMsg as any).attachmentsTransmitted = (newUserMsg.attachments?.length ?? 0) > 0;
         setMessages(prev => [...prev, newUserMsg, { id: streamMsgId, role: 'model', content: '' }]);
         if (!overrideContent) {
             setTextInput('');
@@ -3821,7 +3835,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                         );
                                     }
                                     return (m.isMe && (m.raw as any).piiResult) ? (
-                                        <PIIShieldBadge result={(m.raw as any).piiResult} />
+                                        <PIIShieldBadge result={(m.raw as any).piiResult} attachmentsTransmitted={!!(m.raw as any).attachmentsTransmitted} />
                                     ) : null;
                                 }}
                                 renderBubbleContent={(m) => {

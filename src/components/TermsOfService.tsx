@@ -145,7 +145,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                         <p><strong>"NDPA"</strong> means the Nigeria Data Protection Act 2023 (Act No. 5 of 2023), plus all regulations, guidelines, and directives issued by the Nigeria Data Protection Commission.</p>
                                         <p><strong>"Personal Data"</strong> has the meaning given in Section 65 of the NDPA 2023 — any information about an identified or identifiable natural person.</p>
                                         <p><strong>"Platform"</strong> means the {isVega ? 'VEGA professional operations system' : 'ATRIUM property management system'}, including all web apps, APIs, and related services we provide.</p>
-                                        <p><strong>"Privacy Shield Agent"</strong> means the AI component that identifies, flags, and helps redact Personally Identifiable Information (also called PII — data that can identify a person) before other AI Services process it.</p>
+                                        <p><strong>"Privacy Shield Agent"</strong> means the AI component that identifies PII in TEXT and redacts the identified values (NIN, BVN, phone numbers, emails, card and bank details) before the text is transmitted to an AI provider. It is redaction, not anonymisation or pseudonymisation: the original values are removed, not stored, and cannot be recovered. Attached and binary files (images, scanned PDFs) cannot be redacted this way and are transmitted to the AI provider for analysis as-is — the relevant screens disclose this at the point of use.</p>
                                         {isVega ? (
                                             <>
                                                 <p><strong>"RPC"</strong> means the Rules of Professional Conduct in the Legal Profession, 2023, as amended.</p>
@@ -296,7 +296,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                 )}
                                 <div id={`5-${isVega ? '6' : '4'}`} className="space-y-8">
                                     <h3 className="text-xl font-bold">5.{isVega ? '6' : '4'} Privacy Shield Agent</h3>
-                                    <p>Identifies and manages Personally Identifiable Information (PII) before processing. It offers manual or automated redaction options to help you meet the NDPA 2023's rules on data minimisation.</p>
+                                    <p>Identifies and manages Personally Identifiable Information (PII) in TEXT before processing: identified values (NIN, BVN, phone numbers, emails, card and bank details) are redacted before the text is transmitted to the AI provider — removed entirely, not stored and not reversible. Attached and binary files (images, scanned PDFs) cannot be redacted this way; they are transmitted to the AI provider for analysis as-is, and the relevant screens disclose this at the point of use. This helps you meet the NDPA 2023's rules on data minimisation for text transmissions.</p>
                                 </div>
                                 {isVega && (
                                     <div id="5-7" className="space-y-8">

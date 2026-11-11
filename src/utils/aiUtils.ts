@@ -500,6 +500,41 @@ export const stripPIIWithReport = (text: string): PIIStripResult => {
     return { sanitized, found, totalStripped: found.length };
 };
 
+// ─── V1-D (AI privacy truth) ────────────────────────────────────────────────
+// The scan's `found` list carries the ORIGINAL values in memory (the scan
+// needs them to build the replacement). Nothing that persists — chat message
+// rows, ALDIA analysis reports, audit previews — may store those originals.
+// Every persistence/display call site converts the report through this
+// helper FIRST: the originals are dropped, and only a display mask
+// (first 2 + •••• + last 2) is kept.
+export interface PersistablePiiFoundItem {
+    type: string;
+    masked: string;
+    replacement: string;
+}
+
+export interface PersistablePiiReport {
+    found: PersistablePiiFoundItem[];
+    totalStripped: number;
+}
+
+export const maskPIIValueForDisplay = (val: string): string => {
+    if (val.length <= 4) return '****';
+    return val.substring(0, 2) + '••••' + val.substring(val.length - 2);
+};
+
+export const toPersistablePiiReport = (report: {
+    found: { type: string; original: string; replacement: string }[];
+    totalStripped: number;
+}): PersistablePiiReport => ({
+    found: report.found.map(f => ({
+        type: f.type,
+        masked: maskPIIValueForDisplay(f.original),
+        replacement: f.replacement,
+    })),
+    totalStripped: report.totalStripped,
+});
+
 /**
  * Generates an embedding for a given text using the Gemini Embedding API.
  */

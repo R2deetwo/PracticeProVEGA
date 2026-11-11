@@ -342,7 +342,9 @@ const MessagesView: React.FC = () => {
     // Load chat messages from Convex (getFirmData returns chatMessages: [])
     // This is the REAL data source — without this, messages disappear on refresh
     const chatMessagesResult = useQuery(api.myFunctions.getChatMessages,
-        firmId && !mvIsDemo ? { firmId } : 'skip'
+        // V1-D: the server now requires a verified session (strict identity) —
+        // forward the bearer with the firm-scoped read.
+        firmId && !mvIsDemo ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip'
     );
     const messages = chatMessagesResult || [];
     const onNavigate = (view: any, id: any, context: any) => navigateTo(view, id, context);

@@ -35,9 +35,9 @@ const AIConsentModal: React.FC<AIConsentModalProps> = ({ onAccept, onDecline }) 
         </p>
         <div className="bg-slate-50 dark:bg-zinc-900 p-4 rounded-lg border border-slate-200 dark:border-zinc-700 text-left">
           <ul className="list-disc pl-5 space-y-2">
-            <li><strong>Data Minimization:</strong> Only relevant data is processed by the AI.</li>
+            <li><strong>Text Redaction:</strong> Identified NIN, BVN, phone numbers, emails, card and bank details are redacted from message and document <strong>text</strong> before it is sent to the AI provider — removed entirely, not stored, not reversible.</li>
+            <li><strong>AI Processing:</strong> Your queries and document content are transmitted to the configured AI provider (Google Gemini by default) for processing. Attached and binary files (images, scanned PDFs) are transmitted for analysis as-is and cannot be redacted — the relevant screens disclose this at the point of use.</li>
             <li><strong>No Model Training:</strong> Your private data is <strong>never</strong> used to train foundational AI models.</li>
-            <li><strong>Security:</strong> All inputs remain isolated within your firm's encrypted workspace.</li>
             <li><strong>Oversight:</strong> The AI acts as a tool; human review is always required.</li>
           </ul>
         </div>

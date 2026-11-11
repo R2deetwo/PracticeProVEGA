@@ -1049,8 +1049,28 @@ export const getChatMessages = query({
   args: {
     conversationId: v.optional(v.string()),
     firmId: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    userId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ── V1-D (final verification rescan): this read was UNGATED — any
+    //    caller could read ANY firm's team chat by conversationId, or any
+    //    firm's whole chat history by firmId. Now: session-resolved staff
+    //    caller (strict identity), firm binding on the firmId branch, and
+    //    ownership verification on the conversationId branch.
+    const caller = await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      userId: args.userId,
+    });
+    if (args.firmId) assertSameFirm(caller, args.firmId);
+    if (args.conversationId) {
+      const convo = await ctx.db.get(args.conversationId as any);
+      if (!convo || String((convo as any).firmId ?? "") !== String(caller.firmId ?? "")) {
+        throw new Error("Not authorized: this conversation belongs to a different firm.");
+      }
+    }
     try {
       if (!args.conversationId && !args.firmId) return [];
 
@@ -2820,6 +2840,19 @@ export const createFirm = mutation({
     trial: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // ── V1-D (final verification rescan): this mutation was UNGATED, and
+    //    the post-create linkage patched the user row found by CALLER-
+    //    SUPPLIED email — an attacker could rebind a victim's firmId, role
+    //    (set to Admin) and joinedFirmIds by passing the victim's email as
+    //    user_email. Now: the caller must hold a verified session (strict
+    //    identity) and the linkage applies to the CALLER'S OWN row,
+    //    server-derived. The caller-supplied identity args are hints the
+    //    server overrides.
+    const caller = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.user_email,
+      userId: args.tokenIdentifier,
+    });
     // SECURITY: crypto-secure invite code (was Math.random — predictable PRNG)
     const inviteCode = "INV-" + numericCode(4);
     const now = Date.now();
@@ -2838,7 +2871,8 @@ export const createFirm = mutation({
       address: args.address,
       subscriptionPlan: effectivePlan,
       inviteCode: inviteCode,
-      createdBy: args.user_email,
+      // V1-D: attribution is session-derived, never caller-supplied.
+      createdBy: String(caller.email ?? args.user_email ?? ""),
       aiSettings: { enableAllAiFeatures: true },
       product: args.product || "unified",
       maxUnits: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.units || 5) : 999999,
@@ -2862,13 +2896,20 @@ export const createFirm = mutation({
       createdAt: new Date(now).toISOString(),
       updatedAt: new Date(now).toISOString(),
     });
-    let user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", args.user_email)).first();
+    // V1-D: the linkage lookup is SESSION-DERIVED — the caller's own row
+    // (never a caller-supplied email that could name a victim).
+    let user: any = await ctx.db.get(caller._id);
     if (!user) {
-      user = await ctx.db.query("users").withIndex("by_token", (q) => q.eq("tokenIdentifier", args.user_email.toLowerCase())).first();
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", String(caller.email ?? "")))
+        .first();
     }
     if (!user) {
-      const allUsers = await ctx.db.query("users").take(500);
-      user = allUsers.find(u => u.tokenIdentifier && u.tokenIdentifier.toLowerCase() === args.user_email.toLowerCase()) || null;
+      user = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) => q.eq("tokenIdentifier", String(caller.email ?? "").toLowerCase()))
+        .first();
     }
 
     if (user) {

@@ -1,9 +1,19 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Document, RiskAnalysis, ExtractedMetadata, FileDetails, DataProtectionAnalysis, RpcStatus } from '../types';
-import { getGeminiApiKey, stripPII, stripPIIWithReport, AI_CONFIG } from '../utils/aiUtils';
+import { getGeminiApiKey, stripPII, stripPIIWithReport, toPersistablePiiReport, AI_CONFIG } from '../utils/aiUtils';
 
 // --- Types for the Orchestrator ---
+
+export interface AldiaTransmissionDisclosure {
+  /** 'file' — the document FILE was transmitted to the provider for analysis
+   * (not redactable); 'text' — extracted/redacted TEXT was transmitted. */
+  mode: 'file' | 'text';
+  provider: string;
+  /** True only for text-mode analyses (PII redacted before transmission). */
+  piiRedactedInTransmission: boolean;
+  note: string;
+}
 
 export interface AldiaFullReport {
   summary: string;
@@ -11,8 +21,14 @@ export interface AldiaFullReport {
   extractedMetadata: ExtractedMetadata;
   dataProtection: DataProtectionAnalysis;
   rpcReview: RpcStatus;
-  piiStripped?: { type: string; original: string; replacement: string }[];
+  /** V1-D: masked display records only — original values are NEVER
+   * persisted with the report (they exist solely in the in-memory scan). */
+  piiStripped?: { type: string; masked: string; replacement: string }[];
   piiTotalStripped?: number;
+  /** V1-D (AI privacy truth): what actually left this client for the AI
+   * provider, in plain language. File-mode analyses transmit the document
+   * itself; the UI must never claim otherwise. */
+  transmission?: AldiaTransmissionDisclosure;
 }
 
 interface AnalyzableDocument {
@@ -181,13 +197,21 @@ export const analyzeDocument = async (
     // Strip PII from the document content before sending to Google's AI.
     // Keep a report of what was stripped so the UI can show the user
     // exactly what was detected and removed.
+    // V1-D (AI privacy truth): the report records WHAT WAS ACTUALLY
+    // TRANSMITTED. Text-mode: the redacted text is sent. File-mode: the
+    // FILE ITSELF is sent to the provider — binaries cannot be reliably
+    // redacted, so the report says so instead of claiming removal. The
+    // persisted piiStripped list carries masked previews only (never the
+    // original values).
     let piiResult: { found: { type: string; original: string; replacement: string }[]; totalStripped: number } = { found: [], totalStripped: 0 };
+    let transmissionMode: 'file' | 'text' = 'text';
 
     if (document.file && document.file.dataUrl) {
       try {
         const filePart = await getFilePart(document.file);
         parts.push(filePart);
         parts.push({ text: "\n\nAnalyze the document provided above." });
+        transmissionMode = 'file';
       } catch (e: any) {
         console.warn("Binary processing failed or unsupported type:", e.message);
         if (document.content && document.content.length > 0) {
@@ -241,14 +265,32 @@ export const analyzeDocument = async (
     const rpcResult = JSON.parse(rpcResponse.text || '{"status": "approved", "commentary": "Verified."}');
 
     // 4. Assemble Final Report — include PII stripping report
+    //    V1-D: piiStripped carries MASKED previews only (originals are
+    //    dropped — this report is persisted on the document row); the
+    //    transmission disclosure states in plain language what left this
+    //    client for the provider.
+    const persistablePii = toPersistablePiiReport(piiResult);
     return {
       summary: rawResult.summary,
       riskAnalysis: rawResult.riskAnalysis,
       extractedMetadata: rawResult.extractedMetadata,
       dataProtection: rawResult.dataProtection,
       rpcReview: rpcResult,
-      piiStripped: piiResult.found,
-      piiTotalStripped: piiResult.totalStripped,
+      piiStripped: persistablePii.found,
+      piiTotalStripped: persistablePii.totalStripped,
+      transmission: transmissionMode === 'file'
+        ? {
+            mode: 'file',
+            provider: "Google (Gemini)",
+            piiRedactedInTransmission: false,
+            note: "The document file itself was transmitted to the AI provider for analysis. File contents are not redacted — PII redaction applies to text-mode analyses only.",
+          }
+        : {
+            mode: 'text',
+            provider: "Google (Gemini)",
+            piiRedactedInTransmission: true,
+            note: "Identified PII (NIN/BVN, phone numbers, emails, card and bank details) was redacted from the text before transmission to the AI provider.",
+          },
     };
 
   } catch (error: any) {

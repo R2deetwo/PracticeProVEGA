@@ -133,6 +133,10 @@ export const useFirm = (appState: AppState, actions: any) => {
             name,
             address,
             subscriptionPlan: plan,
+            // V1-D: the server now requires a verified session (strict
+            // identity) — forward the bearer. The caller-supplied identity
+            // fields below are hints the server overrides.
+            sessionToken: (bearerToken ?? undefined) || undefined,
             user_email: userDetails?.email || currentUser?.email || '',
             user_name: userDetails?.name || currentUser?.name || '',
             tokenIdentifier: userDetails?.email || currentUser?.email || '',

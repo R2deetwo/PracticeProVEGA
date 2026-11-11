@@ -375,12 +375,16 @@ export const sendMessage = async (
     const providerCfg = resolveProvider(appState.firmDetails?.aiSettings);
 
     // --- ALOA BRAIN: SEMANTIC RETRIEVAL ---
+    // V1-D (AI privacy truth): the retrieval query is built from the last
+    // user message and transits to the embedding provider (Google). It is
+    // PII-redacted here — the raw message never leaves this client for
+    // retrieval purposes (the chat payload below is redacted separately).
     let semanticContext: string | undefined;
     if (context.isFirmSearchEnabled && appState.firmDetails?.id) {
         try {
             const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content;
             if (typeof lastUserMsg === 'string' && context.searchBrain) {
-                semanticContext = await context.searchBrain(lastUserMsg);
+                semanticContext = await context.searchBrain(stripPII(lastUserMsg));
             }
         } catch (e) {
             console.warn('[Brain] Search skipped:', e);
@@ -390,12 +394,14 @@ export const sendMessage = async (
     // --- RULES & FORMS ENGINE (Task 51): curated Nigerian legal knowledge ---
     // Runs independently of firm memory — the corpus is shared platform
     // knowledge (rules of court, forms, statutes), not firm-scoped data.
+    // V1-D: same redaction rule as the Brain query (embeddings transit to
+    // the provider; the query is derived from the user's message).
     let legalKnowledgeContext: string | undefined;
     if (context.searchLegalRepo) {
         try {
             const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content;
             if (typeof lastUserMsg === 'string') {
-                legalKnowledgeContext = await context.searchLegalRepo(lastUserMsg);
+                legalKnowledgeContext = await context.searchLegalRepo(stripPII(lastUserMsg));
             }
         } catch (e) {
             console.warn('[LegalRepo] Search skipped:', e);
@@ -526,6 +532,11 @@ IMPORTANT:
         // inlineData. The old approach (raw inlineData for all types)
         // failed for PDFs because btoa() can't handle large binaries and
         // Gemini's inlineData has practical size limits.
+        // V1-D (AI privacy truth): extracted attachment TEXT is PII-redacted
+        // before it enters the payload (same rule as the message text).
+        // Image/scanned files are transmitted as inlineData for analysis —
+        // that is disclosed in the UI (PII Shield badge caveat); binaries
+        // cannot be redacted reliably.
         if (attachments && attachments.length > 0) {
             try {
                 const { textParts, inlineParts, errors } = await processAttachments(
@@ -535,7 +546,7 @@ IMPORTANT:
                 );
                 // Prepend extracted document text to the message
                 if (textParts.length > 0) {
-                    const docContext = textParts.join('\n\n');
+                    const docContext = stripPII(textParts.join('\n\n'));
                     parts.push({
                         text: `The user has uploaded ${textParts.length} document(s). ` +
                               `Here is the extracted text content for your analysis:\n\n${docContext}`,
@@ -696,7 +707,7 @@ export const streamMessage = async (
         try {
             const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content;
             if (typeof lastUserMsg === 'string' && context.searchBrain) {
-                semanticContext = await context.searchBrain(lastUserMsg);
+                semanticContext = await context.searchBrain(stripPII(lastUserMsg));
             }
         } catch (e) {
             console.warn('[Brain] Search skipped:', e);
@@ -704,12 +715,13 @@ export const streamMessage = async (
     }
 
     // --- RULES & FORMS ENGINE (Task 51) — same contract as sendMessage ---
+    // V1-D: same redaction rule as the Brain query (see sendMessage).
     let legalKnowledgeContext: string | undefined;
     if (context.searchLegalRepo) {
         try {
             const lastUserMsg = history.filter(m => m.role === 'user').pop()?.content;
             if (typeof lastUserMsg === 'string') {
-                legalKnowledgeContext = await context.searchLegalRepo(lastUserMsg);
+                legalKnowledgeContext = await context.searchLegalRepo(stripPII(lastUserMsg));
             }
         } catch (e) {
             console.warn('[LegalRepo] Search skipped:', e);
@@ -794,6 +806,8 @@ You are operating in RESEARCH MODE. Apply these rules:
         // ─── Process attachments with the new attachmentProcessor ───────
         // (same logic as sendMessage — extracts text from PDFs/DOCX/TXT,
         // passes images as inlineData)
+        // V1-D: extracted attachment TEXT is PII-redacted before it enters
+        // the payload (see sendMessage for the disclosure rule on binaries).
         if (attachments && attachments.length > 0) {
             try {
                 const { textParts, inlineParts, errors } = await processAttachments(
@@ -802,7 +816,7 @@ You are operating in RESEARCH MODE. Apply these rules:
                     CONVEX_URL
                 );
                 if (textParts.length > 0) {
-                    const docContext = textParts.join('\n\n');
+                    const docContext = stripPII(textParts.join('\n\n'));
                     parts.push({
                         text: `The user has uploaded ${textParts.length} document(s). ` +
                               `Here is the extracted text content for your analysis:\n\n${docContext}`,

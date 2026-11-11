@@ -283,7 +283,9 @@ describe('Legal knowledge + charge registry wiring (Task 51)', () => {
     // BOTH message paths (sendMessage + streamMessage) consume + forward it
     const forwards = gemini.split('legalKnowledgeContext').length - 1;
     expect(forwards).toBeGreaterThanOrEqual(6); // 2 decls + 2 calls + 2 param passes
-    expect(gemini).toContain("context.searchLegalRepo(lastUserMsg)");
+    // V1-D (AI privacy truth): the retrieval query is PII-redacted before it
+    // is passed to the corpus search (it transits to the embedding provider).
+    expect(gemini).toContain("context.searchLegalRepo(stripPII(lastUserMsg))");
     // The prompt block enforces citation + no-invention grounding
     expect(agency).toContain('NIGERIAN LEGAL AUTHORITY RETRIEVAL');
     expect(agency).toContain('NEVER invent rule numbers');

@@ -24,6 +24,10 @@
  *      finalized AI output writes to the `ai_output_logs` Convex table.
  */
 
+// V1-D (AI privacy truth): the audit preview is redacted with the same
+// value-class strip the chat payload uses (see aiUtils.stripPII).
+import { stripPII } from './aiUtils';
+
 // ─── Copy constants ─────────────────────────────────────────────────────────
 export const REVIEW_REQUIRED_TITLE = 'Review Required';
 export const REVIEW_REQUIRED_HINT =
@@ -234,6 +238,10 @@ export function buildAiAuditPayload(input: AiAuditInput): AiAuditPayload {
         citationCount: Math.max(0, Math.min(999, Number(input.citationCount) || 0)),
         unverifiedCitationCount: Math.max(0, Math.min(999, Number(input.unverifiedCitationCount) || 0)),
         charCount: text.length,
-        preview: text.slice(0, 400).replace(/\s+/g, ' ').trim(),
+        // V1-D (AI privacy truth): the preview is an AI-audit record — it
+        // must never carry original sensitive values (a model response can
+        // echo PII from tool results). Redact the same value classes the
+        // chat payload redacts before the preview is stored.
+        preview: stripPII(text).slice(0, 400).replace(/\s+/g, ' ').trim(),
     };
 }
