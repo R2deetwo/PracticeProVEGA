@@ -410,7 +410,9 @@ const MessagesView: React.FC = () => {
     }, [currentHistoryEntry.context?.initialTab, currentHistoryEntry.context?.selectedInboxId, currentHistoryEntry.context?.selectedInboxType, currentHistoryEntry.context?.contactName]);
 
     // ── Team DM state (team chat renders inside the Conversations inbox) ──
-    const myFeedbackResult = useQuery(api.feedback.getMyFeedbackReplies, mvIsDemo ? 'skip' : { userId: currentUser?.id || '' });
+    // V1-B (SEC-9): forward the verified bearer — feedback replies are
+    // session-scoped server-side now.
+    const myFeedbackResult = useQuery(api.feedback.getMyFeedbackReplies, mvIsDemo ? 'skip' : { userId: currentUser?.id || '', sessionToken: (bearerToken ?? undefined) });
     const myFeedback = myFeedbackResult || [];
 
     // ── Inbox data — Atrium (property) or Vega (legal) ──
@@ -474,6 +476,9 @@ const MessagesView: React.FC = () => {
                 userEmail: currentUser.email || '',
                 type: 'Support',
                 message: feedbackNewThreadText.trim(),
+                // V1-B: session-derived attribution — the server overrides
+                // the identity hints above with the verified session caller.
+                sessionToken: (bearerToken ?? undefined),
             });
             addToast('Message sent. The PracticePro team will reply here.', { type: 'success' });
             setFeedbackNewThreadText('');

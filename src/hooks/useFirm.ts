@@ -177,10 +177,12 @@ export const useFirm = (appState: AppState, actions: any) => {
 
     /**
      * Regenerate a new invite code for the firm.
+     * V1-B (SEC-11): forward the verified bearer — the server derives firm
+     * ownership from the session (own/joined firm only).
      */
     const regenerateInviteCode = useCallback(async (firmId: string) => {
-        return await convex.mutation(api.myFunctions.regenerateInviteCode, { firmId });
-    }, [convex]);
+        return await convex.mutation(api.myFunctions.regenerateInviteCode, { firmId, sessionToken: (bearerToken ?? undefined) });
+    }, [convex, bearerToken]);
 
     const handleDeleteUser = useCallback(async (id: string) => {
         await actions.deleteItem('users', id, 'User');

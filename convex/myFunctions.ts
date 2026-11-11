@@ -3045,33 +3045,29 @@ export const validateInviteCode = query({
 });
 
 export const regenerateInviteCode = mutation({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    
-    let firm: any = null;
-    
-    // 1. Try direct ID lookup
-    if (args.firmId) {
-      try {
-        firm = await ctx.db.get(args.firmId as any);
-      } catch (e) {
-        // Not a valid ID string, ignore
-      }
+    // V1-B (SEC-11): authenticated staff authority + server-derived firm
+    // ownership. Previously ANY caller could rotate ANY firm's invite code
+    // by passing its id — or look a firm up BY NAME — invalidating every
+    // outstanding join link the target firm had issued. The firm must now
+    // be the caller's own (or a joined firm), derived from the verified
+    // session; the by-name/scan lookup is deleted entirely.
+    const caller = await requireStaffCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail,
+      firmId: args.firmId,
+    });
+    const callerFirmIds = new Set(
+      [String(caller.firmId || ""), ...(((caller as any).joinedFirmIds || []) as string[]).map(String)].filter(Boolean)
+    );
+    if (!callerFirmIds.has(String(args.firmId))) {
+      throw new Error("Not authorized: you can only regenerate your own workspace's invite code.");
     }
 
-    // 2. Try scanning all firms by ID string or Name (if ID lookup failed)
+    const firm: any = await ctx.db.get(args.firmId as any);
     if (!firm) {
-      const allFirms = await ctx.db.query("firms").take(500);
-      firm = allFirms.find((f: any) => 
-        (f._id && f._id.toString() === args.firmId) || 
-        (f.id === args.firmId) || 
-        (f.name && f.name === args.firmId)
-      );
-    }
-
-    if (!firm) {
-       console.error(`[RotateCode] ERROR: Firm NOT FOUND for given identifier`);
-       throw new Error(`Workspace not found. Please refresh and try again. (Ref: ${args.firmId})`);
+      throw new Error(`Workspace not found. Please refresh and try again. (Ref: ${args.firmId})`);
     }
 
     // Generate a more robust unique code: 6 characters alphanumeric
@@ -9472,13 +9468,17 @@ export const cancelEstateCommunityAddon = mutation({
 
 /**
  * query: getOrgPayoutDetails
- * Public query — returns the active corporate bank account details.
- * Used by checkout components in the user app, portal, and add-on flow.
- * Returns null if no active config exists (checkout shows placeholders).
+ * V1-B (SEC-12): authenticated callers only — the corporate bank account
+ * (bank name, account number, account name) must never be readable by an
+ * unauthenticated endpoint. Any signed-in role may read it: paying users
+ * (staff and portal tenants alike) legitimately need the transfer
+ * instructions during manual-bank-transfer checkout. Returns null if no
+ * active config exists (checkout shows placeholders).
  */
 export const getOrgPayoutDetails = query({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const active = await ctx.db
       .query("organization_payout_details")
       .withIndex("by_active", (q: any) => q.eq("isActive", true))

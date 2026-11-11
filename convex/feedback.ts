@@ -30,8 +30,32 @@ export const submitFeedback = mutation({
     // inserting a new doc. Generate on the client with uuidv4() per submit
     // attempt (not per typing session).
     idempotencyKey: v.optional(v.string()),
+    // ─── V1-B: authenticated attribution ───────────────────────────
+    // When a session is presented, the identity fields above are
+    // caller-supplied HINTS that the server OVERRIDES with the
+    // session-derived identity — no one can file feedback as someone
+    // else. Unauthenticated submissions are rejected from THIS endpoint
+    // (every product caller is signed in); the separate public support
+    // path is submitDataRestoreRequest (contact email only, claims no
+    // userId).
+    sessionToken: v.optional(v.string()),
+    userEmail_session: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ─── V1-B: derive attribution from the verified session ──────
+    // resolveCaller (any authenticated role): feedback/support is a
+    // user-facing feature — staff AND portal users may file tickets;
+    // what is no longer possible is filing one as SOMEONE ELSE.
+    const caller = await resolveCaller(ctx, {
+      sessionToken: args.sessionToken,
+      userEmail: args.userEmail_session,
+    });
+    const callerEmail = String((caller as any).tokenIdentifier || (caller as any).email || "");
+    const submitUserId = String(caller._id);
+    const submitUserName = String((caller as any).name || callerEmail || "User");
+    const submitUserEmail = callerEmail;
+    const submitFirmId = String((caller as any).firmId || args.firmId || "none");
+
     // ─── DEDUP CHECK ──────────────────────────────────────────────────
     // Scan recent feedback from this user for a matching idempotencyKey.
     // We scan by user (not index) because the schema doesn't have a composite
@@ -43,7 +67,7 @@ export const submitFeedback = mutation({
         .order("desc")
         .take(500);
       const existing = recent.find((f: any) =>
-        f.userId === args.userId && f.idempotencyKey === args.idempotencyKey
+        f.userId === submitUserId && f.idempotencyKey === args.idempotencyKey
       );
       if (existing) {
         return existing._id;
@@ -51,7 +75,15 @@ export const submitFeedback = mutation({
     }
 
     const feedbackId = await ctx.db.insert("user_feedback", {
-      ...args,
+      firmId: submitFirmId,
+      userId: submitUserId,
+      userName: submitUserName,
+      userEmail: submitUserEmail,
+      type: args.type,
+      title: args.title,
+      message: args.message,
+      rating: args.rating,
+      idempotencyKey: args.idempotencyKey,
       status: "New",
       source: "feedback",
       timestamp: Date.now(),
@@ -88,8 +120,8 @@ export const submitFeedback = mutation({
 
     // Notify the user with a clickable notification that opens the thread
     await ctx.db.insert("notifications", {
-      firmId: args.firmId,
-      userId: args.userId,
+      firmId: submitFirmId,
+      userId: submitUserId,
       title: "PracticePro Team",
       message: autoReplyMessage,
       type: "feedback_auto_reply",
@@ -121,7 +153,7 @@ export const submitFeedback = mutation({
         .collect();
       const issueLike = /bug|maintenance|technical/.test(feedbackType);
       const notifType = issueLike ? "feedback_issue" : "feedback_new";
-      const senderLabel = args.userName || args.userEmail || "A user";
+      const senderLabel = submitUserName || submitUserEmail || "A user";
       const preview = args.message.length > 90
         ? `${args.message.slice(0, 89).trimEnd()}…`
         : args.message;
@@ -176,8 +208,15 @@ export const getFeedbackList = query({
   args: {
     status: v.optional(v.string()),
     category: v.optional(v.string()),
+    // ─── V1-B (SEC-9): the founder inbox is founder-only ────────
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // V1-B (SEC-9): every support thread in the platform (senders,
+    // emails, message bodies) is Founder-App data. Previously ANY
+    // caller — including fully anonymous ones — could read the inbox.
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     try {
       let results;
       if (args.status) {
@@ -261,8 +300,23 @@ export const getFeedbackList = query({
  * Used by individual users to see admin replies to their own feedback posts.
  */
 export const getMyFeedbackReplies = query({
-  args: { userId: v.string() },
+  args: {
+    userId: v.string(),
+    // ─── V1-B (SEC-9): session-derived ownership ─────────────
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
   handler: async (ctx, args) => {
+    // V1-B (SEC-9): a caller-supplied userId previously listed ANY
+    // user's feedback threads (the SEC-10 notifications pattern).
+    const caller: any = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const callerIds = new Set(
+      [String(caller._id), String((caller as any).id || "")].filter(Boolean)
+    );
+    if (!callerIds.has(String(args.userId))) {
+      console.error(`[SECURITY] getMyFeedbackReplies: userId does not match the session caller — rejected`);
+      return [];
+    }
     const all = await ctx.db
       .query("user_feedback")
       .filter((q) => q.eq(q.field("userId"), args.userId))
@@ -408,6 +462,9 @@ export const adminReplyToFeedback = mutation({
     feedbackId: v.id("user_feedback"),
     adminId: v.string(),
     message: v.string(),
+    // ─── V1-B (SEC-9): founder-only reply gate ───────────────
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
     // CHANNEL TYPE — extensible field for future team channels.
     // Defaults to 'SUPPORT'. Supports: SUPPORT, FOUNDER, OPERATIONS,
     // BILLING, CUSTOMER_RELATIONS. Rendered as a badge on the message.
@@ -428,6 +485,13 @@ export const adminReplyToFeedback = mutation({
     sendEmail: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    // V1-B (SEC-9): the founder/admin reply path — including the
+    // Brevo email dispatch and the FCM push below — was reachable by
+    // ANY caller. Founder-only, session-derived; the reply author is
+    // the session caller (adminId is a display hint, overridden).
+    const caller = await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const replyAuthor = String((caller as any).tokenIdentifier || (caller as any).email || args.adminId || "founder");
+
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback not found");
 
@@ -445,7 +509,7 @@ export const adminReplyToFeedback = mutation({
     }
 
     replies.push({
-      adminId: args.adminId,
+      adminId: replyAuthor,
       message: args.message,
       timestamp: Date.now(),
       channelType: args.channelType || 'SUPPORT',
@@ -604,8 +668,14 @@ export const updateFeedbackStatus = mutation({
   args: {
     feedbackId: v.id("user_feedback"),
     status: v.string(), // "New" | "Replied" | "Resolved" | "Archived"
+    // ─── V1-B (SEC-9): founder-only status gate ────────────
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // V1-B (SEC-9): status changes on ANY user's thread — founder-only,
+    // session-derived. Previously a bare public patch on any thread id.
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     const feedback = await ctx.db.get(args.feedbackId);
     if (!feedback) throw new Error("Feedback not found");
     await ctx.db.patch(args.feedbackId, { status: args.status } as any);

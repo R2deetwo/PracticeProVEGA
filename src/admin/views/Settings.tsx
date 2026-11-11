@@ -47,7 +47,9 @@ export const Settings: React.FC = () => {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
 
-    const envStatus = useQuery(api.debug_env.checkEnv, {});
+    // V1-B (SEC-16): checkEnv is internal now — this founder-gated wrapper
+    // forwards the verified bearer and returns the same diagnostics.
+    const envStatus = useQuery(api.debug_env.getEnvStatus, { sessionToken: (bearerToken ?? undefined) });
     // Sept 2026: moved to pushNotificationsNode (node runtime) so the action
     // dispatches FCM inline and returns the REAL delivery result.
     const testPush = useAction(api.pushNotificationsNode.sendTestPush);

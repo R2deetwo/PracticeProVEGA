@@ -1,5 +1,5 @@
 
-import { mutation, query } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { createUnitResolver, canonicalTenantId } from "./unitLookup";
 
@@ -31,7 +31,16 @@ import { createUnitResolver, canonicalTenantId } from "./unitLookup";
  * Two ungated one-time migration reports removed (this record covers reportUnlinkedServiceCharges, reportNotificationTimestamps): zero product callers; the migrations they reported on are long applied.
  */
 
-export const backfillServiceChargeTenants = mutation({
+/**
+ * V1-B (SEC-13): this backfill is now an INTERNAL mutation — a global
+ * cross-firm write sweep (every firm's service charges) must never be
+ * triggerable by a public internet caller. Internal execution paths:
+ * the Convex dashboard function runner (admin), or `npx convex run
+ * migrations:backfillServiceChargeTenants` (the CLI authenticates with
+ * the deploy key, which authorizes internal functions). Idempotent:
+ * rows that already have a tenantId are never touched; safe to re-run.
+ */
+export const backfillServiceChargeTenants = internalMutation({
   args: { dryRun: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const rows = await ctx.db.query("service_charges").collect();
@@ -111,6 +120,11 @@ export const backfillServiceChargeTenants = mutation({
 //
 // Run via dashboard or `npx convex run migrations:backfillNotificationTimestamps`
 // (dryRun defaults to true; pass {dryRun:false} to write).
+//
+// V1-B (SEC-13): this backfill is now an INTERNAL mutation — public
+// callers can no longer trigger a global notifications rewrite. The
+// CLI (`npx convex run`, deploy-key authenticated) and the dashboard
+// function runner remain the operational paths. Idempotency unchanged.
 
 function toEpochMsOrNull(value: any, fallback: number | null): number | null {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -122,7 +136,7 @@ function toEpochMsOrNull(value: any, fallback: number | null): number | null {
   return fallback;
 }
 
-export const backfillNotificationTimestamps = mutation({
+export const backfillNotificationTimestamps = internalMutation({
   args: { dryRun: v.optional(v.boolean()), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const rows = await ctx.db.query("notifications").collect();

@@ -63,7 +63,9 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   // Fetches the active corporate bank account configured by the Founder
   // App. NO hardcoded mock data — if no config exists, shows clean
   // placeholders ([Bank Name] / 0000000000) instead of real bank entities.
-  const orgPayoutDetails = useQuery(api.myFunctions.getOrgPayoutDetails, {});
+  // V1-B (SEC-12): forward the verified bearer — bank details are
+  // authenticated-only server-side now (portal checkout is signed in).
+  const orgPayoutDetails = useQuery(api.myFunctions.getOrgPayoutDetails, { sessionToken: (bearerToken ?? undefined) });
   const BANK_DETAILS = {
     bankName: orgPayoutDetails?.bankName || '[Bank Name]',
     accountName: orgPayoutDetails?.accountName || 'PracticePro Systems Limited',

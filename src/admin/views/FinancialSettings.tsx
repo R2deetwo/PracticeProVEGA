@@ -23,10 +23,12 @@ const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase t
 const INPUT = 'w-full px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500';
 
 export const FinancialSettings: React.FC = () => {
-  const { currentUser } = useFounderAuth();
+  const { currentUser, bearerToken } = useFounderAuth();
   const { addToast } = useFounderToast();
 
-  const existingDetails = useQuery(api.myFunctions.getOrgPayoutDetails, {});
+  // V1-B (SEC-12): forward the verified bearer — bank details are
+  // authenticated-only server-side now.
+  const existingDetails = useQuery(api.myFunctions.getOrgPayoutDetails, { sessionToken: (bearerToken ?? undefined) });
   const updateDetails = useMutation(api.myFunctions.updateOrgPayoutDetails);
 
   const [corporateName, setCorporateName] = useState('PracticePro Systems Limited');

@@ -84,6 +84,9 @@ const FeedbackForm: React.FC = () => {
                     title: title.trim() || 'Untitled Feedback',
                     message: feedback,
                     idempotencyKey,
+                    // V1-B: session-derived attribution — the server overrides
+                    // the identity hints above with the verified session caller.
+                    sessionToken: (bearerToken ?? undefined),
                 });
             }
             addToast(ticketType === 'Support Ticket' ? 'Ticket submitted! Our team will be in touch.' : 'Thank you for your input! We appreciate you helping us build a better app.', { type: 'success' });

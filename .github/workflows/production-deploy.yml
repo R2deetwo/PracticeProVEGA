@@ -304,9 +304,13 @@ jobs:
 
       - name: Probe the Convex backend directly (never trust the deploy step)
         run: |
+          # V1-B (SEC-16): debug_env:checkEnv is now an internal function —
+          # the probe uses the public myFunctions:ping liveness query
+          # instead (any authenticated-anonymous caller may call it; it
+          # returns no environment detail).
           PROBE=$(curl -s -X POST "https://gregarious-malamute-537.convex.cloud/api/query" \
             -H "Content-Type: application/json" \
-            -d '{"path":"debug_env:checkEnv","args":{}}')
+            -d '{"path":"myFunctions:ping","args":{}}')
           echo "Convex probe response (truncated): $(echo "$PROBE" | head -c 400)"
           PROBE_STATUS=$(echo "$PROBE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "parse-error")
           if [ "$PROBE_STATUS" != "success" ]; then

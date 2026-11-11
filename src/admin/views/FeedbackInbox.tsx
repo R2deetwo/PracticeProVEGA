@@ -81,7 +81,9 @@ const FeedbackInboxInner: React.FC = () => {
     // the arg entirely when it's 'all', we stay backward-compatible.
     let feedbackResult: any;
     try {
-        const queryArgs: any = {};
+        // V1-B (SEC-9): forward the verified bearer — the feedback inbox is
+        // founder-gated server-side now.
+        const queryArgs: any = { sessionToken: (bearerToken ?? undefined), userEmail: currentUser?.email };
         if (statusFilter !== 'all') queryArgs.status = statusFilter;
         if (categoryFilter !== 'all') queryArgs.category = categoryFilter;
         feedbackResult = useQuery(api.feedback.getFeedbackList, queryArgs);
@@ -121,6 +123,10 @@ const FeedbackInboxInner: React.FC = () => {
                 channelType: 'SUPPORT',
                 idempotencyKey,
                 sendEmail,
+                // V1-B (SEC-9): founder-gated server-side; the reply author is
+                // derived from this session.
+                sessionToken: (bearerToken ?? undefined),
+                userEmail: currentUser?.email,
             });
             try {
                 await logAdminAction({
@@ -143,7 +149,7 @@ const FeedbackInboxInner: React.FC = () => {
     const handleStatusChange = async (newStatus: 'Resolved' | 'Archived' | 'New') => {
         if (!selected) return;
         try {
-            await updateStatus({ feedbackId: selected._id, status: newStatus });
+            await updateStatus({ feedbackId: selected._id, status: newStatus, sessionToken: (bearerToken ?? undefined), userEmail: currentUser?.email });
             addToast(`Marked as ${newStatus}`, { type: 'success' });
         } catch (e: any) {
             addToast(e?.message || 'Failed to update status.', { type: 'error' });

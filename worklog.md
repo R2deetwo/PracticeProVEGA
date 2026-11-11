@@ -17544,3 +17544,88 @@ Work Log:
 - V1-B is NOT started — per the round brief, V1-A awaits independent
   verification first.
 [skip ci]
+
+Task ID: V1-B (ADMINISTRATION AND PUBLIC MUTATION SECURITY — SEC-9/11/12/
+13/16 + submitFeedback attribution)
+Agent: Main agent (Super Z)
+Task: Close unauthorised administrative operations, feedback access,
+outbound-email abuse and public cross-firm mutation surfaces. Security
+remediation only — no Atrium/Paystack/subscription/webhook/product-boundary
+changes; public signup, login, password-reset and invite-token flows
+untouched.
+
+Work Log:
+- SEC-9 FEEDBACK SUITE (convex/feedback.ts):
+  * submitFeedback — attribution now derived from the verified session
+    (resolveCaller, any authenticated role — staff AND portal users file
+    tickets); the caller-supplied userId/userName/userEmail/firmId are
+    hints the server OVERRIDES. Anonymous submissions rejected here; the
+    separate public support path (submitDataRestoreRequest, contact email
+    only, claims no userId) is untouched. Verified: a submission spoofing
+    another user's identity stores the SESSION caller's identity.
+  * getFeedbackList — the founder inbox (every thread in the platform)
+    was readable by ANY caller, anonymously. Now requireFounderCaller.
+  * getMyFeedbackReplies — caller-supplied userId listed any user's
+    threads. Now the SEC-10 pattern: userId must be one of the session
+    caller's ids.
+  * adminReplyToFeedback — was reachable by ANY caller, including the
+    Brevo email dispatch + FCM push. Now requireFounderCaller; the reply
+    author is the session caller (adminId is a display hint, overridden).
+    Verified: anonymous/non-founder/revoked-session callers cannot reach
+    the scheduler — Brevo fires ONLY for a legitimate founder reply with
+    sendEmail=true; in-app-only replies never schedule email.
+  * updateFeedbackStatus — was a bare public patch on any thread. Now
+    requireFounderCaller.
+  * deleteFeedbackThread / userReplyToFeedback — already R16/R16b-gated;
+    cross-user rejections now covered by tests.
+- SEC-11 regenerateInviteCode (convex/myFunctions.ts): any caller could
+  rotate ANY firm's invite code by id — or look the firm up BY NAME —
+  invalidating every outstanding join link. Now requireStaffCaller +
+  server-derived ownership (own/joined firm only); the by-name/scan
+  lookup is deleted. Verified: cross-firm and by-name attempts leave the
+  target code untouched.
+- SEC-12 getOrgPayoutDetails (convex/myFunctions.ts): the corporate bank
+  account was returned to anonymous callers. Now resolveCaller (any
+  authenticated role — staff and portal checkout audiences both
+  legitimately need the transfer instructions; updateOrgPayoutDetails
+  was already founder-gated).
+- SEC-13 public migration/backfill mutations (convex/migrations.ts):
+  backfillServiceChargeTenants + backfillNotificationTimestamps are now
+  internalMutation — public internet callers cannot trigger global
+  cross-firm write sweeps. Operational paths preserved: the Convex
+  dashboard function runner and `npx convex run migrations:...` (the CLI
+  authenticates with the deploy key, which authorizes internal functions
+  — verified in the convex CLI source: setAdminAuth "allow calling
+  internal queries, mutations, and actions"; the convex-backfill.yml
+  command is unchanged). Handlers untouched — idempotency preserved.
+- SEC-16 debug_env.checkEnv: the public env-diagnostics query (which
+  secrets are configured on production) is REMOVED, not hidden. Its
+  diagnostics are inlined into getEnvStatus, a founder-only query; the
+  Founder App Settings panel uses the wrapper with the bearer. The
+  production-deploy.yml liveness probe now uses the public
+  myFunctions:ping (no env detail). NOTE: an internal-twin +
+  ctx.runQuery wrapper was tried first and REVERTED — a public function
+  referencing a same-module internal function through the generated api
+  types creates a TS7022 circularity that poisoned type inference in
+  unrelated modules (legalKnowledge.ts {}-typed rows); inlining avoids
+  it.
+- CALLERS MIGRATED (9 sites): FeedbackForm + MessagesView (submit +
+  my-replies), FeedbackInbox (list/reply/status), TenantPortal
+  PaymentsTab + admin FinancialSettings (payout details), useFirm
+  (invite code rotation), admin Settings (env status).
+- TESTS: NEW tests/unit/roundV1BSecurity.test.ts — 20 real-handler
+  tests covering the full matrix (anonymous / revoked session / wrong
+  firm / wrong role / staff / founder) plus the six explicit
+  verifications: unauthorised founder replies cannot trigger Brevo;
+  unauthorised callers cannot rotate invite codes; feedback cannot be
+  read or modified across users (list, my-replies, reply, status,
+  delete); corporate bank info protected; public callers cannot trigger
+  global backfills (internalMutation source contract + CLI path
+  preserved); legitimate submission + founder response still work.
+  Verified 13/20 FAIL against the pre-fix tree, 20/20 PASS on the fix.
+- GATES: vitest 2,150/2,150 (109 files, +20) / convex tsc 0 / root tsc
+  94 = baseline (net-neutral; the MessagesView/PaymentsTab/Settings
+  deltas in the diff are pre-existing errors at shifted line numbers) /
+  eslint 0 errors / ui-primitives ratchet held 2297 / gray=0 / identity
+  audit PASSED / main + admin builds green.
+[skip ci-not-yet — this entry ships with the round commit]
