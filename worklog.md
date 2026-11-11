@@ -17942,10 +17942,23 @@ Work Log:
 - Reconciliation report: VEGA_FINANCIAL_TRUTH_REMEDIATION.md (every formula
   before/after with worked examples).
 
+Work Log (deployment record — 2026-11-11):
+- PUSH BLOCKED: the credential in the remote URL (the PAT exposed 8 times
+  in chat — the same ghp_aAKZ… token, never rotated) is now DEAD for
+  writes: reads still succeed (the repo is publicly readable), pushes are
+  rejected with "Invalid username or token". GitHub's secret scanning (or
+  the owner) finally killed it. Commit 4fa27a63 sits on local main
+  awaiting a FRESH, ROTATED credential — paste a new PAT to unblock
+  push → CI → (review) → promote. The old token must NOT be reused.
+- All gates were verified locally before this record: vitest 2236/2236,
+  convex tsc 0, root tsc 94 = baseline, eslint 0 errors, ratchet 2296,
+  gray=0, identity audit PASSED, main + admin builds green.
+
 Stage Summary:
-- V2 COMPLETE AND STOPPED FOR INDEPENDENT REVIEW per the brief. Pushed to
-  main; CI gate run; production promote NOT dispatched — this round's
-  changes await the independent review the brief requires.
+- V2 COMPLETE, all gates green locally, and STOPPED FOR INDEPENDENT
+  REVIEW per the brief — commit 4fa27a63 on local main; push/CI pending a
+  fresh credential; production promote NOT dispatched (review first, as
+  the brief requires).
 - The books now tell the truth: one tax calculation, one numbering
   authority, one outstanding balance, delivery claims only where delivery
   happened, and an audit trail the firm can actually read.
