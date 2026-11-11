@@ -6,6 +6,7 @@ import { useUI } from '../../contexts/UIContext';
 import { ListIcon, SearchIcon, LawLibraryIcon, BookOpenIcon, BookmarkIcon } from '../../constants';
 import { MOCK_CASE_LAW } from '../../utils/mockData';
 import { CaseResult } from '../../types';
+import { LAW_REPORTS_DISCLOSURE } from '../../utils/citationVerification';
 
 // ... (FilterPanel Component remains same)
 const FilterPanel: React.FC<{
@@ -107,7 +108,8 @@ const CaseList: React.FC<{
         return (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8 text-center flex-1 w-full">
                 <SearchIcon className="w-12 h-12 mb-4 opacity-20" />
-                <p>No cases found matching your criteria.</p>
+                <p>No law reports available — no law-report database is connected.</p>
+                <p className="text-2xs mt-1 max-w-xs">{LAW_REPORTS_DISCLOSURE}</p>
             </div>
         );
     }
@@ -200,9 +202,15 @@ const ReadingPane: React.FC<{
                             </div>
                             <div>
                                 <h5 className="font-bold text-slate-500 dark:text-zinc-500 uppercase text-xs mb-1">Status</h5>
-                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${caseData.status === 'Locus Classicus' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
-                                    {caseData.status || 'Good Law'}
-                                </span>
+                                {caseData.status ? (
+                                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${caseData.status === 'Locus Classicus' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
+                                        {caseData.status}
+                                    </span>
+                                ) : (
+                                    // V5: never invent an authority-treatment label —
+                                    // 'Good Law' was the default for a missing status.
+                                    <span className="inline-block px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-500">Status unavailable — no law-report corpus connected</span>
+                                )}
                             </div>
                             {caseData.coram && (
                                 <div className="sm:col-span-2">
@@ -361,16 +369,17 @@ const LawReportsView: React.FC = () => {
                         <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input autoComplete="off" data-lpignore="true"  
                             type="text"
-                            placeholder="Search case law..."
+                            placeholder="Unavailable — no law-report database is connected"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-9 pr-3 py-1.5 md:py-2 bg-slate-100 dark:bg-zinc-800 border-none rounded-lg focus:ring-2 focus:ring-primary-500 text-sm transition-all"
+                            disabled={MOCK_CASE_LAW.length === 0}
+                            className="w-full pl-9 pr-3 py-1.5 md:py-2 bg-slate-100 dark:bg-zinc-800 border-none rounded-lg focus:ring-2 focus:ring-primary-500 text-sm transition-all disabled:opacity-60"
                         />
                     </div>
                 </div>
-                {/* Advanced Search Hint - Hidden on mobile */}
+                {/* Advanced Search Hint — honest while no corpus is connected */}
                 <div className="hidden md:flex gap-4 text-xs text-slate-400">
-                     <span>Supports: <strong className="text-slate-600 dark:text-slate-300">AND</strong>, <strong className="text-slate-600 dark:text-slate-300">OR</strong>, <strong className="text-slate-600 dark:text-slate-300">NOT</strong></span>
+                     <span>No law-report database is connected — search is disabled.</span>
                 </div>
             </div>
 
@@ -423,8 +432,13 @@ const LawReportsView: React.FC = () => {
                                 <div className="p-6 bg-white dark:bg-zinc-800 rounded-full shadow-sm mb-4">
                                     <LawLibraryIcon className="w-16 h-16 text-slate-300 dark:text-zinc-600" />
                                 </div>
-                                <h3 className="text-xl font-bold text-slate-700 dark:text-zinc-300">Case Law Intelligence Terminal</h3>
-                                <p className="text-sm mt-2 max-w-md text-center mb-6 text-slate-500">Search thousands of Supreme Court and Court of Appeal precedents from 1960 to date.</p>
+                                <h3 className="text-xl font-bold text-slate-700 dark:text-zinc-300">Case Law</h3>
+                                {/* V5 (law reports honesty): the terminal claimed
+                                    "Search thousands of Supreme Court and Court of
+                                    Appeal precedents from 1960 to date" over an empty
+                                    mock array. It now states the real limitation. */}
+                                <p className="text-sm mt-2 max-w-md text-center mb-3 text-slate-500">{LAW_REPORTS_DISCLOSURE}</p>
+                                <p className="text-2xs max-w-md text-center text-slate-400">The filters, list and reading pane below stay inert until a licensed corpus is connected — they will not simulate law reports.</p>
                             </div>
                         </div>
                     )}

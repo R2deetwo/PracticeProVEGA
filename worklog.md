@@ -18320,3 +18320,206 @@ Stage Summary:
   a destination that opens, and print/export on one A4 contract with
   the firm's real letterhead.
 [skip ci]
+
+## Task: V5 — LEGAL AI RELIABILITY AND EVIDENCE INTEGRITY (2026-11-11)
+
+Mission: make ALOA, ALDIA, Research Studio and the legal intelligence tools
+accurately represent what they know, what they have checked and what
+remains uncertain.
+
+### A. Citation integrity
+- The confidence chip no longer reads as a verification claim: it renders
+  "Confidence: High (heuristic)" and its tooltip states plainly that it is
+  NOT an external verification and that no citation has been checked
+  against a legal authority (aiTrust's coverage language was already
+  honest — "markers resolve to sources" — and stays that way).
+- Confidence is now scored on the RAW model text (pre-identity-strip) on
+  both AloaChat paths (stream + tool). The old flow stripped the very
+  hedging vocabulary the heuristic weighs ("as an AI", "my knowledge
+  cutoff"…), inflating the chip above the evidence.
+- New util citationVerification.ts gives every surface ONE four-level
+  vocabulary: syntactic validity (citationClassifier — regex only) /
+  internal consistency (reviewDraft cross-check) / source matching
+  ([n] resolves to a listed source) / authority verification — which does
+  not exist today and is labelled as never-claimable until a licensed
+  corpus (LawPavilion, NWLR, LPELR or approved equivalent) is connected.
+- DraftPro's drafting prompt now says "researched sources (assembled by
+  the AI during research — NOT externally verified)" instead of "verified
+  sources".
+- Fabricated-authority fix: the self-review cross-check read
+  c.citation/c.title — fields that don't exist on Citation objects — so
+  the "may be fabricated" check always saw an empty researched set; it
+  now reads c.text/c.rawText.
+- Corpus honesty: an empty or failed rules&forms retrieval is DISCLOSED to
+  the model ("no matching entries in the built-in coverage… tell the user
+  plainly") instead of silently returning "" — the old silent return let
+  the model answer as if coverage existed.
+
+### B. Research Studio
+- The Website source tab now REALLY fetches: the URL is read at add time
+  via the same CORS-proxy pipeline (fetchUrlContentClient) the sources
+  column and ALOA use; the fetched text + its URL are stored (ResearchSource
+  gains url, additive v.optional in the schema). The old tab stored a
+  placeholder string and let the AI free-generate while the UI implied
+  real page content. A failed fetch adds NO source — an honest error.
+- Free-generation is gated and labelled: with no sources in context the
+  system prompt forbids presenting ungrounded answers as source-backed
+  research and forbids citing sources that were not provided, and every
+  ungrounded response carries a deterministic "[Ungrounded — no sources in
+  context…]" prefix that survives reloads (it is part of the stored
+  content). The context pill says "No sources — answers will be ungrounded
+  AI suggestions".
+- The "press Enter to run the live web search" theatre is gone — the
+  banner, placeholder, footer and aria-label now say exactly what happens
+  (sends to the notebook chat, sources as context, no live search).
+- The auto-start pipeline no longer asks a retrieval-less chat to "verify
+  each citation" (which produced free-generated "validity assessments"):
+  it now sends a grounded instruction (quote what the sources say, name
+  the source, say plainly what isn't established) AND passes the
+  notebook's sources so the answer is source-backed.
+
+### C. Law Reports
+- The empty terminal no longer simulates: "Case Law Intelligence Terminal
+  / Search thousands of precedents from 1960 to date" is replaced by the
+  standing LAW_REPORTS_DISCLOSURE (no law-report database is connected;
+  NWLR/SCNLR/LawPavilion/LPELR or approved equivalent; case-law search
+  enables when a licensed corpus is connected). Search is disabled while
+  the corpus is empty; a missing status renders "Status unavailable — no
+  law-report corpus connected" instead of inventing 'Good Law'.
+- The hub no longer hides coming_soon modules; the NWLR/SCNLR entries say
+  "NOT AVAILABLE YET" and no longer claim to "power ARIA case law
+  reasoning". The dead canAccessLawReports feature flag (implying an
+  entitled capability that doesn't exist) is removed.
+
+### D. Chronology, matrix, gap analysis + ALDIA metadata
+- Every Studio analysis is LLM prose and now says so: the persona requires
+  [not established in sources] instead of invented dates/parties/events, a
+  leading "AI-generated analysis" line and a trailing "Source gaps"
+  section; every ResultCard carries an amber "AI-generated" chip.
+- Failed analysis runs THROW instead of being saved as results titled
+  "Chronology"/"Gap Analysis" (the old catch returned an error string as
+  content).
+- Attribution survives the handoff: Save/Send-to-DraftPro now append a
+  visible Sources block (names + types + URLs) to the content, so it
+  travels into the document, print and export.
+- ALDIA-extracted metadata (dates, parties) renders under an "AI-extracted
+  by ALDIA — unverified" banner instead of reading as established facts;
+  the RPC badge states what actually happened ("AI self-review: passed
+  (not externally verified)" / "pending") instead of an unconditional
+  "Verified Agent", and the agent's parse fallback no longer fabricates an
+  approval on empty output.
+
+### E. Jurisdiction correctness
+- The generic StateHighCourt procedural rules no longer assert Lagos-only
+  requirements for all 36 states: the PAP form, the 42-day defence window,
+  the 8-day appearance and the Commercial Division are now state-qualified
+  ("where the state's rules prescribe one (e.g., Lagos HC CPR 2019)…").
+- Limitation warnings are clearly ADVISORY and cause-aware (severity
+  HIGH, "Advisory —" prefix, "confirm for the specific cause of action");
+  the unverifiable "5 years (most states), 6 years (Lagos)" claim is gone.
+- The magistrate monetary-limit hint states its Lagos ceiling as an
+  example and asks to verify the state's actual limit ("Verified
+  jurisdictional limits" typo fixed to "Verify").
+- TemplateService: the 'LAGOS STATE' division fallback is gone (registry
+  caption/division when a state is known, honest [STATE]/[JUDICIAL
+  DIVISION] placeholders when not); the writ's baked 42-day window is a
+  [APPEARANCE WINDOW] placeholder; the phantom "{2021}" rules year is
+  [YEAR — confirm].
+- litigationSkeletons (dead but a drift hazard): captions/rules now come
+  from the jurisdiction registry per state, placeholders when unknown; no
+  LAGOS STATE strings remain.
+- Routing data fixed: the tribunal gate used raw substring tests —
+  p.includes('tat') matched "statute"/"status", p.includes('ist') matched
+  "assist"/"specialist" — mis-routing ordinary prompts to the Investment
+  and Securities Tribunal. Word boundaries now gate the branch.
+- ALOA rules&forms retrieval is jurisdiction-scoped: the firm's state is
+  passed as jurisdictionKey (backend filter already existed), so a Delta
+  or Kano procedural query no longer surfaces Lagos HC 2019 / Lagos
+  Tenancy Law provisions as "authoritative anchors".
+
+### F. AI trust and professional boundaries
+- validateAIResponse no longer strips the model's uncertainty vocabulary:
+  only underlying-model identity leaks are redacted; "as an AI", "my
+  knowledge cutoff", "my training data" etc. are RETAINED (a hedged answer
+  is honest; a confident-sounding stripped one is not). The identity
+  prompts (03a/03b) gained "UNCERTAINTY IS WELCOME" and dropped the
+  uncertainty-phrase bans.
+- The Vega legal identity prompt swapped "authoritative" tone for a
+  professional-scope guardrail: assist the practitioner, never present
+  conclusions as authoritative legal advice, separate chat advice from
+  final-document language.
+- Chat answers pasted into DraftPro via "Draft in DraftPro" now carry a
+  visible origin marker ("Imported from ALOA chat as-is — not generated
+  through the drafting protocol") that survives save/export/print.
+- Scale of Charges reconciled: the land-documentation scale now cites ONE
+  instrument everywhere — the Legal Practitioners (Remuneration for Legal
+  Documentation and Other Land Matters) Order 2023 (the order governing
+  land documentation fees; verified against NBA sources) — replacing the
+  misattributed "(For Business, Legal Service and Representation) Order
+  2023" in scaleOfCharges.ts + InvoiceForm, and the agent's conflicting
+  "Scale I/II" taxonomy is aligned to the util's Scale 4 bands. The fee
+  bands themselves are unchanged (pinned by scaleAndTenancy.test.ts).
+
+### G. Tests
+- citationClassifier.test.ts was a hand-rolled assert script never picked
+  up by vitest; it is now a real suite (17 tests) with new
+  fabricated-authority / missing-source / verification-basis cases, and
+  the two stale copies (src/utils/, scripts/) are deleted.
+- aiTrust +4 (confidence semantics match evidence), identityRedaction
+  rewritten for hedging retention (10 tests), intentGate +4 (the gate
+  censors phantom actions, never legal subject matter),
+  legalKnowledgeAndCharges +2 describes (jurisdiction-scoped retrieval,
+  corpus honesty, one Scale-of-Charges instrument).
+- New roundV5LegalAIReliability.test.ts (31 tests) — one test per honest
+  behaviour across domains A–F.
+
+### Gates
+- vitest 2418/2418 (119 files, +2 files/+64 tests) / convex tsc 0 / root
+  tsc 89 = exactly the V4 baseline (0 new) / eslint changed files 0
+  errors 0 warnings (two pre-existing rounded-xl usages in touched files
+  also fixed) / ui-primitives ratchet HELD at 2295 (no growth) / design
+  tokens gray=0 / identity audit PASSED.
+
+### Protections held
+- No marketing-site copy was touched (VegaTrust "Verifiable statements
+  only", AtriumWhyRunOn "verified against the current statute",
+  AtriumAI "computed, then verified" — owner decisions, flagged below).
+  TermsOfService and external provider contracts untouched. AI
+  infrastructure (models/keys/plumbing) unchanged — prompt CONTENT was
+  corrected, which is the substance of this brief.
+- The offline queue and optimistic sync architecture are untouched;
+  document-template and contract-analysis tests pass unmodified.
+- External dependency labelled honestly: no real Nigerian legal authority
+  verification is claimed anywhere; the standing disclosure names the
+  licensed-corpus dependency (LawPavilion, NWLR, LPELR or approved
+  equivalent) and stays until it is connected.
+
+### Owner decision flags (NOT changed silently)
+1. Marketing claims that describe verification this app does not perform:
+   VegaTrust.tsx:43 banner context + "Verifiable statements only" (80-82),
+   AtriumWhyRunOn.tsx:29 "verified against the current statute",
+   AtriumAI.tsx:27 "computed, then verified", HelpView.tsx:1016 "No
+   Hallucination…" — these are marketing/help promises; owner to reword.
+2. courtCalculator.ts still cites "Lagos Order 15/44" in its explanatory
+   strings for business-day math (deadline util, no state parameter) —
+   deferred as a data-modelling decision for the owner.
+3. statuteLibrary.ts audits leases against federal+lagos statutes only
+   (JURISDICTION_OPTIONS has no other states) — expanding real per-state
+   tenancy statutes is a content decision requiring verified sources.
+4. V4 (build-1163) sits on main awaiting a production-promote decision;
+   production remains at v1.0.767/build-1162 (V2+V3). Standing actions:
+   rotate the exposed GitHub PAT; rotate CLOUDFLARE_API_TOKEN (mirror
+   still failing).
+
+Stage Summary:
+- V5 COMPLETE, all gates green, and STOPPED FOR REVIEW per the brief —
+  tests complete; pushed to main (CI runs the full quality gate on the
+  push); production promote NOT dispatched.
+- The legal AI tools now say what they checked, what they didn't, and
+  what remains uncertain: citations are never "verified", confidence is a
+  labelled heuristic scored on raw model text, ungrounded answers say so,
+  law reports say no database is connected, Lagos is an example (never a
+  default), limitation warnings are advisory and cause-aware, the Scale
+  of Charges cites one instrument, and AI-extracted metadata is labelled
+  unverified.
+[skip ci]

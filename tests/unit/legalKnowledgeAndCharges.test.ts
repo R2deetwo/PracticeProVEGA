@@ -373,3 +373,43 @@ describe('Charge type registry (Task 51)', () => {
     expect(ledger.filter((o) => o.key === 'diesel_levy')[0].isSystem).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PART 4 — V5 (LEGAL AI RELIABILITY): jurisdiction-scoped retrieval + the
+// honest corpus/Scale-of-Charges contracts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('V5 — jurisdiction-scoped retrieval & corpus honesty (Task 51 + V5)', () => {
+  it('searchKnowledge filters provisions AND forms by jurisdictionKey', () => {
+    const source = read('convex/legalKnowledge.ts');
+    expect(source).toContain('jurisdictionKey: v.optional(v.string())');
+    const filterCount = (source.match(/q\.eq\("jurisdictionKey", args\.jurisdictionKey\)/g) || []).length;
+    expect(filterCount).toBeGreaterThanOrEqual(2); // provisions + forms
+  });
+
+  it('the corpus carries NO case law — nothing in it can be presented as law-report authority', () => {
+    const corpus = read('convex/legalCorpus.ts');
+    expect(corpus).not.toContain('NWLR (');
+    expect(corpus).not.toContain('LPELR-');
+    // and the kinds it does carry are instruments, not judgments:
+    expect(corpus).toContain('kind: "rules"');
+  });
+
+  it('AloaChat passes the firm state into retrieval (no Lagos bias for other states)', () => {
+    const aloaChat = read('src/components/aloa/AloaChat.tsx');
+    expect(aloaChat).toContain('jurisdictionKey: firmState');
+  });
+});
+
+describe('V5 — Scale of Charges: one instrument name on every surface', () => {
+  it('the land-documentation scale cites the Land-Matters Order 2023', () => {
+    const util = read('src/utils/scaleOfCharges.ts');
+    expect(util).toContain('(Remuneration for Legal Documentation and Other Land Matters) Order 2023');
+    expect(util).not.toContain('(For Business, Legal Service and Representation) Order 2023');
+    const invoice = read('src/components/forms/InvoiceForm.tsx');
+    expect(invoice).toContain('(Remuneration for Legal Documentation and Other Land Matters) Order 2023');
+    const agent = read('src/agents/ScaleOfChargesAgent.ts');
+    expect(agent).toContain('Scale 4 progressive percentage bands');
+    expect(agent).not.toContain("'Scale I'");
+  });
+});

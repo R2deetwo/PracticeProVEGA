@@ -1,3 +1,5 @@
+import { getJurisdiction } from '../utils/jurisdictionConfig';
+
 export interface LitigationSkeleton {
   docType: string;
   sections: { heading: string; instruction: string; mandatoryBoilerplate?: string }[];
@@ -89,7 +91,7 @@ export const LITIGATION_SKELETONS: Record<string, LitigationSkeleton> = {
   RECOVERY_OF_PREMISES: {
     docType: 'RECOVERY_OF_PREMISES',
     sections: [
-      { heading: 'Complaint Header', instruction: "Use 'IN THE MAGISTRATE COURT OF LAGOS STATE' caption, not High Court caption." },
+      { heading: 'Complaint Header', instruction: "Use the Magistrate Court caption of the state where the property is located — not the High Court caption, and never a hard-coded state." },
       { heading: 'Parties and Premises', instruction: 'Full [PROPERTY ADDRESS], nature of tenancy, rent payment terms.' },
       { heading: 'Grounds for Possession', instruction: 'State expiration of tenancy/notice served (reference [NOTICE DATE]) or rent default with arrears figure.' },
       { heading: 'Relief', instruction: 'Claims sought.', mandatoryBoilerplate: 'WHEREFORE the Claimant/Complainant claims: (a) Possession of the premises; (b) Arrears of rent in the sum of [CLAIM AMOUNT]; (c) Mesne profits until possession is given up; (d) Costs of this action.' },
@@ -103,16 +105,25 @@ export function getSkeleton(docType: string): LitigationSkeleton | undefined {
   return LITIGATION_SKELETONS[normalized];
 }
 
-export function getCourtTierInstruction(courtTier?: string | null): { caption: string; rulesCitation: string } {
+export function getCourtTierInstruction(courtTier?: string | null, stateKey?: string | null): { caption: string; rulesCitation: string } {
+  // V5 (jurisdiction correctness): these captions were hard-coded 'LAGOS
+  // STATE' for every state. They now come from the shared jurisdiction
+  // registry, with honest placeholders when no state is known.
+  const j = getJurisdiction(stateKey || null);
+  const hasState = Boolean(stateKey);
   if (courtTier === 'magistrate') {
     return {
-      caption: 'IN THE MAGISTRATE COURT OF LAGOS STATE, HOLDEN AT [COURT ADDRESS]',
-      rulesCitation: 'Magistrate Court (Civil Procedure) Rules and, where relevant, the Recovery of Premises Law of Lagos State',
+      caption: hasState
+        ? `${j.magistrateCourtCaption}, HOLDEN AT [COURT ADDRESS]`
+        : 'IN THE MAGISTRATE COURT OF [STATE], HOLDEN AT [COURT ADDRESS]',
+      rulesCitation: `${j.magistrateRules}, and where relevant the Recovery of Premises law of the state where the property is located`,
     };
   }
   // Default to High Court (also used when courtTier is unset)
   return {
-    caption: 'IN THE HIGH COURT OF LAGOS STATE\nIN THE [JURISDICTION] JUDICIAL DIVISION',
-    rulesCitation: 'High Court of Lagos State (Civil Procedure) Rules',
+    caption: hasState
+      ? `${j.highCourtCaption}\nIN THE [JUDICIAL DIVISION] JUDICIAL DIVISION`
+      : 'IN THE HIGH COURT OF [STATE]\nIN THE [JUDICIAL DIVISION] JUDICIAL DIVISION',
+    rulesCitation: hasState ? j.highCourtRules : 'The current High Court (Civil Procedure) Rules of the state — confirm',
   };
 }

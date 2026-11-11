@@ -109,6 +109,8 @@ const ANALYSIS_TOOLS = [
 ];
 
 // --- RESULT CARD (compact) ---
+// V5 (evidence integrity): every Studio result is AI-generated prose — the
+// card now says so, next to the title, on every result.
 const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; onSave: () => void; onSendToDraft: () => void }> = ({ item, onDelete, onSave, onSendToDraft }) => {
     const [expanded, setExpanded] = useState(true);
     const contentHtml = parseAloaMarkdown(item.content);
@@ -123,6 +125,7 @@ const ResultCard: React.FC<{ item: StudioAnalysisResult; onDelete: () => void; o
                 >
                     <SparklesIcon className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
                     <span className="font-semibold text-xs text-slate-800 dark:text-white truncate">{item.title}</span>
+                    <span className="text-2xs px-1.5 py-0.5 rounded-full uppercase tracking-wide font-black whitespace-nowrap flex-shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title="This output is AI-generated prose, not a structured extract from the record. Verify every date, party and event against the underlying documents.">AI-generated</span>
                     <span className="text-2xs text-slate-400 flex-shrink-0">{new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     <ChevronRightIcon className={`w-3.5 h-3.5 text-slate-400 flex-shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                 </button>
@@ -195,16 +198,28 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
             handleSaveAnalysisResult(newItem);
             setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150);
         } catch (error) {
-            console.error('Analysis failed:', error);
+            // V5 (evidence integrity): a failed run is NOT saved as a result —
+            // the agent now throws (it used to return an error string, which
+            // landed in the record titled "Chronology" / "Gap Analysis").
+            console.error('Analysis failed — no result saved:', error);
         } finally {
             setLoadingType(null);
         }
     };
 
+    // V5 (attribution through drafting/export): the source list travels with
+    // the content when it is saved as a document or sent to DraftPro — a
+    // visible "Sources" block, so attribution survives the handoff (and
+    // prints/exports with the document).
+    const attributionBlock = (item: StudioAnalysisResult): string => {
+        const lines = sources.map(s => `- ${s.name} (${s.type}${s.url ? ` — ${s.url}` : ''})`);
+        return `\n\n---\n<b>Sources (connected at analysis time):</b>\n${lines.join('\n')}\n<i>AI-generated analysis — verify against the underlying documents before relying on it.</i>`;
+    };
+
     const handleSaveItem = (item: StudioAnalysisResult) => {
         openModal('newDocument', null, {
             draftTitle: `${item.title} – ${notebook.name}`,
-            draftContent: item.content,
+            draftContent: `${item.content}${attributionBlock(item)}`,
             categoryId: 'cat_research'
         });
     };
@@ -212,7 +227,7 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
     const handleSendToDraftPro = (item: StudioAnalysisResult) => {
         navigate('editor', null, {
             draftTitle: `${item.title} – ${notebook.name}`,
-            draftContent: item.content
+            draftContent: `${item.content}${attributionBlock(item)}`
         });
     };
 

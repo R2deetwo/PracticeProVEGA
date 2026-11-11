@@ -625,10 +625,17 @@ const DocumentDetailViewContent: React.FC = () => {
 
                                             {/* Extracted Metadata */}
                                             <section className="bg-white dark:bg-zinc-800 rounded-2xl p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
-                                                <div className="flex items-center gap-2 mb-6 text-primary-600">
+                                                <div className="flex items-center gap-2 mb-2 text-primary-600">
                                                     <ClockIcon className="w-5 h-5" />
                                                     <h4 className="font-bold">Key Intelligence & Metadata</h4>
                                                 </div>
+                                                {/* V5 (evidence integrity): these fields are AI-extracted by
+                                                    ALDIA and persisted unverified — they must never read as
+                                                    established facts. Invented dates/parties/events must not
+                                                    silently enter the verified record. */}
+                                                <p className="text-2xs mb-4 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 leading-relaxed">
+                                                    AI-extracted by ALDIA — <b>unverified</b>. Every date, party and field below was inferred by the model from the document text; confirm each against the underlying document before relying on it.
+                                                </p>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                     <div className="p-4 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700">
                                                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Contract Type</span>
@@ -709,11 +716,19 @@ const DocumentDetailViewContent: React.FC = () => {
                                                     <h4 className={`font-bold ${document.rpcReview?.status === 'approved' ? 'text-green-800 dark:text-green-400' : 'text-orange-800 dark:text-orange-400'}`}>{isProperty ? 'Compliance Shield' : 'RPC Compliance'}</h4>
                                                 </div>
                                                 <p className="text-sm text-slate-700 dark:text-zinc-300 mb-2">
-                                                    {document.rpcReview?.commentary || (isProperty ? 'Analysis pending verified compliance check.' : 'Analysis pending verified RPC check.')}
+                                                    {document.rpcReview?.commentary || (isProperty ? 'Compliance self-review pending — no verified check has run.' : 'RPC self-review pending — no verified check has run.')}
                                                 </p>
-                                                <div className="flex items-center gap-1.5 py-1 px-3 bg-white dark:bg-zinc-800 rounded-full w-fit border border-green-100 dark:border-green-900">
-                                                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                                                    <span className="text-2xs font-black uppercase text-green-600 tracking-tight">Verified Agent</span>
+                                                {/* V5: the old badge claimed a verified agent
+                                                    unconditionally, with a parse fallback that literally
+                                                    passed the review. The badge now states what actually
+                                                    happened: an AI self-review, and whether it passed. */}
+                                                <div className={`flex items-center gap-1.5 py-1 px-3 rounded-full w-fit border ${document.rpcReview?.status === 'approved'
+                                                    ? 'bg-white dark:bg-zinc-800 border-green-100 dark:border-green-900'
+                                                    : 'bg-white dark:bg-zinc-800 border-orange-100 dark:border-orange-900'}`}>
+                                                    <div className={`w-2 h-2 rounded-full ${document.rpcReview?.status === 'approved' ? 'bg-green-500' : 'bg-orange-400'}`} />
+                                                    <span className={`text-2xs font-black uppercase tracking-tight ${document.rpcReview?.status === 'approved' ? 'text-green-600' : 'text-orange-600'}`}>
+                                                        {document.rpcReview?.status === 'approved' ? 'AI self-review: passed (not externally verified)' : 'AI self-review: pending'}
+                                                    </span>
                                                 </div>
                                             </section>
 

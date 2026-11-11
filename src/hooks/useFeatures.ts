@@ -114,7 +114,6 @@ export const useFeatures = () => {
 
         // Research
         canUseResearchStudio: isLegalFirm && isGrowthOrAbove,  // AI research studio (Growth+ legal)
-        canAccessLawReports: isLegalFirm,                       // Basic law reports (all legal plans)
 
         // ─── DRAFTPRO CONTRACT ANALYZER (R48) ───────────────────────────
         // MODULE 1 (contract analysis + redlines): INCLUDED STANDARD in the

@@ -237,7 +237,9 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                     <div className={`w-1.5 h-1.5 rounded-full ${selectedSourceIds.length > 0 ? 'bg-blue-500 animate-pulse' : 'bg-slate-300'}`} />
                     {selectedSourceIds.length > 0
                         ? `${selectedSourceIds.length} source${selectedSourceIds.length === 1 ? '' : 's'} selected`
-                        : `All ${sources.length} source${sources.length === 1 ? '' : 's'} in context`
+                        : sources.length > 0
+                            ? `All ${sources.length} source${sources.length === 1 ? '' : 's'} in context`
+                            : 'No sources — answers will be ungrounded AI suggestions'
                     }
                 </div>
             </div>
@@ -263,7 +265,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                                 {prefillDocumentTitle
                                     ? `From your draft "${prefillDocumentTitle}". `
                                     : ''}
-                                I've prepared a precise search query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-3xs font-mono font-bold">Enter</kbd> to run a live web search.
+                                I've prepared a precise query below. Review it, edit if needed, and press <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded text-3xs font-mono font-bold">Enter</kbd> to send it to the notebook chat.
                             </p>
                             {prefillContext && (
                                 <details className="mt-1.5">
@@ -275,6 +277,9 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                                     </pre>
                                 </details>
                             )}
+                            <p className="text-2xs text-amber-700 dark:text-amber-400 mt-1 leading-relaxed">
+                                Note: pressing Enter sends this query to the notebook chat — your selected sources serve as context. No live web search runs here.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -349,19 +354,13 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                             placeholder={isAiThinking
                                 ? "AI is analyzing..."
                                 : prefillQuery && hasAppliedPrefill
-                                    ? "Review the AI-generated query above and press Enter to search…"
+                                    ? "Review the AI-generated query above and press Enter to send it to the notebook chat…"
                                     : "Ask about your sources... (Enter to send)"}
                             disabled={isAiThinking}
                             sendDisabled={!input.trim() || isAiThinking}
                             sendOnEnter={true}
-                            sendIcon={prefillQuery && hasAppliedPrefill && !isAiThinking ? (
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                                </svg>
-                            ) : (
-                                <SendIcon className="w-4 h-4" />
-                            )}
-                            sendAriaLabel={prefillQuery && hasAppliedPrefill ? "Run the search query" : "Send message"}
+                            sendIcon={<SendIcon className="w-4 h-4" />}
+                            sendAriaLabel={prefillQuery && hasAppliedPrefill ? "Send the query to the notebook chat" : "Send message"}
                             containerClassName="flex-1"
                             textareaClassName="bg-transparent border-none text-sm text-slate-900 dark:text-white p-1.5 focus:ring-0"
                             sendButtonClassName="bg-blue-600 hover:bg-blue-700"
@@ -369,7 +368,7 @@ export const ResearchChat: React.FC<ResearchChatProps> = ({
                     </div>
                     <p className="text-2xs text-slate-400 text-center mt-1.5">
                         {prefillQuery && hasAppliedPrefill
-                            ? 'Press Enter to run the live web search · Shift+Enter for new line'
+                            ? 'Press Enter to send to the notebook chat · Shift+Enter for new line'
                             : 'Shift+Enter for new line'}
                     </p>
                 </div>

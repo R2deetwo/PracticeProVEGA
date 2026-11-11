@@ -69,14 +69,14 @@ const CONFIDENCE_STYLES: Record<string, { chip: string; dot: string; label: stri
 
 export const ConfidenceChip: React.FC<{ assessment: ConfidenceAssessment }> = ({ assessment }) => {
     const s = CONFIDENCE_STYLES[assessment.level] ?? CONFIDENCE_STYLES.moderate;
-    const tooltip = `AI confidence: ${s.label} (${assessment.score}/100) — heuristic from the response text.\n\nEvidence:\n• ${assessment.indicators.join('\n• ')}\n\nThis is NOT a guarantee of correctness. Review Required still applies.`;
+    const tooltip = `Self-assessed confidence: ${s.label} (${assessment.score}/100) — a text heuristic computed from the response wording. It is NOT an external verification: no citation in this answer has been checked against a legal authority.\n\nEvidence:\n• ${assessment.indicators.join('\n• ')}\n\nThis is NOT a guarantee of correctness. Review Required still applies.`;
     return (
         <span
             className={`inline-flex items-center gap-1 text-2xs font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap ${s.chip}`}
             title={tooltip}
         >
             <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-            Confidence: {s.label}
+            Confidence: {s.label} (heuristic)
         </span>
     );
 };
@@ -105,7 +105,7 @@ export const AiDisclaimerBanner: React.FC<{ assistantName: string }> = ({ assist
     if (dismissed) return null;
     return (
         <div
-            className="mx-3 mb-2 rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-900/15 px-3 py-2.5 flex items-start gap-2.5 animate-fade-in"
+            className="mx-3 mb-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/80 dark:bg-amber-900/15 px-3 py-2.5 flex items-start gap-2.5 animate-fade-in"
             role="alert"
         >
             <svg className="w-4 h-4 flex-shrink-0 text-amber-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

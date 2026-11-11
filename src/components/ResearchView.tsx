@@ -171,11 +171,21 @@ const ResearchView: React.FC = () => {
                 //  receives the user's first query with the loaded sources.)
             } else {
                 // ─── Auto-start mode: send the query immediately ───
+                // V5 (research honesty): the old auto-sent follow-up asked the
+                // notebook chat to "verify each citation" — but this chat has
+                // no retrieval, so the model free-generated a "validity
+                // assessment". The instruction is now grounded: quote what the
+                // loaded sources actually say, and the notebook's sources are
+                // passed so the answer is source-backed.
                 setTimeout(() => {
-                    dataHandlers.handleSendResearchMessage(
+                    const nbSources = (documentState.researchSources || []).filter(s => s.notebookId === notebook.id);
+                    // V5: pass the notebook's sources so the auto-start answer is
+                    // source-backed (the old call passed no sources at all).
+                    (dataHandlers.handleSendResearchMessage as any)(
                         notebook.id,
-                        `${query}\n\nPlease verify each citation — confirm it exists, check the citation format is correct, and identify any potential issues. Provide a validity assessment for each source.`,
-                        []
+                        `${query}\n\nSummarise what the loaded sources say about this. For each citation the sources contain, quote it exactly as it appears and name which source it came from. Do not assess validity beyond what the sources establish — if something is not in the sources, say so plainly.`,
+                        undefined,
+                        nbSources,
                     );
                 }, 500);
             }

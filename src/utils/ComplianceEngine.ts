@@ -17,6 +17,12 @@ export const ComplianceEngine = {
         const warnings: ComplianceWarning[] = [];
 
         // ── 1. Limitation Law Check ──────────────────────────────────────────
+        // V5 (legal AI reliability): limitation warnings are now clearly ADVISORY
+        // and cause-aware in wording. They are keyed to the matter RECORD age
+        // (the date of cause of action is not captured), so they must never
+        // assert a specific limitation number for a state — the old "5 years
+        // (most states), 6 years (Lagos)" claim was unverifiable and varied
+        // by cause of action.
         const createdAt = new Date(matter.createdAt).getTime();
         const now = Date.now();
         const monthsElapsed = (now - createdAt) / (1000 * 60 * 60 * 24 * 30);
@@ -25,19 +31,19 @@ export const ComplianceEngine = {
         if (matter.type === 'Civil Litigation' && monthsElapsed > 3) {
             warnings.push({
                 type: 'LIMITATION',
-                severity: 'CRITICAL',
-                message: 'Potential Limitation Bar: Action may be time-barred if Defendant is a Public Officer (3-month window under POPA).',
-                action: 'Verify defendant status immediately and check if limitation period has expired.',
+                severity: 'HIGH',
+                message: 'Advisory — potential limitation bar: if the Defendant is a Public Officer, the Public Officers Protection Act applies a 3-month window. Confirm the defendant\'s status and whether the claim is already barred.',
+                action: 'Verify defendant status and, if a public officer, confirm the limitation window with counsel before filing.',
             });
         }
 
-        // General state limitation: 5 years (most states), 6 years (Limitation Law Lagos)
+        // Cause-of-action limitation reminder (advisory — record age only)
         if (monthsElapsed > 60) {
             warnings.push({
                 type: 'LIMITATION',
                 severity: 'HIGH',
-                message: 'Matter is older than 5 years — verify claim is within statutory limitation period.',
-                action: 'Check the applicable State Limitation Law for specific cause of action.',
+                message: 'Advisory — this matter record is over 5 years old. Confirm the applicable limitation period for the specific cause of action under the relevant Limitation Law (state or federal, as applicable) — periods differ by state and by cause of action.',
+                action: 'Check the applicable Limitation Law for the specific cause of action and the date it accrued.',
             });
         }
 

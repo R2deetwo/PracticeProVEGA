@@ -1198,7 +1198,7 @@ ${draftingPromptWithContext}`;
                 draftingPromptWithContext = `${activeDraftPrompt}
 
 --- CITATION INSTRUCTIONS ---
-You have access to the following verified sources. Cite them inline as [n] where n matches the source number. Do NOT invent new citations — only use the sources listed below. If you need a citation that isn't listed, leave an uncited assertion instead.
+You have access to the following researched sources (assembled by the AI during research — they are NOT externally verified against any legal authority). Cite them inline as [n] where n matches the source number. Do NOT invent new citations — only use the sources listed below. If you need a citation that isn't listed, leave an uncited assertion instead.
 
 ${sourceList}
 --- END CITATION INSTRUCTIONS ---`;
@@ -1275,7 +1275,7 @@ ${sourceList}
                             try {
                                 const { reviewDraft } = await import('../../../services/geminiService');
                                 const verifiedSet = (citationRegistry.getAll() || []).map((c: any) =>
-                                    String(c.citation || c.title || '')
+                                    String(c.text || c.rawText || '')
                                 ).filter(Boolean);
                                 const result = await reviewDraft(processedDraft, {
                                     documentTitle: title || 'Untitled Draft',

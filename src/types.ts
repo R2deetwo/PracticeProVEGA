@@ -419,7 +419,7 @@ export interface FirmActivity { id: string; firmId: string; userId: string; user
 export interface ArchivedItem { id: string; firmId: string; itemType: string; itemId: string; itemName: string; archivedAt: string; archiverId: string; archiverName: string; originalData: any; }
 export interface ExternalCounselInvite { id: string; firmId: string; matterId: string; email: string; name: string; firmName: string; roleInMatter: string; accessLevel: AccessLevel; expiresAt: string; status: 'pending' | 'accepted' | 'revoked' | 'expired'; invitedBy: string; }
 export interface ResearchNotebook { id: string; firmId: string; userId: string; name: string; matterId?: string; }
-export interface ResearchSource { id: string; firmId: string; notebookId: string; name: string; type: 'pdf' | 'text' | 'web'; content: string; file?: FileDetails; }
+export interface ResearchSource { id: string; firmId: string; notebookId: string; name: string; type: 'pdf' | 'text' | 'web'; content: string; file?: FileDetails; /** V5: for 'web' sources, the URL the content was actually fetched from (attribution + re-fetch). */ url?: string; }
 export interface ResearchCitation { sourceId: string; snippet: string; }
 export interface ResearchMessage { id: string; firmId: string; notebookId: string; role: 'user' | 'model'; content: string; timestamp: string; citations?: ResearchCitation[]; }
 export interface StudioAnalysisResult { id: string; firmId: string; notebookId: string; type: string; title: string; content: string; timestamp: string; }

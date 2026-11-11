@@ -2108,13 +2108,27 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             setAloaStatus('Checking rules & forms…');
                             const { generateEmbedding } = await import('../../utils/aiUtils');
                             const queryEmbedding = await generateEmbedding(query);
+                            // V5 (jurisdiction correctness): retrieval is now
+                            // jurisdiction-scoped. Without this filter a Delta or
+                            // Kano procedural query surfaced Lagos HC 2019 /
+                            // Lagos Tenancy Law provisions as "authoritative"
+                            // anchors — a Lagos bias the grounding prompt then
+                            // converted into asserted authority.
+                            const firmState = (coreState.firmDetails as any)?.defaultStateOfPractice;
                             const results: any[] = await convex.action(api.legalKnowledge.searchKnowledge, {
                                 queryEmbedding,
                                 sessionToken: (bearerToken ?? undefined) || undefined,
                                 userEmail: currentUser?.email,
                                 limit: 6,
+                                ...(firmState ? { jurisdictionKey: firmState } : {}),
                             });
-                            if (!results || results.length === 0) return "";
+                            if (!results || results.length === 0) {
+                                // V5 (corpus honesty): an empty corpus result is
+                                // DISCLOSED to the model instead of silently
+                                // returning "" — the old silent return let the
+                                // model answer as if coverage existed.
+                                return "[RULES & FORMS ENGINE: no matching entries in the built-in coverage for this query. Tell the user plainly that the built-in rules & forms corpus does not cover this query, and that they must verify against the primary source (the current rules of court / statute).]";
+                            }
                             return results.map((r: any) => {
                                 const unverified = r.verificationStatus === 'needs_founder_review'
                                     ? ' [pending founder verification]' : '';
@@ -2126,7 +2140,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             }).join('\n\n');
                         } catch (e) {
                             console.warn('[LegalRepo] Search skipped:', e);
-                            return "";
+                            // V5: corpus unavailability is disclosed, never silent.
+                            return "[RULES & FORMS ENGINE: unavailable right now. Tell the user plainly that the rules & forms corpus could not be reached, and that they must verify against the primary source.]";
                         }
                     };
 
@@ -2371,9 +2386,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                 // ── AI TRUST SIGNALS (Item 3) ── confidence +
                                 // unverified-citation scan + audit log on every
                                 // finalized AI output (this is the streaming path).
+                                // V5: confidence is scored on the RAW model text
+                                // (pre-identity-strip) — scoring the stripped
+                                // text removed the very hedging signals the
+                                // heuristic weighs, inflating the chip.
                                 const trustMarkers = findCitationMarkers(validatedText);
                                 const trustVerified = citationRegistryRef.current.getAll().map((c: any) => Number(c.number)).filter((n: number) => Number.isFinite(n));
-                                const trustConfidence = assessConfidence(validatedText, {
+                                const trustConfidence = assessConfidence(streamed.text, {
                                     citationMarkers: trustMarkers,
                                     verifiedCitationNumbers: trustVerified,
                                     hasSourcesBlock: trustVerified.length > 0,
@@ -2590,11 +2609,13 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         const parsedForm = tryParseInteractiveForm(displayText);
                         // ── AI TRUST SIGNALS (Item 3) — tool/research path:
                         // confidence + unverified [n] scan + audit log.
+                        // V5: confidence is scored on the RAW model text
+                        // (pre-identity-strip) — see the streaming-path note.
                         const trustMarkers = findCitationMarkers(displayText);
                         const trustVerified = messageCitations?.citations
                             ? (messageCitations.citations as any[]).map((c: any) => Number(c?.number)).filter((n: number) => Number.isFinite(n))
                             : [];
-                        const trustConfidence = assessConfidence(displayText, {
+                        const trustConfidence = assessConfidence(currentResponse.text, {
                             citationMarkers: trustMarkers,
                             verifiedCitationNumbers: trustVerified,
                             hasSourcesBlock: !!messageCitations,
@@ -2834,13 +2855,21 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             const title = extractDocumentTitle(content);
             const html = aloaContentToDraftHtml(content);
 
+            // V5 (chat vs document separation): a chat answer pasted into
+            // DraftPro verbatim has NOT been through the drafting protocol
+            // (no jurisdiction block, no quality bar, no self-review). The
+            // imported draft now carries a visible origin marker so it can
+            // never masquerade as a protocol-generated document.
+            const originNote = '<p style="text-align:center;"><em>[Imported from ALOA chat as-is — not generated through the drafting protocol. Review and rework before filing.]</em></p>';
+            const htmlWithOrigin = `${originNote}${html}`;
+
             // Build the draft config — pass the content as draftContent so
             // DraftPro loads it directly. disableAutoDraft=true so it doesn't
             // re-generate (the AI already wrote the content).
             const draftConfig: any = {
                 openedByAloa: true,
                 draftTitle: title,
-                draftContent: html,
+                draftContent: htmlWithOrigin,
                 disableAutoDraft: true,
                 draftPrompt: undefined,
             };
@@ -2861,7 +2890,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                 try {
                     saveDraftSession(fid, key, {
                         title,
-                        content: html,
+                        content: htmlWithOrigin,
                         draftPrompt: undefined,
                         matterId: undefined,
                         updatedAt: new Date().toISOString(),
@@ -3418,7 +3447,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     )}
                     <button
                         onClick={() => { setActiveView('chat'); setActiveNoteId(null); }}
-                        className={`flex-shrink-0 p-2 sm:p-2.5 rounded-xl transition-all duration-150 active:scale-[0.98] ${activeView === 'chat' ? 'bg-primary-600' : 'bg-slate-200 dark:bg-zinc-800 text-slate-400'}`}
+                        className={`flex-shrink-0 p-2 sm:p-2.5 rounded-md transition-all duration-150 active:scale-[0.98] ${activeView === 'chat' ? 'bg-primary-600' : 'bg-slate-200 dark:bg-zinc-800 text-slate-400'}`}
                     >
                         <AloaIcon className={`w-6 h-6 sm:w-7 sm:h-7 ${activeView === 'chat' ? 'text-white' : ''} ${aloaState === 'speaking' ? 'animate-pulse' : ''}`} />
                     </button>

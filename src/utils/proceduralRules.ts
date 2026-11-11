@@ -30,30 +30,35 @@ export const PROCEDURAL_RULES: Record<string, Partial<Record<CourtType, Procedur
                 'List of Witnesses',
                 'Witness Statements on Oath',
                 'List of Documents',
-                'Pre-Action Protocol Form 01 (Lagos)',
+                // V5 (jurisdiction honesty): the pre-action protocol form is a
+                // Lagos HC CPR 2019 requirement — it must not be presented as a
+                // universal requirement for every state's High Court.
+                'Pre-Action Protocol form, where the state\'s rules prescribe one (e.g., Lagos HC CPR 2019 Form 01)',
             ],
             deadlines: {
                 'Statement of Claim': '7 days after Writ is filed',
-                'Statement of Defence': '42 days after service on Defendant',
+                // V5: 42 days is the Lagos HC CPR 2019 figure — other states
+                // differ; require confirmation instead of asserting a period.
+                'Statement of Defence': '42 days under the Lagos HC CPR 2019 — confirm the period under this state\'s High Court Rules',
             },
             nextSteps: [
                 'Service of Writ on Defendant',
-                'Defendant Entry of Appearance (8 days)',
+                'Defendant Entry of Appearance (period per the state\'s rules)',
                 'Statement of Defence',
                 'Pre-Trial Conference',
             ],
             complianceChecks: [
-                'Missing Pre-Action Protocol Form 01',
+                'Pre-Action Protocol form missing/unconfirmed (required only in states whose rules prescribe one, e.g., Lagos)',
                 'Missing Witness Statements on Oath',
                 'Claim may be better suited for Undefended List (liquidated sum)',
             ],
             conditions: [
                 { if: 'claim_type == liquidated_sum', then: 'Suggest switching to Undefended List for faster resolution' },
-                { if: 'claim_value > 100000000', then: 'Consider Commercial Division filing' },
+                { if: 'claim_value > 100000000', then: 'Consider the state\'s commercial/fast-track division, where one exists' },
             ],
             strategicFlags: [
-                'File in Commercial Division for faster hearing if claim > ₦100M',
-                'Lagos Pre-Action Protocol is MANDATORY — failure risks dismissal',
+                'Where the state has a commercial division (e.g., Lagos), filing there may secure faster hearings for high-value claims',
+                'Where the state\'s rules prescribe a pre-action protocol (e.g., Lagos HC CPR 2019), compliance is mandatory — non-compliance risks dismissal',
                 'Consider Accelerated Hearing application if facts are straightforward',
             ],
         },

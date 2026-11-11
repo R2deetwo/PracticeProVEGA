@@ -262,7 +262,10 @@ export const analyzeDocument = async (
       config: { responseMimeType: "application/json" }
     });
 
-    const rpcResult = JSON.parse(rpcResponse.text || '{"status": "approved", "commentary": "Verified."}');
+    // V5: the fallback used to DEFAULT TO "approved"/"Verified." when the
+    // model returned empty text — fabricating a pass. An empty response is
+    // now an honest failure state the UI labels as pending.
+    const rpcResult = JSON.parse(rpcResponse.text || '{"status": "warning", "commentary": "The compliance self-review could not be completed — treat this document as unreviewed."}');
 
     // 4. Assemble Final Report — include PII stripping report
     //    V1-D: piiStripped carries MASKED previews only (originals are

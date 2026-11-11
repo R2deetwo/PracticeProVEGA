@@ -122,7 +122,11 @@ export const analyzeMatterIntelligence = (title: unknown, court?: unknown, value
             id: 'monetary-limit',
             icon: <Wallet className="w-4 h-4" />,
             type: 'warning',
-            text: `High Value Claim: A ₦${value.toLocaleString()} claim likely exceeds Magistrate Court limits (e.g., ₦10m in Lagos). Verified jurisdictional limits before filing.`
+            // V5 (jurisdiction honesty): ₦10m is the LAGOS Chief Magistrate
+            // ceiling — other states' caps are often far lower. The hint is now
+            // advisory and asks for the state's actual limit instead of
+            // asserting a verified figure (the old "Verified" was also a typo).
+            text: `High Value Claim: A ₦${value.toLocaleString()} claim exceeds the Lagos Chief Magistrate ceiling (₦10m) and will exceed most states' lower ceilings. Verify this state's Magistrate Court monetary limit before filing.`
         });
     }
 

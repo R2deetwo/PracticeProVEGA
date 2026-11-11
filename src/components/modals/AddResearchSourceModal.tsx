@@ -4,10 +4,11 @@ import { UploadIcon, DocumentLinkIcon, GlobeIcon, ClipboardListIcon, SaveIcon, X
 import { FileText as FileTextIcon } from 'lucide-react';
 import { formatBytes } from '../../utils/formatting';
 import { inputClassic } from '../../utils/formStyles';
+import { fetchUrlContentClient } from '../../utils/webFetchClient';
 
 interface AddResearchSourceModalProps {
   notebookId: string;
-  onAdd: (notebookId: string, sourceData: { name: string, type: 'pdf' | 'text' | 'web', content: string, file?: FileDetails }) => void;
+  onAdd: (notebookId: string, sourceData: { name: string, type: 'pdf' | 'text' | 'web', content: string, url?: string, file?: FileDetails }) => void;
   onClose: () => void;
 }
 
@@ -64,12 +65,33 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
         setProcessing(false);
         return;
       }
-      onAdd(notebookId, {
-        name: name.trim() || new URL(url).hostname,
-        type: 'web',
-        content: `[Content scraped from ${url}]`,
-      });
-      onClose();
+      // V5 (research honesty): the Website tab USED to store a placeholder
+      // string ("Content scraped from <url>") without fetching anything —
+      // the AI then free-generated while the UI implied real page content
+      // had been ingested. The page is now ACTUALLY fetched (client-side
+      // via the same CORS-proxy pipeline the sources column and ALOA use).
+      // If the fetch fails, no source is added — an honest error instead of
+      // a fake source.
+      try {
+        const result = await fetchUrlContentClient(url.trim());
+        const content = (result.content || '').trim();
+        if (!result.success || !content) {
+          setError(`Couldn't read that page (${result.error || 'no text extracted'}). Pages that block automated reading can't be added as sources — try uploading a PDF or pasting the text instead.`);
+          setProcessing(false);
+          return;
+        }
+        onAdd(notebookId, {
+          name: name.trim() || new URL(url.trim()).hostname,
+          type: 'web',
+          content,
+          url: url.trim(),
+        });
+        onClose();
+      } catch (e: any) {
+        setError(`Couldn't read that page (${e?.message || 'fetch failed'}). Try uploading a PDF or pasting the text instead.`);
+        setProcessing(false);
+        return;
+      }
 
     } else if (activeTab === 'upload') {
       if (files.length === 0) {
@@ -163,7 +185,7 @@ const AddResearchSourceModal: React.FC<AddResearchSourceModalProps> = ({ noteboo
 
       {activeTab === 'website' && (
         <div className="space-y-4 animate-fade-in">
-          <Guidance icon={<GlobeIcon className="w-3.5 h-3.5" />} text="Enter a public URL with text-based content. The AI will extract key legal indices and context for your notebook." />
+          <Guidance icon={<GlobeIcon className="w-3.5 h-3.5" />} text="Enter a public URL with text-based content. PracticePro fetches the page text NOW, at add time (via public read-only proxies) and stores it with its URL. Pages that block automated reading can't be added — paste the text or upload a PDF instead. Never treat an unfetched URL as a source." />
           <div>
             <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1">Website URL</label>
             <div className="relative">

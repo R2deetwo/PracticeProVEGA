@@ -4,7 +4,7 @@ import { Matter } from '../types';
 
 interface ScaleFeeAnalysis {
     applies: boolean;
-    scaleCategory: 'Scale I' | 'Scale II' | 'None';
+    scaleCategory: 'Scale 4' | 'None';
     legalBasis: string;
     calculationGuidance: string;
     complianceNote: string;
@@ -23,8 +23,8 @@ You must follow this logic:
 1. Identify the nature of the legal matter from the matter title and description.
 2. Determine whether the matter involves legal documentation relating to land.
 3. If the matter involves land documentation:
-   a. Apply the Legal Practitioners (Remuneration for Legal Documentation and Other Land Matters) Order 2023.
-   b. Use progressive percentage bands.
+   a. Apply the Legal Practitioners (Remuneration for Legal Documentation and Other Land Matters) Order 2023 — the same instrument the app's scale engine cites (src/utils/scaleOfCharges.ts).
+   b. Use the Scale 4 progressive percentage bands (10% to ₦50m; ₦5m + 5% to ₦100m; ₦7.5m + 3% above).
    c. Warn that deviation from the scale may constitute professional misconduct.
 4. If the matter does NOT involve land documentation:
    a. State clearly that no statutory scale of charges applies.
@@ -59,7 +59,7 @@ export const analyzeScaleCompliance = async (
                     type: Type.OBJECT,
                     properties: {
                         applies: { type: Type.BOOLEAN, description: "True if Scale of Charges applies (Land matters)." },
-                        scaleCategory: { type: Type.STRING, enum: ['Scale I', 'Scale II', 'None'], description: "Scale I for Sales/Mortgages, Scale II for Leases/Tenancy." },
+                        scaleCategory: { type: Type.STRING, enum: ['Scale 4', 'None'], description: "Scale 4 (preparation of agreements and land documents) — the same scale the app's invoice engine computes. 'None' when no statutory scale applies." },
                         legalBasis: { type: Type.STRING, description: "Citation of the relevant Order or reason for non-applicability." },
                         calculationGuidance: { type: Type.STRING, description: "Brief explanation of how the fee should be calculated (e.g. percentages)." },
                         complianceNote: { type: Type.STRING, description: "Warning about professional misconduct or advice on billing discretion." },

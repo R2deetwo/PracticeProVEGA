@@ -1,11 +1,13 @@
-
 import { streamGemini, streamGeminiMultipart } from '../utils/aiUtils';
-import { ResearchSource, ResearchMessage, ResearchCitation } from '../types';
+import { ResearchSource } from '../types';
 
-export type AnalysisType = 'Chronology' | 'Brief' | 'Digest' | 'Gap' | 'Adversarial';
+// V5: widened to match the tool names the Studio actually sends (the old
+// union was missing 'Legal Matrix' / 'Gap Analysis' / 'Case Brief' /
+// 'Pleading Digest', which the caller had to force-cast over).
+export type AnalysisType = 'Chronology' | 'Brief' | 'Digest' | 'Gap' | 'Adversarial' | 'Case Brief' | 'Pleading Digest' | 'Legal Matrix' | 'Gap Analysis';
 
 // --- CONSTANTS ---
-const SENIOR_ASSOCIATE_PERSONA = `You are ALOA (Advanced Legal Office Assistant), a Senior Associate at a top-tier law firm. 
+const SENIOR_ASSOCIATE_PERSONA = `You are ALOA (Advanced Legal Office Assistant), a Senior Associate at a top-tier law firm.
 Your goal is to provide precise, rigorous, and strategically sound legal analysis based *only* on the provided sources.
 
 STRICT GROUNDING RULES:
@@ -13,7 +15,12 @@ STRICT GROUNDING RULES:
 2. If the answer is not in the sources, state: "The provided case files do not contain information regarding [X]."
 3. Use a formal, objective, and analytical tone.
 4. Format citations using blue pill tags: [Source Name].
-5. Organize complex answers into clear headings (e.g., Facts, Issues, Rule, Analysis, Conclusion).`;
+5. Organize complex answers into clear headings (e.g., Facts, Issues, Rule, Analysis, Conclusion).
+
+V5 (EVIDENCE INTEGRITY — applies to EVERY analysis):
+6. Every date, party, event or amount you mention must come from the provided sources. If the sources do not establish it, write [not established in sources] instead of inventing it — never guess a date, a party, or an event into the record.
+7. OPEN your output with this line: "AI-generated analysis — derived from the connected sources; verify against the underlying documents before relying on it."
+8. Close with a "Source gaps" section listing anything the sources do NOT establish (missing documents, undated events, unnamed parties) so the gaps stay visible.`;
 
 // Helper: detect PDF sources (both new __PDF_BASE64__ format and legacy empty-content + file.dataUrl)
 const isPdfSource = (s: ResearchSource): boolean =>
@@ -30,16 +37,22 @@ const getPdfDataUrl = (s: ResearchSource): string => {
 
 /**
  * Perform specialized analysis on a set of sources.
+ *
+ * V5 (evidence integrity): on failure this now THROWS instead of returning
+ * an error string — the Studio used to save that string as a "Chronology"
+ * / "Gap Analysis" result. An empty run is also an error, not a "result".
  */
 export const analyzeSources = async (sources: ResearchSource[], typeOrPrompt: string): Promise<string> => {
-    if (sources.length === 0) return "No sources provided for analysis.";
+    if (sources.length === 0) {
+        throw new Error('No sources provided for analysis.');
+    }
 
     // Separate PDFs from text sources
     const pdfSources = sources.filter(isPdfSource);
     const textSources = sources.filter(s => !isPdfSource(s));
 
     const textContext = textSources.length > 0
-        ? textSources.map(s => `--- SOURCE: ${s.name} ---\n${s.content || '(No content)'}`).join('\n\n')
+        ? textSources.map(s => `--- SOURCE: ${s.name} ---\n${s.content || '(No content)'}${s.url ? `\n(fetched from: ${s.url})` : ''}`).join('\n\n')
         : '';
 
     try {
@@ -64,115 +77,7 @@ export const analyzeSources = async (sources: ResearchSource[], typeOrPrompt: st
         const response = await streamGemini(prompt);
         return response;
     } catch (error) {
-        console.error("Analysis failed:", error);
-        return "I encountered an error while analyzing the sources. Please check your API configuration.";
-    }
-};
-
-/**
- * Chat with a set of sources, optionally focusing on specific IDs.
- */
-export const chatWithSources = async (
-    messages: ResearchMessage[],
-    sources: ResearchSource[],
-    selectedSourceIds?: string[]
-): Promise<{ content: string; citations: ResearchCitation[] }> => {
-
-    const activeSources = selectedSourceIds && selectedSourceIds.length > 0
-        ? sources.filter(s => selectedSourceIds.includes(s.id))
-        : sources;
-
-    const sourceContext = activeSources.map(s => `SOURCE ID: ${s.id}\nSOURCE NAME: ${s.name}\nCONTENT: ${s.content}`).join('\n\n');
-
-    // Only send the last few messages to the AI to save tokens/context
-    const chatHistory = messages.slice(-10).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
-
-    const prompt = `${SENIOR_ASSOCIATE_PERSONA}
-
-SOURCES:
-${sourceContext}
-
-HISTORY:
-${chatHistory}
-
-USER: ${messages[messages.length - 1].content}
-
-INSTRUCTIONS:
-Response in markdown. For every fact extracted, append the source ID in brackets like [[source_id]].
-I will post-process these into interactive citation bubbles.
-
-ALOA:`;
-
-    try {
-        // Build multipart request for Gemini when PDFs are present
-        const pdfSources = activeSources.filter(isPdfSource);
-        const textSources = activeSources.filter(s => !isPdfSource(s));
-
-        const textContext = textSources.map(s => `SOURCE ID: ${s.id}\nSOURCE NAME: ${s.name}\nCONTENT: ${s.content}`).join('\n\n');
-        
-        const prompt = `${SENIOR_ASSOCIATE_PERSONA}
-
-SOURCES:
-${textContext}
-
-HISTORY:
-${chatHistory}
-
-USER: ${messages[messages.length - 1].content}
-
-INSTRUCTIONS:
-Response in markdown. For every fact extracted, append the source ID in brackets like [[source_id]].
-I will post-process these into interactive citation bubbles.
-
-ALOA:`;
-
-        let fullResponse: string;
-
-        if (pdfSources.length > 0) {
-            const parts: any[] = [];
-            for (const pdfSource of pdfSources) {
-                const dataUrl = getPdfDataUrl(pdfSource);
-                if (!dataUrl) continue;
-                const base64Data = dataUrl.split(',')[1];
-                const mimeType = dataUrl.split(';')[0].replace('data:', '') || 'application/pdf';
-                parts.push({ text: `[PDF Document: ${pdfSource.name}, ID: ${pdfSource.id}]` });
-                parts.push({ inlineData: { mimeType, data: base64Data } });
-            }
-            parts.push({ text: prompt });
-            fullResponse = await streamGeminiMultipart(parts);
-        } else {
-            fullResponse = await streamGemini(prompt);
-        }
-
-        // Extract citations from [[source_id]] pattern
-        const citations: ResearchCitation[] = [];
-        const sourceIdRegex = /\[\[(source_\d+)\]\]/g;
-        let match;
-
-        while ((match = sourceIdRegex.exec(fullResponse)) !== null) {
-            const sourceId = match[1];
-            const source = sources.find(s => s.id === sourceId);
-            if (source && !citations.find(c => c.sourceId === sourceId)) {
-                citations.push({
-                    sourceId: source.id,
-                    snippet: `Reference from ${source.name}`
-                });
-            }
-        }
-
-        // Clean up the response text for display
-        const displayContent = fullResponse.replace(/\[\[source_\d+\]\]/g, (match: string) => {
-            const sid = match.slice(2, -2);
-            const source = sources.find(s => s.id === sid);
-            return source ? `[${source.name}]` : '';
-        });
-
-        return { content: displayContent, citations };
-    } catch (error) {
-        console.error("Chat failed:", error);
-        return {
-            content: "I'm sorry, I couldn't process that request right now. Please check your connection or API key.",
-            citations: []
-        };
+        console.error('Analysis failed:', error);
+        throw error instanceof Error ? error : new Error(String(error));
     }
 };

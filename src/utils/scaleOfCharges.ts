@@ -1,13 +1,22 @@
 /**
- * scaleOfCharges — the Legal Practitioners Remuneration (For Business,
- * Legal Service and Representation) Order 2023, Scale 4 (property
- * transactions), as deterministic arithmetic.
+ * scaleOfCharges — the Legal Practitioners (Remuneration for Legal
+ * Documentation and Other Land Matters) Order 2023, Scale 4 (preparation
+ * of agreements and land documents), as deterministic arithmetic.
  *
  * R40 (owner direction: "look at every word said on the Vega site — if the
  * app doesn't do it yet, make sure it can"): the site's Scale-of-Charges
  * band claims "every line item is computed on the Scale of Charges under
  * the Remuneration Order 2023." This util is that computation, wired into
  * the invoice form for land-documentation matters.
+ *
+ * V5 (Scale of Charges reconciliation): the instrument is the LAND-MATTERS
+ * Order — the order that governs fees for legal documentation of land —
+ * NOT the Business/Legal Service/Representation Order 2023 (a different
+ * instrument for a different subject). One name everywhere now: this util,
+ * the ScaleOfChargesAgent and the invoice form all cite the same Order.
+ * Verify the band figures against the current Order schedule (NBA /
+ * Remuneration Committee) before relying on them — the bands below are
+ * the app's pinned computation.
  *
  * THE SCHEDULE (Scale 4 — preparation of agreements and land documents;
  * NBA enforcement protocol, Remuneration Committee):
@@ -58,10 +67,10 @@ const FIFTY_M = 50_000_000;
 const HUNDRED_M = 100_000_000;
 
 export const SCALE_4_REFERENCE =
-    'Legal Practitioners Remuneration (For Business, Legal Service and Representation) Order 2023 — Scale 4 (property transactions)';
+    'Legal Practitioners (Remuneration for Legal Documentation and Other Land Matters) Order 2023 — Scale 4 (preparation of agreements and land documents)';
 
 export const SCALE_4_COMPLIANCE_NOTE =
-    'Fees for the preparation of agreements and land documents are prescribed by Scale 4 of the Remuneration Order 2023. Charging below the scale may constitute professional misconduct.';
+    'Fees for the preparation of agreements and land documents are prescribed by Scale 4 of the (Remuneration for Legal Documentation and Other Land Matters) Order 2023. Charging below the scale may constitute professional misconduct.';
 
 /** Matter types whose documentation the land scale covers. */
 export const LAND_DOCUMENTATION_MATTER_TYPES: MatterType[] = [

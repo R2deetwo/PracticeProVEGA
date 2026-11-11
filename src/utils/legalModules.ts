@@ -256,7 +256,9 @@ export const LEGAL_MODULES: LegalModule[] = [
         version: 'Current',
         authority: 'Nigerian Law Publications',
         description:
-            'Full-text access to Nigerian Weekly Law Reports — searchable by court, subject matter, year, and principle. Powers ARIA case law reasoning.',
+            // V5 (honesty): the old copy claimed full-text access "powers ARIA
+            // case law reasoning" — nothing powers it; no corpus is connected.
+            'Planned full-text access to Nigerian Weekly Law Reports — searchable by court, subject matter, year, and principle. NOT AVAILABLE YET: no law-report database is connected; nothing in PracticePro is verified against NWLR today.',
         coverageAreas: [],
         primaryMatterTypes: Object.values(MatterType),
         status: 'coming_soon',
@@ -272,7 +274,8 @@ export const LEGAL_MODULES: LegalModule[] = [
         version: 'Current',
         authority: 'Supreme Court of Nigeria',
         description:
-            'Official Supreme Court judgments — searchable full text for citation, precedent analysis, and ARIA legal reasoning.',
+            // V5: no invented capability claims for an unbuilt module.
+            'Planned official Supreme Court judgments — searchable full text for citation and precedent analysis. NOT AVAILABLE YET: no law-report database is connected; nothing in PracticePro is verified against any law report today.',
         coverageAreas: [],
         primaryMatterTypes: Object.values(MatterType),
         status: 'coming_soon',

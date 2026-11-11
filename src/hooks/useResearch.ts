@@ -44,6 +44,9 @@ export const useResearch = (appState: AppState, actions: any) => {
             type: sourceData.type || 'text',
             content: sourceData.content || '',
             file: sourceData.file || null,
+            // V5 (research attribution): 'web' sources keep the URL they were
+            // actually fetched from.
+            ...(sourceData.url ? { url: sourceData.url } : {}),
             createdAt: new Date().toISOString(),
         };
         actions.addItem('researchSources', source, 'Source');
@@ -124,9 +127,19 @@ export const useResearch = (appState: AppState, actions: any) => {
             const ai = new GoogleGenAI({ apiKey });
             const model = AI_CONFIG.gemini.defaultModel;
 
-            const systemPrompt = `You are a legal research assistant. The user has provided the following source documents as context. Answer their question based on the sources. If the answer isn't in the sources, say so.
+            // V5 (research honesty): free-generation is no longer silently equal to
+        // source-grounded research. When nothing is in context, the model is
+        // instructed to OPEN with an ungrounded disclosure, and the saved
+        // message gets a deterministic ungrounded prefix so the label survives
+        // reloads (it is part of content, which the table already stores).
+        const grounded = sourceContext.includes('--- SOURCE:') || fileStorageIds.length > 0;
+        const ungroundedPrefix = '[Ungrounded — no sources in context: this is an AI suggestion from general knowledge, not source-backed research. Verify before relying on it.]\n\n';
 
-SOURCE DOCUMENTS:${sourceContext || '\n(No sources provided — answer based on general knowledge if possible, otherwise ask for sources.)'}`;
+        const systemPrompt = `You are a legal research assistant. The user has provided the following source documents as context. Answer their question based on the sources. If the answer isn't in the sources, say so.
+
+SOURCE DOCUMENTS:${grounded
+                ? sourceContext
+                : '\n(No sources in context. Answer only what you can honestly say from general legal knowledge, and OPEN with: "(Ungrounded answer — no sources were in context.)" Prefer asking the user to add sources for anything source-dependent. Never present an ungrounded answer as source-backed research, and never cite sources that were not provided.)'}`;
 
             const response = await ai.models.generateContent({
                 model,
@@ -137,13 +150,14 @@ SOURCE DOCUMENTS:${sourceContext || '\n(No sources provided — answer based on 
                 },
             });
 
-            const responseText = response.text || 'No response generated. Please try rephrasing your question.';
+            const responseText = (response.text || 'No response generated. Please try rephrasing your question.');
+            const finalText = grounded ? responseText : `${ungroundedPrefix}${responseText}`;
 
             // 5. Update the AI message with the response
             // Use try-catch in case updateItem fails — the message will still
             // be in local state even if the Convex update fails
             try {
-                await actions.updateItem('researchMessages', { id: aiMsgId, content: responseText, isThinking: false }, 'Message');
+                await actions.updateItem('researchMessages', { id: aiMsgId, content: finalText, isThinking: false }, 'Message');
             } catch (updateErr) {
                 console.warn('[Research] updateItem failed, message may be stuck in thinking state:', updateErr);
                 // Force-remove from local state and re-add with the response
@@ -152,7 +166,7 @@ SOURCE DOCUMENTS:${sourceContext || '\n(No sources provided — answer based on 
                     id: aiMsgId,
                     firmId: currentUser?.firmId,
                     notebookId,
-                    content: responseText,
+                    content: finalText,
                     role: 'model',
                     timestamp: new Date().toISOString(),
                     isThinking: false,

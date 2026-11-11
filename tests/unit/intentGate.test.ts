@@ -19,6 +19,35 @@ import {
 const gate = (userMsg: string, toolName = 'start_drafting', args: any = { prompt: 'Draft a tenancy agreement for Mr. Okafor, 12 months, Lagos' }, modelMsg = '') =>
     shouldBlockToolCall({ lastUserMessage: userMsg, lastModelMessage: modelMsg, toolName, args });
 
+// ─── V5 (legal AI reliability) — the gate censors ACTIONS, never subject ─────
+describe('V5 — the gate blocks phantom actions, never legal subject matter', () => {
+    it('legal questions are never blocked as content (jurisdiction guardrails are advisory, not censorship)', () => {
+        const questions = [
+            'What is the limitation period for debt recovery in Kano?',
+            'Please assist me — I need a specialist to review this statute',
+            'Can you help with a landlord matter in another state?',
+        ];
+        for (const q of questions) {
+            expect(gate(q, 'query_firm_data', {}).blocked, `read-only tool for "${q}"`).toBe(false);
+            expect(gate(q, 'start_drafting', { prompt: 'Draft a letter of demand' }).blocked, `real drafting request in "${q}"`).toBe(false);
+        }
+    });
+
+    it('work words inside a real request do not trip the greeting classifier', () => {
+        expect(gate('Please help me assist my client with the tenancy renewal', 'create_task', { title: 'Review tenancy' }).blocked).toBe(false);
+        expect(gate('Good morning — please draft the quit notice for the Ikoyi property', 'start_drafting', { prompt: 'Draft a notice to quit' }).blocked).toBe(false);
+    });
+
+    it('bare greetings still block, even with work words in the model message', () => {
+        expect(gate('hi', 'create_event', {}).blocked).toBe(true);
+    });
+
+    it('the mutating/read-only split stays intact (no scope creep from V5)', () => {
+        expect(MUTATING_TOOLS.has('start_drafting')).toBe(true);
+        expect(MUTATING_TOOLS.has('search_web')).toBe(false);
+    });
+});
+
 describe('MUTATING_TOOLS', () => {
     it('covers the creating/mutating tools and no read-only ones', () => {
         for (const t of ['start_drafting', 'create_matter', 'create_task', 'create_contact', 'create_event', 'create_property', 'draft_workflow', 'execute_quick_action', 'update_open_form']) {

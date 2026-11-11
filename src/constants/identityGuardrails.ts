@@ -55,29 +55,35 @@ export const getIdentityGuardrail = (isProperty: boolean): string => {
  * the offending phrase (and its sentence, when the phrase reads like a
  * standalone disclaimer) and keep the rest of the answer intact. The
  * canned fallback is reserved for responses that are ONLY the leak.
+ *
+ * V5 (legal AI reliability): the strip list was ALSO deleting the model's
+ * honest uncertainty vocabulary ("my knowledge cutoff", "my training data",
+ * "I don't have personal experiences", …) — i.e. it stripped the very
+ * hedging the trust contract depends on, and the confidence heuristic then
+ * scored the already-sanitized text (AloaChat), inflating displayed
+ * confidence. The list is now SPLIT: only phrases that leak the underlying
+ * model/architecture identity are redacted. Phrases that express genuine
+ * limits or uncertainty are RETAINED — a hedged answer is honest; a
+ * confident-sounding stripped one is not.
  */
 export const validateAIResponse = (
     response: string,
     isProperty: boolean
 ): string => {
+    // V5: identity-leak phrases ONLY. Phrases expressing uncertainty or
+    // genuine limits ("my knowledge cutoff", "my training data", "as an AI",
+    // "I cannot perform physical actions", …) are deliberately NOT stripped —
+    // removing them deleted the model's hedging and inflated the displayed
+    // confidence above what the evidence supports.
     const prohibitedPhrases = [
         "large language model",
+        "as a language model",
         "trained by Google",
         "Google Gemini",
-        "as an AI",
-        "as a language model",
         "I'm a large language model",
         "I am a large language model",
-        "my training data",
-        "my knowledge cutoff",
-        "I don't have personal experiences",
-        "I cannot perform physical actions",
-        "I exist only as software",
         "I was created by",
         "I was trained by",
-        "I am an AI",
-        "I'm an AI",
-        "as an artificial intelligence",
     ];
 
     const lowerResponse = response.toLowerCase();

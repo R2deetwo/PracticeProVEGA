@@ -454,12 +454,14 @@ export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firm
     const allModulesRaw = useQuery(api.legalRepo.getAllModules);
     const allModules = [
         ...(allModulesRaw || []),
-        ...LEGAL_MODULES.filter(m => m.status === 'locked')
+        // V5 (honesty): coming_soon modules (NWLR / SCNLR law reports) are no
+        // longer hidden — an unbuilt capability is disclosed, not concealed.
+        ...LEGAL_MODULES.filter(m => m.status === 'locked' || m.status === 'coming_soon')
     ];
 
     const totalActiveCount = activeKeys.size;
     const lockedCount   = allModules.filter((m: any) => m.status === 'locked').length;
-    const comingCount   = 0; // coming_soon modules are hidden from the UI
+    const comingCount   = allModules.filter((m: any) => m.status === 'coming_soon').length;
 
     const filtered = allModules.map((m: any) => ({
         ...m,

@@ -1,4 +1,5 @@
 
+import { getJurisdiction } from './jurisdictionConfig';
 import { Matter, LitigationParty } from '../types';
 
 /**
@@ -26,8 +27,19 @@ export class TemplateService {
      * Generates a standard Nigerian High Court heading with proper alignment and styling.
      */
     static generateHeading(matter: Matter): string {
-        const court = (matter.court || 'IN THE HIGH COURT OF JUSTICE').toUpperCase();
-        const division = (matter.judicialDivision || 'LAGOS STATE').toUpperCase();
+        // V5 (jurisdiction correctness): the division fallback was hard-coded
+        // 'LAGOS STATE' for ANY matter without a judicial division — a Lagos
+        // assumption on every state's matters. The caption and division now
+        // come from the shared jurisdiction registry when a state is known,
+        // and honest placeholders when it is not.
+        const stateKey = (matter as any).stateOfPractice || (matter as any).state || '';
+        const hasState = Boolean(stateKey);
+        const j = getJurisdiction(stateKey || null);
+        const usesFhc = (matter.court || '').toLowerCase().includes('federal');
+        const court = (matter.court || (hasState
+            ? (usesFhc ? j.federalHighCourtCaption : j.highCourtCaption)
+            : (usesFhc ? 'IN THE FEDERAL HIGH COURT OF NIGERIA' : 'IN THE HIGH COURT OF [STATE]'))).toUpperCase();
+        const division = (matter.judicialDivision || (hasState ? j.defaultDivision : '[JUDICIAL DIVISION]')).toUpperCase();
         const suitNo = (matter.suitNumber || '[SUIT NUMBER]').toUpperCase();
         
         const claimants = matter.parties?.filter(p => p.role === 'Claimant') || [];
@@ -63,7 +75,7 @@ export class TemplateService {
             <p style="text-align: center;"><strong>WRIT OF SUMMONS</strong></p>
             <p>&nbsp;</p>
             <p>To: [DEFENDANT NAME] of [DEFENDANT ADDRESS]</p>
-            <p>You are hereby commanded that within forty-two (42) days after the service of this writ on you, inclusive of the day of such service, you do cause an appearance to be entered for you in an action at the suit of:</p>
+            <p>You are hereby commanded that within [APPEARANCE WINDOW — confirm the period under the applicable High Court (Civil Procedure) Rules] after the service of this writ on you, inclusive of the day of such service, you do cause an appearance to be entered for you in an action at the suit of:</p>
             <p><strong>{[CLAIMANT NAME]}</strong></p>
             <p>And take notice that in default of your so doing the Claimants may proceed therein, and judgment may be given in your absence.</p>
             <p>&nbsp;</p>
@@ -113,7 +125,7 @@ export class TemplateService {
         return `
             ${heading}
             <p style="text-align: center;"><strong>MOTION ON NOTICE</strong></p>
-            <p style="text-align: center;"><strong>BROUGHT PURSUANT TO [ORDER & RULE] OF THE HIGH COURT (CIVIL PROCEDURE) RULES {2021}</strong></p>
+            <p style="text-align: center;"><strong>BROUGHT PURSUANT TO [ORDER & RULE] OF THE HIGH COURT (CIVIL PROCEDURE) RULES [YEAR — confirm the state\'s current rules]</strong></p>
             <p>&nbsp;</p>
             <p><strong>TAKE NOTICE</strong> that this Honourable Court will be moved on {[DATE]} at the hour of 9 o'clock in the forenoon or soon thereafter as Counsel can be heard for the following orders:</p>
             <p>1. <strong>AN ORDER</strong> [SPECIFIC RELIEF SOUGHT].</p>

@@ -862,6 +862,9 @@ export default defineSchema({
     type: nullableString,
     content: nullableString,
     file: v.optional(v.any()),
+    // V5 (research attribution): the URL a 'web' source was actually fetched
+    // from — additive, optional, no migration needed.
+    url: v.optional(v.string()),
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,

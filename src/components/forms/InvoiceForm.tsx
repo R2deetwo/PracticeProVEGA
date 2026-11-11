@@ -74,7 +74,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       // One line per band, plus the statutory reference — the fee note the
       // profession expects to see, item by item.
       const bandLines: Partial<InvoiceLineItem>[] = scaleNote.bands.map((b) => ({
-          description: `Professional fee — ${b.label} (${b.rateLabel}) · Scale 4, Remuneration Order 2023`,
+          description: `Professional fee — ${b.label} (${b.rateLabel}) · Scale 4, (Remuneration for Legal Documentation and Other Land Matters) Order 2023`,
           total: b.amount,
           hours: 1,
           rate: b.amount,
@@ -82,7 +82,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       setLineItems((prev) => {
           // Replace any previous scale lines rather than stacking copies
           const kept = prev.filter(
-              (li) => !String(li.description || '').includes('Scale 4, Remuneration Order 2023'),
+              (li) => !String(li.description || '').includes('Scale 4, (Remuneration for Legal Documentation and Other Land Matters) Order 2023'),
           );
           // If the only line is an untouched empty one, drop it
           const cleaned = kept.filter((li, i) => !(kept.length === 1 && !li.description && !li.total));
@@ -309,11 +309,13 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                   </div>
               </div>
 
-              {/* R40 — THE SCALE OF CHARGES (Remuneration Order 2023, Scale 4):
-                  for land-documentation matters, the professional fee is
-                  COMPUTED on the statutory schedule — the site's Scale band
-                  claims it, the invoice now does it. Progressive bands:
-                  10% to ₦50m; ₦5m + 5% to ₦100m; ₦7.5m + 3% above. */}
+              {/* R40 — THE SCALE OF CHARGES ((Remuneration for Legal Documentation
+                  and Other Land Matters) Order 2023, Scale 4): for
+                  land-documentation matters, the professional fee is COMPUTED on
+                  the statutory schedule — the site's Scale band claims it, the
+                  invoice now does it. Progressive bands: 10% to ₦50m; ₦5m + 5%
+                  to ₦100m; ₦7.5m + 3% above. One instrument name everywhere
+                  (V5 reconciliation — util, agent and invoice agree). */}
               {!isProperty && scaleApplies && (
                   <div className="p-3 sm:p-4 rounded-lg border border-indigo-100 dark:border-zinc-700/50 bg-indigo-50/40 dark:bg-zinc-800/30 space-y-3">
                       <div className="flex items-center gap-3 px-1">
@@ -322,10 +324,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
                           </div>
                           <div className="min-w-0">
                               <h3 className="text-sm font-black text-slate-800 dark:text-white tracking-tight">
-                                  Scale of Charges — Remuneration Order 2023
+                                  Scale of Charges — (Remuneration for Legal Documentation and Other Land Matters) Order 2023
                               </h3>
                               <p className="text-2xs text-slate-500 dark:text-zinc-400">
-                                  Land documentation · Scale 4 · the statutory schedule for this matter type
+                                  Land documentation · Scale 4 (preparation of agreements and land documents) — the same schedule src/utils/scaleOfCharges computes
                               </p>
                           </div>
                       </div>

@@ -946,7 +946,12 @@ function computeJurisdictionalReasoning(
   }
 
   // ── 9. SPECIALIZED TRIBUNALS ─────────────────────────────────────────
-  if (p.includes('tribunal') || p.includes('tat') || p.includes('ist') || p.includes('ept') || p.includes('cct') || p.includes('acdamt')) {
+  // V5 (jurisdiction routing fix): the old gate used raw substring tests —
+  // p.includes('tat') matched "sta**tat**ute"/"status", p.includes('ist') matched
+  // "ass**ist**"/"special**ist**"/"jur**ist**" — silently routing ordinary
+  // prompts into the tribunal branch (and from there, the IST). Word
+  // boundaries fix the routing data.
+  if (/\b(?:tribunal|tat|ist|ept|cct|acdamt)\b/i.test(p)) {
     // Tax Appeal Tribunal (TAT) — CORRECTED: FHC has constitutional jurisdiction
     //
     // LEGAL CORRECTION (per user feedback):
@@ -980,7 +985,7 @@ function computeJurisdictionalReasoning(
       };
     }
     // Investment and Securities Tribunal (IST)
-    if (p.includes('investment') || p.includes('securities') || p.includes('ist') || p.includes('capital market') || p.includes('sec nigeria') || p.includes('stock exchange') || p.includes('nse')) {
+    if (p.includes('investment') || p.includes('securities') || /\bist\b/i.test(p) || p.includes('capital market') || p.includes('sec nigeria') || p.includes('stock exchange') || p.includes('nse')) {
       return {
         court: 'IN THE INVESTMENT AND SECURITIES TRIBUNAL (IST)',
         jurisdiction: 'Federal',

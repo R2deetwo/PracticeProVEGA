@@ -143,3 +143,52 @@ describe('copy constants — the contract the UI renders', () => {
         expect(REVIEW_REQUIRED_TITLE).toBe('Review Required');
     });
 });
+
+// ─── V5 (legal AI reliability) — confidence semantics match the evidence ────
+describe('V5 — confidence semantics match actual evidence', () => {
+    it('uncertainty drags an otherwise highly-specific answer below HIGH', () => {
+        // Specific anchors would push this to high on their own; two distinct
+        // uncertainty signals must keep it honest.
+        const text = 'Under section 21 CAMA 2020 and section 28 of the Land Use Act 1978, the consent regime applies [1]. However, I cannot verify the current filing fee, and the position is unverified as at today.';
+        const a = assessConfidence(text, {
+            citationMarkers: [1],
+            verifiedCitationNumbers: [1],
+        });
+        expect(a.level).toBe('moderate');
+        expect(a.level).not.toBe('high');
+        expect(a.indicators.some(i => i.includes('cannot verify'))).toBe(true);
+        expect(a.indicators.some(i => i.includes('unverified'))).toBe(true);
+    });
+
+    it('coverage language describes source MATCHING, never external verification', () => {
+        const covered = assessConfidence('The rule was restated [1] and later distinguished [2].', {
+            citationMarkers: [1, 2], verifiedCitationNumbers: [1, 2],
+        });
+        expect(covered.indicators).toContain('all 2 citation markers resolve to sources');
+        // The heuristic never claims authority verification:
+        for (const i of covered.indicators) {
+            expect(i.toLowerCase()).not.toContain('externally verified');
+            expect(i.toLowerCase()).not.toContain('authority verified');
+        }
+    });
+
+    it('a citation-coverage miss is an evidence downgrade, not a formatting pass', () => {
+        const half = assessConfidence('Claim A is settled [1] and Claim B is settled [2].', {
+            citationMarkers: [1, 2], verifiedCitationNumbers: [1],
+        });
+        expect(half.indicators.some(i => i.includes('1/2 citation markers resolve to sources'))).toBe(true);
+        expect(half.score).toBeLessThan(
+            assessConfidence('Claim A is settled [1] and Claim B is settled [2].', {
+                citationMarkers: [1, 2], verifiedCitationNumbers: [1, 2],
+            }).score
+        );
+    });
+
+    it('raw-text scoring contract: hedging must be present in the text the heuristic sees', () => {
+        // AloaChat now scores the RAW model text (pre-identity-strip) — this
+        // pins the heuristic's dependence on hedging vocabulary being intact.
+        const hedged = 'I think the notice may be defective, and it appears the tenant possibly vacated earlier.';
+        const stripped = 'The notice is defective, and the tenant vacated earlier.';
+        expect(assessConfidence(hedged).score).toBeLessThan(assessConfidence(stripped).score);
+    });
+});
