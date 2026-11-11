@@ -257,7 +257,7 @@ const TEN_OLD = {
   unitName: '12 Marina Rd, Lagos',
   tenantName: 'Tunde Tenant', tenantPhone: '08030000001', tenantEmail: 'resident@firm1.com',
   startDate: '2024-01-01', endDate: '2024-12-31', rentAmount: 1000000, paymentFrequency: 'Annually',
-  source: 'allocation', createdAt: '2024-01-01', updatedAt: '2024-01-01', _version: 1,
+  source: 'allocation', createdAt: '2024-01-01', updatedAt: '2024-01-01',
 };
 // Tunde's current row (contact-linked, active — the 2026 re-let).
 const TEN_NEW = {
@@ -268,7 +268,7 @@ const TEN_NEW = {
   tenantName: 'Tunde Tenant', tenantPhone: '08030000001', tenantEmail: 'resident@firm1.com',
   emergencyContactName: 'Kola Tenant', emergencyContactPhone: '08099990000', emergencyContactRelationship: 'Brother',
   startDate: '2026-01-01', endDate: '2026-12-31', rentAmount: 1200000, paymentFrequency: 'Annually',
-  cautionDeposit: 200000, source: 'allocation', createdAt: '2026-01-01', updatedAt: '2026-01-01', _version: 1,
+  cautionDeposit: 200000, source: 'allocation', createdAt: '2026-01-01', updatedAt: '2026-01-01',
 };
 // A past, contact-less resident on another unit (never linked to a Contact row).
 const TEN_PAST = {
@@ -277,7 +277,7 @@ const TEN_PAST = {
   unitName: '14 Marina Rd, Lagos',
   tenantName: 'Sade Past', tenantPhone: '08021111111', tenantEmail: 'sade@firm1.com',
   startDate: '2024-07-01', endDate: '2025-06-30', rentAmount: 800000, paymentFrequency: 'Annually',
-  source: 'record_existing', createdAt: '2024-07-01', updatedAt: '2024-07-01', _version: 1,
+  source: 'record_existing', createdAt: '2024-07-01', updatedAt: '2024-07-01',
 };
 // A firm-2 resident (must be invisible to firm-1 and vice versa).
 const TEN_F2 = {
@@ -285,7 +285,7 @@ const TEN_F2 = {
   unitId: 'prop-conv-f2', unitKey: 'prop-conv-f2', propertyId: 'prop-conv-f2',
   unitName: '99 Other St, Abuja', tenantName: 'F2 Resident', tenantEmail: 'f2resident@firm2.com',
   startDate: '2026-03-01', endDate: '2027-02-28', rentAmount: 500000, paymentFrequency: 'Annually',
-  source: 'allocation', createdAt: '2026-03-01', updatedAt: '2026-03-01', _version: 1,
+  source: 'allocation', createdAt: '2026-03-01', updatedAt: '2026-03-01',
 };
 
 // ── Service charge fixtures (PROP1's charges use the CUSTOM id shape — the

@@ -516,8 +516,6 @@ export const createRelationship = mutation({
       matterId: args.matterId,
       notes: args.notes,
       source: "manual",
-      _lastModifiedBy: caller.email ?? args.userEmail,
-      _version: 1,
       createdAt: nowIso,
       updatedAt: nowIso,
     });
@@ -569,8 +567,6 @@ export const updateRelationship = mutation({
 
     await ctx.db.patch(args.relationshipId as any, {
       ...args.patch,
-      _lastModifiedBy: caller.email ?? args.userEmail,
-      _version: (rel._version ?? 1) + 1,
       updatedAt: new Date().toISOString(),
     });
     return args.relationshipId;
@@ -610,8 +606,6 @@ export const endRelationship = mutation({
       status: args.endStatus ?? "terminated",
       endDate: args.endDate ?? rel.endDate ?? new Date().toISOString(),
       notes: args.notes ? `${rel.notes ? rel.notes + "\n" : ""}${args.notes}` : rel.notes,
-      _lastModifiedBy: caller.email ?? args.userEmail,
-      _version: (rel._version ?? 1) + 1,
       updatedAt: new Date().toISOString(),
     });
     return args.relationshipId;
@@ -777,8 +771,6 @@ export const importTenanciesAsRelationships = mutation({
             drivesRentLedger: true,
             consentStatus: "not_required",
             source: "imported_unit",
-            _lastModifiedBy: caller.email ?? args.userEmail,
-            _version: 1,
             createdAt: nowIso,
             updatedAt: nowIso,
           });
@@ -813,8 +805,6 @@ export const importTenanciesAsRelationships = mutation({
           drivesRentLedger: true,
           consentStatus: "not_required",
           source: "imported_tenancy",
-          _lastModifiedBy: caller.email ?? args.userEmail,
-          _version: 1,
           createdAt: nowIso,
           updatedAt: nowIso,
         });

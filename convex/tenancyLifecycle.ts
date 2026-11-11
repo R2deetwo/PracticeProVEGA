@@ -274,7 +274,7 @@ async function syncUnitTenantFields(
 ): Promise<void> {
   const p = ref.property || {};
   const now = new Date().toISOString();
-  const patch: any = { updatedAt: now, _version: ((p._version as number) || 0) + 1 };
+  const patch: any = { updatedAt: now };
 
   if (!ref.unit) {
     // Standalone property row — the row IS the unit.
@@ -531,8 +531,6 @@ export const allocateTenant = mutation({
       idempotencyKey: args.idempotencyKey ?? null,
       createdAt: now,
       updatedAt: now,
-      _lastModifiedBy: String(caller.email || caller._id || ""),
-      _version: 1,
     });
 
     await syncUnitTenantFields(
@@ -642,8 +640,6 @@ export const recordExistingTenancy = mutation({
       idempotencyKey: null,
       createdAt: now,
       updatedAt: now,
-      _lastModifiedBy: String(caller.email || caller._id || ""),
-      _version: 1,
     });
 
     // No denormalized sync — this row MIRRORS what is already on the unit.
@@ -723,8 +719,6 @@ export const renewTenancy = mutation({
       idempotencyKey: null,
       createdAt: now,
       updatedAt: now,
-      _lastModifiedBy: String(caller.email || caller._id || ""),
-      _version: 1,
     });
 
     await ctx.db.patch(t._id, {
@@ -735,7 +729,6 @@ export const renewTenancy = mutation({
       endNotes: String(args.notes ?? "").trim() || null,
       renewedToTenancyId: String(newId),
       updatedAt: now,
-      _version: ((t._version as number) || 0) + 1,
     });
 
     // Keep the LIVE lease terms on the unit in step with the renewal.
@@ -805,7 +798,6 @@ export const endTenancy = mutation({
       endedAt: end,
       endNotes: String(args.notes ?? "").trim() || null,
       updatedAt: now,
-      _version: ((t._version as number) || 0) + 1,
     });
 
     if (vacate && t.unitId) {
@@ -896,7 +888,6 @@ export const transferTenant = mutation({
       endedAt: start,
       endNotes: String(args.notes ?? "").trim() || `Transferred to ${targetSnap.unitLabel}.`,
       updatedAt: now,
-      _version: ((t._version as number) || 0) + 1,
     });
 
     // 2. Vacate the old unit (identity fields only — history preserved).
@@ -935,8 +926,6 @@ export const transferTenant = mutation({
       idempotencyKey: null,
       createdAt: now,
       updatedAt: now,
-      _lastModifiedBy: String(caller.email || caller._id || ""),
-      _version: 1,
     });
 
     // 4. Occupy the target unit.
@@ -2480,7 +2469,7 @@ export const bulkUpdateProperties = mutation({
         }
       }
 
-      const patch: any = { updatedAt: now, _lastModifiedBy: String(caller.email || caller._id || ""), _version: ((row._version as number) || 0) + 1 };
+      const patch: any = { updatedAt: now };
       if (status) patch.status = status;
       if (category) patch.category = category;
       await ctx.db.patch(row._id, patch);

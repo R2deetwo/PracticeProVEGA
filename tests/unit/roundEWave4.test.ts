@@ -559,7 +559,11 @@ describe('E4(b) — bulkUpdateProperties: authorisation, validation, ledger guar
         expect(after.firmId).toBe(before.firmId);
         expect(after.rentPaymentHistory).toBe(before.rentPaymentHistory); // same reference — never touched
         expect(after.category).toBe(before.category);
-        expect(Number(after._version)).toBeGreaterThan(Number(before._version ?? 0));
+        // R101: the _version audit bump is gone — Convex rejects custom
+        // `_`-prefixed document fields, so the old bump made every write
+        // fail in production. updatedAt remains the audit stamp.
+        expect(typeof after.updatedAt).toBe('string');
+        expect(after.updatedAt).toBeTruthy();
     });
 
     it('guards: empty selection and empty payload throw (selection checked first)', async () => {

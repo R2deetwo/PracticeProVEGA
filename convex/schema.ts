@@ -89,8 +89,6 @@ export default defineSchema({
     checklistDismissedAt: v.optional(v.number()),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_invite", ["inviteCode"])
     .index("by_trial_ends", ["trialEndsAt"])      // for trial-expiry cron scans
     // R12: dunning cron scans (pre-expiry reminders + past-due grace ladder)
@@ -178,8 +176,6 @@ export default defineSchema({
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_token", ["tokenIdentifier"]).index("by_firm", ["firmId"]).index("by_portal_access_token", ["portalAccessToken"]).index("by_custom_id", ["id"]).index("by_deactivated", ["deactivatedAt"])
     // Phase 5 (Item 4, perf): portals.ts looked up firm admins via
     // withIndex(by_firm) + post-filter(role==='Admin') — a post-filter scans
@@ -271,8 +267,6 @@ export default defineSchema({
     id: nullableString, // Legacy field — frontend copy of _id
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
     .index("by_status", ["firmId", "status"])
     .index("by_client", ["firmId", "clientId"])
@@ -306,8 +300,6 @@ export default defineSchema({
     id: nullableString, // Legacy field — frontend copy of _id
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
     // SOFT DELETE (Aug 2026): When true, the contact is hidden from active
     // lists but NOT removed from the database. Matters/properties that
     // reference this contact still resolve correctly — they show the client
@@ -346,8 +338,6 @@ export default defineSchema({
     idempotencyKey: v.optional(v.string()),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"])
     .index("by_status", ["firmId", "status"])
     .index("by_dueDate", ["firmId", "dueDate"])
@@ -389,8 +379,6 @@ export default defineSchema({
     litigationStatus: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]).index("by_property", ["propertyId"])
     .index("by_category", ["firmId", "categoryId"])
     .searchIndex("search_title", { searchField: "title" }),
@@ -402,8 +390,6 @@ export default defineSchema({
     subCategories: v.optional(v.any()),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   leads: defineTable({
@@ -420,8 +406,6 @@ export default defineSchema({
     convertedMatterId: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   notifications: defineTable({
@@ -448,8 +432,6 @@ export default defineSchema({
     readAt: nullableNumber,
     createdAt: nullableNumber,
     updatedAt: nullableNumber,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
     expiresAt: v.optional(v.number()), // Auto-expiry timestamp (null = never expires)
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_expires", ["expiresAt"]).index("by_user", ["userId"])
     // Phase 4 (perf): broadcast + sales-lead queries previously full-scanned
@@ -477,8 +459,6 @@ export default defineSchema({
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
     // ── Paystack-ready billing fields (optional, additive) ──
     // Existing invoices default to provider='manual' with no backfill needed.
     // Paystack fields are only populated when a Paystack transaction is initiated.
@@ -518,8 +498,6 @@ export default defineSchema({
     created_by: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
 
   timeEntries: defineTable({
@@ -534,8 +512,6 @@ export default defineSchema({
     billedInInvoiceId: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
 
   expenses: defineTable({
@@ -551,8 +527,6 @@ export default defineSchema({
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_matter", ["matterId"]),
 
   firmActivity: defineTable({
@@ -569,8 +543,6 @@ export default defineSchema({
     metadata: v.optional(v.any()),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   chatMessages: defineTable({
@@ -607,8 +579,6 @@ export default defineSchema({
     // and Convex rejected every team DM send as an "extra field").
     attachments: v.optional(v.array(v.string())),
     attachmentNames: v.optional(v.array(v.string())),
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_conversation", ["conversationId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_idempotency", ["idempotencyKey"]),
 
   chatConversations: defineTable({
@@ -623,8 +593,6 @@ export default defineSchema({
     userId: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_matter", ["matterId"]),
 
   noteNotebooks: defineTable({
@@ -640,8 +608,6 @@ export default defineSchema({
     isCore: nullableBoolean,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_user", ["userId"]),
 
   notePages: defineTable({
@@ -676,8 +642,6 @@ export default defineSchema({
     // dictationMode: 'vega_dual' | 'atrium_single' | null. Records which mode
     //   was used when the note was dictated. Used to render the correct toggle UI.
     dictationMode: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   })
     .index("by_notebook", ["notebookId"])
     .index("by_firm", ["firmId"])
@@ -693,8 +657,6 @@ export default defineSchema({
     isSystem: nullableBoolean,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   contactCategories: defineTable({
@@ -704,8 +666,6 @@ export default defineSchema({
     product: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   documentCategories: defineTable({
@@ -720,8 +680,6 @@ export default defineSchema({
 
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   checklistTemplates: defineTable({
@@ -731,8 +689,6 @@ export default defineSchema({
     relevantMatterTypes: v.optional(v.array(v.string())),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   documentTemplates: defineTable({
@@ -745,8 +701,6 @@ export default defineSchema({
     placeholders: v.optional(v.array(v.string())),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   documentTemplateCategories: defineTable({
@@ -754,8 +708,6 @@ export default defineSchema({
     name: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   externalCounselInvites: defineTable({
@@ -771,8 +723,6 @@ export default defineSchema({
     invitedBy: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]),
 
   automationRules: defineTable({
@@ -784,8 +734,6 @@ export default defineSchema({
     isEnabled: nullableBoolean,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   intakeForms: defineTable({
@@ -798,8 +746,6 @@ export default defineSchema({
     isEnabled: nullableBoolean,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   documentGenerationMetadata: defineTable({
@@ -816,8 +762,6 @@ export default defineSchema({
     missingFields: nullableString,
     createdAt: nullableNumber,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_property", ["propertyId"]).index("by_matter", ["matterId"]),
 
   clientMessages: defineTable({
@@ -830,8 +774,6 @@ export default defineSchema({
     status: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   // Item 4 observability: weekly per-table row counts (queryMetrics.ts).
@@ -859,8 +801,6 @@ export default defineSchema({
     originalData: v.optional(v.any()),
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]),
 
   researchNotebooks: defineTable({
@@ -871,8 +811,6 @@ export default defineSchema({
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   researchSources: defineTable({
@@ -885,8 +823,6 @@ export default defineSchema({
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_notebook", ["notebookId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   researchMessages: defineTable({
@@ -899,8 +835,6 @@ export default defineSchema({
     id: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_notebook", ["notebookId"]).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]),
 
   researchAnalysisResults: defineTable({
@@ -912,8 +846,6 @@ export default defineSchema({
     timestamp: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   }).index("by_notebook", ["notebookId"]).index("by_firm", ["firmId"]),
 
   presence: defineTable({
@@ -985,8 +917,6 @@ export default defineSchema({
     userId: nullableString, // Legacy ID from frontend
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   })
     .index("by_firm", ["firmId"])
     .index("by_contact", ["contactId"])
@@ -1051,8 +981,6 @@ export default defineSchema({
     totalArrears: nullableNumber,
     createdAt: nullableString,
     updatedAt: nullableString,
-    _lastModifiedBy: nullableString,
-    _version: nullableNumber,
   })
     .index("by_firm", ["firmId"])
     .index("by_property", ["propertyId"])
@@ -1673,8 +1601,6 @@ export default defineSchema({
     matterId: v.optional(v.string()),        // linked matter
     notes: v.optional(v.string()),
     source: v.optional(v.string()),          // manual | imported_tenancy | imported_unit
-    _lastModifiedBy: v.optional(v.string()),
-    _version: v.optional(v.number()),
     createdAt: v.optional(v.string()),
     updatedAt: v.optional(v.string()),
   })

@@ -1,9 +1,20 @@
 /**
  * TenancyLifecyclePanel — ROUND E (Wave E1): the tenancy lifecycle console.
  * ─────────────────────────────────────────────────────────────────────────
- * Rendered inside PropertyDetailView (Units tab; and on the Summary tab for
- * single-unit non-leased properties). For every unit of the property it
- * shows the tenancy-ledger state and the contextual lifecycle actions:
+ * R101 SUBSUMPTION (owner direction, 2026-11-11): the tenancy cycle is part
+ * of the unit block — it is no longer a separate console below the unit
+ * grid. Exports:
+ *
+ *   - useUnitsTenancyStatus — the ONE shared ledger-status feed for a
+ *     property's whole unit grid (single reactive query).
+ *   - UnitTenancySection — the per-unit block (ledger state + contextual
+ *     lifecycle actions + inline forms), rendered INSIDE each unit card on
+ *     the Units tab, and as bordered rows inside the panel wrapper.
+ *   - TenancyLifecyclePanel — the wrapper kept for single-unit non-leased
+ *     properties (Summary tab; the property row IS the unit and there is no
+ *     Units tab to embed into).
+ *
+ * Per unit, the section shows the tenancy-ledger state and actions:
  *
  *   vacant + no ledger row          → "Allocate Resident" (guided wizard)
  *   occupied + no ledger row        → "Record Current Tenancy" (backfill
@@ -92,15 +103,67 @@ function defaultLeaseEnd(start: string, frequency?: string): string {
     return d.toISOString().slice(0, 10);
 }
 
-// ── Main panel ──────────────────────────────────────────────────────────────
+// ── Shared ledger-status feed ───────────────────────────────────────────────
 
-export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
-    firmId,
-    propertyAddress,
-    units,
-    contacts,
-    propertyId,
-}) => {
+export interface TenancyStatusEntry {
+    resolved: boolean;
+    unitKey?: string;
+    active: any | null;
+    total: number;
+}
+
+/**
+ * useUnitsTenancyStatus — ONE reactive ledger-status feed for a property's
+ * whole unit grid. R101 subsumption: the lifecycle console now lives inside
+ * each unit card, but the status query stays shared — one subscription for
+ * the grid, not one per card.
+ */
+export const useUnitsTenancyStatus = (
+    firmId: string,
+    units: TenancyPanelUnit[]
+): Record<string, TenancyStatusEntry> | undefined => {
+    const { bearerToken } = useAuth() as { bearerToken: string | null };
+    const unitIds = useMemo(() => units.map((u) => u.id).slice(0, 60), [units]);
+    return useQuery(
+        api.tenancyLifecycle.getUnitsTenancyStatus,
+        firmId && bearerToken && unitIds.length > 0
+            ? { firmId, unitIds, sessionToken: bearerToken }
+            : 'skip'
+    ) as Record<string, TenancyStatusEntry> | undefined;
+};
+
+// ── Per-unit lifecycle section ──────────────────────────────────────────────
+
+/**
+ * UnitTenancySection — the tenancy-ledger state + contextual lifecycle
+ * actions for ONE unit.
+ *
+ * R101 (owner direction, 2026-11-11): the tenancy cycle is part of the unit
+ * block, not a separate console. This section is rendered INSIDE each unit
+ * card on the Units tab (variant="card"); TenancyLifecyclePanel renders it
+ * as bordered rows for single-unit properties on the Summary tab
+ * (variant="panel") — one implementation, both mounts.
+ *
+ * Conventions honored (unchanged from Round E1):
+ *   - ui/ primitives ONLY for form controls (Button/Input/Select).
+ *   - Inline field validation via Input's `error` prop.
+ *   - useConfirm for End/Transfer (danger-confirmed), useToastFeedback for
+ *     results.
+ *   - A stable idempotencyKey per form mount guards double-click
+ *     double-submits (the server re-checks the active-tenancy invariant).
+ */
+export const UnitTenancySection: React.FC<{
+    unit: TenancyPanelUnit;
+    /** All sibling units of the property — the transfer picker's targets. */
+    units: TenancyPanelUnit[];
+    statusMap?: Record<string, TenancyStatusEntry>;
+    firmId: string;
+    propertyAddress: string;
+    propertyId?: string;
+    contacts: TenancyPanelContact[];
+    /** 'panel' = bordered row (TenancyLifecyclePanel); 'card' = embedded in a unit card. */
+    variant?: 'panel' | 'card';
+}> = ({ unit, units, statusMap, firmId, propertyAddress, propertyId, contacts, variant = 'panel' }) => {
     const { bearerToken } = useAuth() as { bearerToken: string | null };
     const toast = useToastFeedback();
     const { confirm, ConfirmDialog } = useConfirm();
@@ -110,20 +173,11 @@ export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
     const { coreState } = useCoreState();
     const firmTemplates = (coreState as any).documentTemplates || [];
     const firmName = (coreState as any).firmDetails?.name || '';
-    const [open, setOpen] = useState<{ unitId: string; kind: FormKind } | null>(null);
-
-    const unitIds = useMemo(() => units.map((u) => u.id).slice(0, 60), [units]);
-
-    const status = useQuery(
-        api.tenancyLifecycle.getUnitsTenancyStatus,
-        firmId && bearerToken && unitIds.length > 0
-            ? { firmId, unitIds, sessionToken: bearerToken }
-            : 'skip'
-    ) as Record<string, { resolved: boolean; unitKey?: string; active: any | null; total: number }> | undefined;
+    const [open, setOpen] = useState<{ kind: FormKind } | null>(null);
 
     const recordExisting = useMutation(api.tenancyLifecycle.recordExistingTenancy);
 
-    const handleRecordExisting = async (unit: TenancyPanelUnit) => {
+    const handleRecordExisting = async () => {
         try {
             const res: any = await recordExisting({ firmId, sessionToken: bearerToken ?? undefined, unitId: unit.id });
             if (res?.alreadyRecorded) {
@@ -131,11 +185,192 @@ export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
             } else {
                 toast.success(`Current tenancy recorded for ${unit.label}.`);
             }
-            setOpen({ unitId: unit.id, kind: 'history' });
+            setOpen({ kind: 'history' });
         } catch (e: any) {
             toast.error(String(e?.message || e));
         }
     };
+
+    const s = statusMap?.[unit.id];
+    const active = s?.active ?? null;
+    const isInformallyOccupied =
+        !active && (String(unit.status || '').toLowerCase() === 'occupied' || !!unit.tenantName);
+
+    return (
+        <div
+            className={
+                variant === 'panel'
+                    ? 'rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/40 p-3'
+                    : ''
+            }
+        >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {variant === 'panel' && (
+                            <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{unit.label}</p>
+                        )}
+                        {active ? (
+                            <Badge tone="success" size="xs">Active tenancy</Badge>
+                        ) : isInformallyOccupied ? (
+                            <Badge tone="warning" size="xs">Occupied — not recorded</Badge>
+                        ) : (
+                            <Badge tone="neutral" size="xs">Vacant</Badge>
+                        )}
+                        {!!s && s.total > 0 && (
+                            <Badge tone="outline" size="xs">{s.total} recorded</Badge>
+                        )}
+                    </div>
+                    {active ? (
+                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                            {active.tenantName || 'Resident'}
+                            {active.startDate ? ` · from ${active.startDate}` : ''}
+                            {active.endDate ? ` to ${active.endDate}` : ''}
+                            {typeof active.rentAmount === 'number' && active.rentAmount > 0
+                                ? ` · ${formatNaira(active.rentAmount)} ${active.paymentFrequency || ''}`.trim()
+                                : ''}
+                        </p>
+                    ) : isInformallyOccupied ? (
+                        <p className="text-2xs text-amber-600 dark:text-amber-400 mt-0.5">
+                            {unit.tenantName || 'A resident'} is recorded on the unit but has no tenancy ledger
+                            row. Record the current tenancy to enable renewals, transfers and history.
+                        </p>
+                    ) : null}
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {active ? (
+                        <>
+                            {/* E4: generate paperwork for the ACTIVE tenancy from
+                                the firm's templates / built-in starter pack. */}
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                icon={FileText}
+                                onClick={() => setOpen(open?.kind === 'document' ? null : { kind: 'document' })}
+                            >
+                                Document
+                            </Button>
+                            <Button size="sm" variant="secondary" icon={RefreshCw} onClick={() => setOpen({ kind: 'renew' })}>
+                                Renew
+                            </Button>
+                            <Button size="sm" variant="secondary" icon={ArrowLeftRight} onClick={() => setOpen({ kind: 'transfer' })}>
+                                Transfer
+                            </Button>
+                            <Button size="sm" variant="danger-soft" icon={LogOut} onClick={() => setOpen({ kind: 'end' })}>
+                                End
+                            </Button>
+                        </>
+                    ) : isInformallyOccupied ? (
+                        <Button size="sm" variant="primary" icon={ClipboardCheck} onClick={handleRecordExisting}>
+                            Record Current Tenancy
+                        </Button>
+                    ) : (
+                        <Button size="sm" variant="primary" icon={UserPlus} onClick={() => setOpen({ kind: 'allocate' })}>
+                            Allocate Resident
+                        </Button>
+                    )}
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        icon={HistoryIcon}
+                        onClick={() => setOpen(open?.kind === 'history' ? null : { kind: 'history' })}
+                    >
+                        History
+                    </Button>
+                </div>
+            </div>
+
+            {open?.kind === 'allocate' && (
+                <AllocateForm
+                    unit={unit}
+                    firmId={firmId}
+                    bearer={bearerToken}
+                    contacts={contacts}
+                    onDone={() => { setOpen({ kind: 'history' }); }}
+                    onCancel={() => setOpen(null)}
+                />
+            )}
+            {open?.kind === 'renew' && active && (
+                <RenewForm
+                    unit={unit}
+                    tenancy={active}
+                    firmId={firmId}
+                    bearer={bearerToken}
+                    onDone={() => { setOpen({ kind: 'history' }); }}
+                    onCancel={() => setOpen(null)}
+                />
+            )}
+            {open?.kind === 'end' && active && (
+                <EndForm
+                    unit={unit}
+                    tenancy={active}
+                    firmId={firmId}
+                    bearer={bearerToken}
+                    confirm={confirm}
+                    onDone={() => { setOpen({ kind: 'history' }); }}
+                    onCancel={() => setOpen(null)}
+                />
+            )}
+            {open?.kind === 'transfer' && active && (
+                <TransferForm
+                    unit={unit}
+                    tenancy={active}
+                    units={units}
+                    status={statusMap}
+                    firmId={firmId}
+                    bearer={bearerToken}
+                    confirm={confirm}
+                    onDone={() => { setOpen({ kind: 'history' }); }}
+                    onCancel={() => setOpen(null)}
+                />
+            )}
+            {open?.kind === 'document' && active && (
+                <div className="mt-3">
+                    <TenancyDocumentGenerator
+                        tenancy={active}
+                        unitLabel={unit.label}
+                        propertyAddress={propertyAddress}
+                        propertyId={propertyId || unit.id}
+                        firmName={firmName}
+                        firmTemplates={firmTemplates}
+                        onDone={() => setOpen(null)}
+                    />
+                </div>
+            )}
+            {open?.kind === 'history' && (
+                <HistoryBlock
+                    unitId={unit.id}
+                    unitLabel={unit.label}
+                    firmId={firmId}
+                    bearer={bearerToken}
+                    propertyAddress={propertyAddress}
+                    propertyId={propertyId}
+                    firmName={firmName}
+                    firmTemplates={firmTemplates}
+                />
+            )}
+            {ConfirmDialog}
+        </div>
+    );
+};
+
+// ── Panel wrapper (single-unit properties on the Summary tab) ───────────────
+
+/**
+ * TenancyLifecyclePanel — the Summary-tab mount for single-unit non-leased
+ * properties (the property row IS the unit; those properties have no Units
+ * tab). R101: the Units-tab console was subsumed into the unit cards — that
+ * separate mount is gone. This wrapper stays for the one surface with no
+ * unit blocks to embed into, rendering the same UnitTenancySection rows.
+ */
+export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
+    firmId,
+    propertyAddress,
+    units,
+    contacts,
+    propertyId,
+}) => {
+    const status = useUnitsTenancyStatus(firmId, units);
 
     if (!units.length) {
         return (
@@ -169,165 +404,20 @@ export const TenancyLifecyclePanel: React.FC<TenancyLifecyclePanelProps> = ({
             </p>
 
             <div className="space-y-2">
-                {units.map((unit) => {
-                    const s = status?.[unit.id];
-                    const active = s?.active ?? null;
-                    const isInformallyOccupied =
-                        !active && (String(unit.status || '').toLowerCase() === 'occupied' || !!unit.tenantName);
-                    const isOpen = open?.unitId === unit.id;
-                    return (
-                        <div
-                            key={unit.id}
-                            className="rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/60 dark:bg-zinc-800/40 p-3"
-                        >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{unit.label}</p>
-                                        {active ? (
-                                            <Badge tone="success" size="xs">Active tenancy</Badge>
-                                        ) : isInformallyOccupied ? (
-                                            <Badge tone="warning" size="xs">Occupied — not recorded</Badge>
-                                        ) : (
-                                            <Badge tone="neutral" size="xs">Vacant</Badge>
-                                        )}
-                                        {!!s && s.total > 0 && (
-                                            <Badge tone="outline" size="xs">{s.total} recorded</Badge>
-                                        )}
-                                    </div>
-                                    {active ? (
-                                        <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                                            {active.tenantName || 'Resident'}
-                                            {active.startDate ? ` · from ${active.startDate}` : ''}
-                                            {active.endDate ? ` to ${active.endDate}` : ''}
-                                            {typeof active.rentAmount === 'number' && active.rentAmount > 0
-                                                ? ` · ${formatNaira(active.rentAmount)} ${active.paymentFrequency || ''}`.trim()
-                                                : ''}
-                                        </p>
-                                    ) : isInformallyOccupied ? (
-                                        <p className="text-2xs text-amber-600 dark:text-amber-400 mt-0.5">
-                                            {unit.tenantName || 'A resident'} is recorded on the unit but has no tenancy ledger
-                                            row. Record the current tenancy to enable renewals, transfers and history.
-                                        </p>
-                                    ) : null}
-                                </div>
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                    {active ? (
-                                        <>
-                                            {/* E4: generate paperwork for the ACTIVE tenancy from
-                                                the firm's templates / built-in starter pack. */}
-                                            <Button
-                                                size="sm"
-                                                variant="secondary"
-                                                icon={FileText}
-                                                onClick={() => setOpen(isOpen && open?.kind === 'document' ? null : { unitId: unit.id, kind: 'document' })}
-                                            >
-                                                Document
-                                            </Button>
-                                            <Button size="sm" variant="secondary" icon={RefreshCw} onClick={() => setOpen({ unitId: unit.id, kind: 'renew' })}>
-                                                Renew
-                                            </Button>
-                                            <Button size="sm" variant="secondary" icon={ArrowLeftRight} onClick={() => setOpen({ unitId: unit.id, kind: 'transfer' })}>
-                                                Transfer
-                                            </Button>
-                                            <Button size="sm" variant="danger-soft" icon={LogOut} onClick={() => setOpen({ unitId: unit.id, kind: 'end' })}>
-                                                End
-                                            </Button>
-                                        </>
-                                    ) : isInformallyOccupied ? (
-                                        <Button size="sm" variant="primary" icon={ClipboardCheck} onClick={() => handleRecordExisting(unit)}>
-                                            Record Current Tenancy
-                                        </Button>
-                                    ) : (
-                                        <Button size="sm" variant="primary" icon={UserPlus} onClick={() => setOpen({ unitId: unit.id, kind: 'allocate' })}>
-                                            Allocate Resident
-                                        </Button>
-                                    )}
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        icon={HistoryIcon}
-                                        onClick={() => setOpen(isOpen && open?.kind === 'history' ? null : { unitId: unit.id, kind: 'history' })}
-                                    >
-                                        History
-                                    </Button>
-                                </div>
-                            </div>
-
-                            {isOpen && open?.kind === 'allocate' && (
-                                <AllocateForm
-                                    unit={unit}
-                                    firmId={firmId}
-                                    bearer={bearerToken}
-                                    contacts={contacts}
-                                    onDone={() => { setOpen({ unitId: unit.id, kind: 'history' }); }}
-                                    onCancel={() => setOpen(null)}
-                                />
-                            )}
-                            {isOpen && open?.kind === 'renew' && active && (
-                                <RenewForm
-                                    unit={unit}
-                                    tenancy={active}
-                                    firmId={firmId}
-                                    bearer={bearerToken}
-                                    onDone={() => { setOpen({ unitId: unit.id, kind: 'history' }); }}
-                                    onCancel={() => setOpen(null)}
-                                />
-                            )}
-                            {isOpen && open?.kind === 'end' && active && (
-                                <EndForm
-                                    unit={unit}
-                                    tenancy={active}
-                                    firmId={firmId}
-                                    bearer={bearerToken}
-                                    confirm={confirm}
-                                    onDone={() => { setOpen({ unitId: unit.id, kind: 'history' }); }}
-                                    onCancel={() => setOpen(null)}
-                                />
-                            )}
-                            {isOpen && open?.kind === 'transfer' && active && (
-                                <TransferForm
-                                    unit={unit}
-                                    tenancy={active}
-                                    units={units}
-                                    status={status}
-                                    firmId={firmId}
-                                    bearer={bearerToken}
-                                    confirm={confirm}
-                                    onDone={() => { setOpen({ unitId: unit.id, kind: 'history' }); }}
-                                    onCancel={() => setOpen(null)}
-                                />
-                            )}
-                            {isOpen && open?.kind === 'document' && active && (
-                                <div className="mt-3">
-                                    <TenancyDocumentGenerator
-                                        tenancy={active}
-                                        unitLabel={unit.label}
-                                        propertyAddress={propertyAddress}
-                                        propertyId={propertyId || unit.id}
-                                        firmName={firmName}
-                                        firmTemplates={firmTemplates}
-                                        onDone={() => setOpen(null)}
-                                    />
-                                </div>
-                            )}
-                            {isOpen && open?.kind === 'history' && (
-                                <HistoryBlock
-                                    unitId={unit.id}
-                                    unitLabel={unit.label}
-                                    firmId={firmId}
-                                    bearer={bearerToken}
-                                    propertyAddress={propertyAddress}
-                                    propertyId={propertyId}
-                                    firmName={firmName}
-                                    firmTemplates={firmTemplates}
-                                />
-                            )}
-                        </div>
-                    );
-                })}
+                {units.map((unit) => (
+                    <UnitTenancySection
+                        key={unit.id}
+                        unit={unit}
+                        units={units}
+                        statusMap={status}
+                        firmId={firmId}
+                        propertyAddress={propertyAddress}
+                        propertyId={propertyId}
+                        contacts={contacts}
+                        variant="panel"
+                    />
+                ))}
             </div>
-            {ConfirmDialog}
         </Card>
     );
 };

@@ -793,11 +793,18 @@ describe('E1 — source contracts', () => {
     expect(apiD).toContain('tenancyLifecycle: typeof tenancyLifecycle;');
   });
 
-  it('PropertyDetailView wires the lifecycle console (Units tab + Summary fallback)', () => {
+  it('PropertyDetailView wires the lifecycle console (R101: subsumed into the unit cards + Summary fallback)', () => {
     const view = read('src/components/details/PropertyDetailView.tsx');
-    expect(view).toContain("import { TenancyLifecyclePanel } from './TenancyLifecyclePanel'");
-    expect(view.match(/<TenancyLifecyclePanel/g)?.length).toBe(2);
-    expect(view).toContain('ROUND E (Wave E1)');
+    expect(view).toContain("import { TenancyLifecyclePanel, UnitTenancySection, useUnitsTenancyStatus } from './TenancyLifecyclePanel'");
+    // R101 (owner direction, 2026-11-11): the tenancy cycle is part of the
+    // unit block. The separate Units-tab console is GONE — the panel remains
+    // ONLY as the single-unit Summary fallback, and every unit card embeds
+    // the same UnitTenancySection fed by ONE shared status query.
+    expect(view.match(/<TenancyLifecyclePanel/g)?.length).toBe(1);
+    expect(view.match(/<UnitTenancySection/g)?.length).toBe(1);
+    expect(view).toContain('useUnitsTenancyStatus(');
+    expect(view).toContain('ROUND R101');
+    expect(view).toContain('ROUND E (Wave E1)'); // the module-lineage comment survives
   });
 
   it('the panel uses ui primitives only — no raw button/input/select/textarea (ratchet)', () => {

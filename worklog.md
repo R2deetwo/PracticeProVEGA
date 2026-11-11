@@ -17298,3 +17298,83 @@ Work Log:
   build — new token → repo secret → re-run promote); the PAT has
   transited chat again (6th time) — rotate whenever convenient;
   brand/* branch disposal still pending.
+
+Task ID: R101 (Tenancy lifecycle repair + subsumption — the production
+write-path breakage the owner hit live)
+Agent: Main agent (Super Z)
+Task: The owner reported the Tenancy Lifecycle console failing live
+(error toast: fields _lastModifiedBy/_version "start with '_' which is
+reserved for system fields", tenancyLifecycle.ts:616, on No. 20
+Westsyde Drive) and directed that the tenancy cycle be SUBSUMED into
+the unit blocks instead of living as a separate console. Also: verify
+production deployment state (third complaint that updates were not
+visible).
+
+Work Log:
+- ROOT CAUSE (production-verified): every tenancy-lifecycle and
+  property-relationship write stuffed two audit fields —
+  _lastModifiedBy and _version — into documents passed to
+  ctx.db.insert/patch. Convex reserves _-prefixed document fields for
+  system fields (_id, _creationTime); the document writer rejected
+  EVERY such write at runtime. recordExistingTenancy (the exact
+  failure: line 616 = the tenancies insert), allocateTenant,
+  renewTenancy, endTenancy, transferTenant, bulkUpdateProperties
+  (tenancyLifecycle.ts, 9 sites), createRelationship,
+  updateRelationship, endRelationship,
+  importTenanciesAsRelationships (propertyRelationships.ts, 5 sites) —
+  ALL broken in production; schema.ts carried 37 tables × dead
+  _lastModifiedBy/_version definitions that could never exist on any
+  document. Unit tests never caught it because the fixture ctx stores
+  underscore keys happily — the harness gap that let this ship.
+- FIX (backend): all 14 write sites cleaned (documents keep updatedAt
+  as the audit stamp — the caller identity was never successfully
+  recorded anywhere, so nothing is lost); all 74 dead schema lines
+  removed (optional-field removal: zero migration risk, no document
+  ever carried them). myFunctions.ts's two dead READS
+  (matter._lastModifiedBy — the private-matter creator checks, always
+  undefined → always false) are left for V1-A's getMatterDetails
+  closure — the R101 source guard documents them.
+- FIX (tests): NEW tests/unit/roundTenancyWrites.test.ts — (a) a
+  source guard: no _lastModifiedBy/_version object keys anywhere under
+  convex/ (catches write sites and schema definitions alike; verified
+  8/8 FAIL against the pre-fix tree and 8/8 PASS against the fix);
+  (b) an HONEST ctx whose insert/patch throw on _-prefixed keys
+  exactly like the real Convex document writer, driving
+  recordExistingTenancy (the owner's exact Westsyde Drive case),
+  allocateTenant, the renew→transfer→end chain, bulkUpdateProperties,
+  and all four relationship writers end-to-end. roundEWave2 fixtures
+  and roundEWave4's _version assertion trued up (updatedAt remains the
+  audit stamp).
+- SUBSUMPTION (owner direction, 2026-11-11: "the tenancy cycle should
+  be subsumed into the unit blocks"): TenancyLifecyclePanel refactored
+  to export (1) useUnitsTenancyStatus — ONE shared reactive
+  ledger-status feed per property grid (single query, not per-card);
+  (2) UnitTenancySection — the per-unit block (ledger badges +
+  Document/Renew/Transfer/End | Record Current Tenancy | Allocate
+  Resident + History + all inline forms) now rendered INSIDE every
+  unit card on the Units tab; (3) TenancyLifecyclePanel — kept ONLY as
+  the Summary-tab mount for single-unit non-leased properties (no unit
+  blocks exist there to embed into). The separate Units-tab console
+  below the grid is GONE. Collapsed unit cards gain an amber "Tenancy
+  not recorded — record the current resident" action chip (the exact
+  state in the owner's screenshot); expanded cards carry the full
+  Tenancy Ledger section between the quick-action bar and the "More"
+  detail card. Zero change to the forms, confirmations, idempotency
+  keys, or the E1/E4 flows themselves.
+- Gates (full CI mirror, all fresh): vitest 2,102/2,102 (107 files,
+  +1 file / +8 tests, zero regressions) / convex tsc 0 / root tsc 94 =
+  baseline (net-neutral; PropertyDetailView's 3 tsc errors are
+  pre-existing lines never touched by this round) / eslint 0 errors /
+  ui-primitives ratchet HELD at 2297 (the chip uses the ui Button
+  'bare' escape hatch — no raw elements added) / design tokens gray=0 /
+  main vite build green (23.7s) / admin build green (6.2s).
+- roundEWave1's wiring contract updated to the R101 architecture (1
+  panel mount + 1 embedded UnitTenancySection + the shared hook).
+
+Standing items: production STILL serves v1.0.759 (9f8cd9e5,
+build-1154) — v1.0.760 AND v1.0.761 were both never promoted (the R100
+entry's "production currently serves v1.0.760" was wrong — double
+cache-bust probe, 2026-11-11). This round ships with v1.0.762; the
+promote (blank sha) carries the R96 public-action security closures to
+production and should run promptly. PAT transited chat a 7th time —
+rotate it.

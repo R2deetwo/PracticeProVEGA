@@ -5,7 +5,7 @@ import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon, TrashIcon } from '../../constants';
 import { formatNaira, formatNairaCompact, formatNairaFull, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown, Share2, Link2 } from 'lucide-react';
+import { ClipboardList, ClipboardCheck, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown, Share2, Link2 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
@@ -19,12 +19,13 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import StatCard from '../StatCard';
 import Tooltip from '../Tooltip';
+import { Button, Card, EmptyState } from '../ui';
 import PropertyTrackingView from './PropertyTrackingView';
 import { PropertyRelationshipsTab } from './PropertyRelationshipsTab';
 // ROUND E (Wave E1): the tenancy lifecycle console — allocate / record /
 // renew / end / transfer + per-unit tenancy history, backed by the
 // tenancies ledger (convex/tenancyLifecycle.ts).
-import { TenancyLifecyclePanel } from './TenancyLifecyclePanel';
+import { TenancyLifecyclePanel, UnitTenancySection, useUnitsTenancyStatus } from './TenancyLifecyclePanel';
 import { PropertyFinancialSummaryPanel } from './PropertyFinancialSummaryPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
@@ -358,6 +359,47 @@ const PropertyDetailViewContent: React.FC = () => {
     const isSale = property?.category === 'Property For Sale';
     const hasMultipleUnits = allUnits.length > 1 || ((property as any)?.units?.length > 0);
     const isDisputed = property?.category === 'Disputed Property';
+
+    // ─── ROUND R101: TENANCY LEDGER STATE (subsumed into the unit cards) ───
+    // The tenancy lifecycle is no longer a separate console below the grid —
+    // every unit card carries its own UnitTenancySection. This is the ONE
+    // shared feed (the unit list mirrors the Units tab grid construction,
+    // temp-ids included) so the whole grid costs a single reactive query.
+    const tenancyUnits = useMemo(() => {
+        const merged = [...(allUnits || [])]
+            .map(u => u && u.id ? u : null)
+            .filter((u): u is Property => u !== null);
+        const legacyUnits = ((property as any)?.units || [])
+            .map((u: any, idx: number) => ({ ...u, id: u.id || `temp-unit-${idx}` }))
+            .filter((u: any) => u);
+        legacyUnits.forEach((lu: any) => {
+            if (!merged.some(u => u.id === lu.id || (u as any).name === lu.name)) {
+                merged.push(lu);
+            }
+        });
+        return merged.map((u: any) => {
+            const d = getUnitDisplay(u);
+            const rd = (u.rentalDetails || {}) as any;
+            return {
+                id: String(u.id),
+                label: d?.name || rd.unitName || u.unitName || u.name || 'Unit',
+                unitName: String(rd.unitName || u.unitName || u.name || ''),
+                status: u.status || undefined,
+                tenantName: rd.tenantName || u.tenantName,
+                tenantPhone: rd.tenantPhone || u.tenantPhone,
+                tenantEmail: rd.tenantEmail || u.tenantEmail,
+                rentAmount: Number(rd.rentAmount ?? u.rentAmount ?? 0) || 0,
+                rentFrequency: rd.rentFrequency || u.rentFrequency,
+                leaseStart: rd.leaseStart || u.leaseStart,
+                leaseEnd: rd.leaseEnd || u.leaseEnd,
+            };
+        });
+    }, [allUnits, property]);
+    const tenancyUnitById = useMemo(() => new Map(tenancyUnits.map((u) => [u.id, u])), [tenancyUnits]);
+    const tenancyStatus = useUnitsTenancyStatus(
+        coreState.firmDetails?.id || currentUser?.firmId || (property as any)?.firmId || '',
+        activeTab === 'units' ? tenancyUnits : []
+    );
 
     // AUTO-EXPAND target unit — when targetUnitId is set and we're on the
     // Units tab, find the matching unit and expand its drawer. Scroll it
@@ -1554,6 +1596,22 @@ const PropertyDetailViewContent: React.FC = () => {
                                                 const tenantEmail: string = (unit as any).rentalDetails?.tenantEmail || (unit as any).tenantEmail || '';
                                                 const hasContactInfo = !!(tenantPhone || tenantEmail);
 
+                                                // R101: this card's tenancy-ledger entry (same unit id shape
+                                                // as the shared status feed; fallback mirrors the card data).
+                                                const tUnit = tenancyUnitById.get(String(unit.id)) || {
+                                                    id: String(unit.id),
+                                                    label: d.name || 'Unit',
+                                                    unitName: String((unit as any).unitName || (unit as any).name || ''),
+                                                    status: uStatus,
+                                                    tenantName: d.tenantName || (rental as any).tenantName,
+                                                    tenantPhone,
+                                                    tenantEmail,
+                                                    rentAmount: Number((rental as any).rentAmount ?? d.rentAmount ?? 0) || 0,
+                                                    rentFrequency: (rental as any).rentFrequency,
+                                                    leaseStart: (rental as any).leaseStart || d.leaseStart,
+                                                    leaseEnd: (rental as any).leaseEnd || d.leaseEnd,
+                                                };
+
                                                 // ── Eviction Tracker State ──
                                                 const eviction = getEvictionTracker(unit);
                                                 const isEvictionActive = eviction.quitNoticeStatus !== 'none' || eviction.sevenDayNoticeStatus !== 'none';
@@ -1772,6 +1830,36 @@ const PropertyDetailViewContent: React.FC = () => {
                                                             )}
                                                         </div>
 
+                                                        {/* ── R101: Tenancy-ledger warning (collapsed card) ──
+                                                            Occupied on the unit but no ledger row — the one
+                                                            lifecycle state that needs a call to action without
+                                                            expanding. Full lifecycle controls live in the expanded
+                                                            card's Tenancy Ledger section. */}
+                                                        {(() => {
+                                                            const ts = tenancyStatus?.[String(unit.id)];
+                                                            if (ts?.active) return null;
+                                                            const informal = String(uStatus).toLowerCase() === 'occupied' || !!d.tenantName;
+                                                            if (!informal) return null;
+                                                            return (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="bare"
+                                                                    icon={ClipboardCheck}
+                                                                    fullWidth
+                                                                    className="mt-1 justify-start rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 font-bold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedUnit(isSelected ? null : unit);
+                                                                        setShowAddUnitForm(false);
+                                                                        setShowFullUnitDetail(false);
+                                                                    }}
+                                                                    title="This unit is occupied but has no tenancy ledger row — record the sitting resident to enable renewals, transfers and history."
+                                                                >
+                                                                    Tenancy not recorded — record the current resident
+                                                                </Button>
+                                                            );
+                                                        })()}
+
                                                         {/* ── Card Footer: contextual badge + actions ── */}
                                                         <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2 min-w-0 gap-1">
                                                             {statusBadge ? (
@@ -1896,6 +1984,24 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details and more actions" title="Full unit details and more actions">
                                                                         {showFullUnitDetail ? 'Less' : 'More'}
                                                                     </button>
+                                                                </div>
+
+                                                                {/* ── R101: TENANCY LEDGER — the lifecycle console subsumed INTO the unit card ──
+                                                                    Previously a separate Tenancy Lifecycle panel below the
+                                                                    grid re-listed every unit; owner direction 2026-11-11:
+                                                                    the tenancy cycle belongs to the unit block. Same
+                                                                    actions, same forms, one shared status feed. */}
+                                                                <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-zinc-700/60">
+                                                                    <UnitTenancySection
+                                                                        variant="card"
+                                                                        unit={tUnit}
+                                                                        units={tenancyUnits}
+                                                                        statusMap={tenancyStatus}
+                                                                        firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
+                                                                        propertyAddress={property.address || ''}
+                                                                        propertyId={property.id}
+                                                                        contacts={matterState.contacts || []}
+                                                                    />
                                                                 </div>
 
                                                                 {/* ── Tier 2: Full Detail Card (shown on "More") ── */}
@@ -2214,36 +2320,20 @@ const PropertyDetailViewContent: React.FC = () => {
                                 </details>
                             )}
 
-                            {/* ── ROUND E (Wave E1): TENANCY LIFECYCLE ───────
-                                The per-unit ledger console: guided allocation,
-                                the record-current-tenancy bridge for legacy
-                                occupied units, renewal / end / transfer with
-                                confirmations, and full tenancy history with
-                                attributed payments. History is never deleted
-                                when a resident moves out. */}
-                            <TenancyLifecyclePanel
-                                firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
-                                propertyAddress={property.address || ''}
-                                propertyId={property.id}
-                                units={units.map((u: any) => {
-                                    const d = getUnitDisplay(u);
-                                    const rd = (u.rentalDetails || {}) as any;
-                                    return {
-                                        id: String(u.id),
-                                        label: d?.name || rd.unitName || u.unitName || u.name || 'Unit',
-                                        unitName: String(rd.unitName || u.unitName || u.name || ''),
-                                        status: u.status || undefined,
-                                        tenantName: rd.tenantName || u.tenantName,
-                                        tenantPhone: rd.tenantPhone || u.tenantPhone,
-                                        tenantEmail: rd.tenantEmail || u.tenantEmail,
-                                        rentAmount: Number(rd.rentAmount ?? u.rentAmount ?? 0) || 0,
-                                        rentFrequency: rd.rentFrequency || u.rentFrequency,
-                                        leaseStart: rd.leaseStart || u.leaseStart,
-                                        leaseEnd: rd.leaseEnd || u.leaseEnd,
-                                    };
-                                })}
-                                contacts={matterState.contacts || []}
-                            />
+                            {/* ── ROUND R101: the separate Tenancy Lifecycle console is GONE ──
+                                The tenancy lifecycle now lives INSIDE every unit card above
+                                (expand a card → the Tenancy Ledger section: allocate / record /
+                                renew / transfer / end / document / history). Kept here only:
+                                the no-units guidance the old panel provided. */}
+                            {units.length === 0 && (
+                                <Card padding="md">
+                                    <EmptyState
+                                        icon={<Home className="w-6 h-6" />}
+                                        title="No units yet"
+                                        description={`Add units to ${property.address || 'this property'} from the property form to start recording tenancies.`}
+                                    />
+                                </Card>
+                            )}
                         </div>
                     );
                 })()}
