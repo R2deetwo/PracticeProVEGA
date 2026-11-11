@@ -17397,3 +17397,28 @@ Work Log:
   instruction ("ensure that those atrium changes have actually been
   made").
 [skip ci]
+
+Task ID: R101 (production promote record — 2026-11-11)
+Agent: Main agent (Super Z)
+Task: Execute the production promote per the owner's explicit instruction
+(third complaint that updates were not visible in production).
+
+Work Log:
+- "Deploy to Production (promote)" dispatched via API on main (blank sha →
+  resolved 98ceceb7), run 42946782919.
+- Quality gate (on the promoted commit): PASS — convex tsc 0 / root tsc 94
+  = baseline / identity audit / ui-primitives ratchet / full vitest.
+- Deploy to production (Vercel + Convex): PASS — Convex backend deployed,
+  Vercel production built + deployed, live verification confirmed.
+- Deploy to production (Cloudflare mirror): FAIL at "Verify the Cloudflare
+  API token is active" — the KNOWN standing issue (CLOUDFLARE_API_TOKEN
+  dead since 2026-09-18; owner action: new token → repo secret → re-run
+  promote with the same sha). Vercel + Convex production are unaffected.
+- PRODUCTION VERIFIED LIVE: https://practice-pro-vega.vercel.app serves
+  98ceceb7 / v1.0.762 / build-1157 / status healthy (double cache-bust
+  probe). Production had been stuck on v1.0.759 (build-1154, 9f8cd9e5)
+  since 2026-11-10 — v1.0.760 (Sentry round) and v1.0.761 (QA round with
+  the four public-action security closures) were never promoted until now.
+  Production now carries R92-R100 + R101 (tenancy write-path repair +
+  lifecycle subsumption).
+[skip ci]
