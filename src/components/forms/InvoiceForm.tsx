@@ -244,6 +244,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       // invoice joinable to its matter.
       matterId: matter!.id,
       matter: { id: matter!.id, title: matter!.title },
+      // K-4 (invoice product attribution): the explicit origin — a
+      // real-estate matter makes this a property invoice; every other
+      // matter is legal billing. (Legacy rows without the field are
+      // classified at read time by utils/invoiceOrigin.ts.)
+      product: matter!.specialtyData?.realEstate?.propertyId ? 'property' : 'legal',
       lineItems: finalLineItems,
       status: invoiceToEdit?.status || InvoiceStatus.Unpaid,
       issueDate,

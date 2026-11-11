@@ -60,7 +60,12 @@ describe('buildPortfolioRoster', () => {
         expect(roster).toContain('Flat 1: Mrs Adaeze Okafor');
         expect(roster).toContain('Flat 2');
         expect(roster).toContain('Chinedu Eze');
-        expect(roster).toContain('2 unit(s)');
+        // K-5 (unit-count semantics): the roster header total now uses the
+        // ONE resolution (unitCountBase) — lekki's 2 embedded units PLUS
+        // ikeja as its own single-occupancy row = 3, matching the
+        // Properties list and the Managed Units KPI. The old header counted
+        // embedded units only (2) and silently dropped bare rows.
+        expect(roster).toContain('(2 properties, 3 units)');
         expect(roster).toContain('₦2,500,000 Quarterly');
         expect(roster).toContain('Oba Akran');
     });

@@ -225,8 +225,8 @@ const FIRM2_TENANT_SESSION = { token: 'tok-tenant-f2', userId: 'u-tenant-f2' };
 const BUYER = { _id: 'u-buyer-1', email: 'buyer@firm1.com', tokenIdentifier: 'buyer@firm1.com', name: 'Bola Buyer', role: 'Admin', firmId: 'firm-1' };
 const BUYER_SESSION = { token: 'tok-buyer-1', userId: 'u-buyer-1' };
 
-const FIRM_1 = { _id: 'f-1', id: 'firm-1', name: 'Firm One', subscriptionPlan: 'Pro', subscriptionAddons: {} };
-const FIRM_2 = { _id: 'f-2', id: 'firm-2', name: 'Firm Two', subscriptionPlan: 'Starter', subscriptionAddons: {} }; // no estate access
+const FIRM_1 = { _id: 'f-1', id: 'firm-1', name: 'Firm One', subscriptionPlan: 'Pro', product: 'property', subscriptionAddons: {} };
+const FIRM_2 = { _id: 'f-2', id: 'firm-2', name: 'Firm Two', subscriptionPlan: 'Starter', product: 'property', subscriptionAddons: {} }; // no estate access (plan gate — product entitled)
 
 const AMENITY_1 = { _id: 'am-1', firmId: 'firm-1', name: 'Clubhouse Gym', isActive: true, slotDurationMinutes: 60, maxConcurrentBookings: 1, requiresApproval: true };
 const AMENITY_2 = { _id: 'am-2', firmId: 'firm-1', name: 'Tennis Court', isActive: true, slotDurationMinutes: 60, maxConcurrentBookings: 1, requiresApproval: false };

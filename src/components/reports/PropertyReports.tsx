@@ -5,6 +5,7 @@ import { useMatterState } from '../../contexts/MatterContext';
 import StatCard from '../StatCard';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
+import { resolveOwnUnitCount } from '../../utils/propertyUnitCount';
 import { OfficeBuildingIcon, CheckCircleIcon } from '../../constants';
 import { Receipt } from 'lucide-react';
 import Tooltip from '../Tooltip';
@@ -83,7 +84,12 @@ const PropertyReports: React.FC = () => {
                 id: p.id,
                 address: p.address,
                 status: p.status,
-                unitsCount: Array.isArray(p.units) ? p.units.length : (p.numberOfUnits || 1),
+                // K-5: the ONE unit-count resolution (propertyUnitCount) —
+                // declared numberOfUnits first, embedded units second, 1 for
+                // a single-occupancy row. The old inline expression
+                // (`units.length || numberOfUnits || 1`) preferred the
+                // EMBEDDED count, disagreeing with every other surface.
+                unitsCount: resolveOwnUnitCount(p) || 1,
                 expectedRent: expected,
                 collectedYTD
             };

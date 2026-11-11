@@ -2,13 +2,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
+import { useFeatures } from '../hooks/useFeatures';
 import { useCoreState } from '../contexts/CoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
+import { useUI } from '../contexts/UIContext';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
-    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon
+    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon
 } from '../constants';
 
 interface NavItemDef {
@@ -49,6 +51,9 @@ const detailViewMap: Record<string, View> = {
     documentDetail: 'documents',
     invoiceDetail: 'billing',
     receiptDetail: 'billing',
+    // K-1: property results from mobile search land on the property detail
+    // page — map it back so the Properties tab highlights while open.
+    propertyDetail: 'properties',
 };
 
 const NavItem: React.FC<{
@@ -58,7 +63,8 @@ const NavItem: React.FC<{
     onClick: (e: React.MouseEvent) => void;
     view: View;
     badgeCount?: number;
-}> = ({ text, icon, isActive, onClick, view, badgeCount }) => {
+    locked?: boolean;
+}> = ({ text, icon, isActive, onClick, view, badgeCount, locked }) => {
     const { light } = useHapticFeedback();
     return (
         <button
@@ -73,6 +79,9 @@ const NavItem: React.FC<{
         >
             <div className="relative">
                 {React.cloneElement(icon, { className: 'w-5 h-5 mb-0.5' })}
+                {locked && (
+                    <LockClosedIcon className="absolute -top-1 -right-1.5 w-3 h-3 text-slate-400 dark:text-zinc-500" />
+                )}
                 {badgeCount !== undefined && badgeCount > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-3xs font-bold ring-2 ring-white dark:ring-zinc-900 shadow-sm z-10">
                         {badgeCount > 9 ? '9+' : badgeCount}
@@ -93,6 +102,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     const permissions = usePermissions();
     const { coreState, isDataLoaded } = useCoreState();
     const { currentUser } = useAuth();
+    const { openModal } = useUI();
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const { light } = useHapticFeedback();
 
@@ -125,7 +135,22 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         }).length;
     }, [coreState.notifications, currentUser]);
 
-    const { isProperty, isUnified, terminology } = useProduct();
+    const { isLegal, hasPropertyFeatures, isUnified, terminology } = useProduct();
+    const features = useFeatures();
+
+    // K-2 (nav parity): the SAME entitlement rules the desktop Sidebar
+    // applies — one interpretation, both surfaces. Locked items stay
+    // visible (matching the desktop's locked-with-upgrade-CTA treatment)
+    // but tap opens the upgrade modal, never the view.
+    const lockedViews: Partial<Record<View, boolean>> = {
+        // Research Studio: legal firms, Growth+ (Sidebar: locked + upgrade modal)
+        research: !features.canUseResearchStudio,
+        // Financials: property-capable firms never lock (their revenue
+        // hub); Vega-only firms lock below Pro (Sidebar: same rule)
+        billing: !hasPropertyFeatures && !features.canUseAdvancedBilling,
+        // Analytics: Growth+ (Sidebar: locked + upgrade modal)
+        reporting: !features.canUseReportGenerator,
+    };
 
 
     // Apply product-aware labels to nav items (override the static 'Contacts' / 'Matters' labels).
@@ -136,12 +161,29 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     });
 
     const filteredNavItems = labeledNavItems.filter(item => {
-        // Matters: only show for legal product users
-        if (item.view === 'matters' && isProperty && !isUnified) return false;
-        // Research: only show for legal product users  
-        if (item.view === 'research' && isProperty && !isUnified) return false;
+        // K-2 (nav parity with the desktop Sidebar — same product rules):
+        // Matters/Research/Documents are legal surfaces (hidden for
+        // Atrium-only firms); Properties is a property surface (hidden for
+        // Vega-only firms — it was previously ungated on mobile, showing
+        // Vega firms an empty Properties module the desktop never shows).
+        if (item.view === 'matters' && !isLegal) return false;
+        if (item.view === 'research' && !isLegal) return false;
+        if (item.view === 'documents' && !isLegal) return false;
+        if (item.view === 'properties' && !hasPropertyFeatures) return false;
         return item.permission(permissions);
     });
+
+    const handleNavTap = (e: React.MouseEvent, view: View) => {
+        e.preventDefault();
+        // K-2: locked items open the upgrade modal — the same destination
+        // the desktop's lock icon goes to — instead of the view.
+        if (lockedViews[view]) {
+            openModal('upgradePlan');
+            return;
+        }
+        setView(view);
+        setIsMoreMenuOpen(false);
+    };
 
     // Product-aware primary nav.
     // Unified: Dashboard + Matters + Properties + Tasks
@@ -155,7 +197,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     // user, while Documents — a core daily surface — was buried in "More".
     const primaryViews: View[] = isUnified
         ? ['dashboard', 'matters', 'properties', 'tasks']
-        : isProperty
+        : hasPropertyFeatures
         ? ['dashboard', 'properties', 'billing', 'tasks']
         : ['dashboard', 'matters', 'tasks', 'documents'];
     
@@ -163,12 +205,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         return primaryViews
             .map(view => filteredNavItems.find(item => item.view === view))
             .filter(Boolean) as NavItemDef[];
-    }, [filteredNavItems, isProperty]);
+    }, [filteredNavItems, isLegal]);
 
     const secondaryItems = useMemo(() => {
         const primarySet = new Set(primaryViews);
         return filteredNavItems.filter(item => !primarySet.has(item.view));
-    }, [filteredNavItems, isProperty]);
+    }, [filteredNavItems, isLegal]);
 
     const parentView = detailViewMap[currentView] || currentView;
     const isMoreActive = useMemo(() => secondaryItems.some(item => item.view === parentView), [secondaryItems, parentView]);
@@ -182,6 +224,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         e.preventDefault();
         e.stopPropagation();
         light(); // Haptic feedback
+        // K-2: the More sheet honors the same locks as the primary bar.
+        if (lockedViews[view]) {
+            openModal('upgradePlan');
+            return;
+        }
         setView(view);
         setIsMoreMenuOpen(false);
     };
@@ -218,12 +265,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                                 icon={item.icon}
                                 isActive={parentView === item.view}
                                 view={item.view}
+                                locked={lockedViews[item.view]}
                                 badgeCount={getBadgeCountForView(item.view)}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    setView(item.view);
-                                    setIsMoreMenuOpen(false); 
-                                }}
+                                onClick={(e) => handleNavTap(e, item.view)}
                             />
                         );
                     })}

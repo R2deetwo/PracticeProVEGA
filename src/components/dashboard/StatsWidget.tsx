@@ -14,6 +14,10 @@ interface StatsWidgetProps {
     outstandingRevenue: number;
     contactsCount: number;
     propertyCount?: number;
+    /** K-5: the Managed Units value — Σ unitCountBase (declared or embedded
+     *  inventory, minimum one occupancy per property row), NOT the property
+     *  row count. */
+    managedUnits?: number;
     propertyRevenue?: number;
     activeLeasesCount?: number;
     occupancyRate?: number;
@@ -123,7 +127,7 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     );
 };
 
-const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, propertyRevenue = 0, activeLeasesCount = 0, occupancyRate = 0, navigateTo, isCompact, isLoading = false, currentUser }) => {
+const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, managedUnits, propertyRevenue = 0, activeLeasesCount = 0, occupancyRate = 0, navigateTo, isCompact, isLoading = false, currentUser }) => {
     const isAdmin = currentUser.role === UserRole.Admin;
     // Use hasPropertyFeatures (not isProperty) so Komplete (unified) mode
     // shows the Managed Units card. isProperty only controls the assistant
@@ -164,8 +168,8 @@ const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTa
                 <div className="h-28 relative rounded-2xl isolate transform-gpu">
                     <StatCard
                         title="Managed Units"
-                        value={isLoading ? <Skeleton width={40} height={28} /> : propertyCount}
-                        subtitle={occupancyRate > 0 ? `${occupancyRate}% occupied` : undefined}
+                        value={isLoading ? <Skeleton width={40} height={28} /> : (managedUnits ?? propertyCount)}
+                        subtitle={`${propertyCount} ${propertyCount === 1 ? 'property' : 'properties'}${occupancyRate > 0 ? ` · ${occupancyRate}% occupied` : ''}`}
                         icon={<Building2 className="w-full h-full" />}
                         colorClass="bg-indigo-500"
                         onClick={() => navigateTo('properties')}

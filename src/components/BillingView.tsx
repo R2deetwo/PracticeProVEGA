@@ -8,6 +8,8 @@ import Tooltip from './Tooltip';
 import { formatNaira } from '../utils/formatting';
 import { isActiveFinancialRecord } from '../utils/financialLifecycle';
 import { computeClientFinancialSummary, invoiceOutstanding, invoiceTotalAmount } from '../utils/invoiceFinancials';
+import { partitionInvoicesByOrigin, invoiceBusinessOrigin, invoiceOriginBadge } from '../utils/invoiceOrigin';
+import { useMatterState } from '../contexts/MatterContext';
 import NairaSymbol from './NairaSymbol';
 import { useHighlight } from '../hooks/useHighlight';
 import { useUI } from '../contexts/UIContext';
@@ -131,10 +133,12 @@ const InvoiceRow: React.FC<{
     onMarkAsPaid: (id: string) => void,
     onRevertPayment: (id: string) => void,
     onVoidInvoice: (invoice: Invoice) => void,
-}> = React.memo(({ invoice, onViewDetails, onSendReminder, onMarkAsPaid, onRevertPayment, onVoidInvoice }) => {
+    origin?: 'legal' | 'property',
+}> = React.memo(({ invoice, onViewDetails, onSendReminder, onMarkAsPaid, onRevertPayment, onVoidInvoice, origin }) => {
     // Safety check: ensure lineItems exists before reducing
     const total = (invoice.lineItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
     const isVoidedRecord = invoice.recordStatus === 'voided' || invoice.status === InvoiceStatus.Void;
+    const originBadge = origin ? invoiceOriginBadge(origin) : null;
 
     return (
         <tr
@@ -143,7 +147,14 @@ const InvoiceRow: React.FC<{
             className={`relative overflow-hidden hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-all duration-300 cursor-pointer group ${isVoidedRecord ? 'opacity-60' : ''}`}
         >
             <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm font-medium text-slate-900 dark:text-white">{invoice.invoiceNumber}</div>
+                <div className="text-sm font-medium text-slate-900 dark:text-white flex items-center gap-1.5">
+                    {invoice.invoiceNumber}
+                    {originBadge && (
+                        <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider ${originBadge.className}`} title={`Originating business operation: ${originBadge.label}`}>
+                            {originBadge.label}
+                        </span>
+                    )}
+                </div>
                 {invoice.voidReason && (
                     <div className="text-xs text-rose-500 dark:text-rose-400 mt-0.5 max-w-48 truncate" title={`Voided by ${invoice.voidedByEmail || 'unknown'}${invoice.voidedAt ? ' on ' + new Date(invoice.voidedAt).toLocaleDateString('en-GB') : ''}: "${invoice.voidReason}"`}>
                         {invoice.voidReason}
@@ -185,9 +196,11 @@ const InvoiceMobileCard: React.FC<{
     invoice: Invoice,
     onViewDetails: (id: string) => void,
     onVoidInvoice?: (invoice: Invoice) => void,
-}> = React.memo(({ invoice, onViewDetails, onVoidInvoice }) => {
+    origin?: 'legal' | 'property',
+}> = React.memo(({ invoice, onViewDetails, onVoidInvoice, origin }) => {
     const total = (invoice.lineItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
     const isVoidedRecord = invoice.recordStatus === 'voided' || invoice.status === InvoiceStatus.Void;
+    const originBadge = origin ? invoiceOriginBadge(origin) : null;
 
     return (
         <div
@@ -197,7 +210,14 @@ const InvoiceMobileCard: React.FC<{
         >
             <div className="flex justify-between items-start mb-2">
                 <div>
-                    <p className="font-bold text-slate-900 dark:text-white">{invoice.client?.name || 'Unknown'}</p>
+                    <p className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        {invoice.client?.name || 'Unknown'}
+                        {originBadge && (
+                            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wider ${originBadge.className}`} title={`Originating business operation: ${originBadge.label}`}>
+                                {originBadge.label}
+                            </span>
+                        )}
+                    </p>
                     <p className="text-xs text-slate-500 dark:text-zinc-400">{invoice.invoiceNumber}</p>
                     {invoice.voidReason && (
                         <p className="text-xs text-rose-500 dark:text-rose-400 mt-0.5" title={`Voided by ${invoice.voidedByEmail || 'unknown'}: "${invoice.voidReason}"`}>Voided — {invoice.voidReason}</p>
@@ -228,7 +248,7 @@ const InvoiceMobileCard: React.FC<{
 
 
 // Sub-component for the main invoice list logic
-const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleRecordInvoicePayment: any, onRevertPaymentRequest: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleRecordInvoicePayment, onRevertPaymentRequest, handleVoidInvoice, closeModal, openConfirmationModal }) => {
+const InvoicesContent: React.FC<{ invoices: Invoice[], showOriginBadges?: boolean, originEvidence?: { matters: any[]; properties: any[] }, openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleRecordInvoicePayment: any, onRevertPaymentRequest: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, showOriginBadges, originEvidence, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleRecordInvoicePayment, onRevertPaymentRequest, handleVoidInvoice, closeModal, openConfirmationModal }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useHighlight(containerRef, 'billing');
     const [filter, setFilter] = useState('');
@@ -329,6 +349,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                                             <InvoiceRow
                                                 key={invoice.id}
                                                 invoice={invoice}
+                                                origin={showOriginBadges ? invoiceBusinessOrigin(invoice as any, originEvidence) : undefined}
                                                 onViewDetails={onViewDetails}
                                                 onSendReminder={handleSendInvoiceReminder}
                                                 onMarkAsPaid={onMarkAsPaid}
@@ -347,6 +368,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDet
                                 <InvoiceMobileCard
                                     key={invoice.id}
                                     invoice={invoice}
+                                    origin={showOriginBadges ? invoiceBusinessOrigin(invoice as any, originEvidence) : undefined}
                                     onViewDetails={onViewDetails}
                                     onVoidInvoice={handleVoidInvoice}
                                 />
@@ -376,6 +398,7 @@ export const BillingView: React.FC = () => {
     const features = useFeatures();
     const { isProperty, isUnified, product } = useProduct();
     const { coreState } = useCoreState();
+    const { matterState } = useMatterState();
 
     // Void/Reinstate modal state (accounting-integrity round): the row action
     // opens the reason prompt; confirm dispatches to the audited lifecycle
@@ -449,23 +472,36 @@ export const BillingView: React.FC = () => {
         }
     }, [tabs, activeTab]);
 
+    // K-4 (invoice product attribution): the evidence the legacy-row
+    // classifier needs (matters for the realEstate link, properties for
+    // the property pseudo-matter convention).
+    const originEvidence = useMemo(() => ({
+        matters: matterState.matters || [],
+        properties: coreState.properties || [],
+    }), [matterState.matters, coreState.properties]);
+
     // KPI strip — unified metrics across legal + property
     // FINANCIAL LIFECYCLE (accounting-integrity round): voided and
     // test-marked records are annotations, not money — they never enter a
     // total. Same predicate as the server queries (equivalence-tested).
+    // K-4: every invoice figure is now ORIGIN-SCOPED — legal KPIs count
+    // legal-origin invoices only; property KPIs include the
+    // property-origin invoices (management fees) alongside the rent
+    // ledger. No row is counted on both sides: origins partition the set.
     const kpiData = useMemo(() => {
         const invoices = (financeState.invoices || []).filter(i => isActiveFinancialRecord(i.recordStatus));
+        const { legal: legalInvoices, property: propertyInvoices } = partitionInvoicesByOrigin(invoices as any, originEvidence);
         const ledgerEntries = ((coreState as any).ledgerEntries || []).filter((e: any) => isActiveFinancialRecord(e.recordStatus));
         const serviceCharges = (coreState as any).serviceCharges || [];
 
-        // Legal-side KPIs (invoices) — V2 (V-FIN-10): the ONE contract.
+        // Legal-side KPIs (legal-origin invoices) — V2 (V-FIN-10): the ONE contract.
         //    The pre-V2 formulas drifted: `total_amount || subTotal` turned a
         //    true ₦0 total into subTotal, partially-paid invoices vanished
         //    from Outstanding entirely, and line-item sums elsewhere ignored
         //    VAT. Every surface now derives from the same helpers the
         //    server uses (equivalence-tested against convex/invoiceFinancials).
-        const legalSummary = computeClientFinancialSummary(invoices as any);
-        const paidThisMonth = invoices.filter(i => {
+        const legalSummary = computeClientFinancialSummary(legalInvoices as any);
+        const paidThisMonth = legalInvoices.filter(i => {
             if (i.status !== InvoiceStatus.Paid || !i.paidDate) return false;
             const d = new Date(i.paidDate);
             const now = new Date();
@@ -474,44 +510,48 @@ export const BillingView: React.FC = () => {
 
         const outstanding = legalSummary.outstandingBalance;
 
-        // Property-side KPIs (ledger + service charges)
+        // Property-side KPIs (ledger + service charges + property-origin
+        // invoices — management fees are property revenue, not legal).
         const propertyCollected = ledgerEntries
             .filter((e: any) => e.status === 'cleared')
             .reduce((s: number, e: any) => s + (e.amount || 0), 0);
 
-        const propertyOutstanding = ledgerEntries
+        const propertyLedgerOutstanding = ledgerEntries
             .filter((e: any) => e.status === 'pending')
             .reduce((s: number, e: any) => s + (e.amount || 0), 0);
+
+        const propertyInvoiceOutstanding = computeClientFinancialSummary(propertyInvoices as any).outstandingBalance;
 
         const criticalDefaulters = serviceCharges.filter((d: any) => d.isDefaulter && (d.daysOverdue ?? 0) > 14).length;
 
         // ─── Filter KPIs by product scope ───────────────────────────
-        // Legal: show only invoice-based numbers
-        // Property: show only ledger/service-charge numbers
-        // Combined: show the sum of both
+        // Legal: legal-origin invoice numbers only
+        // Property: ledger + service-charge + property-origin invoice numbers
+        // Combined: the sum of both (each money row counted exactly once —
+        // origins partition the invoices, the ledger is property-only)
         if (productScope === 'legal') {
             return {
                 collected: paidThisMonth,
-                outstanding: outstanding,
+                outstanding,
                 defaults: 0,
-                invoiceCount: invoices.length,
+                invoiceCount: legalInvoices.length,
             };
         } else if (productScope === 'property') {
             return {
                 collected: propertyCollected,
-                outstanding: propertyOutstanding,
+                outstanding: propertyLedgerOutstanding + propertyInvoiceOutstanding,
                 defaults: criticalDefaulters,
-                invoiceCount: 0,
+                invoiceCount: propertyInvoices.length,
             };
         }
         // Combined (default)
         return {
             collected: paidThisMonth + propertyCollected,
-            outstanding: outstanding + propertyOutstanding,
+            outstanding: outstanding + propertyLedgerOutstanding + propertyInvoiceOutstanding,
             defaults: criticalDefaulters,
-            invoiceCount: invoices.length,
+            invoiceCount: legalInvoices.length + propertyInvoices.length,
         };
-    }, [financeState.invoices, (coreState as any).ledgerEntries, (coreState as any).serviceCharges, productScope]);
+    }, [financeState.invoices, (coreState as any).ledgerEntries, (coreState as any).serviceCharges, productScope, originEvidence]);
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
@@ -614,7 +654,21 @@ export const BillingView: React.FC = () => {
                 )}
                 {activeTab === 'invoices' && (
                     <InvoicesContent
-                        invoices={financeState.invoices}
+                        // K-4: the invoice LIST is now origin-scoped like the
+                        // tabs — legal scope shows legal-origin invoices,
+                        // property scope shows property-origin invoices
+                        // (management fees), combined shows both with an
+                        // origin badge on each row. The old list was never
+                        // filtered, so the Legal toggle still showed the
+                        // landlord's property invoices (and vice versa).
+                        invoices={(() => {
+                            const active: Invoice[] = (financeState.invoices || []).filter(i => isActiveFinancialRecord(i.recordStatus));
+                            if (productScope === 'combined') return active;
+                            const { legal, property } = partitionInvoicesByOrigin(active, originEvidence);
+                            return productScope === 'legal' ? legal : property;
+                        })()}
+                        showOriginBadges={isUnified}
+                        originEvidence={originEvidence}
                         openModal={openModal}
                         onViewDetails={(id: string) => navigateTo('invoiceDetail', id)}
                         handleUpdateInvoiceStatus={handleUpdateInvoiceStatus}

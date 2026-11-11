@@ -2,8 +2,8 @@
  * Convex mirror of src/constants/tiers.ts — keep in sync when changing limits/prices.
  *
  * This is the SINGLE SOURCE OF TRUTH for tier limits in the Convex backend.
- * The frontend has its own copy in src/constants/tiers.ts and src/hooks/useFeatures.ts
- * — both must stay in sync with this file.
+ * The frontend has its own copy in src/constants/tiers.ts and the pure
+ * entitlement decision in src/utils/entitlements.ts — all must stay in sync.
  *
  * Atrium property firm limits keyed by subscriptionPlan.
  * Both "Core" and "Starter" keys map to the same limits for backward compat.
@@ -42,37 +42,98 @@ export const KOMPLETE_LIMITS = {
   maxActiveMatters: null as number | null,
 };
 
+// ════════════════════════════════════════════════════════════════════════
+// K-3 (KOMPLETE unified-product integrity): THE AUTHORITATIVE PLAN RULE.
+//
+// DEFECT this fixes: every function below treated product === 'unified'
+// as "unlimited everything" REGARDLESS of the plan. A unified firm whose
+// Komplete trial expired (subscriptionPlan reverted to Core by the
+// scanExpiredTrials cron) — or that was downgraded to a single-product
+// plan without the product field flipping (the founderMetrics D5 leak:
+// ~₦400K+/yr per firm) — kept unlimited seats, units and matters forever.
+// The product field says which SURFACES exist; only the Komplete plan
+// (or Enterprise, its equivalent — or an active trial of either) confers
+// unlimited DEPTH. A unified product on any other plan gets that plan's
+// limits across BOTH dimension sets: seats/matters/storage from the Vega
+// table, units/tenants/WhatsApp from the Atrium table.
+// ════════════════════════════════════════════════════════════════════════
+
+/** Trial-aware effective plan for a firm record (mirrors useFeatures). */
+export function effectiveFirmPlan(firm: {
+  subscriptionPlan?: string | null;
+  trialPlan?: string | null;
+  trialEndsAt?: number | null;
+}): string {
+  const now = Date.now();
+  if (
+    firm.trialEndsAt &&
+    firm.trialPlan &&
+    firm.trialEndsAt > now
+  ) {
+    return firm.trialPlan;
+  }
+  return firm.subscriptionPlan || 'Core';
+}
+
+/** A plan (already trial-resolved) at Komplete/Enterprise depth. */
+export function isUnifiedEntitledPlan(plan: string | null | undefined): boolean {
+  const p = (plan || '').trim();
+  return p === 'Komplete' || p === 'Enterprise';
+}
+
+function isUnifiedProduct(product: string | null | undefined): boolean {
+  const prod = (product || '').toLowerCase().trim();
+  return prod === 'unified' || prod === 'komplete';
+}
+
+function isVegaProduct(product: string | null | undefined): boolean {
+  const prod = (product || '').toLowerCase().trim();
+  return prod === 'legal' || prod === 'vega';
+}
+
+function isAtriumProduct(product: string | null | undefined): boolean {
+  const prod = (product || '').toLowerCase().trim();
+  return prod === 'property' || prod === 'atrium';
+}
+
 /**
  * Get the max user seats for a firm based on its plan and product.
  *
  * This is the authoritative seat-limit lookup used by the founder dashboard.
  * Returns null for "unlimited" (Pro/Enterprise/Komplete).
  *
- * MIRRORS src/hooks/useFeatures.ts:107 — keep in sync.
+ * MIRRORS src/utils/entitlements.ts — keep in sync.
  *
- * KOMPLETE = ENTERPRISE:
- *   Komplete is the top-tier unified platform. It is ALWAYS mapped to
- *   Enterprise-level features and limits (unlimited everything). It is
- *   NEVER labeled as "Pro" or "Basic".
+ * KOMPLETE = ENTERPRISE — but only when ENTITLED: a unified firm needs the
+ * Komplete (or Enterprise) plan for unlimited seats. A unified firm on any
+ * other plan (e.g. Core after trial expiry) gets that plan's seat limit.
  */
 export function getMaxUsersForFirm(plan: string | undefined | null, product: string | undefined | null): number | null {
   const p = (plan || 'Core').trim();
   const prod = (product || 'legal').toLowerCase().trim();
 
-  // Komplete (unified) = Enterprise tier = unlimited seats
-  if (prod === 'unified' || prod === 'komplete' || p === 'Komplete') {
+  // Billed Komplete (or Enterprise-equivalent) — unlimited regardless of product
+  if (isUnifiedEntitledPlan(p)) {
     return null;
   }
 
+  // Komplete (unified) product WITHOUT the Komplete plan (post-trial /
+  // downgraded): apply the plan's limits — same seats as Vega/Atrium at
+  // that plan. Legal and property dimensions both come from the same plan.
+  if (isUnifiedProduct(prod)) {
+    const vega = VEGA_LIMITS[p] || VEGA_LIMITS.Core;
+    return vega.maxUsers;
+  }
+
   // Vega (legal) tiers
-  if (prod === 'legal' || prod === 'vega') {
+  if (isVegaProduct(prod)) {
     const limits = VEGA_LIMITS[p];
     if (limits) return limits.maxUsers;
     return VEGA_LIMITS.Core.maxUsers;
   }
 
   // Atrium (property) tiers — maxUsers is 1/5/null (same as Vega)
-  if (prod === 'property' || prod === 'atrium') {
+  if (isAtriumProduct(prod)) {
     if (p === 'Pro' || p === 'Enterprise') return null;
     if (p === 'Growth') return 5;
     return 1; // Core / Starter / default
@@ -84,21 +145,19 @@ export function getMaxUsersForFirm(plan: string | undefined | null, product: str
 /**
  * Get the display plan label for a firm.
  *
- * KOMPLETE = ENTERPRISE:
- *   Firms on the Komplete product ALWAYS show as "Enterprise" regardless
- *   of their subscriptionPlan field. This enforces the brand rule that
- *   Komplete is the top-tier unified platform.
- *
- * Usage:
- *   const displayPlan = getDisplayPlan(firm.subscriptionPlan, firm.product);
- *   // Returns 'Enterprise' for Komplete firms, actual plan for others
+ * KOMPLETE = ENTERPRISE — but only when ENTITLED: a unified firm on the
+ * Komplete/Enterprise plan displays as "Enterprise" (the brand rule); a
+ * unified firm on any other plan displays its REAL plan (the honest state
+ * that also nudges the owner to fix the plan/product mismatch).
  */
 export function getDisplayPlan(plan: string | undefined | null, product: string | undefined | null): string {
   const p = (plan || 'Core').trim();
-  const prod = (product || 'legal').toLowerCase().trim();
 
-  // Komplete = Enterprise (always)
-  if (prod === 'unified' || prod === 'komplete' || p === 'Komplete') {
+  // Billed Komplete/Enterprise displays as "Enterprise" — the brand rule —
+  // for ANY product (a Vega row awaiting Fix Product Mode still paid the
+  // Komplete price). Everything else, including a unified product on a
+  // lower plan, displays its REAL plan.
+  if (isUnifiedEntitledPlan(p)) {
     return 'Enterprise';
   }
 
@@ -117,6 +176,10 @@ export function getDisplayPlan(plan: string | undefined | null, product: string 
  *   maxActiveMatters   — Vega active matters (null = unlimited, Vega only)
  *   maxCaseFileStorageGb — Vega storage in GB (null = unlimited, Vega only)
  *   whatsappLimit      — Atrium WhatsApp messages/month (null = unlimited, Atrium only)
+ *
+ * K-3: callers holding a firm RECORD should prefer resolveTierLimitsForFirm
+ * (trial-aware). This pure (plan, product) form assumes the plan is already
+ * trial-resolved.
  */
 export function getTierLimitsForFirm(plan: string | undefined | null, product: string | undefined | null) {
   const p = (plan || 'Core').trim();
@@ -124,8 +187,10 @@ export function getTierLimitsForFirm(plan: string | undefined | null, product: s
 
   const maxUsers = getMaxUsersForFirm(p, prod);
 
-  // Komplete — all unlimited
-  if (prod === 'unified' || prod === 'komplete' || p === 'Komplete') {
+  // Billed Komplete (or Enterprise-equivalent) — unlimited everything,
+  // regardless of the product field (a Vega row awaiting Fix Product Mode
+  // still paid the Komplete price).
+  if (isUnifiedEntitledPlan(p)) {
     return {
       maxUsers,
       maxUnits: KOMPLETE_LIMITS.maxUnits,
@@ -137,8 +202,28 @@ export function getTierLimitsForFirm(plan: string | undefined | null, product: s
     };
   }
 
+  // Komplete (unified) product WITHOUT the Komplete plan (post-trial /
+  // downgraded): the firm keeps both SURFACES but gets the plan's DEPTH on
+  // each side — seats/matters/storage from the Vega table, units/tenants/
+  // WhatsApp from the Atrium table. No dimension is unlimited unless that
+  // plan makes it unlimited for the single-product firm.
+  if (isUnifiedProduct(prod)) {
+    const vega = VEGA_LIMITS[p] || VEGA_LIMITS.Core;
+    const atrium = ATRIUM_LIMITS[p] || ATRIUM_LIMITS.Core;
+    const atriumUnlimited = atrium.units === 999999;
+    return {
+      maxUsers,
+      maxUnits: atriumUnlimited ? null : atrium.units,
+      maxManagedProperties: atriumUnlimited ? null : atrium.units, // same as maxUnits
+      maxActiveTenants: atrium.tenants === 999999 ? null : atrium.tenants,
+      maxActiveMatters: vega.maxActiveMatters,
+      maxCaseFileStorageGb: vega.maxCaseFileStorageGb,
+      whatsappLimit: atrium.whatsapp === 999999 ? null : atrium.whatsapp,
+    };
+  }
+
   // Vega (legal) — matters + storage
-  if (prod === 'legal' || prod === 'vega') {
+  if (isVegaProduct(prod)) {
     const limits = VEGA_LIMITS[p] || VEGA_LIMITS.Core;
     return {
       maxUsers,
@@ -152,7 +237,7 @@ export function getTierLimitsForFirm(plan: string | undefined | null, product: s
   }
 
   // Atrium (property) — units + tenants + properties + whatsapp
-  if (prod === 'property' || prod === 'atrium') {
+  if (isAtriumProduct(prod)) {
     const atrium = ATRIUM_LIMITS[p] || ATRIUM_LIMITS.Core;
     const isUnlimited = atrium.units === 999999;
     return {
@@ -178,3 +263,18 @@ export function getTierLimitsForFirm(plan: string | undefined | null, product: s
   };
 }
 
+/**
+ * Trial-aware tier limits for a firm RECORD: resolves the effective plan
+ * (trialPlan while the trial window is open, else subscriptionPlan) and
+ * delegates to getTierLimitsForFirm. Every caller that holds the firm doc
+ * should use this so a firm trialing Komplete keeps unlimited limits for
+ * the trial window — and honestly loses them the moment it expires.
+ */
+export function resolveTierLimitsForFirm(firm: {
+  subscriptionPlan?: string | null;
+  product?: string | null;
+  trialPlan?: string | null;
+  trialEndsAt?: number | null;
+}) {
+  return getTierLimitsForFirm(effectiveFirmPlan(firm), firm.product);
+}

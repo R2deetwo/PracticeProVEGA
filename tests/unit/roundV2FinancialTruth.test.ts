@@ -822,7 +822,11 @@ describe('V2 — one contract on every surface (mirror equivalence + source cont
 
     it('SOURCE CONTRACTS — the five previously-drifting surfaces use the shared helpers (no hand-rolled sums)', () => {
         const billingView = read('src/components/BillingView.tsx');
-        expect(billingView).toContain("computeClientFinancialSummary(invoices as any)");
+        // K-4 (unified-product round): the helper now runs on the
+        // ORIGIN-SCOPED invoice subsets (legalInvoices for the legal KPIs,
+        // propertyInvoices for the property KPIs) — still the one shared
+        // helper, never a hand-rolled sum, and each money row counted once.
+        expect(billingView).toContain("computeClientFinancialSummary(legalInvoices as any)");
         expect(billingView).toContain('invoiceOutstanding(invoice as any)');
         expect(billingView).not.toContain('(i.total_amount || i.subTotal || 0)');   // the drifted formula is gone
 

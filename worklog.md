@@ -18569,3 +18569,190 @@ authority verification.
 
 STOPPED FOR REVIEW — V5 campaign complete.
 [skip ci]
+
+## Task: V6 — KOMPLETE UNIFIED PRODUCT INTEGRITY (2026-11-11)
+
+Mission: strengthen Komplete as a genuinely unified legal + property
+product — preserve the working product-resolution, dual-feature nav,
+unified dashboard and cross-product bridges; fix the identified defects
+without rebuilding the architecture.
+
+### K-1. Mobile search — FIXED (was doubly broken)
+- The bearer fix: FullScreenSearch's query never forwarded sessionToken,
+  so requireFirmUser ("a verified session is required") rejected EVERY
+  call and the surface hung on "Searching…" forever. The token is now
+  passed exactly like Sidebar's queries; demo sessions (no verified
+  bearer) skip the query like Sidebar does.
+- Properties are now searchable: schema gains
+  properties.searchIndex("search_address"); convex/search.ts searches
+  property addresses for property-capable firms (product read from the
+  FIRM RECORD server-side — never caller input), returns a stable
+  `properties` key (empty for legal-only firms); mobile renders the
+  Property category (address + status) and navigates to propertyDetail
+  (detailViewMap learns propertyDetail→properties for tab highlighting).
+  Matters/contacts/documents/tasks untouched. Desktop CommandPalette
+  already had properties; its duplicated product logic now uses useProduct
+  (which also fixes 'komplete'/'sentry' firms seeing no commands).
+- Honest states: the query uses useQuery_experimental with
+  throwOnError:false — loading ("Searching…"), empty ("No results"),
+  error ("Search unavailable" + the server's message + sign-in hint when
+  session-related), and demo/unauthenticated ("Sign in with your firm
+  account…") each render instead of hanging or crashing.
+- Grouping/navigation extracted to pure src/utils/searchGrouping.ts.
+
+### K-3. Unified entitlement consistency — the one authoritative model
+- PRODUCT decides SURFACES; PLAN (trial-aware) decides DEPTH. New pure
+  src/utils/entitlements.ts is the single interpretation:
+  computeEntitlements (extracted verbatim from useFeatures, now a thin
+  wrapper) + normalizeProduct (one vocabulary: vega/legal, atrium/
+  property/sentry, unified/komplete) + staffCanViewBilling.
+- Core-plan unified firms CORRECTED: both product surfaces survive
+  (property management is a surface — Atrium Core has it), but every
+  plan-gated premium feature locks exactly as for single-product Core
+  firms, and — the revenue leak — convex/tierLimits no longer treats ANY
+  unified-product firm as unlimited: only the Komplete/Enterprise plan
+  does (trial-aware via effectiveFirmPlan); otherwise the plan's depth
+  applies across both dimension sets (seats/matters/storage from
+  VEGA_LIMITS, units/tenants/whatsapp from ATRIUM_LIMITS). This closes
+  the ~₦400K+/yr-per-downgraded-firm leak founderMetrics D5 documented
+  (the approval path was patched; the limits engine was not).
+- Trial paths: activation (trialPlan grants entitlements, billing stays
+  Core), expiry (cron clears trial → honest Core depth, surfaces remain),
+  and display (getDisplayPlan shows Enterprise ONLY when entitled —
+  unified+Core now displays "Core" honestly). createFirm stores
+  per-plan unit/tenant caps for unified signups instead of blanket 999999
+  (a Komplete-plan signup still starts unlimited).
+- Server-side parity: estateCommunity's backend gate gains the
+  property-capable product check the frontend always had (a Vega Pro firm
+  could call the functions directly before). Sidebar's ALOA-X gate is now
+  trial-aware. VMS stays plan-gated (pinned by vmsEntitlement.test.ts —
+  owner decision flagged).
+- canViewBilling: one rule (staffCanViewBilling) — property-capable
+  firms (Atrium AND unified) show Financials to all team members (the
+  rent ledger is operational); Vega-only firms keep admin/solo.
+- Client-state manipulation: entitlements are pure functions of the
+  server-loaded firm/user records; the hydration default shows surfaces
+  but holds every plan gate, and data access is enforced by
+  session-derived identity in every Convex function (R16).
+
+### K-2. Navigation consistency — parity restored
+- One rule set on both surfaces (pinned by navParity.test.ts):
+  Properties hidden for Vega-only firms (mobile showed an empty module
+  desktop never shows); Matters/Research/Documents hidden for
+  Atrium-only firms (Documents was new); Research locked below Growth+
+  with the SAME upgrade modal on mobile (tap → upgradePlan, lock badge);
+  Financials never locked for property-capable firms (the old
+  isProperty test locked unified firms out of their own rent ledger) and
+  locked below Pro for Vega-only; Analytics locked below Growth+;
+  Financials/Analytics visibility uses canViewBilling on BOTH surfaces
+  (desktop previously showed Financials to staff the permission says no).
+- Komplete navigation identity preserved (product subtitles, primary
+  bars, More sheet unchanged in structure).
+
+### K-4. Invoice product scope — attributed, partitioned, labelled
+- Additive invoices.product ('legal'|'property') + by_product index.
+  Creation stamps it: useFinance.handleGenerateInvoice (source param;
+  real-estate matters → property), InvoiceForm (from the selected
+  matter), CollectRentModal's management-fee invoice ('property').
+- Legacy rows: classified AT READ TIME by pure evidence
+  (src/utils/invoiceOrigin.ts — real-estate matter link via either id
+  convention, or the property pseudo-matter), never backfilled, never
+  guessed; deterministic so every surface agrees.
+- The unified Financials scope toggle now filters the invoice LIST (it
+  filtered only tabs before — the Legal toggle showed landlords'
+  property invoices) and origin-scopes the KPIs: legal KPIs =
+  legal-origin invoices; property KPIs = ledger + property-origin
+  invoices; combined = the sum with each money row counted exactly once
+  (origins partition). Unified firms see Legal/Property origin badges on
+  every invoice row (desktop table + mobile cards).
+
+### K-5/K-6. Unit-count semantics + dashboard consistency
+- "Managed Units" now counts UNITS: Σ unitCountBase (declared
+  numberOfUnits → embedded units → 1 occupancy), with the property count
+  + occupancy as the subtitle — a 24-unit estate no longer counts as 1.
+- ONE semantics everywhere: PropertyReports drops its inverted
+  (embedded-first) inline expression; the AI portfolio roster's total
+  uses unitCountBase (a declared-only estate no longer reports 0 units).
+- Pure src/utils/dashboardKpis.ts documents each KPI's calculation:
+  activeMattersCount (Active, non-archived), overdueTasksCount,
+  outstandingLegalRevenue (LEGAL-origin unpaid/overdue only — property
+  money never inflates the INV card), portfolioUnitTotals,
+  outstandingRentLedger (pending/defaulted, voided/test excluded).
+- No double counting: invoices partition by origin; the rent ledger is
+  property-only money; shared contacts contribute to each KPI exactly
+  once (each KPI counts records of a single type). The unified dashboard
+  keeps both products' widgets; the OutstandingCard INV/RENT toggle
+  already separated the money systems — now the figures behind it do too.
+
+### K-7. Client-facing identity — PROPOSAL ONLY
+- docs/proposals/komplete-client-facing-identity.md: current-state
+  findings (hardcoded VEGA/ATRIUM invite emails, client-portal-only
+  resolution for unified users, no property visibility, terms routed as
+  vega) + three options (A: one Komplete client portal with Legal/
+  Property sections and record-derived permissions — recommended; B: two
+  portals, honest branding + cross-links; C: naming fixes only) + the
+  confidentiality boundaries any option must enforce + four owner
+  decisions. NO portal functionality introduced or changed.
+
+### K-8. Legacy product:'komplete' records
+- Could NOT be verified from the sandbox (enumerating firms requires
+  founder auth; public queries are correctly rejected). Code-level
+  assessment: 'komplete' is a REAL backend vocabulary item (createFirm
+  normalization accepts it; fixProductMode's valid list includes it;
+  convex/tierLimits already handled it) — not hypothetical — but
+  ProductContext aliased it only for NAVIGATION while useFeatures/tiers
+  received the raw value and stripped BOTH capability flags (the
+  interaction defect). Fixed by normalizing in entitlements.ts +
+  tiers.ts (vocabulary coherence, not record-compat code).
+  normalizeSignupProduct deliberately does NOT gain the 'komplete'
+  spelling (no active writer; the brief forbids hypothetical compat).
+
+### Protections held
+- Atrium product-specific functionality, Vega legal workflows, Paystack:
+  untouched (VMS gate unchanged — pinned; retainer rules unchanged;
+  WhatsApp quota only gained trial-awareness via the same Atrium table).
+- productAccess/signupProduct/accentTheme/themeStorage tests: unmodified
+  and green. vmsEntitlement + vegaTiersDraftPro: unmodified and green.
+- Marketing copy, provider contracts, AI infrastructure: untouched.
+
+### Gates
+- vitest 2504/2504 (124 files, +5 files/+86 tests: entitlements 25,
+  kompleteSearch 17, navParity 14, invoiceProductScope 24, unitCounts
+  21 — covering required tests 1-12) / convex tsc 0 / root tsc 89 =
+  exactly the baseline (0 new) / eslint changed files 0 errors 0
+  warnings / ui-primitives ratchet HELD at 2295 / design tokens gray=0 /
+  identity audit PASSED / vite build green.
+- Test-fixture updates (justified): roundDWave2/roundASecurity estate
+  firms gain product:'property' (realistic fixtures — the new product
+  gate is the point); portfolioContext roster total 2→3 (the K-5
+  semantics change, commented in-test); roundV2FinancialTruth's
+  BillingView pin now names the origin-scoped subset (same shared
+  helper, stronger contract).
+
+### Owner decisions (NOT changed silently)
+1. K-7 option choice (A/B/C) + the brand rule + cross-section visibility
+   default + section labels.
+2. VMS (Sentry Pass) is plan-gated with a Komplete/Enterprise tier
+   bypass on BOTH sides — pinned by vmsEntitlement.test.ts; if it should
+   be property-only (like Estate Community now is), that is an owner
+   pricing decision.
+3. Portal users are presumed Komplete-plan in useFeatures until firm data
+   loads (existing behaviour, kept — portal data access is enforced
+   per-function server-side regardless).
+4. Founder-dashboard Komplete KPI (KOMPLETE_ANNUAL_PRICE display) and
+   SubscriptionSettings' Fix Product Mode flow: unchanged.
+5. Standing from V5: production promote decision for builds 1163/1164
+   (+ this round's build); CLOUDFLARE_API_TOKEN rotation.
+
+Stage Summary:
+- V6 COMPLETE, all gates green — pushed to main (CI runs the full quality
+  gate on the push); production promote NOT dispatched; STOPPED FOR
+  REVIEW per the brief.
+- Komplete now behaves as one product with two service lines: one
+  entitlement interpretation (product=surfaces, plan=depth, Komplete
+  plan=unlimited), parity between nav surfaces, invoices that say which
+  business they belong to, money that is never double-counted, search
+  that actually works on mobile and covers the portfolio, and a
+  documented proposal — not an implementation — for the client-facing
+  identity.
+[skip ci]

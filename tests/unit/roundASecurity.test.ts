@@ -570,7 +570,7 @@ describe('C5 — estate community firm binding', () => {
     const { ctx } = makeCtx({
       session: ADMIN_SESSION, user: ADMIN,
       tables: {
-        firms: [{ id: 'firm-1', subscriptionPlan: 'Pro', name: 'Atrium Mgmt' }],
+        firms: [{ id: 'firm-1', subscriptionPlan: 'Pro', product: 'property', name: 'Atrium Mgmt' }],
         estate_amenities: [{ _id: 'a1', firmId: 'firm-1', name: 'Gym', isActive: true }],
       },
     });
@@ -596,7 +596,7 @@ describe('C5 — estate community firm binding', () => {
     const { ctx, writes } = makeCtx({
       session: ADMIN_SESSION, user: ADMIN, // requireFirmUser blocks Tenant roles pre-Round-C
       tables: {
-        firms: [{ id: 'firm-1', subscriptionPlan: 'Pro' }],
+        firms: [{ id: 'firm-1', subscriptionPlan: 'Pro', product: 'property' }],
         estate_amenity_bookings: [{ _id: 'bk1', firmId: 'firm-1', residentUserId: 'u-admin-1', status: 'approved' }],
       },
     });

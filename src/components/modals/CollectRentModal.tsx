@@ -280,13 +280,16 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
         };
 
         // Generate the management fee invoice — NOT marked as paid (landlord pays agent separately)
+        // K-4: explicitly attributed to the PROPERTY business operation so
+        // unified Financials can keep legal and property invoices apart.
         await handleGenerateInvoice(
           linkedMatter || { id: property.id, title: `Property Management — ${property.address}`, clientId: owner.id } as any,
           [feeItem],
           { issueDate: paymentDate, dueDate: paymentDate }, // Due same day, but not auto-paid
           [], [],
           defaultAccount,
-          { applicable: false }
+          { applicable: false },
+          { product: 'property' }
         );
       }
 

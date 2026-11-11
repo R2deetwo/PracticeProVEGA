@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Task, Matter, UserRole, SubscriptionPlan } from '../types';
 import { useDataState } from '../contexts/DataContext';
+import { staffCanViewBilling } from '../utils/entitlements';
 
 export const usePermissions = () => {
   const { currentUser, appMode } = useAuth();
@@ -59,11 +60,15 @@ export const usePermissions = () => {
 
     // Derive product mode from firm details — used to decide whether the
     // Financials (billing) view should be visible to non-admin staff.
-    // For Atrium (property) firms, Financials is the primary revenue hub
-    // and should be visible to all team members. For Vega (legal) firms,
-    // full firm billing/profitability is admin-only.
-    const firmProduct = appState.firmDetails?.product || currentUser?.product || 'legal';
-    const isPropertyFirm = firmProduct === 'property' || firmProduct === 'atrium';
+    // K-3 (unified-product integrity): the decision now lives in ONE place —
+    // staffCanViewBilling (utils/entitlements.ts). Atrium AND unified
+    // (Komplete) firms get the property rule (Financials is the operational
+    // revenue hub — rent ledger, service charges, payment proofs — that
+    // non-admin team members work in daily); Vega-only firms keep the
+    // admin/solo rule (full firm billing/profitability is sensitive).
+    // All accepted product spellings ('komplete', 'sentry', 'property'…)
+    // normalize inside the helper.
+    const firmProduct = appState.firmDetails?.product || currentUser?.product || 'unified';
 
     const canManageMatterBilling = (matter: Matter): boolean => {
         if (!matter) return false;
@@ -81,11 +86,12 @@ export const usePermissions = () => {
 
     return {
       // View-level permissions
-      // Financials (billing) is the unified revenue + billing hub. For Atrium
-      // (property) firms, this is the primary revenue entry point — visible
-      // to all team members. For Vega (legal) firms, it's admin/solo only
-      // (full firm billing/profitability is sensitive).
-      canViewBilling: isSolo || isAdmin || isPropertyFirm,
+      // Financials (billing) is the unified revenue + billing hub. For
+      // property-capable firms (Atrium AND Komplete/unified), this is the
+      // primary revenue entry point — visible to all team members. For
+      // Vega-only (legal) firms, it's admin/solo only (full firm
+      // billing/profitability is sensitive). See staffCanViewBilling.
+      canViewBilling: staffCanViewBilling({ role: currentUser.role, isSolo, product: firmProduct }),
       canViewArchive: isSolo || isAdmin,
       canViewMessaging: !isSolo, // Everyone sees messaging
       

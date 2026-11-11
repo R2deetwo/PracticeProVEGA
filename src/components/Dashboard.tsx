@@ -17,6 +17,13 @@ import { useProduct } from '../contexts/ProductContext';
 import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
 import { Skeleton } from './toolkit/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
+import {
+    activeMattersCount as activeMattersCountOf,
+    overdueTasksCount as overdueTasksCountOf,
+    outstandingLegalRevenue,
+    portfolioUnitTotals,
+    outstandingRentLedger as outstandingRentLedgerOf,
+} from '../utils/dashboardKpis';
 import BroadcastBanner from './BroadcastBanner';
 import CompleteSetupBanner from './CompleteSetupBanner';
 import ErrorBoundary from './ErrorBoundary';
@@ -168,31 +175,35 @@ const Dashboard: React.FC = () => {
     );
     const isDowngradedState = plan === SubscriptionPlan.Core && internalUsers.length > 1;
 
-    const overdueTasksCount = safeTasks.filter(t => t.status !== 'done' && t.dueDate && new Date(t.dueDate) < new Date()).length;
-    const activeMattersCount = safeMatters.filter(m => m.status === 'Active').length;
-    const outstandingRevenue = safeInvoices
-        .filter(i => i.status === InvoiceStatus.Unpaid || i.status === InvoiceStatus.Overdue)
-        .reduce((sum, i) => sum + (i.lineItems || []).reduce((s, li) => s + (li.total || 0), 0), 0);
+    const overdueTasksCount = overdueTasksCountOf(safeTasks as any);
+    const activeMattersCount = activeMattersCountOf(safeMatters as any);
+    // K-4/K-6: the INV figure counts LEGAL-origin invoices only — property
+    // money (management fees, rent) belongs to the property figures, so no
+    // money is double-counted across the INV/RENT cards.
+    const outstandingRevenue = outstandingLegalRevenue(safeInvoices as any, {
+        matters: matterState.matters || [],
+        properties: coreState.properties || [],
+    });
 
-    // Atrium (property) stats
+    // Atrium (property) stats — K-5: every figure comes from the ONE pure
+    // calculation (utils/dashboardKpis.ts) with its definition documented
+    // and tested; "Managed Units" now counts UNITS (declared or embedded
+    // inventory, minimum one occupancy per row), not property rows.
     const safeProperties = properties || [];
-    const propertyCount = safeProperties.length;
+    const portfolioTotals = portfolioUnitTotals(safeProperties as any);
+    const propertyCount = portfolioTotals.propertyCount;
+    const managedUnits = portfolioTotals.managedUnits;
+    const activeLeasesCount = portfolioTotals.occupiedProperties;
+    const occupancyRate = portfolioTotals.occupancyRate;
     /** Pending/defaulted rent from ledger — not collected revenue.
      *  FINANCIAL LIFECYCLE (accounting-integrity round): voided and
      *  test-marked records are excluded — an outstanding-rent figure that
      *  includes test noise is exactly the "records I don't remember"
      *  confusion this round exists to end. */
-    const outstandingRentLedger = safeProperties.reduce((total, p) => {
-        const rentDue = (coreState.ledgerEntries || [])
-            .filter(rp => (rp.propertyId === p.id || rp.unitId === p.id) && (rp.status === 'pending' || rp.status === 'defaulted') && rp.recordStatus !== 'voided' && rp.recordStatus !== 'test')
-            .reduce((sum, rp) => sum + (rp.amount || 0), 0);
-        return total + rentDue;
-    }, 0);
-    const activeLeasesCount = safeProperties.filter(p => p.status === 'Occupied').length;
-    // Occupancy rate: percentage of properties that are occupied
-    const occupancyRate = safeProperties.length > 0
-        ? Math.round((activeLeasesCount / safeProperties.length) * 100)
-        : 0;
+    const outstandingRentLedger = outstandingRentLedgerOf(
+        (coreState.ledgerEntries || []) as any,
+        safeProperties.map((p: any) => p.id)
+    );
 
     const handleUpgrade = () => {
         navigateTo('settings', null, { settingsTargetId: 'subscription-management' });
@@ -332,6 +343,7 @@ const Dashboard: React.FC = () => {
                         outstandingRevenue={isDowngradedState ? 0 : outstandingRevenue}
                         contactsCount={isDowngradedState ? 0 : safeContacts.length}
                         propertyCount={isDowngradedState ? 0 : propertyCount}
+                        managedUnits={isDowngradedState ? 0 : managedUnits}
                         propertyRevenue={isDowngradedState ? 0 : outstandingRentLedger}
                         activeLeasesCount={isDowngradedState ? 0 : activeLeasesCount}
                         occupancyRate={isDowngradedState ? 0 : occupancyRate}

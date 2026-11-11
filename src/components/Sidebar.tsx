@@ -27,6 +27,7 @@ const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 import { View, SubscriptionPlan } from '../types';
 import { useFeatures } from '../hooks/useFeatures';
+import { usePermissions } from '../hooks/usePermissions';
 import { formatFirmLegalName } from '../utils/professionalIdentity';
 
 interface SidebarProps {
@@ -175,8 +176,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     };
 
     const currentPlan = coreState.firmDetails?.subscriptionPlan || SubscriptionPlan.Core; // Task 62: firmDetails can be undefined booting from the offline cache
-    const isHighTier = currentPlan === SubscriptionPlan.Enterprise || currentPlan === SubscriptionPlan.Komplete;
     const features = useFeatures();
+    // K-3: plan hierarchy from the ONE authoritative (trial-aware)
+    // entitlement computation — a firm trialing Komplete sees ALOA-X for
+    // the trial window; the old raw-subscriptionPlan read said 'Core'
+    // throughout every trial.
+    const isHighTier = features.currentPlan === SubscriptionPlan.Enterprise || features.currentPlan === SubscriptionPlan.Komplete;
+    // K-2 (nav parity): the same role+product permission BottomNav applies
+    // to the Financials/Analytics items — one rule across both surfaces.
+    const permissions = usePermissions();
     // Allow all users to access the firm switcher to find their other offices or switch back to original offices 
     const canUseMultiFirm = true;
 
@@ -411,22 +419,31 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 <div className="my-4 border-t border-slate-100 dark:border-zinc-800 mx-6"></div>
 
                 <NavSection title="OPERATIONS" isRetracted={isSidebarRetracted}>
+                    {/* K-2 (nav parity): Financials is visible exactly when
+                        the role+product permission says so (canViewBilling —
+                        the same gate BottomNav applies), and locked only for
+                        Vega-only firms below Pro. Property-capable firms
+                        (Atrium AND Komplete/unified) never lock: Financials
+                        is their operational revenue hub (rent ledger, service
+                        charges, payment proofs, reconciliation) — the old
+                        isProperty test locked unified firms out of their own
+                        property revenue. */}
+                    {permissions.canViewBilling && (
                     <NavItemLink
                         item={{ view: 'billing', text: 'Financials', icon: <BillingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                        // Financials is the unified revenue + billing hub.
-                        // For Atrium (property) firms, this is their PRIMARY
-                        // revenue entry point — never locked. For Vega (legal)
-                        // firms, it's gated to Pro+ (advanced billing feature).
-                        locked={isProperty ? false : !features.canUseAdvancedBilling}
+                        locked={hasPropertyFeatures ? false : !features.canUseAdvancedBilling}
                         onLockedClick={() => openModal('upgradePlan')}
                     />
+                    )}
+                    {permissions.canViewBilling && (
                     <NavItemLink
                         item={{ view: 'reporting', text: 'Analytics', icon: <ReportingIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         locked={!features.canUseReportGenerator}
                         onLockedClick={() => openModal('upgradePlan')}
                     />
+                    )}
                     {/* Compliance page deprecated — moved to Settings */}
                     <NavItemLink
                         id="nav-settings-sidebar"

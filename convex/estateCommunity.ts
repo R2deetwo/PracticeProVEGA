@@ -46,6 +46,17 @@ async function hasEstateCommunityAccess(ctx: any, firmId: string): Promise<boole
   }
   if (!firm) return false;
 
+  // K-3 (unified-product integrity): product check FIRST. Estate Community
+  // is a property-surface feature — the frontend gate requires a
+  // property-capable firm (isPropertyFirm: Atrium or unified/Komplete).
+  // The old backend gate was plan-only, so a Vega-only firm on Pro could
+  // call these functions directly even though the UI never shows them —
+  // an entitlement asymmetry between client display and server access.
+  const firmProduct = String(firm.product || '').toLowerCase();
+  const isPropertyCapable = firmProduct === 'property' || firmProduct === 'atrium'
+    || firmProduct === 'unified' || firmProduct === 'komplete';
+  if (!isPropertyCapable) return false;
+
   // Pro+ firms: included free
   const plan = firm.subscriptionPlan;
   if (plan === 'Pro' || plan === 'Enterprise' || plan === 'Komplete') return true;

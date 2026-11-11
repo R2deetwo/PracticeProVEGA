@@ -416,9 +416,14 @@ export const getTiersForProduct = (product: ProductMode): Record<TierId, TierDef
   return VEGA_TIERS;
 };
 
-/** Checks if a product mode is Komplete (unified single-tier). */
+/** Checks if a product mode is Komplete (unified single-tier).
+ *  K-3: accepts BOTH spellings — the backend's own validators
+ *  (createFirm, fixProductMode, signup normalization) accept 'komplete',
+ *  and convex/tierLimits already treated it as unified. The frontend
+ *  capability checks must agree with the backend vocabulary or a
+ *  'komplete'-valued row loses BOTH capability flags. */
 export const isKomplete = (product?: string | null): boolean =>
-  product === 'unified';
+  product === 'unified' || product === 'komplete';
 
 export const DISPLAY_TIER_IDS: TierId[] = ['Core', 'Growth', 'Pro', 'Enterprise'];
 
@@ -470,11 +475,15 @@ export const ATRIUM_LIMITS_BY_PLAN: Record<string, { units: number; tenants: num
   Enterprise: { units: 999999, tenants: 999999, whatsapp: 999999 },
 };
 
+// K-3: 'komplete' is included in both capability checks — it is a real
+// backend-accepted product spelling (see isKomplete above). normalizeProduct
+// in utils/entitlements.ts is the full alias map; these hot-path helpers
+// cover the canonical + stored spellings.
 export const isPropertyCapable = (product?: string | null): boolean =>
-  product === 'property' || product === 'atrium' || product === 'unified';
+  product === 'property' || product === 'atrium' || product === 'unified' || product === 'komplete';
 
 export const isLegalCapable = (product?: string | null): boolean =>
-  product === 'legal' || product === 'vega' || product === 'unified' || !product;
+  product === 'legal' || product === 'vega' || product === 'unified' || product === 'komplete' || !product;
 
 /** In-app settings: map tier to SubscriptionPlan upgrade target */
 export const TIER_TO_SUBSCRIPTION_PLAN: Record<TierId, string> = {

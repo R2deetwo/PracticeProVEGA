@@ -14,6 +14,7 @@
  */
 
 import { Property, RealEstateUnit } from '../types';
+import { unitCountBase } from './propertyUnitCount';
 
 // ── Small helpers ───────────────────────────────────────────────────────────
 
@@ -100,7 +101,11 @@ export const buildPortfolioRoster = (
 
     const occupied = properties.filter(p => p.status === 'Occupied').length;
     const vacant = properties.filter(p => p.status === 'Vacant').length;
-    const totalUnits = properties.reduce((n, p) => n + (((p as any).units || []).length), 0);
+    // K-5: the ONE unit-count semantics — declared-or-embedded inventory,
+    // minimum one occupancy per row (unitCountBase, the same rule the
+    // Properties list and the Managed Units KPI use). The old total only
+    // counted embedded units, so a declared-only estate reported 0 units.
+    const totalUnits = properties.reduce((n, p) => n + unitCountBase(p as any), 0);
 
     const lines = properties.slice(0, maxProperties).map(p => formatPropertyLine(p, maxUnits));
     const truncated =

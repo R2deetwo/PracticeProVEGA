@@ -64,7 +64,7 @@ import {
 } from "./documentsIntegrity";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
-import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
+import { ATRIUM_LIMITS, resolveTierLimitsForFirm } from "./tierLimits";
 import { withCronReporting } from "./observability";
 
 // ─── FINANCIAL TABLES (accounting-integrity round, 2026-09-14) ───────────────
@@ -2918,6 +2918,28 @@ export const createFirm = mutation({
     const trialStartsAt = args.trial ? now : null;
     const trialEndsAtFinal = args.trial ? trialEndsAt : null;
 
+    // K-3 (unified-product integrity): stored limits now follow the
+    // AUTHORITATIVE rule — the product decides surfaces, the plan decides
+    // depth. Unified (Komplete) firms previously got a blanket 999999 for
+    // units/tenants at signup; they now get the plan's Atrium-table depth
+    // (the OnboardingWizard sends plan='Komplete' with trial=true for
+    // unified signups, so a trialing Komplete firm still starts unlimited
+    // — ATRIUM_LIMITS has no 'Komplete' key, so unified+Komplete maps to
+    // unlimited explicitly).
+    const signupProduct = String(args.product || "unified").toLowerCase();
+    const unifiedSignupProduct = signupProduct === "unified" || signupProduct === "komplete";
+    const unifiedEntitled = unifiedSignupProduct && (args.subscriptionPlan === "Komplete" || args.subscriptionPlan === "Enterprise");
+    const atriumDepth = ATRIUM_LIMITS[args.subscriptionPlan]?.units || ATRIUM_LIMITS.Core.units;
+    const atriumTenantDepth = ATRIUM_LIMITS[args.subscriptionPlan]?.tenants || ATRIUM_LIMITS.Core.tenants;
+    const storedUnitCap = signupProduct === "property" ? atriumDepth
+      : unifiedEntitled ? 999999
+      : unifiedSignupProduct ? atriumDepth
+      : 999999; // Vega-only firms have no property surface — nothing to cap
+    const storedTenantCap = signupProduct === "property" ? atriumTenantDepth
+      : unifiedEntitled ? 999999
+      : unifiedSignupProduct ? atriumTenantDepth
+      : 999999;
+
     const firmId = await ctx.db.insert("firms", {
       name: args.name,
       address: args.address,
@@ -2927,8 +2949,8 @@ export const createFirm = mutation({
       createdBy: String(caller.email ?? args.user_email ?? ""),
       aiSettings: { enableAllAiFeatures: true },
       product: args.product || "unified",
-      maxUnits: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.units || 5) : 999999,
-      maxActiveTenants: args.product === "property" ? (ATRIUM_LIMITS[args.subscriptionPlan]?.tenants || 5) : 999999,
+      maxUnits: storedUnitCap,
+      maxActiveTenants: storedTenantCap,
       // SECURITY FIX (WhatsApp hard-block): non-property firms (Vega legal /
       // Komplete) previously got whatsappLimit: 0 here — and
       // incrementWhatsAppQuota treats limit 0 as "already exhausted"
@@ -7472,7 +7494,13 @@ export const incrementWhatsAppQuota = internalMutation({
     // wrote 0 for non-property firms, which used to read as "quota
     // exhausted" and hard-block every WhatsApp send. A stored 0 or
     // undefined is now treated as "no custom cap".
-    const tierLimits = getTierLimitsForFirm(firm.subscriptionPlan, firm.product);
+    // K-3: trial-aware canonical limits — a firm trialing Komplete keeps
+    // unlimited WhatsApp for the trial window; after expiry the effective
+    // plan (Core) applies. A unified-product firm on a non-Komplete plan now
+    // gets the plan's Atrium-table WhatsApp depth instead of blanket
+    // unlimited. The stored firm.whatsappLimit is still honored as the
+    // founder-set custom cap below.
+    const tierLimits = resolveTierLimitsForFirm(firm as any);
     let limit: number | null = tierLimits.whatsappLimit; // null = unlimited
     const stored = firm.whatsappLimit;
     if (typeof stored === "number" && stored > 0 && stored !== 999999 && (limit === null || stored < limit)) {

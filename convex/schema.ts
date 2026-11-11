@@ -519,7 +519,17 @@ export default defineSchema({
     // are backfilled additively by migrations.backfillInvoiceMatterIds and
     // every reader resolves BOTH conventions.
     matterId: nullableString,
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]).index("by_record_status", ["recordStatus"]).index("by_matter", ["matterId"]),
+    // ─── K-4 INVOICE PRODUCT ATTRIBUTION (KOMPLETE unified-product round) ──
+    // Which business operation the invoice belongs to:
+    //   'legal'    — matter-backed legal billing (the default: every invoice
+    //                created through the standard generate-invoice flow)
+    //   'property' — property-operation invoices (management fees, rent
+    //                demands issued as invoices) created from property flows
+    // Additive and optional: legacy rows without it are classified at read
+    // time by src/utils/invoiceOrigin.ts (evidence-based, never guessed) —
+    // no backfill required.
+    product: v.optional(v.string()),       // 'legal' | 'property' (absent = classify at read time)
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]).index("by_record_status", ["recordStatus"]).index("by_matter", ["matterId"]).index("by_product", ["product"]),
 
   events: defineTable({
     firmId: nullableString,
@@ -966,7 +976,11 @@ export default defineSchema({
     .index("by_firm", ["firmId"])
     .index("by_contact", ["contactId"])
     .index("by_matter", ["matterId"])
-    .index("by_custom_id", ["id"]),
+    .index("by_custom_id", ["id"])
+    // K-1 (unified-product integrity): server-side search over property
+    // addresses. Documents without an address are simply not indexed —
+    // the firmId filter is applied after the search, same as matters.
+    .searchIndex("search_address", { searchField: "address" }),
 
   // ─── ROUND E (Wave E1): THE TENANCY LEDGER ────────────────────────────────
   // The tenancies table existed since the original schema but was DORMANT

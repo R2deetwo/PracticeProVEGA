@@ -20,8 +20,13 @@ export const useFinance = (appState: AppState, actions: any) => {
 
     /**
      * Generate a new invoice from matter data.
+     * K-4 (invoice product attribution): `source.product` records the
+     * originating business operation — 'property' for invoices created by
+     * property flows (CollectRentModal's management-fee invoice), 'legal'
+     * (the default) for standard matter billing. Legacy rows without the
+     * field are classified at read time (utils/invoiceOrigin.ts).
      */
-    const handleGenerateInvoice = useCallback(async (matter: any, items: any[], details: any, timeIds: string[], expenseIds: string[], payment: any, tax: any) => {
+    const handleGenerateInvoice = useCallback(async (matter: any, items: any[], details: any, timeIds: string[], expenseIds: string[], payment: any, tax: any, source?: { product?: 'legal' | 'property' }) => {
         if (!matter) throw new Error("Matter is required for invoice generation.");
         
         const clientName = appState.contacts.find(c => c.id === matter.clientId)?.name || 'Unknown Client';
@@ -52,6 +57,10 @@ export const useFinance = (appState: AppState, actions: any) => {
             // placeholder and must NOT become a fake FK).
             ...(matter.id && matter.id !== 'general' ? { matterId: matter.id } : {}),
             matter: { id: matter.id || 'general', title: matter.title || 'General Management' },
+            // K-4: explicit origin — property flows pass it; everything
+            // else is legal billing. A real-estate-linked matter also
+            // classifies as property at read time even without the field.
+            product: source?.product === 'property' || !!(matter as any)?.specialtyData?.realEstate?.propertyId ? 'property' : 'legal',
             lineItems: items || [],
             status: details?.status || InvoiceStatus.Sent,
             issueDate: details?.issueDate || new Date().toISOString(),

@@ -1,9 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
-import { useQuery } from 'convex/react';
+import { useQuery_experimental } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { MattersIcon, ContactsIcon, DocumentsIcon, TasksIcon, SearchIcon } from '../constants';
+import { MattersIcon, ContactsIcon, DocumentsIcon, TasksIcon, SearchIcon, OfficeBuildingIcon } from '../constants';
+import {
+    groupServerResults,
+    searchResultDestination,
+    type SearchResultType,
+    type ServerSearchResult,
+} from '../utils/searchGrouping';
 
 // ─── Phase 4 (Performance & Database) ───────────────────────────────────────
 // This component previously built a client-side Fuse.js index over ALL
@@ -13,27 +19,23 @@ import { MattersIcon, ContactsIcon, DocumentsIcon, TasksIcon, SearchIcon } from 
 // (searchIndex-backed, firm-scoped, relevance-ranked) with a 250ms debounce
 // and renders a slim projection. The full dataset never needs to be in
 // memory just to power search.
+//
+// K-1 (KOMPLETE unified-product integrity) fixed two defects here:
+//   1. The query did not forward the session bearer token, so
+//      requireFirmUser rejected EVERY call ("a verified session is
+//      required") and the UI hung on "Searching…" forever. The bearer is
+//      now passed exactly like Sidebar's queries.
+//   2. Properties were not a search category (the desktop CommandPalette
+//      had them; mobile did not). searchAll now searches property
+//      addresses for property-capable firms and this surface renders them,
+//      navigable to the property detail page.
+// The query uses the object-form hook with throwOnError: false so the
+// loading / empty / error / permission-denied states each render honestly
+// instead of tripping the app error boundary.
 
-type ResultDataType = 'Matter' | 'Contact' | 'Document' | 'Task';
-
-interface SlimResult {
-    id: string;
-    dataType: ResultDataType;
-    title?: string;
-    name?: string;
-    suitNumber?: string;
-    email?: string;
-}
-
-interface ServerSearchResult {
-    matters: { id: string; title: string; suitNumber?: string }[];
-    contacts: { id: string; name: string; email?: string }[];
-    documents: { id: string; title: string }[];
-    tasks: { id: string; title: string }[];
-}
-
-const typeConfig: Record<ResultDataType, { icon: React.FC<any>; color: string; headerColor: string }> = {
+const typeConfig: Record<SearchResultType, { icon: React.FC<any>; color: string; headerColor: string }> = {
     Matter: { icon: MattersIcon, color: 'bg-primary-500 text-white', headerColor: 'text-primary-600 dark:text-primary-400' },
+    Property: { icon: OfficeBuildingIcon, color: 'bg-indigo-500 text-white', headerColor: 'text-indigo-600 dark:text-indigo-400' },
     Contact: { icon: ContactsIcon, color: 'bg-blue-500 text-white', headerColor: 'text-blue-600 dark:text-blue-400' },
     Document: { icon: DocumentsIcon, color: 'bg-teal-500 text-white', headerColor: 'text-teal-600 dark:text-teal-400' },
     Task: { icon: TasksIcon, color: 'bg-amber-500 text-white', headerColor: 'text-amber-600 dark:text-amber-400' },
@@ -57,26 +59,29 @@ const FullScreenSearch: React.FC = () => {
 
     // Server-side search (skipped until there is an authenticated firm user
     // and a meaningful term — the searchIndex needs at least 2 characters).
+    // K-1: the session bearer is forwarded — requireFirmUser rejects any
+    // call without it, which used to strand this surface on "Searching…".
+    // Demo sessions (DEV demo mode) have no verified bearer — like the
+    // Sidebar's queries, the server-authed search is skipped for them and
+    // the surface shows the prompt state instead of an auth error.
     const trimmed = debouncedQuery.trim();
-    const canSearch = Boolean(currentUser?.firmId && currentUser?.email) && trimmed.length >= 2;
-    const serverResults = useQuery(
-        api.search.searchAll,
-        canSearch ? { userEmail: currentUser!.email!, query: trimmed } : "skip"
-    ) as ServerSearchResult | undefined;
+    const isDemo = currentUser?.email === 'demo@practicepro.ng';
+    const canSearch = !isDemo && Boolean(currentUser?.firmId && currentUser?.email) && trimmed.length >= 2;
+    const queryState = useQuery_experimental({
+        query: api.search.searchAll,
+        args: canSearch
+            ? { userEmail: currentUser!.email!, sessionToken: bearerToken ?? undefined, query: trimmed }
+            : 'skip',
+        throwOnError: false,
+    }) as
+        | { status: 'pending' }
+        | { status: 'success'; data: ServerSearchResult }
+        | { status: 'error'; error: Error };
 
-    const searchResults = useMemo(() => {
-        if (!serverResults) return null;
-        const grouped: Record<ResultDataType, SlimResult[]> = {
-            Matter: serverResults.matters.map(m => ({ id: m.id, dataType: 'Matter' as const, title: m.title, suitNumber: m.suitNumber })),
-            Contact: serverResults.contacts.map(c => ({ id: c.id, dataType: 'Contact' as const, name: c.name, email: c.email })),
-            Document: serverResults.documents.map(d => ({ id: d.id, dataType: 'Document' as const, title: d.title })),
-            Task: serverResults.tasks.map(t => ({ id: t.id, dataType: 'Task' as const, title: t.title })),
-        };
-        const totalCount =
-            grouped.Matter.length + grouped.Contact.length +
-            grouped.Document.length + grouped.Task.length;
-        return { grouped, totalCount };
-    }, [serverResults]);
+    const serverResults = queryState.status === 'success' ? queryState.data : undefined;
+    const searchError = queryState.status === 'error' ? queryState.error : null;
+
+    const searchResults = useMemo(() => groupServerResults(serverResults), [serverResults]);
 
     useEffect(() => {
         if (isMobileSearchOpen) {
@@ -88,17 +93,17 @@ const FullScreenSearch: React.FC = () => {
 
     if (!isMobileSearchOpen) return null;
 
-    const handleSelect = (item: SlimResult) => {
+    const handleSelect = (dataType: SearchResultType, id: string) => {
         setMobileSearchOpen(false);
-        switch (item.dataType) {
-            case 'Matter': return navigateTo('matterDetail', item.id);
-            case 'Contact': return navigateTo('contactDetail', item.id);
-            case 'Document': return navigateTo('documentDetail', item.id);
-            case 'Task': return openModal('viewTask', item.id);
+        const dest = searchResultDestination(dataType, id);
+        if (dest.modal) {
+            openModal(dest.modal as any, id);
+            return;
         }
+        navigateTo(dest.view as any, id);
     };
 
-    const isSearching = canSearch && !serverResults;
+    const isSearching = canSearch && queryState.status === 'pending';
 
     return (
         <div className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col sm:hidden animate-fade-in-up">
@@ -108,7 +113,7 @@ const FullScreenSearch: React.FC = () => {
                     <input autoComplete="off" data-lpignore="true"
                         ref={inputRef}
                         type="search"
-                        placeholder="Search matters, contacts, etc."
+                        placeholder="Search matters, properties, contacts…"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 text-base bg-transparent focus:outline-none"
@@ -122,15 +127,29 @@ const FullScreenSearch: React.FC = () => {
                 {query.trim().length > 0 ? (
                     isSearching ? (
                         <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Searching…</p>
+                    ) : searchError ? (
+                        // K-1: the honest error state — an expired/invalid
+                        // session (or a portal user hitting a firm-level
+                        // query) renders the server's message instead of an
+                        // infinite spinner or an app-level crash.
+                        <div className="p-8 text-center">
+                            <p className="text-sm font-semibold text-slate-700 dark:text-zinc-200">Search unavailable</p>
+                            <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">{searchError.message || 'The search could not be completed. Please try again.'}</p>
+                            {/session|sign in|Unauthenticated|Portal users/i.test(searchError.message || '') && (
+                                <p className="mt-3 text-xs text-slate-500 dark:text-zinc-400">Your session may have expired — sign in again to search.</p>
+                            )}
+                        </div>
                     ) : trimmed.length < 2 ? (
                         <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Keep typing to search…</p>
+                    ) : !canSearch ? (
+                        <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Sign in with your firm account to search your matters, properties, contacts, documents and tasks.</p>
                     ) : searchResults && searchResults.totalCount > 0 ? (
                         <div>
                              <div className="px-4 py-2 text-sm text-slate-500 dark:text-zinc-400 border-b border-slate-200 dark:border-zinc-700">
                                 Found {searchResults.totalCount} result{searchResults.totalCount === 1 ? '' : 's'}
                             </div>
                             <ul>
-                                {(Object.keys(typeConfig) as ResultDataType[])
+                                {(Object.keys(typeConfig) as SearchResultType[])
                                     .map(dataType => {
                                     const items = searchResults.grouped[dataType];
                                     if (!items || items.length === 0) return null;
@@ -141,16 +160,15 @@ const FullScreenSearch: React.FC = () => {
                                     return (
                                         <React.Fragment key={dataType}>
                                             <h3 className={`px-4 py-2 text-xs font-bold uppercase bg-slate-50 dark:bg-zinc-800 sticky top-0 ${config.headerColor}`}>
-                                                {dataType}s ({items.length})
+                                                {dataType === 'Matter' ? 'Matters' : dataType === 'Property' ? 'Properties' : `${dataType}s`} ({items.length})
                                             </h3>
                                             {items.map(item => (
-                                                <li key={`${item.dataType}-${item.id}`}>
-                                                   <button onClick={() => handleSelect(item)} className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-zinc-700 flex items-center gap-3 transition-colors">
+                                                <li key={`${dataType}-${item.id}`}>
+                                                   <button onClick={() => handleSelect(dataType, item.id)} className="w-full text-left p-3 hover:bg-slate-100 dark:hover:bg-zinc-700 flex items-center gap-3 transition-colors">
                                                         <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${config.color}`}><Icon className="w-5 h-5" /></div>
-                                                        <div>
-                                                            <p className="font-semibold text-sm text-slate-800 dark:text-white">{'name' in item ? item.name : item.title}</p>
-                                                            {item.dataType === 'Matter' && <p className="text-xs text-slate-500 dark:text-zinc-400">{'suitNumber' in item ? item.suitNumber : ''}</p>}
-                                                            {item.dataType === 'Contact' && <p className="text-xs text-slate-500 dark:text-zinc-400">{'email' in item ? item.email : ''}</p>}
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold text-sm text-slate-800 dark:text-white truncate">{item.label}</p>
+                                                            {item.subtitle && <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{item.subtitle}</p>}
                                                         </div>
                                                    </button>
                                                 </li>
@@ -166,7 +184,7 @@ const FullScreenSearch: React.FC = () => {
                 ) : (
                     <div className="text-center p-16 text-slate-500">
                         <SearchIcon className="w-12 h-12 mx-auto text-slate-300 dark:text-zinc-600"/>
-                        <p className="mt-4">Search for anything in your practice.</p>
+                        <p className="mt-4">Search matters, properties, contacts, documents and tasks.</p>
                     </div>
                 )}
             </main>

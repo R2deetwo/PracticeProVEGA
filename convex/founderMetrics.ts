@@ -3,7 +3,7 @@ import { resolveUserBySessionToken } from "./sessions";
 import { query, mutation, action, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
-import { getMaxUsersForFirm, getTierLimitsForFirm, getDisplayPlan } from "./tierLimits";
+import { getMaxUsersForFirm, resolveTierLimitsForFirm, effectiveFirmPlan, getDisplayPlan } from "./tierLimits";
 import { randomHex } from "./secureRandom";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
@@ -384,7 +384,10 @@ export const getAllFirmsForAdmin = query({
           id: firm._id,
           firmName: firm.name || 'Unnamed Firm',
           adminEmail: adminUser?.email || adminUser?.tokenIdentifier || firm.createdBy || 'unknown',
-          plan: getDisplayPlan(firm.subscriptionPlan, firm.product), // Komplete = Enterprise
+          // K-3: trial-aware — a firm trialing Komplete displays Enterprise
+          // for the trial window; a unified firm on a lower plan displays its
+          // REAL plan (the honest state post-trial).
+          plan: getDisplayPlan(effectiveFirmPlan(firm as any), firm.product),
           status: firm.adminStatus || 'active',
           product: firm.product || 'legal', // actual product: 'legal' | 'property' | 'unified'
           userCount: firmUsers.length,
@@ -1010,18 +1013,20 @@ export const getFirmHealthDetails = query({
     // 999999 for Vega firms and ∞ for Core firms.
     // FIX: use getMaxUsersForFirm() which returns the correct tier-based
     // seat limit (1 for Core, 5 for Growth, null for Pro/Enterprise/Komplete).
-    const plan = (firm as any)?.subscriptionPlan || 'Core';
+    const plan = effectiveFirmPlan(firm as any);
     const product = (firm as any)?.product || 'legal';
     const seatsUsed = users.length;
     const maxSeats = getMaxUsersForFirm(plan, product); // null = unlimited
 
-    // KOMPLETE = ENTERPRISE: Komplete firms always display as "Enterprise"
-    // regardless of their subscriptionPlan field value.
+    // KOMPLETE = ENTERPRISE — but only when ENTITLED (Komplete/Enterprise
+    // plan, trial-aware). A unified product on a lower plan displays its
+    // real plan.
     const displayPlan = getDisplayPlan(plan, product);
 
     // ─── USAGE LIMITS & CURRENT USAGE ──────────────────────────────────
-    // Get all tier limits for this firm's plan/product
-    const tierLimits = getTierLimitsForFirm(plan, product);
+    // K-3: trial-aware limits — a firm trialing Komplete keeps unlimited
+    // limits for the trial window and honestly loses them at expiry.
+    const tierLimits = resolveTierLimitsForFirm(firm as any);
 
     // Current usage counts
     const unitsUsed = properties.length; // property units
