@@ -281,6 +281,21 @@ export default defineConfig(({ mode, command }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
+              // ── V7 (react/jsx-runtime dedup) ─────────────────────────────
+              // ALL React runtime packages must resolve to ONE chunk. The old
+              // rule matched only 'react-dom'/'react-router', so bare `react`
+              // — including react/jsx-runtime, which every compiled module
+              // imports — had no owner. Rollup then duplicated React
+              // internals (jsx-runtime, react.element/fragment symbols)
+              // into vendor-react AND vendor-animation (framer-motion) AND
+              // dnd.esm (@hello-pangea/dnd): three shipped copies of the
+              // React runtime. The path-anchored regex (…)(/|$) claims react,
+              // react-dom, react-router(-dom) and their runtime deps
+              // (scheduler, use-sync-external-store) WITHOUT matching
+              // react-prefixed packages like framer's react-remove-scroll.
+              if (/node_modules\/(react|react-dom|react-router|react-router-dom|scheduler|use-sync-external-store)(\/|$)/.test(id)) {
+                return 'vendor-react';
+              }
               if (id.includes('@tiptap') || id.includes('prosemirror')) {
                 return 'vendor-editor';
               }
@@ -299,12 +314,13 @@ export default defineConfig(({ mode, command }) => {
               if (id.includes('@google') || id.includes('openai') || id.includes('anthropic')) {
                 return 'vendor-ai';
               }
-              if (id.includes('framer-motion')) {
-                return 'vendor-animation';
-              }
-              if (id.includes('react-dom') || id.includes('react-router')) {
-                return 'vendor-react';
-              }
+              // V7: the framer-motion manual chunk is RETIRED. Its only
+              // importers are lazy view chunks (StatCard consumers, motion
+              // pages); with React claimed above, automatic chunking keeps
+              // framer-motion in a lazy shared chunk. The old manual chunk
+              // forced a facade import into the eager entry, which
+              // modulepreloaded ~123 kB of animation runtime (and a
+              // duplicated React copy) for every first-time visitor.
             }
 
             // ── SHARED LEAF CHUNK ──────────────────────────────────────────

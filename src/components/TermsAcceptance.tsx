@@ -189,8 +189,15 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
         onDeclined();
     };
 
+    // V7 (D/G: layering): this bar was at toast-level z (9998) — ABOVE every modal
+    // (z-3000). On phones a bottom-docked modal's bottom row of controls
+    // was covered by the acceptance bar and not scrollable past it
+    // (verified in the V7 mobile audit). The bar now sits just below the
+    // modal layer: visible while browsing (where acceptance happens), and
+    // any open modal renders above it and re-reveals it on close. Toasts
+    // (z-9999) still rank above it.
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-[9998] animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-0 left-0 right-0 z-[2990] animate-in slide-in-from-bottom-4 duration-300">
             <div className="bg-slate-900 dark:bg-zinc-950 border-t border-slate-700 dark:border-zinc-800 shadow-2xl">
                 <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
                     {/* Message + links */}

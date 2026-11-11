@@ -4,6 +4,7 @@ import { FirmDetails, SubscriptionPlan, User, FirmSpecialty } from '../../types'
 import { CheckIcon, UserCircleIcon, CalculatorIcon } from '../../constants';
 import { ShieldCheckIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
+import { useConfirm } from '../ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -1483,6 +1484,10 @@ const AddOnsSection: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 // The backend gate in generateVisitorToken blocks code generation unless
 // status is 'trial' (within trial window) or 'active'.
 const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    // V7 (G: consistent confirmations): the browser's native blocking
+    // confirm froze the UI thread and looked foreign next to the app's own
+    // dialog system.
+    const { confirm, ConfirmDialog: Confirm } = useConfirm();
     const { addToast } = useUI();
     const { currentUser, bearerToken } = useAuth();
     const vmsStatus = useQuery(api.myFunctions.getVmsAddonStatus,
@@ -1500,7 +1505,11 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 
     const handleStartTrial = async () => {
         if (!currentUser?.email) return;
-        const ok = window.confirm('Start a 30-day free trial of the Visitor Management System? You can generate visitor codes immediately. No payment required.');
+        const ok = await confirm({
+            title: 'Start the VMS trial?',
+            message: 'Start a 30-day free trial of the Visitor Management System? You can generate visitor codes immediately. No payment required.',
+            confirmLabel: 'Start Trial',
+        });
         if (!ok) return;
         setBusy(true);
         try {
@@ -1515,7 +1524,12 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 
     const handleCancel = async () => {
         if (!currentUser?.email) return;
-        const ok = window.confirm('Cancel the VMS add-on? Residents will no longer be able to generate visitor codes. Existing tokens remain valid until they expire.');
+        const ok = await confirm({
+            title: 'Cancel the VMS add-on?',
+            message: 'Residents will no longer be able to generate visitor codes. Existing tokens remain valid until they expire.',
+            confirmLabel: 'Cancel Add-on',
+            danger: true,
+        });
         if (!ok) return;
         setBusy(true);
         try {
@@ -1529,6 +1543,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
     };
 
     return (
+        <>
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1664,6 +1679,8 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
                 </div>
             </div>
         </div>
+        {Confirm}
+        </>
     );
 };
 
@@ -1672,6 +1689,7 @@ const VmsAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) 
 // Estate Bulletin, Service Provider Directory). Pricing: ₦5,000/mo, included
 // free with Pro+. Below-Pro firms see trial/upgrade CTAs.
 const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { confirm, ConfirmDialog: Confirm } = useConfirm();
     const { addToast } = useUI();
     const { currentUser, bearerToken } = useAuth();
     const ecStatus = useQuery(api.myFunctions.getEstateCommunityAddonStatus,
@@ -1691,7 +1709,11 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
 
     const handleStartTrial = async () => {
         if (!currentUser?.email) return;
-        const ok = window.confirm('Start a 30-day free trial of Estate Community Features? Includes Amenity Booking, Estate Bulletin, and Service Provider Directory. No payment required.');
+        const ok = await confirm({
+            title: 'Start the Estate Community trial?',
+            message: 'Start a 30-day free trial of Estate Community Features? Includes Amenity Booking, Estate Bulletin, and Service Provider Directory. No payment required.',
+            confirmLabel: 'Start Trial',
+        });
         if (!ok) return;
         setBusy(true);
         try {
@@ -1706,7 +1728,12 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
 
     const handleCancel = async () => {
         if (!currentUser?.email) return;
-        const ok = window.confirm('Cancel the Estate Community add-on? Residents will no longer see the Community tab. Existing bulletins and amenities remain in the database but are hidden.');
+        const ok = await confirm({
+            title: 'Cancel the Estate Community add-on?',
+            message: 'Residents will no longer see the Community tab. Existing bulletins and amenities remain in the database but are hidden.',
+            confirmLabel: 'Cancel Add-on',
+            danger: true,
+        });
         if (!ok) return;
         setBusy(true);
         try {
@@ -1720,6 +1747,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
     };
 
     return (
+        <>
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -1841,6 +1869,8 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
                 </div>
             )}
         </div>
+        {Confirm}
+        </>
     );
 };
 
@@ -1856,6 +1886,7 @@ const EstateCommunityAddonPanel: React.FC<{ firmDetails: FirmDetails }> = ({ fir
 // to exist on the backend. All calls use useConvex() + try/catch so the
 // panel degrades to its static copy instead of crashing Billing & Plans.
 const RefundRequestPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetails }) => {
+    const { confirm, ConfirmDialog: Confirm } = useConfirm();
     const { addToast } = useUI();
     const { currentUser, bearerToken } = useAuth();
     const convex = useConvex();
@@ -1925,7 +1956,12 @@ const RefundRequestPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetail
 
     const withdraw = async (requestId: string) => {
         if (!currentUser?.email || !convex) return;
-        const ok = window.confirm('Withdraw this refund request? The PracticePro team will stop reviewing it.');
+        const ok = await confirm({
+            title: 'Withdraw refund request?',
+            message: 'The PracticePro team will stop reviewing it.',
+            confirmLabel: 'Withdraw',
+            danger: true,
+        });
         if (!ok) return;
         setBusy(true);
         try {
@@ -1970,6 +2006,7 @@ const RefundRequestPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetail
     };
 
     return (
+        <>
         <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 mt-6">
             <div className="flex items-start justify-between gap-4">
                 <div>
@@ -2082,6 +2119,8 @@ const RefundRequestPanel: React.FC<{ firmDetails: FirmDetails }> = ({ firmDetail
                 )}
             </div>
         </div>
+            {Confirm}
+        </>
     );
 };
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Modal } from './Modal';
@@ -13,72 +13,84 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIsProperty, useTerminology, useProduct } from '../../contexts/ProductContext';
 import { ModalType, FileDetails, CalendarEvent } from '../../types';
+import { lazyWithReload } from '../../utils/lazyWithReload';
+import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
+
+// ── V7 (A: ModalManager form imports) ────────────────────────────────────
+// Every modal/form below is now a LAZY component. ModalManager used to
+// statically import all ~50 of them, which dragged the entire forms
+// cluster — and through SaveToNoteForm the whole geminiService AI stack
+// (91 kB) plus jurisdictionConfig (91 kB) — into the EAGER entry chunk
+// that every visitor downloads before a single pixel paints. Modals open
+// on user interaction, never on first paint, so they load on demand.
+// The switch-case wiring below is unchanged: same components, same props.
+// <Suspense fallback={<ModalSkeleton/>}> at the single render point shows
+// a loading skeleton inside the modal frame while a chunk streams in.
 
 // Auth
-import Login from '../auth/Login';
-import Signup from '../auth/Signup';
+const Login = lazyWithReload(() => import('../auth/Login'));
+const Signup = lazyWithReload(() => import('../auth/Signup'));
 
 // Forms
-import { DocumentForm } from '../forms/DocumentForm';
-import { EventForm } from '../forms/EventForm';
-import { InvoiceForm } from '../forms/InvoiceForm';
-import { InvoiceGeneratorForm } from '../forms/InvoiceGeneratorForm';
-import UserForm from '../forms/UserForm';
-import TimeEntryForm from '../forms/TimeEntryForm';
-import ExpenseForm from '../forms/ExpenseForm';
-import BankAccountForm from '../forms/BankAccountForm';
-import WorkflowForm from '../forms/WorkflowForm';
-import EventTypeForm from '../forms/EventTypeForm';
-import ContactCategoryForm from '../forms/ContactCategoryForm';
-import DocumentCategoryForm from '../forms/DocumentCategoryForm';
-import ChecklistTemplateForm from '../forms/ChecklistTemplateForm';
-import FirmDetailsForm from '../forms/FirmDetailsForm';
-import TemplateForm from '../forms/TemplateForm';
-import TemplateCategoryForm from '../forms/TemplateCategoryForm';
-import FeedbackForm from '../forms/FeedbackForm';
-import RequestFinancialDocumentForm from '../forms/RequestFinancialDocumentForm';
-import NewChannelForm from '../forms/NewChannelForm';
-import NewDirectMessageForm from '../forms/NewDirectMessageForm';
-import AssignUsersForm from '../forms/AssignUsersForm';
-import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
-import { StageChecklistForm } from '../forms/StageChecklistForm';
-import NewResearchNotebookForm from '../forms/NewResearchNotebookForm';
-import CollectRentModal from './CollectRentModal';
-import NotebookForm from '../forms/NotebookForm';
-import { SaveToNoteForm } from '../forms/SaveToNoteForm';
-import { LinkMatterToContactForm } from '../forms/LinkMatterToContactForm';
-import NotePageForm from '../forms/NotePageForm';
-import BatchUploadModal from './BatchUploadModal';
-import JoinFirmModal from './JoinFirmModal';
-import MatterIngestionWizard from './MatterIngestionWizard';
-import { BulkEditPropertyModal } from './BulkEditPropertyModal';
+const DocumentForm = lazyWithReload(() => import('../forms/DocumentForm').then(m => ({ default: m.DocumentForm })));
+const EventForm = lazyWithReload(() => import('../forms/EventForm').then(m => ({ default: m.EventForm })));
+const InvoiceForm = lazyWithReload(() => import('../forms/InvoiceForm').then(m => ({ default: m.InvoiceForm })));
+const InvoiceGeneratorForm = lazyWithReload(() => import('../forms/InvoiceGeneratorForm').then(m => ({ default: m.InvoiceGeneratorForm })));
+const UserForm = lazyWithReload(() => import('../forms/UserForm'));
+const TimeEntryForm = lazyWithReload(() => import('../forms/TimeEntryForm'));
+const ExpenseForm = lazyWithReload(() => import('../forms/ExpenseForm'));
+const BankAccountForm = lazyWithReload(() => import('../forms/BankAccountForm'));
+const WorkflowForm = lazyWithReload(() => import('../forms/WorkflowForm'));
+const EventTypeForm = lazyWithReload(() => import('../forms/EventTypeForm'));
+const ContactCategoryForm = lazyWithReload(() => import('../forms/ContactCategoryForm'));
+const DocumentCategoryForm = lazyWithReload(() => import('../forms/DocumentCategoryForm'));
+const ChecklistTemplateForm = lazyWithReload(() => import('../forms/ChecklistTemplateForm'));
+const FirmDetailsForm = lazyWithReload(() => import('../forms/FirmDetailsForm'));
+const TemplateForm = lazyWithReload(() => import('../forms/TemplateForm'));
+const TemplateCategoryForm = lazyWithReload(() => import('../forms/TemplateCategoryForm'));
+const FeedbackForm = lazyWithReload(() => import('../forms/FeedbackForm'));
+const RequestFinancialDocumentForm = lazyWithReload(() => import('../forms/RequestFinancialDocumentForm'));
+const NewChannelForm = lazyWithReload(() => import('../forms/NewChannelForm'));
+const NewDirectMessageForm = lazyWithReload(() => import('../forms/NewDirectMessageForm'));
+const AssignUsersForm = lazyWithReload(() => import('../forms/AssignUsersForm'));
+const ExternalCounselInviteForm = lazyWithReload(() => import('../forms/ExternalCounselInviteForm'));
+const StageChecklistForm = lazyWithReload(() => import('../forms/StageChecklistForm').then(m => ({ default: m.StageChecklistForm })));
+const NewResearchNotebookForm = lazyWithReload(() => import('../forms/NewResearchNotebookForm'));
+const CollectRentModal = lazyWithReload(() => import('./CollectRentModal'));
+const NotebookForm = lazyWithReload(() => import('../forms/NotebookForm'));
+const SaveToNoteForm = lazyWithReload(() => import('../forms/SaveToNoteForm').then(m => ({ default: m.SaveToNoteForm })));
+const LinkMatterToContactForm = lazyWithReload(() => import('../forms/LinkMatterToContactForm').then(m => ({ default: m.LinkMatterToContactForm })));
+const NotePageForm = lazyWithReload(() => import('../forms/NotePageForm'));
+const BatchUploadModal = lazyWithReload(() => import('./BatchUploadModal'));
+const JoinFirmModal = lazyWithReload(() => import('./JoinFirmModal'));
+const MatterIngestionWizard = lazyWithReload(() => import('./MatterIngestionWizard'));
+const BulkEditPropertyModal = lazyWithReload(() => import('./BulkEditPropertyModal').then(m => ({ default: m.BulkEditPropertyModal })));
 
 // Modals
-import DemoUpsellModal from './DemoUpsellModal';
-import ConfirmationModal from './DeleteConfirmationModal';
-import { ShareDocumentModal } from './ShareDocumentModal';
-import { SignDocumentModal } from './SignDocumentModal';
-import { DocumentComparisonModal } from './DocumentComparisonModal';
-import ComposeEmailModal from './ComposeEmailModal';
+const DemoUpsellModal = lazyWithReload(() => import('./DemoUpsellModal'));
+const ConfirmationModal = lazyWithReload(() => import('./DeleteConfirmationModal'));
+const ShareDocumentModal = lazyWithReload(() => import('./ShareDocumentModal').then(m => ({ default: m.ShareDocumentModal })));
+const SignDocumentModal = lazyWithReload(() => import('./SignDocumentModal').then(m => ({ default: m.SignDocumentModal })));
+const DocumentComparisonModal = lazyWithReload(() => import('./DocumentComparisonModal').then(m => ({ default: m.DocumentComparisonModal })));
+const ComposeEmailModal = lazyWithReload(() => import('./ComposeEmailModal'));
 // GoogleDrivePickerModal import removed — not yet implemented
-import NoTeamMembersModal from './NoTeamMembersModal';
-import AloaHelpModal from './AloaHelpModal';
-import LinkContactModal from './LinkContactModal';
-import AddResearchSourceModal from './AddResearchSourceModal';
-import AddCaseToNotebookModal from './AddCaseToNotebookModal';
-import KeyboardShortcutsModal from './KeyboardShortcutsModal';
-import QuickLookModal from './QuickLookModal';
-import PaymentGatewayModal from './PaymentGatewayModal';
-import UpgradeModal from './UpgradeModal';
-import { EventDetailModal } from '../details/EventDetailModal';
-import LeadCaptureModal from './LeadCaptureModal';
-import WorkspaceSetupModal from './WorkspaceSetupModal';
-import SendPostActivationEmailModal from './SendPostActivationEmailModal';
+const NoTeamMembersModal = lazyWithReload(() => import('./NoTeamMembersModal'));
+const AloaHelpModal = lazyWithReload(() => import('./AloaHelpModal'));
+const LinkContactModal = lazyWithReload(() => import('./LinkContactModal'));
+const AddResearchSourceModal = lazyWithReload(() => import('./AddResearchSourceModal'));
+const AddCaseToNotebookModal = lazyWithReload(() => import('./AddCaseToNotebookModal'));
+const KeyboardShortcutsModal = lazyWithReload(() => import('./KeyboardShortcutsModal'));
+const QuickLookModal = lazyWithReload(() => import('./QuickLookModal'));
+const PaymentGatewayModal = lazyWithReload(() => import('./PaymentGatewayModal'));
+const UpgradeModal = lazyWithReload(() => import('./UpgradeModal'));
+const EventDetailModal = lazyWithReload(() => import('../details/EventDetailModal').then(m => ({ default: m.EventDetailModal })));
+const LeadCaptureModal = lazyWithReload(() => import('./LeadCaptureModal'));
+const WorkspaceSetupModal = lazyWithReload(() => import('./WorkspaceSetupModal'));
+const SendPostActivationEmailModal = lazyWithReload(() => import('./SendPostActivationEmailModal'));
 // V4 (V-DOC-15): FolderPermissionsModal removed — it presented per-folder
 // role restrictions that nothing ever enforced. Folder access stays
 // firm-scoped (what the product actually does).
-import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
-import AIConsentModal from './AIConsentModal';
+const AIConsentModal = lazyWithReload(() => import('./AIConsentModal'));
 
 // Wrapper that gives AIConsentModal access to React hooks (recordConsent mutation)
 const AIConsentModalWrapper: React.FC<{ modalContext: any; closeModal: () => void }> = ({ modalContext, closeModal }) => {
@@ -832,9 +844,25 @@ const ModalManager: React.FC = () => {
         accentBarClass: AUTH_THEMES[authThemeId].chrome!.accentBarClass,
       } : {})}
     >
-      {content}
+      {/* V7: modal contents are lazy chunks — the frame (title, chrome,
+          close button, Esc handling) renders immediately; this skeleton is
+          the in-frame loading state while the form's chunk streams in. */}
+      <Suspense fallback={<ModalSkeleton />}>
+        {content}
+      </Suspense>
     </Modal>
   );
 };
+
+// V7: loading state for lazy modal contents. Matches the modal body
+// rhythm (three shimming rows) using existing design tokens — no new
+// visual language. Announced politely to screen readers.
+const ModalSkeleton: React.FC = () => (
+  <div className="py-8 space-y-3" role="status" aria-live="polite" aria-label="Loading…">
+    <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse w-3/4" />
+    <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse w-1/2" />
+    <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse w-2/3" />
+  </div>
+);
 
 export default ModalManager;

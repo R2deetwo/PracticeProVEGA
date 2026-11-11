@@ -425,6 +425,15 @@ export const getFirmData = query({
         }
     }
 
+    // V7 (B: overflow markers): every firm-scoped table read is capped. A
+    // cap hit silently used to mean "rows beyond the limit just don't
+    // exist client-side" — invisible truncation. fetchByFirm now probes
+    // one row PAST the cap (take(limit + 1)); if the probe row exists the
+    // table is recorded in overflowTables so the client can tell the
+    // user their list is showing the first N of more.
+    const FIRM_ROW_LIMIT = 1000;
+    const overflowTables: string[] = [];
+
     // Helper: fetch by firmId index with robust recovery for legacy/untagged data
     const fetchByFirm = async (tableName: string) => {
       // firm_licenses' firm index is named by_firmId (historical), not
@@ -432,36 +441,36 @@ export const getFirmData = query({
       // fetchByFirm("firm_licenses") threw and fell back to a full scan.
       const firmIndexName = tableName === "firm_licenses" ? "by_firmId" : "by_firm";
       try {
-        // 1. Primary Attempt: Use by_firm index for speed
+        // 1. Primary Attempt: Use by_firm index for speed (limit + 1 to
+        //    detect truncation without a second round-trip).
         const firmItems = await ctx.db.query(tableName as any)
           .withIndex(firmIndexName, (q: any) => q.eq("firmId", targetFirmId))
-          .take(1000);
+          .take(FIRM_ROW_LIMIT + 1);
+        if (firmItems.length > FIRM_ROW_LIMIT) {
+          overflowTables.push(tableName);
+          firmItems.length = FIRM_ROW_LIMIT; // drop the probe row
+        }
 
         // 2. Secondary Attempt: Fetch 'system' tagged items
         const systemItems = await ctx.db.query(tableName as any)
           .withIndex(firmIndexName, (q: any) => q.eq("firmId", "system"))
           .take(500);
 
-        let combined = [...firmItems, ...systemItems];
+        const combined = [...firmItems, ...systemItems];
 
-        // 3. RECOVERY LOGIC: For specific tables, perform a scan to catch legacy/untagged data.
-        const RECOVERY_TABLES = ["eventTypes", "contactCategories", "documentCategories", "checklistTemplates", "notePages", "researchSources", "properties"];
-        if (RECOVERY_TABLES.includes(tableName)) {
-          const all = await ctx.db.query(tableName as any).take(1000);
-          const matches = all.filter((i: any) => {
-            const iFirmId = i.firmId?.toString();
-            const tFirmId = targetFirmId.toString();
-            // PHASE 0 SECURITY FIX: Previously returned ANY notePages row with
-            // a matterId set, regardless of which firm owned it — cross-firm
-            // data leak. Now requires the notePage's firmId to match.
-            return iFirmId === tFirmId || iFirmId === "system";
-          });
-          combined = [...combined, ...matches];
-        }
-
+        // V7 (B: recovery full-scans REMOVED): the old step-3 scanned the
+        // WHOLE table (take(1000)) on every getFirmData call for seven
+        // table types, "to catch legacy/untagged data". It provably never
+        // could: Convex validates documents against the schema on write
+        // and every one of these tables declares firmId as
+        // nullableString (string | null) with a by_firm index — so any
+        // row whose firmId equals this firm (or "system") is already in
+        // the index results above, and rows with null/undefined firmId
+        // fail the recovery filter anyway. The scan was pure read-unit
+        // burn (up to 7 × 1000 extra document reads per invocation, per
+        // reactive re-run) with zero recoverable rows. The index-failure
+        // fallback below stays as the genuine error path.
         const uniqueResults = Array.from(new Map(combined.map(item => [item._id, item])).values());
-        if (tableName === "properties") {
-        }
         return uniqueResults;
       } catch (e) {
         // Ultimate fallback: Full scan (safe for small firms)
@@ -485,6 +494,16 @@ export const getFirmData = query({
     // researchAnalysisResults: excluded (phase 2, low-usage)
 
     // 1. Fetch primary tables (Firm-indexed)
+    // V7 (B: reduce unnecessary data transfer): the legal_modules,
+    // statutes and firm_licenses queries were REMOVED. All three were
+    // fetched on every getFirmData call and then discarded — never
+    // returned, never read (the return object below has no such keys).
+    // Beyond the wasted reads (statutes alone up to 500 documents per
+    // invocation), they made every firm's getFirmData a reactive
+    // subscriber of those GLOBAL tables: any edit to a statute re-ran
+    // getFirmData for every connected firm and re-pushed unchanged
+    // payloads. Legal reference data reaches the client through its own
+    // dedicated queries where it is actually consumed.
     const [
       matters, contacts, tasks, documents, users, workflows, leads, notifications,
       chatConversations, clientMessages, events, invoices, timeEntries, expenses,
@@ -492,8 +511,7 @@ export const getFirmData = query({
       documentCategories, checklistTemplates, documentTemplates,
       documentTemplateCategories, externalCounselInvites, automationRules,
       intakeForms, archive, notePages, researchSources, properties,
-      ledgerEntries, serviceCharges, firmLicenses,
-      legalModules, statutes
+      ledgerEntries, serviceCharges
     ] = await Promise.all([
       fetchByFirm("matters"),
       fetchByFirm("contacts"),
@@ -538,10 +556,7 @@ export const getFirmData = query({
       fetchByFirm("researchSources"),
       fetchByFirm("properties"),
       fetchByFirm("ledger_entries"),
-      fetchByFirm("service_charges"),
-      fetchByFirm("firm_licenses"),
-      ctx.db.query("legal_modules").take(100),
-      ctx.db.query("statutes").take(500)
+      fetchByFirm("service_charges")
     ]);
 
     // Nested tables are now fetched directly by firmId to catch items outside notebooks (e.g. endorsements)
@@ -619,6 +634,10 @@ export const getFirmData = query({
       properties: properties || [],
       ledgerEntries: ledgerEntries || [],
       serviceCharges: serviceCharges || [],
+      // V7 (B: overflow marker) — tables whose firm-scoped reads hit the
+      // 1000-row cap; the client surfaces this so truncation is visible
+      // ("Showing the first 1000 …") instead of silent. Additive field.
+      overflowTables,
     };
   },
 });

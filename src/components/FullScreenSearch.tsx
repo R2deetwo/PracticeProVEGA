@@ -91,6 +91,18 @@ const FullScreenSearch: React.FC = () => {
         }
     }, [isMobileSearchOpen]);
 
+    // V7 (E): Esc closes the search layer — the same convention every
+    // modal in the app already honors. Without it, keyboard users must
+    // Tab to the Cancel button.
+    useEffect(() => {
+        if (!isMobileSearchOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setMobileSearchOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isMobileSearchOpen, setMobileSearchOpen]);
+
     if (!isMobileSearchOpen) return null;
 
     const handleSelect = (dataType: SearchResultType, id: string) => {
@@ -106,7 +118,12 @@ const FullScreenSearch: React.FC = () => {
     const isSearching = canSearch && queryState.status === 'pending';
 
     return (
-        <div className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col sm:hidden animate-fade-in-up">
+        <div
+            className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col sm:hidden animate-fade-in-up"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search"
+        >
             <header className="flex-shrink-0 flex items-center p-2 border-b border-slate-200 dark:border-zinc-700">
                 <div className="relative flex-grow">
                     <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
@@ -114,6 +131,7 @@ const FullScreenSearch: React.FC = () => {
                         ref={inputRef}
                         type="search"
                         placeholder="Search matters, properties, contacts…"
+                        aria-label="Search matters, properties, contacts, documents and tasks"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 text-base bg-transparent focus:outline-none"
@@ -123,7 +141,9 @@ const FullScreenSearch: React.FC = () => {
                     Cancel
                 </button>
             </header>
-            <main className="flex-grow overflow-y-auto">
+            {/* V7 (E): live region — screen readers hear "Searching…" / result
+                counts instead of silence while the overlay swaps states. */}
+            <main className="flex-grow overflow-y-auto" aria-live="polite">
                 {query.trim().length > 0 ? (
                     isSearching ? (
                         <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Searching…</p>

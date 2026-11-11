@@ -45,7 +45,14 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // carries the same event (matched on action+targetId+timestamp).
     const firmActivityFeed = useQuery(
         (api as any).matterLifecycle.getFirmActivityFeed,
-        currentUser?.email ? { userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined), limit: 100 } : 'skip'
+        // V7 (demo-mode leak): the demo user is a client-side fixture — it
+        // has no server session, so this firm-scoped query could only ever
+        // come back "Unauthenticated", crash through ConvexErrorBoundary
+        // and retire the whole demo session. Skipped for demo like every
+        // other firm-scoped query below (shouldLoadFirmData / isDemo).
+        currentUser?.email && currentUser.email !== 'demo@practicepro.ng'
+            ? { userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined), limit: 100 }
+            : 'skip'
     );
     React.useEffect(() => {
         if (!Array.isArray(firmActivityFeed) || firmActivityFeed.length === 0) return;
@@ -985,6 +992,12 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     // Track which phase we're in so UI can show a subtle secondary loader
     const [isFullyLoaded, setIsFullyLoaded] = React.useState(false);
 
+    // V7 (B: overflow markers): firm tables whose getFirmData read hit the
+    // 1000-row cap. Read from the Phase-B payload, exposed via context so
+    // the shell can tell the user a list is truncated ("showing the first
+    // 1000") instead of silently hiding rows.
+    const [overflowTables, setOverflowTables] = React.useState<string[]>([]);
+
     // Ref to track the last merged firmData identity — allows us to re-merge
     // when Convex pushes an update (e.g. after createPortalInvite updates units[])
     // without causing infinite loops.
@@ -1052,9 +1065,14 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         // to a property unit) are reflected in appState even after initial load.
         if (firmData && firmData !== lastMergedFirmDataRef.current) {
             lastMergedFirmDataRef.current = firmData;
+            // Overflow marker arrives WITH the data (before appState merge —
+            // it is not part of AppState).
+            const overflow = (firmData as any).overflowTables;
+            setOverflowTables(Array.isArray(overflow) ? overflow : []);
             setAppState(prev => {
                 const newState = { ...prev };
                 for (const [key, backendValue] of Object.entries(firmData as any)) {
+                    if (key === 'overflowTables') continue; // marker, not data
                     if (Array.isArray(backendValue) && Array.isArray(prev[key as keyof AppState])) {
                         const prevArray = prev[key as keyof AppState] as any[];
                         // Map backendValue items so that they definitely have the id property mapped correctly
@@ -1156,8 +1174,9 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     }, [firmMetadata, firmData, currentUser, isDemo, isDataLoaded, isFullyLoaded]);
 
     const dataStateValue = React.useMemo(() => ({
-        appState, setAppState, isDataLoaded, isSaving: false, isOutdated: false, availableBackups: [] as string[]
-    }), [appState, isDataLoaded]);
+        appState, setAppState, isDataLoaded, isSaving: false, isOutdated: false, availableBackups: [] as string[],
+        overflowTables
+    }), [appState, isDataLoaded, overflowTables]);
 
     return (
         <DataStateContext.Provider value={dataStateValue}>

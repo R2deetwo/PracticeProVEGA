@@ -85,6 +85,17 @@ export const Modal: React.FC<ModalProps> = ({
    const firstFocusable = focusableElements[0];
    const lastFocusable = focusableElements[focusableElements.length - 1];
 
+   // V7 (E: focus trap hardening): if focus has escaped the modal
+   // entirely (background click on a non-focusable area, devtools, a
+   // re-render that dropped the focused node), a plain Tab would walk
+   // the PAGE behind the dialog — the classic leak. Pull focus back
+   // inside before the wrap logic runs.
+   if (!modalRef.current.contains(document.activeElement)) {
+    event.preventDefault();
+    firstFocusable.focus();
+    return;
+   }
+
    if (event.shiftKey) {
     // Shift+Tab: if focus is on first element, wrap to last
     if (document.activeElement === firstFocusable) {
@@ -186,7 +197,11 @@ export const Modal: React.FC<ModalProps> = ({
  return (
   <div
    className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto overscroll-contain"
-   aria-labelledby="modal-title"
+   // V7 (E: accessible naming): hideHeader modals (confirmations, themed
+   // auth) never render the #modal-title element, so aria-labelledby
+   // pointed at nothing — screen readers announced an unnamed dialog.
+   // Fall back to an aria-label built from the same title prop.
+   {...(hideHeader ? { 'aria-label': title } : { 'aria-labelledby': 'modal-title' })}
    role="dialog"
    aria-modal="true"
   >

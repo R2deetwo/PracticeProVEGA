@@ -8,7 +8,7 @@ import { useFinanceState } from '../contexts/FinanceContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
-import { useDataActions } from '../contexts/DataContext';
+import { useDataActions, useDataState } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useConvex, useQuery } from 'convex/react';
@@ -131,7 +131,6 @@ import ModalManager from './modals/ModalManager';
 import { ModalLayer } from '../overlays/layers/ModalLayer';
 import LockScreen from './LockScreen';
 import SplashScreen from './SplashScreen';
-import FloatingTestControls from './FloatingTestControls';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import ToastRefreshNotification from './ToastRefreshNotification';
@@ -165,15 +164,28 @@ const GatekeeperInterface = lazyWithReload(() => import('./portal/GatekeeperInte
 const WhatsNew = lazyWithReload(() => import('./WhatsNew'));
 
 import NotFoundView from './NotFoundView';
-import ClientPortalLogin from './portal/ClientPortalLogin';
-import TenantPortalLogin from './portal/TenantPortalLogin';
-import SetupPassword from './portal/SetupPassword';
+// V7 (A: initial payload): the portal/recovery auth routes are one-off
+// public pages (client/tenant portal login, emailed setup/reset links).
+// As static imports they shipped ~130 KB of source in the eager entry for
+// every visitor; they now load on demand like the other route surfaces.
+const ClientPortalLogin = lazyWithReload(() => import('./portal/ClientPortalLogin'));
+const TenantPortalLogin = lazyWithReload(() => import('./portal/TenantPortalLogin'));
+const SetupPassword = lazyWithReload(() => import('./portal/SetupPassword'));
 // 2026-09-14 (reset-link round): one-click password reset landing page —
 // public route carrying the emailed token, mounted like /setup-password.
-import ResetPasswordView from './auth/ResetPasswordView';
+const ResetPasswordView = lazyWithReload(() => import('./auth/ResetPasswordView'));
+
+// V7 (A: initial payload): test toolkit is DEV-ONLY — the component was
+// statically imported, so its code shipped in every production bundle
+// even though the render was gated by import.meta.env.DEV. In production
+// this resolves to null and Rollup drops the dynamic import entirely.
+const DevTestControls = import.meta.env.DEV
+    ? lazyWithReload(() => import('./FloatingTestControls'))
+    : null;
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
 import { useConfirm } from './ui/ConfirmDialog';
+import { Button } from './ui'; // ADR-0004: the overflow banner's dismiss control uses the ui primitive
 import { useContentProtection } from '../hooks/useContentProtection';
 import { isNativePlatform } from '../utils/capacitor';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
@@ -1437,7 +1449,7 @@ export const App: React.FC = () => {
                 navigate(token ? `/portal/client/${token}` : '/portal/client', { replace: true });
                 return null;
             }
-            return <ClientPortalLogin />;
+            return <React.Suspense fallback={<GenericSkeleton />}><ClientPortalLogin /></React.Suspense>;
         }
         if (location.pathname === '/portal/tenant/login') {
             if (currentUser && currentUser.role === UserRole.Tenant) {
@@ -1445,13 +1457,13 @@ export const App: React.FC = () => {
                 navigate(token ? `/portal/tenant/${token}` : '/portal/tenant', { replace: true });
                 return null;
             }
-            return <TenantPortalLogin />;
+            return <React.Suspense fallback={<GenericSkeleton />}><TenantPortalLogin /></React.Suspense>;
         }
-        if (location.pathname === '/setup-password') return <SetupPassword />;
+        if (location.pathname === '/setup-password') return <React.Suspense fallback={<GenericSkeleton />}><SetupPassword /></React.Suspense>;
         // ONE-CLICK RESET LINK LANDING (2026-09-14): the recovery emails’
         // “Set a new password now” button opens /reset-password?token=… —
         // the user types only the new password (no recovery code).
-        if (location.pathname === '/reset-password') return <ResetPasswordView />;
+        if (location.pathname === '/reset-password') return <React.Suspense fallback={<GenericSkeleton />}><ResetPasswordView /></React.Suspense>;
 
         // GATEHOUSE ROUTE — public, unauthenticated access for security
         // guards / gate operators. The GatekeeperInterface allows verification
@@ -1801,7 +1813,11 @@ export const App: React.FC = () => {
                             onEnableDevMode={() => setIsToolkitOpen(true)}
                             flowState={flowState}
                         />
-                        {import.meta.env.DEV && <FloatingTestControls isOpen={isToolkitOpen} onClose={() => setIsToolkitOpen(false)} />}
+                        {import.meta.env.DEV && DevTestControls && (
+                            <React.Suspense fallback={null}>
+                                <DevTestControls isOpen={isToolkitOpen} onClose={() => setIsToolkitOpen(false)} />
+                            </React.Suspense>
+                        )}
                     </>
                 )}
             </>
@@ -1947,8 +1963,58 @@ export const App: React.FC = () => {
                 prompt when a new APK build is available and verified healthy.
                 Auth-gated — only shown to logged-in users. */}
             {currentUser && <ApkUpdateBanner />}
+            {/* V7 (B: overflow markers) — visible truncation notice. When a
+                firm table hits getFirmData's 1000-row cap the rows beyond it
+                are NOT synced; this banner says so instead of letting the
+                user believe the list is complete. Dismissible per session. */}
+            <DataOverflowBanner />
             {/* In-app confirmation dialog — replaces browser window.confirm() */}
             {confirmDialogNode}
+        </div>
+    );
+};
+
+// V7 (B: overflow markers): dismissible banner naming the truncated
+// tables in the user's vocabulary. Pluralisation and the 1000 figure must
+// stay in sync with FIRM_ROW_LIMIT in convex/myFunctions.ts getFirmData.
+const TABLE_LABELS: Record<string, string> = {
+    matters: 'matters', contacts: 'contacts', tasks: 'tasks', documents: 'documents',
+    events: 'calendar events', invoices: 'invoices', timeEntries: 'time entries',
+    expenses: 'expenses', notePages: 'notes', researchSources: 'research sources',
+    properties: 'properties', ledgerEntries: 'ledger entries', serviceCharges: 'service charges',
+    archive: 'archived items', notifications: 'notifications',
+};
+const DataOverflowBanner: React.FC = () => {
+    const { overflowTables } = useDataState();
+    const [dismissed, setDismissed] = useState(false);
+    if (!overflowTables.length || dismissed) return null;
+    const names = overflowTables
+        .map(t => TABLE_LABELS[t] || t)
+        .slice(0, 4)
+        .join(', ');
+    const extra = overflowTables.length > 4 ? ` and ${overflowTables.length - 4} more` : '';
+    return (
+        <div
+            role="status"
+            aria-live="polite"
+            className="fixed left-1/2 top-20 z-[70] w-[min(94vw,640px)] -translate-x-1/2 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-lg dark:border-amber-500/30 dark:bg-amber-950/90 dark:text-amber-100"
+        >
+            <div className="flex items-start gap-3">
+                <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                <p className="flex-1">
+                    Showing the first 1,000 {names}{extra}. Records beyond that limit stay safe in
+                    your workspace but are not loaded in this view — archive or tidy old records to
+                    bring the rest into sync.
+                </p>
+                <Button
+                    variant="bare"
+                    onClick={() => setDismissed(true)}
+                    className="shrink-0 rounded-lg px-2 py-1 text-xs font-medium underline underline-offset-2 hover:bg-amber-100 dark:hover:bg-amber-900/60"
+                    aria-label="Dismiss data limit notice"
+                >
+                    Dismiss
+                </Button>
+            </div>
         </div>
     );
 };

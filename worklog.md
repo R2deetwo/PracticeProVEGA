@@ -18756,3 +18756,161 @@ Stage Summary:
   documented proposal — not an implementation — for the client-facing
   identity.
 [skip ci]
+
+---
+
+## V7 — VEGA AND KOMPLETE UX, PERFORMANCE AND QUALITY (2026-11-12)
+
+**Round focus:** usability, responsiveness, accessibility and performance
+across Vega and Komplete, with measured bundle evidence, a genuine
+accessibility pass, and acceptance tests for the named workflow gaps.
+No architecture or visual-identity changes.
+
+### A. Performance (measured)
+- **Initial (eager) JS: 1,674.8 kB → 959.6 kB raw (−715.2 kB, −42.7%);
+  ≈472 kB → 270.1 kB gzip.** Entry chunk 1,280.8 → 684.3 kB.
+- Root cause chain, found with a static eager-import-graph analysis:
+  ModalManager statically imported ~50 forms/modals, and through
+  SaveToNoteForm dragged the entire geminiService AI stack (91 kB) +
+  jurisdictionConfig (91 kB) + AgencyHub into the entry.
+- **ModalManager** now lazy-loads every form/modal through the shared
+  `lazyWithReload` factory (extracted from App.tsx to
+  src/utils/lazyWithReload.ts, generically typed so prop inference
+  survives) with a single `<Suspense fallback={<ModalSkeleton/>}>` at the
+  render point — modal frames (title, chrome, Esc, focus trap) render
+  immediately while the form chunk streams in. Switch-case wiring
+  unchanged.
+- **Portal/recovery auth routes** (ClientPortalLogin, TenantPortalLogin,
+  SetupPassword, ResetPasswordView) lazy; **FloatingTestControls** is
+  DEV-only (never in production bundles); **Sidebar** lazy-loads the
+  GettingStartedChecklist.
+- **react/jsx-runtime duplication fixed:** manualChunks matched
+  react-dom/react-router but not bare `react` — Rollup shipped React
+  runtime internals in THREE chunks (vendor-react, vendor-animation,
+  dnd.esm). React/react-dom/react-router(-dom)/scheduler/
+  use-sync-external-store are now path-anchored to one chunk; the
+  framer-motion manual chunk is retired (it forced an eager facade
+  import + modulepreload of ~123 kB for every visitor).
+- PdfViewer/pdfjs verified already lazy (vendor-pdf loads on demand);
+  three.js loads only for the 3D landing scene; jspdf/pdfjs signatures
+  in the entry are dynamic-import machinery, not library code.
+
+### B. Offline-first (interim, no getFirmData redesign)
+- **Recovery full-scans REMOVED** (RECOVERY_TABLES): provably dead —
+  Convex validates firmId as string|null against the schema, so any row
+  the scan's filter could match was already in the by_firm index
+  results. Up to 7×1000 wasted document reads per invocation, per
+  reactive re-run.
+- **Dead queries REMOVED:** legal_modules (take 100), statutes
+  (take 500) and firm_licenses were fetched on EVERY getFirmData call
+  and discarded — never returned, never read. Beyond the wasted reads,
+  they made every firm a reactive subscriber of global tables (any
+  statute edit re-ran getFirmData for every connected firm).
+- **Overflow markers:** take(limit+1) probe — a firm table hitting the
+  1000-row cap returns `overflowTables` (additive) and the DataProvider
+  surfaces a dismissible amber banner ("Showing the first 1,000 …").
+  Optimistic writes, reactive sync, offline cache and merge logic
+  untouched.
+
+### C. Information architecture
+- Sidebar MAIN MENU regrouped by business operation: legal practice
+  cluster (Matters → Documents → Contract Analyzer → Research → ALOA-X)
+  contiguous, then Properties, then shared workspace utilities. Gating
+  and locks unchanged — order only.
+- Wayfinding: `aria-current="page"` on the active Sidebar item
+  (BottomNav already had it).
+
+### D. Responsive (browser-verified, iPhone 14 / 1440×900)
+- Programmatic audit (horizontal overflow + touch targets) across
+  Dashboard, Matters, Financials, search and modal layers: zero
+  page-level horizontal overflow; the 14-column financial table lives
+  in a proper scroll container.
+- **Phone search reachability FIXED:** the mobile search trigger was
+  `hidden sm:block lg:hidden` — phones (<640px) had NO way to open
+  FullScreenSearch. Now `block lg:hidden`.
+- **Terms-bar layering FIXED:** the acceptance bar was z-9998 (above
+  all modals) and covered bottom-docked modal controls on phones; now
+  z-2990 (below modals, above content).
+- VLM visual audit of 5 screenshots corroborated the above two defects
+  and found no other clipping/overflow issues.
+
+### E. Accessibility
+- Modal: hideHeader modals fell back to `aria-label` (aria-labelledby
+  pointed at a non-existent element); focus trap now recaptures focus
+  that escapes the dialog (Tab can no longer walk the page behind it).
+- FullScreenSearch: role=dialog + aria-modal + labelled input + Esc
+  close + aria-live results region.
+- Matter list: selection checkbox was a 14px dummy input whose wrapper
+  handled clicks — keyboard users could not select matters at all. Now
+  a real 24px control (WCAG 2.2 AA target minimum) with an accessible
+  name; destructive/archive row actions ≥26px hit areas with aria-labels
+  (delete names the matter); review-reminder control labelled + expanded
+  state.
+- Reduced-motion: verified 10 CSS `prefers-reduced-motion` blocks +
+  the 3D landing scene bails under reduced motion (pre-existing, intact).
+
+### F. UI consistency
+- New **rounded-xl ratchet** in check-design-tokens.mjs (74 → 72 and
+  may only shrink; new uses fail CI) — per STYLE_GUIDE deprecation,
+  without churn-migrating 72 legacy uses.
+- DataOverflowBanner uses the ui/Button primitive; ui-primitives ratchet
+  HELD at 2295 (the gate caught and I fixed a raw-button slip).
+- gray=0 hard gate held; Vega/Atrium theme separation untouched.
+
+### G. Workflow quality
+- 5 native `window.confirm()` calls in SubscriptionSettings (VMS
+  start/cancel, Estate Community start/cancel, refund withdrawal)
+  converted to the app's ConfirmDialog system with danger styling for
+  cancellations/withdrawal.
+- **Demo-mode leak fixed:** the firm activity feed query fired for the
+  client-side demo user, hit the real backend, got "Unauthenticated"
+  and retired the whole demo session through ConvexErrorBoundary.
+- UIContextType now declares showTermsBar/setShowTermsBar (the provider
+  always supplied them; every consumer destructure was a baseline TS
+  error). Root tsc baseline 89 → 87.
+- Verified honest (not fixed, by design): creation modals are
+  Terms-gated with an explanatory toast + the acceptance bar — the
+  "dead" New button was the gate doing its job.
+
+### H. Acceptance tests — tests/unit/roundV7WorkflowAcceptance.test.ts (31)
+Overflow markers (1001→1000+flag, 999/1000→no flag), dead-query removal
++ unified payload shape, citation integrity in rendered outputs
+([1]/[12]/[2023] markers survive placeholdersToSpans while real
+placeholders still convert), mobile reachability (phone search entry,
+More-sheet gates, FullScreenSearch semantics), destructive-action
+confirmations (zero native confirms, danger styling, labelled+sized
+matter actions, real 24px selection control), lazy-loading contracts
+(ModalManager ≥40 lazy forms, portal routes, dev-only test controls,
+one-React-chunk rule, checklist lazy), honest gating (Terms gate toast +
+bar, type honesty, demo query gating, terms-bar z-order), accessible
+modals/wayfinding (aria-label fallback, focus recapture, aria-current,
+nav grouping order), ratchets (rounded-xl baseline, ui Button).
+
+Areas already covered by earlier rounds are NOT duplicated (matter
+lifecycle V3, client onboarding V3, document engine/versioning/DraftPro
+recovery V4, retainer + trust math V2, portal authorisation V1-C,
+nav parity V6).
+
+### Gates (all green)
+- vitest **2535/2535** (124→125 files; +31, zero failures)
+- tsc convex 0 errors; root tsc 89 → **87** (baseline improved)
+- eslint 0 errors (72 pre-existing rounded-xl legacy warnings)
+- ui-primitives ratchet 2295/2295 held; design-tokens gray=0 +
+  rounded-xl 72/74 (debt shrunk); audit-identity PASSED
+- Main build ✓ (183 chunks); admin build ✓ (build:admin, 19 MB dist-admin)
+- Regression suites named by the owner: productAccess, signupProduct,
+  accentTheme, themeStorage, vmsEntitlement, vegaTiersDraftPro — all in
+  the 2535, all unmodified.
+
+### Remaining owner decisions / notes
+- users-joinedFirmIds still scans (take 2000) per getFirmData — needs a
+  schema index (deployment decision), out of interim scope.
+- system-tagged rows are still fetched for every table (cheap index
+  reads when empty, but which tables legitimately carry system rows
+  needs a production-data audit before pruning).
+- @hello-pangea/dnd bundles its own ~2 kB React symbol shim (library
+  output; not dedupable without patching).
+- WhatsNew floater pill overlaps content on phones by design
+  (dismissible); flagged for a future onboarding-surface pass.
+- Desktop advisory: several text chips measure 16–20px height (fine for
+  mouse, below touch guidance on hybrid devices).

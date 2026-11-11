@@ -409,7 +409,12 @@ const Header: React.FC = React.memo(() => {
                     </button>
                 </div>
 
-                <div className="relative hidden sm:block lg:hidden">
+                {/* V7 (D: mobile reachability): this button was
+                    hidden below the sm breakpoint — phones (<640px) had NO
+                    search entry point at all (FullScreenSearch existed but
+                    nothing opened it). It now shows on every width below
+                    lg, where the ⌘K command palette button takes over. */}
+                <div className="relative block lg:hidden">
                     <button onClick={() => setMobileSearchOpen(true)} aria-label="Search" className="flex items-center justify-center w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
                         <SearchIcon className="w-5 h-5" />
                     </button>

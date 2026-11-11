@@ -30,6 +30,14 @@ const MIGRATED_FILES = [
 
 const CLASS_RE = /\b(?:slate|gray|zinc|dim)-\d{2,3}\b/g;
 
+// V7 (F: UI consistency): STYLE_GUIDE.md deprecates rounded-xl (14px) in
+// favour of rounded-lg / rounded-2xl. 74 legacy uses remain — wholesale
+// migration would be visual churn with no usability evidence (STYLE_GUIDE
+// §“avoid visual redesign without evidence”), so this gate RATCHETS the
+// count: new rounded-xl uses fail CI, existing debt may only shrink.
+const ROUNDED_XL_RE = /\brounded-xl\b/g;
+const ROUNDED_XL_BASELINE = 74;
+
 /** Recursively collect .tsx/.ts files under a directory. */
 function walk(dir, acc = []) {
   for (const entry of readdirSync(dir)) {
@@ -42,12 +50,17 @@ function walk(dir, acc = []) {
 }
 
 function scan() {
-  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0 };
+  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0 };
   const perFile = {};
   for (const f of walk(SRC)) {
     const rel = relative(ROOT, f);
     const text = readFileSync(f, 'utf8');
     const matches = text.match(CLASS_RE) || [];
+    const rxl = text.match(ROUNDED_XL_RE) || [];
+    counts.roundedXl += rxl.length;
+    // perFile stays NEUTRAL-SCALE ONLY — the committed .token-baseline.json
+    // per-file counts were captured without rounded-xl; mixing the new
+    // counter in would false-trigger the migrated-files soft gate.
     if (matches.length) {
       perFile[rel] = matches.length;
       for (const m of matches) {
@@ -97,5 +110,13 @@ for (const f of MIGRATED_FILES) {
   }
 }
 
-console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
+// ── RATCHET: rounded-xl must not grow (STYLE_GUIDE deprecation) ────────
+if (counts.roundedXl > ROUNDED_XL_BASELINE) {
+  console.error(`::error::rounded-xl usage grew (${ROUNDED_XL_BASELINE} → ${counts.roundedXl}). STYLE_GUIDE.md deprecates rounded-xl — use rounded-lg (tight contexts) or rounded-2xl (card surfaces). Raise ROUNDED_XL_BASELINE in scripts/check-design-tokens.mjs only to LOWER it (ratchet moves down, never up).`);
+  exitCode = 1;
+} else {
+  console.log(`✓ rounded-xl ratchet held (${counts.roundedXl}/${ROUNDED_XL_BASELINE} — deprecated per STYLE_GUIDE, may only shrink)`);
+}
+
+console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
 process.exit(exitCode);

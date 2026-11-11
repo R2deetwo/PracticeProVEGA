@@ -100,8 +100,11 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
         <div className="relative group inline-block" onClick={(e) => e.stopPropagation()}>
             <button
                 onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
-                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center p-1 rounded-md text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all shadow-sm sm:shadow-none"
+                className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex items-center justify-center p-1.5 rounded-md text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all shadow-sm sm:shadow-none"
                 title="Set Review Reminder"
+                aria-label="Set review reminder"
+                aria-haspopup="true"
+                aria-expanded={isOpen}
             >
                 <BellPlusIcon className="w-3.5 h-3.5" />
             </button>

@@ -169,15 +169,22 @@ const MatterCardItem: React.FC<{
         >
             <div className="flex items-start gap-2">
                 {/* Checkbox — visible on hover or when selection mode active */}
+                {/* V7 (E: touch target + keyboard): the checkbox was a 14px
+                    dummy input (onChange no-op — the wrapper div handled clicks,
+                    so keyboard users could not select matters at all) and the
+                    row actions were 22px taps. The input is now the real
+                    control at the WCAG 2.2 AA minimum (24px), and the icon
+                    buttons carry ≥26px hit areas with proper labels. */}
                 <div
                     className={`flex-shrink-0 mt-0.5 transition-opacity ${selectionMode ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}
-                    onClick={e => { e.stopPropagation(); onSelect?.(matter.id, !isSelected); }}
                 >
-                    <input autoComplete="off" data-lpignore="true" 
+                    <input autoComplete="off" data-lpignore="true"
                         type="checkbox"
                         checked={!!isSelected}
-                        onChange={() => {}}
-                        className="w-3.5 h-3.5 rounded border-dim-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                        onChange={() => { onSelect?.(matter.id, !isSelected); }}
+                        onClick={e => e.stopPropagation()}
+                        aria-label={`Select ${matter.title}`}
+                        className="w-6 h-6 rounded border-dim-300 text-primary-600 focus:ring-primary-500 focus:ring-2 cursor-pointer"
                     />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -225,7 +232,7 @@ const MatterCardItem: React.FC<{
                                     aria-label="Reopen this closed matter"
                                     onClick={(e) => { e.stopPropagation(); handleReopenMatter(matter.id).catch(() => {}); }}
                                     title="Reopen this closed matter"
-                                    className="p-1 text-slate-300 hover:text-emerald-500 transition-colors"
+                                    className="p-1.5 text-slate-300 hover:text-emerald-500 transition-colors"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                 </Button>
@@ -236,7 +243,7 @@ const MatterCardItem: React.FC<{
                                     aria-label="Close this matter (checks for unbilled work first)"
                                     onClick={(e) => { e.stopPropagation(); openModal('closeMatter', matter.id); }}
                                     title="Close this matter (checks for unbilled work first)"
-                                    className="p-1 text-slate-300 hover:text-primary-600 transition-colors"
+                                    className="p-1.5 text-slate-300 hover:text-primary-600 transition-colors"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </Button>
@@ -244,7 +251,8 @@ const MatterCardItem: React.FC<{
                             <button
                                 onClick={handleDelete}
                                 title={canArchiveMatters ? 'Delete / archive matter' : 'Requires Administrator role'}
-                                className={`p-1 transition-colors ${canArchiveMatters ? 'text-slate-300 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100' : 'text-slate-200 dark:text-zinc-700 cursor-not-allowed'}`}
+                                aria-label={canArchiveMatters ? `Delete or archive matter: ${matter.title}` : 'Requires Administrator role'}
+                                className={`p-1.5 transition-colors ${canArchiveMatters ? 'text-slate-300 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100' : 'text-slate-200 dark:text-zinc-700 cursor-not-allowed'}`}
                             >
                                 <TrashIcon className="w-3.5 h-3.5" />
                             </button>

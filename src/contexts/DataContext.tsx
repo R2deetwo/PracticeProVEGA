@@ -15,6 +15,9 @@ interface DataStateContextType {
     isSaving: boolean;
     isOutdated: boolean;
     availableBackups: string[];
+    // V7 (B: overflow markers) — firm tables whose getFirmData read hit the
+    // 1000-row cap; surfaced so truncation is visible instead of silent.
+    overflowTables: string[];
 }
 
 export interface ExtendedDataActions extends DataActionsContextType {

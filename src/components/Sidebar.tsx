@@ -15,7 +15,14 @@ import {
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
     ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon, ScalesIcon
 } from '../constants';
-import GettingStartedChecklist from './GettingStartedChecklist';
+import { lazyWithReload } from '../utils/lazyWithReload';
+
+// V7 (A: initial payload): the onboarding checklist (~40 KB source) rode
+// the eager entry chunk via Sidebar's static import though it only renders
+// for signed-in staff whose sidebar is expanded. Lazy — same pattern as
+// the App.tsx views. (Import placement note: lazy const must come after
+// the constants import; kept adjacent to its single render site below.)
+const GettingStartedChecklist = lazyWithReload(() => import('./GettingStartedChecklist'));
 
 // ARIA-X inline icon
 const IndexerIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -91,6 +98,7 @@ const NavItemLink: React.FC<{
             }}
             data-tour-id={`nav-${item.view}`}
             aria-disabled={locked ? 'true' : undefined}
+            aria-current={isActive ? 'page' : undefined}
             className={`
                 group flex items-center ${isSidebarRetracted ? 'justify-center p-2.5' : 'px-3 py-2.5'} w-full rounded-lg transition-all duration-200 relative
                 ${locked ? 'opacity-60 cursor-not-allowed' : ''}
@@ -338,40 +346,37 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                 have room for a multi-item card. */}
             {!isSidebarRetracted && currentUser?.firmId &&
              currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && (
-                <GettingStartedChecklist />
+                <React.Suspense fallback={
+                    <div className="mx-3 mb-3 rounded-lg border border-black/5 dark:border-white/5 p-4 space-y-2" role="status" aria-label="Loading checklist…">
+                        <div className="h-3 rounded bg-black/5 dark:bg-white/5 animate-pulse w-2/3" />
+                        <div className="h-3 rounded bg-black/5 dark:bg-white/5 animate-pulse w-1/2" />
+                    </div>
+                }>
+                    <GettingStartedChecklist />
+                </React.Suspense>
             )}
 
             {/* Nav List */}
             <div key={product} className="flex-1 overflow-y-auto py-4 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-zinc-800 scrollbar-track-transparent animate-fade-in-up">
 
-                {/* Main Menu */}
+                {/* Main Menu — V7 (C: information architecture): items are
+                    grouped by business operation instead of interleaved. Legal
+                    practice operations (Matters → Documents → Contract
+                    Analyzer → Research → ALOA-X) are contiguous, property
+                    operations follow (Properties), then shared workspace
+                    utilities (Tasks, Messages, Calendar, Clients). Product
+                    gating and every lock are unchanged — order only. */}
                 <NavSection title="MAIN MENU" isRetracted={isSidebarRetracted}>
                     <NavItemLink
                         item={{ view: 'dashboard', text: 'Home', icon: <DashboardIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                     />
-                    {/* Property Navigation — shown for Atrium AND Komplete (unified) */}
-                    {hasPropertyFeatures && (
-                        <>
-                            <NavItemLink
-                                item={{ view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon /> }}
-                                setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                            />
-                            {/* NOTE: Standalone "Revenue Monitor" nav item removed.
-                                Revenue Monitor is now a tab inside the Financials page,
-                                unified with billing for both legal and property firms. */}
-                        </>
-                    )}
                     {isLegal && (
                         <NavItemLink
                             item={{ view: 'matters', text: 'Matters', icon: <MattersIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}
-                    <NavItemLink
-                        item={{ view: 'tasks', text: 'Tasks', icon: <TasksIcon /> }}
-                        setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                    />
                     {isLegal && (
                         <NavItemLink
                             item={{ view: 'documents', text: 'Documents', icon: <DocumentsIcon /> }}
@@ -387,10 +392,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}
-                    <NavItemLink
-                        item={{ view: 'messaging', text: 'Messages', icon: <MessagingIcon /> }}
-                        setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                    />
                     {isLegal && (
                         <NavItemLink
                             item={{ view: 'research', text: 'Research', icon: <ResearchIcon /> }}
@@ -405,6 +406,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}
+                    {/* Property Navigation — shown for Atrium AND Komplete
+                        (unified); follows the legal cluster so each business
+                        operation reads as a group.
+                        NOTE: Standalone "Revenue Monitor" nav item removed.
+                        Revenue Monitor is now a tab inside the Financials page,
+                        unified with billing for both legal and property firms. */}
+                    {hasPropertyFeatures && (
+                        <NavItemLink
+                            item={{ view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon /> }}
+                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                        />
+                    )}
+                    <NavItemLink
+                        item={{ view: 'tasks', text: 'Tasks', icon: <TasksIcon /> }}
+                        setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                    />
+                    <NavItemLink
+                        item={{ view: 'messaging', text: 'Messages', icon: <MessagingIcon /> }}
+                        setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                    />
                     <NavItemLink
                         item={{ view: 'calendar', text: 'Calendar', icon: <CalendarIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}

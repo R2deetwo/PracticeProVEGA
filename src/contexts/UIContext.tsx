@@ -22,6 +22,11 @@ export interface UIContextType {
     toggleSidebar: () => void;
     closeSidebar: () => void;
     isSidebarRetracted: boolean;
+    // V7 (type honesty): the provider has always supplied these (the Terms
+    // gate in openModal sets the bar, App renders it) but the interface
+    // omitted them — every consumer destructure was a baseline TS error.
+    showTermsBar: boolean;
+    setShowTermsBar: React.Dispatch<React.SetStateAction<boolean>>;
     toggleSidebarRetraction: () => void;
     modal: ModalType | null;
     modalContext: any;
