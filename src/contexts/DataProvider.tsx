@@ -35,6 +35,36 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     React.useEffect(() => { appStateRef.current = appState; }, [appState]);
     const [isDataLoaded, setIsDataLoaded] = React.useState(false);
 
+    // ─── V3 (V-MATTER-11): REAL FIRM ACTIVITY HISTORY ─────────────────────
+    // getFirmData deliberately excludes firmActivity (phase-2 table), and
+    // after the ungated getFirmActivity was removed nothing loaded it back —
+    // so the Dashboard/activity widgets only ever showed the CURRENT
+    // session's optimistic entries. The new session-gated feed fills the
+    // gap. Local optimistic rows (client uuids) are kept until the feed
+    // carries the same event (matched on action+targetId+timestamp).
+    const firmActivityFeed = useQuery(
+        (api as any).matterLifecycle.getFirmActivityFeed,
+        currentUser?.email ? { userEmail: currentUser.email, sessionToken: (bearerToken ?? undefined), limit: 100 } : 'skip'
+    );
+    React.useEffect(() => {
+        if (!Array.isArray(firmActivityFeed) || firmActivityFeed.length === 0) return;
+        setAppState(prev => {
+            const feedKey = new Set(firmActivityFeed.map((a: any) => `${a.action}|${a.targetId || ''}|${a.timestamp}`));
+            const localOnly = (prev.firmActivity || []).filter(
+                (a: any) => !feedKey.has(`${a.action}|${a.targetId || ''}|${a.timestamp}`)
+            );
+            const merged = [...localOnly, ...firmActivityFeed]
+                .sort((a: any, b: any) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
+                .slice(0, 200);
+            // Skip the setState if nothing actually changed (avoid render loops).
+            if (merged.length === (prev.firmActivity || []).length &&
+                merged.every((a: any, i: number) => prev.firmActivity?.[i]?.id === a.id)) {
+                return prev;
+            }
+            return { ...prev, firmActivity: merged };
+        });
+    }, [firmActivityFeed]);
+
     // ─── TASK 62: OFFLINE WRITE PATH ────────────────────────────────────
     // The generic CRUD actions below (addItem/updateItem/deleteItem — also
     // how notes and notebooks save) become offline-capable: when the device
@@ -628,6 +658,15 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
                 addToast('Cannot restore: archive record is missing data.', { type: 'error' });
                 return;
             }
+            // V3 (V-MATTER-4): matters restore through the validated server
+            // mutation — soft-archived matters flip status back (lossless,
+            // same row id); legacy hard-delete-era rows re-insert their
+            // snapshot. The old generic path re-inserted EVERYTHING, which
+            // for soft-archived matters would have duplicated the matter.
+            if (table === 'matters' || table === 'Matter') {
+                await matterHooks.handleRestoreMatter({ archiveRowId: item._id, matterId: item.itemId });
+                return;
+            }
             // DELETE from archive FIRST, then add back to original table.
             // If we add first, the getFirmData re-merge may re-add the
             // archived item before the delete propagates, creating duplicates.
@@ -639,7 +678,17 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
             await baseActions.addItem(table, restoredData, item.itemName || item.name || 'Restored Item');
             addToast(`${item.itemName || item.name || 'Item'} restored successfully.`, { type: 'success' });
         },
-        handlePermanentDeleteFromArchive: async (id: string) => baseActions.deleteItem('archive', id, 'Archived Item'),
+        // V3 (V-MATTER-4/8): permanently deleting an archived MATTER runs the
+        // hardened cascade (financial records refuse + block) — the old path
+        // only deleted the archive ROW, which for soft-archived matters left
+        // the matter stranded in 'Archived' status with no way to reach it.
+        handlePermanentDeleteFromArchive: async (item: any) => {
+            if (item && (item.itemType === 'matters' || item.itemType === 'Matter')) {
+                await matterHooks.handleDeleteMatter(String(item.itemId || ''), item.itemName || 'Matter');
+                return;
+            }
+            await baseActions.deleteItem('archive', typeof item === 'string' ? item : item.id, 'Archived Item');
+        },
         handleDeleteTimeEntry: async (id: string) => baseActions.deleteItem('timeEntries', id, 'Time Entry'),
         handleDeleteExpense: async (id: string) => baseActions.deleteItem('expenses', id, 'Expense'),
         handleUpdateWorkflow: async (workflow: any) => baseActions.updateItem('workflows', workflow, 'Workflow'),

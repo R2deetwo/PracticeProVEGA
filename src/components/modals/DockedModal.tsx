@@ -554,15 +554,28 @@ export const DockedModal: React.FC = () => {
       case 'closeMatter': {
         const matter = matterState.matters.find(m => m.id === editingId);
         if (matter) {
+          // V3 (V-MATTER-3): the validated lifecycle mutation — the legacy
+          // copy set STAGE 'Closed' (the status/stage conflation) and
+          // silently discarded the closing note.
           const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
           const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
-          content = <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={(id, note) => { dataHandlers.handleUpdateMatterStage(id, 'Closed'); closeModal(); }} onClose={closeModal} />;
+          content = <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={async (id, note) => {
+            try {
+              await dataHandlers.handleCloseMatter(id, note);
+              closeModal();
+            } catch { /* toast already shown; keep the modal open to retry */ }
+          }} onClose={closeModal} />;
         }
         break;
       }
       case 'archiveMatter': {
         const matter = matterState.matters.find(m => m.id === editingId);
-        if (matter) content = <ArchiveMatterModal matter={matter} onConfirm={(id) => { dataHandlers.archiveItem('Matter', id, matter.title, matter); closeModal(); }} onClose={closeModal} />;
+        if (matter) content = <ArchiveMatterModal matter={matter} onConfirm={async (id) => {
+          try {
+            await dataHandlers.archiveItem('matters', id, matter.title, matter);
+            closeModal();
+          } catch { /* toast already shown; keep the modal open to retry */ }
+        }} onClose={closeModal} />;
         break;
       }
       case 'mergeContact': {
@@ -585,10 +598,21 @@ export const DockedModal: React.FC = () => {
         break;
       }
       case 'assignUsers': {
+        // V3 (V-MATTER-15): bulk context support (see ModalManager twin).
         const item = modalContext?.item;
         const itemType = modalContext?.itemType || 'Matter';
         const itemTitle = modalContext?.itemTitle || 'Item';
-        if (item) {
+        const bulkMatterIds: string[] = Array.isArray(modalContext?.matterIds) ? modalContext.matterIds : [];
+        if (bulkMatterIds.length > 0) {
+          const bulkMatters = matterState.matters.filter(m => bulkMatterIds.includes(m.id));
+          const handleBulkAssign = async (_itemId: string, userIds: string[]) => {
+            try {
+              await dataHandlers.handleBulkAssignMatters(bulkMatterIds, userIds);
+              closeModal();
+            } catch { /* toast already shown; keep open */ }
+          };
+          content = <AssignUsersForm item={{ id: 'bulk', assignedUsers: [] }} itemType="Matter" itemTitle={`${bulkMatterIds.length} matters`} users={coreState.users} onUpdate={handleBulkAssign} onClose={closeModal} bulkMatterTitles={bulkMatters.map(m => m.title)} />;
+        } else if (item) {
           const handleAssign = (itemId: string, userIds: string[]) => {
             if (itemType === 'Matter') {
               const matter = matterState.matters.find(m => m.id === itemId);

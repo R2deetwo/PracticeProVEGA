@@ -970,6 +970,9 @@ export const createInvoiceFromOutbox = internalMutation({
         id: entry.clientId || "",
         name: entry.clientName || "",
       },
+      // V3 (V-MATTER-14): the declarative link alongside the snapshot —
+      // entry.matterId was staged from matter.id || matter._id, both real.
+      matterId: entry.matterId || undefined,
       matter: {
         id: entry.matterId,
         title: entry.matterTitle || "",

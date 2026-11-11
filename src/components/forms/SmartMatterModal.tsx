@@ -18,6 +18,8 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { unitLabelForIndex, type UnitNamingScheme } from '../../utils/unitNaming';
 import { Select } from '../ui';
+import { useConflictScreen } from '../../hooks/useConflictScreen';
+import ConflictReviewDialog from '../modals/ConflictReviewDialog';
 import {
     autoFormatSuitTitle,
     formatNumberWithCommas,
@@ -154,6 +156,8 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
     contacts, users, currentUser, onClose, onAddMatter, onNavigate, initialContext,
 }) => {
     const { addToast } = useUI();
+    // V3 (V-MATTER-6): the pre-creation conflict-of-interest screen.
+    const conflictScreen = useConflictScreen();
 
     // Step 0 = pick type, Step 1 = fill details
     const [step, setStep] = useState<0 | 1>(0);
@@ -458,6 +462,29 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
             } : null;
 
             if (isLitigation && legalAction) { /* frequency tracking removed — no reader */ }
+
+            // V3 (V-MATTER-6): CONFLICT-OF-INTEREST SCREEN before creation.
+            // Compares the client, opposing party (defendant / adverse party)
+            // against existing clients, contacts and matters; potential
+            // matches go to HUMAN review — nothing is auto-declared.
+            const clientContactForScreen = contacts.find(c => c.id === clientId);
+            const opposingForScreen: string[] = [];
+            if (isLitigation && defendant && activeProcessConfig.opposingPartyLabel) opposingForScreen.push(defendant.trim());
+            if (matterType === MatterType.RealEstate && adverseParty) opposingForScreen.push(adverseParty.trim());
+            const screenProceed = await new Promise<boolean>((resolve) => {
+                conflictScreen.run({
+                    clientName: clientContactForScreen?.name || newClientName || '',
+                    clientEmail: clientContactForScreen?.email || '',
+                    opposingParties: opposingForScreen.filter(Boolean),
+                    counsel: [],
+                    onDone: (r) => resolve(r.proceed),
+                });
+            });
+            if (!screenProceed) {
+                // A human confirmed a genuine conflict — nothing is created.
+                setIsSubmitting(false);
+                return;
+            }
 
             const res = await onAddMatter(matterData, clientPayload);
 
@@ -1213,6 +1240,18 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
                     </div>
                 )}
             </div>
+
+            {/* V3 (V-MATTER-6): the conflict-review overlay. */}
+            {conflictScreen.pending && (
+                <ConflictReviewDialog
+                    matches={conflictScreen.pending.matches}
+                    clientName={conflictScreen.pending.clientName}
+                    opposingParties={conflictScreen.pending.opposingParties}
+                    counsel={conflictScreen.pending.counsel}
+                    onDecision={(d) => conflictScreen.resolve(d)}
+                    onBack={() => conflictScreen.resolve({ proceed: false })}
+                />
+            )}
         </div>
     );
 };

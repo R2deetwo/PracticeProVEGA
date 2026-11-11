@@ -17962,3 +17962,193 @@ Stage Summary:
 - The books now tell the truth: one tax calculation, one numbering
   authority, one outstanding balance, delivery claims only where delivery
   happened, and an audit trail the firm can actually read.
+
+## Task: V3 — VEGA MATTER LIFECYCLE INTEGRITY (2026-11-11)
+
+Task: Make matter management reliable from creation to closure — lifecycle,
+archive/restore, assignment, document relationships, contact management and
+conflict screening (the V0 audit's V-MATTER-1..17 findings), without touching
+Atrium's tenancyLifecycle.ts, the E1-E4 suites, Paystack or historical
+financial records. All schema changes additive.
+
+Work Log:
+- PUSH UNBLOCKED: the V2 push was never blocked by a dead PAT — the owner
+  login is `R2deetwo` (…tw…) and every retry used `R2deetoo` (…to…), so
+  GitHub answered "Repository not found". With the correct spelling the
+  fresh PAT pushed 88470c7a..f4393a36; the staging quality gate ran GREEN
+  on f4393a36 (V2 code). Production promote NOT dispatched — V2's brief
+  requires user review first, as does this one.
+- SURVEY confirmed every finding at source: status/stage were free strings
+  through the generic v.any() CRUD (no validation, 'Closed' doubling as a
+  stage, MatterStatus.Archived never written by any code); the close/
+  archive/reopen modals existed in THREE managers with ZERO openModal call
+  sites (the only reachable close was a bulk status flip with no warning,
+  no note, no confirmation); "archive" was a client two-step (insert
+  archive row → delete the matter) whose second step the FK guard refuses
+  for any matter with children — the ghost-archive-row machine, hidden by
+  a success toast while the matter reappeared 60s later; a 30-day cron
+  purged the archive rows that "restore any time" depended on;
+  deleteMatterCascade hard-deleted booked INVOICES bypassing the V2
+  FINANCIAL_TABLES fence; the FK guard checked `invoices.matterId`, a
+  field invoices never had (snapshot convention) so it could never fire;
+  departed users lingered in matter/event assignments (removal only
+  cleaned the first 100 tasks); firmActivity was written by nothing and
+  read from a table getFirmData never populates; "stage history" was one
+  overwritten timestamp; secondary-contact linking patched an orphan
+  `contactIds` key on no table; the bulk-assign modal ignored the
+  matterIds context it was given (the button did NOTHING); contact merges
+  hard-deleted the source (portal link destroyed, secondary relations
+  orphaned, notes lost, zero audit); portal invites fell back from email
+  to NAME matching (identity theft by name collision); no conflict-of-
+  interest screening existed anywhere in the product.
+- LIFECYCLE STATE MACHINE (convex/matterLifecycle.ts + createItem/
+  updateItem fences): MATTER_STATUSES = Active|Closed|Archived with a
+  server-enforced transition graph (same→same allowed — forms re-send
+  whole objects; legacy junk statuses repairable to any canonical value;
+  Archived→X requires restore). Stage is shape-validated (trim, non-empty,
+  ≤80 chars, no control chars) — the vocabulary stays firm-configured.
+  Dedicated validated mutations: closeMatter (stamps closedAt, persists
+  the closing note as a real note, records activity), reopenMatter (had
+  NO UI at all before), assignUsersToMatters (validated firm members,
+  deactivated refused, atomic), setMatterAssociatedContacts (the REAL
+  schema field), getMatterClosePreview (the unbilled-time/expenses/open-
+  task numbers the close modal warns about, computed server-side across
+  BOTH id conventions).
+- ATOMIC SOFT ARCHIVE (V-MATTER-4/7): archiveMatter is ONE transaction —
+  ghost-guard (an existing archive row refuses), archive-row insert (the
+  Archive page record + restore source, carrying priorStatus), status
+  flip to 'Archived' + archivedAt/By. The matter row is NOT deleted:
+  children stay linked, restores are lossless (restoreMatter flips status
+  back to priorStatus; legacy hard-delete-era rows re-insert their
+  snapshot). The 30-day purge now exempts matter archive rows. Archived
+  matters leave the working list (MatterList) and the client portal but
+  stay restorable. Failed archives leave NOTHING (double-archive refuses;
+  exactly one row ever).
+- FINANCIAL PROTECTION (V-MATTER-8): deleteMatterCascade refuses to run
+  when the matter has invoices (either id convention), trust transactions,
+  ledger entries, payment proofs or BILLED time/expenses — "archive it
+  instead". Non-financial children (tasks, documents, events, notes,
+  messages, research, unbilled time/expenses, linked properties, stale
+  archive rows) delete across BOTH id conventions with no take() caps;
+  firmActivity (the audit trail) is preserved; the deletion itself is
+  audited. Admin/Founder gate (requireAdmin excluded the solo Founder —
+  the only user of a solo firm could never delete anything). The generic
+  deleteItem FK guard now operates on ACTUAL schema fields — invoices via
+  matterId OR the matter-snapshot, documents via both, contacts via
+  clientId + associatedContactIds + parties.contactId + tenancies +
+  property_relationships (array + dotted-path aware).
+- DOCUMENT/INVOICE RELATIONSHIPS (V-MATTER-13/14): additive
+  `invoices.matterId` column + by_matter index; documents/invoices writes
+  now set the declarative link ALONGSIDE the never-rewritten snapshot
+  (DocumentForm create+edit, BatchUpload — which also resolves the REAL
+  matter title instead of the literal 'Matter', InvoiceForm, the
+  generate-from-matter path — guarded so the 'general' placeholder never
+  becomes a fake FK, the retainer outbox). createItem enforces an FK fence
+  (a non-empty matterId must resolve to a real firm matter, both
+  conventions; absent stays legal for legacy rows). Readers resolve BOTH
+  conventions: getMatterDetails (also now resolves the matter itself by
+  custom id — the old _id-only lookup made the on-demand fetch return null
+  for every app-form matter), the detail-view documents/invoices filters,
+  the list doc-count, getTenantDocuments, the fixed-fee dedup, and the
+  automationRules recipient resolution (the old check compared a field
+  invoices never carried). Additive idempotent backfills
+  (migrations.backfillDocumentMatterIds/backfillInvoiceMatterIds, dry-run
+  default) + the convex-backfill-matter-links workflow.
+- CONTACT INTEGRITY (V-MATTER-5/16): email-first dedup on every automated
+  creation path (createItem refuses a second firm contact with an existing
+  email, case-insensitive; empty emails never dedup; phones and names
+  NEVER block — they surface as warnings: ContactForm shows live
+  email/phone/name evidence banners, and MergeContactModal shows WHY two
+  contacts look alike with a mandatory verification step for name-only
+  matches). mergeContacts is ONE atomic server transaction: re-points
+  matters.clientId, associatedContactIds, parties[].contactId, properties,
+  tenancies and property_relationships; transfers the portal userId to the
+  survivor (and CLEARS it on the tombstone — a stale claim made every
+  portal lookup resolve the dead contact); refuses when both contacts hold
+  different portal accounts; fills the survivor's missing fields, appends
+  the source's notes with attribution, unions matter links; the source
+  becomes a soft-archived mergedIntoId tombstone; the whole merge is
+  audited in firmActivity. Invoice client snapshots deliberately NOT
+  rewritten (historical financial records). ensureContactForClientInvite
+  and linkPortalUserToContact now resolve email-ONLY when an email exists
+  (the name fallback linked strangers), phones digits-normalised across
+  local (0803…) vs E.164 (234803…) forms, ambiguous names create fresh
+  rather than guess. Inbound WhatsApp phone matching probes the common
+  number shapes (still pure index seeks).
+- ASSIGNMENT + ACTIVITY (V-MATTER-9/11/12/15/17): performFirmUserRemoval
+  now strips the departed user from tasks AND matters AND events AND
+  documents (2000-row directory reads, not the old 100-task cap); the
+  firmActivity feed is REAL again (getFirmActivityFeed, session-gated —
+  the successor of the ungated Round-11 removal — wired into the app
+  state so the Dashboard widgets and activity logs show history after a
+  reload); matter creation, closure, archive, restore, stage changes and
+  assignment changes all record activity with their diffs; durable
+  matterStageHistory table (append-only; the creation entry seeds it;
+  updateItem appends on real changes; getMatterStageHistory surfaces it
+  in the matter activity tab — stageLastUpdated stays as the denormalised
+  "current since"); the bulk-assign modal finally consumes the matterIds
+  context it was always given (bulk + single paths, with the affected
+  matters named); the fake-success toasts are gone (the "portal invite
+  queued"/"Portal update queued" claims, the no-mutation "Linked contact
+  to matter.", the no-op intake cancel — which now really cancels).
+- CONFLICT SCREENING (V-MATTER-6, greenfield): convex/conflictCheck.ts —
+  screenForConflicts (normalised name matching: case/punctuation/
+  whitespace, legal-suffix stripping, bounded containment flagged
+  'possible'; email equality 'strong') compares the prospective client,
+  opposing parties and counsel against existing contacts AND matters
+  (litigation parties, opposing counsel, adverse parties, and the
+  textbook case: a new opposing party who is already a client);
+  recordConflictCheck/reviewConflictCheck write the audit trail with
+  mandatory review notes; conflict_checks table + the new
+  ConflictReviewDialog wired into BOTH matter-creation forms BEFORE
+  onAddMatter (clean screens pass friction-free; matches require a human
+  disposition — reviewed false positive or confirmed conflict — before
+  creation proceeds). Nothing is ever auto-declared from fuzzy matching.
+- ROLE COMMUNICATION (V-MATTER-8): destructive controls now TELL the user
+  the rule instead of failing after the click — delete/archive actions on
+  the matter card, detail menu and context menu check canArchiveMatters,
+  explain the Administrator requirement, and the delete confirmations
+  state the financial-record guarantee.
+- TESTS: 67 real-handler tests across roundV3MatterLifecycle.test.ts (45)
+  + roundV3ContactsAndConflicts.test.ts (22) covering all twelve
+  acceptance criteria: the state machine itself; creation/assignment
+  recording; valid/invalid transitions through the REAL updateItem;
+  closure with outstanding work (server-computed preview across both id
+  conventions, advisory warning, persisted closing note); archive +
+  restore (soft, atomic, priorStatus-faithful, legacy rows); FAILED
+  archive leaving zero ghost rows; cascade delete with financial refusal
+  (invoices/trust/billed time) and full non-financial cleanup across both
+  id conventions; the FK fence on real fields; document links on every
+  write route + the additive backfill (dry-run/real/idempotent/unresolved-
+  never-guessed) + dual-convention readers; contact dedup (email blocks,
+  phones/names never do); the identity-preserving merge (every
+  relationship re-pointed, portal userId transferred AND cleared on the
+  tombstone, both-portal refusal, notes attributed, audited); safe invite
+  resolution (email-only, phone digits, ambiguous names create fresh);
+  real firm-activity feed (firm-scoped, newest-first); durable stage
+  history; bulk assignment (validated, atomic, per-matter activity);
+  conflict screening (normalisation, the classic opposing-party-is-our-
+  client hit, email strength, no-verdict contract, note-required review)
+  + source contracts pinning every rewired surface.
+- GATES: vitest 2303/2303 (115 files, +67) / convex tsc 0 / root tsc 90 =
+  4 UNDER the 94 baseline (the archiveItem signature fix retired four
+  pre-existing errors) / eslint changed files 0 errors 0 warnings /
+  ui-primitives ratchet HELD at 2296 (all new UI built on the Button/
+  Textarea primitives) / design tokens gray=0 / main + admin builds green.
+- NON-NEGOTIABLES HELD: tenancyLifecycle.ts, the E1-E4 suites, Paystack
+  and every historical financial record untouched (backfills only ADD the
+  matterId column; snapshots never rewritten); schemaValidation stays
+  false; all schema changes additive (matterStageHistory + conflict_checks
+  tables; matters closedAt/archived* fields; contacts mergedIntoId/
+  mergedAt; invoices matterId + index); _generated/api.d.ts extended for
+  the three new modules exactly as prior rounds did.
+
+Stage Summary:
+- V3 COMPLETE, all gates green, and STOPPED FOR INDEPENDENT REVIEW per the
+  brief — pushed to main (CI runs the full quality gate on the push);
+  production promote NOT dispatched.
+- Matters now have a real lifecycle: enforced transitions, reachable
+  close/archive/reopen flows with honest warnings, atomic restorable
+  archives instead of ghost rows, a delete that protects the books,
+  durable stage history, a living activity feed, contact identity that
+  survives merging, and a conflict screen with a human in the loop.

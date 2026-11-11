@@ -4,12 +4,13 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useMatterState } from '../../contexts/MatterContext';
 import { CheckCircleIcon, UploadIcon, DocumentIcon, DismissIcon, RevertIcon, SparklesIcon } from '../../constants';
 import { FileDetails } from '../../types';
 
 interface BatchUploadModalProps {
-  files: File[];
-  context?: { matterId?: string, categoryId?: string };
+  files?: File[];
+  context?: { matterId?: string, categoryId?: string, matterTitle?: string };
   onClose: () => void;
 }
 
@@ -23,6 +24,7 @@ interface FileUploadState {
 }
 
 const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles, context, onClose }) => {
+  const { matterState } = useMatterState();
   const { handleAddDocumentAndAnalyze } = useDataActions();
   const { addToast } = useUI();
   const { currentUser } = useAuth();
@@ -96,8 +98,16 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
               dataUrl: reader.result as string,
             };
 
-            // Prepare document data
-            const matter = context?.matterId ? { id: context.matterId, title: 'Matter' } : undefined;
+            // V3 (V-MATTER-13): resolve the REAL matter title — the old
+            // placeholder wrote title: 'Matter' into every batch-uploaded
+            // document's snapshot, so the matter chip showed garbage.
+            const resolvedMatter = context?.matterId
+              ? matterState.matters.find(m => m.id === context.matterId)
+              : undefined;
+            const matterTitle = context?.matterTitle || resolvedMatter?.title;
+            const matter = context?.matterId
+              ? { id: context.matterId, title: matterTitle || resolvedMatter?.title || 'Matter' }
+              : undefined;
 
             const newDocData = {
               title: item.file.name,

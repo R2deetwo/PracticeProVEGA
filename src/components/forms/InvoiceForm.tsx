@@ -239,6 +239,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       // uniqueness check; on CREATE the server assigns it atomically.
       ...(isEditing ? { invoiceNumber } : {}),
       client: { id: client!.id, name: client!.name },
+      // V3 (V-MATTER-14): the declarative link travels ALONGSIDE the legacy
+      // snapshot — the snapshot is never rewritten, the column makes the
+      // invoice joinable to its matter.
+      matterId: matter!.id,
       matter: { id: matter!.id, title: matter!.title },
       lineItems: finalLineItems,
       status: invoiceToEdit?.status || InvoiceStatus.Unpaid,

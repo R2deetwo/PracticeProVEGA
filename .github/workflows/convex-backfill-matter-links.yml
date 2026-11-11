@@ -1,0 +1,61 @@
+# Runs the V3 matter-link backfills on the Convex production deployment.
+#
+# V3 (V-MATTER-13/14, 2026-11-11): legacy documents and invoices persisted
+# their matter relationship as a `matter: {id, title}` SNAPSHOT only. New
+# writers set BOTH the snapshot and the declarative `matterId` column; these
+# additive, idempotent backfills close the gap for legacy rows.
+#
+# Safe to re-run: rows that already carry a matterId are never touched, and
+# snapshots that cannot be resolved to a live matter are reported, never
+# guessed. dry_run defaults to TRUE (report only) — review the counts, then
+# re-run with dry_run=false to write.
+
+name: Convex Backfill Matter Links (V3)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (report what would change, write nothing)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: convex-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run backfillDocumentMatterIds mutation
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "Running document matter-link backfill (dryRun=${DRY_RUN}) against production deployment gregarious-malamute-537"
+          npx convex run migrations:backfillDocumentMatterIds "{\"dryRun\":${DRY_RUN}}"
+
+      - name: Run backfillInvoiceMatterIds mutation
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "Running invoice matter-link backfill (dryRun=${DRY_RUN}) against production deployment gregarious-malamute-537"
+          npx convex run migrations:backfillInvoiceMatterIds "{\"dryRun\":${DRY_RUN}}"

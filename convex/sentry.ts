@@ -1181,11 +1181,35 @@ export const processInboundMessage = internalMutation({
   handler: async (ctx, args) => {
     // Attempt to match the senderContact with a tenant
     // Phase 4 (perf): index seek via contacts.by_phone (previously a full
-    // contacts table scan on EVERY inbound WhatsApp/SMS message)
-    const contacts = await ctx.db
-      .query("contacts")
-      .withIndex("by_phone", (q: any) => q.eq("phone", args.senderContact))
-      .take(2000);
+    // contacts table scan on EVERY inbound WhatsApp/SMS message).
+    // V3 (V-MATTER-5): the seek is now FORMAT-RESILIENT. Providers deliver
+    // sender numbers digits-only in E.164 (2348012345678) while stored
+    // contact phones are free-form ("+234 803…", "0803…"). The old exact-
+    // string seek missed every formatting variant. We probe the common
+    // shapes of the SAME number — still pure index seeks, no table scan.
+    const digits = (s: unknown) => (typeof s === "string" ? s.replace(/\D/g, "") : "");
+    const rawSender = String(args.senderContact || "");
+    const senderDigits = digits(rawSender);
+    const phoneShapes = Array.from(new Set(
+      [
+        rawSender,
+        senderDigits,
+        senderDigits ? `+${senderDigits}` : "",
+        senderDigits.length >= 10 ? `0${senderDigits.slice(-10)}` : "",
+        senderDigits.length >= 10 ? senderDigits.slice(-10) : "",
+      ].filter(Boolean)
+    ));
+    let contacts: any[] = [];
+    for (const shape of phoneShapes) {
+      const hits = await ctx.db
+        .query("contacts")
+        .withIndex("by_phone", (q: any) => q.eq("phone", shape))
+        .take(50);
+      if (hits.length > 0) {
+        contacts = hits;
+        break;
+      }
+    }
 
     let firmId = "unknown";
     let tenantId = undefined;

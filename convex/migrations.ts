@@ -202,3 +202,158 @@ export const backfillNotificationTimestamps = internalMutation({
     };
   },
 });
+
+// ─── V3 (V-MATTER-13/14): MATTER-LINK BACKFILLS (2026-11-11) ────────────────
+//
+// Documents and invoices historically persisted the matter relationship as
+// a `matter: {id, title}` SNAPSHOT only (the main upload form / invoice
+// forms) — the declarative `matterId` column stayed empty, so every
+// by_matter query missed those rows. New writers set BOTH. These backfills
+// close the gap for legacy rows, STRICTLY ADDITIVELY:
+//   • rows that already carry a matterId are never touched;
+//   • rows whose snapshot cannot be resolved to a live matter are left
+//     untouched and reported (never guessed);
+//   • the resolved value is the matter's CUSTOM id (the app-forms
+//     convention — matching what the forms now write);
+//   • the `matter` snapshot itself is NEVER rewritten or removed;
+//   • idempotent — safe to re-run any number of times.
+//
+// Run via dashboard or `npx convex run migrations:backfillDocumentMatterIds`
+// (dryRun defaults to TRUE — report only; pass {dryRun:false} to write).
+// V1-B (SEC-13) applies: internal-only, like every cross-firm sweep.
+
+async function buildMatterIndexes(ctx: any) {
+  const matters = await ctx.db.query("matters").collect();
+  const byCustom = new Map<string, any>();
+  const byConvex = new Map<string, any>();
+  for (const m of matters as any[]) {
+    if (m.id) byCustom.set(String(m.id), m);
+    byConvex.set(String(m._id), m);
+  }
+  return { byCustom, byConvex };
+}
+
+function snapshotMatterId(row: any): string | null {
+  const snap = row?.matter;
+  if (snap && typeof snap === "object" && snap.id != null) return String(snap.id);
+  if (typeof snap === "string" && snap.trim() !== "") return snap.trim();
+  return null;
+}
+
+export const backfillDocumentMatterIds = internalMutation({
+  args: { dryRun: v.optional(v.boolean()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const rows = (await ctx.db.query("documents").collect()) as any[];
+    const { byCustom, byConvex } = await buildMatterIndexes(ctx);
+
+    let alreadyLinked = 0;
+    let linked = 0;
+    let unresolved = 0;
+    let noSnapshot = 0;
+    let patched = 0;
+    const unresolvedDetail: any[] = [];
+    const sample: any[] = [];
+
+    for (const d of rows) {
+      if (args.limit && patched >= args.limit) break;
+      if (d.matterId && String(d.matterId).trim() !== "") {
+        alreadyLinked++;
+        continue;
+      }
+      const snapId = snapshotMatterId(d);
+      if (!snapId) {
+        noSnapshot++; // an unfiled document — nothing to resolve
+        continue;
+      }
+      const matter = byCustom.get(snapId) || byConvex.get(snapId);
+      if (!matter) {
+        unresolved++;
+        if (unresolvedDetail.length < 50) {
+          unresolvedDetail.push({ id: d._id, title: d.title, matterRef: snapId });
+        }
+        continue;
+      }
+      const value = String(matter.id || matter._id);
+      if (args.dryRun !== false) {
+        if (sample.length < 50) sample.push({ id: d._id, title: d.title, matterId: value });
+      } else {
+        await ctx.db.patch(d._id, { matterId: value });
+        patched++;
+        if (sample.length < 50) sample.push({ id: d._id, title: d.title, matterId: value });
+      }
+      linked++;
+    }
+
+    return {
+      dryRun: args.dryRun !== false,
+      totalRows: rows.length,
+      alreadyLinked,
+      linked,
+      unresolved,
+      noSnapshot,
+      rowsPatched: patched,
+      unresolvedDetail,
+      sample,
+    };
+  },
+});
+
+export const backfillInvoiceMatterIds = internalMutation({
+  args: { dryRun: v.optional(v.boolean()), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const rows = (await ctx.db.query("invoices").collect()) as any[];
+    const { byCustom, byConvex } = await buildMatterIndexes(ctx);
+
+    let alreadyLinked = 0;
+    let linked = 0;
+    let unresolved = 0;
+    let noSnapshot = 0;
+    let patched = 0;
+    const unresolvedDetail: any[] = [];
+    const sample: any[] = [];
+
+    for (const inv of rows) {
+      if (args.limit && patched >= args.limit) break;
+      if (inv.matterId && String(inv.matterId).trim() !== "") {
+        alreadyLinked++;
+        continue;
+      }
+      const snapId = snapshotMatterId(inv);
+      // The generator's "general management" placeholder is not a matter
+      // reference — leave those rows untouched.
+      if (!snapId || snapId === "general") {
+        noSnapshot++;
+        continue;
+      }
+      const matter = byCustom.get(snapId) || byConvex.get(snapId);
+      if (!matter) {
+        unresolved++;
+        if (unresolvedDetail.length < 50) {
+          unresolvedDetail.push({ id: inv._id, invoiceNumber: inv.invoiceNumber, matterRef: snapId });
+        }
+        continue;
+      }
+      const value = String(matter.id || matter._id);
+      if (args.dryRun !== false) {
+        if (sample.length < 50) sample.push({ id: inv._id, invoiceNumber: inv.invoiceNumber, matterId: value });
+      } else {
+        await ctx.db.patch(inv._id, { matterId: value });
+        patched++;
+        if (sample.length < 50) sample.push({ id: inv._id, invoiceNumber: inv.invoiceNumber, matterId: value });
+      }
+      linked++;
+    }
+
+    return {
+      dryRun: args.dryRun !== false,
+      totalRows: rows.length,
+      alreadyLinked,
+      linked,
+      unresolved,
+      noSnapshot,
+      rowsPatched: patched,
+      unresolvedDetail,
+      sample,
+    };
+  },
+});

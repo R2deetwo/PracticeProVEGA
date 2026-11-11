@@ -309,6 +309,30 @@ async function resolveAdminAssignees(ctx: any, firmId: string): Promise<string[]
 }
 
 /** Resolve message recipient (name + email/phone) for an event context. */
+// V3 (V-MATTER-14): matter lookups resolve BOTH id conventions (custom `id`
+// AND Convex _id) with a JS match on collected firm matters. The old
+// `.filter(q.field("id") === matterId)` chain (a) only ever matched the
+// custom id, and (b) silently mismatched when the reference held the other
+// convention — recipient resolution for document/event/task-triggered rules
+// never fired for those rows.
+async function resolveMatterByAnyId(
+  ctx: any,
+  firmId: string,
+  matterId: string | null | undefined,
+): Promise<any | null> {
+  if (!matterId) return null;
+  const firmMatters = await ctx.db
+    .query("matters")
+    .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+    .take(2000);
+  const ref = String(matterId);
+  return (
+    (firmMatters as any[]).find((m) => String(m.id || "") === ref) ||
+    (firmMatters as any[]).find((m) => String(m._id) === ref) ||
+    null
+  );
+}
+
 async function resolveRecipient(
   ctx: any,
   firmId: string,
@@ -325,11 +349,7 @@ async function resolveRecipient(
       return { name: e.invoice.clientName || null, email: e.invoice.clientEmail, phone: null };
     }
     if (e.invoice.matterId) {
-      const matter = await ctx.db
-        .query("matters")
-        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-        .filter((q: any) => q.eq(q.field("id"), e.invoice!.matterId))
-        .first();
+      const matter = await resolveMatterByAnyId(ctx, firmId, e.invoice.matterId);
       if (matter?.clientId) {
         const c = await resolveMatterClient(ctx, firmId, matter.clientId);
         if (c && (c.email || c.phone)) {
@@ -341,27 +361,9 @@ async function resolveRecipient(
   }
   // Matter-family triggers: the matter's client contact.
   const matter = e.matter
-    || (e.event?.matterId
-      ? await ctx.db
-          .query("matters")
-          .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-          .filter((q: any) => q.eq(q.field("id"), e.event!.matterId))
-          .first()
-      : null)
-    || (e.document?.matterId
-      ? await ctx.db
-          .query("matters")
-          .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-          .filter((q: any) => q.eq(q.field("id"), e.document!.matterId))
-          .first()
-      : null)
-    || (e.task?.matterId
-      ? await ctx.db
-          .query("matters")
-          .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-          .filter((q: any) => q.eq(q.field("id"), e.task!.matterId))
-          .first()
-      : null);
+    || (await resolveMatterByAnyId(ctx, firmId, e.event?.matterId))
+    || (await resolveMatterByAnyId(ctx, firmId, e.document?.matterId))
+    || (await resolveMatterByAnyId(ctx, firmId, e.task?.matterId));
   if (matter?.clientId) {
     const c = await resolveMatterClient(ctx, firmId, matter.clientId);
     if (c && (c.email || c.phone)) {

@@ -49,11 +49,21 @@ const ArchiveView: React.FC = () => {
       message: 'This will PERMANENTLY DELETE all archived items. This action cannot be undone. Are you absolutely sure?',
       onConfirm: async () => {
         try {
-          // Delete each archived item permanently
+          // Delete each archived item permanently. V3: matters route through
+          // the hardened cascade (financial records refuse and block it), so
+          // a matter with invoices survives an "empty archive" — the books
+          // only grow.
+          let deleted = 0;
+          const failures: string[] = [];
           for (const item of filteredArchive) {
-            await handlePermanentDeleteFromArchive(item.id);
+            try {
+              await handlePermanentDeleteFromArchive(item);
+              deleted++;
+            } catch (e: any) {
+              failures.push(item.itemName || item.id);
+            }
           }
-          addToast(`Permanently deleted ${filteredArchive.length} archived items.`, { type: 'success' });
+          addToast(`Permanently deleted ${deleted} archived items.${failures.length > 0 ? ` ${failures.length} item(s) kept — ${failures[0]}${failures.length > 1 ? ' and others' : ''} has financial records that are never deleted.` : ''}`, { type: failures.length > 0 ? 'warning' : 'success', duration: 8000 });
         } catch (e: any) {
           addToast(e?.message || 'Failed to empty archive.', { type: 'error' });
         }
@@ -136,7 +146,7 @@ const ArchiveView: React.FC = () => {
             <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest mb-3">
                 Archived Contacts <span className="text-slate-300">({archivedContacts!.length})</span>
             </h3>
-            <div className="bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-700/50">
+            <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 divide-y divide-slate-100 dark:divide-zinc-700/50">
                 {(archivedContacts || []).map((c: any) => (
                     <div key={String(c._id || c.id)} className="flex items-center justify-between gap-3 px-4 py-3">
                         <div className="min-w-0">
@@ -223,7 +233,7 @@ const ArchiveView: React.FC = () => {
 interface ArchiveRowProps {
     item: ArchivedItem;
     onRestore: (item: ArchivedItem) => void;
-    onPermanentDelete: (archiveId: string) => void;
+    onPermanentDelete: (target: ArchivedItem | string) => void;
     openModal: (type: string, id: string | null, context?: any) => void;
 }
 
@@ -239,8 +249,10 @@ const ArchiveRow: React.FC<ArchiveRowProps> = ({ item, onRestore, onPermanentDel
             <button onClick={() => onRestore(item)} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300 font-semibold">Restore</button>
             <button onClick={() => openModal('deleteConfirmation', item.id, {
                 title: `Permanently delete "${item.itemName}"?`,
-                message: 'This action cannot be undone. The item will be permanently removed from the archive.',
-                onConfirm: () => { onPermanentDelete(item.id); },
+                message: item.itemType === 'matters'
+                    ? 'This permanently deletes the matter and its tasks, documents, events and notes. Matters with invoices, trust money or billed time are NEVER deleted — those records are part of the financial ledger.'
+                    : 'This action cannot be undone. The item will be permanently removed from the archive.',
+                onConfirm: () => { onPermanentDelete(item); },
                 confirmText: 'Delete Permanently',
                 confirmButtonClass: 'bg-red-600 hover:bg-red-700',
             })} className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-semibold">Delete</button>

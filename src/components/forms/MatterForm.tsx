@@ -22,6 +22,8 @@ import { api } from '../../../convex/_generated/api';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
 import { translateError } from '../../utils/errorTranslator';
 import { useAuth } from "../../contexts/AuthContext";
+import { useConflictScreen } from '../../hooks/useConflictScreen';
+import ConflictReviewDialog from '../modals/ConflictReviewDialog';
 
 const commonInputClass = inputModern;
 
@@ -172,6 +174,8 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
     const markAloaActionCompleted = useMutation(api.myFunctions.markAloaActionCompleted);
     const upsertRetainerSchedule = useMutation(api.retainerBilling.upsertMatterRetainerSchedule);
     const { queueMutation, isOnline } = useOfflineQueue();
+    // V3 (V-MATTER-6): the pre-creation conflict-of-interest screen.
+    const conflictScreen = useConflictScreen();
 
     const availableWorkflows = executionState.workflows && executionState.workflows.length > 0 ? executionState.workflows : workflows;
 
@@ -710,6 +714,34 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     setSubmissionId(`matter_${uuidv4()}`); // next form = fresh submission identity
                     addToast('Matter saved offline. It will sync automatically when you reconnect — no need to submit it again.', { type: 'info', duration: 7000 });
                     onClose();
+                    return;
+                }
+
+                // V3 (V-MATTER-6): CONFLICT-OF-INTEREST SCREEN — runs before
+                // the matter is created. The server compares the client,
+                // opposing parties and counsel against existing clients,
+                // contacts and matters; potential matches are shown for
+                // HUMAN review (nothing is auto-declared). Creation proceeds
+                // only after a clear screen or a recorded review.
+                const clientContactForScreen = contacts.find(c => c.id === finalClientId);
+                const opposingForScreen: string[] = isLitigation
+                    ? (representingSide === 'Defendant' ? claimants : defendants)
+                        .map(p => (typeof p.name === 'string' ? p.name.trim() : ''))
+                        .filter(Boolean)
+                    : [];
+                const screenProceed = await new Promise<boolean>((resolve) => {
+                    conflictScreen.run({
+                        clientName: clientContactForScreen?.name || newClientName || '',
+                        clientEmail: clientContactForScreen?.email || newClientEmail || '',
+                        opposingParties: opposingForScreen,
+                        counsel: [],
+                        onDone: (r) => resolve(r.proceed),
+                    });
+                });
+                if (!screenProceed) {
+                    // A human confirmed a genuine conflict — the matter is
+                    // NOT created; the form stays open with its data intact.
+                    setIsSubmitting(false);
                     return;
                 }
 
@@ -1546,6 +1578,19 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                     {isEditing ? 'Save' : `Create ${terminology.matter}`}
                 </button>
             </div>
+
+            {/* V3 (V-MATTER-6): the conflict-review overlay — rendered when the
+                pre-creation screen found potential matches. */}
+            {conflictScreen.pending && (
+                <ConflictReviewDialog
+                    matches={conflictScreen.pending.matches}
+                    clientName={conflictScreen.pending.clientName}
+                    opposingParties={conflictScreen.pending.opposingParties}
+                    counsel={conflictScreen.pending.counsel}
+                    onDecision={(d) => conflictScreen.resolve(d)}
+                    onBack={() => conflictScreen.resolve({ proceed: false })}
+                />
+            )}
         </form>
     );
 };

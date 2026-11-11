@@ -59,7 +59,7 @@ export interface ExtendedDataActions extends DataActionsContextType {
     handleSaveAnalysisResult: (result: any) => void;
     handleDeleteAnalysisResult: (id: string) => void;
     handleToggleBookmarkCase: (id: string) => void;
-    archiveItem: (type: string, id: string, name: string, data: any) => void;
+    archiveItem: (type: string, id: string, name: string, data?: any) => void | Promise<void>;
     handleSendEmail: (data: any) => Promise<{ success: boolean; sentCount: number; failedCount: number; firstError?: string }>;
     handleRequestFinancialDocument: (matterId: string, type: string) => void;
     handleAddLead: (lead: any, isClientRequest?: boolean) => void;
@@ -90,11 +90,17 @@ export interface ExtendedDataActions extends DataActionsContextType {
     handleUpdatePageContent: (id: string, title: string, content: string) => Promise<void>;
     handleDeleteNotebook: (id: string, name: string) => Promise<void>;
     handleRestoreItem: (item: any) => Promise<void>;
-    handlePermanentDeleteFromArchive: (id: string) => Promise<void>;
+    // V3 (V-MATTER-4/8): accepts the archive row (for matters, which route to
+    // the hardened cascade) or a plain archive-row id.
+    handlePermanentDeleteFromArchive: (target: any) => Promise<void>;
     handleDeleteTimeEntry: (id: string) => Promise<void>;
     handleDeleteExpense: (id: string) => Promise<void>;
     handleUpdateMatter: (m: Matter) => Promise<void>;
-    handleReopenMatter: (id: string) => Promise<void>;
+    // V3 (V-MATTER-3): the validated lifecycle mutations.
+    handleReopenMatter: (id: string) => Promise<any>;
+    handleCloseMatter: (id: string, closingNote?: string) => Promise<any>;
+    handleBulkAssignMatters: (matterIds: string[], assignedUsers: string[]) => Promise<any>;
+    handleRestoreMatter: (opts: { matterId?: string; archiveRowId?: string }) => Promise<any>;
     handleLinkContactToMatter: (matterId: string, contactIds: string[]) => Promise<void>;
     handleAddMatterNote: (matterId: string, title: string, content: string, type?: 'user' | 'endorsement') => Promise<void>;
     handleDeleteMatter: (id: string, name: string) => Promise<void>;

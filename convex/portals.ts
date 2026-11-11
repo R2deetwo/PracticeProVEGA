@@ -14,6 +14,8 @@ import { dispatchRulesForEvent } from "./automationRules";
 import { makeTxHash } from "./sentry";
 import { assertValidChargeType } from "./chargeTypes";
 import { roundMoney } from "./moneyUtils";
+// V3 contact identity: shared phone matching (local vs E.164 forms).
+import { phonesMatch } from "./contactIntegrity";
 // V2 FINANCIAL TRUTH: the one outstanding-balance contract (server-computed
 // for the portal — the client never recomputes money).
 import { invoiceOutstanding, computeClientFinancialSummary } from "./invoiceFinancials";
@@ -1783,22 +1785,44 @@ export const ensureContactForClientInvite = internalMutation({
       return { contactId: null, created: false, reason: "no identifier" };
     }
 
-    // 1. Look for an existing contact by email (case-insensitive) or name
+    // V3 (V-MATTER-16): email-first SAFE resolution.
+    // • Email present → match by email ONLY. The old name fallback is what
+    //   minted duplicates / stole identities: an invite for "Tunde Johnson"
+    //   with tunde@newmail.com linked (or created) a contact belonging to a
+    //   DIFFERENT person who happened to share the display name.
+    // • Email absent (WhatsApp-only invites) → digits-normalised phone
+    //   match, then exact-name match — but only when it is UNIQUE (an
+    //   ambiguous name match creates a fresh contact rather than guessing).
     const allContacts = await ctx.db
       .query("contacts")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(2000);
 
-    let contact = email
-      ? allContacts.find((c: any) =>
-          (c.email || "").toLowerCase() === email
-        )
-      : null;
-
-    if (!contact && args.inviteeName) {
-      contact = allContacts.find((c: any) =>
-        (c.name || "").toLowerCase() === args.inviteeName!.toLowerCase()
-      ) || null;
+    let contact: any = null;
+    let matchMethod: "email" | "phone" | "name" | "created" = "created";
+    if (email) {
+      contact =
+        allContacts.find((c: any) => (c.email || "").toLowerCase().trim() === email) || null;
+      if (contact) matchMethod = "email";
+    } else if (args.inviteePhone) {
+      // phonesMatch: full-digit equality OR the trailing local core
+      // (0803… local vs 234803… E.164 — the same number, two formats).
+      contact =
+        allContacts.find((c: any) => phonesMatch(c.phone, args.inviteePhone)) || null;
+      if (contact) matchMethod = "phone";
+    }
+    if (!contact && !email && args.inviteeName) {
+      // No email, no phone match: exact-name match is the last resort and
+      // only when exactly ONE contact carries that name.
+      const nameMatches = allContacts.filter(
+        (c: any) =>
+          (c.name || "").toLowerCase().trim() ===
+          (args.inviteeName || "").toLowerCase().trim()
+      );
+      if (nameMatches.length === 1) {
+        contact = nameMatches[0];
+        matchMethod = "name";
+      }
     }
 
     const now = new Date().toISOString();
@@ -1860,7 +1884,8 @@ export const ensureContactForClientInvite = internalMutation({
 
     return {
       contactId: String(contact._id),
-      created: !contact,
+      created: matchMethod === "created",
+      matchMethod,
       matterLinked: !!args.matterId,
     };
   },
@@ -1890,14 +1915,24 @@ export const linkPortalUserToContact = internalMutation({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(2000);
 
-    // Find by email first, then by name
-    let contact = email
-      ? allContacts.find((c: any) => (c.email || "").toLowerCase() === email)
-      : null;
-    if (!contact && args.name) {
-      contact = allContacts.find((c: any) =>
-        (c.name || "").toLowerCase() === args.name!.toLowerCase()
-      ) || null;
+    // V3 (V-MATTER-16): email-first SAFE resolution — identical rules to
+    // ensureContactForClientInvite. An email-bearing user is matched on
+    // email ONLY (the name fallback linked strangers who shared a display
+    // name); a name match is the last resort for email-less users and only
+    // when unique.
+    let contact: any = null;
+    if (email) {
+      contact =
+        allContacts.find(
+          (c: any) => (c.email || "").toLowerCase().trim() === email
+        ) || null;
+    } else if (args.name) {
+      const nameMatches = allContacts.filter(
+        (c: any) =>
+          (c.name || "").toLowerCase().trim() ===
+          (args.name || "").toLowerCase().trim()
+      );
+      if (nameMatches.length === 1) contact = nameMatches[0];
     }
 
     if (!contact) return { contactId: null, linked: false };
@@ -4802,6 +4837,10 @@ export const getClientMattersByUserId = query({
 
     return matters
       .filter(m => contactIds.has(String(m.clientId ?? "")))
+      // V3 (V-MATTER-4): archived matters are deliberately hidden from the
+      // client portal — they exist for the firm's audit/restore workflow,
+      // not as active client work.
+      .filter(m => m.status !== "Archived")
       .map(m => ({
         id: String(m._id),
         title: m.title,
@@ -6335,7 +6374,10 @@ export const getTenantDocuments = query({
     // selection of which documents should be visible on the portal
     return allDocs
       .filter(d => {
-        const matchesMatter = d.matterId && tenantMatterIds.includes(d.matterId as any);
+        const docMatterId =
+          (d.matterId as any) ??
+          ((d as any).matter && typeof (d as any).matter === "object" ? (d as any).matter.id : (d as any).matter);
+        const matchesMatter = docMatterId && tenantMatterIds.includes(docMatterId as any);
         const isShared = d.isSharedWithClient === true;
         return matchesMatter && isShared;
       })

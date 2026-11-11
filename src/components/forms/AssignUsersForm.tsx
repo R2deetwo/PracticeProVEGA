@@ -13,9 +13,13 @@ interface AssignUsersFormProps {
     users: User[];
     onUpdate: (itemId: string, assignedUserIds: string[]) => void;
     onClose: () => void;
+    /** V3 (V-MATTER-15): when present, this is a BULK assignment across
+     *  several matters — the titles are shown so the user can see exactly
+     *  what their selection applies to (the old modal showed no context). */
+    bulkMatterTitles?: string[];
 }
 
-const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemTitle, users, onUpdate, onClose }) => {
+const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemTitle, users, onUpdate, onClose, bulkMatterTitles }) => {
     const { isProperty } = useProduct();
     const { addToast } = useUI();
     const [assigned, setAssigned] = useState(() => new Set(item.assignedUsers || []));
@@ -50,6 +54,18 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
 
     return (
         <form onSubmit={handleSave} className="space-y-3">
+            {bulkMatterTitles && bulkMatterTitles.length > 0 && (
+                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/40 rounded-md">
+                    <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1">
+                        Assigning to {bulkMatterTitles.length} matter{bulkMatterTitles.length === 1 ? '' : 's'}
+                    </p>
+                    <p className="text-xs text-indigo-600 dark:text-indigo-400 line-clamp-3">
+                        {bulkMatterTitles.slice(0, 5).join(', ')}
+                        {bulkMatterTitles.length > 5 ? ` … and ${bulkMatterTitles.length - 5} more` : ''}
+                    </p>
+                    <p className="text-2xs text-indigo-500 dark:text-indigo-400 mt-1">The selected team replaces the current assignment on each matter.</p>
+                </div>
+            )}
             <div className="space-y-2 max-h-60 overflow-y-auto pr-2 border rounded-md p-2 border-slate-200 dark:border-zinc-700">
                 {assignableUsers.map(user => (
                     <label key={user.id} className="flex items-center space-x-3 p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 dark:hover:bg-zinc-700/50 cursor-pointer">

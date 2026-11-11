@@ -28,6 +28,7 @@ import TeamDiscussionTab from './TeamDiscussionTab';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -84,7 +85,7 @@ const MatterDetailViewContent: React.FC = () => {
     const dataHandlers = useDataActions();
     const { deleteItem } = dataHandlers;
     const { currentUser, bearerToken } = useAuth();
-    const { canViewBilling } = usePermissions();
+    const { canViewBilling, canArchiveMatters } = usePermissions();
     const setMatterPrivacyMutation = useMutation(api.myFunctions.setMatterPrivacy);
     const [privacyLoading, setPrivacyLoading] = useState(false);
     
@@ -133,9 +134,14 @@ const MatterDetailViewContent: React.FC = () => {
     }, [matterState.matters, selectedId, onDemandMatter]);
     
     // Filtered data for this matter — all computed unconditionally so hooks always fire in same order
+    // V3 (V-MATTER-13): documents match EITHER convention — the legacy
+    // `matter: {id}` snapshot (old main upload form) or the `matterId`
+    // column (portal/batch/new-form uploads).
     const documents = useMemo(() => {
         if (onDemandMatter?.documents) return onDemandMatter.documents;
-        return documentState.documents.filter(d => d.matterId === selectedId);
+        return documentState.documents.filter(d =>
+            d.matterId === selectedId || (d as any).matter?.id === selectedId
+        );
     }, [documentState.documents, selectedId, onDemandMatter]);
 
     const tasks = useMemo(() => {
@@ -159,8 +165,12 @@ const MatterDetailViewContent: React.FC = () => {
     }, [executionState.events, selectedId, onDemandMatter]);
 
     const invoices = useMemo(() => {
-        // Invoices aren't part of getMatterDetails yet, stick to filter or add later
-        return financeState.invoices.filter(i => i.matter && i.matter.id === selectedId);
+        // V3 (V-MATTER-14): invoices relate to matters via EITHER the new
+        // `matterId` column or the legacy `matter: {id}` snapshot — the old
+        // snapshot-only filter hid every invoice created with the new link.
+        return financeState.invoices.filter(i =>
+            (i.matter && i.matter.id === selectedId) || (i as any).matterId === selectedId
+        );
     }, [financeState.invoices, selectedId]);
 
     const notePages = useMemo(() => {
@@ -296,6 +306,12 @@ const MatterDetailViewContent: React.FC = () => {
     };
 
     const confirmDelete = () => {
+        if (!canArchiveMatters) {
+            // V3 (V-MATTER-8): communicate the restriction BEFORE the click
+            // damages anything — the old button failed only after the fact.
+            addToast('Deleting and archiving matters requires an Administrator role. Close the matter instead, or ask your admin.', { type: 'info', duration: 6000 });
+            return;
+        }
         const associatedTaskCount = tasks.length;
         const associatedDocCount = documents.length;
         const associatedNoteCount = notePages.filter((n: any) => n.matterId === matterData!.id).length;
@@ -463,6 +479,58 @@ const MatterDetailViewContent: React.FC = () => {
                                             >
                                                 <EditIcon className="w-3.5 h-3.5 shrink-0" /> Edit Matter
                                             </button>
+                                            {/* V3 (V-MATTER-3/15): the lifecycle menu — Close/Reopen
+                                                (validated transitions), Assign Team (single-matter;
+                                                the modal path existed but nothing opened it) and
+                                                Link Contacts (secondary contacts on the REAL field). */}
+                                            {(matterData as any).status === 'Closed' ? (
+                                                <Button
+                                                    variant="bare"
+                                                    className="w-full px-3 py-2.5 text-2xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-left flex items-center gap-2"
+                                                    onClick={() => { setShowMoreMenu(false); matterActions.handleReopenMatter(matterData.id).catch(() => {}); }}
+                                                >
+                                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Reopen Matter
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="bare"
+                                                    className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                    onClick={() => { setShowMoreMenu(false); openModal('closeMatter', matterData.id); }}
+                                                >
+                                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg> Close Matter
+                                                </Button>
+                                            )}
+                                            <Button
+                                                variant="bare"
+                                                className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                onClick={() => { setShowMoreMenu(false); openModal('assignUsers', matterData.id, { item: matterData, itemType: 'Matter', itemTitle: matterData.title }); }}
+                                            >
+                                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg> Assign Team
+                                            </Button>
+                                            <Button
+                                                variant="bare"
+                                                className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                onClick={() => { setShowMoreMenu(false); openModal('linkContactToMatter', matterData.id); }}
+                                            >
+                                                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg> Link Contacts
+                                            </Button>
+                                            {canArchiveMatters && (
+                                                <Button
+                                                    variant="bare"
+                                                    className="w-full px-3 py-2.5 text-2xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left flex items-center gap-2"
+                                                    onClick={() => { setShowMoreMenu(false); openModal('archiveMatter', matterData.id); }}
+                                                >
+                                                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg> Archive Matter
+                                                </Button>
+                                            )}
+                                            {currentUser?.role === 'Admin' && (
+                                                <button
+                                                    onClick={() => { setShowMoreMenu(false); openModal('editWorkflow', workflow?.id, { subCategoryName: matterData.subCategory }); }}
+                                                    className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
+                                                >
+                                                    <CogIcon className="w-3.5 h-3.5 shrink-0" /> Edit Workflow
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); handleTogglePrivacy(); }}
                                                 disabled={privacyLoading}
@@ -472,14 +540,6 @@ const MatterDetailViewContent: React.FC = () => {
                                                 {(matterData as any).isPrivate ? 'Remove Privacy' : 'Make Private'}
                                                 {privacyLoading && <span className="ml-auto text-2xs opacity-60">...</span>}
                                             </button>
-                                            {currentUser?.role === 'Admin' && (
-                                                <button
-                                                    onClick={() => { setShowMoreMenu(false); openModal('editWorkflow', workflow?.id, { subCategoryName: matterData.subCategory }); }}
-                                                    className="w-full px-3 py-2.5 text-2xs font-bold text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-700 text-left flex items-center gap-2"
-                                                >
-                                                    <CogIcon className="w-3.5 h-3.5 shrink-0" /> Edit Workflow
-                                                </button>
-                                            )}
                                             <div className="my-1 border-t border-slate-100 dark:border-zinc-700" />
                                             <button
                                                 onClick={() => { setShowMoreMenu(false); confirmDelete(); }}

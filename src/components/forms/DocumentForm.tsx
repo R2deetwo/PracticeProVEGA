@@ -270,6 +270,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 const updatedDoc: Document = {
                     ...documentToEdit,
                     title,
+                    // V3 (V-MATTER-13): every write now sets the declarative
+                    // `matterId` ALONGSIDE the legacy snapshot — the snapshot
+                    // stays for display, the column makes the row joinable.
+                    matterId: selectedMatter ? selectedMatter.id : undefined,
                     matter: selectedMatter ? { id: selectedMatter.id, title: selectedMatter.title } : undefined,
                     property: selectedProperty ? { id: selectedProperty.id, title: selectedProperty.address || selectedProperty.id } : undefined,
                     propertyId: propertyId,
@@ -286,6 +290,10 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                 const newDocData = {
                     title,
                     firmId: firmDetails.id,
+                    // V3 (V-MATTER-13): the main upload form was the primary
+                    // snapshot-only writer — most documents carried no
+                    // matterId and were invisible to every by_matter query.
+                    matterId: selectedMatter ? selectedMatter.id : undefined,
                     matter: selectedMatter ? { id: selectedMatter.id, title: selectedMatter.title } : undefined,
                     property: selectedProperty ? { id: selectedProperty.id, title: selectedProperty.address || selectedProperty.id } : undefined,
                     propertyId: propertyId,

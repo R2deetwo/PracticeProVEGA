@@ -43,6 +43,17 @@ import { getAddonById, expectedAddonAmount } from "./addonCatalog";
 // V2 FINANCIAL TRUTH: the invoice money fence — server-side numbering +
 // authoritative tax/total computation for every generic-path invoice write.
 import { applyInvoiceCreateFence, applyInvoiceUpdateFence } from "./invoiceFence";
+// V3 MATTER LIFECYCLE: the status/stage state machine + shared lifecycle
+// helpers, enforced on the generic CRUD paths (V-MATTER-1/2/5/13/14).
+import {
+  normalizeMatterStatus,
+  validateMatterStatusTransition,
+  validateMatterStage,
+  resolveMatterAnyId,
+  insertFirmActivity,
+  appendStageHistory,
+} from "./matterLifecycle";
+import { normalizeEmail } from "./contactIntegrity";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
@@ -894,7 +905,19 @@ export const getMatterDetails = query({
     }
 
     let matter: any = null;
-    try { matter = await ctx.db.get(matterId as any); } catch (e) { return null; }
+    // V3 (V-MATTER-14): resolve BOTH id conventions — the app passes the
+    // matter's custom UUID (getFirmData maps id: m.id || m._id), so the
+    // old _id-only db.get made the on-demand fetch return null for every
+    // custom-id matter (the detail view silently fell back to local state).
+    try { matter = await ctx.db.get(matterId as any); } catch (e) { matter = null; }
+    if (!matter) {
+      try {
+        matter = await ctx.db
+          .query("matters")
+          .withIndex("by_custom_id", (q: any) => q.eq("id", matterId))
+          .first();
+      } catch (e) { matter = null; }
+    }
     if (!matter) return null;
 
     // Security: validate caller's firm matches resource's firm
@@ -919,18 +942,29 @@ export const getMatterDetails = query({
       }
     }
 
-    // Fetch related data in parallel — all scoped to this matter
-    const [notes, documents, tasks, events, timeEntries, expenses] = await Promise.all([
+    // Fetch related data in parallel — all scoped to this matter.
+    // V3 (V-MATTER-13): documents are matched on EITHER convention — the
+    // `matterId` column (portal/batch/new-form uploads) or the legacy
+    // `matter: {id, title}` snapshot (the old main upload form) — so the
+    // snapshot-only documents finally appear on the matter they belong
+    // to. The row itself is never rewritten (backfill is separate +
+    // additive).
+    const canonicalIds = new Set(
+      [String(matter._id), String(matter.id || ""), String(matterId)].filter(Boolean)
+    );
+    const matchMatterRef = (row: any): boolean => {
+      if (row.matterId && canonicalIds.has(String(row.matterId))) return true;
+      const snap = row.matter;
+      const snapId = snap && typeof snap === "object" ? snap.id : snap;
+      return snapId ? canonicalIds.has(String(snapId)) : false;
+    };
+    const [notes, firmDocuments, tasks, events, timeEntries, expenses] = await Promise.all([
       ctx.db.query("notePages")
         .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
         .take(200),
       ctx.db.query("documents")
-        .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
-        .take(200)
-        .then((rows: any[]) => rows.map((d: any) => {
-          const { content, file, ...light } = d;
-          return light; // Strip heavy content; fetched on-demand via getDocumentContent
-        })),
+        .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+        .take(2000),
       ctx.db.query("tasks")
         .withIndex("by_matter", (q: any) => q.eq("matterId", matterId))
         .take(100),
@@ -940,12 +974,19 @@ export const getMatterDetails = query({
       ctx.db.query("timeEntries")
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
         .take(500)
-        .then((rows: any[]) => rows.filter((t: any) => t.matterId === matterId)),
+        .then((rows: any[]) => rows.filter((t: any) => matchMatterRef(t))),
       ctx.db.query("expenses")
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
         .take(500)
-        .then((rows: any[]) => rows.filter((e: any) => e.matterId === matterId)),
+        .then((rows: any[]) => rows.filter((e: any) => matchMatterRef(e))),
     ]);
+    const documents = (firmDocuments as any[])
+      .filter((d: any) => matchMatterRef(d))
+      .slice(0, 200)
+      .map((d: any) => {
+        const { content, file, ...light } = d;
+        return light; // Strip heavy content; fetched on-demand via getDocumentContent
+      });
 
     return { ...matter, notes, documents, tasks, events, timeEntries, expenses };
   },
@@ -3267,25 +3308,45 @@ async function performFirmUserRemoval(
     [String(user._id), user.id].filter(Boolean).map(String)
   );
 
-  // 1. Unassign from tasks (the "unassigned from all items" promise)
-  let unassignedTasks = 0;
-  const tasks = await ctx.db
+  // 1. Unassign from every assignment surface (V-MATTER-9): the
+  // "unassigned from all items" promise now covers tasks, MATTERS,
+  // calendar EVENTS and DOCUMENTS. The old path only touched the first
+  // 100 tasks — departed users lingered in matter.assignedUsers and
+  // event.assignedUsers forever (still counted in caseload reports and
+  // private-matter RBAC). Deactivation (reversible) keeps assignments by
+  // design; REMOVAL from the firm strips them everywhere.
+  const stripFromTable = async (tableName: string, firmId: string): Promise<number> => {
+    const rows = (await ctx.db
+      .query(tableName as any)
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    let stripped = 0;
+    for (const row of rows) {
+      if (!Array.isArray(row.assignedUsers)) continue;
+      const next = row.assignedUsers.filter((id: string) => !canonicalIds.has(String(id)));
+      if (next.length === row.assignedUsers.length) continue;
+      await ctx.db.patch(row._id, { assignedUsers: next } as any);
+      stripped++;
+    }
+    return stripped;
+  };
+
+  let unassignedTasks = await stripFromTable("tasks", args.firmId);
+  // Legacy single-assignee fields on tasks (assignedTo / assigneeId).
+  const taskRows = (await ctx.db
     .query("tasks")
     .withIndex("by_firm", (q: any) => q.eq("firmId", args.firmId))
-    .take(100);
-  for (const t of tasks as any[]) {
-    const assigned = (t.assignedUsers || []).filter((id: string) => !canonicalIds.has(String(id)));
+    .take(2000)) as any[];
+  for (const t of taskRows) {
     const legacyAssignee = (t.assignedTo ?? t.assigneeId ?? null);
-    const legacyStillValid = legacyAssignee ? !canonicalIds.has(String(legacyAssignee)) : true;
-    const needsPatch = assigned.length !== (t.assignedUsers || []).length || !legacyStillValid;
-    if (needsPatch) {
-      await ctx.db.patch(t._id, {
-        assignedUsers: assigned,
-        ...(legacyAssignee && !legacyStillValid ? { assignedTo: null } : {}),
-      } as any);
+    if (legacyAssignee && canonicalIds.has(String(legacyAssignee))) {
+      await ctx.db.patch(t._id, { assignedTo: null } as any);
       unassignedTasks++;
     }
   }
+  const unassignedMatters = await stripFromTable("matters", args.firmId);
+  const unassignedEvents = await stripFromTable("events", args.firmId);
+  const unassignedDocuments = await stripFromTable("documents", args.firmId);
 
   // 2. Delete presence rows for this firm (query by each canonical id form)
   let removedPresence = 0;
@@ -3327,7 +3388,16 @@ async function performFirmUserRemoval(
     onboardingCompleted: newFirmId ? true : false,
   });
 
-  return { success: true, removed: true, unassignedTasks, removedPresence, removedNotifications };
+  return {
+    success: true,
+    removed: true,
+    unassignedTasks,
+    unassignedMatters,
+    unassignedEvents,
+    unassignedDocuments,
+    removedPresence,
+    removedNotifications,
+  };
 }
 
 /**
@@ -3643,7 +3713,8 @@ export const recordConsent = mutation({
 export const createItem = mutation({
   args: { sessionToken: v.optional(v.string()), table: v.string(), data: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { firmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const firmId = auth.firmId;
     const { table, data } = args;
 
     // Strip Convex-managed internal fields that cannot be inserted
@@ -3741,6 +3812,74 @@ export const createItem = mutation({
       await applyInvoiceCreateFence(ctx, effectiveFirmId, sanitizedData);
     }
 
+    // ─── V3 MATTER LIFECYCLE FENCE (V-MATTER-1/2) ─────────────────────
+    // Status defaults to Active and must be one of the three canonical
+    // values; stage must be a real label. Arbitrary strings are now a
+    // rejection, not persisted data rot.
+    if (table === "matters") {
+      const rawStatus = sanitizedData.status;
+      if (rawStatus === undefined || rawStatus === null || String(rawStatus).trim() === "") {
+        sanitizedData.status = "Active";
+      } else {
+        const normalized = normalizeMatterStatus(rawStatus);
+        if (!normalized) {
+          throw new Error(
+            `Invalid matter status '${String(rawStatus)}'. Valid statuses: Active, Closed, Archived.`
+          );
+        }
+        sanitizedData.status = normalized;
+      }
+      if (sanitizedData.stage !== undefined && sanitizedData.stage !== null) {
+        const stageCheck = validateMatterStage(sanitizedData.stage);
+        if (!stageCheck.ok) throw new Error(stageCheck.error);
+        sanitizedData.stage = stageCheck.stage;
+      }
+    }
+
+    // ─── V3 CONTACT DEDUP FENCE (V-MATTER-5/16) ───────────────────────
+    // Email is the primary identity: creating a second firm contact with
+    // an email that already exists is always a duplicate. Empty emails
+    // (the enterprise wizard creates them) never dedup. Phone and name
+    // NEVER block here — different people share numbers, and names match
+    // by coincidence; those are warnings in the UI (checkContactDuplicate),
+    // not server refusals.
+    if (table === "contacts") {
+      const email = normalizeEmail(sanitizedData.email);
+      if (email) {
+        const firmContacts = await ctx.db
+          .query("contacts")
+          .withIndex("by_firm", (q: any) => q.eq("firmId", effectiveFirmId))
+          .take(2000);
+        const existing = (firmContacts as any[]).find(
+          (c) => normalizeEmail(c.email) === email
+        );
+        if (existing) {
+          throw new Error(
+            `A contact with this email already exists: "${existing.name || email}". ` +
+            `Select the existing contact instead of creating a duplicate.`
+          );
+        }
+      }
+    }
+
+    // ─── V3 MATTER-LINK FK CHECKS (V-MATTER-13/14) ───────────────────
+    // Documents and invoices carry a declarative matterId. When present it
+    // must resolve to a real matter in THIS firm (either id convention) —
+    // the old path persisted any string, which is how unjoinable rows
+    // accumulated. Absent/empty matterId stays legal (legacy snapshot-only
+    // rows keep working; readers resolve both conventions).
+    if (table === "documents" || table === "invoices") {
+      const matterId = sanitizedData.matterId;
+      if (typeof matterId === "string" && matterId.trim() !== "") {
+        const matter = await resolveMatterAnyId(ctx, effectiveFirmId, matterId.trim());
+        if (!matter) {
+          throw new Error(
+            `Cannot link this ${table === "documents" ? "document" : "invoice"}: no matter with id "${matterId.trim()}" exists in your firm.`
+          );
+        }
+      }
+    }
+
     const dataWithTimestamp = {
       ...sanitizedData,
       firmId: effectiveFirmId,
@@ -3749,6 +3888,47 @@ export const createItem = mutation({
     };
 
     const id = await ctx.db.insert(table as any, dataWithTimestamp);
+
+    // ─── V3 LIFECYCLE + ACTIVITY (V-MATTER-11/12/17) ───────────────────
+    // Matter creation records firmActivity and seeds the durable stage
+    // history. Wrapped like the automation hooks: observability writes
+    // must never fail the user's save.
+    if (table === "matters") {
+      try {
+        const canonicalId = String((dataWithTimestamp as any).id || id);
+        await insertFirmActivity(ctx, {
+          firmId: effectiveFirmId,
+          userId: String(auth.user._id),
+          userName: (auth.user as any).name || "",
+          action: "Matter created",
+          targetType: "Matter",
+          targetId: canonicalId,
+          targetName: (dataWithTimestamp as any).title || "",
+          matterId: canonicalId,
+          metadata: {
+            type: (dataWithTimestamp as any).type || null,
+            stage: (dataWithTimestamp as any).stage || null,
+            assignedUsers: Array.isArray((dataWithTimestamp as any).assignedUsers)
+              ? (dataWithTimestamp as any).assignedUsers
+              : [],
+          },
+        });
+        if ((dataWithTimestamp as any).stage) {
+          await appendStageHistory(ctx, {
+            firmId: effectiveFirmId,
+            matterId: canonicalId,
+            matterTitle: (dataWithTimestamp as any).title || "",
+            fromStage: null,
+            toStage: String((dataWithTimestamp as any).stage),
+            changedById: String(auth.user._id),
+            changedByName: (auth.user as any).name || "",
+            source: "created",
+          });
+        }
+      } catch (activityErr: any) {
+        console.warn("[createItem] matter activity/history write failed (non-blocking):", activityErr?.message);
+      }
+    }
 
     // ─── AUTOMATION RULE ENGINE HOOKS (Task 48, 2026-09-16) ────────────
     // Event-driven triggers for Automation Studio rules (Settings → Firm
@@ -4794,16 +4974,48 @@ export const updateItem = mutation({
       }
     }
 
-    // ─── AUTOMATION RULE ENGINE (Task 48): capture the PRE-patch stage ──
-    // Needed to detect an actual matter_stage_change after the patch.
-    // `undefined` = not a stage-bearing matter update (hook stays quiet).
+    // ─── V3 MATTER LIFECYCLE FENCE (V-MATTER-1/2) + automation priors ─
+    // Validates status transitions and stage shape BEFORE anything is
+    // patched, and captures the pre-patch values the post-patch history/
+    // activity writes need. `undefined` = not a lifecycle-bearing update.
     let priorMatterStage: string | null | undefined = undefined;
-    if (table === "matters" && typeof (data as any).stage === "string") {
+    let priorMatterStatus: string | null | undefined = undefined;
+    let priorAssignedUsers: string[] | null = null;
+    if (
+      table === "matters" &&
+      ((data as any).status !== undefined ||
+        (data as any).stage !== undefined ||
+        (data as any).assignedUsers !== undefined)
+    ) {
+      let existingDoc: any = null;
       try {
-        const existingDoc: any = await ctx.db.get(docId);
-        priorMatterStage = existingDoc?.stage ?? null;
+        existingDoc = await ctx.db.get(docId);
       } catch {
-        priorMatterStage = null;
+        existingDoc = null;
+      }
+      priorMatterStage = existingDoc?.stage ?? null;
+      priorMatterStatus = existingDoc?.status ?? null;
+      priorAssignedUsers = Array.isArray(existingDoc?.assignedUsers)
+        ? existingDoc.assignedUsers
+        : [];
+
+      // Status: canonicalise + enforce the transition graph.
+      if ((data as any).status !== undefined && (data as any).status !== null) {
+        const normalized = normalizeMatterStatus((data as any).status);
+        if (!normalized) {
+          throw new Error(
+            `Invalid matter status '${String((data as any).status)}'. Valid statuses: Active, Closed, Archived.`
+          );
+        }
+        const transition = validateMatterStatusTransition(priorMatterStatus, normalized);
+        if (!transition.ok) throw new Error(transition.error);
+        (data as any).status = normalized;
+      }
+      // Stage: shape validation (firm-configurable vocabulary — but a real label).
+      if ((data as any).stage !== undefined && (data as any).stage !== null) {
+        const stageCheck = validateMatterStage((data as any).stage);
+        if (!stageCheck.ok) throw new Error(stageCheck.error);
+        (data as any).stage = stageCheck.stage;
       }
     }
 
@@ -4901,6 +5113,105 @@ export const updateItem = mutation({
     }
 
     await ctx.db.patch(docId, patchData);
+
+    // ─── V3 DURABLE HISTORY + ACTIVITY (V-MATTER-11/12/17) ────────────
+    // Real changes only — re-saving the same stage/status/team writes
+    // nothing. Wrapped like the automation hooks so observability can
+    // never fail the edit.
+    if (table === "matters" && priorMatterStage !== undefined) {
+      try {
+        const patchedDoc: any = await ctx.db.get(docId);
+        const canonicalId = String(patchedDoc?.id || docId);
+        const actorId = String(callerUser?._id || "");
+        const actorName = (callerUser as any)?.name || "";
+
+        const newStage = patchedDoc?.stage ?? null;
+        const newStatus = patchedDoc?.status ?? null;
+        const newAssigned: string[] = Array.isArray(patchedDoc?.assignedUsers)
+          ? patchedDoc.assignedUsers
+          : [];
+
+        // Stage change → durable stage history + activity.
+        if (
+          typeof patchData.stage === "string" &&
+          newStage &&
+          priorMatterStage !== null &&
+          String(newStage) !== String(priorMatterStage)
+        ) {
+          await appendStageHistory(ctx, {
+            firmId,
+            matterId: canonicalId,
+            matterTitle: patchedDoc?.title || "",
+            fromStage: String(priorMatterStage),
+            toStage: String(newStage),
+            changedById: actorId,
+            changedByName: actorName,
+            source: "update",
+          });
+          await insertFirmActivity(ctx, {
+            firmId,
+            userId: actorId,
+            userName: actorName,
+            action: `Stage moved: ${priorMatterStage} → ${newStage}`,
+            targetType: "Matter",
+            targetId: canonicalId,
+            targetName: patchedDoc?.title || "",
+            matterId: canonicalId,
+            metadata: { fromStage: priorMatterStage, toStage: newStage },
+          });
+        }
+
+        // Status change → activity (the transition itself was validated above).
+        if (
+          patchData.status !== undefined &&
+          newStatus &&
+          priorMatterStatus !== null &&
+          String(newStatus) !== String(priorMatterStatus)
+        ) {
+          const label =
+            newStatus === "Closed" ? "Matter closed" :
+            newStatus === "Archived" ? "Matter archived" :
+            priorMatterStatus === "Closed" || priorMatterStatus === "Archived"
+              ? "Matter reopened"
+              : `Matter status changed to ${newStatus}`;
+          await insertFirmActivity(ctx, {
+            firmId,
+            userId: actorId,
+            userName: actorName,
+            action: label,
+            targetType: "Matter",
+            targetId: canonicalId,
+            targetName: patchedDoc?.title || "",
+            matterId: canonicalId,
+            metadata: { fromStatus: priorMatterStatus, toStatus: newStatus },
+          });
+        }
+
+        // Assignment change → activity with the diff.
+        if (
+          patchData.assignedUsers !== undefined &&
+          JSON.stringify(newAssigned) !== JSON.stringify(priorAssignedUsers || [])
+        ) {
+          const before = priorAssignedUsers || [];
+          await insertFirmActivity(ctx, {
+            firmId,
+            userId: actorId,
+            userName: actorName,
+            action: "Matter team updated",
+            targetType: "Matter",
+            targetId: canonicalId,
+            targetName: patchedDoc?.title || "",
+            matterId: canonicalId,
+            metadata: {
+              added: newAssigned.filter((id) => !before.includes(id)),
+              removed: before.filter((id) => !newAssigned.includes(id)),
+            },
+          });
+        }
+      } catch (historyErr: any) {
+        console.warn("[updateItem] matter history/activity write failed (non-blocking):", historyErr?.message);
+      }
+    }
 
     // ─── AUTOMATION RULE ENGINE HOOK (Task 48): matter_stage_change ─────
     // Fires when a matter's stage actually CHANGED in this write. Wrapped
@@ -5610,21 +5921,34 @@ export const deleteItem = mutation({
     // For contacts specifically, use the new `softDeleteContact` mutation
     // (sets isArchived: true) instead — it preserves the contact record so
     // matters keep resolving, but hides the contact from active lists.
+    // ─── V3 FK CHECKS ON ACTUAL SCHEMA FIELDS (V-MATTER-14) ─────────────
+    // The old map checked fields that don't exist on the child tables:
+    // `invoices.matterId` (invoices store a `matter: {id,title}` snapshot —
+    // the check could never fire, so a matter with booked invoices deleted
+    // cleanly past it) and only two of the six contact reference fields.
+    // `field` now supports dotted paths ("matter.id" → child.matter?.id,
+    // "parties.contactId" → any party object) and array values.
     const FK_MAP: Record<string, Array<{ table: string; field: string }>> = {
       contacts: [
         { table: "matters", field: "clientId" },
+        { table: "matters", field: "associatedContactIds" },
+        { table: "matters", field: "parties.contactId" },
         { table: "properties", field: "contactId" },
+        { table: "tenancies", field: "tenantContactId" },
+        { table: "property_relationships", field: "grantorContactId" },
+        { table: "property_relationships", field: "granteeContactId" },
       ],
       matters: [
         { table: "tasks", field: "matterId" },
         { table: "documents", field: "matterId" },
+        { table: "documents", field: "matter.id" },
         { table: "events", field: "matterId" },
         { table: "timeEntries", field: "matterId" },
         { table: "expenses", field: "matterId" },
         { table: "invoices", field: "matterId" },
+        { table: "invoices", field: "matter.id" },
         { table: "notePages", field: "matterId" },
         { table: "clientMessages", field: "matterId" },
-        { table: "firmActivity", field: "matterId" },
         { table: "externalCounselInvites", field: "matterId" },
       ],
       properties: [
@@ -5633,6 +5957,24 @@ export const deleteItem = mutation({
         { table: "notePages", field: "propertyId" },
         { table: "documents", field: "propertyId" },
       ],
+    };
+    // Resolve a (possibly dotted / array-valued) child field against the
+    // parent's possible id forms.
+    const fkFieldMatches = (child: any, field: string, possibleIds: Set<string>): boolean => {
+      const parts = field.split(".");
+      let val: any = child;
+      for (const part of parts) {
+        if (val == null) return false;
+        val = val[part];
+      }
+      if (val == null) return false;
+      if (Array.isArray(val)) {
+        return val.some((x) => {
+          if (x != null && typeof x === "object") return false; // nested objects need deeper paths
+          return possibleIds.has(String(x));
+        });
+      }
+      return possibleIds.has(String(val));
     };
     if (FK_MAP[table]) {
       // Resolve the record's canonical id (could be _id or custom `id` field)
@@ -5645,12 +5987,11 @@ export const deleteItem = mutation({
           const children = await ctx.db
             .query(fk.table as any)
             .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-            .take(1000);
-          // Match any of the possible id forms (Convex _id, custom id, or stringified)
-          const refs = children.filter((c: any) => {
-            const val = c[fk.field];
-            return val && possibleIds.has(String(val));
-          });
+            .take(2000);
+          // Match any of the possible id forms (Convex _id, custom id, or
+          // stringified) on the ACTUAL schema field, including the legacy
+          // `matter: {id}` snapshot convention (V-MATTER-13/14).
+          const refs = children.filter((c: any) => fkFieldMatches(c, fk.field, possibleIds));
           if (refs.length > 0) {
             // Throw with a helpful message — tell the user exactly what's
             // referencing the record and how to proceed.
@@ -6580,6 +6921,12 @@ export const purgeOldArchiveData = internalMutation({
     
     let count = 0;
     for (const item of allArchives) {
+      // V3 (V-MATTER-4/7): matter archive rows are EXEMPT — archiving is
+      // now a soft, restorable state and the archive row is the restore
+      // source. A 30-day purge would strand the matter in 'Archived'
+      // status with no way to see or restore it. Everything else (notes,
+      // ad-hoc item archives) keeps the 30-day minimisation window.
+      if (item.itemType === "matters") continue;
       if (item._creationTime < cutoffDate) {
         await ctx.db.delete(item._id);
         count++;
@@ -6757,68 +7104,187 @@ export const markAloaActionCompleted = mutation({
 export const deleteMatterCascade = mutation({
   args: { sessionToken: v.optional(v.string()), matterId: v.string(), firmId: v.string(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // SECURITY: Require admin auth and verify firm ownership.
-    const auth = await requireAdmin(ctx, args.userEmail, args.sessionToken);
+    // SECURITY: Admin-or-Founder auth (the Founder runs solo practices —
+    // requireAdmin excluded them, so the ONLY user of a solo firm could
+    // never delete anything) + firm ownership.
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    if (auth.user.role !== "Admin" && auth.user.role !== "Founder") {
+      throw new Error("Permission denied. Deleting matters requires an Administrator (or Founder on a solo practice) role.");
+    }
     if (!auth.firmId || auth.firmId !== args.firmId) {
       throw new Error("Unauthorized. You can only delete matters in your own firm.");
     }
-    const { matterId, firmId } = args;
+    const { firmId } = args;
+
+    // ─── V3 (V-MATTER-8): resolve the matter on EITHER id convention ────
+    // The frontend passes the custom UUID; children store both forms.
+    const matter = await resolveMatterAnyId(ctx, firmId, args.matterId);
+    if (!matter) {
+      throw new Error(`Matter ${args.matterId} not found. It may have already been deleted.`);
+    }
+    const canonicalIds = new Set(
+      [String(matter._id), String(matter.id || ""), args.matterId].filter(Boolean)
+    );
+    const matchMatter = (row: any): boolean => {
+      if (row.matterId && canonicalIds.has(String(row.matterId))) return true;
+      const snap = row.matter;
+      const snapId = snap && typeof snap === "object" ? snap.id : snap;
+      return snapId ? canonicalIds.has(String(snapId)) : false;
+    };
     const results: Record<string, number> = {};
 
-    // 0. Fetch the matter itself
-    const matter = await ctx.db.get(matterId as Id<"matters">);
-    if (!matter) {
-      console.warn(`[Cascade] Matter ${matterId} not found. Proceeding with orphan cleanup.`);
+    // ─── V3 (V-MATTER-8): FINANCIAL PROTECTION — never hard-delete money ──
+    // The old cascade deleted invoices outright (bypassing the FINANCIAL_
+    // TABLES fence that deleteItem enforces) and left trust/ledger/payment
+    // rows orphaned. A matter that has entered the books now REFUSES to be
+    // deleted — archive it instead. firmActivity rows are preserved too:
+    // they are the audit trail, not children to clean up.
+    const financialBlockers: string[] = [];
+
+    const firmInvoices = (await ctx.db
+      .query("invoices")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const linkedInvoices = firmInvoices.filter(matchMatter);
+    if (linkedInvoices.length > 0) financialBlockers.push(
+      `${linkedInvoices.length} invoice${linkedInvoices.length === 1 ? "" : "s"} (void them instead — invoices are part of the financial ledger)`
+    );
+
+    const firmTrust = (await ctx.db
+      .query("trust_transactions")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const linkedTrust = firmTrust.filter(matchMatter);
+    if (linkedTrust.length > 0) financialBlockers.push(
+      `${linkedTrust.length} trust transaction${linkedTrust.length === 1 ? "" : "s"}`
+    );
+
+    const firmLedger = (await ctx.db
+      .query("ledger_entries")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const linkedLedger = firmLedger.filter(matchMatter);
+    if (linkedLedger.length > 0) financialBlockers.push(
+      `${linkedLedger.length} ledger entr${linkedLedger.length === 1 ? "y" : "ies"}`
+    );
+
+    const firmPaymentProofs = (await ctx.db
+      .query("payment_proofs")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const linkedProofs = firmPaymentProofs.filter(matchMatter);
+    if (linkedProofs.length > 0) financialBlockers.push(
+      `${linkedProofs.length} payment proof${linkedProofs.length === 1 ? "" : "s"}`
+    );
+
+    // Billed time/expenses are part of issued invoices — destroying them
+    // would falsify what was billed. Unbilled ones are deleted below.
+    const firmTime = (await ctx.db
+      .query("timeEntries")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const billedTime = firmTime.filter((t) => matchMatter(t) && t.billedInInvoiceId);
+    if (billedTime.length > 0) financialBlockers.push(
+      `${billedTime.length} billed time entr${billedTime.length === 1 ? "y" : "ies"}`
+    );
+    const firmExpenses = (await ctx.db
+      .query("expenses")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const billedExpenses = firmExpenses.filter((e) => matchMatter(e) && e.billedInInvoiceId);
+    if (billedExpenses.length > 0) financialBlockers.push(
+      `${billedExpenses.length} billed expense${billedExpenses.length === 1 ? "" : "s"}`
+    );
+
+    if (financialBlockers.length > 0) {
+      throw new Error(
+        `Cannot delete this matter — it has financial records that are never hard-deleted: ` +
+        `${financialBlockers.join("; ")}. The ledger only grows; corrections are voids, not erasures. ` +
+        `Archive the matter instead to keep the history and take it out of active lists.`
+      );
     }
 
-    if (matter?.specialtyData?.realEstate?.propertyId) {
+    // ─── Standalone real-estate property created with this matter ──────
+    if (matter.specialtyData?.realEstate?.propertyId) {
       const propId = matter.specialtyData.realEstate.propertyId;
-        // Try finding by internal ID first, then by custom UUID
-        let propRecord = null;
-        try { propRecord = await ctx.db.get(propId as any); } catch(e) { console.warn("[Cascade] propId not a valid Convex ID, falling back to custom ID search."); }
-        if (!propRecord) {
-            propRecord = await ctx.db.query("properties")
-                .withIndex("by_custom_id", q => q.eq("id", propId))
-                .first();
-        }
-
-        if (propRecord) {
-          await ctx.db.delete(propRecord._id);
-          results["standaloneProperties"] = 1;
-        }
+      let propRecord = null;
+      try { propRecord = await ctx.db.get(propId as any); } catch (e) { console.warn("[Cascade] propId not a valid Convex ID, falling back to custom ID search."); }
+      if (!propRecord) {
+        propRecord = await ctx.db.query("properties")
+          .withIndex("by_custom_id", (q: any) => q.eq("id", propId))
+          .first();
+      }
+      if (propRecord) {
+        await ctx.db.delete(propRecord._id);
+        results["standaloneProperties"] = 1;
+      }
     }
 
-    // ── GROUP A: Cascading Deletion ──────────────────────────────────────────
-    // We collect all records for the firm and filter in JS. This is the safest
-    // approach for tables defined with v.any() or with mixed index types.
+    // ─── GROUP A: cascading deletion of non-financial dependents ─────────
+    // Collected per firm and filtered in JS (the safe pattern for tables
+    // with mixed id conventions), with BOTH id forms matched and NO
+    // silent take() truncation. Financial tables are deliberately absent.
     const tablesToClean = [
-      "tasks", "documents", "events", "notePages", "properties",
-      "timeEntries", "expenses", "clientMessages", "researchNotebooks",
-      "chatConversations", "invoices"
+      "tasks", "documents", "events", "notePages",
+      "clientMessages", "researchNotebooks", "chatConversations",
+      "externalCounselInvites", "timeEntries", "expenses",
     ];
 
     for (const table of tablesToClean) {
-      const allFirmItems = await ctx.db
+      const allFirmItems = (await ctx.db
         .query(table as any)
         .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
-        .take(2000);
-
-      const toDelete = allFirmItems.filter((item: any) => {
-        // Check various ways matterId might be stored
-        const mId = item.matterId || item.matter?.id || item.matter;
-        return mId === matterId;
-      });
-
+        .take(2000)) as any[];
+      const toDelete = allFirmItems.filter(matchMatter);
       for (const item of toDelete) {
         await ctx.db.delete(item._id);
       }
       results[table] = toDelete.length;
     }
 
-    // ── Finally, delete the matter itself ────────────────────────────────────
-    if (matter) {
-      await ctx.db.delete(matterId as any);
-      results["matter"] = 1;
+    // Properties whose matterId links them to this matter (embedded-unit
+    // properties keep their own lifecycle; this only removes the direct links).
+    const firmProps = (await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const linkedProps = firmProps.filter((p) => p.matterId && canonicalIds.has(String(p.matterId)));
+    for (const p of linkedProps) {
+      await ctx.db.delete(p._id);
+    }
+    results["properties"] = linkedProps.length;
+
+    // ─── Remove any archive rows for this matter (no stale ghosts) ──────
+    const firmArchive = (await ctx.db
+      .query("archive")
+      .withIndex("by_firm", (q: any) => q.eq("firmId", firmId))
+      .take(2000)) as any[];
+    const matterArchiveRows = firmArchive.filter(
+      (r) => r.itemType === "matters" && canonicalIds.has(String(r.itemId || ""))
+    );
+    for (const r of matterArchiveRows) {
+      await ctx.db.delete(r._id);
+    }
+    results["archiveRows"] = matterArchiveRows.length;
+
+    // ─── Finally, delete the matter itself (audit trail preserved) ──────
+    await ctx.db.delete(matter._id);
+    results["matter"] = 1;
+
+    // The audit record of the deletion itself.
+    try {
+      await insertFirmActivity(ctx, {
+        firmId,
+        userId: String(auth.user._id),
+        userName: (auth.user as any).name || "",
+        action: "Matter permanently deleted",
+        targetType: "Matter",
+        targetId: String(matter.id || matter._id),
+        targetName: matter.title || "",
+        metadata: { summary: results, financialRecordsPreserved: true },
+      });
+    } catch (e: any) {
+      console.warn("[deleteMatterCascade] activity write failed (non-blocking):", e?.message);
     }
 
     return { success: true, summary: results };

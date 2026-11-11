@@ -45,8 +45,10 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
 
     const fixedFeeItem = useMemo(() => {
         if (matter.billingModel === 'Fixed Fee' && matter.fixedFeeAmount) {
+            // V3 (V-MATTER-14): the dedup check resolves EITHER convention —
+            // the new matterId column or the legacy matter-snapshot id.
             const hasBeenInvoiced = financeState.invoices.some(inv =>
-                inv.matter.id === matter.id &&
+                ((inv as any).matterId === matter.id || inv.matter?.id === matter.id) &&
                 (inv.lineItems || []).some(li => li.description.startsWith('Fixed Fee for'))
             );
             if (!hasBeenInvoiced) {

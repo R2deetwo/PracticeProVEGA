@@ -264,6 +264,17 @@ export default defineSchema({
     reviewReminder: v.optional(v.any()),
     parties: v.optional(v.array(v.any())),
     specialtyData: v.optional(v.any()),
+    // ─── V3 MATTER LIFECYCLE INTEGRITY (2026-11-11) ─────────────────────
+    // Additive audit fields for the server-enforced lifecycle (V-MATTER-1).
+    // `status` remains the single source of truth ('Active' | 'Closed' |
+    // 'Archived'); these timestamps/actors record WHEN and WHO for the
+    // firmActivity trail. Durable stage history lives in the new
+    // matterStageHistory table (V-MATTER-12) — stageLastUpdated above stays
+    // as the denormalised "current since" marker for existing consumers.
+    closedAt: nullableString,
+    archivedAt: nullableString,
+    archivedById: nullableString,
+    archivedByName: nullableString,
     id: nullableString, // Legacy field — frontend copy of _id
     createdAt: nullableString,
     updatedAt: nullableString,
@@ -311,6 +322,12 @@ export default defineSchema({
     archivedAt: nullableString,
     archivedById: nullableString,
     archivedByName: nullableString,
+    // ─── V3 CONTACT MERGE TOMBSTONE (2026-11-11) ────────────────────────
+    // When a contact is merged (convex/contactIntegrity.mergeContacts), the
+    // source row is soft-archived with these fields pointing at the survivor
+    // — an auditable, reversible tombstone instead of a silent hard delete.
+    mergedIntoId: nullableString,
+    mergedAt: nullableString,
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"])
     .searchIndex("search_name", { searchField: "name" })
     // Phase 4 (perf): inbound WhatsApp/SMS tenant matching (sentry.ts)
@@ -494,7 +511,15 @@ export default defineSchema({
     withholdingAmount: v.optional(v.number()),
     netReceivable: v.optional(v.number()),        // total_amount − withholdingAmount
     amountPaid: v.optional(v.number()),           // payments recorded (kobo-summed)
-  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]).index("by_record_status", ["recordStatus"]),
+    // ─── V3 INVOICE↔MATTER RELATIONSHIP (V-MATTER-14, 2026-11-11) ──────
+    // The declarative link, written ALONGSIDE (never instead of) the legacy
+    // `matter: {id, title}` snapshot above. The snapshot is historical
+    // display data and is never rewritten; matterId is the joinable key
+    // (custom matter id — the app-forms convention). Legacy rows without it
+    // are backfilled additively by migrations.backfillInvoiceMatterIds and
+    // every reader resolves BOTH conventions.
+    matterId: nullableString,
+  }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]).index("by_record_status", ["recordStatus"]).index("by_matter", ["matterId"]),
 
   events: defineTable({
     firmId: nullableString,
@@ -3163,6 +3188,54 @@ export default defineSchema({
   })
     .index("by_firm", ["firmId"])
     .index("by_firm_logged", ["firmId", "loggedAt"]),
+
+  // ─── V3: DURABLE MATTER STAGE HISTORY (V-MATTER-12, 2026-11-11) ────────
+  // Every stage transition is APPENDED here (createItem seeds the initial
+  // entry; updateItem and the dedicated lifecycle mutations append on real
+  // changes). Previously a single overwritten `stageLastUpdated` timestamp
+  // destroyed the record of every earlier stage — the board view, stale-
+  // matter reports and the timeline all pretended one timestamp was history.
+  matterStageHistory: defineTable({
+    firmId: nullableString,
+    matterId: nullableString,          // the matter's custom id (app convention)
+    matterTitle: nullableString,
+    fromStage: nullableString,         // null on the creation entry
+    toStage: nullableString,
+    changedAt: nullableString,         // ISO timestamp
+    changedById: nullableString,
+    changedByName: nullableString,
+    source: nullableString,            // 'created' | 'update' | 'close' | 'restore' | …
+    id: nullableString,                // Legacy field — frontend copy of _id
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  }).index("by_firm", ["firmId"]).index("by_matter", ["matterId", "changedAt"]),
+
+  // ─── V3: CONFLICT-OF-INTEREST SCREENING (V-MATTER-6, 2026-11-11) ───────
+  // Every conflict screen run before matter creation is recorded with its
+  // inputs, the potential matches shown to the user, and the outcome. A
+  // match is NEVER an automatic declaration — a human records either a
+  // reviewed false positive or a confirmed conflict. Outcomes:
+  //   'clear'                    — no potential matches found
+  //   'reviewed-false-positive'  — matches shown, human reviewed, proceeded
+  //   'confirmed-conflict'       — human confirmed a genuine conflict
+  conflict_checks: defineTable({
+    firmId: v.string(),
+    matterId: v.optional(v.string()),          // set once the matter exists
+    checkedById: v.string(),
+    checkedByName: v.optional(v.string()),
+    clientName: v.optional(v.string()),
+    opposingParties: v.optional(v.array(v.string())),
+    counsel: v.optional(v.array(v.string())),
+    matchCount: v.optional(v.number()),
+    matches: v.optional(v.any()),              // frozen snapshot of what was shown
+    outcome: v.string(),                       // 'clear' | 'reviewed-false-positive' | 'confirmed-conflict'
+    note: v.optional(v.string()),              // reviewer's reasoning
+    reviewedById: v.optional(v.string()),
+    reviewedByName: v.optional(v.string()),
+    reviewedAt: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  }).index("by_firm", ["firmId", "createdAt"]).index("by_matter", ["matterId"]),
 
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert

@@ -47,6 +47,10 @@ export const useFinance = (appState: AppState, actions: any) => {
             id: uuidv4(),
             firmId: currentUser?.firmId,
             client: { id: matter.clientId || 'unknown', name: clientName },
+            // V3 (V-MATTER-14): declarative matterId — set ONLY when a real
+            // matter backs this invoice ('general' is the no-matter
+            // placeholder and must NOT become a fake FK).
+            ...(matter.id && matter.id !== 'general' ? { matterId: matter.id } : {}),
             matter: { id: matter.id || 'general', title: matter.title || 'General Management' },
             lineItems: items || [],
             status: details?.status || InvoiceStatus.Sent,

@@ -9,6 +9,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useMatterState } from '../../contexts/MatterContext';
 
 interface ContactFormProps {
     onAddContact: (contact: Omit<Contact, 'id'>, createPortalAccount: boolean) => void;
@@ -31,6 +32,28 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
+
+    // ── V3 (V-MATTER-5/16): duplicate awareness while typing ─────────────
+    // Email is the primary identity — an existing contact with the same
+    // email BLOCKS the save (the server fence enforces the same rule; this
+    // is the friendly early version). Phone and name matches are WARNINGS
+    // only: different people share numbers, and names coincide.
+    const { matterState } = useMatterState();
+    const duplicateCheck = React.useMemo(() => {
+        const key = (s?: string) => (s || '').trim().toLowerCase();
+        const digits = (s?: string) => (s || '').replace(/\D/g, '');
+        const others = matterState.contacts.filter(c => c.id !== contactToEdit?.id);
+        const emailMatch = key(email)
+            ? others.find(c => key(c.email) === key(email))
+            : undefined;
+        const phoneMatches = digits(phone).length >= 7
+            ? others.filter(c => digits(c.phone).length >= 7 && digits(c.phone) === digits(phone))
+            : [];
+        const nameMatches = key(name)
+            ? others.filter(c => key(c.name) === key(name))
+            : [];
+        return { emailMatch, phoneMatches, nameMatches };
+    }, [matterState.contacts, email, phone, name, contactToEdit]);
     const [address, setAddress] = useState('');
     const [contactType, setContactType] = useState<ContactType>(ContactType.Individual);
     const [category, setCategory] = useState<string>(contactCategories.find(c => c.name === 'Client')?.id || contactCategories[0]?.id || '');
@@ -167,6 +190,16 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
             addToast('Please enter a name.', { type: 'info' });
             return;
         }
+        // V3 (V-MATTER-5): email is the primary identity — refuse a save that
+        // would mint a duplicate (the server fence enforces the same rule on
+        // every creation path; this catches it with a useful message).
+        if (duplicateCheck.emailMatch) {
+            addToast(
+                `A contact with this email already exists: "${duplicateCheck.emailMatch.name}". Select the existing contact instead of creating a duplicate.`,
+                { type: 'error', duration: 8000 }
+            );
+            return;
+        }
         
         setIsSaving(true);
         try {
@@ -262,6 +295,26 @@ const ContactForm: React.FC<ContactFormProps> = ({ onAddContact, onUpdateContact
 
     return (
         <form onSubmit={handleSubmit} className="flex flex-col h-full">
+            {/* V3 (V-MATTER-5/16): live duplicate awareness. */}
+            {(duplicateCheck.emailMatch || duplicateCheck.phoneMatches.length > 0 || duplicateCheck.nameMatches.length > 0) && (
+                <div className="mb-3 space-y-1.5">
+                    {duplicateCheck.emailMatch && (
+                        <div className="p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-300">
+                            <strong>Same email as “{duplicateCheck.emailMatch.name}”.</strong> A contact with this email already exists — select the existing contact instead of creating a duplicate.
+                        </div>
+                    )}
+                    {duplicateCheck.phoneMatches.length > 0 && (
+                        <div className="p-2.5 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-800 dark:text-amber-300">
+                            <strong>Shared phone number</strong> with {duplicateCheck.phoneMatches.map(c => c.name).join(', ')}. Different people can share a number — save only if this is really a different person.
+                        </div>
+                    )}
+                    {duplicateCheck.nameMatches.length > 0 && (
+                        <div className="p-2.5 bg-slate-50 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg text-xs text-slate-600 dark:text-zinc-400">
+                            <strong>Same name</strong> as {duplicateCheck.nameMatches.map(c => c.name).join(', ')}. A matching name alone is not evidence of a duplicate — verify before saving (or merge from the contact's detail page).
+                        </div>
+                    )}
+                </div>
+            )}
             <div className={`flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-2 sm:space-y-3 pb-4 ${bodyPadClass}`}>
                 {/* Entity definition header */}
                 <div className="p-3 sm:p-4 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 shadow-sm space-y-3">

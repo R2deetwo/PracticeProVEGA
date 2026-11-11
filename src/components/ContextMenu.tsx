@@ -3,6 +3,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useUI } from '../contexts/UIContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
+import { useMatterState } from '../contexts/MatterContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { EditIcon, TrashIcon, PlusIcon, ShareIcon, ArchiveIcon, CheckIcon } from '../constants';
 import { TaskStatus } from '../types';
 
@@ -26,7 +28,9 @@ const MenuItem: React.FC<{
 const Divider = () => <div className="h-px bg-slate-200 dark:bg-zinc-700 my-1" />;
 
 const ContextMenu: React.FC = () => {
-    const { contextMenu, setContextMenu, closeContextMenu, openModal, navigateTo } = useUI();
+    const { contextMenu, setContextMenu, closeContextMenu, openModal, navigateTo, addToast } = useUI();
+    const { matterState } = useMatterState();
+    const { canArchiveMatters } = usePermissions();
     const { 
         deleteItem, 
         updateItem, 
@@ -131,19 +135,28 @@ const ContextMenu: React.FC = () => {
                     <MenuItem icon={<EditIcon />} label="Edit Matter" onClick={() => openModal('editMatter', contextMenu.itemId)} />
                     <MenuItem icon={<PlusIcon />} label="Add Task" onClick={() => openModal('newTask', null, { matterId: contextMenu.itemId })} />
                     <Divider />
-                    <MenuItem icon={<TrashIcon />} label="Archive or Delete" danger onClick={() => openModal('deleteConfirmation', contextMenu.itemId, {
-                        title: 'Delete Matter?',
-                        message: (
-                            <div className="space-y-2">
-                                <p>Are you sure you want to permanently delete this matter?</p>
-                                <p className="text-red-600 dark:text-red-400 font-bold text-xs">This action cannot be undone. Consider archiving instead.</p>
-                            </div>
-                        ),
-                        onConfirm: () => handleDeleteMatter(contextMenu.itemId!, 'Matter'),
-                        onConfirmArchive: () => archiveItem('matters', contextMenu.itemId!, 'Matter'),
-                        archiveText: 'Archive Instead',
-                        confirmButtonClass: 'bg-red-600 hover:bg-red-700'
-                    })} />
+                    <MenuItem icon={<TrashIcon />} label={canArchiveMatters ? 'Archive or Delete' : 'Archive or Delete (Admin only)'} danger onClick={() => {
+                        // V3 (V-MATTER-8): destructive controls communicate the
+                        // role restriction instead of failing after the click.
+                        if (!canArchiveMatters) {
+                            addToast('Deleting and archiving matters requires an Administrator role. Close the matter instead, or ask your admin.', { type: 'info', duration: 6000 });
+                            return;
+                        }
+                        openModal('deleteConfirmation', contextMenu.itemId, {
+                            title: 'Delete Matter?',
+                            message: (
+                                <div className="space-y-2">
+                                    <p>Are you sure you want to permanently delete this matter?</p>
+                                    <p className="text-red-600 dark:text-red-400 font-bold text-xs">This action cannot be undone. Consider archiving instead.</p>
+                                    <p className="text-xs text-slate-500">Matters with invoices, trust money or billed time are never deleted — archive those instead.</p>
+                                </div>
+                            ),
+                            onConfirm: () => handleDeleteMatter(contextMenu.itemId!, matterState.matters.find(m => m.id === contextMenu.itemId)?.title || 'Matter'),
+                            onConfirmArchive: () => archiveItem('matters', contextMenu.itemId!, matterState.matters.find(m => m.id === contextMenu.itemId)?.title || 'Matter'),
+                            archiveText: 'Archive Instead',
+                            confirmButtonClass: 'bg-red-600 hover:bg-red-700'
+                        });
+                    }} />
                 </>
             )}
 

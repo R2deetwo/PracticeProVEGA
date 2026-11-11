@@ -8,9 +8,12 @@ import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
+import { useFinanceState } from '../contexts/FinanceContext';
 import { useHighlight } from '../hooks/useHighlight';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { getInitials, getUserColor, formatDueDate, getDueDateColor } from '../utils/colorUtils';
+import { Button } from './ui';
 import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
 import EmptyState from './EmptyState';
@@ -100,18 +103,32 @@ const MatterCardItem: React.FC<{
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
     const { coreState } = useCoreState();
-    const { handleDeleteMatter, archiveItem } = useDataActions();
+    const { handleDeleteMatter, archiveItem, handleCloseMatter, handleReopenMatter } = useDataActions();
     const { openModal, closeModal, navigateTo, addToast } = useUI();
+    const { canArchiveMatters } = usePermissions();
 
     const client = resolveContactById(matterState.contacts, matter.clientId);
     const matterTasks = executionState.tasks.filter(t => t.matterId === matter.id);
     const assignedUsers = (matter.assignedUsers || []).map(id => coreState.users.find(u => u.id === id)).filter(Boolean) as any[];
     const pendingTasks = matterTasks.filter(t => t.status !== TaskStatus.Done);
     const overdueTasks = pendingTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date());
+    const isClosed = matter.status === MatterStatus.Closed;
+
+    // V3 (V-MATTER-13): documents link via EITHER convention (matterId or
+    // the legacy matter-snapshot) — the old count missed snapshot-only docs.
+    const matterDocCount = documentState.documents.filter(d =>
+        d.matterId === matter.id || (d as any).matter?.id === matter.id
+    ).length;
 
     const handleDelete = (e: React.MouseEvent) => {
         e.stopPropagation();
-        const docCount = documentState.documents.filter(d => d.matterId === matter.id).length;
+        if (!canArchiveMatters) {
+            // V3 (V-MATTER-8): destructive controls COMMUNICATE the role
+            // restriction instead of failing after the click.
+            addToast('Deleting and archiving matters requires an Administrator role. Ask your admin, or use Close instead.', { type: 'info', duration: 6000 });
+            return;
+        }
+        const docCount = matterDocCount;
         const taskCount = matterTasks.length;
         openModal('deleteConfirmation', matter.id, {
             title: `Delete Matter "${matter.title}"?`,
@@ -125,6 +142,7 @@ const MatterCardItem: React.FC<{
                             {docCount > 0 && <p className="text-xs text-red-600 dark:text-red-400">• {docCount} Documents</p>}
                         </div>
                     )}
+                    <p className="text-xs text-slate-500">Matters with invoices, trust money or billed time are never deleted — archive those instead.</p>
                 </div>
             ),
             onConfirm: async () => {
@@ -133,7 +151,6 @@ const MatterCardItem: React.FC<{
                     closeModal();
                 } catch (err: any) {
                     console.error('[MatterList] Delete failed:', err);
-                    addToast('Could not delete this matter. Please try again.', { type: 'error' });
                 }
             },
             onConfirmArchive: () => {
@@ -199,7 +216,38 @@ const MatterCardItem: React.FC<{
                         </div>
                         <div className="flex items-center gap-1">
                             <InlineMatterReview matter={matter} />
-                            <button onClick={handleDelete} className="opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-opacity"><TrashIcon className="w-3.5 h-3.5" /></button>
+                            {/* V3 (V-MATTER-3): close/reopen reachable from the
+                                card itself — reopening previously had NO UI. */}
+                            {isClosed ? (
+                                <Button
+                                    variant="bare"
+                                    iconOnly
+                                    aria-label="Reopen this closed matter"
+                                    onClick={(e) => { e.stopPropagation(); handleReopenMatter(matter.id).catch(() => {}); }}
+                                    title="Reopen this closed matter"
+                                    className="p-1 text-slate-300 hover:text-emerald-500 transition-colors"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="bare"
+                                    iconOnly
+                                    aria-label="Close this matter (checks for unbilled work first)"
+                                    onClick={(e) => { e.stopPropagation(); openModal('closeMatter', matter.id); }}
+                                    title="Close this matter (checks for unbilled work first)"
+                                    className="p-1 text-slate-300 hover:text-primary-600 transition-colors"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                </Button>
+                            )}
+                            <button
+                                onClick={handleDelete}
+                                title={canArchiveMatters ? 'Delete / archive matter' : 'Requires Administrator role'}
+                                className={`p-1 transition-colors ${canArchiveMatters ? 'text-slate-300 hover:text-red-500 opacity-100 md:opacity-0 md:group-hover:opacity-100' : 'text-slate-200 dark:text-zinc-700 cursor-not-allowed'}`}
+                            >
+                                <TrashIcon className="w-3.5 h-3.5" />
+                            </button>
                         </div>
                     </div>
                     {assignedUsers.length > 0 && (
@@ -228,8 +276,8 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
     const { coreState, isDataLoaded } = useCoreState();
     const { executionState } = useExecutionState();
     const { documentState } = useDocumentState();
-    const { openModal, selectedId, navigateTo: uiNavigateTo } = useUI();
-    const { handleUpdateMatterStage, handleUpdateMatter } = useDataActions();
+    const { openModal, closeModal, selectedId, navigateTo: uiNavigateTo } = useUI();
+    const { handleUpdateMatterStage, handleUpdateMatter, handleCloseMatter } = useDataActions();
     const { currentUser } = useAuth();
     const navigateTo = onNavigate || uiNavigateTo;
 
@@ -252,7 +300,14 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
         setSelectedIds(new Set());
     };
 
-    const validMatters = useMemo(() => matterState.matters.filter((m: any) => m.title && m.id), [matterState.matters]);
+    // V3 (V-MATTER-4): archived matters are hidden from the working list —
+    // they live in the Archive page (restorable) and no longer pollute
+    // every filter preset. (Previously "archived" matters were hard-DELETED
+    // from the table, so 'All' implicitly excluded them.)
+    const validMatters = useMemo(
+        () => matterState.matters.filter((m: any) => m.title && m.id && m.status !== MatterStatus.Archived),
+        [matterState.matters]
+    );
     
     const uniqueTypes = useMemo(() => Array.from(new Set(validMatters.map((m: any) => m.type).filter(Boolean))), [validMatters]);
 
@@ -304,12 +359,50 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
         }
     };
 
-    const bulkClose = async () => {
+    // V3 (V-MATTER-3): bulk close now CONFIRMS with an unbilled-work summary
+    // per matter (the old loop flipped status on every selected matter with
+    // no warning, no note, no confirmation) and runs the validated lifecycle
+    // mutation per matter.
+    const { financeState } = useFinanceState();
+    const bulkClose = () => {
         const selected = filteredMatters.filter(m => selectedIds.has(m.id));
-        for (const m of selected) {
-            await handleUpdateMatter({ ...m, status: MatterStatus.Closed });
-        }
-        setSelectedIds(new Set());
+        if (selected.length === 0) return;
+        const unbilled = selected.filter(m =>
+            financeState.timeEntries.some(t => t.matterId === m.id && t.billable && !t.billedInInvoiceId) ||
+            financeState.expenses.some(e => e.matterId === m.id && e.isBillable && !e.billedInInvoiceId)
+        );
+        openModal('deleteConfirmation', null, {
+            title: `Close ${selected.length} matter${selected.length === 1 ? '' : 's'}?`,
+            message: (
+                <div className="space-y-3">
+                    <p>Closed matters leave the active lists but stay fully restorable (Reopen).</p>
+                    {unbilled.length > 0 && (
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/10 border-l-4 border-yellow-400 text-yellow-800 dark:text-yellow-400 rounded">
+                            <p className="font-bold text-xs uppercase tracking-wider">Warning: unbilled work found</p>
+                            <ul className="text-xs list-disc list-inside mt-1">
+                                {unbilled.slice(0, 5).map(m => <li key={m.id}>"{m.title}" has unbilled time or expenses.</li>)}
+                                {unbilled.length > 5 && <li>…and {unbilled.length - 5} more</li>}
+                            </ul>
+                            <p className="text-2xs mt-1">Unbilled items are NOT invoiced automatically. Close only if this is intended.</p>
+                        </div>
+                    )}
+                </div>
+            ),
+            confirmText: `Close ${selected.length} Matter${selected.length === 1 ? '' : 's'}`,
+            onConfirm: async () => {
+                closeModal();
+                setSelectedIds(new Set());
+                // `selected` is closure-captured — clearing the selection
+                // above cannot empty this list mid-loop.
+                for (const m of selected) {
+                    // Sequential on purpose — each close is a validated
+                    // server transaction with its own activity record.
+                    try {
+                        await handleCloseMatter(m.id);
+                    } catch { /* per-matter toast already shown */ }
+                }
+            },
+        });
     };
 
     const bulkExportCSV = () => {

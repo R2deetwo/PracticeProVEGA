@@ -352,10 +352,25 @@ const ModalManager: React.FC = () => {
       break;
     }
     case 'assignUsers': {
+      // V3 (V-MATTER-15): the bulk context actually works now. The matter
+      // list's Assign button passes { matterIds } — the old handler read
+      // only modalContext.item (always undefined here), rendered nothing,
+      // and the button did NOTHING at all. Bulk goes through the validated
+      // server mutation; single-item keeps the per-item patch path.
       const item = modalContext?.item;
       const itemType = modalContext?.itemType || 'Matter';
       const itemTitle = modalContext?.itemTitle || 'Item';
-      if (item) {
+      const bulkMatterIds: string[] = Array.isArray(modalContext?.matterIds) ? modalContext.matterIds : [];
+      if (bulkMatterIds.length > 0) {
+        const bulkMatters = matterState.matters.filter(m => bulkMatterIds.includes(m.id));
+        const handleBulkAssign = async (_itemId: string, userIds: string[]) => {
+          try {
+            await dataHandlers.handleBulkAssignMatters(bulkMatterIds, userIds);
+            closeModal();
+          } catch { /* toast already shown; keep open */ }
+        };
+        content = <AssignUsersForm item={{ id: 'bulk', assignedUsers: [] }} itemType="Matter" itemTitle={`${bulkMatterIds.length} matters`} users={coreState.users} onUpdate={handleBulkAssign} onClose={closeModal} bulkMatterTitles={bulkMatters.map(m => m.title)} />;
+      } else if (item) {
         const handleAssign = (itemId: string, userIds: string[]) => {
           if (itemType === 'Matter') {
             const matter = matterState.matters.find(m => m.id === itemId);

@@ -275,27 +275,35 @@ export const ModalLayer: React.FC = () => {
       case 'closeMatter': {
         const matter = matterState.matters.find(m => m.id === editingId);
         if (!matter) return null;
+        // V3 (V-MATTER-3): the modal is now REACHABLE (MatterList + detail
+        // view open it) and its confirm runs the validated lifecycle
+        // mutation — one server call that enforces the transition graph,
+        // stamps closedAt, records activity and persists the closing note.
+        // The dead-copy path used to set STAGE='Closed' (the status/stage
+        // conflation) and run three separate updates.
         const unbilledTime = financeState.timeEntries.filter(t => t.matterId === matter.id && t.billable && !t.billedInInvoiceId);
         const unbilledExpenses = financeState.expenses.filter(e => e.matterId === matter.id && e.isBillable && !e.billedInInvoiceId);
         return (
           <CloseMatterModal matter={matter} unbilledTime={unbilledTime} unbilledExpenses={unbilledExpenses} onConfirm={async (id, note) => {
-            dataHandlers.handleUpdateMatterStage(id, 'Closed');
-            // Persist the closing note so it's not silently discarded
-            if (note && note.trim()) {
-              try {
-                await dataHandlers.handleAddMatterNote(id, 'Closing Summary', note.trim(), 'user');
-              } catch (e) { /* non-fatal — matter is already closed */ }
-            }
-            // Also update the matter status to Closed
-            await dataHandlers.handleUpdateMatter({ id, status: 'Closed' } as any);
-            closeModal();
+            try {
+              await dataHandlers.handleCloseMatter(id, note);
+              closeModal();
+            } catch { /* toast already shown; keep the modal open to retry */ }
           }} onClose={closeModal} />
         );
       }
       case 'archiveMatter': {
         const matter = matterState.matters.find(m => m.id === editingId);
         if (!matter) return null;
-        return <ArchiveMatterModal matter={matter} onConfirm={(id) => { dataHandlers.archiveItem('Matter', id, matter.title, matter); closeModal(); }} onClose={closeModal} />;
+        // V3 (V-MATTER-4/7): the atomic server archive (the old wiring
+        // passed the wrong table name 'Matter' and the two-step client
+        // flow is what manufactured ghost archive rows).
+        return <ArchiveMatterModal matter={matter} onConfirm={async (id) => {
+          try {
+            await dataHandlers.archiveItem('matters', id, matter.title, matter);
+            closeModal();
+          } catch { /* toast already shown; keep the modal open to retry */ }
+        }} onClose={closeModal} />;
       }
       case 'newContact':
       case 'editContact': {

@@ -2,7 +2,6 @@
 import { useCallback } from 'react';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Matter, MatterStatus } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -16,7 +15,17 @@ export const useMatters = (appState: any, actions: any) => {
 
     // Convex Mutations
     const deleteMatterCascadeMutation = useMutation(api.myFunctions.deleteMatterCascade);
-    const reassignMattersFromContactMutation = useMutation(api.myFunctions.reassignMattersFromContact);
+    const closeMatterMutation = useMutation(api.matterLifecycle.closeMatter);
+    const reopenMatterMutation = useMutation(api.matterLifecycle.reopenMatter);
+    const archiveMatterMutation = useMutation(api.matterLifecycle.archiveMatter);
+    const restoreMatterMutation = useMutation(api.matterLifecycle.restoreMatter);
+    const assignUsersToMattersMutation = useMutation(api.matterLifecycle.assignUsersToMatters);
+    const setMatterContactsMutation = useMutation(api.matterLifecycle.setMatterAssociatedContacts);
+    const mergeContactsMutation = useMutation(api.contactIntegrity.mergeContacts);
+    const authArgs = useCallback(() => ({
+        userEmail: currentUser?.email,
+        sessionToken: (bearerToken ?? undefined),
+    }), [currentUser, bearerToken]);
 
     /**
      * Add a new matter.
@@ -66,8 +75,10 @@ export const useMatters = (appState: any, actions: any) => {
     const handleAddContact = useCallback(async (contact: any, createPortal: boolean) => {
         const c = await actions.addItem('contacts', contact, 'Contact');
         if (createPortal) {
-            // Logic for creating portal user would go here if needed
-            addToast(`Contact created and portal invite queued for ${contact.name}`, { type: 'success' });
+            // V3 HONESTY (V-MATTER-17): no portal invite is queued by this
+            // path — the old toast claimed one was. To invite, use Settings →
+            // Portal Access (which sends a real invite).
+            addToast(`Contact created. To give ${contact.name} portal access, invite them from Settings → Portal Access.`, { type: 'success' });
         }
         return c;
     }, [actions, addToast]);
@@ -75,37 +86,35 @@ export const useMatters = (appState: any, actions: any) => {
     /**
      * Update contact details.
      */
-    const handleUpdateContact = useCallback(async (contact: any, createPortal?: boolean) => {
-        if (createPortal) {
-            addToast(`Portal update for ${contact.name} queued.`, { type: 'info' });
-        }
+    const handleUpdateContact = useCallback(async (contact: any, _createPortal?: boolean) => {
+        // V3 HONESTY (V-MATTER-17): the old "Portal update queued" info
+        // toast claimed a portal update that never happened. Editing a
+        // contact updates the contact — nothing more, nothing less.
         return actions.updateItem('contacts', contact, 'Contact');
-    }, [actions, addToast]);
+    }, [actions]);
 
     /**
-     * Merge two contacts.
+     * Merge two contacts (V-MATTER-5/16).
      *
-     * FIX (Aug 2026): Previously this just deleted the source contact without
-     * reassigning its matters first — leaving all source-contact matters as
-     * "Unknown Client" orphans. Now we call reassignMattersFromContact to move
-     * all matters (and properties) from source to target BEFORE deleting the
-     * source contact. The deleteItem FK guard would block the delete anyway
-     * (since the source has child references), but doing the reassign first
-     * makes the operation actually succeed.
+     * V3: the merge is now ONE atomic server mutation (contactIntegrity.
+     * mergeContacts) — the old client two-step (reassign matters, then
+     * hard-delete the source) destroyed the source's portal link, orphaned
+     * secondary relationships, kept no audit record, and silently lost the
+     * source's notes. The server merge preserves all of it and leaves a
+     * soft-deleted tombstone pointing at the survivor.
      */
     const handleMergeContacts = useCallback(async (sourceId: string, targetId: string) => {
         try {
-            // 1. Reassign all matters + properties from source → target.
-            const result = await reassignMattersFromContactMutation({
+            const result = await mergeContactsMutation({
                 sourceContactId: sourceId,
                 targetContactId: targetId,
-                userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined),
+                ...authArgs(),
             });
-            // 2. Now that the source has zero references, hard-delete it.
-            await actions.deleteItem('contacts', sourceId, 'Merged Contact');
+            const otherLinks = (result.secondaryContacts || 0) + (result.parties || 0) + (result.tenancies || 0) + (result.propertyRelationships || 0);
             addToast(
-                `Merged contact — moved ${result.mattersReassigned} matter${result.mattersReassigned === 1 ? '' : 's'} ` +
-                `and ${result.propertiesReassigned} propert${result.propertiesReassigned === 1 ? 'y' : 'ies'} to the target contact.`,
+                `Merged contacts — moved ${result.matters} matter${result.matters === 1 ? '' : 's'}, ` +
+                `${result.properties} propert${result.properties === 1 ? 'y' : 'ies'} and ` +
+                `${otherLinks} other link${otherLinks === 1 ? '' : 's'} to the target contact.`,
                 { type: 'success' }
             );
         } catch (e: any) {
@@ -113,29 +122,61 @@ export const useMatters = (appState: any, actions: any) => {
             addToast(e?.message || 'Failed to merge contacts.', { type: 'error' });
             throw e;
         }
-    }, [actions, reassignMattersFromContactMutation, currentUser, addToast]);
+    }, [mergeContactsMutation, authArgs, addToast]);
 
     /**
-     * Link a matter to multiple contacts.
+     * Link/unlink a matter's SECONDARY contacts (V-MATTER-15).
+     * V3: writes the REAL schema field via a validated server mutation.
+     * The old path patched an orphan `contactIds` key that exists on no
+     * table, so the selection silently reset on every re-open.
      */
     const handleLinkContactToMatter = useCallback(async (matterId: string, contactIds: string[]) => {
-        await actions.updateItem('matters', { id: matterId, contactIds }, 'Matter Link');
-    }, [actions]);
+        try {
+            const result = await setMatterContactsMutation({ matterId, contactIds, ...authArgs() });
+            addToast(
+                `Linked ${result.linked} contact${result.linked === 1 ? '' : 's'}, unlinked ${result.unlinked}.`,
+                { type: 'success' }
+            );
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to update matter contacts.', { type: 'error' });
+            throw e;
+        }
+    }, [setMatterContactsMutation, authArgs, addToast]);
 
     /**
-     * Link a matter to a specific contact (as client or related).
+     * Link a matter to a specific contact (as client or associated contact).
      */
     const handleLinkMatterToContact = useCallback(async (contactId: string, matterId: string, asClient: boolean) => {
         if (asClient) {
             const matter = appState.matters.find((m: any) => m.id === matterId);
             if (matter) {
-                await actions.updateItem('matters', { ...matter, clientId: contactId }, 'Client Link');
+                await actions.updateItem('matters', { id: matter.id, clientId: contactId }, 'Client Link');
             }
         } else {
-            // Logic for other links (e.g. related parties)
-            addToast("Linked contact to matter.", { type: 'success' });
+            // V3 (V-MATTER-15/17): a REAL secondary link — the old branch was
+            // a success toast with no mutation behind it.
+            const matter = appState.matters.find((m: any) => m.id === matterId);
+            if (!matter) {
+                addToast('Matter not found.', { type: 'error' });
+                return;
+            }
+            const existing: string[] = Array.isArray(matter.associatedContactIds) ? matter.associatedContactIds : [];
+            if (existing.includes(contactId)) {
+                addToast('This contact is already linked to the matter.', { type: 'info' });
+                return;
+            }
+            try {
+                await setMatterContactsMutation({
+                    matterId,
+                    contactIds: [...existing, contactId],
+                    ...authArgs(),
+                });
+                addToast('Contact linked to matter as an associated contact.', { type: 'success' });
+            } catch (e: any) {
+                addToast(e?.message || 'Failed to link contact to matter.', { type: 'error' });
+            }
         }
-    }, [actions, appState.matters, addToast]);
+    }, [actions, appState.matters, setMatterContactsMutation, authArgs, addToast]);
 
     /**
      * Add a document and run AI analysis.
@@ -172,32 +213,103 @@ export const useMatters = (appState: any, actions: any) => {
     const handleUpdateMatter = useCallback((m: any) => actions.updateItem('matters', m, 'Matter'), [actions]);
 
     /**
-     * Update matter stage with history tracking.
+     * Update matter stage. V3 (V-MATTER-12): the durable history is
+     * appended server-side (matterStageHistory) — this hook just sends the
+     * change; the old comment claimed history tracking that consisted of
+     * overwriting one timestamp.
      */
-    const handleUpdateMatterStage = useCallback((id: string, stage: string) => 
+    const handleUpdateMatterStage = useCallback((id: string, stage: string) =>
         actions.updateItem('matters', { id, stage, stageLastUpdated: new Date().toISOString() }, 'Matter'), [actions]);
 
     /**
-     * Reopen a closed matter.
+     * Close a matter through the validated lifecycle mutation (V-MATTER-3).
+     * The server enforces the transition graph, stamps closedAt, records
+     * activity and persists the closing note.
      */
-    const handleReopenMatter = useCallback((id: string) => 
-        actions.updateItem('matters', { id, status: MatterStatus.Active }, 'Matter'), [actions]);
+    const handleCloseMatter = useCallback(async (id: string, closingNote?: string) => {
+        try {
+            const result = await closeMatterMutation({ matterId: id, closingNote: closingNote || '', ...authArgs() });
+            addToast(result?.alreadyClosed ? 'Matter was already closed.' : 'Matter closed.', { type: 'success' });
+            return result;
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to close matter.', { type: 'error' });
+            throw e;
+        }
+    }, [closeMatterMutation, authArgs, addToast]);
+
+    /**
+     * Reopen a closed matter through the validated lifecycle mutation
+     * (V-MATTER-3). Previously reopening had NO UI at all — the hook existed
+     * but no component ever called it.
+     */
+    const handleReopenMatter = useCallback(async (id: string) => {
+        try {
+            const result = await reopenMatterMutation({ matterId: id, ...authArgs() });
+            addToast(result?.alreadyActive ? 'Matter is already active.' : 'Matter reopened.', { type: 'success' });
+            return result;
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to reopen matter.', { type: 'error' });
+            throw e;
+        }
+    }, [reopenMatterMutation, authArgs, addToast]);
+
+    /**
+     * Bulk-assign users to many matters (V-MATTER-15) — the server mutation
+     * the list's Assign button always needed (the old modal context was
+     * ignored and the form could only ever assign ONE item).
+     */
+    const handleBulkAssignMatters = useCallback(async (matterIds: string[], assignedUsers: string[]) => {
+        try {
+            const result = await assignUsersToMattersMutation({ matterIds, assignedUsers, ...authArgs() });
+            addToast(`Team updated on ${result.updated} matter${result.updated === 1 ? '' : 's'}.`, { type: 'success' });
+            return result;
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to assign team.', { type: 'error' });
+            throw e;
+        }
+    }, [assignUsersToMattersMutation, authArgs, addToast]);
+
+    /**
+     * Restore a matter from the archive (V-MATTER-4).
+     */
+    const handleRestoreMatter = useCallback(async (opts: { matterId?: string; archiveRowId?: string }) => {
+        try {
+            await restoreMatterMutation({ ...opts, ...authArgs() });
+            addToast('Matter restored from the archive.', { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to restore matter.', { type: 'error' });
+            throw e;
+        }
+    }, [restoreMatterMutation, authArgs, addToast]);
 
     /**
      * Delete matter and all related child records (Cascade).
+     * V3 (V-MATTER-8): the hardened cascade refuses to run when the matter
+     * has financial records (invoices, trust, ledger, billed time) — the
+     * ledger only grows. The old flow ALSO called deleteItem after the
+     * cascade (a second, silently-failing delete).
      */
     const handleDeleteMatter = useCallback(async (id: string, name: string) => {
         try {
-            await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId as string, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) });
-            // Remove from local state
-            await actions.deleteItem('matters', id, name);
-            addToast(`Deleted matter ${name} and all related records.`, { type: 'success' });
-        } catch (e) {
+            const result = await deleteMatterCascadeMutation({ matterId: id, firmId: currentUser?.firmId as string, ...authArgs() });
+            // Optimistic local removal only — the server transaction is the
+            // source of truth (the old second deleteItem call failed
+            // silently against the already-deleted row).
+            try {
+                await actions.deleteItem('matters', id, name);
+            } catch { /* already gone server-side */ }
+            const summary = (result as any)?.summary || {};
+            const detail = Object.entries(summary)
+                .filter(([, n]) => (n as number) > 0)
+                .map(([k, n]) => `${n} ${k}`)
+                .join(', ');
+            addToast(`Deleted matter ${name}${detail ? ` (${detail})` : ''}. Financial records were preserved.`, { type: 'success' });
+        } catch (e: any) {
             console.error("Delete cascade failed:", e);
-            addToast(`Failed to delete matter.`, { type: 'error' });
+            addToast(e?.message || 'Failed to delete matter.', { type: 'error', duration: 8000 });
             throw e;
         }
-    }, [actions, deleteMatterCascadeMutation, currentUser, addToast]);
+    }, [actions, deleteMatterCascadeMutation, currentUser, authArgs, addToast]);
 
     /**
      * Link a matter note.
@@ -214,8 +326,26 @@ export const useMatters = (appState: any, actions: any) => {
 
     /**
      * Archive an item to the global archive.
+     *
+     * V3 (V-MATTER-4/7): MATTERS take the atomic server path — one mutation
+     * inserts the archive row AND flips status to 'Archived'. The old
+     * two-step client sequence (insert archive row, then a delete the FK
+     * guard refuses for any matter with children) is exactly what produced
+     * ghost archive rows, so it no longer runs for matters. Other item
+     * types keep the two-step flow (they have no children to block the
+     * delete).
      */
-    const archiveItem = useCallback(async (type: string, id: string, name: string, data: any) => {
+    const archiveItem = useCallback(async (type: string, id: string, name: string, data?: any) => {
+        if (type === 'matters' || type === 'Matter') {
+            try {
+                await archiveMatterMutation({ matterId: id, ...authArgs() });
+                addToast(`Archived "${name}". Restore it any time from the Archive page.`, { type: 'success' });
+                return;
+            } catch (e: any) {
+                addToast(e?.message || 'Failed to archive matter.', { type: 'error' });
+                throw e;
+            }
+        }
         // Use the SAME field names as the archive schema + ArchiveView expects:
         // itemType, itemId, itemName, originalData, archivedAt, archiverName
         await actions.addItem('archive', {
@@ -228,7 +358,7 @@ export const useMatters = (appState: any, actions: any) => {
             archiverName: currentUser?.name || '',
         }, 'Archived Item');
         await actions.deleteItem(type as any, id, name);
-    }, [actions, currentUser]);
+    }, [actions, archiveMatterMutation, authArgs, currentUser, addToast]);
 
     /**
      * Add a new lead.
@@ -299,8 +429,15 @@ export const useMatters = (appState: any, actions: any) => {
     }, [addToast]);
 
     const handleCancelIntakeRequest = useCallback(async (leadId: string) => {
-        addToast("Intake request cancelled.", { type: 'info' });
-    }, [addToast]);
+        // V3 HONESTY (V-MATTER-17): actually cancel the intake request — the
+        // old toast claimed cancellation while changing nothing.
+        try {
+            await actions.updateItem('leads', { id: leadId, status: 'Cancelled', intakeSentAt: null }, 'Lead');
+            addToast("Intake request cancelled.", { type: 'info' });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to cancel intake request.', { type: 'error' });
+        }
+    }, [actions, addToast]);
 
     const handleClientUploadDocument = useCallback(async (matterId: string, fileDetails: any) => {
         await actions.addItem('documents', { matterId, file: fileDetails, uploadedBy: 'Client', dateFiled: new Date().toISOString() }, 'Document');
@@ -316,7 +453,10 @@ export const useMatters = (appState: any, actions: any) => {
         onAddMatter,
         handleUpdateMatter,
         handleUpdateMatterStage,
+        handleCloseMatter,
         handleReopenMatter,
+        handleBulkAssignMatters,
+        handleRestoreMatter,
         handleDeleteMatter,
         handleAddMatterNote,
         archiveItem,
