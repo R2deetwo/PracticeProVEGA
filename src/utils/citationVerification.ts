@@ -62,7 +62,7 @@ export function verificationBasisLine(level: CitationVerificationLevel): string 
 
 /**
  * The standing disclosure for the missing external dependency. Until a
- * licensed, maintained Nigerian legal corpus (LawPavilion, NWLR, LPEER or
+ * licensed, maintained Nigerian legal corpus (LawPavilion, NWLR, LPELR or
  * an approved equivalent) is connected, NOTHING in the app may claim real
  * authority verification. Every law-report surface renders this.
  */
