@@ -24,8 +24,9 @@ import {
 import { sha256Hex } from "../../convex/sha256";
 
 type UserDoc = {
-  _id: string;
-  _creationTime?: number;
+  // _id carries the Id<"users"> brand in production; opaque in tests.
+  _id: any;
+  _creationTime: number;
   email?: string | null;
   tokenIdentifier?: string | null;
   firmId?: string | null;
@@ -101,6 +102,7 @@ const NOW = Date.now();
 
 const admin: UserDoc = {
   _id: "u_admin",
+  _creationTime: 0,
   email: "admin@firm.ng",
   tokenIdentifier: "admin@firm.ng",
   firmId: FIRM,
@@ -108,6 +110,7 @@ const admin: UserDoc = {
 };
 const tenant: UserDoc = {
   _id: "u_tenant",
+  _creationTime: 0,
   email: "tenant@x.ng",
   tokenIdentifier: "tenant@x.ng",
   firmId: FIRM,
@@ -115,6 +118,7 @@ const tenant: UserDoc = {
 };
 const founder: UserDoc = {
   _id: "u_founder",
+  _creationTime: 0,
   email: "founder@practicepro.ng",
   tokenIdentifier: "founder@practicepro.ng",
   firmId: FIRM,
@@ -122,6 +126,7 @@ const founder: UserDoc = {
 };
 const joinedMember: UserDoc = {
   _id: "u_joined",
+  _creationTime: 0,
   email: "joined@firm.ng",
   tokenIdentifier: "joined@firm.ng",
   firmId: FIRM,

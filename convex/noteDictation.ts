@@ -16,8 +16,10 @@
  */
 
 import { action, mutation } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
+import { resolveUserBySessionToken } from "./sessions";
 import { QUALITY_MODEL } from "./aiModels";
 
 // ─── AI CLEANUP ACTION (Vega only) ────────────────────────────────────────
@@ -35,8 +37,28 @@ export const cleanTranscript = action({
     // contextHint helps Gemini make better cleanup decisions. E.g. "matter
     // note" vs "client meeting" vs "court hearing observation"
     contextHint: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    // ── ROUND QA (§3 API access): session-gate + bounds, same as the AI
+    //    proxy. This action spent the platform demo key for ANY caller.
+    const user = args.sessionToken
+      ? await resolveUserBySessionToken(ctx, args.sessionToken)
+      : null;
+    if (!user) {
+      throw new Error("Unauthorized: a valid session is required to clean transcripts.");
+    }
+    const allowed = await ctx.runMutation(
+      internal.securityHelpers.consumeRateLimit,
+      { key: `clean_transcript:${user._id}`, maxRequests: 20 }
+    );
+    if (!allowed) {
+      throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    }
+    if (args.rawTranscript.length > 200_000) {
+      throw new Error("Transcript too large (200 KB limit).");
+    }
+
     const envKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
     const apiKey = args.firmGeminiApiKey || envKey;
     if (!apiKey) {

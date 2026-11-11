@@ -17103,3 +17103,162 @@ actions, unchanged: the Cloudflare mirror is STILL blocked by the dead
 CLOUDFLARE_API_TOKEN (the mirror still serves the 2026-09-18 build —
 new token → repo secret → re-run promote); the PAT has transited chat
 again (5th time) — rotate whenever convenient; brand/* disposal.
+
+Task ID: R96 (Round QA, Wave 1 — SECURITY: four ungated public Convex
+actions closed; owner brief §3 API access / estate isolation)
+Agent: Main agent (Super Z)
+Task: The production-readiness programme's security wave. An independent
+sweep of ALL 420 public Convex functions (qa_public_fns.py triage list,
+then manual audit of every flagged writer) found four actions that
+predate every hardening round and shipped PUBLIC to production:
+
+Work Log:
+- brainIngestion.getSourcesForIndexing (CRITICAL, cross-tenant read):
+  took ANY firmId from ANY caller and returned that firm's ENTIRE
+  document + note corpus as plain text chunks. Now requires a live
+  session (resolveUserBySessionToken) whose firmId MATCHES the requested
+  firm. Stays a QUERY on purpose — the three client callers go through
+  ConvexHttpClient.query() whose /api/query endpoint only executes
+  queries; flipping it to a mutation would have broken them (caught
+  BEFORE push by reading the convex/browser source, not after).
+- ai.generateContent (HIGH): anonymous callers could spend the platform
+  demo Gemini key at unlimited rate (mirrors /ai/stream's Round A H18
+  gate). Now: session required + 30/min/user throttle
+  (consumeRateLimit) + 6 MB payload cap. Dead QUALITY_MODEL import
+  removed.
+- noteDictation.cleanTranscript (HIGH): same pattern — session gate +
+  20/min/user throttle + 200 KB transcript cap.
+- webFetch.fetchUrlContent / searchWeb (MEDIUM): fully-public fetch +
+  search proxy. Now session-gated, 20/min/user shared budget, and
+  private-host refusal (SSRF defence: loopback/RFC1918/link-local/
+  multicast — including 169.254.169.254 cloud metadata).
+- vite.config.ts (latent, §3 sensitive exposure): the define block could
+  bake GEMINI_API_KEY into the PUBLIC bundle if a build machine ever had
+  it set (CI is clean today). The define is now pinned to '' AND the
+  build FAILS loudly if the key is present at build time (dev exempt).
+- Client wiring (all callers forward the bearer, possession-only):
+  geminiService 3 generateContent sites (shared readSessionBearer),
+  NoteEditor cleanTranscript, AloaChat both webFetch actions,
+  brainService getSourcesForIndexing.
+- tests/unit/roundQASecurity.test.ts (22 tests): every fix driven
+  through the REAL handlers — anonymous rejects, invalid-token rejects,
+  valid-session serves, exact throttle boundaries (31st AI call, 21st
+  web call), payload caps, private-host matrix (6 hosts, fetch never
+  called), firm isolation (other firm's content NEVER in the chunks),
+  cross-firm deny, build-guard source contracts, and client-wiring pins.
+- Verified CLEAN along the way: Paystack webhook (HMAC-SHA512 +
+  constant-time compare + dedupe + audit — Round F4 already hardened),
+  estateCommunity (requireEstateAdmin→requireStaffCaller),
+  financialIntegrity (requireFinancialAuth→requireFirmUser), feedback
+  (resolveCaller), salesInquiries (requireFounderCaller), push test
+  sends (founder-gated internal queries), sessions revoke (self-or-
+  founder), http.ts routes (session + IP-block + inverted-secret gates
+  all present), generateUploadUrl (requireFirmUser — the sweep's false
+  positive), identity audit gate PASSED.
+- Gates: vitest 2,092/2,092 (104 files) / convex tsc 0 / identity audit
+  passed.
+
+Task ID: R97 (Round QA, Wave 2 — PERFORMANCE: the eager bundle cut 38%;
+owner brief §2 bundle size / mobile loading)
+Agent: Main agent (Super Z)
+Task: Sourcemap-based attribution (chunk_audit.mjs — byte-exact, per
+source file) of the 2,005.80 KB entry chunk found ~760 KB of code no
+first-visit user ever opens. All of it is lazy now.
+
+Work Log:
+- posthog-js (206 KB): statically imported by the entry while analytics
+  is DISABLED (no VITE_POSTHOG_KEY). analytics.ts now dynamic-imports
+  the SDK only when a key exists; capture/identify/reset keep their
+  signatures and no-op until the module resolves.
+- Legal/resource cluster (~290 KB): PrivacyPolicy, TermsOfService,
+  PortalTermsOfUse, DataProcessingAgreement, CookiePolicy, UsagePolicy,
+  ResourcesPage (72 KB), WhatsNew (38 KB), GatekeeperInterface (22 KB)
+  — all lazyWithReload chunks in App.tsx, every render site wrapped in
+  the standard Suspense skeleton.
+- The three heaviest form modals (~141 KB): PropertyForm (70 KB) /
+  MatterForm (37 KB) / SmartMatterModal (34 KB) were STATIC imports in
+  overlays/layers/ModalLayer.tsx (the registry already lazy-loads the
+  same modules — the legacy layer re-added them to the entry). All
+  three React.lazy now, render sites Suspense-wrapped (SmartMatterModal
+  already sat inside a Suspense).
+- demoData fixtures (29 KB): DataProvider now dynamic-imports them
+  inside the isDemo branch — production users never download them.
+- RESULT: entry chunk 2,005.80 KB → 1,241.91 KB minified (-764 KB,
+  -38%); gzip 543.42 KB → 326.47 KB (-40%). Remaining top entries are
+  the legitimately-eager shell (jurisdictionConfig 66 KB, constants
+  44 KB, App 39 KB, contexts, portal login surfaces).
+- §2 query review: getFirmData is firm-scoped via requireFirmUser +
+  by_firm indexes (the offline-first full-firm sync is the architecture,
+  not a defect); pagination exists where the product needs it
+  (properties list E4(c), payment history 200, visitor historical 500,
+  tickets 500). No unsafe unbounded reads found on hot paths.
+- tests/unit/roundQAPerf.test.ts (8 tests): source-contract pins — no
+  static import may return for the cluster/PostHog/forms/demoData, every
+  render site keeps its Suspense, the SDK stays key-gated.
+
+Task ID: R98 (Round QA, Wave 3 — TESTING: the maintenance/work-order
+lifecycle gap; owner brief §4 estate operations)
+Agent: Main agent (Super Z)
+Task: §4 coverage map against the existing 2,052-test suite: core
+workflows (E1 tenancy lifecycle + E4 8-workflow chain), financial
+(roundB/F1-F4), visitor+gatehouse (roundSentry) and AI (roundG) were
+already covered end-to-end. The genuine GAP: no lifecycle drive of
+maintenance tickets / work orders (portalLayerSecurity only swept auth).
+
+Work Log:
+- tests/unit/roundQAEstateOps.test.ts (12 tests) through the REAL
+  portals.ts handlers: submission (open + firm-bound + attributed to
+  the SESSION caller, never a caller-supplied tenantId), anonymous
+  reject, forged-tenantId reject, cross-firm submit reject, scoped
+  reads (tenant/firm/property), the work-order chain (assign →
+  in_progress with the assignee recorded → resolve with resolution →
+  close), anonymous status-write reject, rival-firm admin reject (+
+  the cross_firm_access_attempt security event), resident cancellation
+  (note persisted, cancelledAt stamped), somebody-else's-ticket
+  cancellation reject, and the full submit→assign→resolve→close walk
+  on one shared world.
+
+Task ID: R99 (Round QA, Wave 4 — CODE QUALITY + REGRESSION + OPS; owner
+brief §1 §5 §6)
+Agent: Main agent (Super Z)
+Task: Pay down the root-tsc debt WITHOUT suppressing a single check,
+then prove the three-system regression contract.
+
+Work Log:
+- tsc baseline 126 → 94 (-32 error lines, zero behavior change): the
+  entire PropertyForm family (untyped `rentalDetails || {}` fallbacks →
+  NonNullable<Property['rentalDetails']> casts; legacy percentage
+  reads follow the file's existing (rd as any) healing convention; the
+  defensive 'Deleted' filter widened to a string compare), types.ts
+  gained the two fields the form + schema already use
+  (automationSettings.vmsEnabled, coreServices), both test files'
+  fixture types trued up (callerAuth UserDoc _id/_creationTime,
+  receiptDelivery period arrays), getFirmPortalSettings' no-row default
+  now returns the SAME defaults the upsert path writes (the 3-field
+  default object was the root of 11 PortalAccessSettings errors),
+  conflictCheck.role null-guard.
+- CI ratchet TIGHTENED: ERROR_BASELINE 131 → 94 in all four workflows
+  (tests, build-apk, staging-deploy, production-deploy). The debt can
+  never grow back past 94; the remaining 94 are documented below.
+- §5 regression proof: main vite build green (24.5s), ADMIN (Vega) build
+  green (vite.admin.config.ts, 6.3s), Komplete surfaces ride the same
+  bundle (productAccess/signupProduct tests green), shared auth green
+  (sessions/callerAuth/strictIdentityCallSites), Vega feature tests
+  green (vegaTiersDraftPro/contractAnalysis/draftHtml), schema.ts ZERO
+  changes (no migration risk), crons.ts zero changes, Paystack/dunning/
+  refunds/moneyUtils/messaging zero changes.
+- §6 ops review (read-only, no config touched): error reporting live
+  (Sentry DSN-gated, 10% traces, session replay off, PII-aware ignore
+  list), 15-min health watchdog with auto-issues + recovery close,
+  weekly backup-restore drill (export → verify → staging import, RPO
+  24h / RTO ~30min documented in RUNBOOK), staging/prod separated by
+  env file + separate deploy keys + separate Convex deployments, ~30
+  cron jobs with R17 error-event capture + 30-day purge, deployment =
+  push-gated CI with manual owner promote. My build-time key guard
+  added one more §6 control.
+- Gates (the full CI mirror): vitest 2,094/2,094 (106 files; 2,052
+  baseline + 42, zero regressions) / convex tsc 0 / root tsc 94 = the
+  NEW tightened baseline / eslint 0 errors (76 pre-existing style
+  warnings, all rounded-xl migration debt in marketing surfaces) /
+  ui-primitives ratchet HELD at 2297 / identity audit PASSED / vite
+  build + admin build green / entry bundle -38%.

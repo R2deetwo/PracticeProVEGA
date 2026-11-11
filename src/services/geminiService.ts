@@ -27,6 +27,14 @@ import { buildJurisdictionContextBlock, buildJurisdictionalReasoning } from '../
 const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
 const convex = new ConvexHttpClient(CONVEX_URL);
 
+// ROUND QA (§3): the Convex AI proxy actions now require the session
+// bearer (same gate as /ai/stream). Shared read helper — never stored,
+// never logged.
+const readSessionBearer = (): string | undefined =>
+    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('practicepro_session_bearer'))
+    || (typeof localStorage !== 'undefined' && localStorage.getItem('practicepro_session_bearer'))
+    || undefined;
+
 export enum ModalType {
     NewMatter = 'newMatter',
     NewContact = 'newContact',
@@ -619,7 +627,8 @@ IMPORTANT:
                 systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
                 tools: [{ functionDeclarations: tools }],
                 generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
-                firmGeminiApiKey: clientKey
+                firmGeminiApiKey: clientKey,
+                sessionToken: readSessionBearer()
             });
 
             const candidate = response?.candidates?.[0];
@@ -1509,7 +1518,8 @@ export const transcribeAudio = async (
                         { text: prompt }
                     ]
                 }],
-                firmGeminiApiKey: firmKey
+                firmGeminiApiKey: firmKey,
+                sessionToken: readSessionBearer()
             });
 
             const candidate = response?.candidates?.[0];
@@ -1631,6 +1641,7 @@ Now generate the search query for the context above:`;
                 maxOutputTokens: 200,
             },
             firmGeminiApiKey: firmKey,
+            sessionToken: readSessionBearer(),
         });
 
         const candidate = response?.candidates?.[0];

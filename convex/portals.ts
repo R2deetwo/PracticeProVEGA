@@ -6356,12 +6356,20 @@ export const getFirmPortalSettings = query({
       .query("portal_settings")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .first();
-    // Default settings if none exist
+    // Default settings if none exist — the SAME defaults the upsert path
+    // writes for a brand-new row (Round QA §1: the two return shapes now
+    // agree, so the client sees one honest type instead of a 3-field
+    // object that silently lacked the VMS fields).
     if (!settings) {
       return {
         tenantMessagingEnabled: false,
         clientMessagingEnabled: false,
         paymentProofUploadEnabled: true,
+        vmsEnabled: false,
+        vmsGatekeeperNotifications: false,
+        vmsResidentNotifications: false,
+        vmsGracePeriodMinutes: 30,
+        vmsDefaultExpiryHours: 6,
       };
     }
     return settings;

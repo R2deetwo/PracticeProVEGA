@@ -37,7 +37,7 @@ permissions:
   contents: read
 
 env:
-  ERROR_BASELINE: "131"
+  ERROR_BASELINE: "94"
 
 jobs:
   quality-gate:

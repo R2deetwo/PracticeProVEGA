@@ -147,14 +147,23 @@ import OnboardingTour from './OnboardingTour';
 
 
 
-import { PrivacyPolicy } from './PrivacyPolicy';
-import { TermsOfService } from './TermsOfService';
-import { PortalTermsOfUse } from './PortalTermsOfUse';
+// ── ROUND QA (§2 mobile loading / bundle size): the legal-text pages,
+// resources, the changelog and the gatehouse surface are route-level
+// surfaces a first-time visitor almost never opens — yet as static
+// imports they shipped ~290 KB of minified text in the EAGER entry chunk
+// every visitor downloads before first paint. Each is now a lazy chunk
+// (same lazyWithReload pattern as the views above); every render site is
+// wrapped in Suspense with the standard skeleton.
+const PrivacyPolicy = lazyWithReload(() => import('./PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const TermsOfService = lazyWithReload(() => import('./TermsOfService').then(m => ({ default: m.TermsOfService })));
+const PortalTermsOfUse = lazyWithReload(() => import('./PortalTermsOfUse').then(m => ({ default: m.PortalTermsOfUse })));
+const DataProcessingAgreement = lazyWithReload(() => import('./DataProcessingAgreement'));
+const CookiePolicy = lazyWithReload(() => import('./CookiePolicy'));
+const UsagePolicy = lazyWithReload(() => import('./UsagePolicy'));
+const ResourcesPage = lazyWithReload(() => import('./ResourcesPage'));
+const GatekeeperInterface = lazyWithReload(() => import('./portal/GatekeeperInterface').then(m => ({ default: m.GatekeeperInterface })));
+const WhatsNew = lazyWithReload(() => import('./WhatsNew'));
 
-import DataProcessingAgreement from './DataProcessingAgreement';
-import CookiePolicy from './CookiePolicy';
-import UsagePolicy from './UsagePolicy';
-import ResourcesPage from './ResourcesPage';
 import NotFoundView from './NotFoundView';
 import ClientPortalLogin from './portal/ClientPortalLogin';
 import TenantPortalLogin from './portal/TenantPortalLogin';
@@ -162,8 +171,6 @@ import SetupPassword from './portal/SetupPassword';
 // 2026-09-14 (reset-link round): one-click password reset landing page —
 // public route carrying the emailed token, mounted like /setup-password.
 import ResetPasswordView from './auth/ResetPasswordView';
-import { GatekeeperInterface } from './portal/GatekeeperInterface';
-import WhatsNew from './WhatsNew';
 import { useBrainAutoIndex } from '../hooks/useBrainAutoIndex';
 import CookieConsent from './CookieConsent';
 import { useConfirm } from './ui/ConfirmDialog';
@@ -494,12 +501,12 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             case 'invoiceDetail': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><InvoiceDetailView /></React.Suspense></ViewWrapper>;
             case 'receiptDetail': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><ReceiptDetailView /></React.Suspense></ViewWrapper>;
 
-            case 'privacyPolicy': return <PrivacyPolicy onBack={goBack} />;
-            case 'termsOfService': return <TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
-            case 'portalTermsOfUse': return <PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
-            case 'dataProcessingAgreement': return <DataProcessingAgreement onBack={goBack} />;
-            case 'cookiePolicy': return <CookiePolicy onBack={goBack} />;
-            case 'usagePolicy': return <UsagePolicy onBack={goBack} />;
+            case 'privacyPolicy': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><PrivacyPolicy onBack={goBack} /></React.Suspense></ViewWrapper>;
+            case 'termsOfService': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} /></React.Suspense></ViewWrapper>;
+            case 'portalTermsOfUse': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} /></React.Suspense></ViewWrapper>;
+            case 'dataProcessingAgreement': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><DataProcessingAgreement onBack={goBack} /></React.Suspense></ViewWrapper>;
+            case 'cookiePolicy': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><CookiePolicy onBack={goBack} /></React.Suspense></ViewWrapper>;
+            case 'usagePolicy': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><UsagePolicy onBack={goBack} /></React.Suspense></ViewWrapper>;
             // FIX: onStartTrial/onContactSales navigated to the dashboard (a
             // no-op CTA) and setActiveProduct was a truthy no-op (dead toggle).
             // R47: the 'resources' case is retired from MainContent — it
@@ -1475,7 +1482,7 @@ export const App: React.FC = () => {
           // the correct property list. e.g. /gatehouse?firmId=abc123
           const params = new URLSearchParams(window.location.search);
           const firmId = params.get('firmId') || '';
-          return <GatekeeperInterface firmId={firmId} />;
+          return <React.Suspense fallback={<GenericSkeleton />}><GatekeeperInterface firmId={firmId} /></React.Suspense>;
         }
 
         if (!currentUser && !isLoadingSession) {
@@ -1543,12 +1550,12 @@ export const App: React.FC = () => {
             // marketing site instead of returning to the Resources page they
             // came from. `goBack` uses browser history, so visitors correctly
             // return to whatever page launched the legal doc.
-            if (view === 'termsOfService') return <TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
-            if (view === 'portalTermsOfUse') return <PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} />;
-            if (view === 'privacyPolicy') return <PrivacyPolicy onBack={goBack} />;
-            if (view === 'dataProcessingAgreement') return <DataProcessingAgreement onBack={goBack} />;
-            if (view === 'cookiePolicy') return <CookiePolicy onBack={goBack} />;
-            if (view === 'usagePolicy') return <UsagePolicy onBack={goBack} />;
+            if (view === 'termsOfService') return <React.Suspense fallback={<GenericSkeleton />}><TermsOfService onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} /></React.Suspense>;
+            if (view === 'portalTermsOfUse') return <React.Suspense fallback={<GenericSkeleton />}><PortalTermsOfUse onBack={goBack} activeProduct={product === 'property' ? 'atrium' : product === 'legal' ? 'vega' : undefined} /></React.Suspense>;
+            if (view === 'privacyPolicy') return <React.Suspense fallback={<GenericSkeleton />}><PrivacyPolicy onBack={goBack} /></React.Suspense>;
+            if (view === 'dataProcessingAgreement') return <React.Suspense fallback={<GenericSkeleton />}><DataProcessingAgreement onBack={goBack} /></React.Suspense>;
+            if (view === 'cookiePolicy') return <React.Suspense fallback={<GenericSkeleton />}><CookiePolicy onBack={goBack} /></React.Suspense>;
+            if (view === 'usagePolicy') return <React.Suspense fallback={<GenericSkeleton />}><UsagePolicy onBack={goBack} /></React.Suspense>;
             // PUBLIC ROUTE FIX: for unauthenticated visitors, "Start Free Trial"
             // previously navigated to the dashboard — which rendered the
             // LandingPage again, making the page's primary conversion CTAs
@@ -1559,7 +1566,7 @@ export const App: React.FC = () => {
             // your 30-day free trial of PracticePro Atrium today"). The trial
             // CTA now carries that product into the signup modal so the copy
             // and the actual signup match.
-            if (view === 'resources') return <ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} onSwitchProduct={(p) => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')} applyDocumentIdentity />;
+            if (view === 'resources') return <React.Suspense fallback={<GenericSkeleton />}><ResourcesPage onBack={goBack} onPrivacyClick={() => navigateTo('privacyPolicy')} onTermsClick={() => navigateTo('termsOfService')} onCookieClick={() => navigateTo('cookiePolicy')} onDPAClick={() => navigateTo('dataProcessingAgreement')} onUsageClick={() => navigateTo('usagePolicy')} onPortalTermsClick={() => navigateTo('portalTermsOfUse')} onStartTrial={() => openModal('signup', null, { selectedProduct: resourcesProduct })} onContactSales={() => openModal('leadCapture')} activeProduct={resourcesProduct} setActiveProduct={setResourcesProduct} onSwitchProduct={(p: 'vega' | 'atrium') => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')} applyDocumentIdentity /></React.Suspense>;
             // TASK: Native app behavior — when running inside the Capacitor APK,
             // show a clean auth landing screen with permanent Log In + Sign Up buttons.
             // The user explicitly requested:
@@ -1767,7 +1774,7 @@ export const App: React.FC = () => {
         // own product identity (useAppProductIdentity) stays in charge of
         // the tab, so no document-identity prop is passed here.
         if (view === 'resources') {
-            return <ResourcesPage
+            return <React.Suspense fallback={<GenericSkeleton />}><ResourcesPage
                 onBack={goBack}
                 onPrivacyClick={() => navigateTo('privacyPolicy')}
                 onTermsClick={() => navigateTo('termsOfService')}
@@ -1779,8 +1786,8 @@ export const App: React.FC = () => {
                 onContactSales={() => openModal('leadCapture')}
                 activeProduct={resourcesProduct}
                 setActiveProduct={setResourcesProduct}
-                onSwitchProduct={(p) => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')}
-            />;
+                onSwitchProduct={(p: 'vega' | 'atrium') => navigate(p === 'vega' ? '/vega/resources' : '/atrium/resources')}
+            /></React.Suspense>;
         }
 
         return (
@@ -1897,7 +1904,7 @@ export const App: React.FC = () => {
             {/* Onboarding Tour only shown for non-portal users; portal users get a simpler experience */}
             {currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <OnboardingTour />}
             {/* What's New only for admin/firm users, not portal users */}
-            {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <WhatsNew />}
+            {flowState === 'app' && currentUser && currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && <React.Suspense fallback={null}><WhatsNew /></React.Suspense>}
             {/* Cookie banner — LANDING PAGE ONLY (unauthenticated visitors).
                 Suppressed for signed-in users: they explicitly accepted the
                 ToS + Privacy Policy at signup (checkboxes) and the DPA in

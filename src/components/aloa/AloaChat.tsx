@@ -671,7 +671,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
      */
     const searchWebBest = async (query: string): Promise<{ success: boolean; results: any[]; query: string }> => {
         try {
-            const res: any = await convex.action(api.webFetch.searchWeb, { query });
+            // ROUND QA (§3): the web-research proxy is session-gated now.
+            const res: any = await convex.action(api.webFetch.searchWeb, { query, sessionToken: (bearerToken ?? undefined) || undefined });
             if (res?.success && Array.isArray(res.results) && res.results.length > 0) {
                 return { success: true, results: res.results, query };
             }
@@ -1566,7 +1567,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             let result: any = null;
                             // 1. Server-side fetch via Convex (preferred).
                             try {
-                                result = await convex.action(api.webFetch.fetchUrlContent, { url });
+                                result = await convex.action(api.webFetch.fetchUrlContent, { url, sessionToken: (bearerToken ?? undefined) || undefined });
                             } catch (serverErr: any) {
                                 console.warn('[fetch_web_page] server-side fetch failed:', serverErr?.message || serverErr);
                                 result = null;

@@ -116,7 +116,7 @@ describe('buildReceiptContent — resident-facing body', () => {
 
 describe('upsertReceiptNumber — the lost-receipt-number fix', () => {
     it('updates an existing stored row', () => {
-        const periods = [{ index: 1, status: 'paid' }, { index: 2, status: 'paid' }];
+        const periods: Array<{ index: number; status: string; receiptNumber?: string }> = [{ index: 1, status: 'paid' }, { index: 2, status: 'paid' }];
         const next = upsertReceiptNumber(periods, 2, 'RC-1-2');
         expect(next.find(p => p.index === 2)?.receiptNumber).toBe('RC-1-2');
         expect(next.find(p => p.index === 1)?.receiptNumber).toBeUndefined();
@@ -126,7 +126,7 @@ describe('upsertReceiptNumber — the lost-receipt-number fix', () => {
     it('appends (not drops) when the mark has not been persisted yet', () => {
         // The 2026-09-12 bug: a .map()-only write over an array that did not
         // contain the just-marked period silently dropped the receipt number.
-        const periods = [{ index: 1, status: 'paid' }];
+        const periods: Array<{ index: number; status: string; receiptNumber?: string }> = [{ index: 1, status: 'paid' }];
         const next = upsertReceiptNumber(periods, 4, 'RC-2-4');
         expect(next.find(p => p.index === 4)?.receiptNumber).toBe('RC-2-4');
         expect(next).toHaveLength(2);
@@ -134,7 +134,7 @@ describe('upsertReceiptNumber — the lost-receipt-number fix', () => {
     });
 
     it('never mutates the input array (stale-closure safety)', () => {
-        const periods = [{ index: 1, status: 'paid' }];
+        const periods: Array<{ index: number; status: string; receiptNumber?: string }> = [{ index: 1, status: 'paid' }];
         upsertReceiptNumber(periods, 1, 'RC-3-1');
         expect(periods[0].receiptNumber).toBeUndefined();
     });

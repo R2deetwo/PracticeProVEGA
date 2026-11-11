@@ -39,7 +39,7 @@ env:
   # Pre-existing root-tsc technical debt, measured on pristine main at
   # Round 10 (555d73cb). The gate fails when the count EXCEEDS this —
   # drive it down over time, never up.
-  ERROR_BASELINE: "131"
+  ERROR_BASELINE: "94"
 
 jobs:
   quality-gate:

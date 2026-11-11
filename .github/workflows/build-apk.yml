@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      ERROR_BASELINE: "131"
+      ERROR_BASELINE: "94"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

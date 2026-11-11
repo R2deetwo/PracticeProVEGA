@@ -262,7 +262,7 @@ const InviteForm: React.FC<{
         });
         if (conflictCheck.hasConflict) {
           addToast(
-            `Security: This email is already registered as ${conflictCheck.role === 'Admin' ? 'an administrator' : 'a ' + conflictCheck.role.toLowerCase()} account (${conflictCheck.name}). Portal access cannot be granted to internal staff. Please use a different email address.`,
+            `Security: This email is already registered as ${conflictCheck.role === 'Admin' ? 'an administrator' : 'a ' + String(conflictCheck.role ?? 'unknown').toLowerCase()} account (${conflictCheck.name}). Portal access cannot be granted to internal staff. Please use a different email address.`,
             { type: 'error', duration: 8000 }
           );
           setIsSending(false);

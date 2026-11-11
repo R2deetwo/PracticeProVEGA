@@ -57,10 +57,24 @@ function buildTimestamp() {
 // This ensures version.json always exists — whether the build is triggered
 // via `npm run build` (which runs prebuild) or `npx vite build` (which
 // does NOT run prebuild, e.g. in the GH Actions APK workflow).
-function generateVersionManifest() {
+function generateVersionManifest(command: string, env: Record<string, string>) {
   return {
     name: 'generate-version-manifest',
     buildStart() {
+      // ── ROUND QA (§3): the Gemini key must NEVER ship in a build bundle.
+      //    The define block pins the client-visible values to '' — this
+      //    guard makes the failure LOUD if a build machine (or a future CI
+      //    change) sets GEMINI_API_KEY/API_KEY, instead of silently baking
+      //    a platform key into public JS. Dev mode is exempt (local
+      //    experimentation with a personal key stays possible; it never
+      //    reaches a deployed bundle).
+      if (command === 'build' && (env.GEMINI_API_KEY || env.API_KEY)) {
+        throw new Error(
+          '[security] GEMINI_API_KEY/API_KEY is set in the build environment. ' +
+          'Client bundles must not embed AI keys — unset it (per-firm keys ' +
+          'live server-side) or build with --mode development.'
+        );
+      }
       const publicDir = path.join(__dirname, 'public');
       const versionFile = path.join(publicDir, 'version.json');
 
@@ -231,13 +245,13 @@ function preloadCriticalFonts() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, __dirname, '');
 
   return {
     plugins: [
       react(),
-      generateVersionManifest(),
+      generateVersionManifest(command, env),
       // R42: parse-time preloads for the above-fold brand fonts (kills the
       // first-visit font swap on /, /vega and /atrium).
       preloadCriticalFonts(),
@@ -346,14 +360,21 @@ export default defineConfig(({ mode }) => {
       }
     },
     define: {
+      // ── ROUND QA (§3 sensitive-information exposure): the GEMINI key
+      //    channel is CLOSED at build time. The per-firm AI keys live
+      //    server-side (fetched at login via getUserApiKey into memory —
+      //    aiUtils.getGeminiApiKey); nothing legitimately needs a baked-in
+      //    key. If a build machine ever has GEMINI_API_KEY/API_KEY in its
+      //    environment, the guard in generateVersionManifest() fails the
+      //    build instead of silently shipping the key to every browser.
       'process.env': {
-        API_KEY: env.GEMINI_API_KEY || env.API_KEY || '',
+        API_KEY: '',
         VITE_CONVEX_URL: env.VITE_CONVEX_URL || '',
         NODE_ENV: JSON.stringify(mode),
       },
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.API_KEY || ''),
+      'process.env.API_KEY': JSON.stringify(''),
       'process.env.VITE_CONVEX_URL': JSON.stringify(env.VITE_CONVEX_URL || ''),
-      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || ''),
+      'import.meta.env.VITE_GEMINI_API_KEY': JSON.stringify(''),
       // Bake the build SHA into the bundle so the client can compare it
       // against /version.json at runtime to detect new deploys.
       'import.meta.env.VITE_BUILD_SHA': JSON.stringify(gitSha()),

@@ -426,6 +426,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             // silently lost the firm fallback key on every
                             // call.
                             firmGeminiApiKey: (coreState.firmDetails as any)?.aiSettings?.firmGeminiApiKey,
+                            // ROUND QA (§3): the action is session-gated now.
+                            sessionToken: (bearerToken ?? undefined),
                         });
                         // Persist both versions to the backend
                         await saveTranscripts({

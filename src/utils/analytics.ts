@@ -16,7 +16,12 @@
  * that with client-side session tracking, funnels, and retention charts.
  */
 
-import posthog from 'posthog-js';
+// ── ROUND QA (§2 bundle size): posthog-js is ~206 KB minified and was a
+// STATIC import of the eager entry chunk — paid by every visitor on every
+// first paint, even though analytics is DISABLED unless VITE_POSTHOG_KEY is
+// configured (it currently is not). The SDK is now loaded lazily, and only
+// when a key actually exists. All exported functions keep their signatures.
+let posthogModule: typeof import('posthog-js')['default'] | null = null;
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || '';
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
@@ -30,29 +35,43 @@ export function initPostHog() {
         return;
     }
 
-    posthog.init(POSTHOG_KEY, {
-        api_host: POSTHOG_HOST,
-        enabled: isProduction,
-        // Respect Do Not Track
-        opt_out_capturing_by_default: false,
-        // Don't capture personal data that could be sensitive
-        sanitize_properties: (props) => {
-            // Strip any accidentally-included PII from event properties
-            const sanitized = { ...props };
-            delete sanitized.password;
-            delete sanitized.token;
-            delete sanitized.apiKey;
-            return sanitized;
-        },
-        // Autocapture is OFF — we only track explicit events to protect
-        // legal/financial data privacy. Turn on if you want click tracking.
-        autocapture: false,
-        // Session recording OFF — protects user privacy (legal documents)
-        disable_session_recording: true,
-    });
-
-    initialized = true;
-    console.info('[PostHog] Analytics initialized.');
+    // Lazy: the SDK loads off the critical path; events fired before it
+    // resolves are simply dropped (analytics must never block the app).
+    import('posthog-js')
+        .then((mod) => {
+            const posthog = mod.default;
+            posthog.init(POSTHOG_KEY, {
+                api_host: POSTHOG_HOST,
+                enabled: isProduction,
+                // Respect Do Not Track
+                opt_out_capturing_by_default: false,
+                // Don't capture personal data that could be sensitive
+                sanitize_properties: (props) => {
+                    // Strip any accidentally-included PII from event properties
+                    const sanitized = { ...props };
+                    delete sanitized.password;
+                    delete sanitized.token;
+                    delete sanitized.apiKey;
+                    return sanitized;
+                },
+                // Autocapture is OFF — we only track explicit events to protect
+                // legal/financial data privacy. Turn on if you want click tracking.
+                autocapture: false,
+                // Session recording OFF — protects user privacy (legal documents)
+                disable_session_recording: true,
+                loaded: () => {
+                    posthogModule = posthog;
+                    initialized = true;
+                    console.info('[PostHog] Analytics initialized.');
+                },
+            });
+            // Fallback in case `loaded` never fires (older SDK versions).
+            posthogModule = posthog;
+            initialized = true;
+        })
+        .catch((e) => {
+            console.warn('[PostHog] SDK failed to load — analytics stays disabled.', e);
+        });
 }
 
 /**
@@ -63,9 +82,9 @@ export function initPostHog() {
  *   trackEvent('matter_created', { type: 'Civil Litigation', billingModel: 'Retainer' });
  */
 export function trackEvent(event: string, properties?: Record<string, any>) {
-    if (!initialized || !isProduction) return;
+    if (!initialized || !isProduction || !posthogModule) return;
     try {
-        posthog.capture(event, properties);
+        posthogModule.capture(event, properties);
     } catch (e) {
         // Never let analytics crash the app
         console.warn('[PostHog] Failed to track event:', e);
@@ -77,9 +96,9 @@ export function trackEvent(event: string, properties?: Record<string, any>) {
  * Call after login.
  */
 export function identifyUser(userId: string, properties?: { email?: string; name?: string; role?: string }) {
-    if (!initialized || !isProduction) return;
+    if (!initialized || !isProduction || !posthogModule) return;
     try {
-        posthog.identify(userId, properties);
+        posthogModule.identify(userId, properties);
     } catch (e) {
         console.warn('[PostHog] Failed to identify user:', e);
     }
@@ -89,9 +108,9 @@ export function identifyUser(userId: string, properties?: { email?: string; name
  * Reset the user identity on logout.
  */
 export function resetUser() {
-    if (!initialized || !isProduction) return;
+    if (!initialized || !isProduction || !posthogModule) return;
     try {
-        posthog.reset();
+        posthogModule.reset();
     } catch (e) {
         console.warn('[PostHog] Failed to reset user:', e);
     }

@@ -1,6 +1,7 @@
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { resolveUserBySessionToken } from "./sessions";
 
 /**
  * Simple recursive text chunker.
@@ -18,10 +19,36 @@ function chunkText(text: string, size = 1000, overlap = 200): string[] {
 /**
  * Returns all firm docs and notes that need embedding — called from the client.
  * The client fetches this list, generates embeddings for each chunk, and stores them.
+ *
+ * ── ROUND QA (§3 estate isolation): this function was PUBLIC and took ANY
+ * firmId — an anonymous caller who knew (or brute-forced) a firm id could
+ * pull that firm's ENTIRE document + note corpus as plain text. It now
+ * requires a live session whose firmId matches the requested firm.
+ *
+ * It stays a QUERY on purpose: the three client callers invoke it through
+ * ConvexHttpClient.query(), whose /api/query endpoint only executes
+ * queries — and Convex queries cannot write, so a cross-firm attempt is
+ * DENIED (with the reason surfaced) rather than audit-logged. The deny is
+ * the security fix; the anonymous caller never reaches firm data either
+ * way.
  */
 export const getSourcesForIndexing = query({
-    args: { firmId: v.string() },
+    args: { firmId: v.string(), sessionToken: v.optional(v.string()) },
     handler: async (ctx, args) => {
+        const caller = args.sessionToken
+            ? await resolveUserBySessionToken(ctx, args.sessionToken)
+            : null;
+        if (!caller) {
+            throw new Error(
+                "Unauthenticated: a valid session is required to index firm sources."
+            );
+        }
+        if (String(caller.firmId ?? "") !== String(args.firmId)) {
+            throw new Error(
+                "Unauthorized: you may only index sources for your own firm."
+            );
+        }
+
         // Use filter instead of withIndex to avoid the reported server error during collection
         // for these table types in this specific backend context.
         const docs = await ctx.db

@@ -357,8 +357,18 @@ export interface Property {
         autoCreateMaintenanceTask?: boolean;
         automationTemplates?: Record<string, string>;
         latePenaltyRate?: number;
+        /** Per-property VMS override — AND-gated with firm-level portal_settings.vmsEnabled (Convex schema accepts it). */
+        vmsEnabled?: boolean;
     };
     amenities?: string[];
+    // Core Services — per-property Active/Inactive toggles (schema.ts:966).
+    // Inactive services gray out in the Resident Portal. Absent = all active.
+    coreServices?: {
+        serviceCharge?: boolean;
+        electricity?: boolean;
+        internet?: boolean;
+        wasteManagement?: boolean;
+    };
     // Minimum Vend / Estate Fees toggle (property-wide)
     minimumVendEnabled?: boolean;
     minimumVendAmount?: number;

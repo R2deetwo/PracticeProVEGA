@@ -231,12 +231,12 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
             const allUnits = (coreState.properties || [])
                 .filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address))
                 .map(p => {
-                    const rd = p.rentalDetails || {};
+                    const rd = p.rentalDetails || ({} as NonNullable<Property['rentalDetails']>);
                     const rent = Number(rd.rentAmount) || 0;
                     let lf = Number(rd.legalFee) || 0;
                     let af = Number(rd.agencyFee) || 0;
-                    const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
-                    const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
+                    const legalPct = (rd as any).legalFeePercentage !== undefined ? Number((rd as any).legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
+                    const agencyPct = (rd as any).agencyFeePercentage !== undefined ? Number((rd as any).agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
                     // Amount-first healing: legacy rows could be saved with a
                     // percentage but a zero amount (the old % input only
                     // recomputed the amount on rent/pct edits). Reconstruct the
@@ -273,8 +273,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                 const rent = Number(rd.rentAmount) || 0;
                 let lf = Number(rd.legalFee) || 0;
                 let af = Number(rd.agencyFee) || 0;
-                const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
-                const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
+                const legalPct = (rd as any).legalFeePercentage !== undefined ? Number((rd as any).legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 0);
+                const agencyPct = (rd as any).agencyFeePercentage !== undefined ? Number((rd as any).agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 0);
                 // Amount-first healing (see the multi-unit branch above).
                 const scCycleSingle = loadServiceChargeCycle(rd);
                 if (lf === 0 && legalPct > 0 && rent > 0) lf = Math.round(rent * (legalPct / 100));
@@ -401,16 +401,16 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         // Only re-sync if the number of units at this address has changed
         const currentUnits = (coreState.properties || [])
             .filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address)
-                && p.status !== 'Deleted');
+                && String(p.status) !== 'Deleted');
         if (currentUnits.length !== unitsData.length) {
             // Rebuild unitsData from the latest coreState
             const refreshedUnits = currentUnits.map(p => {
-                const rd = p.rentalDetails || {};
+                const rd = p.rentalDetails || ({} as NonNullable<Property['rentalDetails']>);
                 const rent = Number(rd.rentAmount) || 0;
                 const lf = Number(rd.legalFee) || 0;
                 const af = Number(rd.agencyFee) || 0;
-                const legalPct = rd.legalFeePercentage !== undefined ? Number(rd.legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
-                const agencyPct = rd.agencyFeePercentage !== undefined ? Number(rd.agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
+                const legalPct = (rd as any).legalFeePercentage !== undefined ? Number((rd as any).legalFeePercentage) : (rent > 0 && lf ? Math.round((lf / rent) * 100) : 10);
+                const agencyPct = (rd as any).agencyFeePercentage !== undefined ? Number((rd as any).agencyFeePercentage) : (rent > 0 && af ? Math.round((af / rent) * 100) : 10);
                 return {
                     ...rd,
                     id: p.id,

@@ -7,7 +7,6 @@ import { useUI } from './UIContext';
 import { AppState, EMPTY_APP_STATE } from '../types';
 import { ExtendedDataActions, DataActionsContext, DataStateContext } from './DataContext';
 import { v4 as uuidv4 } from 'uuid';
-import { ATRIUM_DEMO_APP_STATE, VEGA_DEMO_APP_STATE } from '../utils/demoData';
 import { readCachedAppState, writeAppStateCache } from '../utils/offlineBoot';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
 
@@ -778,9 +777,14 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     React.useEffect(() => {
         if (isDemo) {
             const isAtrium = currentUser?.product === 'atrium' || window.sessionStorage.getItem('practicepro_demo_product') === 'atrium';
-            setAppState(isAtrium ? ATRIUM_DEMO_APP_STATE : VEGA_DEMO_APP_STATE);
-            setIsDataLoaded(true);
-            setIsFullyLoaded(true);
+            // ROUND QA (§2 bundle size): the demo fixtures (~29 KB) previously
+            // rode the EAGER entry chunk for every production user, though only
+            // demo logins ever need them. Loaded on demand now.
+            import('../utils/demoData').then(({ ATRIUM_DEMO_APP_STATE, VEGA_DEMO_APP_STATE }) => {
+                setAppState(isAtrium ? ATRIUM_DEMO_APP_STATE : VEGA_DEMO_APP_STATE);
+                setIsDataLoaded(true);
+                setIsFullyLoaded(true);
+            });
             return;
         }
 

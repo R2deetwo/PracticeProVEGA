@@ -31,11 +31,18 @@ import { useAuth } from '../../contexts/AuthContext';
 import { SubscriptionPlan } from '../../types';
 import { MODAL_REGISTRY } from '../registry/modalRegistry';
 import { ModalShell } from '../primitives/ModalShell';
-import { SmartMatterModal } from '../../components/forms/SmartMatterModal';
-import { MatterForm } from '../../components/forms/MatterForm';
+// ── ROUND QA (§2 bundle size): the three HEAVIEST forms in the app
+// (PropertyForm ~70 KB, MatterForm ~37 KB, SmartMatterModal ~34 KB)
+// were static imports here — and ModalLayer is statically imported by
+// the entry — so every visitor downloaded ~141 KB of form code that only
+// opens on demand. All three are lazy now (mirroring their entries in
+// modalRegistry, which already lazy-loads the same modules); each render
+// site is wrapped in the existing Suspense skeleton.
+const SmartMatterModal = React.lazy(() => import('../../components/forms/SmartMatterModal').then(m => ({ default: m.SmartMatterModal })));
+const MatterForm = React.lazy(() => import('../../components/forms/MatterForm').then(m => ({ default: m.MatterForm })));
+const PropertyForm = React.lazy(() => import('../../components/forms/PropertyForm').then(m => ({ default: m.default })));
 import TaskForm from '../../components/forms/TaskForm';
 import { TaskDetailModal } from '../../components/modals/TaskDetailModal';
-import PropertyForm from '../../components/forms/PropertyForm';
 import { PropertyOwnerPicker } from '../../components/modals/PropertyOwnerPicker';
 import ContactForm from '../../components/forms/ContactForm';
 import MergeContactModal from '../../components/modals/MergeContactModal';
@@ -222,15 +229,17 @@ export const ModalLayer: React.FC = () => {
 
         if (contact) {
           return (
-            <PropertyForm
-              contact={contact}
-              propertyToEdit={propertyToEdit}
-              activeUnitId={modalContext?.activeUnitId}
-              autoExpandRental={modalContext?.autoExpandRental}
-              autoAddUnit={modalContext?.autoAddUnit}
-              onSave={dataHandlers.onUpdateContactProperties}
-              onClose={closeModal}
-            />
+            <Suspense fallback={<ModalSkeleton />}>
+              <PropertyForm
+                contact={contact}
+                propertyToEdit={propertyToEdit}
+                activeUnitId={modalContext?.activeUnitId}
+                autoExpandRental={modalContext?.autoExpandRental}
+                autoAddUnit={modalContext?.autoAddUnit}
+                onSave={dataHandlers.onUpdateContactProperties}
+                onClose={closeModal}
+              />
+            </Suspense>
           );
         }
         // Shared owner selector (round-4 dedupe with DockedModal).
@@ -250,15 +259,17 @@ export const ModalLayer: React.FC = () => {
         // Enterprise override below) — only non-Enterprise reaches here.
         const matterToEdit = modal === 'editMatter' ? matterState.matters.find(m => m.id === editingId) : undefined;
         return (
-          <MatterForm
-            matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
-            onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
-            onClose={closeModal} matterToEdit={matterToEdit} currentUser={currentUser!} appMode={appMode}
-            handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
-            onNavigate={navigateTo} initialContext={modalContext}
-            openModal={openModal}
-            isCompact={false}
-          />
+          <Suspense fallback={<ModalSkeleton />}>
+            <MatterForm
+              matters={matterState.matters} users={coreState.users} contacts={matterState.contacts} workflows={executionState.workflows}
+              onAddMatter={dataHandlers.onAddMatter} onUpdateMatter={dataHandlers.handleUpdateMatter}
+              onClose={closeModal} matterToEdit={matterToEdit} currentUser={currentUser!} appMode={appMode}
+              handleAddWorkflow={executionActions.handleAddWorkflow} handleAddWorkflowSubCategory={() => {}}
+              onNavigate={navigateTo} initialContext={modalContext}
+              openModal={openModal}
+              isCompact={false}
+            />
+          </Suspense>
         );
       }
       case 'closeMatter': {

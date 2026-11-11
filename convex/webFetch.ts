@@ -14,15 +14,61 @@
  * If the page is behind a paywall, CAPTCHA, or login, the action
  * returns a structured error so the UI can prompt the user to paste
  * the text manually.
+ *
+ * ── ROUND QA (§3 API access): both actions were fully PUBLIC — an
+ * unauthenticated open proxy (fetch ANY url / search as ANYONE) on the
+ * backend's egress. Both now require a live session and are throttled
+ * per user. Private-network hosts are refused (defence in depth; Convex
+ * actions run on shared Google egress, but the proxy should never be
+ * usable as a port-scanner for RFC1918/link-local ranges).
  */
 import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { resolveUserBySessionToken } from "./sessions";
+
+/** Round QA: shared session + throttle gate for both proxy actions. */
+async function requireProxyUser(ctx: any, sessionToken?: string, maxRequests = 20) {
+  const user = sessionToken
+    ? await resolveUserBySessionToken(ctx, sessionToken)
+    : null;
+  if (!user) {
+    throw new Error("Unauthorized: a valid session is required for web research.");
+  }
+  const allowed = await ctx.runMutation(
+    internal.securityHelpers.consumeRateLimit,
+    { key: `web_fetch:${user._id}`, maxRequests }
+  );
+  if (!allowed) {
+    throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+  }
+  return user;
+}
+
+/** Round QA: refuse private/loopback/link-local hosts (SSRF defence). */
+function isPrivateHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal")) return true;
+  if (h === "0.0.0.0" || h === "[::1]" || h === "[::]") return true;
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if (a === 10 || a === 127 || a === 0) return true;                 // loopback + 0.x
+    if (a === 172 && b >= 16 && b <= 31) return true;                  // 172.16/12
+    if (a === 192 && b === 168) return true;                           // 192.168/16
+    if (a === 169 && b === 254) return true;                           // link-local (cloud metadata)
+    if (a >= 224) return true;                                         // multicast/reserved
+  }
+  return false;
+}
 
 export const fetchUrlContent = action({
   args: {
     url: v.string(),
+    sessionToken: v.optional(v.string()),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    await requireProxyUser(ctx, args.sessionToken);
     const { url } = args;
 
     // Validate URL
@@ -34,6 +80,14 @@ export const fetchUrlContent = action({
           success: false,
           error: "INVALID_URL",
           message: "Please provide a valid HTTP or HTTPS URL.",
+        };
+      }
+      // Round QA (§3): never let the proxy reach private/reserved ranges.
+      if (isPrivateHost(parsedUrl.hostname)) {
+        return {
+          success: false,
+          error: "INVALID_URL",
+          message: "That host is not reachable through the web proxy.",
         };
       }
     } catch {
@@ -209,8 +263,10 @@ export const fetchUrlContent = action({
 export const searchWeb = action({
   args: {
     query: v.string(),
+    sessionToken: v.optional(v.string()),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
+    await requireProxyUser(ctx, args.sessionToken);
     const { query } = args;
 
     if (!query || query.trim().length === 0) {

@@ -132,7 +132,11 @@ export const brain = {
         userEmail?: string;
         sessionToken?: string | null;
     }): Promise<{ indexed: number; errors: number }> {
-        const chunks: any[] = await convexQuery(api.brainIngestion.getSourcesForIndexing, { firmId });
+        // ROUND QA (§3): the sources read is session-gated + firm-matched now.
+        const chunks: any[] = await convexQuery(api.brainIngestion.getSourcesForIndexing, {
+            firmId,
+            sessionToken: sessionToken ?? undefined,
+        });
         let indexed = 0;
         let errors = 0;
         for (let i = 0; i < chunks.length; i++) {
