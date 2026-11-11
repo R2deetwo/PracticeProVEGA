@@ -1,11 +1,15 @@
 
 import React, { useState } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
 import { Matter, Invoice, InvoiceStatus, ModalType } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useDataState } from '../../contexts/DataContext';
 import { formatNaira } from '../../utils/formatting';
+import { invoiceTotalAmount, invoiceOutstanding, isOpenInvoiceStatus } from '../../utils/invoiceFinancials';
 import NairaSymbol from '../NairaSymbol';
 import { ScalesIcon, CheckIcon } from '../../constants';
 
@@ -17,30 +21,48 @@ interface ClientBillingTabProps {
 export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invoices }) => {
     const { navigateTo, openModal, addToast } = useUI();
     const { coreState, isDataLoaded } = useCoreState();
+    const { currentUser, bearerToken } = useAuth();
+    const sendPortalMessage = useMutation(api.portals.sendPortalMessage);
     const [processingId, setProcessingId] = useState<string | null>(null);
 
-    const outstandingInvoices = invoices.filter(inv => inv.status === InvoiceStatus.Unpaid || inv.status === InvoiceStatus.Overdue);
+    // V2 (V-FIN-1/9): the ONE open-status definition — includes Sent and
+    // Partially Paid (the pre-V2 filter hid sent invoices the client
+    // genuinely owes, and partial payments vanished from the list).
+    const outstandingInvoices = invoices.filter(inv => isOpenInvoiceStatus(inv.status));
     const paidInvoices = invoices.filter(inv => inv.status === InvoiceStatus.Paid).sort((a, b) => new Date(b.paidDate!).getTime() - new Date(a.paidDate!).getTime());
     const lastReceipt = paidInvoices[0];
     
-    const handlePaymentClick = (id: string, amount: number, type: 'invoice', title: string) => {
+    const handlePaymentClick = (inv: Invoice) => {
+        const amount = invoiceOutstanding(inv as any) || invoiceTotalAmount(inv as any);
+        const invoiceLabel = inv.invoiceNumber || inv.id;
+        // V2 (V-FIN-12): the confirm step performs a REAL portal-message
+        // notification to the firm — the pre-VOS confirm was a setTimeout
+        // that claimed "Payment confirmation submitted" while submitting
+        // NOTHING. The client never marks an invoice paid; the firm
+        // confirms after verifying the transfer.
         openModal('paymentGateway', null, {
             amount: amount,
-            title: `Pay Invoice #${title}`,
-            description: 'Professional Legal Services',
+            title: `Invoice #${invoiceLabel}`,
+            description: 'Payment instructions',
+            invoiceId: inv.id,
+            // The firm's real bank details for this invoice (projected
+            // server-side) — portal users have no firm settings to read.
+            bankDetailsOverride: (inv as any).paymentDetails ?? null,
+            onPaymentReport: async () => {
+                await sendPortalMessage({
+                    firmId: currentUser?.firmId || (inv as any).firmId || '',
+                    senderId: currentUser?.id || '',
+                    senderName: currentUser?.name || 'Client',
+                    senderEmail: currentUser?.email || '',
+                    senderRole: 'Client',
+                    subject: `Payment Notification: ${invoiceLabel}`,
+                    content: `I have made a payment of ${formatNaira(amount)} for invoice "${invoiceLabel}". Please confirm receipt and update the invoice status.\n\n- Invoice total: ${formatNaira(invoiceTotalAmount(inv as any))}\n- Due date: ${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}\n- Status: ${inv.status}\n\nThank you.`,
+                    sessionToken: bearerToken ?? undefined,
+                });
+                setProcessingId(null);
+            },
             onConfirm: () => {
-                setProcessingId(id);
-                // TRUST MODEL FIX: Do NOT auto-flip invoice to Paid here.
-                // Previously, this called handlePayInvoice(id) after a 500ms timeout,
-                // which untrustedly marked the invoice as Paid from the client side.
-                // Now, the client only confirms the bank transfer was made — the firm
-                // must verify and mark as Paid manually (or via Paystack webhook when
-                // Paystack is activated). This prevents clients from self-marking
-                // invoices as paid without verification.
-                setTimeout(() => {
-                    setProcessingId(null);
-                    addToast("Payment confirmation submitted. Your firm will verify the transfer and mark the invoice as paid.", { type: 'success' });
-                }, 500);
+                setProcessingId(inv.id);
             }
         });
     };
@@ -52,7 +74,10 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
                 {outstandingInvoices.length > 0 ? (
                     <ul className="space-y-3">
                         {outstandingInvoices.map(inv => {
-                            const total = (inv.lineItems || []).reduce((s, li) => s + li.total, 0);
+                            // V2: the ONE total definition (the pre-V2 line-item
+                            // sum ignored VAT and the persisted total).
+                            const total = invoiceTotalAmount(inv as any);
+                            const stillOwing = invoiceOutstanding(inv as any);
                             return (
                                 <li key={inv.id} className="p-3 bg-slate-50 dark:bg-zinc-700/50 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4">
                                     <div>
@@ -62,16 +87,19 @@ export const ClientBillingTab: React.FC<ClientBillingTabProps> = ({ matter, invo
                                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                                         <div className="text-right">
                                             <p className="font-bold text-lg text-slate-900 dark:text-white"><NairaSymbol/>{formatNaira(total)}</p>
+                                            {stillOwing > 0 && stillOwing !== total && (
+                                                <p className="text-2xs text-amber-600 dark:text-amber-400 font-semibold"><NairaSymbol/>{formatNaira(stillOwing)} remaining</p>
+                                            )}
                                             <p className={`text-xs font-semibold ${inv.status === 'Overdue' ? 'text-red-500' : 'text-yellow-600'}`}>{inv.status}</p>
                                         </div>
                                          <button 
-                                            onClick={() => handlePaymentClick(inv.id, total, 'invoice', inv.invoiceNumber)}
+                                            onClick={() => handlePaymentClick(inv)}
                                             disabled={!!processingId}
                                             className="px-4 py-2 bg-primary-600 text-white rounded-lg font-bold text-sm hover:bg-primary-700 disabled:opacity-50 transition-all w-28 flex justify-center"
                                         >
                                             {processingId === inv.id ? (
-                                                <span className="animate-pulse">Paying...</span>
-                                            ) : 'Pay Now'}
+                                                <span className="animate-pulse">Opening...</span>
+                                            ) : 'Payment Details'}
                                         </button>
                                     </div>
                                 </li>

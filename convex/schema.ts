@@ -477,6 +477,23 @@ export default defineSchema({
     voidReason: v.optional(v.string()),
     auditId: v.optional(v.string()),
     priorStatus: v.optional(v.string()),    // status before void — enables a faithful reinstate
+    // ─── V2 FINANCIAL TRUTH (2026-11-11): the one tax contract ────────
+    // Every money figure is computed SERVER-SIDE from lineItems + these
+    // flags (convex/invoiceFinancials.computeInvoiceTotals); client-passed
+    // subTotal/taxAmount/total_amount are never authoritative. taxRate and
+    // withholdingRate are PERCENTAGES (7.5 = 7.5%). taxApplicable=false is a
+    // NON-TAXABLE supply; taxApplicable=true with taxRate=0 is EXPLICIT
+    // ZERO-RATING — two different financial statements, both persisted.
+    // amountPaid accumulates payments recorded through the audited
+    // recordInvoicePayment lifecycle (partial payments are visible in
+    // outstanding = total_amount − amountPaid).
+    taxApplicable: v.optional(v.boolean()),
+    taxRate: v.optional(v.number()),              // percent actually applied
+    withholdingApplicable: v.optional(v.boolean()),
+    withholdingRate: v.optional(v.number()),      // percent actually applied
+    withholdingAmount: v.optional(v.number()),
+    netReceivable: v.optional(v.number()),        // total_amount − withholdingAmount
+    amountPaid: v.optional(v.number()),           // payments recorded (kobo-summed)
   }).index("by_firm", ["firmId"]).index("by_custom_id", ["id"]).index("by_provider_reference", ["providerReference"]).index("by_record_status", ["recordStatus"]),
 
   events: defineTable({
@@ -2419,11 +2436,24 @@ export default defineSchema({
     frequency: v.optional(v.string()),     // Weekly | Monthly | Quarterly | Bi-Annually | Annually
     scheduledFor: v.string(),             // ISO datetime — when the staged draft should auto-advance to Queued
     stagedAt: v.string(),                 // ISO datetime — when the cron created this entry
-    sentAt: v.optional(v.string()),
+    // ─── V2 RETAINER HONESTY (V-FIN-3/5) ────────────────────────────
+    // A staged entry is PENDING REVIEW: it is never auto-issued. The cron
+    // only advances entries a lawyer explicitly approved. reviewDueBy is
+    // advisory (the review window's display deadline), NOT a send trigger.
+    reviewDueBy: v.optional(v.string()),
+    approvedAt: v.optional(v.string()),
+    approvedBy: v.optional(v.string()),
+    // Truthful delivery record: 'emailed' only when the gateway confirmed
+    // (messageId stored); 'not_emailed' when the invoice was issued without
+    // a confirmed email (no gateway configured / not attempted).
+    deliveryStatus: v.optional(v.string()),   // 'emailed' | 'not_emailed'
+    emailMessageId: v.optional(v.string()),
+    issuedAt: v.optional(v.string()),         // when the invoice row was created
+    sentAt: v.optional(v.string()),           // ONLY when email delivery was CONFIRMED
     failedAt: v.optional(v.string()),
     pausedAt: v.optional(v.string()),
     skippedAt: v.optional(v.string()),
-    state: v.string(),                    // Staged | Queued | Sent | Failed | Paused | Skipped
+    state: v.string(),                    // Staged | Queued | Issued | Sent | Failed | Paused | Skipped
     failureReason: v.optional(v.string()),
     subTotal: v.optional(v.number()),
     taxAmount: v.optional(v.number()),
@@ -2587,6 +2617,8 @@ export default defineSchema({
       v.literal("deposit"),              // money received into trust
       v.literal("withdrawal"),           // money paid out of trust
       v.literal("transfer"),             // transfer to operating account
+      v.literal("reversal"),             // V2: explicit contra entry — inverts
+                                          // the transaction it references
     ),
     amount: v.number(),
     description: v.string(),             // what was this for?
@@ -2594,13 +2626,26 @@ export default defineSchema({
     recordedBy: v.optional(v.string()),  // userId
     recordedByName: v.optional(v.string()),
     balanceAfter: v.number(),            // running balance after this transaction
+    // ─── V2 TRUST INTEGRITY (V-FIN-8/13) ─────────────────────────────
+    // Idempotency: a client-supplied stable key (the offline queue always
+    // sends one). A replay of the same submission returns the ORIGINAL
+    // transaction instead of booking a second row — offline replay is safe.
+    idempotencyKey: v.optional(v.string()),
+    // Explicit reversals (never silent edits): a 'reversal' row points at
+    // the transaction it undoes; the undone row carries reversedAt/By and
+    // keeps every original field untouched. History is immutable.
+    reversalOf: v.optional(v.string()),   // on the reversal row: original tx id
+    reversalReason: v.optional(v.string()),
+    reversedAt: v.optional(v.number()),   // on the original row: when reversed
+    reversedBy: v.optional(v.string()),   // on the original row: who reversed
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_firm",            ["firmId"])
     .index("by_matter",          ["matterId"])
     .index("by_firm_created",    ["firmId", "createdAt"])
-    .index("by_type",            ["type"]),
+    .index("by_type",            ["type"])
+    .index("by_idempotency",     ["idempotencyKey"]),
 
   // ─── Terms Acceptance Records (NDPA §25 demonstrable consent) ───────
   // Stores a durable, server-side record every time a user accepts the

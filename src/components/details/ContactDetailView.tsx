@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { invoiceTotalAmount } from '../../utils/invoiceFinancials';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { Contact, Matter, ModalType, AppMode, User, MatterType, Property, ContactType } from '../../types';
@@ -104,7 +105,7 @@ const ActivityTimeline: React.FC<{ contactId: string; matters: Matter[] }> = ({ 
                     id: `invoice-${inv.id}`,
                     type: 'invoice',
                     title: `Invoice: ${inv.invoiceNumber || '—'}`,
-                    subtitle: `${inv.status} · ₦${(inv.total_amount || 0).toLocaleString()}`,
+                    subtitle: `${inv.status} · ₦${invoiceTotalAmount(inv).toLocaleString()}`,
                     timestamp: inv.issueDate || inv.createdAt || new Date().toISOString(),
                     icon: 'I',
                 });

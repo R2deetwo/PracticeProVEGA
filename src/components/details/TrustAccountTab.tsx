@@ -23,6 +23,7 @@ import { PlusIcon, TrashIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
 import { useMemo } from 'react';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { Button } from '../ui';
 import NairaSymbol from '../NairaSymbol';
 
 // Inline arrow icons (not all available in constants)
@@ -52,18 +53,21 @@ const TrustDeleteReasonModal: React.FC<{
     tx: any;
     onClose: () => void;
     onConfirm: (reason: string) => Promise<void>;
-}> = ({ tx, onClose, onConfirm }) => {
+    mode?: 'delete' | 'reverse';
+}> = ({ tx, onClose, onConfirm, mode = 'delete' }) => {
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    const isReverse = mode === 'reverse';
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={busy ? undefined : onClose}>
             <div className="bg-white dark:bg-zinc-800 rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Delete trust transaction?</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{isReverse ? 'Reverse trust transaction?' : 'Delete trust transaction?'}</h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
-                    Deleting a trust transaction recalculates every later running balance. The full before-state is
-                    preserved in the financial audit log, and the reason below becomes part of that permanent record.
+                    {isReverse
+                        ? 'A reversal books a contra entry beside the original (which keeps every field, marked reversed) and nets the two to zero in every balance. The reason below becomes part of the permanent audit record. Nothing is edited or deleted — this is the accounting-correct correction.'
+                        : 'Deleting a trust transaction recalculates every later running balance. The full before-state is preserved in the financial audit log, and the reason below becomes part of that permanent record. Prefer Reverse — it corrects the books without deleting history.'}
                 </p>
                 <div className="bg-slate-50 dark:bg-zinc-700/50 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-zinc-300 mb-4 flex items-center justify-between">
                     <span className="capitalize">{tx.type} · {tx.clientName || 'General'}</span>
@@ -92,9 +96,9 @@ const TrustDeleteReasonModal: React.FC<{
                             await onConfirm(clean);
                             setBusy(false);
                         }}
-                        className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold disabled:opacity-50"
+                        className={`flex-1 py-2.5 text-white rounded-lg text-sm font-bold disabled:opacity-50 ${isReverse ? 'bg-amber-600 hover:bg-amber-700' : 'bg-rose-600 hover:bg-rose-700'}`}
                     >
-                        {busy ? 'Deleting…' : 'Delete Transaction'}
+                        {busy ? (isReverse ? 'Reversing…' : 'Deleting…') : (isReverse ? 'Reverse Transaction' : 'Delete Transaction')}
                     </button>
                 </div>
             </div>
@@ -116,6 +120,7 @@ const TrustAccountTab: React.FC = () => {
     // running balance, so the backend now requires a REASON and snapshots
     // the full before-state into the financial audit log. This modal
     // captures that reason (never a bare confirm-tap).
+    const [reverseReasonFor, setReverseReasonFor] = useState<any | null>(null);
     const [deleteReasonFor, setDeleteReasonFor] = useState<any | null>(null);
 
     // ─── Queries ────────────────────────────────────────────────────────
@@ -148,13 +153,24 @@ const TrustAccountTab: React.FC = () => {
         const scopeKey = (tx: any) =>
             (tx.matterId ? `m:${tx.matterId}` : tx.clientName ? `c:${tx.clientName.toLowerCase()}` : null);
         const running = new Map<string, number>();
+        // Lookup for reversals: a reversal inverts the ORIGINAL's effect.
+        const byId = new Map(list.map((tx: any) => [String(tx._id), tx]));
         // Chronological pass (query returns desc — iterate reversed)
         for (let i = list.length - 1; i >= 0; i--) {
             const tx = list[i];
             const key = scopeKey(tx);
             if (!key) continue;
             const prev = running.get(key) ?? 0;
-            const next = tx.type === 'deposit' ? prev + Number(tx.amount || 0) : prev - Number(tx.amount || 0);
+            let delta: number;
+            if (tx.type === 'reversal') {
+                // V2: contra entry — the inverse of the transaction it undoes.
+                const original = tx.reversalOf ? byId.get(String(tx.reversalOf)) : null;
+                const amt = Number(original?.amount ?? (tx.amount || 0));
+                delta = original?.type === 'deposit' ? -amt : amt;
+            } else {
+                delta = tx.type === 'deposit' ? Number(tx.amount || 0) : -Number(tx.amount || 0);
+            }
+            const next = prev + delta;
             running.set(key, next);
             tx.clientBalanceAfter = next;
         }
@@ -164,7 +180,19 @@ const TrustAccountTab: React.FC = () => {
     // ─── Mutations ──────────────────────────────────────────────────────
     const recordTransaction = useMutation(api.trustAccount.recordTrustTransaction);
     const deleteTransaction = useMutation(api.trustAccount.deleteTrustTransaction);
+    // V2 (V-FIN-8/13): the explicit, audited reversal — a contra entry, never
+    // an edit of history.
+    const reverseTransaction = useMutation(api.trustAccount.reverseTrustTransaction);
     const { queueMutation, isOnline } = useOfflineQueue();
+
+    // V2 (V-FIN-8/13): one idempotency key per user action, shared by the
+    // online call and the offline-queue copy — a replay of either (double
+    // tap, reconnect retry, offline replay) returns the ORIGINAL trust
+    // transaction instead of booking a second row.
+    const makeTrustKey = () =>
+        (typeof crypto !== 'undefined' && crypto.randomUUID)
+            ? `trust:${crypto.randomUUID()}`
+            : `trust:${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     const matters = matterState.matters || [];
 
@@ -216,6 +244,7 @@ const TrustAccountTab: React.FC = () => {
                             // A dropped trust deposit entry is a compliance
                             // issue (NDPA 2023 / fiduciary accounting), not
                             // just a UX inconvenience. Queue when offline.
+                            const idempotencyKey = makeTrustKey();
                             if (!isOnline) {
                                 queueMutation({
                                     mutationName: 'recordTrustTransaction',
@@ -229,6 +258,7 @@ const TrustAccountTab: React.FC = () => {
                                         reference: data.reference,
                                         recordedBy: currentUser?.id,
                                         recordedByName: currentUser?.name,
+                                        idempotencyKey,
                                     },
                                     label: `Trust deposit — ${formatNaira(data.amount)}${data.clientName ? ` from ${data.clientName}` : ''}`,
                                 });
@@ -248,6 +278,7 @@ const TrustAccountTab: React.FC = () => {
                                 reference: data.reference,
                                 recordedBy: currentUser?.id,
                                 recordedByName: currentUser?.name,
+                                idempotencyKey,
                             });
                             addToast('Trust deposit recorded.', { type: 'success' });
                             setShowDepositForm(false);
@@ -269,6 +300,7 @@ const TrustAccountTab: React.FC = () => {
                             // OFFLINE PATH — same fiduciary-compliance concern
                             // as deposits. A withdrawal that isn't recorded
                             // looks like missing funds to an auditor later.
+                            const idempotencyKey = makeTrustKey();
                             if (!isOnline) {
                                 queueMutation({
                                     mutationName: 'recordTrustTransaction',
@@ -282,6 +314,7 @@ const TrustAccountTab: React.FC = () => {
                                         reference: data.reference,
                                         recordedBy: currentUser?.id,
                                         recordedByName: currentUser?.name,
+                                        idempotencyKey,
                                     },
                                     label: `Trust ${data.transferToOperating ? 'transfer' : 'withdrawal'} — ${formatNaira(data.amount)}${data.clientName ? ` for ${data.clientName}` : ''}`,
                                 });
@@ -301,6 +334,7 @@ const TrustAccountTab: React.FC = () => {
                                 reference: data.reference,
                                 recordedBy: currentUser?.id,
                                 recordedByName: currentUser?.name,
+                                idempotencyKey,
                             });
                             addToast('Trust withdrawal recorded.', { type: 'success' });
                             setShowWithdrawalForm(false);
@@ -328,11 +362,13 @@ const TrustAccountTab: React.FC = () => {
                                 }`}>
                                     {tx.type === 'deposit' ? <ArrowDownIcon className="w-4 h-4" />
                                     : tx.type === 'transfer' ? <ArrowRightIcon className="w-4 h-4" />
+                                    : tx.type === 'reversal' ? <ArrowUpIcon className="w-4 h-4 rotate-45" />
                                     : <ArrowUpIcon className="w-4 h-4" />}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-slate-900 dark:text-white capitalize">{tx.type}</span>
+                                        <span className={`text-sm font-semibold capitalize ${tx.reversedAt ? 'text-slate-400 dark:text-zinc-500 line-through' : 'text-slate-900 dark:text-white'}`}>{tx.type}</span>
+                                        {tx.reversedAt && <span className="px-1.5 py-0.5 rounded text-2xs font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">reversed</span>}
                                         {tx.clientName && <span className="text-xs text-slate-400 truncate">· {tx.clientName}</span>}
                                     </div>
                                     <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">{tx.description}</p>
@@ -352,12 +388,29 @@ const TrustAccountTab: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                <button
-                                    onClick={() => setDeleteReasonFor(tx)}
-                                    className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
-                                >
-                                    <TrashIcon className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                                    {/* V2 (V-FIN-8): the accounting-correct correction — an
+                                        explicit, audited contra entry. Never an edit of history. */}
+                                    {!tx.reversedAt && tx.type !== 'reversal' && (
+                                        <Button
+                                            variant="bare"
+                                            onClick={() => setReverseReasonFor(tx)}
+                                            title="Reverse this transaction (audited contra entry)"
+                                            className="p-1.5 text-slate-300 hover:text-amber-500 rounded-lg transition-colors"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v6h6M21 17a9 9 0 00-15-6.7L3 13" />
+                                            </svg>
+                                        </Button>
+                                    )}
+                                    <Button
+                                        variant="bare"
+                                        onClick={() => setDeleteReasonFor(tx)}
+                                        className="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg transition-colors"
+                                    >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                    </Button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -391,6 +444,32 @@ const TrustAccountTab: React.FC = () => {
                         setDeleteReasonFor(null);
                     } catch (err: any) {
                         addToast(err.message || 'Failed to delete.', { type: 'error', duration: 7000 });
+                    }
+                }}
+            />
+        )}
+
+        {/* V2 (V-FIN-8): the explicit reversal flow. A contra entry is booked
+            beside the original (which keeps every field), a reason is
+            required, and both land in the financial audit log. Nothing is
+            edited or deleted. */}
+        {reverseReasonFor && (
+            <TrustDeleteReasonModal
+                tx={reverseReasonFor}
+                mode="reverse"
+                onClose={() => setReverseReasonFor(null)}
+                onConfirm={async (reason) => {
+                    try {
+                        await reverseTransaction({
+                            transactionId: reverseReasonFor._id,
+                            reason,
+                            userEmail: currentUser?.email,
+                            sessionToken: (bearerToken ?? undefined),
+                        });
+                        addToast('Transaction reversed — the contra entry and reason are recorded in the audit log.', { type: 'success', duration: 6000 });
+                        setReverseReasonFor(null);
+                    } catch (err: any) {
+                        addToast(err.message || 'Failed to reverse.', { type: 'error', duration: 7000 });
                     }
                 }}
             />

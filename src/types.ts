@@ -11,7 +11,7 @@ export const TaskStatusValues = [TaskStatus.Todo, TaskStatus.InProgress, TaskSta
 export enum TaskPriority { High = 'High', Medium = 'Medium', Low = 'Low' }
 export enum MatterStatus { Active = 'Active', Closed = 'Closed', Archived = 'Archived' }
 export enum MatterType { CivilLitigation = 'Civil Litigation', CriminalDefense = 'Criminal Defense', CorporateCommercial = 'Corporate & Commercial', RealEstate = 'Real Estate', FamilyLaw = 'Family Law', IntellectualProperty = 'Intellectual Property', Immigration = 'Immigration', EmploymentLabor = 'Employment & Labor', Tax = 'Tax Law', MaritimeAdmiralty = 'Maritime & Admiralty', OilGas = 'Oil & Gas', Other = 'Other' }
-export enum InvoiceStatus { Draft = 'Draft', Sent = 'Sent', Paid = 'Paid', Overdue = 'Overdue', Unpaid = 'Unpaid', Reversed = 'Reversed', Void = 'Void' }
+export enum InvoiceStatus { Draft = 'Draft', Sent = 'Sent', Paid = 'Paid', PartiallyPaid = 'Partially Paid', Overdue = 'Overdue', Unpaid = 'Unpaid', Reversed = 'Reversed', Void = 'Void' }
 
 // Financial record lifecycle fields (accounting-integrity round) — present
 // on invoices and ledger rows that have been voided or test-quarantined.
@@ -54,9 +54,10 @@ export enum BillingFrequency {
  * - Paused: Manually frozen for editing
  */
 export enum InvoiceOutboxState {
-  Staged = 'Staged',
-  Queued = 'Queued',
-  Sent = 'Sent',
+  Staged = 'Staged',       // V2: pending lawyer review — never auto-issued
+  Queued = 'Queued',       // approved by a lawyer — issuing
+  Issued = 'Issued',       // V2: invoice created, email NOT confirmed
+  Sent = 'Sent',           // V2: email delivery CONFIRMED by the gateway
   Failed = 'Failed',
   Skipped = 'Skipped',
   Paused = 'Paused',
@@ -405,7 +406,7 @@ export interface CalendarEvent {
     createdAt?: string;
 }
 export interface InvoiceLineItem { id: string; description: string; hours: number; rate: number; total: number; timeEntryId?: string; expenseId?: string; }
-export interface Invoice extends FinancialLifecycleFields { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; provider?: 'manual' | 'paystack'; providerReference?: string; paymentMethod?: string; }
+export interface Invoice extends FinancialLifecycleFields { id: string; firmId: string; invoiceNumber: string; client: { id: string; name: string; }; matter: { id: string; title: string; }; lineItems: InvoiceLineItem[]; status: InvoiceStatus; issueDate: string; dueDate: string; paidDate?: string; paymentDetails: BankAccount; subTotal: number; taxAmount: number; total_amount?: number; provider?: 'manual' | 'paystack'; providerReference?: string; paymentMethod?: string; /** V2 tax contract: percent semantics (7.5 = 7.5%). taxApplicable=false is a non-taxable supply; taxRate=0 is explicit zero-rating. */ taxApplicable?: boolean; taxRate?: number; withholdingApplicable?: boolean; withholdingRate?: number; withholdingAmount?: number; netReceivable?: number; /** V2: payments recorded through the audited lifecycle (outstanding = total_amount − amountPaid). */ amountPaid?: number; }
 export interface TimeEntry { id: string; firmId: string; matterId: string; user_id: string; date: string; duration: number; rate: number; description: string; billable: boolean; billedInInvoiceId?: string | null; }
 export interface Expense { id: string; firmId: string; matterId: string; date: string; amount: number; description: string; isBillable: boolean; billedInInvoiceId?: string | null; taxDeductibility?: { isDeductible: boolean; reason: string; }; }
 export interface NoteNotebook { id: string; firmId?: string; userId?: string; name: string; color: string; scope: NoteScope; isCore?: boolean; matterId?: string; }
@@ -638,7 +639,10 @@ export interface DataActionsContextType {
     handleDeleteTimeEntry: (id: string, desc: string) => void;
     handleDeleteExpense: (id: string, desc: string) => void;
     handleSendInvoiceReminder: (id: string) => void;
-    handleRevertPayment: (id: string) => void;
+    /** V2 (V-FIN-7): audited payment revert — reason required, recorded in the financial audit log. */
+    handleRevertPayment: (id: string, reason: string) => void;
+    /** V2 (V-FIN-9): audited payment recording — supports partial payments ('Partially Paid' until settled). */
+    handleRecordInvoicePayment: (id: string, amount: number, opts?: { paymentMethod?: string; reference?: string; note?: string; paymentDate?: string }) => Promise<any>;
     /** Audited invoice retirement (accounting-integrity round) — reason becomes part of the financial audit log. */
     handleVoidInvoice: (id: string, reason: string) => void;
     /** Audited restoration of a voided invoice to its prior status. */

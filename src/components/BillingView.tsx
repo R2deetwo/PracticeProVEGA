@@ -7,6 +7,7 @@ import Tooltip from './Tooltip';
 // SIMPLIFY FIX: StatCard import removed with the duplicate KPI row.
 import { formatNaira } from '../utils/formatting';
 import { isActiveFinancialRecord } from '../utils/financialLifecycle';
+import { computeClientFinancialSummary, invoiceOutstanding, invoiceTotalAmount } from '../utils/invoiceFinancials';
 import NairaSymbol from './NairaSymbol';
 import { useHighlight } from '../hooks/useHighlight';
 import { useUI } from '../contexts/UIContext';
@@ -48,6 +49,7 @@ import { PaymentProofsScreen } from './atrium/PaymentProofsScreen';
 const getStatusBadgeClass = (status: InvoiceStatus) => {
     switch (status) {
         case InvoiceStatus.Paid: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+        case InvoiceStatus.PartiallyPaid: return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300';
         case InvoiceStatus.Unpaid: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
         case InvoiceStatus.Overdue: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
         case InvoiceStatus.Reversed: return 'bg-dim-100 text-dim-500 dark:bg-dim-700 dark:text-dim-400 line-through';
@@ -62,23 +64,30 @@ const getStatusBadgeClass = (status: InvoiceStatus) => {
 // invoice — the record stays for forensics, excluded from all totals.
 const VoidInvoiceModal: React.FC<{
     invoice: Invoice;
-    mode: 'void' | 'reinstate';
+    mode: 'void' | 'reinstate' | 'revert';
     onClose: () => void;
     onConfirm: (id: string, reason: string) => void;
 }> = ({ invoice, mode, onClose, onConfirm }) => {
     const [reason, setReason] = useState('');
     const [error, setError] = useState('');
     const isVoid = mode === 'void';
+    const isRevert = mode === 'revert';
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
             <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
-                    {isVoid ? <><Ban className="w-5 h-5 text-rose-500" /> Void invoice {invoice.invoiceNumber}?</> : <><Undo2 className="w-5 h-5 text-emerald-500" /> Reinstate invoice {invoice.invoiceNumber}?</>}
+                    {isVoid
+                        ? <><Ban className="w-5 h-5 text-rose-500" /> Void invoice {invoice.invoiceNumber}?</>
+                        : isRevert
+                            ? <><Undo2 className="w-5 h-5 text-amber-500" /> Revert payment on {invoice.invoiceNumber}?</>
+                            : <><Undo2 className="w-5 h-5 text-emerald-500" /> Reinstate invoice {invoice.invoiceNumber}?</>}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed mb-4">
                     {isVoid
                         ? 'Voiding keeps the invoice in the books for the audit trail but excludes it from every total (collected, outstanding, counts). This is the accounting-correct way to retire a booked invoice — nothing is deleted.'
-                        : 'Restores the invoice to the status it had before it was voided. Both the void and this reinstatement stay in the audit trail.'}
+                        : isRevert
+                            ? 'Records that the payment(s) on this invoice should not have been recorded: the invoice returns to unpaid, the recorded payment amount is cleared, and the full before/after lands in the financial audit log. (This does NOT create a credit note and does not unbill time or expenses.)'
+                            : 'Restores the invoice to the status it had before it was voided. Both the void and this reinstatement stay in the audit trail.'}
                 </p>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-300 mb-1.5">
                     Reason <span className="text-rose-500">(required — part of the audit trail)</span>
@@ -88,7 +97,11 @@ const VoidInvoiceModal: React.FC<{
                     rows={3}
                     value={reason}
                     onChange={(e) => { setReason(e.target.value); if (error) setError(''); }}
-                    placeholder={isVoid ? 'e.g. Issued to the wrong client in error' : 'e.g. Client paid after all — verified against bank statement'}
+                    placeholder={isVoid
+                        ? 'e.g. Issued to the wrong client in error'
+                        : isRevert
+                            ? 'e.g. Payment recorded on the wrong invoice — client paid INV-0009 instead'
+                            : 'e.g. Client paid after all — verified against bank statement'}
                     className="w-full border border-slate-300 dark:border-zinc-600 dark:bg-zinc-700 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
                 />
                 {error && <p className="text-xs text-rose-500 mt-1.5">{error}</p>}
@@ -215,31 +228,46 @@ const InvoiceMobileCard: React.FC<{
 
 
 // Sub-component for the main invoice list logic
-const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleVoidInvoice, closeModal, openConfirmationModal }) => {
+const InvoicesContent: React.FC<{ invoices: Invoice[], openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleRecordInvoicePayment: any, onRevertPaymentRequest: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleRecordInvoicePayment, onRevertPaymentRequest, handleVoidInvoice, closeModal, openConfirmationModal }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useHighlight(containerRef, 'billing');
     const [filter, setFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState<'All' | InvoiceStatus>('All');
     const { isProperty } = useProduct();
 
+    // V2 (V-FIN-7/9): mark-paid records a REAL payment through the audited
+    // lifecycle (financialIntegrity.recordInvoicePayment) — an amount, a
+    // method and an audit-trail entry — instead of a bare status flip. The
+    // recorded amount is what is actually outstanding on the invoice, so a
+    // partially-paid invoice settles only its remainder.
     const onMarkAsPaid = (id: string) => {
+        const invoice = (invoices || []).find((i) => i.id === id);
+        const outstanding = invoice ? invoiceOutstanding(invoice as any) : 0;
         openConfirmationModal('deleteConfirmation', id, {
-            title: 'Confirm Payment?',
-            message: `This will mark the invoice as paid.`,
-            onConfirm: () => { handleUpdateInvoiceStatus(id, InvoiceStatus.Paid); closeModal(); },
-            confirmText: 'Confirm Payment',
+            title: 'Record Full Payment?',
+            message: outstanding > 0
+                ? `This records a payment of ${formatNaira(outstanding)} against the invoice (bank transfer / cash confirmation) with a permanent audit-trail entry, and marks it Paid.`
+                : `This marks the invoice as Paid with a permanent audit-trail entry.`,
+            onConfirm: async () => {
+                try {
+                    await handleRecordInvoicePayment(id, outstanding > 0 ? outstanding : (invoice ? invoiceTotalAmount(invoice as any) : 0), {
+                        paymentMethod: 'manual',
+                        note: 'Full payment confirmed from Billing list',
+                    });
+                } catch { /* the hook toasts the failure */ }
+                closeModal();
+            },
+            confirmText: 'Record Payment',
             confirmButtonClass: 'bg-green-600 hover:bg-green-700'
         });
     };
 
+    // V2 (V-FIN-7): the revert is AUDITED and requires a reason — the
+    // pre-V2 flow flipped the status to 'Reversed' with zero record (and
+    // the detail view's dialog promised a credit note that never existed).
     const onRevert = (id: string) => {
-        openConfirmationModal('deleteConfirmation', id, {
-            title: 'Revert Payment?',
-            message: `This will mark the invoice as 'Reversed'.`,
-            onConfirm: () => { handleRevertPayment(id); closeModal(); },
-            confirmText: 'Yes, Revert',
-            confirmButtonClass: 'bg-yellow-600 hover:bg-yellow-700'
-        });
+        const invoice = (invoices || []).find((i) => i.id === id);
+        if (invoice) onRevertPaymentRequest(invoice);
     };
 
 
@@ -344,7 +372,7 @@ export const BillingView: React.FC = () => {
     const { financeState } = useFinanceState();
     const { currentUser } = useAuth();
     const { openModal, navigateTo, closeModal, addToast, currentHistoryEntry } = useUI();
-    const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleVoidInvoice: confirmVoidInvoice, handleReinstateInvoice: confirmReinstateInvoice } = useDataActions();
+    const { handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleRecordInvoicePayment, handleVoidInvoice: confirmVoidInvoice, handleReinstateInvoice: confirmReinstateInvoice } = useDataActions();
     const features = useFeatures();
     const { isProperty, isUnified, product } = useProduct();
     const { coreState } = useCoreState();
@@ -353,6 +381,8 @@ export const BillingView: React.FC = () => {
     // opens the reason prompt; confirm dispatches to the audited lifecycle
     // mutation (convex/financialIntegrity), never to a raw status flip.
     const [voidModal, setVoidModal] = useState<{ invoice: Invoice; mode: 'void' | 'reinstate' } | null>(null);
+    // V2: the audited payment-revert flow (reason required, part of the trail)
+    const [revertModal, setRevertModal] = useState<{ invoice: Invoice } | null>(null);
 
     // ─── Product scope toggle (Legal / Properties / Combined) ───────
     type ProductScope = 'legal' | 'property' | 'combined';
@@ -428,17 +458,21 @@ export const BillingView: React.FC = () => {
         const ledgerEntries = ((coreState as any).ledgerEntries || []).filter((e: any) => isActiveFinancialRecord(e.recordStatus));
         const serviceCharges = (coreState as any).serviceCharges || [];
 
-        // Legal-side KPIs (invoices)
+        // Legal-side KPIs (invoices) — V2 (V-FIN-10): the ONE contract.
+        //    The pre-V2 formulas drifted: `total_amount || subTotal` turned a
+        //    true ₦0 total into subTotal, partially-paid invoices vanished
+        //    from Outstanding entirely, and line-item sums elsewhere ignored
+        //    VAT. Every surface now derives from the same helpers the
+        //    server uses (equivalence-tested against convex/invoiceFinancials).
+        const legalSummary = computeClientFinancialSummary(invoices as any);
         const paidThisMonth = invoices.filter(i => {
             if (i.status !== InvoiceStatus.Paid || !i.paidDate) return false;
             const d = new Date(i.paidDate);
             const now = new Date();
             return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }).reduce((s, i) => s + (i.total_amount || i.subTotal || 0), 0);
+        }).reduce((s, i) => s + invoiceTotalAmount(i as any), 0);
 
-        const outstanding = invoices
-            .filter(i => i.status === InvoiceStatus.Unpaid || i.status === InvoiceStatus.Overdue || i.status === InvoiceStatus.Sent)
-            .reduce((s, i) => s + (i.total_amount || i.subTotal || 0), 0);
+        const outstanding = legalSummary.outstandingBalance;
 
         // Property-side KPIs (ledger + service charges)
         const propertyCollected = ledgerEntries
@@ -586,6 +620,8 @@ export const BillingView: React.FC = () => {
                         handleUpdateInvoiceStatus={handleUpdateInvoiceStatus}
                         handleSendInvoiceReminder={handleSendInvoiceReminder}
                         handleRevertPayment={handleRevertPayment}
+                        handleRecordInvoicePayment={handleRecordInvoicePayment}
+                        onRevertPaymentRequest={(inv: Invoice) => setRevertModal({ invoice: inv })}
                         handleVoidInvoice={(inv: Invoice) => setVoidModal({ invoice: inv, mode: inv.recordStatus === 'voided' || inv.status === InvoiceStatus.Void ? 'reinstate' : 'void' })}
                         closeModal={closeModal}
                         openConfirmationModal={openModal}
@@ -671,6 +707,17 @@ export const BillingView: React.FC = () => {
                         onConfirm={(id, reason) => {
                             if (voidModal.mode === 'void') confirmVoidInvoice(id, reason);
                             else confirmReinstateInvoice(id, reason);
+                        }}
+                    />
+                )}
+                {revertModal && (
+                    <VoidInvoiceModal
+                        invoice={revertModal.invoice}
+                        mode="revert"
+                        onClose={() => setRevertModal(null)}
+                        onConfirm={async (id, reason) => {
+                            await handleRevertPayment(id, reason);
+                            setRevertModal(null);
                         }}
                     />
                 )}

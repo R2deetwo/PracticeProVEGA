@@ -33,12 +33,25 @@ interface PaymentGatewayModalProps {
     // request row so approval flips firm.product, not just the plan.
     requestedProduct?: 'property' | 'legal';
   };
+  // ─── V2 (V-FIN-12): the honest invoice path. When the client confirms a
+  //    bank transfer for an INVOICE, this callback performs the REAL
+  //    notification to the firm (a portal message). Without it the old flow
+  //    spun for 800ms and showed "Payment Reported" while recording
+  //    NOTHING. If no callback is wired, the confirm step is not offered —
+  //    instructions only, no fabricated confirmation.
+  onPaymentReport?: () => Promise<void>;
+  // The firm's real bank details for THIS invoice (projected server-side);
+  // portal users have no firm settings loaded, so the modal must not fall
+  // back to placeholder accounts for client payments.
+  bankDetailsOverride?: { bankName?: string | null; accountNumber?: string | null; accountName?: string | null } | null;
 }
 
 const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
   amount, email, title, description, invoiceId, onSuccess, onClose,
   forcePracticeProAccount = false,
   subscriptionContext,
+  onPaymentReport,
+  bankDetailsOverride,
 }) => {
   const [step, setStep] = useState<'instructions' | 'confirming' | 'confirmed' | 'card_redirect'>('instructions');
   const [confirmChecked, setConfirmChecked] = useState(false);
@@ -78,9 +91,12 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
     accountName: 'PracticePro Systems Ltd',
   };
 
-  const bankName = primaryBank?.bankName || PRACTICEPRO_BANK.bankName;
-  const accountNumber = primaryBank?.accountNumber || PRACTICEPRO_BANK.accountNumber;
-  const accountName = primaryBank?.accountName || PRACTICEPRO_BANK.accountName;
+  const bankName = bankDetailsOverride?.bankName || primaryBank?.bankName || PRACTICEPRO_BANK.bankName;
+  const accountNumber = bankDetailsOverride?.accountNumber || primaryBank?.accountNumber || PRACTICEPRO_BANK.accountNumber;
+  const accountName = bankDetailsOverride?.accountName || primaryBank?.accountName || PRACTICEPRO_BANK.accountName;
+  // V2: when an override is provided it is authoritative — a client paying
+  // an INVOICE pays the FIRM's account, never the PracticePro placeholder.
+  const usingOverride = !!(bankDetailsOverride && bankDetailsOverride.accountNumber);
 
   // CRO AUDIT Track A — generate a transaction reference client-side. The
   // backend validates that it starts with PP-{firmId}-.
@@ -95,7 +111,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
 
     // CRO AUDIT Track A — if this is a subscription upgrade, call the new
     // createSubscriptionRequest mutation (writes a pending row, doesn't flip
-    // the plan). Otherwise, just show the confirmation as before.
+    // the plan).
     if (subscriptionContext) {
       try {
         const ref = generateReference();
@@ -113,12 +129,24 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
         setReportError(err.message || 'Failed to record payment report. Please try again or contact support.');
         setStep('instructions');
       }
-    } else {
-      // Existing behavior for invoice payments — brief delay then confirmation.
-      setTimeout(() => {
-        setStep('confirmed');
-      }, 800);
+      return;
     }
+
+    // V2 (V-FIN-12): invoice payments — the notification is REAL or the
+    // confirmation never shows. The pre-V2 path faked it with a timeout.
+    if (onPaymentReport) {
+      try {
+        await onPaymentReport();
+        setStep('confirmed');
+      } catch (err: any) {
+        setReportError(err.message || 'Could not send the payment notification. Please try again or contact your legal team.');
+        setStep('instructions');
+      }
+      return;
+    }
+
+    // No report channel wired: do not fabricate a confirmation.
+    setStep('instructions');
   };
 
   const handlePayWithCard = async () => {
@@ -291,26 +319,31 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
               className="mt-1 w-4 h-4 rounded border-slate-300 dark:border-zinc-700 text-emerald-600 dark:text-emerald-400 focus:ring-emerald-500"
             />
             <span className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-              I have transferred the exact amount to the account above and understand that my payment will be verified manually by the firm.
+              I have transferred the exact amount to the account above. Confirming sends a notification to my legal team — it does not mark the invoice as paid.
             </span>
           </label>
 
-          {/* Confirm Button */}
-          <button
-            onClick={handleConfirmPayment}
-            disabled={!confirmChecked}
-            className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
-          >
-            I've Made Payment — Continue to App
-          </button>
+          {/* Confirm Button — V2: only offered when confirming performs a
+              REAL action (subscription record or firm notification). */}
+          {(subscriptionContext || onPaymentReport) && (
+            <button
+              onClick={handleConfirmPayment}
+              disabled={!confirmChecked}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 dark:disabled:bg-zinc-700 disabled:text-slate-500 text-white font-bold rounded-lg shadow-lg transition-all transform hover:scale-[1.02] disabled:hover:scale-100"
+            >
+              I've Made Payment — Notify My Legal Team
+            </button>
+          )}
 
           <div className="text-center">
             <button type="button" onClick={onClose} className="text-sm text-slate-500 hover:underline">Cancel</button>
           </div>
 
-          {/* Disclaimer */}
+          {/* Disclaimer — V2: no fabricated SLA, no simulated payment */}
           <p className="text-2xs text-center text-slate-400 leading-relaxed">
-            PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.
+            {subscriptionContext
+              ? 'PracticePro will verify your bank transfer and update your subscription within 24 hours.'
+              : 'No payment is taken by this app — you transfer directly to your legal team’s account. Your legal team confirms receipt and updates the invoice.'}
           </p>
         </div>
       )}
@@ -318,8 +351,8 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
       {step === 'confirming' && (
         <div className="text-center animate-fade-in">
           <div className="w-16 h-16 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-6"></div>
-          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Recording Report...</h3>
-          <p className="text-slate-500">PracticePro will verify your bank transfer within 24 hours.</p>
+          <h3 className="text-xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Notifying your legal team...</h3>
+          <p className="text-slate-500">Sending your payment notification now.</p>
         </div>
       )}
 
@@ -336,7 +369,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircleIcon className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 dark:text-zinc-100 mb-2">Payment Reported</h3>
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-zinc-100 mb-2">{subscriptionContext ? 'Payment Reported' : 'Your Legal Team Has Been Notified'}</h3>
           {transactionReference && (
             <p className="text-xs text-slate-500 mb-2">
               Reference: <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{transactionReference}</span>
@@ -345,7 +378,7 @@ const PaymentGatewayModal: React.FC<PaymentGatewayModalProps> = ({
           <p className="text-slate-500 mb-6">
             {subscriptionContext
               ? `We've recorded your bank transfer of ₦${formatNaira(amount)} to ${bankName}. Your reference is ${transactionReference}. Our team will verify within 24 hours. You'll get full ${subscriptionContext.requestedPlan} features once confirmed.`
-              : 'PracticePro will verify your bank transfer and update your organization invoice status within 24 hours.'
+              : `Your notification has been sent. ${bankName ? `Please complete the transfer of ₦${formatNaira(amount)} to ${bankName}` : 'Please complete the transfer'} if you have not already — your legal team will confirm receipt and update the invoice. This page did not take a payment.`
             }
           </p>
           <button

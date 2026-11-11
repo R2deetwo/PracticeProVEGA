@@ -6,7 +6,7 @@ import { InvoiceStatus, InvoiceStatus as Status, AppState } from '../types';
 import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
-import { generateInvoiceNumber } from '../utils/invoiceHelpers';
+import { computeInvoiceTotals, normalizeTaxRate, invoiceOutstanding } from '../utils/invoiceFinancials';
 import { api } from '../../convex/_generated/api';
 
 /**
@@ -25,21 +25,27 @@ export const useFinance = (appState: AppState, actions: any) => {
         if (!matter) throw new Error("Matter is required for invoice generation.");
         
         const clientName = appState.contacts.find(c => c.id === matter.clientId)?.name || 'Unknown Client';
-        const subTotal = (items || []).reduce((sum, item) => sum + (item.total || 0), 0);
-        const taxRate = tax?.rate || appState.firmDetails?.taxSettings?.vatRate || 7.5;
-        const taxAmount = tax?.applicable ? (subTotal * taxRate / 100) : 0;
 
-        // Generate dynamic firm-branded invoice number (computed once, persisted as string)
-        const invoiceNumber = generateInvoiceNumber({
-            firmName: appState.firmDetails?.name,
-            users: appState.users || [],
-            existingInvoiceCount: (appState.invoices || []).length,
-        });
+        // ─── V2 TAX CONTRACT (V-FIN-2/V-FIN-15): one explicit contract.
+        //    `tax` now carries { applicable, ratePct } from the generating
+        //    form (rate as a PERCENTAGE). The pre-V2 code required
+        //    `tax.applicable`, which the form never sent — VAT was silently
+        //    zero on every generated invoice. These figures are display /
+        //    intent hints only: the SERVER recomputes every total inside
+        //    createItem (invoiceFence) — the client can no longer publish
+        //    authoritative money values.
+        const taxApplicable = tax?.applicable === true;
+        const taxRatePct = normalizeTaxRate(tax?.ratePct ?? appState.firmDetails?.taxSettings?.vatRate);
+        const totals = computeInvoiceTotals(items || [], { applicable: taxApplicable, ratePct: taxRatePct });
+
+        // ─── V2 NUMBERING (V-FIN-6): the invoice number is issued
+        //    SERVER-SIDE (atomic per-firm sequence) — the client-side
+        //    count-based generator collided under concurrent creation and
+        //    is no longer used here.
 
         const invoice: any = {
             id: uuidv4(),
             firmId: currentUser?.firmId,
-            invoiceNumber,
             client: { id: matter.clientId || 'unknown', name: clientName },
             matter: { id: matter.id || 'general', title: matter.title || 'General Management' },
             lineItems: items || [],
@@ -47,9 +53,11 @@ export const useFinance = (appState: AppState, actions: any) => {
             issueDate: details?.issueDate || new Date().toISOString(),
             dueDate: details?.dueDate || new Date().toISOString(),
             paymentDetails: payment || appState.firmDetails?.bankAccounts?.[0] || { bankName: 'Default', accountNumber: '0000000000' },
-            subTotal: subTotal,
-            taxAmount: taxAmount,
-            total_amount: subTotal + taxAmount,
+            subTotal: totals.subTotal,
+            taxAmount: totals.taxAmount,
+            total_amount: totals.total_amount,
+            taxApplicable: totals.taxApplicable,
+            taxRate: totals.taxRate,
         };
 
         await actions.addItem('invoices', invoice, 'Invoice');
@@ -87,15 +95,66 @@ export const useFinance = (appState: AppState, actions: any) => {
     }, [actions, appState.invoices]);
 
     /**
-     * Revert a paid invoice (create credit note / mark as Reversed).
-     * NOTE (accounting-integrity round): this generic-path edit is now
-     * snapshotted into the append-only financial_audit_log by the
-     * updateItem fence — the old silent status flip no longer exists.
+     * Revert a recorded payment — the AUDITED undo (V2, V-FIN-7).
+     *
+     * The pre-V2 revert claimed it would "create a credit note" and "mark
+     * time/expenses as unbilled" while actually performing a bare status
+     * flip to 'Reversed' — two promises that were never implemented. The
+     * truth: this records that the payment(s) on this invoice should not
+     * have been recorded. It requires a reason, clears amountPaid and
+     * paidDate together, restores the open state, and writes the full
+     * before/after into the append-only financial_audit_log.
      */
-    const handleRevertPayment = useCallback(async (id: string) => {
-        await actions.updateItem('invoices', { id, status: InvoiceStatus.Reversed, paidDate: undefined }, 'Invoice');
-        addToast('Invoice payment reverted.', { type: 'info' });
-    }, [actions, addToast]);
+    const handleRevertPayment = useCallback(async (id: string, reason: string) => {
+        const clean = reason.trim();
+        if (clean.length < 3) {
+            addToast('A reason is required to revert a payment — it becomes part of the audit trail.', { type: 'warning' });
+            return;
+        }
+        try {
+            await convex.mutation(api.financialIntegrity.revertInvoicePayment, {
+                invoiceId: id,
+                reason: clean,
+                userEmail: currentUser?.email,
+                sessionToken: (bearerToken ?? undefined),
+            });
+            addToast('Payment reverted — the invoice is open again and the reversal is recorded in the audit log.', { type: 'success', duration: 6000 });
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to revert the payment. Nothing was changed.', { type: 'error', duration: 7000 });
+        }
+    }, [convex, currentUser, bearerToken, addToast]);
+
+    /**
+     * Record a payment against an invoice — the audited way money lands
+     * (V2, V-FIN-9). Handles full AND partial payments: a partial amount
+     * transitions the invoice to 'Partially Paid' with the true remainder
+     * visible everywhere; the full amount stamps Paid + paidDate. Every
+     * recording lands in the financial audit log.
+     */
+    const handleRecordInvoicePayment = useCallback(async (id: string, amount: number, opts?: { paymentMethod?: string; reference?: string; note?: string; paymentDate?: string }) => {
+        try {
+            const result = await convex.mutation(api.financialIntegrity.recordInvoicePayment, {
+                invoiceId: id,
+                amount,
+                paymentMethod: opts?.paymentMethod,
+                reference: opts?.reference,
+                note: opts?.note,
+                paymentDate: opts?.paymentDate,
+                userEmail: currentUser?.email,
+                sessionToken: (bearerToken ?? undefined),
+            });
+            addToast(
+                result?.status === 'Paid'
+                    ? `Payment recorded — invoice fully settled (₦${Number(result?.amountPaid || 0).toLocaleString('en-NG')} total).`
+                    : `Partial payment recorded — ₦${Number(result?.outstanding || 0).toLocaleString('en-NG')} still outstanding.`,
+                { type: 'success', duration: 6000 },
+            );
+            return result;
+        } catch (e: any) {
+            addToast(e?.message || 'Failed to record the payment. Nothing was changed.', { type: 'error', duration: 7000 });
+            throw e;
+        }
+    }, [convex, currentUser, bearerToken, addToast]);
 
     /**
      * VOID an invoice through the audited financial lifecycle
@@ -198,6 +257,7 @@ export const useFinance = (appState: AppState, actions: any) => {
         handleGenerateInvoice,
         handleUpdateInvoiceStatus,
         handleRevertPayment,
+        handleRecordInvoicePayment,
         handleVoidInvoice,
         handleReinstateInvoice,
         handleSendInvoiceReminder,

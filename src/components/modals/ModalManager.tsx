@@ -505,6 +505,8 @@ const ModalManager: React.FC = () => {
         // CRO AUDIT Track A — pass through subscription context + forcePracticeProAccount
         forcePracticeProAccount={modalContext.forcePracticeProAccount ?? false}
         subscriptionContext={modalContext.subscriptionContext}
+        onPaymentReport={modalContext.onPaymentReport}
+        bankDetailsOverride={modalContext.bankDetailsOverride}
         onSuccess={modalContext.onConfirm}
         onClose={closeModal}
       />;

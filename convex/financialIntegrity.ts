@@ -57,6 +57,8 @@ import { requireStaffCaller } from "./callerAuth";
 import { withCronReporting } from "./observability";
 import { roundMoney } from "./moneyUtils";
 import { Id } from "./_generated/dataModel";
+// V2 FINANCIAL TRUTH: the one totals/outstanding contract.
+import { invoiceTotalAmount, invoiceAmountPaid } from "./invoiceFinancials";
 
 // ─── Auth (same contract as sentry.ts requireSentryAuth) ────────────────────
 
@@ -484,6 +486,208 @@ export const reinstateInvoice = mutation({
       voidedAt: undefined,
       voidedByEmail: undefined,
       voidReason: undefined,
+      auditId,
+      updatedAt: new Date().toISOString(),
+    });
+
+    return { success: true, auditId };
+  },
+});
+
+// ─── Invoice payment recording (V2 — V-FIN-9, truthful partial payments) ───
+
+/**
+ * recordInvoicePayment — the audited way money lands on an invoice.
+ *
+ * Before V2 there were exactly two states a Vega invoice could be in: the
+ * raw status flip through updateItem ("mark paid" wrote status + paidDate,
+ * no amount, no trace beyond the edit snapshot) and nothing at all — a
+ * client paying half an invoice had NO truthful representation, and every
+ * outstanding calculation ignored partial money by construction.
+ *
+ * This mutation records a REAL payment against the invoice:
+ *   • amountPaid accumulates in integer kobo (amount + payments already
+ *     recorded; the generic updateItem fence strips client attempts to
+ *     write amountPaid directly — this is the only writer);
+ *   • status transitions truthfully: 'Partially Paid' while money owed
+ *     remains, 'Paid' (+ paidDate) only when the total is reached;
+ *   • overpayment beyond the stated total is rejected (an excess belongs
+ *     on a new invoice or a formal credit note, not silently absorbed);
+ *   • voided invoices cannot receive payments;
+ *   • every recording lands in the append-only financial_audit_log with
+ *     the full before/after and the actor.
+ *
+ * Legacy note: invoices marked Paid before V2 carry no amountPaid — their
+ * Paid status is honoured as full settlement (the status was the only
+ * authority that existed), so a first recorded payment on such an invoice
+ * is measured against the total, not against a phantom zero balance.
+ */
+export const recordInvoicePayment = mutation({
+  args: {
+    invoiceId: v.string(),
+    amount: v.number(),
+    paymentDate: v.optional(v.string()),
+    paymentMethod: v.optional(v.string()),
+    reference: v.optional(v.string()),
+    note: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFinancialAuth(ctx, args.userEmail, args.sessionToken);
+    const { invoice, rowId, recordId } = await loadFirmInvoice(ctx, auth.firmId, args.invoiceId);
+
+    if (invoice.recordStatus === "voided" || invoice.status === "Void") {
+      throw new Error("This invoice is voided — payments cannot be recorded against it. Reinstate it first if it was voided in error.");
+    }
+
+    // Positive, finite money only — same contract as every other booking.
+    const amount = (() => {
+      if (typeof args.amount !== "number" || !isFinite(args.amount)) {
+        throw new Error("Payment amount must be a valid number.");
+      }
+      const kobo = Math.round(args.amount * 100);
+      if (kobo <= 0) {
+        throw new Error("Payment amount must be greater than zero.");
+      }
+      return kobo / 100;
+    })();
+
+    const total = invoiceTotalAmount(invoice as any);
+    const totalKobo = Math.round(total * 100);
+    // Legacy Paid rows settled by the old status flip: status is the
+    // authority — treat as fully paid.
+    const priorPaid = (invoice.status === "Paid" && invoiceAmountPaid(invoice as any) === 0)
+      ? total
+      : invoiceAmountPaid(invoice as any);
+    const priorPaidKobo = Math.round(priorPaid * 100);
+    const newPaidKobo = priorPaidKobo + Math.round(amount * 100);
+
+    if (newPaidKobo > totalKobo) {
+      throw new Error(
+        `Payment of ₦${amount.toLocaleString()} exceeds the invoice total (₦${priorPaid.toLocaleString()} already recorded of ₦${total.toLocaleString()}). ` +
+        `Record the exact remaining amount, or invoice the excess separately — an overpayment is not silently absorbed.`
+      );
+    }
+
+    const fullyPaid = newPaidKobo >= totalKobo;
+    const newStatus = fullyPaid ? "Paid" : "Partially Paid";
+    const nowISO = new Date().toISOString();
+    const paidDate = fullyPaid ? (args.paymentDate || invoice.paidDate || nowISO) : undefined;
+
+    const auditId = await writeAudit(ctx, {
+      firmId: auth.firmId,
+      tableName: "invoices",
+      recordId,
+      action: "record_payment",
+      actorEmail: args.userEmail ?? auth.user?.email ?? null,
+      actorUserId: String(auth.user?._id ?? auth.userId ?? ""),
+      reason: args.note?.trim() || `Payment recorded: ₦${amount.toLocaleString()} via ${args.paymentMethod || "manual confirmation"}`,
+      beforeState: snapshot(invoice),
+      afterState: {
+        ...snapshot(invoice),
+        status: newStatus,
+        amountPaid: newPaidKobo / 100,
+        ...(paidDate ? { paidDate } : {}),
+      },
+      metadata: {
+        via: "financialIntegrity.recordInvoicePayment",
+        amount,
+        paymentMethod: args.paymentMethod ?? "manual",
+        reference: args.reference ?? null,
+        previousStatus: invoice.status ?? "Unpaid",
+        priorAmountPaid: priorPaid,
+        newAmountPaid: newPaidKobo / 100,
+        outstandingAfter: (totalKobo - newPaidKobo) / 100,
+      },
+    });
+
+    await ctx.db.patch(rowId, {
+      status: newStatus,
+      amountPaid: newPaidKobo / 100,
+      ...(paidDate ? { paidDate } : {}),
+      ...(args.paymentMethod ? { paymentMethod: args.paymentMethod } : {}),
+      ...(args.reference ? { providerReference: args.reference } : {}),
+      auditId,
+      updatedAt: nowISO,
+    });
+
+    return {
+      success: true,
+      auditId,
+      status: newStatus,
+      amountPaid: newPaidKobo / 100,
+      outstanding: (totalKobo - newPaidKobo) / 100,
+    };
+  },
+});
+
+/**
+ * revertInvoicePayment — the audited undo for a recorded payment / mark-paid.
+ *
+ * The pre-V2 revert was a raw status flip to 'Reversed' via updateItem
+ * (whose code comment promised a credit note that never existed) — it left
+ * amountPaid and paidDate inconsistent and recorded nothing but the edit
+ * snapshot. This is the replacement: a reason is required, the invoice
+ * returns to its open state ('Unpaid'), amountPaid and paidDate are
+ * cleared together (the recorded money did not survive), and the full
+ * before/after lands in the financial_audit_log. The money figures
+ * recomputed on the next edit keep everything consistent.
+ *
+ * This is NOT a credit note and does not pretend to be one: it states that
+ * the previously recorded payment(s) should not have been recorded.
+ */
+export const revertInvoicePayment = mutation({
+  args: {
+    invoiceId: v.string(),
+    reason: v.string(),
+    userEmail: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireFinancialAuth(ctx, args.userEmail, args.sessionToken);
+    const reason = assertReason(args.reason);
+    const { invoice, rowId, recordId } = await loadFirmInvoice(ctx, auth.firmId, args.invoiceId);
+
+    if (invoice.recordStatus === "voided" || invoice.status === "Void") {
+      throw new Error("This invoice is voided — use Reinstate to restore it before adjusting payments.");
+    }
+
+    const hadPayment =
+      invoice.status === "Paid" ||
+      invoice.status === "Partially Paid" ||
+      invoiceAmountPaid(invoice as any) > 0 ||
+      !!invoice.paidDate;
+    if (!hadPayment) {
+      throw new Error("This invoice has no recorded payment to revert.");
+    }
+
+    const auditId = await writeAudit(ctx, {
+      firmId: auth.firmId,
+      tableName: "invoices",
+      recordId,
+      action: "revert_payment",
+      actorEmail: args.userEmail ?? auth.user?.email ?? null,
+      actorUserId: String(auth.user?._id ?? auth.userId ?? ""),
+      reason,
+      beforeState: snapshot(invoice),
+      afterState: {
+        ...snapshot(invoice),
+        status: "Unpaid",
+        amountPaid: 0,
+        paidDate: null,
+      },
+      metadata: {
+        via: "financialIntegrity.revertInvoicePayment",
+        previousStatus: invoice.status ?? "Unpaid",
+        clearedAmountPaid: invoiceAmountPaid(invoice as any),
+      },
+    });
+
+    await ctx.db.patch(rowId, {
+      status: "Unpaid",
+      amountPaid: undefined,
+      paidDate: undefined,
       auditId,
       updatedAt: new Date().toISOString(),
     });

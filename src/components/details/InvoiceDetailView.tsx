@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Invoice, FirmDetails, Contact, ModalType, View, InvoiceStatus } from '../../types';
 import { PrinterIcon, MailIcon, CheckCircleIcon, TrashIcon, RevertIcon, ZoomInIcon, ZoomOutIcon } from '../../constants';
 import { formatNaira } from '../../utils/formatting';
+import { invoiceTotalAmount, invoiceOutstanding, invoiceAmountPaid } from '../../utils/invoiceFinancials';
 import NairaSymbol from '../NairaSymbol';
 import { generateInvoicePdf } from '../../services/reportGenerator';
 import { useCoreState } from '../../contexts/CoreContext';
@@ -18,7 +19,7 @@ const InvoiceDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
-    const { handleUpdateInvoiceStatus, handleRevertPayment, handleSendInvoiceReminder, deleteItem: onDeleteInvoice } = useDataActions();
+    const { handleUpdateInvoiceStatus, handleRevertPayment, handleRecordInvoicePayment, handleSendInvoiceReminder, deleteItem: onDeleteInvoice } = useDataActions();
     const { closeModal, navigateTo, openModal, addToast, selectedId: invoiceId, currentHistoryEntry, goBack } = useUI();
 
     const invoice = financeState.invoices.find((i: any) => i.id === invoiceId);
@@ -71,11 +72,19 @@ const InvoiceDetailViewContent: React.FC = () => {
     }
 
 
-    // Calculate totals if not present in old data — guard against missing lineItems
-    const calculatedSubTotal = (invoice.lineItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
-    const subTotal = invoice.subTotal !== undefined ? invoice.subTotal : calculatedSubTotal;
+    // ─── V2 (V-FIN-10): the ONE totals contract — same helpers the server
+    //    fence and every other surface use. The pre-V2 local recomputation
+    //    (`subTotal !== undefined ? subTotal : lineItems` + tax) was yet
+    //    another formula that could disagree with the persisted total.
+    const subTotal = invoice.subTotal !== undefined
+        ? invoice.subTotal
+        : (invoice.lineItems || []).reduce((sum: number, item: any) => sum + (item.total || 0), 0);
     const taxAmount = invoice.taxAmount !== undefined ? invoice.taxAmount : 0;
-    const totalAmount = subTotal + taxAmount;
+    const totalAmount = invoiceTotalAmount(invoice as any);
+    const amountPaid = invoiceAmountPaid(invoice as any);
+    const outstanding = invoiceOutstanding(invoice as any);
+    const whtAmount = (invoice as any).withholdingAmount ?? 0;
+    const netReceivable = (invoice as any).netReceivable ?? totalAmount - whtAmount;
 
     const isLocked = invoice.status === InvoiceStatus.Paid || invoice.status === InvoiceStatus.Reversed;
 
@@ -90,30 +99,45 @@ const InvoiceDetailViewContent: React.FC = () => {
         });
     };
 
+    // V2 (V-FIN-7/9): records a REAL payment through the audited lifecycle.
+    //    The pre-V2 dialog promised it would "create a permanent financial
+    //    record with a receipt" — no receipt was ever created. The
+    //    recording IS permanent (financial audit log); a receipt document is
+    //    NOT generated, and the message no longer claims one.
     const handleMarkAsPaid = () => {
         openModal('deleteConfirmation', invoice.id, {
-            title: 'Confirm Invoice Payment?',
-            message: `This will mark invoice ${invoice.invoiceNumber} as paid, create a permanent financial record (including a receipt), and lock the invoice from future edits. This action cannot be undone.`,
-            onConfirm: () => {
-                handleUpdateInvoiceStatus(invoice.id, InvoiceStatus.Paid);
+            title: 'Record Invoice Payment?',
+            message: `This records a confirmed payment of ${formatNaira(outstanding > 0 ? outstanding : totalAmount)} against invoice ${invoice.invoiceNumber} with a permanent audit-trail entry, and marks it Paid.`,
+            onConfirm: async () => {
+                try {
+                    await handleRecordInvoicePayment(invoice.id, outstanding > 0 ? outstanding : totalAmount, {
+                        paymentMethod: 'manual',
+                        note: 'Payment confirmed from invoice detail',
+                    });
+                } catch { /* the hook toasts the failure */ }
                 closeModal();
             },
-            confirmText: 'Confirm Payment',
+            confirmText: 'Record Payment',
             confirmButtonClass: 'bg-green-600 hover:bg-green-700'
         });
     };
 
+    // V2 (V-FIN-7): the pre-V2 dialog promised a credit note and unbilling
+    //    of time/expenses — neither existed. What a revert ACTUALLY does:
+    //    record (with a required reason) that the payment should not have
+    //    been recorded, return the invoice to unpaid and clear the payment
+    //    amount. The reversal is permanent in the audit trail.
     const handleRevert = () => {
         openModal('deleteConfirmation', invoice.id, {
             title: `Revert Payment for Invoice ${invoice.invoiceNumber}?`,
             message: (
                 <div>
-                    <p>This will create a <strong>Credit Note</strong> to cancel the original invoice and mark the associated time/expenses as unbilled again, so you can create a corrected invoice if needed.</p>
-                    <p className="font-bold mt-2">This is an accounting action and cannot be undone.</p>
+                    <p>This records that the payment(s) on this invoice should not have been recorded: the invoice returns to <strong>Unpaid</strong> and the recorded payment amount is cleared. The reason and full before/after are kept in the financial audit log.</p>
+                    <p className="mt-2">This does <strong>not</strong> create a credit note and does <strong>not</strong> unbill time or expenses.</p>
                 </div>
             ),
-            onConfirm: () => {
-                handleRevertPayment(invoice.id);
+            onConfirm: async () => {
+                await handleRevertPayment(invoice.id, 'Payment reverted from invoice detail view');
                 closeModal();
             },
             confirmText: 'Confirm and Revert',
@@ -151,7 +175,7 @@ const InvoiceDetailViewContent: React.FC = () => {
                         <span className="hidden sm:inline">PDF</span>
                     </button>
 
-                    {invoice.status === InvoiceStatus.Unpaid || invoice.status === InvoiceStatus.Overdue || invoice.status === InvoiceStatus.Sent || invoice.status === InvoiceStatus.Draft ? (
+                    {invoice.status === InvoiceStatus.Unpaid || invoice.status === InvoiceStatus.Overdue || invoice.status === InvoiceStatus.Sent || invoice.status === InvoiceStatus.Draft || invoice.status === InvoiceStatus.PartiallyPaid ? (
                         <>
                             <button onClick={() => handleSendInvoiceReminder(invoice.id)} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-700 hover:bg-slate-50 dark:hover:bg-zinc-600 text-slate-700 dark:text-zinc-200 border border-slate-200 dark:border-zinc-600 rounded-lg font-medium text-xs sm:text-sm transition-colors shadow-sm">
                                 <MailIcon className="w-4 h-4" />
@@ -270,14 +294,38 @@ const InvoiceDetailViewContent: React.FC = () => {
                                 </div>
                                 {taxAmount > 0 && (
                                     <div className="flex justify-between py-2 text-sm border-b border-dim-200">
-                                        <span className="font-medium text-dim-600">VAT (7.5%)</span>
+                                        <span className="font-medium text-dim-600">VAT{typeof (invoice as any).taxRate === 'number' ? ` (${(invoice as any).taxRate}%)` : ''}</span>
                                         <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(taxAmount)}</span>
+                                    </div>
+                                )}
+                                {whtAmount > 0 && (
+                                    <div className="flex justify-between py-2 text-sm">
+                                        <span className="font-medium text-dim-600">Withholding tax{typeof (invoice as any).withholdingRate === 'number' ? ` (${(invoice as any).withholdingRate}%)` : ''}</span>
+                                        <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(whtAmount)}</span>
+                                    </div>
+                                )}
+                                {whtAmount > 0 && (
+                                    <div className="flex justify-between py-2 text-sm border-b border-dim-200">
+                                        <span className="font-medium text-dim-600">Net receivable</span>
+                                        <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(netReceivable)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between py-3 text-xl font-bold text-dim-900 mt-2">
                                     <span>Total</span>
                                     <span className="whitespace-nowrap text-right" title={`₦${formatNaira(totalAmount)}`}><NairaSymbol />{formatNaira(totalAmount)}</span>
                                 </div>
+                                {amountPaid > 0 && (
+                                    <>
+                                        <div className="flex justify-between py-2 text-sm text-emerald-700 dark:text-emerald-400">
+                                            <span className="font-medium">Paid to date</span>
+                                            <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(amountPaid)}</span>
+                                        </div>
+                                        <div className="flex justify-between py-2 text-sm font-bold">
+                                            <span>Outstanding</span>
+                                            <span className="whitespace-nowrap text-right"><NairaSymbol />{formatNaira(outstanding)}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 

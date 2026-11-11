@@ -1,4 +1,9 @@
 import React, { useState, useMemo } from 'react';
+import { invoiceTotalAmount, invoiceOutstanding, isOpenInvoiceStatus } from '../../utils/invoiceFinancials';
+import { isActiveFinancialRecord } from '../../utils/financialLifecycle';
+import { useQuery } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { InvoiceStatus } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
@@ -111,19 +116,37 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
     const { executionState } = useExecutionState();
     const { financeState } = useFinanceState();
     const { coreState } = useCoreState();
+    const { currentUser, bearerToken } = useAuth();
+
+    // ─── V2 (V-FIN-14): ACCESSIBLE Vega financial audit history. The
+    //    append-only financial_audit_log (void/reinstate, payment records,
+    //    reversals, generic edits, trust lifecycle) existed server-side but
+    //    no Vega surface exposed it — this section surfaces the firm's own
+    //    trail, firm-scoped and session-verified. Atrium's reconciliation
+    //    console is untouched (its controls are not weakened or copied).
+    const auditLog = useQuery(
+        api.financialIntegrity.getFinancialAuditLog,
+        currentUser?.firmId ? { firmId: currentUser.firmId, limit: 25, userEmail: currentUser?.email, sessionToken: bearerToken ?? undefined } : 'skip',
+    );
 
     const financialSummary = useMemo(() => {
         const { invoices, expenses, timeEntries } = financeState;
         const { firmDetails } = coreState;
         const { matters } = matterState;
 
-        const totalRevenue = invoices
+        // ─── V2 (V-FIN-10): the ONE totals contract. The pre-V2 report summed
+        //    raw line items — ignoring VAT, the persisted server-computed
+        //    totals, partial payments and the voided/test quarantine, so the
+        //    report's "Outstanding" regularly disagreed with the billing KPI
+        //    and the client portal.
+        const activeInvoices = invoices.filter(i => isActiveFinancialRecord(i.recordStatus));
+        const totalRevenue = activeInvoices
             .filter(i => i.status === InvoiceStatus.Paid)
-            .reduce((sum, i) => sum + (i.lineItems?.reduce((s, li) => s + li.total, 0) || 0), 0);
+            .reduce((sum, i) => sum + invoiceTotalAmount(i as any), 0);
 
         const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
-        const outstandingInvoices = invoices.filter(i => i.status === InvoiceStatus.Unpaid || i.status === InvoiceStatus.Overdue || i.status === InvoiceStatus.Sent);
+        const outstandingInvoices = activeInvoices.filter(i => isOpenInvoiceStatus(i.status));
         const today = new Date();
         const arAging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
         const overdueInvoicesList: { id: string, number: string, client: string, amount: number, days: number }[] = [];
@@ -131,7 +154,9 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
         outstandingInvoices.forEach(i => {
             const dueDate = parseDateString(i.dueDate);
             const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 3600 * 24));
-            const amount = i.lineItems?.reduce((s, li) => s + li.total, 0) || 0;
+            // V2: the true remainder — what is actually owed after recorded
+            // payments (partial payments shrink the aging buckets too).
+            const amount = invoiceOutstanding(i as any);
             const daysPos = Math.max(0, daysOverdue);
 
             if (daysPos <= 30) arAging['0-30'] += amount;
@@ -170,15 +195,15 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
             const monthName = d.toLocaleString('default', { month: 'short' });
             const year = d.getFullYear();
 
-            const monthlyTotal = invoices
+            const monthlyTotal = activeInvoices
                 .filter(inv => {
-                    // Include all billed amounts (Sent, Paid, Overdue)
+                    // Include all billed amounts (Sent, Paid, Overdue, Partial)
                     if (inv.status === InvoiceStatus.Draft || inv.status === InvoiceStatus.Void) return false;
 
                     const invDate = parseDateString(inv.issueDate);
                     return invDate.getMonth() === d.getMonth() && invDate.getFullYear() === year;
                 })
-                .reduce((sum, inv) => sum + (inv.lineItems?.reduce((s, li) => s + li.total, 0) || 0), 0);
+                .reduce((sum, inv) => sum + invoiceTotalAmount(inv as any), 0);
 
             velocityData.push({ month: monthName, value: monthlyTotal });
         }
@@ -187,9 +212,9 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
         const currentMonthRevenue = velocityData[velocityData.length - 1].value;
 
         return {
-            totalBilled: invoices.reduce((sum, i) => sum + (i.lineItems?.reduce((s, li) => s + li.total, 0) || 0), 0),
+            totalBilled: activeInvoices.reduce((sum, i) => sum + invoiceTotalAmount(i as any), 0),
             totalPaid: totalRevenue,
-            outstanding: outstandingInvoices.reduce((sum, i) => sum + (i.lineItems?.reduce((s, li) => s + li.total, 0) || 0), 0),
+            outstanding: outstandingInvoices.reduce((sum, i) => sum + invoiceOutstanding(i as any), 0),
             totalExpenses,
             netProfit: totalRevenue - totalExpenses,
             arAging,
@@ -343,6 +368,60 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
                     </div>
                 </div>
             )}
+
+            {/* ─── V2 (V-FIN-14): Financial Audit History ───────────────────
+                Every void/reinstate, recorded payment, payment revert, trust
+                reversal and audited edit on the firm's books — the same
+                append-only trail the server writes, now readable where the
+                firm reads its reports. */}
+            <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 border border-slate-200 dark:border-zinc-700">
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 bg-slate-100 dark:bg-zinc-700 rounded-lg text-slate-600 dark:text-zinc-300">
+                        <ClockIcon className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 dark:text-white">Financial Audit History</h3>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400">Every recorded financial action on your books — payments, voids, reversals and audited edits. Append-only: nothing here can be edited or deleted.</p>
+                    </div>
+                </div>
+                {auditLog === undefined ? (
+                    <p className="text-sm text-slate-400 dark:text-zinc-500 py-4 text-center">Loading audit history…</p>
+                ) : auditLog.length === 0 ? (
+                    <p className="text-sm text-slate-400 dark:text-zinc-500 py-4 text-center">No financial audit entries yet — they appear as payments are recorded and invoices voided, reinstated or reversed.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase bg-slate-50 dark:bg-zinc-900/50">
+                                <tr>
+                                    <th className="py-3 px-4 rounded-l-lg">When</th>
+                                    <th className="py-3 px-4">Action</th>
+                                    <th className="py-3 px-4">Record</th>
+                                    <th className="py-3 px-4">By</th>
+                                    <th className="py-3 px-4 rounded-r-lg">Reason</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
+                                {auditLog.map((entry: any) => (
+                                    <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
+                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400 whitespace-nowrap">{new Date(entry.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                                        <td className="py-3 px-4">
+                                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                                entry.action === 'record_payment' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                                : entry.action === 'void' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
+                                                : entry.action === 'reinstate' || entry.action === 'revert_payment' || entry.action === 'reverse' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                                                : 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300'
+                                            }`}>{entry.action.replace(/_/g, ' ')}</span>
+                                        </td>
+                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400 font-mono text-xs">{entry.tableName} · {String(entry.recordId).slice(-8)}</td>
+                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400">{entry.actorEmail || '—'}</td>
+                                        <td className="py-3 px-4 text-slate-600 dark:text-zinc-300 max-w-xs truncate" title={entry.reason || ''}>{entry.reason || '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
 
             {/* Tax Intelligence Removed as per user request */}
         </div>

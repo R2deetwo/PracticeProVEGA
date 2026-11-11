@@ -294,7 +294,18 @@ export function useOfflineQueue() {
             try {
                 // R16: refresh the session token at replay time — the queued
                 // copy may be stale/expired (see useAuth note above).
-                await mutationFn({ ...item.args, sessionToken: bearerToken ?? undefined });
+                //
+                // V2 (V-FIN-8/13): trust replays carry the queue item's stable
+                // id as the idempotencyKey (when the caller didn't already
+                // provide one). The server returns the ORIGINAL transaction
+                // for a repeated key, so an offline-queue replay — or a
+                // replay after a mid-replay reload — can never double-book
+                // the trust ledger.
+                const replayArgs: Record<string, any> = { ...item.args, sessionToken: bearerToken ?? undefined };
+                if (item.mutationName === 'recordTrustTransaction' && !replayArgs.idempotencyKey) {
+                    replayArgs.idempotencyKey = `offline:${item.id}`;
+                }
+                await mutationFn(replayArgs);
                 successCount++;
             } catch (e: any) {
                 if (isNetworkError(e)) {

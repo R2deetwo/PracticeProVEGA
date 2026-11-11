@@ -450,7 +450,7 @@ describe('V1-C — getClientInvoices (CP-5 voided/test + internal fields)', () =
         expect(ids(rows)).not.toContain('inv-legacy-void');
     });
 
-    it('internal invoice metadata is not returned — the projection never carries the lifecycle/Paystack/bank blobs', async () => {
+    it('internal invoice metadata is not returned — the projection never carries the lifecycle/Paystack blobs (V2: payment instructions are the deliberate 3-field exception)', async () => {
         const { ctx } = makeWorld();
         const rows = await (getClientInvoices as any)._handler(ctx, {
             firmId: 'firm-1', contactId: 'contact-1', sessionToken: 'tok-a',
@@ -458,13 +458,22 @@ describe('V1-C — getClientInvoices (CP-5 voided/test + internal fields)', () =
         const inv = rows[0];
         const forbidden = [
             'voidReason', 'voidedByEmail', 'voidedAt', 'auditId', 'priorStatus', 'recordStatus',
-            'provider', 'providerReference', 'paymentMethod', 'paymentDetails', 'client', 'userId',
+            'provider', 'providerReference', 'paymentMethod', 'client', 'userId',
         ];
         for (const key of forbidden) {
             expect(inv).not.toHaveProperty(key);
         }
+        // ─── V2 (V-FIN-12) CONTRACT EVOLUTION ─────────────────────────────
+        // paymentDetails IS now returned — as EXACTLY the three payment-
+        // instruction fields a client needs to pay by bank transfer
+        // (bankName / accountNumber / accountName; the same details a firm
+        // prints on its invoice letterhead). The raw blob's other fields
+        // (bankCode etc.) must never pass through.
+        expect(inv.paymentDetails).toBeDefined();
+        expect(Object.keys(inv.paymentDetails).sort()).toEqual(['accountName', 'accountNumber', 'bankName']);
+        expect(inv.paymentDetails).not.toHaveProperty('bankCode');
         const blob = JSON.stringify(rows);
-        for (const needle of ['PP-REF-1', '0000000000', 'PracticePro Systems', 'internalRating', 'Duplicate issuance']) {
+        for (const needle of ['PP-REF-1', '011', 'internalRating', 'Duplicate issuance']) {
             expect(blob).not.toContain(needle);
         }
     });
@@ -562,11 +571,16 @@ describe('V1-C — frontend integration points', () => {
         expect(fn).toContain('row.inv.recordStatus !== "voided"');
         expect(fn).toContain('row.inv.recordStatus !== "test"');
         expect(fn).toContain('row.inv.status !== "Void"');
-        // Minimal projection: the internal blobs are never mapped through:
-        for (const banned of ['voidReason: inv', 'voidedByEmail: inv', 'providerReference: inv', 'paymentDetails: inv', 'client: inv', 'recordStatus: inv']) {
+        // Minimal projection: the internal blobs are never mapped through.
+        // V2 evolution: paymentDetails passes ONLY as the explicit 3-field
+        // payment-instruction projection — the raw blob (bankCode etc.)
+        // never maps through.
+        for (const banned of ['voidReason: inv', 'voidedByEmail: inv', 'providerReference: inv', 'client: inv', 'recordStatus: inv', 'bankCode']) {
             expect(fn).not.toContain(banned);
         }
         expect(fn).toContain('total_amount: inv.total_amount');
         expect(fn).toContain('matter: { id: matterId');
+        expect(fn).toContain('paymentDetails: inv.paymentDetails ? {');
+        expect(fn).toContain('bankName: (inv.paymentDetails as any).bankName ?? null');
     });
 });

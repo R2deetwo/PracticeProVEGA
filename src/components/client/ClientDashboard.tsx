@@ -11,6 +11,7 @@ import { MessageActionsMenu, type MessageActionItem } from '../messaging/Message
 import { openHtmlInNewWindow, escapeHtml } from '../../utils/safePrintWindow';
 import { surfaceUploadError } from '../../utils/convexUpload';
 import { formatNaira as formatNairaShared } from '../../utils/formatting';
+import { invoiceTotalAmount as invTotal, invoiceOutstanding as invOutstanding } from '../../utils/invoiceFinancials';
 import {
     MattersIcon, PlusIcon, LockClosedIcon, DocumentIcon,
     ChatAltIcon, ClockIcon, CheckCircleIcon,
@@ -297,6 +298,12 @@ const ClientDashboard: React.FC = () => {
     const clientMessages = useQuery(api.portals.getClientMessages, portalQueryArgs);
     const clientActivity = useQuery(api.portals.getClientActivity, portalQueryArgs);
     const clientInvoices = useQuery(api.portals.getClientInvoices, portalQueryArgs);
+    // ─── V2 (V-FIN-1): the AUTHORITATIVE outstanding balance, computed
+    //    server-side with the one contract. Every client-facing money
+    //    number renders from here — the pre-V2 hero/summary cards summed
+    //    the ghost-field sum (totalAmount-or-amount — fields that do not exist on
+    //    invoices) and displayed ₦0 forever, whatever was actually owed.
+    const clientFinancialSummary = useQuery(api.portals.getClientFinancialSummary, portalQueryArgs);
     const clientConsentRecords = useQuery(
         api.portals.getClientConsentRecords,
         currentUser?.email ? { email: currentUser.email, sessionToken: bearerToken ?? undefined } : 'skip'
@@ -583,9 +590,12 @@ const ClientDashboard: React.FC = () => {
     //     pay invoice, documents, messages, new request)
     //   - Recent Activity: simple feed below
     const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
-    const totalOutstanding = (clientInvoices || []).filter((inv: any) =>
-        inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent'
-    ).reduce((sum: number, inv: any) => sum + (inv.totalAmount || inv.amount || 0), 0);
+    // V2: the server-computed balance (the ONE definition). The local
+    // computation only covers the brief loading window, using the same
+    // contract helpers.
+    const totalOutstanding = clientFinancialSummary !== undefined
+        ? clientFinancialSummary.outstandingBalance
+        : (clientInvoices || []).reduce((sum: number, inv: any) => sum + invOutstanding(inv), 0);
 
     const renderOverview = () => (
         <div className="space-y-4 px-4 sm:px-6 pb-8">
@@ -1492,7 +1502,10 @@ const ClientDashboard: React.FC = () => {
         setIsMarkingPaid(true);
         try {
             const invoiceLabel = inv.invoiceNumber || inv.title || `Invoice ${String(inv._id || inv.id).slice(-6)}`;
-            const amount = inv.totalAmount || inv.amount || 0;
+            // V2: the real stated total (the pre-V2 ghost-field read sent
+            // "I have made payment of ₦0" whatever the invoice said).
+            const amount = invTotal(inv);
+            const stillOwing = invOutstanding(inv);
             await sendPortalMessage({
                 firmId: effectiveFirmId,
                 senderId: currentUser.id,
@@ -1500,7 +1513,7 @@ const ClientDashboard: React.FC = () => {
                 senderEmail: currentUser.email,
                 senderRole: 'Client',
                 subject: `Payment Notification: ${invoiceLabel}`,
-                content: `I have made payment of ${formatNairaStatic(amount)} for invoice "${invoiceLabel}". Please confirm receipt and update the invoice status.\n\nInvoice details:\n- Amount: ${formatNairaStatic(amount)}\n- Due date: ${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}\n- Status: ${inv.status}\n\nThank you.`,
+                content: `I have made a payment of ${formatNairaStatic(amount)} for invoice "${invoiceLabel}"${stillOwing > 0 ? ` (remaining balance after this payment: ${formatNairaStatic(stillOwing)})` : ''}. Please confirm receipt and update the invoice status.\n\nInvoice details:\n- Invoice total: ${formatNairaStatic(amount)}\n- Due date: ${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}\n- Status: ${inv.status}\n\nThank you.`,
                 sessionToken: bearerToken ?? undefined,
             });
             addToast('Payment notification sent. Your legal team will confirm receipt shortly.', { type: 'success' });
@@ -1887,13 +1900,15 @@ const ClientDashboard: React.FC = () => {
         const isLoading = clientInvoices === undefined && portalArgsReady;
         const invoices = (clientInvoices || []) as any[];
 
-        // Summary stats
-        const totalOutstanding = invoices
-            .filter(inv => inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent')
-            .reduce((sum, inv) => sum + (inv.totalAmount || inv.amount || 0), 0);
-        const totalPaid = invoices
-            .filter(inv => inv.status === 'Paid')
-            .reduce((sum, inv) => sum + (inv.totalAmount || inv.amount || 0), 0);
+        // Summary stats — V2: the server-computed summary (one contract).
+        const totalOutstanding = clientFinancialSummary !== undefined
+            ? clientFinancialSummary.outstandingBalance
+            : invoices.reduce((sum, inv) => sum + invOutstanding(inv), 0);
+        const totalPaid = clientFinancialSummary !== undefined
+            ? clientFinancialSummary.paidTotal
+            : invoices
+                .filter(inv => String(inv.status || '').toLowerCase() === 'paid')
+                .reduce((sum, inv) => sum + invTotal(inv), 0);
         const formatNaira = (n: number) => formatNairaShared(n, { withSymbol: true });
 
         const getStatusBadge = (status: string) => {
@@ -1944,7 +1959,7 @@ const ClientDashboard: React.FC = () => {
                     {invoices.length > 0 && totalOutstanding > 0 && (
                         <div className="mb-3 px-4 py-3 rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30 text-xs text-amber-800 dark:text-amber-300">
                             <p className="font-bold mb-1">How to Pay</p>
-                            <p>Tap "Pay Now" on any outstanding invoice below to view payment instructions. After making payment, tap "I've Paid" to notify your legal team for confirmation.</p>
+                            <p>Tap "Payment Details" on any outstanding invoice below to see where to transfer. After making payment, tap "I've Made Payment" to notify your legal team for confirmation.</p>
                         </div>
                     )}
                     {isLoading ? (
@@ -1975,7 +1990,7 @@ const ClientDashboard: React.FC = () => {
                         <div className="space-y-2">
                             {invoices.map((inv: any) => {
                                 const invId = String(inv._id || inv.id);
-                                const isUnpaid = inv.status === 'Overdue' || inv.status === 'Unpaid' || inv.status === 'Sent';
+                                const isUnpaid = ['overdue', 'unpaid', 'sent', 'partially paid'].includes(String(inv.status || '').toLowerCase());
                                 const isExpanded = expandedInvoiceId === invId;
                                 return (
                                     <div key={invId} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
@@ -2008,7 +2023,7 @@ const ClientDashboard: React.FC = () => {
                                             </div>
                                             <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                                 <p className="font-bold text-sm text-slate-800 dark:text-zinc-200">
-                                                    {formatNaira(inv.totalAmount || inv.amount || 0)}
+                                                    {formatNaira(invTotal(inv))}
                                                 </p>
                                                 {getStatusBadge(inv.status)}
                                             </div>
@@ -2020,7 +2035,7 @@ const ClientDashboard: React.FC = () => {
                                                     onClick={() => setExpandedInvoiceId(isExpanded ? null : invId)}
                                                     className="flex-1 px-3 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors"
                                                 >
-                                                    {isExpanded ? 'Hide Instructions' : 'Pay Now'}
+                                                    {isExpanded ? 'Hide Payment Details' : 'Payment Details'}
                                                 </button>
                                             </div>
                                         )}
@@ -2029,9 +2044,21 @@ const ClientDashboard: React.FC = () => {
                                             <div className="px-4 pb-4 pt-1 border-t border-slate-100 dark:border-zinc-700 space-y-3">
                                                 <div className="bg-slate-50 dark:bg-zinc-700/30 rounded-lg p-3 text-xs space-y-2">
                                                     <p className="font-bold text-slate-700 dark:text-zinc-300">Payment Instructions</p>
-                                                    <p className="text-slate-600 dark:text-zinc-400">
-                                                        Please transfer {formatNaira(inv.totalAmount || inv.amount || 0)} to your legal team's bank account. Contact them directly if you need their bank details.
-                                                    </p>
+                                                    {/* V2 (V-FIN-12): no payment operation is connected to this
+                                                        button — it shows the firm's real bank details (projected
+                                                        server-side from the invoice) instead of implying an online
+                                                        checkout that does not exist. */}
+                                                    {inv.paymentDetails?.accountNumber ? (
+                                                        <div className="space-y-1 text-slate-600 dark:text-zinc-400">
+                                                            <p>Transfer {formatNaira(invTotal(inv))} to:</p>
+                                                            <p className="font-semibold text-slate-800 dark:text-zinc-200">{inv.paymentDetails.bankName || '—'} · {inv.paymentDetails.accountNumber}</p>
+                                                            {inv.paymentDetails.accountName && <p className="text-slate-500 dark:text-zinc-500">{inv.paymentDetails.accountName}</p>}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-slate-600 dark:text-zinc-400">
+                                                            Please transfer {formatNaira(invTotal(inv))} to your legal team's bank account. Contact them directly if you need their bank details.
+                                                        </p>
+                                                    )}
                                                     <p className="text-slate-500 dark:text-zinc-500 text-2xs">
                                                         Reference: {inv.invoiceNumber || inv.title || 'Invoice'}
                                                     </p>
@@ -2054,7 +2081,7 @@ const ClientDashboard: React.FC = () => {
                                                     )}
                                                 </button>
                                                 <p className="text-2xs text-slate-400 dark:text-zinc-500 text-center">
-                                                    This notifies your legal team to confirm receipt
+                                                    This notifies your legal team to confirm receipt — it does not mark the invoice as paid
                                                 </p>
                                             </div>
                                         )}
@@ -2108,7 +2135,7 @@ const ClientDashboard: React.FC = () => {
                     <div className="p-6 space-y-5">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h3 className="text-lg font-black text-slate-900 dark:text-white">Payment Receipt</h3>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white">Payment Confirmation</h3>
                                 <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                                     {inv.invoiceNumber ? `Invoice ${inv.invoiceNumber} · ` : ''}{matterTitle}
                                 </p>

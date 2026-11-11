@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-10T13:15:11.086Z",
+  "generatedAt": "2026-11-11T10:26:32.798Z",
   "totals": {
-    "button": 1684,
+    "button": 1683,
     "input": 411,
     "select": 142,
     "textarea": 60
   },
-  "total": 2297,
+  "total": 2296,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -445,7 +445,7 @@
       "textarea": 2
     },
     "src/components/details/TrustAccountTab.tsx": {
-      "button": 7,
+      "button": 6,
       "input": 4,
       "select": 1,
       "textarea": 1

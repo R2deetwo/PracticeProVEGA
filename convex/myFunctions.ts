@@ -40,6 +40,9 @@ import { computeDunningAction, DunningAction } from "./dunning";
 // ROUND D (Wave 2, D2): canonical add-on catalog — the paid activation path
 // validates charged amounts against these server-side prices.
 import { getAddonById, expectedAddonAmount } from "./addonCatalog";
+// V2 FINANCIAL TRUTH: the invoice money fence — server-side numbering +
+// authoritative tax/total computation for every generic-path invoice write.
+import { applyInvoiceCreateFence, applyInvoiceUpdateFence } from "./invoiceFence";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
@@ -3725,12 +3728,26 @@ export const createItem = mutation({
       }
     }
 
+    // ─── V2 INVOICE MONEY FENCE (V-FIN-2/6/15) ─────────────────────────
+    // Every invoice created through the generic path gets its number
+    // issued server-side (atomic financial_counters sequence — concurrent
+    // creations can never collide) and its money figures recomputed from
+    // lineItems + the one tax contract. Client-passed subTotal/taxAmount/
+    // total_amount are hints for intent, never authoritative values. Runs
+    // AFTER the client-id idempotency check so replays don't burn numbers,
+    // BEFORE the row is assembled (the fence mutates sanitizedData), and
+    // INSIDE this transaction so a failed insert rolls the counter back.
+    if (table === "invoices") {
+      await applyInvoiceCreateFence(ctx, effectiveFirmId, sanitizedData);
+    }
+
     const dataWithTimestamp = {
       ...sanitizedData,
       firmId: effectiveFirmId,
       createdAt: sanitizedData.createdAt ?? new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
     const id = await ctx.db.insert(table as any, dataWithTimestamp);
 
     // ─── AUTOMATION RULE ENGINE HOOKS (Task 48, 2026-09-16) ────────────
@@ -4830,6 +4847,18 @@ export const updateItem = mutation({
     }
 
     patchData.updatedAt = new Date().toISOString();
+
+    // ─── V2 INVOICE MONEY FENCE (V-FIN-15) ─────────────────────────────
+    // Invoice edits through the generic path: amountPaid is lifecycle-
+    // controlled (audited payments only), manual number edits are checked
+    // for firm-wide uniqueness, and any patch touching lineItems or a tax
+    // flag gets its totals RECOMPUTED with the same rules as creation —
+    // one calculation for manual, generated and edited invoices alike.
+    // Runs before the audited patch below so the audit snapshot captures
+    // the truthful recomputed values.
+    if (table === "invoices") {
+      await applyInvoiceUpdateFence(ctx, firmId, docId, patchData);
+    }
 
     // FINANCIAL TABLE FENCE, part 2: snapshot before + after into the
     // append-only audit log. The before-state is the forensic evidence;

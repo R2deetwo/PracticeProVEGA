@@ -58,6 +58,12 @@ type OutboxEntry = {
     cycleLabel?: string;
     frequency?: string;
     scheduledFor: string;
+    // V2 honest review/delivery fields
+    reviewDueBy?: string;
+    approvedAt?: string;
+    deliveryStatus?: string;   // 'emailed' | 'not_emailed'
+    emailMessageId?: string;
+    issuedAt?: string;
     stagedAt: string;
     sentAt?: string;
     failedAt?: string;
@@ -75,9 +81,14 @@ type OutboxEntry = {
 type FilterTab = 'all' | InvoiceOutboxState;
 
 const STATE_META: Record<string, { label: string; color: string; dot: string; icon: ReactNode }> = {
-    Staged:  { label: 'Staged',  color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',   dot: 'bg-amber-500',   icon: <ClockIcon className="w-3.5 h-3.5" /> },
+    // V2 (V-FIN-3): honest labels. Staged = PENDING REVIEW (a lawyer must
+    // approve before anything is issued — the cron never auto-sends).
+    // Issued = the invoice exists but no email was confirmed. Sent = the
+    // email gateway CONFIRMED delivery.
+    Staged:  { label: 'Pending Review',  color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',   dot: 'bg-amber-500',   icon: <ClockIcon className="w-3.5 h-3.5" /> },
     Queued:  { label: 'Queued',  color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',       dot: 'bg-blue-500',    icon: <ForwardIcon className="w-3.5 h-3.5" /> },
-    Sent:    { label: 'Sent',    color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', dot: 'bg-emerald-500', icon: <CheckCircleIcon className="w-3.5 h-3.5" /> },
+    Issued:  { label: 'Issued (no email)', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300', dot: 'bg-teal-500', icon: <CheckCircleIcon className="w-3.5 h-3.5" /> },
+    Sent:    { label: 'Sent (email confirmed)',    color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', dot: 'bg-emerald-500', icon: <CheckCircleIcon className="w-3.5 h-3.5" /> },
     Failed:  { label: 'Failed',  color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300',       dot: 'bg-rose-500',    icon: <XCircleIcon className="w-3.5 h-3.5" /> },
     Paused:  { label: 'Paused',  color: 'bg-slate-200 text-slate-700 dark:bg-zinc-700 dark:text-zinc-200',       dot: 'bg-slate-500',   icon: <PauseIcon className="w-3.5 h-3.5" /> },
     Skipped: { label: 'Skipped', color: 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400',         dot: 'bg-zinc-400',    icon: <ForwardIcon className="w-3.5 h-3.5" /> },
@@ -85,9 +96,10 @@ const STATE_META: Record<string, { label: string; color: string; dot: string; ic
 
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
     { id: 'all',     label: 'All' },
-    { id: InvoiceOutboxState.Staged,  label: 'Staged' },
-    { id: InvoiceOutboxState.Queued,  label: 'Queued' },
-    { id: InvoiceOutboxState.Sent,    label: 'Sent' },
+    { id: InvoiceOutboxState.Staged,  label: 'Pending Review' },
+    { id: InvoiceOutboxState.Queued,  label: 'Approved' },
+    { id: InvoiceOutboxState.Issued,  label: 'Issued (no email)' },
+    { id: InvoiceOutboxState.Sent,    label: 'Sent (email confirmed)' },
     { id: InvoiceOutboxState.Failed,  label: 'Failed' },
     { id: InvoiceOutboxState.Paused,  label: 'Paused' },
     { id: InvoiceOutboxState.Skipped, label: 'Skipped' },
@@ -235,7 +247,7 @@ const BillingMonitorInner: React.FC = () => {
             switch (action) {
                 case 'approve':
                     await approveAndSendNow({ outboxId , sessionToken: bearerToken ?? undefined });
-                    addToast('Invoice approved & queued for immediate send.', { type: 'success' });
+                    addToast('Approved — issuing the invoice and attempting email delivery now.', { type: 'success' });
                     break;
                 case 'pause':
                     await pauseForEdit({ outboxId , sessionToken: bearerToken ?? undefined });
@@ -262,22 +274,32 @@ const BillingMonitorInner: React.FC = () => {
 
     return (
         <div className="space-y-5">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* KPI Cards — V2 (V-FIN-3): honest buckets. Pending Review =
+                awaiting a lawyer's approval (nothing auto-issues); Issued =
+                invoice created without a confirmed email; Sent = email
+                delivery confirmed by the gateway. */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <KpiCard
-                    label="Staged"
+                    label="Pending Review"
                     value={stats?.Staged ?? 0}
                     dot="bg-amber-500"
                     icon={<ClockIcon className="w-4 h-4" />}
                 />
                 <KpiCard
-                    label="Queued"
+                    label="Approved"
                     value={stats?.Queued ?? 0}
                     dot="bg-blue-500"
                     icon={<ForwardIcon className="w-4 h-4" />}
                 />
                 <KpiCard
-                    label="Sent"
+                    label="Issued (no email)"
+                    value={stats?.Issued ?? 0}
+                    dot="bg-teal-500"
+                    icon={<CheckCircleIcon className="w-4 h-4" />}
+                    highlight={!!(stats?.notEmailed)}
+                />
+                <KpiCard
+                    label="Sent (email confirmed)"
                     value={stats?.Sent ?? 0}
                     dot="bg-emerald-500"
                     icon={<CheckCircleIcon className="w-4 h-4" />}
@@ -643,9 +665,9 @@ const OutboxDetailDrawer: React.FC<{
                                 </strong>
                             </span>
                             <span>
-                                Scheduled:{' '}
+                                Review by:{' '}
                                 <strong className="text-slate-700 dark:text-zinc-300">
-                                    {new Date(entry.scheduledFor).toLocaleString('en-NG')}
+                                    {new Date(entry.reviewDueBy || entry.scheduledFor).toLocaleString('en-NG')}
                                 </strong>
                             </span>
                         </div>

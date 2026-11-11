@@ -8,14 +8,14 @@ import NairaSymbol from '../NairaSymbol';
 import { useFinanceState } from '../../contexts/FinanceContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
-import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
+import { computeInvoiceTotals, normalizeTaxRate } from '../../utils/invoiceFinancials';
 
 interface InvoiceGeneratorFormProps {
     matter: Matter;
     unbilledTimeEntries: TimeEntry[];
     unbilledExpenses: Expense[];
     bankAccounts: BankAccount[];
-    onGenerateInvoice: (matter: Matter, lineItems: InvoiceLineItem[], invoiceDetails: { invoiceNumber: string, issueDate: string, dueDate: string }, billedTimeEntryIds: string[], billedExpenseIds: string[], paymentDetails: BankAccount, taxDetails?: { subTotal: number, taxAmount: number }) => void;
+    onGenerateInvoice: (matter: Matter, lineItems: InvoiceLineItem[], invoiceDetails: { invoiceNumber: string, issueDate: string, dueDate: string }, billedTimeEntryIds: string[], billedExpenseIds: string[], paymentDetails: BankAccount, taxDetails?: { applicable: boolean, ratePct: number, subTotal: number, taxAmount: number }) => void;
     onClose: () => void;
 }
 
@@ -24,19 +24,12 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const { coreState, isDataLoaded } = useCoreState();
     const { addToast } = useUI();
 
-    // Pre-fill with dynamic firm-branded invoice number
-    const suggestedInvoiceNumber = useMemo(() =>
-        generateInvoiceNumber({
-            firmName: coreState.firmDetails?.name,
-            users: coreState.users || [],
-            existingInvoiceCount: financeState.invoices?.length || 0,
-        }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [coreState.firmDetails?.name, coreState.users?.length, financeState.invoices?.length]);
-
     const [selectedTimeEntryIds, setSelectedTimeEntryIds] = useState<Set<string>>(new Set());
     const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
-    const [invoiceNumber, setInvoiceNumber] = useState(suggestedInvoiceNumber);
+    // V2 (V-FIN-6): the number is issued server-side on save (atomic
+    // per-firm sequence). The old client generator (count+1) collided on
+    // concurrent creation; this field no longer feeds the invoice.
+    const [invoiceNumberHint] = useState('');
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
     const [dueDate, setDueDate] = useState(new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]);
 
@@ -44,8 +37,11 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const [paymentAccountId, setPaymentAccountId] = useState<string>(defaultAccount?.id || '');
     const [applyVat, setApplyVat] = useState(true);
 
-    const vatRate = coreState.firmDetails.taxSettings?.vatRate || 0.075; // Default 7.5%
-    const vatPercentage = (vatRate * 100).toFixed(1);
+    // ─── V2 TAX CONTRACT (V-FIN-15): percentages at the boundary; the firm
+    //    setting (legacy fraction storage) is normalized once, here. The
+    //    pre-V2 fraction multiplication billed a firm that saved 7.5 at 750%.
+    const vatRatePct = normalizeTaxRate(coreState.firmDetails.taxSettings?.vatRate);
+    const vatPercentage = vatRatePct.toFixed(1);
 
     const fixedFeeItem = useMemo(() => {
         if (matter.billingModel === 'Fixed Fee' && matter.fixedFeeAmount) {
@@ -120,9 +116,19 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const fixedFeeTotal = isFixedFeeSelected && fixedFeeItem ? fixedFeeItem.amount : 0;
     const scaleFeeTotal = isScaleFeeSelected && scaleFeeItem ? scaleFeeItem.amount : 0;
 
+    // V2: one kobo-exact computation, the same contract the server applies.
+    const genTotals = computeInvoiceTotals(
+        [
+            ...selectedTimeItems.map(e => ({ total: e.duration * e.rate })),
+            ...selectedExpenseItems.map(x => ({ total: x.amount })),
+            ...(isFixedFeeSelected && fixedFeeItem ? [{ total: fixedFeeItem.amount }] : []),
+            ...(isScaleFeeSelected && scaleFeeItem ? [{ total: scaleFeeItem.amount }] : []),
+        ],
+        { applicable: applyVat, ratePct: vatRatePct },
+    );
     const subTotal = timeTotal + expenseTotal + fixedFeeTotal + scaleFeeTotal;
-    const taxAmount = applyVat ? subTotal * vatRate : 0;
-    const totalAmount = subTotal + taxAmount;
+    const taxAmount = genTotals.taxAmount;
+    const totalAmount = genTotals.total_amount;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -179,7 +185,11 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
         }
         const paymentDetails = selectedAccount;
 
-        await onGenerateInvoice(matter, finalLineItems, { invoiceNumber, issueDate, dueDate }, Array.from(selectedTimeEntryIds), Array.from(selectedExpenseIds), paymentDetails, { subTotal, taxAmount });
+        // V2 (V-FIN-2): the tax statement travels EXPLICITLY — { applicable,
+        // ratePct }. The pre-V2 { subTotal, taxAmount } payload carried no
+        // `applicable` flag, so the receiving hook's `tax?.applicable` check
+        // silently zeroed VAT on every generated invoice.
+        await onGenerateInvoice(matter, finalLineItems, { invoiceNumber: invoiceNumberHint, issueDate, dueDate }, Array.from(selectedTimeEntryIds), Array.from(selectedExpenseIds), paymentDetails, { applicable: applyVat, ratePct: vatRatePct, subTotal, taxAmount });
     };
 
     const commonInputClass = inputClassic;
@@ -270,7 +280,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
                 </div>
                 <div>
                     <label htmlFor="invNumber" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Invoice Number</label>
-                    <input autoComplete="off" data-lpignore="true"  type="text" id="invNumber" value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} className={commonInputClass} required />
+                    <input autoComplete="off" data-lpignore="true"  type="text" id="invNumber" value="Assigned automatically on save" readOnly disabled className={`${commonInputClass} opacity-70`} />
                 </div>
                 <div>
                     <label htmlFor="invIssueDate" className="block text-sm font-medium text-slate-700 dark:text-dim-300 mb-1">Issue Date</label>

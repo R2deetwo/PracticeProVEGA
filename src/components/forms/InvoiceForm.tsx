@@ -6,10 +6,9 @@ import { inputModern } from '../../utils/formStyles';
 import { formatNumberWithCommas, parseFormattedNumber, formatNaira } from '../../utils/formatting';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
-import { useFinanceState } from '../../contexts/FinanceContext';
 import { useProduct } from '../../contexts/ProductContext';
 import NairaSymbol from '../NairaSymbol';
-import { generateInvoiceNumber } from '../../utils/invoiceHelpers';
+import { computeInvoiceTotals, normalizeTaxRate, invoiceOutstanding } from '../../utils/invoiceFinancials';
 import { computeScaleFeeNote, scaleAppliesToMatter } from '../../utils/scaleOfCharges';
 import { Button, Input } from '../ui';
 
@@ -25,28 +24,28 @@ interface InvoiceFormProps {
 
 export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bankAccounts, invoiceToEdit, onAddInvoice, onUpdateInvoice, onClose }) => {
   const { coreState, isDataLoaded } = useCoreState();
-  const { financeState } = useFinanceState();
   const { isProperty, terminology } = useProduct();
     const { openModal, navigateTo, addToast } = useUI();
 
-  const vatRate = coreState.firmDetails.taxSettings?.vatRate || 0.075;
-  const vatPercentage = (vatRate * 100).toFixed(1);
+  // ─── V2 TAX CONTRACT (V-FIN-15): rates are PERCENTAGES at the contract
+  //    boundary. The firm setting is stored as a legacy fraction (0.075) —
+  //    normalizeTaxRate reconciles either storage shape. The pre-V2 code
+  //    multiplied the raw setting (fraction) — a firm that saved 7.5 was
+  //    billed 750% VAT.
+  const vatRatePct = normalizeTaxRate(coreState.firmDetails.taxSettings?.vatRate);
+  const vatPercentage = vatRatePct.toFixed(1);
 
-  // Pre-fill with dynamic firm-branded invoice number
-  const suggestedInvoiceNumber = useMemo(() =>
-      generateInvoiceNumber({
-          firmName: coreState.firmDetails?.name,
-          users: coreState.users || [],
-          existingInvoiceCount: financeState.invoices?.length || 0,
-      }),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [coreState.firmDetails?.name, coreState.users?.length, financeState.invoices?.length]);
+  // ─── V2 NUMBERING (V-FIN-6): new invoices no longer carry a client-side
+  //    number. The server issues an atomic, per-firm sequential number at
+  //    creation (financial_counters) — the count-based client generator
+  //    collided whenever two invoices were created around the same moment.
+  //    The field remains editable only when EDITING an existing invoice.
 
   const [clientId, setClientId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [matterId, setMatterId] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([{ description: '', total: 0, hours: 0, rate: 0 }]);
-  const [invoiceNumber, setInvoiceNumber] = useState(suggestedInvoiceNumber);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]);
 
@@ -57,8 +56,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
 
   const [applyVat, setApplyVat] = useState(true);
   const [applyWht, setApplyWht] = useState(false);
-  const whtRate = 0.10;
-  const whtPercentage = (whtRate * 100).toFixed(0);
+  // V2: percent semantics + the firm's configured rate when present.
+  const whtRatePct = normalizeTaxRate(coreState.firmDetails.taxSettings?.whtRate, 10);
+  const whtPercentage = whtRatePct.toFixed(0);
 
   // R40 — the Scale of Charges computation (land-documentation matters).
   // The property value drives the bands; one tap appends the fee note to
@@ -104,7 +104,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       setIssueDate(invoiceToEdit.issueDate);
       setDueDate(invoiceToEdit.dueDate);
       setPaymentAccountId(invoiceToEdit.paymentDetails.id);
-      setApplyVat(invoiceToEdit.taxAmount !== undefined && invoiceToEdit.taxAmount > 0);
+      setApplyVat(invoiceToEdit.taxApplicable !== undefined ? invoiceToEdit.taxApplicable : (invoiceToEdit.taxAmount !== undefined && invoiceToEdit.taxAmount > 0));
+      setApplyWht(!!(invoiceToEdit as any).withholdingApplicable);
     } else if (clients.length > 0) {
       setClientId(clients[0].id);
     }
@@ -172,11 +173,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const addLineItem = () => setLineItems([...lineItems, { description: '', total: 0, hours: 0, rate: 0 }]);
   const removeLineItem = (index: number) => lineItems.length > 1 && setLineItems(lineItems.filter((_, i) => i !== index));
 
-  const subTotal = lineItems.reduce((sum, item) => sum + (item.total || 0), 0);
-  const vatAmount = applyVat ? subTotal * vatRate : 0;
-  const whtAmount = applyWht ? subTotal * whtRate : 0;
-  const invoiceTotal = subTotal + vatAmount;
-  const netReceivable = subTotal + vatAmount - whtAmount;
+  // V2: one computation, kobo-exact — the same contract the server fence
+  // applies on save (display here can never drift from what gets stored).
+  const totals = computeInvoiceTotals(lineItems, { applicable: applyVat, ratePct: vatRatePct }, { applicable: applyWht, ratePct: whtRatePct });
+  const subTotal = totals.subTotal;
+  const vatAmount = totals.taxAmount;
+  const whtAmount = totals.withholdingAmount;
+  const invoiceTotal = totals.total_amount;
+  const netReceivable = totals.netReceivable;
   const selectedMatter = matters.find(m => m.id === matterId);
   // The land scale applies only to land-documentation matters.
   const scaleApplies = scaleAppliesToMatter(selectedMatter);
@@ -229,9 +233,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       return;
     }
 
-    const invoiceData: Omit<Invoice, 'id'> = {
+    const invoiceData: any = {
       firmId: coreState.firmDetails.id,
-      invoiceNumber,
+      // V2: on EDIT the (already server-issued) number travels for the
+      // uniqueness check; on CREATE the server assigns it atomically.
+      ...(isEditing ? { invoiceNumber } : {}),
       client: { id: client!.id, name: client!.name },
       matter: { id: matter!.id, title: matter!.title },
       lineItems: finalLineItems,
@@ -239,8 +245,17 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       issueDate,
       dueDate,
       paymentDetails,
+      // Money figures + the explicit tax statement — the server recomputes
+      // and overrides these from the same contract (they travel as intent).
       subTotal,
-      taxAmount: vatAmount
+      taxAmount: vatAmount,
+      total_amount: invoiceTotal,
+      taxApplicable: applyVat,
+      taxRate: vatRatePct,
+      withholdingApplicable: applyWht,
+      withholdingRate: whtRatePct,
+      withholdingAmount: whtAmount,
+      netReceivable,
     };
 
     setIsSubmitting(true);

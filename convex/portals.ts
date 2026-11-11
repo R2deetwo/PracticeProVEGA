@@ -14,6 +14,9 @@ import { dispatchRulesForEvent } from "./automationRules";
 import { makeTxHash } from "./sentry";
 import { assertValidChargeType } from "./chargeTypes";
 import { roundMoney } from "./moneyUtils";
+// V2 FINANCIAL TRUTH: the one outstanding-balance contract (server-computed
+// for the portal — the client never recomputes money).
+import { invoiceOutstanding, computeClientFinancialSummary } from "./invoiceFinancials";
 
 // ─── QUERY BOUNDING POLICY (Item 4, perf — 2026-09-12) ────────────────────────
 // Every read in this module is BOUNDED. Unbounded `.collect()` calls were
@@ -4501,10 +4504,40 @@ export const getClientInvoices = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(2000);
 
-    const clientMatters = matters.filter(m => m.clientId === args.contactId);
-    const matterIds = clientMatters.map(m => String(m._id));
+    // ─── V2 (V-FIN-1): the client↔matter relationship holds BOTH id
+    //    conventions in live data. Matters created through the app store
+    //    the contact's CUSTOM id (`c.id`, a UUID) in clientId; matters
+    //    created through portal-era flows store the contact's CONVEX _id.
+    //    The pre-V2 filter matched only the Convex _id, so every client
+    //    whose matters used the app convention saw an EMPTY financials
+    //    tab. Resolve against every shape the caller's contact actually
+    //    has — verified against representative fixtures in
+    //    tests/unit/roundV2FinancialTruth.test.ts.
+    const clientContactIds = new Set<string>();
+    if (contact) {
+      if (contact._id) clientContactIds.add(String(contact._id));
+      if ((contact as any).id) clientContactIds.add(String((contact as any).id));
+    }
+    // The caller may legitimately pass either shape (aliases already
+    // verified it belongs to them).
+    clientContactIds.add(String(args.contactId));
+    for (const a of aliases) clientContactIds.add(String(a));
 
-    if (matterIds.length === 0) return [];
+    const clientMatters = matters.filter(m => clientContactIds.has(String(m.clientId ?? "")));
+    // ─── V2 (V-FIN-1): invoices reference matters by EITHER the matter's
+    //    Convex _id (inv.matterId) or the matter's CUSTOM id (the
+    //    matter:{id,title} snapshot the invoice forms persist). The match
+    //    set must contain both shapes for every client matter.
+    const matterIds = new Set<string>();
+    const matterTitleById = new Map<string, string>();
+    for (const m of clientMatters) {
+      matterIds.add(String(m._id));
+      if ((m as any).id) matterIds.add(String((m as any).id));
+      matterTitleById.set(String(m._id), m.title || "");
+      if ((m as any).id) matterTitleById.set(String((m as any).id), m.title || "");
+    }
+
+    if (matterIds.size === 0) return [];
 
     // Get invoices for those matters
     const allInvoices = await ctx.db
@@ -4512,7 +4545,6 @@ export const getClientInvoices = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(1000);
 
-    const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
     const resolveInvMatter = (inv: any): string | null => {
       const matterField = inv.matter as any;
       const candidates = [
@@ -4521,7 +4553,7 @@ export const getClientInvoices = query({
         typeof matterField === "string" ? String(matterField) : null,
       ].filter(Boolean);
       for (const c of candidates) {
-        if (matterIds.includes(String(c))) return String(c);
+        if (matterIds.has(String(c))) return String(c);
       }
       return null;
     };
@@ -4541,8 +4573,17 @@ export const getClientInvoices = query({
       // CP-5 projection: minimal client-safe invoice. The internal
       // lifecycle cluster (voidReason, voidedByEmail, voidedAt, auditId,
       // priorStatus, recordStatus), the Paystack integration fields
-      // (provider, providerReference, paymentMethod), paymentDetails and
-      // the `client` blob are NEVER returned to the portal.
+      // (provider, providerReference, paymentMethod), the `client` blob
+      // and any paymentDetails beyond the three payment-instruction fields
+      // are NEVER returned to the portal.
+      //
+      // V2 (V-FIN-1/12): paymentDetails is now projected as exactly the
+      // three fields a client needs to pay by bank transfer (bankName,
+      // accountNumber, accountName) — these are the same details a firm
+      // prints on its invoice letterhead. `outstanding` is computed
+      // SERVER-SIDE with the one contract so the portal never recomputes
+      // money (the pre-V2 portal summed `inv.totalAmount || inv.amount` —
+      // fields that do not exist on invoices — and showed ₦0 forever).
       .map(({ inv, matterId }) => ({
         _id: inv._id,
         id: inv.id,
@@ -4555,8 +4596,81 @@ export const getClientInvoices = query({
         subTotal: inv.subTotal,
         taxAmount: inv.taxAmount,
         total_amount: inv.total_amount,
-        matter: { id: matterId, title: matterMap.get(matterId) || "" },
+        amountPaid: typeof inv.amountPaid === "number" ? inv.amountPaid : 0,
+        outstanding: invoiceOutstanding(inv),
+        paymentDetails: inv.paymentDetails ? {
+          bankName: (inv.paymentDetails as any).bankName ?? null,
+          accountNumber: (inv.paymentDetails as any).accountNumber ?? null,
+          accountName: (inv.paymentDetails as any).accountName ?? null,
+        } : null,
+        matter: { id: matterId, title: matterTitleById.get(matterId) || "" },
       }));
+  },
+});
+
+// ─── Client Financial Summary (V2 — V-FIN-1: the authoritative balance) ─────
+
+/**
+ * getClientFinancialSummary — the SERVER-COMPUTED outstanding balance for a
+ * portal client. One definition (invoiceFinancials.computeClientFinancialSummary),
+ * reused by every client-facing surface so five different formulas can never
+ * disagree again: the dashboard hero card, the financials tab, the billing
+ * tab, and anything future — all render THIS number.
+ *
+ * Voided/test records are excluded (annotations, not money), partially-paid
+ * invoices contribute their true remainder, and past-due open invoices are
+ * totalled separately as overdueBalance.
+ */
+export const getClientFinancialSummary = query({
+  args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller, args.firmId);
+    if (!aliases.has(String(args.contactId))) args.contactId = contact ? String(contact._id) : String(caller._id);
+
+    const matters = await ctx.db
+      .query("matters")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .take(2000);
+
+    // Same dual-convention resolution as getClientInvoices (V-FIN-1).
+    const clientContactIds = new Set<string>();
+    if (contact) {
+      if (contact._id) clientContactIds.add(String(contact._id));
+      if ((contact as any).id) clientContactIds.add(String((contact as any).id));
+    }
+    clientContactIds.add(String(args.contactId));
+    for (const a of aliases) clientContactIds.add(String(a));
+
+    const clientMatters = matters.filter(m => clientContactIds.has(String(m.clientId ?? "")));
+    if (clientMatters.length === 0) {
+      return { outstandingBalance: 0, openInvoiceCount: 0, paidTotal: 0, overdueBalance: 0 };
+    }
+
+    const matterIds = new Set<string>();
+    for (const m of clientMatters) {
+      matterIds.add(String(m._id));
+      if ((m as any).id) matterIds.add(String((m as any).id));
+    }
+
+    const allInvoices = await ctx.db
+      .query("invoices")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .take(1000);
+
+    const clientInvoices = allInvoices.filter((inv: any) => {
+      if (inv.recordStatus === "voided" || inv.recordStatus === "test" || inv.status === "Void") return false;
+      const matterField = inv.matter as any;
+      const candidates = [
+        inv.matterId ? String(inv.matterId) : null,
+        matterField?.id ? String(matterField.id) : null,
+        typeof matterField === "string" ? String(matterField) : null,
+      ].filter(Boolean);
+      return candidates.some((c: string | null) => c !== null && matterIds.has(c));
+    });
+
+    return computeClientFinancialSummary(clientInvoices as any);
   },
 });
 // ─── Client Contact Lookup for Portal ──────────────────────────────────────
@@ -4678,8 +4792,16 @@ export const getClientMattersByUserId = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(2000);
 
+    // ─── V2 (V-FIN-1): matters hold EITHER the contact's Convex _id or its
+    //    CUSTOM id in clientId (both conventions exist in live data — the
+    //    app forms store the custom id, portal-era flows stored the _id).
+    //    Match both; the single-shape filter returned [] for every client
+    //    whose matters were created through the app forms.
+    const contactIds = new Set<string>([String(clientContact._id)]);
+    if ((clientContact as any).id) contactIds.add(String((clientContact as any).id));
+
     return matters
-      .filter(m => m.clientId === String(clientContact._id))
+      .filter(m => contactIds.has(String(m.clientId ?? "")))
       .map(m => ({
         id: String(m._id),
         title: m.title,

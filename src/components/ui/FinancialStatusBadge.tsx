@@ -68,7 +68,7 @@ function statusToVariant(status: string): BadgeVariant {
   }
 
   // Info states
-  if (['partial', 'partially_paid', 'partially-paid'].includes(s)) {
+  if (['partial', 'partially_paid', 'partially paid', 'partially-paid'].includes(s)) {
     return 'info';
   }
 

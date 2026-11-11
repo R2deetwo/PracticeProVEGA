@@ -11,7 +11,8 @@ This document explains how invoices, receipts, and payments flow through Practic
 1. Pick a client (Vega) or property/tenant (Atrium) — the party fields auto-fill from the contact/tenancy record.
 2. Add line items — each has a description, quantity, and unit price. Line items are stored as an array on the invoice row (`invoices` table, `lineItems`).
 3. Optionally link the invoice to a **matter** (Vega) or a **ledger entry / unit** (Atrium) so payment status reflects on the matter dashboard or Revenue Monitor.
-4. The invoice number is generated per-firm with a collision check (`invoiceNumber`).
+4. The invoice number is **issued server-side at creation** (V2): an atomic, per-firm sequential number (`financial_counters`, the same pattern as receipts) in the firm-branded `INV-XX-0001` format — concurrent creations can never collide, and the sequence continues each firm's legacy numbers. Manual edits that collide with an existing number are rejected.
+5. **Every money figure is computed server-side** (V2): `subTotal`, `taxAmount` (VAT — percentage semantics, the firm's rate, zero-rating distinguished from non-taxable), `withholdingAmount`, `netReceivable` and `total_amount` are recomputed from the line items inside the creating/editing transaction. Client-side figures are display hints only. Payments land through the audited `recordInvoicePayment` lifecycle (full or partial — a partial payment shows 'Partially Paid' with the true remainder everywhere).
 
 **Statuses:** `draft` → `sent` → `paid` / `partially_paid` / `overdue` / `cancelled`.
 
@@ -21,12 +22,12 @@ This document explains how invoices, receipts, and payments flow through Practic
 
 Automated retainer billing cycles for firms on retainer arrangements.
 
-- **Schedules:** each matter can carry a retainer schedule (`convex/retainerBilling.ts` — `upsertMatterRetainerSchedule`): billing interval, next run date, line-item template.
-- **Outbox:** when a cycle is due, the engine *stages* an outbox entry rather than sending immediately. Nothing goes to a client without admin approval.
-- **Approval flow:** `approveAndSendNow` sends it; `pauseForEdit` / `skipCycle` manage the queue; `retryFailed` re-attempts failed sends.
-- **Staging manually:** `stageRetainerInvoiceManually` lets an admin queue a one-off retainer invoice.
+- **Schedules:** each matter can carry a retainer schedule (`convex/retainerBilling.ts` — `upsertMatterRetainerSchedule`): billing interval, next run date, line-item template. Enabling auto-billing on an old matter starts one full cycle from enable — no retroactive catch-up flood (V2).
+- **Outbox (V2 truth):** when a cycle is due, the engine stages an outbox entry as **Pending Review** (`Staged`). The cron **never** issues it — only a lawyer's explicit approval (`approveAndSendNow`) does. The 48-hour `reviewDueBy` is an advisory review deadline, not a send trigger. At most ONE catch-up invoice is staged per overdue matter; the schedule then clamps forward past the present.
+- **States:** `Staged` (pending review) → `Queued` (approved) → `Issued` (invoice created, email NOT confirmed) / `Sent` (**only** when the email gateway confirms delivery — messageId recorded) / `Failed` / `Paused` / `Skipped`. `deliveryStatus` tells you exactly what happened.
+- **Approval flow:** `approveAndSendNow` records who approved and attempts real email delivery; `pauseForEdit` / `skipCycle` manage the queue; `retryFailed` re-attempts failed sends and un-delivered emails (the invoice itself is never duplicated).
 
-The outbox exists so automated billing is **reviewable** — a core trust feature. Every automated invoice passes through a human before reaching a client.
+The outbox exists so automated billing is **reviewable** — a core trust feature. Every automated invoice passes through a human before reaching a client. (V2: this promise is now enforced in code — previously the review window was zero and "Sent" was stamped on entries no email had ever carried.)
 
 ---
 
@@ -79,5 +80,8 @@ Data comes from the same `ledger_entries` the billing flows write — one source
 |-----------|-----------|
 | No double-crediting | Payment idempotency keys + `by_idempotency` index |
 | No half-written payments | Atomic multi-table writes (invoice + payment + ledger in one transaction) |
-| No unreviewed automated billing | Retainer outbox requires explicit admin approval |
+| No unreviewed automated billing | Retainer outbox requires explicit lawyer approval (enforced — the cron never issues) |
+| No fabricated delivery claims | 'Sent' only when the email gateway confirms; 'Issued (no email)' says the truth |
+| One outstanding number everywhere | `invoiceFinancials` contract (server + drift-tested client mirror), server-computed for the portal |
+| Trust exactly-once | Idempotency keys on every trust write (direct + offline queue) |
 | Auditability | Soft-delete + `deletedAt`/`deletedBy` on invoices and payments |

@@ -17830,3 +17830,122 @@ Work Log:
   (V1-A/B/C/D) is fully closed and live.
 - Round stopped for review per the brief — no V2 work started.
 [skip ci]
+
+---
+Task ID: V2 (Vega financial truth and integrity)
+Agent: Main agent (Super Z)
+Task: Repair the financial-correctness defects from the V0 audit
+(V-FIN-1…V-FIN-15) without redesigning the payment infrastructure or
+changing historical financial records.
+
+Work Log:
+- SURVEY confirmed every finding at source: VAT silently zero on
+  generate-from-matter (tax?.applicable never sent by the form); THREE rate
+  conventions at once (fraction-multiply in the forms — a firm storing 7.5
+  was billed 750% — vs percent-divide in useFinance vs hardcoded retainer
+  7.5); client-side count+1 invoice numbering (same-moment collisions) and
+  INV-RET-Date.now() stamps; the retainer engine whose own comments admitted
+  "review window = 0" and "we simulate a successful send" (Sent + sentAt
+  stamped with zero email); one-invoice-per-cron-tick catch-up floods on
+  old schedules; NO trust idempotency (the offline queue replays
+  recordTrustTransaction keyless — double-booked ledgers); float trust
+  balances; the portal hero/financials cards summing inv.totalAmount ||
+  inv.amount — GHOST FIELDS, ₦0 forever — while matters/invoices matched on
+  a single id convention each (the app forms' custom-id convention never
+  resolved → empty financials tabs); FIVE different outstanding formulas
+  across the surfaces; mark-paid/revert dialogs promising receipts and
+  credit notes that never existed; the client Pay Now flow claiming
+  "Payment Reported" while submitting NOTHING.
+- THE ONE TAX CONTRACT (convex/invoiceFinancials + drift-tested
+  src/utils/invoiceFinancials mirror): percentage semantics at the boundary
+  (normalizeTaxRate reconciles the legacy 0.075 fraction storage),
+  zero-rating distinguished from non-taxable, WHT on the fee persisted
+  (withholdingAmount/netReceivable), integer kobo at every calculation
+  boundary, ONE outstanding definition (total − amountPaid) and ONE client
+  financial summary. Equivalence-tested server ≡ mirror.
+- SERVER-AUTHORITATIVE WRITES (convex/invoiceFence): createItem issues the
+  invoice number server-side (financial_counters scope 'invoices', the
+  receipts M8 pattern — atomic, conflict-free, format INV-XX-0001 preserved,
+  sequence continued from each firm's legacy max) and RECOMPUTES every money
+  figure from line items; updateItem strips client amountPaid attempts,
+  rejects colliding manual number edits, and recomputes totals on any
+  money-relevant patch — manual, generated and edited invoices use one
+  calculation; the outbox review-edit and issue steps recompute the same
+  way.
+- TRUST INTEGRITY (trustAccount.ts): idempotencyKey + by_idempotency index
+  (replays return the original, duplicate:true); the offline queue injects
+  its stable item id as the key; kobo-exact sum-based balances; every trust
+  write patches the firm's trust financial_counters row INSIDE the
+  transaction (the OCC serializer — the insufficient-balance check can no
+  longer race); reverseTrustTransaction: explicit audited contra entry
+  (original never edited, gains reversedAt/By only; double-reversal
+  refused; delete path protections unchanged, additionally refuses to
+  delete a reversed original).
+- RETAINER HONESTY (retainerBilling.ts): staged entries are PENDING REVIEW
+  — the 15-min cron no longer issues anything, only re-drives approved
+  entries; approveAndSendNow records approvedAt/By and attempts REAL email
+  delivery via sendEmailCore (Brevo); 'Sent' ONLY on gateway confirmation
+  (messageId stored); no gateway → 'Issued' + deliveryStatus 'not_emailed'
+  + a failure reason that says no email was sent; catch-up CLAMPED: one
+  entry max per overdue matter, nextBillingDate pushed past now (guard
+  240), enabling on an old matter starts one full cycle from enable;
+  createInvoiceFromOutbox is idempotent (retry never duplicates the
+  invoice), numbers server-issued, totals recomputed, status 'Unpaid' (not
+  the old lying 'Sent').
+- PAYMENT TRUTH (financialIntegrity.ts): recordInvoicePayment — audited,
+  kobe-accumulating amountPaid, truthful 'Partially Paid' until settled,
+  overpayment rejected, voided invoices refuse payments, legacy Paid status
+  honoured as full settlement; revertInvoicePayment — the audited undo
+  (reason required, status+amountPaid+paidDate cleared together) replacing
+  the bare 'Reversed' flip whose dialog promised a credit note; all
+  receipt/credit-note/unbilling promises removed from the UI copy and
+  replaced with what actually happens.
+- PORTAL CORRECTNESS (portals.ts): getClientInvoices/getClientMattersByUserId
+  resolve BOTH id conventions (contact _id AND custom id; matter _id AND
+  custom id — read-side only, no history rewritten); getClientFinancialSummary
+  serves THE server-computed balance the portal renders; paymentDetails
+  projected as exactly the 3 payment-instruction fields (bankName/
+  accountNumber/accountName — the V1-C raw-blob ban evolved to a safe-shape
+  contract, test updated accordingly).
+- FIVE SURFACES, ONE NUMBER: ClientDashboard hero + financials tab and
+  ClientBillingTab render the server summary (ghost-field ₦0 sums gone —
+  rows show real totals, partial remainders visible); BillingView KPI,
+  FinancialReports (A/R aging included), InvoiceDetailView and
+  ContactDetailView all derive from the shared contract (the
+  total_amount||subTotal and raw-lineItems sums are gone — source-contract
+  tested); 'Partially Paid' added to the status badge/pills; V-FIN-14: a
+  Financial Audit History section in the Vega reports view surfaces the
+  append-only financial_audit_log (firm-scoped, session-verified) without
+  touching Atrium's console; the client Pay Now → "Payment Details" with
+  real bank details, the gateway modal's invoice path now performs a REAL
+  portal-message notification or offers no confirm at all ("No payment is
+  taken by this app").
+- TESTS: tests/unit/roundV2FinancialTruth.test.ts — 36 real-handler tests
+  (VAT inclusive/exclusive, zero-rated vs non-taxable, WHT, concurrent
+  numbering, sequence continuity, collision rejection, retainer scheduling/
+  catch-up/honest delivery, duplicate trust submissions, offline replay,
+  kobo arithmetic, overdraft rejection, explicit reversal + double-reversal,
+  concurrency anchor, partial payments + settlement + overpayment, payment
+  revert, void refusal, dual-convention portal fixtures, the server
+  summary, mirror equivalence on the full input matrix, and source
+  contracts for every touched surface). PRE-FIX PROOF: a 5-probe suite
+  importing only pre-existing modules fails 5/5 against the pre-V2 tree.
+  The V1-C CP-5 contract was evolved for the paymentDetails projection
+  (raw-blob ban → exact 3-field shape, bankCode never passes).
+- GATES: vitest 2236/2236 (113 files, +36) / convex tsc 0 / root tsc 94 =
+  baseline / eslint 0 errors / ui-primitives ratchet IMPROVED 2297→2296
+  (baseline tightened) / gray=0 / identity audit PASSED / main + admin
+  builds green.
+- NON-NEGOTIABLES HELD: Paystack webhook infrastructure, Atrium financial
+  workflows, historical money records and the FINANCIAL_TABLES hard-delete
+  protection untouched; no trust draw-down model; no speculative accounting.
+- Reconciliation report: VEGA_FINANCIAL_TRUTH_REMEDIATION.md (every formula
+  before/after with worked examples).
+
+Stage Summary:
+- V2 COMPLETE AND STOPPED FOR INDEPENDENT REVIEW per the brief. Pushed to
+  main; CI gate run; production promote NOT dispatched — this round's
+  changes await the independent review the brief requires.
+- The books now tell the truth: one tax calculation, one numbering
+  authority, one outstanding balance, delivery claims only where delivery
+  happened, and an audit trail the firm can actually read.
