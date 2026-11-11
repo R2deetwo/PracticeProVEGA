@@ -17262,3 +17262,39 @@ Work Log:
   warnings, all rounded-xl migration debt in marketing surfaces) /
   ui-primitives ratchet HELD at 2297 / identity audit PASSED / vite
   build + admin build green / entry bundle -38%.
+
+Task ID: R100 (Round QA publish — R96-R99 CI record; §7 closeout)
+Agent: Main agent (Super Z)
+Task: Release the R96-R99 production-readiness waves (6782af24, built
+in the prior session) to main — with every gate re-verified fresh this
+session, not trusted from the commit message.
+
+Work Log:
+- Re-verification at 6782af24 (full CI mirror): convex tsc 0 / root
+  tsc exactly 94 = the new tightened baseline / identity audit passed /
+  design tokens gray=0 / ui-primitives ratchet held at 2297 / vitest
+  2,094/2,094 (106 files, 19.3s) / eslint 0 errors + the 76 known
+  rounded-xl warnings / main build green — entry chunk 1,241.91 kB
+  minified, 326.47 kB gzip (the R97 -38%/-40% claim reproduced to the
+  byte) / admin (Vega) build green / worktree clean.
+- The four R96 closures re-read in the diff before push (evidence, not
+  message-trust): brainIngestion session+firm-match, ai.generateContent
+  session+30/min+6MB, cleanTranscript session+20/min+200KB, webFetch
+  session+20/min+SSRF matrix, vite define pinned '' + the build-time
+  Gemini-key guard.
+- Push 6782af24 → main, verified via ls-remote both sides (the R86-R89
+  stale-push class cannot recur silently).
+- CI on 6782af24: Tests ✅ / Deploy to Staging ✅ / Build Android APK ✅
+  — all green in ~4 minutes, zero failed runs.
+- Release record: v1.0.761 / build-1156 (bump 1e699edf, version.json
+  a9ba1382), APK artifact PracticePro-v1.0.761.apk published as a
+  pre-release asset, apkBuildStatus healthy.
+- Production NOT promoted — deliberate, owner action: run "Deploy to
+  Production (promote)" when ready. Production currently serves
+  v1.0.760 (R94 / build-1155); this release carries the four
+  public-action security closures, so promoting promptly is advised.
+- Standing items, unchanged: the Cloudflare mirror is STILL blocked by
+  the dead CLOUDFLARE_API_TOKEN (the mirror serves the 2026-09-18
+  build — new token → repo secret → re-run promote); the PAT has
+  transited chat again (6th time) — rotate whenever convenient;
+  brand/* branch disposal still pending.
