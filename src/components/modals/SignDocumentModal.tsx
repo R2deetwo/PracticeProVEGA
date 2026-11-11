@@ -138,7 +138,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
  return (
   <div className="space-y-4">
    <p className="text-slate-600 dark:text-zinc-400">
-    Please sign the document "<strong>{document.title}</strong>".
+    Record an internal acknowledgement for "<strong>{document.title}</strong>".
    </p>
 
    <div className="flex p-1 bg-slate-200 dark:bg-zinc-700 rounded-lg">
@@ -166,7 +166,7 @@ export const SignDocumentModal: React.FC<SignDocumentModalProps> = ({ document, 
    </div>
 
    <p className="text-xs text-dim-500">
-    By clicking 'Apply Signature', you confirm that you have read and agree to be legally bound by the terms of this document.
+    This records an INTERNAL ACKNOWLEDGEMENT on the document record: the signature image, the signing user's ID and the timestamp are persisted and auditable (V4, V-DOC-3). It is not presented as a legally valid electronic signature and does not replace any execution formality the document requires.
    </p>
 
    <div className="pt-4 flex justify-end space-x-2">

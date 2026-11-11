@@ -9,6 +9,7 @@ import { ExtendedDataActions, DataActionsContext, DataStateContext } from './Dat
 import { v4 as uuidv4 } from 'uuid';
 import { readCachedAppState, writeAppStateCache } from '../utils/offlineBoot';
 import { useOfflineQueue } from '../hooks/useOfflineQueue';
+import { uploadBlobToConvex, surfaceUploadError } from '../utils/convexUpload';
 
 // Domain Hooks
 import { useMatters } from '../hooks/useMatters';
@@ -102,6 +103,9 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const purgeFirmDataMutation = useMutation(api.myFunctions.purgeFirmData);
     const addUnitToPropertyMutation = useMutation(api.myFunctions.addUnitToProperty);
     const removeUnitFromPropertyMutation = useMutation(api.myFunctions.removeUnitFromProperty);
+    // V4 (V-DOC-3): signature images are uploaded to Convex storage; the
+    // document record stores the storageId + attribution + timestamp.
+    const generateUploadUrlMutation = useMutation(api.myFunctions.generateUploadUrl);
 
     // Track recently-deleted IDs so the firmData re-merge (below) doesn't
     // re-add items the user just deleted. This was the root cause of the
@@ -544,6 +548,169 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         handleClearState,
         handleRunDocumentAnalysis,
         handleApplyCustomStageChecklist,
+        // ─── V4 (V-DOC-3): REAL handleSignDocument ─────────────────────
+        // The pre-V4 app declared this handler in the DataActions interface
+        // and passed a cast object that never implemented it — the Sign
+        // modal's onSign called `undefined`. It is now a real handler:
+        // the drawn/typed signature image is uploaded to Convex storage,
+        // and the record persists attribution (signerId) + timestamp
+        // (signedAt) + the storageId (signatureData). The modal labels the
+        // act honestly as an INTERNAL ACKNOWLEDGEMENT, not a legal
+        // e-signature.
+        handleSignDocument: async (id: string, signatureDataUrl: string) => {
+            if (!currentUser) {
+                addToast('Cannot sign: your session is still loading.', { type: 'error' });
+                return;
+            }
+            try {
+                // data URL → Blob (canvas PNG, a few KB)
+                const blob = await (await fetch(signatureDataUrl)).blob();
+                const storageId = await uploadBlobToConvex(blob, () =>
+                    generateUploadUrlMutation({ sessionToken: (bearerToken ?? undefined) })
+                );
+                await baseActions.updateItem('documents', {
+                    id,
+                    signatureData: String(storageId).slice(0, 200),
+                    signedAt: new Date().toISOString(),
+                    signerId: currentUser.id,
+                }, 'Document signature');
+                addToast('Internal acknowledgement recorded on the document.', { type: 'success' });
+            } catch (e: any) {
+                surfaceUploadError(addToast, { name: 'signature image', size: 0 }, e, 10);
+                addToast('Could not record the acknowledgement. Please try again.', { type: 'error' });
+            }
+        },
+        // ─── V4 (V-DOC-3): interface members the pre-V4 cast hid ────────
+        // Removing the `as unknown as ExtendedDataActions` cast exposed
+        // members that were declared but never implemented — the Sign modal
+        // crashed on the most visible one. Each is now either a real
+        // implementation or an HONEST stub (warning toast, never a fake
+        // success), per the standing honesty policy.
+        handleOrderTask: (taskId: string, newOrder: number) => {
+            void newOrder;
+            addToast('Task reordering is not yet available.', { type: 'warning' });
+            void taskId;
+        },
+        handleUpdateMatterAssignment: (id: string, userIds: string[]) => {
+            void baseActions.updateItem('matters', { id, assignedUsers: userIds }, 'Matter assignment');
+        },
+        handleRequestTrustDeposit: (_matterId: string, _amount: number, _description: string) => {
+            // Honest stub: creating a trust record from here would fabricate
+            // financial data — the dedicated audited path is the only way.
+            addToast('Trust deposit requests are not yet available from here.', { type: 'warning' });
+        },
+        handleAddWorkflowSubCategory: (id: string, subCategory: any) => {
+            const workflows = (appStateRef.current as any).workflows || [];
+            const wf = workflows.find((w: any) => w.id === id || w._id === id);
+            if (!wf) {
+                addToast('Workflow not found.', { type: 'error' });
+                return;
+            }
+            const existing = Array.isArray(wf.subCategories) ? wf.subCategories : [];
+            void baseActions.updateItem('workflows', { id: wf.id, subCategories: [...existing, subCategory] }, 'Workflow');
+        },
+        // ─── V4 (V-DOC-3): the remaining cast-hidden members ────────────
+        // Real implementations where a safe, honest one exists; honest
+        // warning stubs (never fake success) for the mock-era utilities.
+        handleUpdateChecklistItem: (taskId: string, itemId: string, checked: boolean) => {
+            const tasks = (appStateRef.current as any).tasks || [];
+            const task = tasks.find((t: any) => t.id === taskId || t._id === taskId);
+            if (!task || !task.checklist?.items) {
+                addToast('Checklist item not found.', { type: 'error' });
+                return;
+            }
+            const items = task.checklist.items.map((it: any) => it.id === itemId ? { ...it, checked } : it);
+            void baseActions.updateItem('tasks', { id: task.id, checklist: { ...task.checklist, items } }, 'Checklist');
+        },
+        handleAddAttorneyNote: (matterId: string, note: any) => {
+            const matters = (appStateRef.current as any).matters || [];
+            const matter = matters.find((m: any) => m.id === matterId || m._id === matterId);
+            if (!matter) {
+                addToast('Matter not found.', { type: 'error' });
+                return;
+            }
+            const notes = Array.isArray(matter.attorneyNotes) ? matter.attorneyNotes : [];
+            void baseActions.updateItem('matters', { id: matter.id, attorneyNotes: [...notes, note] }, 'Matter note');
+        },
+        handleDeleteAttorneyNote: (matterId: string, noteId: string) => {
+            const matters = (appStateRef.current as any).matters || [];
+            const matter = matters.find((m: any) => m.id === matterId || m._id === matterId);
+            if (!matter || !Array.isArray(matter.attorneyNotes)) {
+                addToast('Note not found.', { type: 'error' });
+                return;
+            }
+            void baseActions.updateItem('matters', { id: matter.id, attorneyNotes: matter.attorneyNotes.filter((n: any) => n.id !== noteId) }, 'Matter note');
+        },
+        handleAddAutomationRule: (rule: any) => {
+            void baseActions.addItem('automationRules', { ...rule, firmId: rule.firmId || currentUser?.firmId }, 'Automation rule');
+        },
+        handleDeleteAutomationRule: (id: string) => {
+            void baseActions.deleteItem('automationRules', id, 'Automation rule');
+        },
+        handleToggleAutomationRule: (id: string) => {
+            const rules = (appStateRef.current as any).automationRules || [];
+            const rule = rules.find((r: any) => r.id === id || r._id === id);
+            if (!rule) {
+                addToast('Automation rule not found.', { type: 'error' });
+                return;
+            }
+            void baseActions.updateItem('automationRules', { id: rule.id, isEnabled: !rule.isEnabled }, 'Automation rule');
+        },
+        handleShareDocumentWithOptions: (id: string, options: any) => {
+            const opts = options || {};
+            const patch: any = {};
+            if (typeof opts.shareWithClient === 'boolean') patch.isSharedWithClient = opts.shareWithClient;
+            if (typeof opts.requestSignature === 'boolean') patch.isSignatureRequested = opts.requestSignature;
+            if (typeof opts.requestReview === 'boolean') patch.clientReviewStatus = opts.requestReview ? 'review_requested' : 'pending';
+            if (Object.keys(patch).length === 0) {
+                addToast('No sharing options were provided.', { type: 'warning' });
+                return;
+            }
+            void baseActions.updateItem('documents', { id, ...patch }, 'Document sharing');
+        },
+        handleAcceptExternalCounselInvite: (_id: string) => {
+            addToast('External counsel invitations are not yet available. This feature is on our roadmap.', { type: 'info' });
+        },
+        handleClearMatterLogs: (_id: string) => {
+            addToast('Clearing matter logs is not yet available.', { type: 'warning' });
+        },
+        handleClientViewedPortal: (_userId: string) => {
+            // Deliberately a no-op observer: the portal already records views
+            // server-side; this legacy client hook has no consumer to feed.
+        },
+        handleDismissConflict: (_eventId: string) => {
+            addToast('Conflict warnings are dismissed in the matter intake review flow.', { type: 'info' });
+        },
+        handleCancelDocumentAnalysis: (_id: string) => {
+            addToast('Analysis cannot be canceled once started — it retried on the next open.', { type: 'info' });
+        },
+        handleAddSimulatedData: () => {
+            addToast('Simulated data is not available in this build.', { type: 'warning' });
+        },
+        handleLoadFinancialData: () => {
+            addToast('Loading demo financial data is not available in this build.', { type: 'warning' });
+        },
+        handleAddMassiveData: () => {
+            addToast('Bulk demo data is not available in this build.', { type: 'warning' });
+        },
+        handleLoadMassiveFinancialData: () => {
+            addToast('Bulk demo financial data is not available in this build.', { type: 'warning' });
+        },
+        handleAdvanceTime: (_days: number) => {
+            addToast('Time advancement is a demo-build feature and is not available here.', { type: 'warning' });
+        },
+        handleGenerateTestNotification: () => {
+            addToast('Test notifications are not available in this build.', { type: 'warning' });
+        },
+        handleLoadCalendarData: () => {
+            addToast('Demo calendar loading is not available in this build.', { type: 'warning' });
+        },
+        handleGenerateTestTasks: (_opts: { count: number }) => {
+            addToast('Test-task generation is not available in this build.', { type: 'warning' });
+        },
+        handleGenerateTestUsers: (_opts: { count: number }) => {
+            addToast('Test-user generation is not available in this build.', { type: 'warning' });
+        },
         // Stubs for remaining interface requirements
         // HONESTY POLICY: Stubs that don't actually do anything must NOT show
         // success toasts — that's dishonest and confuses users into thinking
@@ -994,7 +1161,13 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
 
     return (
         <DataStateContext.Provider value={dataStateValue}>
-            <DataActionsContext.Provider value={contextActions as unknown as ExtendedDataActions}>
+            {/* V4 (V-DOC-3): the `as unknown as ExtendedDataActions` cast is
+                REMOVED — it hid missing implementations (handleSignDocument
+                was declared in the interface and called by the Sign modal,
+                but never existed at runtime). The context object now has to
+                genuinely satisfy the interface; the type system enforces
+                every member from here on. */}
+            <DataActionsContext.Provider value={contextActions}>
                 {children}
             </DataActionsContext.Provider>
         </DataStateContext.Provider>

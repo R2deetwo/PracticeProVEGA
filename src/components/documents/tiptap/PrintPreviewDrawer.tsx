@@ -12,8 +12,10 @@
  *
  * On mobile, the drawer becomes a full-screen overlay.
  */
-import React, { useMemo, useRef } from 'react';
-import { exportHtmlToDocx } from '../../../utils/docxExport';
+import React, { useMemo, useRef, useState } from 'react';
+import { exportHtmlToDocxBlob } from '../../../utils/docxExport';
+import { PAGE_CSS_PRINT } from '../../../utils/pageFormat';
+import { useUI } from '../../../contexts/UIContext';
 
 interface PrintPreviewDrawerProps {
   isOpen: boolean;
@@ -37,8 +39,14 @@ const PrintPreviewDrawer: React.FC<PrintPreviewDrawerProps> = ({
   onPrint,
 }) => {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { addToast } = useUI();
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Build the print-ready HTML document
+  // Build the print-ready HTML document.
+  // V4 (V-DOC-11): the base page contract (A4, 25mm, Times 12pt/1.5) comes
+  // from utils/pageFormat.ts — the SAME contract as the print pipeline and
+  // the DOCX export, so the preview IS the print. The pre-V4 drawer carried
+  // its own third copy of the rules.
   const previewHtml = useMemo(() => {
     return `<!DOCTYPE html>
 <html>
@@ -46,18 +54,8 @@ const PrintPreviewDrawer: React.FC<PrintPreviewDrawerProps> = ({
 <meta charset="utf-8">
 <title>${title}</title>
 <style>
-  @page {
-    size: A4;
-    margin: 25mm 25mm 25mm 25mm;
-  }
-  body {
-    font-family: 'Times New Roman', serif;
-    font-size: 12pt;
-    line-height: 1.5;
-    color: #1a1a1a;
-    margin: 0;
-    padding: 0;
-  }
+${PAGE_CSS_PRINT}
+  /* Drawer-specific on-screen sheet chrome (print media resets it) */
   .page {
     width: 210mm;
     min-height: 297mm;
@@ -67,44 +65,15 @@ const PrintPreviewDrawer: React.FC<PrintPreviewDrawerProps> = ({
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     box-sizing: border-box;
   }
-  .letterhead {
-    margin-bottom: 20mm;
-    text-align: center;
-  }
-  h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; }
-  h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; }
-  h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; }
-  p { margin: 0 0 8pt; text-align: justify; }
-  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
-  li { margin-bottom: 4pt; }
-  table { width: 100%; border-collapse: collapse; margin: 8pt 0; }
-  td, th { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
-  th { background: #f5f5f5; font-weight: bold; }
-  strong { font-weight: bold; }
-  em { font-style: italic; }
-  u { text-decoration: underline; }
-  .page-break { page-break-after: always; }
-  .watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 120px;
-    font-weight: 900;
-    color: rgba(220, 38, 38, 0.08);
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 0;
-  }
   @media print {
-    .page { box-shadow: none; margin: 0; width: auto; }
+    .page { box-shadow: none; margin: 0; width: auto; padding: 0; }
     .no-print { display: none !important; }
   }
 </style>
 </head>
 <body>
   <div class="page">
-    ${letterheadHtml ? `<div class="letterhead">${letterheadHtml}</div>` : ''}
+    ${letterheadHtml || ''}
     ${html}
   </div>
 </body>
@@ -121,13 +90,34 @@ const PrintPreviewDrawer: React.FC<PrintPreviewDrawerProps> = ({
     }
   };
 
-  const handleDocxExport = () => {
-    const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
-    exportHtmlToDocx(html, safeTitle, {
-      title,
-      author: authorName || 'PracticePro',
-      firmName: firmName || '',
-    });
+  const handleDocxExport = async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      // V4 (V-DOC-11): the pre-V4 path called exportHtmlToDocx, which wrote
+      // RAW XML with a .docx extension — a file Word could not open. The
+      // real pipeline (OOXML ZIP, A4, proper runs/lists) is used instead,
+      // and success is only reported after the download is dispatched.
+      const blob = await exportHtmlToDocxBlob(html, {
+        title,
+        author: authorName || 'PracticePro',
+        firmName: firmName || '',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_')}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      addToast('DOCX exported — check your downloads.', { type: 'success' });
+    } catch (e: any) {
+      console.error('[PrintPreviewDrawer] DOCX export failed:', e);
+      addToast(`DOCX export failed: ${e?.message || 'please try again.'}`, { type: 'error' });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (

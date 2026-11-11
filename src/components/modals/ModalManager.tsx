@@ -74,7 +74,9 @@ import { EventDetailModal } from '../details/EventDetailModal';
 import LeadCaptureModal from './LeadCaptureModal';
 import WorkspaceSetupModal from './WorkspaceSetupModal';
 import SendPostActivationEmailModal from './SendPostActivationEmailModal';
-import FolderPermissionsModal from './FolderPermissionsModal';
+// V4 (V-DOC-15): FolderPermissionsModal removed — it presented per-folder
+// role restrictions that nothing ever enforced. Folder access stays
+// firm-scoped (what the product actually does).
 import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
 import AIConsentModal from './AIConsentModal';
 
@@ -299,7 +301,11 @@ const ModalManager: React.FC = () => {
     case 'newDocument':
     case 'editDocument':
     case 'newDraft': {
-      const doc = documentState.documents.find(d => d.id === editingId);
+      // V4 (V-DOC-4): a DraftPro save for an EXISTING vault document
+      // (session draft:doc:<id>) passes ctx.documentId — the save then
+      // UPDATES that document (versioned) instead of silently creating a
+      // duplicate vault record.
+      const doc = documentState.documents.find(d => d.id === editingId || (modalContext?.documentId && d.id === modalContext.documentId));
       let ctx = modalContext;
       if (modal === 'newDraft' && (modalContext?.fields || modalContext)) {
         const aiFields = modalContext.fields || modalContext;
@@ -334,23 +340,11 @@ const ModalManager: React.FC = () => {
     }
     // googleDrivePicker case removed — integration not yet implemented.
     // Re-add when Google Drive API integration is ready.
-    case 'folderPermissions': {
-      const folder = coreState.documentCategories.find(c => c.id === editingId);
-      if (folder) {
-        content = <FolderPermissionsModal
-          folder={folder}
-          allRoles={(isProperty ? ['Manager', 'Associate', 'Admin'] : ['Lawyer', 'Paralegal', 'Admin']) as any}
-          currentPermissions={coreState.folderPermissions?.[folder.id] || []}
-          onUpdatePermissions={(fid, roles) => {
-            const updatedPermissions = { ...(coreState.folderPermissions || {}), [fid]: roles };
-            dataHandlers.handleUpdateFirmDetails({ ...coreState.firmDetails, folderPermissions: updatedPermissions });
-            closeModal();
-          }}
-          onClose={closeModal}
-        />;
-      }
-      break;
-    }
+    // V4 (V-DOC-15): the folderPermissions case is REMOVED — the modal
+    // presented per-folder role restrictions that nothing ever enforced
+    // (no read path filters by them, no server concept exists). The
+    // misleading control is gone; folder access stays firm-scoped, which
+    // is what the product actually does.
     case 'assignUsers': {
       // V3 (V-MATTER-15): the bulk context actually works now. The matter
       // list's Assign button passes { matterIds } — the old handler read

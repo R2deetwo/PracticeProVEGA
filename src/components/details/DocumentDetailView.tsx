@@ -14,6 +14,8 @@ import Tooltip from '../Tooltip';
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { sanitize } from "../../utils/sanitization";
+import { buildVersionSnapshot, capVersions, chronologicalVersions } from "../../utils/documentVersions";
+import { useConfirm } from "../ui/ConfirmDialog";
 import ErrorBoundary from '../ErrorBoundary';
 import PdfViewer from '../documents/PdfViewer';
 import HtmlPagePreview from '../documents/HtmlPagePreview';
@@ -267,6 +269,7 @@ const DocumentDetailViewContent: React.FC = () => {
     const { currentUser } = useAuth();
     const { handleRunDocumentAnalysis } = useDataActions();
     const { isProperty } = useProduct();
+    const { confirm: confirmDialog } = useConfirm();
 
     const document = React.useMemo(() => documentState.documents.find(d => d.id === selectedId), [documentState.documents, selectedId]);
 
@@ -276,7 +279,7 @@ const DocumentDetailViewContent: React.FC = () => {
     // than during the previous render") when the document went from
     // undefined → defined. This crashed the /documents page on refresh
     // with a stale/deleted ID. Now all hooks run first, then the guard.
-    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'analysis' | 'litigation' | 'history'>('details');
     const [showFullScreenPreview, setShowFullScreenPreview] = useState(false);
 
     // Reset tab to 'details' and close full-screen preview whenever the
@@ -398,6 +401,9 @@ const DocumentDetailViewContent: React.FC = () => {
                     <button onClick={() => setActiveTab('analysis')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'analysis' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
                         {isProperty ? 'Document' : 'ALDIA'} Analysis {document.analysisState === 'pending' && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>}
                     </button>
+                    <button onClick={() => setActiveTab('history')} className={`flex-shrink-0 pb-3 border-b-2 font-bold text-sm flex items-center gap-2 ${activeTab === 'history' ? 'border-primary-600 text-primary-600' : 'border-transparent text-slate-400'}`}>
+                        History {(() => { const n = (document.versions || []).length; return n > 0 ? <span className="px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-700 text-2xs font-bold">{n}</span> : null; })()}
+                    </button>
                     {/* Mentions tab REMOVED: it rendered a permanently empty
                         placeholder ("No mentions tab content.") — a dead tab.
                         BacklinksPanel was already removed per user request. */}
@@ -495,6 +501,74 @@ const DocumentDetailViewContent: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* History tab (V4, V-DOC-13): the real version history —
+                    what changed, who changed it, when; comparison and a
+                    reversible restore that snapshots the current state
+                    first. Pre-V4 the versions field was written by nothing. */}
+                {activeTab === 'history' && (
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
+                        <div className="max-w-3xl mx-auto space-y-4 animate-fade-in pb-20">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-lg font-black text-slate-900 dark:text-white">Version History</h3>
+                                    <p className="text-xs text-slate-500">Every committed edit preserves the prior state of this document.</p>
+                                </div>
+                            </div>
+                            {(document.versions || []).length === 0 ? (
+                                <div className="bg-white dark:bg-zinc-800 rounded-2xl p-10 text-center border border-slate-200 dark:border-zinc-700">
+                                    <p className="text-sm text-slate-500">No versions yet. The first committed edit to this document's title, content or file will snapshot the prior state here.</p>
+                                </div>
+                            ) : (
+                                chronologicalVersions(document.versions || []).slice().reverse().map((version, idx) => {
+                                    const actor = (coreState.users || []).find((u: any) => u.id === version.uploadedBy || u._id === version.uploadedBy);
+                                    const isLatest = idx === 0;
+                                    return (
+                                        <div key={version.id || idx} className={`rounded-lg border p-4 ${isLatest ? 'border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/10' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800'}`}>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold text-slate-800 dark:text-zinc-100 truncate">{version.title || document.title}</p>
+                                                    <p className="text-2xs text-slate-500 mt-0.5">
+                                                        {new Date(version.uploadedAt).toLocaleString('en-GB')} · {actor?.name || 'Team member'} · {version.changesSummary || 'Prior state'}
+                                                    </p>
+                                                    <p className="text-2xs text-slate-400 mt-0.5">
+                                                        {version.file?.name ? `File: ${version.file.name}` : 'Content-only version'}
+                                                    </p>
+                                                </div>
+                                                <div className="flex flex-shrink-0 gap-2">
+                                                    <button onClick={() => openModal('compareDocuments', document.id, { document, version })} className="px-3 py-1.5 text-2xs font-bold rounded-lg bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors">Compare</button>
+                                                    <button onClick={async () => {
+                                                        const ok = await confirmDialog({
+                                                            title: 'Restore this version?',
+                                                            message: `The current state will be snapshotted first, so this restore is itself reversible.`,
+                                                            confirmLabel: 'Restore',
+                                                        });
+                                                        if (!ok) return;
+                                                        const nowIso = new Date().toISOString();
+                                                        const snapshot = buildVersionSnapshot(document, {
+                                                            title: version.title ?? document.title,
+                                                            content: version.content,
+                                                            file: version.file,
+                                                            categoryId: document.categoryId,
+                                                            matter: document.matter,
+                                                        }, currentUser?.id || 'unknown', nowIso);
+                                                        documentActions.updateDocument({
+                                                            ...document,
+                                                            title: version.title ?? document.title,
+                                                            content: version.content ?? document.content,
+                                                            file: version.file ?? document.file,
+                                                            versions: capVersions([snapshot, ...(document.versions || [])]),
+                                                        });
+                                                    }} className="px-3 py-1.5 text-2xs font-bold rounded-lg bg-primary-600 text-white hover:bg-primary-700 transition-colors">Restore</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
                 )}

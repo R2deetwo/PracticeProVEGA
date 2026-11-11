@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useUI } from '../../contexts/UIContext';
 import { useLocation } from 'react-router-dom';
-import { DraftProEditor } from './tiptap/DraftProEditor';
+import { DraftProEditor, SaveControl } from './tiptap/DraftProEditor';
 import { ChevronLeftIcon as BackIcon, CheckIcon as SaveIcon } from '../../constants';
 import { useCoreState } from '../../contexts/CoreContext';
 import { draftSessionKey, loadDraftSession, saveDraftSession, clearDraftSession } from '../../utils/draftSession';
@@ -37,6 +37,16 @@ export const WordProcessor: React.FC = () => {
     // of stranding them on the editor with only the browser back button.
     const [closeAfterSave, setCloseAfterSave] = useState(false);
     const prevModalRef = useRef<string | null>(activeModal ?? null);
+    // V4 (V-DOC-4): the id of the vault document this session edits, when
+    // the session key is `draft:doc:<id>` (an EXISTING document reopened in
+    // DraftPro). Committed saves then UPDATE that document (versioned)
+    // instead of silently creating a duplicate vault record.
+    const [resolvedDocumentId, setResolvedDocumentId] = useState<string | undefined>(undefined);
+    // V4 (V-DOC-4): the SaveControl for the in-flight save form. The draft
+    // session is cleared and "saved" is reported ONLY when the document
+    // save actually commits. Cancelling the form preserves the draft.
+    const pendingSaveCtlRef = useRef<SaveControl | null>(null);
+    const lastSaveCommittedRef = useRef(false);
 
     const firmId = coreState.firmDetails?.id || '';
 
@@ -110,6 +120,10 @@ export const WordProcessor: React.FC = () => {
         const mId = ctx.matterId || hashCtx.matterId || stored?.matterId || undefined;
         setResolvedMatterId(mId);
 
+        // V4 (V-DOC-4): the documentId when this session edits an existing
+        // vault document (draft:doc:<id> sessions from DocumentList/Detail).
+        setResolvedDocumentId(ctx.documentId || stored?.documentId || undefined);
+
         // FIX 5b: citations — read from hash context → memory → localStorage
         const cites = ctx.citations || hashCtx.citations || stored?.citations || undefined;
         setResolvedCitations(cites);
@@ -156,7 +170,40 @@ export const WordProcessor: React.FC = () => {
         return () => { document.title = previousTitle; };
     }, [documentTitle]);
 
-    const handleSave = (content: string) => {
+    // V4 (V-DOC-4): reliable-commit orchestration.
+    //
+    // The pre-V4 flow opened the newDocument modal and IMMEDIATELY cleared
+    // the draft session + set isSaved=true — before the user had even seen
+    // the form. Cancelling the form (or a failed commit) then destroyed the
+    // recovery path: the session was gone, the editor claimed "saved",
+    // and a refresh lost the work.
+    //
+    // Now: handleSave only OPENS the form (no clear, no "saved" claim).
+    // The form calls ctx.onDraftCommitted after the vault write succeeds ->
+    // the draft session is cleared, isSaved flips, the editor's SaveControl
+    // resolves, and an armed close-after-save fires. ctx.onDraftCancelled
+    // (the X button) keeps the draft session intact so refresh/navigation
+    // recovery still works; ctx.onDraftSaveError does the same for a
+    // failed commit.
+    const resolveSaveCommitted = () => {
+        lastSaveCommittedRef.current = true;
+        if (firmId && sessionKey) clearDraftSession(firmId, sessionKey);
+        setIsSaved(true);
+        pendingSaveCtlRef.current?.onCommitted?.();
+        pendingSaveCtlRef.current = null;
+    };
+
+    const resolveSaveCancelled = (reason: 'user' | 'error') => {
+        lastSaveCommittedRef.current = false;
+        setIsSaved(false);
+        pendingSaveCtlRef.current?.onCancelled?.();
+        pendingSaveCtlRef.current = null;
+        void reason; // both paths keep the draft session; the form surfaces the error itself
+    };
+
+    const handleSave = (content: string, ctl?: SaveControl) => {
+        pendingSaveCtlRef.current = ctl ?? null;
+        lastSaveCommittedRef.current = false;
         const litigationKeywords = [
             'suit', 'motion', 'affidavit', 'brief', 'pleading',
             'origination', 'summons', 'petition', 'notice of appeal',
@@ -181,9 +228,20 @@ export const WordProcessor: React.FC = () => {
             // Also pass the original HTML so the document is stored with
             // full formatting (the form can use this for the actual save)
             draftHtml: content,
+            // V4 (V-DOC-4): editing an existing vault document updates THAT
+            // record (versioned) instead of creating a duplicate.
+            documentId: resolvedDocumentId,
+            // V4 (V-DOC-4): the reliable-commit callbacks. The form invokes
+            // them after the vault write settles — one way or the other.
+            onDraftCommitted: resolveSaveCommitted,
+            onDraftCancelled: () => resolveSaveCancelled('user'),
+            onDraftSaveError: () => resolveSaveCancelled('error'),
         });
-        if (firmId && sessionKey) clearDraftSession(firmId, sessionKey);
-        setIsSaved(true);
+        // V4 (V-DOC-4): NO clearDraftSession and NO setIsSaved here — the
+        // pre-V4 code did both the moment the dialog opened, so a cancelled
+        // dialog destroyed the recovery session and the editor claimed
+        // "saved" while nothing had been persisted. The commit callbacks
+        // above are the only place that flips state.
     };
 
     /**
@@ -221,9 +279,10 @@ export const WordProcessor: React.FC = () => {
      * modal) and arm the auto-close. The effect below closes the editor as
      * soon as that modal is dismissed, so the user lands back in the app
      * (or the tab closes) exactly when the save flow is finished. */
-    const handleSaveForClose = (content: string) => {
+    const handleSaveForClose = (content: string, ctl?: SaveControl) => {
         setCloseAfterSave(true);
-        handleSave(content);
+        lastSaveCommittedRef.current = false;
+        handleSave(content, ctl);
     };
 
     // Consume the armed close when the save-to-vault modal finishes. We
@@ -234,8 +293,13 @@ export const WordProcessor: React.FC = () => {
         prevModalRef.current = activeModal ?? null;
         if (closeAfterSave && wasNewDocumentModal && activeModal == null) {
             setCloseAfterSave(false);
-            // Slight delay lets the modal's own close animation/toasts settle.
-            window.setTimeout(() => handleClose(), 120);
+            // V4: only close on a COMMITTED save. A cancelled form cancels
+            // the armed close — the pre-V4 code closed the editor even when
+            // the user cancelled, abandoning the unsaved work in a closed tab.
+            if (lastSaveCommittedRef.current) {
+                // Slight delay lets the modal's own close animation/toasts settle.
+                window.setTimeout(() => handleClose(), 120);
+            }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeModal, closeAfterSave]);

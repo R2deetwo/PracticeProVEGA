@@ -39,7 +39,7 @@ const CategoryList: React.FC<{ items: any[], onEdit: (id: string) => void, onDel
     </ul>
 );
 
-const DocumentCategoryList: React.FC<{ categories: DocumentCategory[], parentId: string | null, onEdit: any, onDelete: any, onPermissions: any, onAddSub: any }> = ({ categories, parentId, onEdit, onDelete, onPermissions, onAddSub }) => {
+const DocumentCategoryList: React.FC<{ categories: DocumentCategory[], parentId: string | null, onEdit: any, onDelete: any, onPermissions?: any, onAddSub: any }> = ({ categories, parentId, onEdit, onDelete, onPermissions, onAddSub }) => {
     const children = categories.filter(c => c.parentId === parentId);
     if (children.length === 0) return null;
 
@@ -50,8 +50,10 @@ const DocumentCategoryList: React.FC<{ categories: DocumentCategory[], parentId:
                     <div className="flex items-center justify-between p-2 rounded-md hover:bg-slate-50 dark:hover:bg-zinc-700/50">
                         <span className="text-sm font-medium text-slate-700 dark:text-zinc-200">{cat.name} {cat.isCore && <span className="text-xs text-slate-400 font-normal ml-1">(Core)</span>}</span>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {/* V4 (V-DOC-15): the Permissions button is removed —
+                                it opened a modal whose per-folder role restrictions
+                                were never enforced anywhere. */}
                             {!cat.isCore && <button onClick={() => onAddSub(cat.id)} className="text-slate-500 hover:text-primary-600 text-xs font-bold">Add Sub</button>}
-                            <Tooltip text="Permissions"><button onClick={() => onPermissions(cat.id)} className="text-slate-500 hover:text-primary-600 p-1 rounded-full"><LockClosedIcon className="w-4 h-4" /></button></Tooltip>
                             {!cat.isCore && <button onClick={() => onEdit(cat.id)} className="text-slate-500 hover:text-primary-600 p-1 rounded-full"><EditIcon className="w-4 h-4" /></button>}
                             {!cat.isCore && <button onClick={() => onDelete(cat.id)} className="text-red-500 hover:text-red-700 p-1 rounded-full"><TrashIcon className="w-4 h-4" /></button>}
                         </div>
@@ -279,7 +281,6 @@ const TemplatesSettings: React.FC<TemplatesSettingsProps> = (props) => {
                             parentId={null}
                             onEdit={(id: string) => openModal('editDocumentCategory', id)}
                             onDelete={(id: string) => openModal('deleteConfirmation', id, { onConfirm: () => { onDeleteDocumentCategory(id); closeModal(); } })}
-                            onPermissions={(id: string) => openModal('folderPermissions', id)}
                             onAddSub={(parentId: string) => openModal('newDocumentCategory', null, { parentId })}
                         />
                     </SettingsCard>

@@ -60,7 +60,9 @@ import Citation from './extensions/Citation';
 import { CitationRegistry } from '../../../utils/citationRegistry';
 import { FontSize } from './extensions/FontSize';
 import { LineHeight } from './extensions/LineHeight';
-import { exportHtmlToDocx, exportHtmlToDocxBlob, exportHtmlToPdfBlob } from '../../../utils/docxExport';
+import { exportHtmlToDocxBlob } from '../../../utils/docxExport';
+import { PAGE_CSS_PRINT } from '../../../utils/pageFormat';
+import { letterheadToStaticHtml } from '../../../utils/letterhead';
 import { uploadBlobToConvex } from '../../../utils/convexUpload';
 import { useProduct, useSignerContext } from '../../../contexts/ProductContext';
 import { useUI } from '../../../contexts/UIContext';
@@ -491,7 +493,7 @@ export interface DraftProEditorProps {
     /** When false, opening the editor will NOT auto-start drafting even if
      *  draftPrompt is set. Used when reopening a persisted draft. */
     autoStartDrafting?: boolean;
-    onSave?: (html: string) => void;
+    onSave?: (html: string, ctl?: SaveControl) => void;
     title?: string;
     onTitleChange?: (title: string) => void;
     onContentChange?: (html: string) => void;
@@ -503,7 +505,7 @@ export interface DraftProEditorProps {
     onClose?: () => void;
     /** 2026-09-23 UX fix — "file it and get out": triggers the vault save
      *  flow; WordProcessor closes the editor when that flow completes. */
-    onSaveAndClose?: (html: string) => void;
+    onSaveAndClose?: (html: string, ctl?: SaveControl) => void;
     linkedMatterId?: string;
     /** Citations from ALOA research mode. When present, the editor
      *  displays a Sources panel and passes the citations to the drafting
@@ -513,6 +515,23 @@ export interface DraftProEditorProps {
      *  prompt carried no substantive instruction (greeting/empty), so
      *  auto-drafting was suppressed and a hint should be shown. */
     promptWasTrivial?: boolean;
+}
+
+/**
+ * SaveControl (V4, V-DOC-4): the reliable-commit protocol.
+ *
+ * The pre-V4 save flow opened a dialog and IMMEDIATELY declared success
+ * ("Document saved successfully" + isSaved=true) while nothing had been
+ * persisted — cancelling the dialog or a failed commit left the user with
+ * a false "saved" state and, in WordProcessor, a cleared draft session.
+ *
+ * onSave now optionally receives a control object. The host (WordProcessor)
+ * resolves it when the document save actually COMMITS or is CANCELLED, so
+ * the editor only ever reports saved after persistence is confirmed.
+ */
+export interface SaveControl {
+    onCommitted?: () => void;
+    onCancelled?: () => void;
 }
 
 export type DocumentEditorProps = DraftProEditorProps;
@@ -1435,12 +1454,27 @@ ${sourceList}
         };
     }, [editor]); // Re-run when editor is ready
 
+    // ─── Manual save (toolbar button / Ctrl+S) ───────────────────────
+    // V4 (V-DOC-4): this OPENS the save form — it is not a commit. The
+    // pre-V4 code toasted "Document saved successfully" and set
+    // isSaved=true right here, before anything was persisted; cancelling
+    // the form then stranded the user in a false "saved" state. Now the
+    // honest message is "opening the save form", and isSaved only flips
+    // when the host reports the commit back through SaveControl.
     const handleManualSave = useCallback(() => {
         if (editor && !editor.isDestroyed) {
             try {
-                onSave?.(editor.getHTML());
-                setIsSaved(true);
-                addToast('Document saved successfully', { type: 'success' });
+                onSave?.(editor.getHTML(), {
+                    onCommitted: () => {
+                        setIsSaved(true);
+                        addToast('Document saved.', { type: 'success' });
+                    },
+                    onCancelled: () => {
+                        setIsSaved(false);
+                        addToast('Save cancelled — your draft is preserved and will be recovered if you leave.', { type: 'info' });
+                    },
+                });
+                addToast('Opening the save form — your draft stays protected until the document is saved.', { type: 'info' });
             } catch (e) {
                 console.error('[DraftPro] getHTML failed on save:', e);
                 addToast('Could not save — document has an internal error. Please try editing and saving again.', { type: 'error' });
@@ -1472,11 +1506,16 @@ ${sourceList}
                 if (onSaveAndClose) {
                     // Delegated flow: WordProcessor completes the vault save
                     // (modal) and closes the editor when it finishes. Do not
-                    // close here — the user is mid-modal.
-                    onSaveAndClose(editor.getHTML());
+                    // close here — the user is mid-modal. V4: pass a ctl so
+                    // isSaved flips on the real commit, not on dialog open.
+                    onSaveAndClose(editor.getHTML(), {
+                        onCommitted: () => setIsSaved(true),
+                    });
                     return;
                 }
-                onSave?.(editor.getHTML());
+                // No delegated host: best-effort onSave, then close. The
+                // draft is still persisted per-edit, so nothing is lost.
+                onSave?.(editor.getHTML(), { onCommitted: () => setIsSaved(true) });
                 setIsSaved(true);
             }
         } catch (e) {
@@ -1498,25 +1537,38 @@ ${sourceList}
         }
     }, [isSaved]);
 
-    // User clicked "Save & Leave" in the guard modal — save then navigate.
+    // User clicked "Save & Leave" in the guard modal — open the SAME
+    // reliable save form (V4, V-DOC-4). The pre-V4 code called onSave,
+    // faked isSaved=true and navigated away in the same tick — the save
+    // form was never completed and the draft session was cleared. Now:
+    // the form opens, the user stays on the page, and the navigation only
+    // fires when the host confirms the COMMIT; a cancel keeps the user
+    // (and the draft) exactly where they were.
     const confirmNavWithSave = useCallback(() => {
+        const cb = pendingNav?.onConfirm;
+        setPendingNav(null);
         if (!editor) {
             // No editor — just navigate
-            const cb = pendingNav?.onConfirm;
-            setPendingNav(null);
             cb?.();
             return;
         }
         try {
-            onSave?.(editor.getHTML());
-            setIsSaved(true);
+            onSave?.(editor.getHTML(), {
+                onCommitted: () => {
+                    setIsSaved(true);
+                    addToast('Saved. Navigating…', { type: 'success' });
+                    cb?.();
+                },
+                onCancelled: () => {
+                    setIsSaved(false);
+                    addToast('Save cancelled — you are still in the editor and your draft is preserved.', { type: 'info' });
+                },
+            });
+            addToast('Opening the save form — finish it to leave with your work saved.', { type: 'info' });
         } catch (e) {
             console.error('[DraftPro] save before leave failed:', e);
-            addToast('Could not save your draft before leaving. Please save manually.', { type: 'warning' });
+            addToast('Could not open the save form. Your draft is still auto-preserved — try Save, then leave.', { type: 'warning' });
         }
-        const cb = pendingNav?.onConfirm;
-        setPendingNav(null);
-        cb?.();
     }, [editor, onSave, pendingNav, addToast]);
 
     // User clicked "Leave Without Saving" — just navigate.
@@ -1724,9 +1776,9 @@ ${allCites.map((c: any) => {
         // reliable PDF generator available.
         try {
             const html = editor.getHTML();
-            const letterheadHtml = appState.firmDetails?.settings?.headerConfig
-                ? '<div class="letterhead"></div>'
-                : '';
+            // V4 (V-DOC-12): print the firm's REAL letterhead (logo/name/
+            // address) instead of the pre-V4 empty placeholder div.
+            const letterheadHtml = letterheadToStaticHtml(appState.firmDetails?.settings?.headerConfig);
 
             const printDoc = `<!DOCTYPE html>
 <html>
@@ -1734,42 +1786,11 @@ ${allCites.map((c: any) => {
 <meta charset="utf-8">
 <title>${title || 'Document'}</title>
 <style>
-  @page { size: A4; margin: 25mm 25mm 25mm 25mm; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: 'Times New Roman', serif;
-    font-size: 12pt;
-    line-height: 1.5;
-    color: #1a1a1a;
-  }
-  .letterhead { margin-bottom: 16pt; text-align: center; }
-  h1 { font-size: 16pt; font-weight: bold; margin: 16pt 0 8pt; break-after: avoid; break-inside: avoid; }
-  h2 { font-size: 14pt; font-weight: bold; margin: 14pt 0 6pt; break-after: avoid; break-inside: avoid; }
-  h3 { font-size: 12pt; font-weight: bold; margin: 12pt 0 4pt; break-after: avoid; break-inside: avoid; }
-  h1 + p, h2 + p, h3 + p { break-before: avoid; }
-  p { margin: 0 0 8pt; text-align: justify; orphans: 2; widows: 2; }
-  ul, ol { margin: 0 0 8pt; padding-left: 20pt; }
-  li { margin-bottom: 4pt; }
-  table { width: 100%; border-collapse: collapse; margin: 8pt 0; break-inside: avoid; }
-  td, th { border: 1px solid #ccc; padding: 4pt 8pt; text-align: left; }
-  th { background: #f5f5f5; font-weight: bold; }
-  strong { font-weight: bold; }
-  em { font-style: italic; }
-  u { text-decoration: underline; }
-  .page-break { page-break-after: always; break-after: page; }
-  sup { font-size: 0.7em; vertical-align: super; }
-  /* Prevent orphan headings at bottom of page */
-  h1, h2, h3 { page-break-after: avoid; }
-  /* Prevent large gaps — keep paragraphs with their following content */
-  p { page-break-inside: avoid; }
-  /* Watermark */
-  .watermark {
-    position: fixed; top: 50%; left: 50%;
-    transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 120px; font-weight: 900;
-    color: rgba(220, 38, 38, 0.08);
-    white-space: nowrap; pointer-events: none; z-index: 0;
-  }
+${PAGE_CSS_PRINT}
+  /* V4: legal-placeholder chips have no text of their own (atom nodes) —
+     print their label as bracketed text so a printed draft shows what is
+     still outstanding, instead of an invisible empty span. */
+  span[data-type="legal-placeholder"]::after { content: "[" attr(data-label) "]"; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -1852,10 +1873,8 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
             setIsSavingFile(true);
             const html = editor.getHTML();
             const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
-            const filename = `${safeTitle}.${format}`;
-            const mimeType = format === 'docx'
-                ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                : 'application/pdf';
+            const filename = `${safeTitle}.docx`;
+            const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
             // ─── DIAGNOSTIC LOG ──────────────────────────────────────
             // Logs the payload size and format so we can diagnose failures.
@@ -1863,29 +1882,16 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
 
             addToast(`Generating ${format.toUpperCase()}…`, { type: 'info' });
 
-            // Generate the Blob with a timeout
+            // Generate the Blob with a timeout (V4: the dead `else` branch
+            // that called the retired html2canvas "PDF" export is removed —
+            // the pdf format returns early via the print pipeline above.)
             let blob: Blob;
-            const generateTimeout = format === 'pdf' ? 60000 : 30000; // PDF: 60s, DOCX: 30s
-            const generatePromise = (async () => {
-                if (format === 'docx') {
-                    return exportHtmlToDocxBlob(html, {
-                        title: title || 'Document',
-                        author: currentUser?.name || 'PracticePro',
-                        firmName: appState?.firmDetails?.name || '',
-                    });
-                } else {
-                    return exportHtmlToPdfBlob(html, {
-                        title: title || 'Document',
-                        author: currentUser?.name || 'PracticePro',
-                        firmName: appState?.firmDetails?.name || '',
-                        // PART 3 FIX: Pass the actual editor canvas element so
-                        // the PDF matches the editor's exact layout (margins,
-                        // header/footer, page breaks). Falls back to a temp
-                        // container if the ref isn't available.
-                        canvasElement: pageSheetsContainerRef.current || undefined,
-                    });
-                }
-            })();
+            const generateTimeout = 30000; // DOCX: 30s
+            const generatePromise = exportHtmlToDocxBlob(html, {
+                title: title || 'Document',
+                author: currentUser?.name || 'PracticePro',
+                firmName: appState?.firmDetails?.name || '',
+            });
 
             // Race the generation against a timeout
             const timeoutPromise = new Promise<never>((_, reject) => {
@@ -2409,7 +2415,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                         the verbatim design-token styling. */}
                     <Button
                         variant="bare"
-                        onClick={() => attemptNavigation('close', handleSaveAndClose)}
+                        onClick={() => attemptNavigation('close', handleCloseEditor)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-md active:scale-95"
                         title="Save and close the editor"
                     >

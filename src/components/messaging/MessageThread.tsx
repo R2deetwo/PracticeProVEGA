@@ -33,8 +33,44 @@ import React, { useEffect, useRef, useState, useCallback, useLayoutEffect } from
 import { createPortal } from 'react-dom';
 import { UnifiedMessage } from '../../messaging/model';
 import { getUserColor, getInitials, timeAgo } from '../../utils/colorUtils';
+import { parseSharedDocumentMessage, stripSharedDocumentMarker } from '../../utils/sharedDocumentMessage';
+import { useUI } from '../../contexts/UIContext';
 
 export type ThreadVariant = 'team' | 'client_tenant' | 'ai';
+
+/**
+ * MessageContent — V4 (V-DOC-18): the default message body renderer.
+ *
+ * A message containing a shared-document sentinel ([FILE: title](id) — the
+ * ShareDocumentModal format) renders as the accompanying text PLUS a
+ * clickable document chip that opens the shared document, instead of the
+ * pre-V4 raw markdown gibberish the recipient could do nothing with.
+ */
+const MessageContent: React.FC<{ msg: UnifiedMessage }> = ({ msg }) => {
+    const { navigateTo } = useUI();
+    const shared = parseSharedDocumentMessage(msg.content);
+    if (!shared) {
+        return <span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</span>;
+    }
+    const text = stripSharedDocumentMarker(msg.content);
+    return (
+        <span className="block min-w-0">
+            {text && <span className="block text-sm leading-relaxed whitespace-pre-wrap break-words">{text}</span>}
+            <button
+                type="button"
+                onClick={() => navigateTo('documents', shared.documentId)}
+                className="mt-1.5 flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/60 hover:border-primary-400 dark:hover:border-primary-600 transition-colors"
+                title="Open the shared document"
+            >
+                <span className="flex-shrink-0 w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-300 flex items-center justify-center font-bold text-2xs">DOC</span>
+                <span className="min-w-0">
+                    <span className="block text-xs font-bold text-slate-700 dark:text-zinc-200 truncate">{shared.title}</span>
+                    <span className="block text-2xs text-slate-400 dark:text-zinc-500">Shared document — click to open</span>
+                </span>
+            </button>
+        </span>
+    );
+};
 
 /** A custom entry in the per-message actions menu. */
 export interface MessageActionItem {
@@ -289,7 +325,7 @@ export const MessageActionsMenu: React.FC<MessageActionsMenuProps> = ({ top, lef
             role="menu"
             aria-label="Message actions"
             style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-            className="bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-slate-200 dark:border-zinc-700 py-1 min-w-[160px] animate-in fade-in-0 zoom-in-95 duration-100"
+            className="bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 py-1 min-w-[160px] animate-in fade-in-0 zoom-in-95 duration-100"
         >
             {copyText !== undefined && (
                 <button role="menuitem" onClick={handleCopy} className={`${itemCls} text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700`}>
@@ -573,7 +609,7 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
                                             )}
                                             {renderBubbleContent
                                                 ? renderBubbleContent(msg)
-                                                : <span className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</span>
+                                                : <MessageContent msg={msg} />
                                             }
                                             <AttachmentGrid msg={msg} isMe={msg.isMe} />
                                             {failed && onRetry && (

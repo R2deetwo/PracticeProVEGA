@@ -1,0 +1,54 @@
+# Runs the V4 document-file backfill on the Convex production deployment.
+#
+# V4 (V-DOC-5, 2026-11-11): legacy document rows carry their file bytes
+# INLINE as base64 data URLs. New writers (V4) upload to Convex storage and
+# store a storageId; this additive, idempotent backfill closes the gap for
+# legacy rows — decode, store, patch. The inline dataUrl is removed from the
+# row only when the bytes are safely in storage.
+#
+# Safe to re-run: rows already on storage are never touched, and data URLs
+# that do not decode are REPORTED, never guessed or dropped. dry_run
+# defaults to TRUE (report only) — review the counts, then re-run with
+# dry_run=false to write.
+
+name: Convex Backfill Document Files (V4)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (report what would change, write nothing)'
+        type: boolean
+        default: true
+
+concurrency:
+  group: convex-backfill
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run backfillDocumentFiles mutation
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "Running document file backfill (dryRun=${DRY_RUN}) against production deployment gregarious-malamute-537"
+          npx convex run backfillDocumentFiles:backfillDocumentFiles "{\"dryRun\":${DRY_RUN}}"

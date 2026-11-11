@@ -174,9 +174,18 @@ export const useFirm = (appState: AppState, actions: any) => {
 
     /**
      * Validate an invite code before joining.
+     * V4 (V-DOC-3): normalize the Convex return shape onto the interface's
+     * `firmName?: string` — the pre-V4 `as unknown as` cast on the actions
+     * object hid this null-vs-undefined mismatch.
      */
-    const validateInviteCode = useCallback(async (inviteCode: string) => {
-        return await convex.query(api.myFunctions.validateInviteCode, { inviteCode });
+    const validateInviteCode = useCallback(async (inviteCode: string): Promise<{ valid: boolean; firmName?: string; firmId?: string }> => {
+        const result = await convex.query(api.myFunctions.validateInviteCode, { inviteCode });
+        if (!result?.valid) return { valid: false };
+        return {
+            valid: true,
+            firmName: result.firmName ?? undefined,
+            firmId: (result.firmId ?? '') || undefined,
+        };
     }, [convex]);
 
     /**

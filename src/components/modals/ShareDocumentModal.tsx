@@ -29,21 +29,11 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
     coreState.users.filter(u => u.id !== currentUser?.id && u.role !== UserRole.Client && u.role !== UserRole.Tenant && u.role !== UserRole.ExternalCounsel),
     [coreState.users, currentUser]);
 
-  // Check for potential permission issues (e.g. sharing with a Paralegal not assigned to this matter)
-  const permissionWarning = useMemo(() => {
-    if (!matter) return null;
-
-    const selectedUsersList = internalUsers.filter(u => selectedUserIds.has(u.id));
-    const riskyUsers = selectedUsersList.filter(u =>
-      u.role === UserRole.Paralegal && !matter.assignedUsers.includes(u.id)
-    );
-
-    if (riskyUsers.length > 0) {
-      const names = riskyUsers.map(u => u.name).join(', ');
-      return `Warning: ${names} ${riskyUsers.length === 1 ? 'does' : 'do'} not have explicit access to this matter. They may need Admin approval to view the file.`;
-    }
-    return null;
-  }, [selectedUserIds, internalUsers, matter]);
+  // V4 (V-DOC-15): the pre-V4 permissionWarning claimed a per-folder
+  // access gate ("may need Admin approval to view the file") that never
+  // existed — there is no folder-level permission model; access is
+  // firm-scoped server-side. The misleading control is removed.
+  // (The honest model-wide note lives in the share modal copy below.)
 
   const handleToggleUser = (userId: string) => {
     setSelectedUserIds(prev => {
@@ -125,12 +115,10 @@ export const ShareDocumentModal: React.FC<ShareDocumentModalProps> = ({ document
         </div>
       </div>
 
-      {permissionWarning && (
-        <div className="flex gap-2 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 text-xs rounded-r">
-          <ShieldCheckIcon className="w-5 h-5 flex-shrink-0" />
-          <p>{permissionWarning}</p>
-        </div>
-      )}
+      <div className="flex items-start gap-2 p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700 text-xs text-slate-500 dark:text-zinc-400">
+        <ShieldCheckIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+        <p>Sharing sends a direct message with a link that opens this document for the selected colleagues. Everyone in your firm can already view firm documents; sharing just delivers it to their attention.</p>
+      </div>
 
       <div>
         <label className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-2">Message (Optional)</label>

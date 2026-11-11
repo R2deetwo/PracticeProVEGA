@@ -167,7 +167,9 @@ export const DockedModal: React.FC = () => {
       case 'newDocument':
       case 'editDocument':
       case 'newDraft': {
-        const doc = documentState.documents.find(d => d.id === editingId);
+        // V4 (V-DOC-4): ctx.documentId = DraftPro editing an EXISTING vault
+        // document — update it (versioned), never duplicate it.
+        const doc = documentState.documents.find(d => d.id === editingId || (modalContext?.documentId && d.id === modalContext.documentId));
         let ctx = modalContext;
         if (dockedModalType === 'newDraft' && (modalContext?.fields || modalContext)) {
            const aiFields = modalContext.fields || modalContext;

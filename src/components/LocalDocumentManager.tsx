@@ -15,6 +15,7 @@ import { Modal } from './modals/Modal';
 import { v4 as uuidv4 } from 'uuid';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { uploadBlobToConvex, surfaceUploadError } from '../utils/convexUpload';
 import { useConfirm } from './ui/ConfirmDialog';
 
 interface LocalDocumentManagerProps {
@@ -41,7 +42,7 @@ const getFileIcon = (fileName: string, mimeType?: string) => {
 };
 
 export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPreviewLocalFile }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { matterState } = useMatterState();
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
@@ -76,6 +77,10 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
 
     const { setLocalFiles } = useAloa();
     const { handleAddDocumentAndAnalyze } = useDataActions();
+    // V4 (V-DOC-5): the copy-to-matter flow uploads the bytes to Convex
+    // storage. The pre-V4 code persisted a session-scoped blob: URL as the
+    // document's file.dataUrl — a dead link in every later session.
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
     // Matter selection state
     const [isMatterModalOpen, setIsMatterModalOpen] = useState(false);
@@ -224,7 +229,12 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
         try {
             const rawFile = await getFileContent(file);
             if (!rawFile) throw new Error("No content");
-            const blobUrl = URL.createObjectURL(rawFile);
+            // V4 (V-DOC-5): real stored bytes. The record carries a
+            // storageId; the blob: URL dies with the session and could never
+            // serve a later download.
+            const storageId = await uploadBlobToConvex(rawFile, () =>
+                generateUploadUrl({ sessionToken: bearerToken ?? undefined })
+            );
             const matter = matterState.matters.find(m => m.id === matterId);
             const newDoc: Document = {
                 id: uuidv4(),
@@ -240,15 +250,16 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
                     name: rawFile.name,
                     type: rawFile.type,
                     size: rawFile.size,
-                    filePath: `matters/${matterId}/${file.name}`,
-                    dataUrl: blobUrl
+                    filePath: '',
+                    storageId
                 },
                 analysisState: 'pending',
                 content: "Pending analysis..."
             };
             await handleAddDocumentAndAnalyze(newDoc);
             addToast(`File copied to matter "${matter?.title}" successfully.`, { type: 'success' });
-        } catch (err) {
+        } catch (err: any) {
+            surfaceUploadError(addToast, { name: file.name, size: file.size ?? 0 }, err, 10);
             addToast("Failed to copy file to matter.", { type: 'error' });
         } finally {
             setProcessingFileIds(prev => {

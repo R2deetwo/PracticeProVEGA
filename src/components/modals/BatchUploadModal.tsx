@@ -7,6 +7,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import { CheckCircleIcon, UploadIcon, DocumentIcon, DismissIcon, RevertIcon, SparklesIcon } from '../../constants';
 import { FileDetails } from '../../types';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { uploadBlobToConvex, surfaceUploadError } from '../../utils/convexUpload';
 
 interface BatchUploadModalProps {
   files?: File[];
@@ -27,7 +30,10 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
   const { matterState } = useMatterState();
   const { handleAddDocumentAndAnalyze } = useDataActions();
   const { addToast } = useUI();
-  const { currentUser } = useAuth();
+  const { currentUser, bearerToken } = useAuth();
+  // V4 (V-DOC-5): batch uploads go to Convex storage — records carry a
+  // storageId, not a base64 data URL.
+  const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
 
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -84,59 +90,54 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
     }
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          try {
-            setUploads(prev => prev.map((u, i) => i === index ? { ...u, progress: 50 } : u));
+      // V4 (V-DOC-5): upload the bytes to Convex storage; the record carries
+      // the storageId. The pre-V4 path stored the entire file as base64
+      // inside the document row.
+      setUploads(prev => prev.map((u, i) => i === index ? { ...u, progress: 50 } : u));
+      const storageId = await uploadBlobToConvex(item.file, () =>
+        generateUploadUrl({ sessionToken: bearerToken ?? undefined })
+      );
 
-            const fileDetails: FileDetails = {
-              name: item.file.name,
-              type: item.file.type,
-              size: item.file.size,
-              filePath: `uploads/${Date.now()}_${item.file.name}`,
-              dataUrl: reader.result as string,
-            };
+      const fileDetails: FileDetails = {
+        name: item.file.name,
+        type: item.file.type,
+        size: item.file.size,
+        filePath: '',
+        storageId,
+      };
 
-            // V3 (V-MATTER-13): resolve the REAL matter title — the old
-            // placeholder wrote title: 'Matter' into every batch-uploaded
-            // document's snapshot, so the matter chip showed garbage.
-            const resolvedMatter = context?.matterId
-              ? matterState.matters.find(m => m.id === context.matterId)
-              : undefined;
-            const matterTitle = context?.matterTitle || resolvedMatter?.title;
-            const matter = context?.matterId
-              ? { id: context.matterId, title: matterTitle || resolvedMatter?.title || 'Matter' }
-              : undefined;
+      // V3 (V-MATTER-13): resolve the REAL matter title — the old
+      // placeholder wrote title: 'Matter' into every batch-uploaded
+      // document's snapshot, so the matter chip showed garbage.
+      const resolvedMatter = context?.matterId
+        ? matterState.matters.find(m => m.id === context.matterId)
+        : undefined;
+      const matterTitle = context?.matterTitle || resolvedMatter?.title;
+      const matter = context?.matterId
+        ? { id: context.matterId, title: matterTitle || resolvedMatter?.title || 'Matter' }
+        : undefined;
 
-            const newDocData = {
-              title: item.file.name,
-              firmId: currentUser?.firmId,
-              matterId: context?.matterId, // Explicitly linking matterId for querying
-              matter,
-              categoryId: context?.categoryId || 'cat_clients',
-              dateFiled: new Date().toISOString().split('T')[0],
-              file: fileDetails,
-              assignedUsers: [currentUser?.id].filter(Boolean),
-              source: 'upload' as const,
-              uploadedBy: currentUser?.id,
-              isCourtProcess: isCourtProcess,
-              litigationStatus: isCourtProcess ? 'draft' : undefined,
-            };
+      const newDocData = {
+        title: item.file.name,
+        firmId: currentUser?.firmId,
+        matterId: context?.matterId, // Explicitly linking matterId for querying
+        matter,
+        categoryId: context?.categoryId || 'cat_clients',
+        dateFiled: new Date().toISOString().split('T')[0],
+        file: fileDetails,
+        assignedUsers: [currentUser?.id].filter(Boolean),
+        source: 'upload' as const,
+        uploadedBy: currentUser?.id,
+        isCourtProcess: isCourtProcess,
+        litigationStatus: isCourtProcess ? 'draft' : undefined,
+      };
 
-            await handleAddDocumentAndAnalyze(newDocData);
+      await handleAddDocumentAndAnalyze(newDocData);
 
-            setUploads(prev => prev.map((u, i) => i === index ? { ...u, status: 'completed', progress: 100 } : u));
-            resolve();
-          } catch (e: any) {
-            reject(e);
-          }
-        };
-        reader.onerror = () => reject(new Error('Read failed'));
-        reader.readAsDataURL(item.file);
-      });
+      setUploads(prev => prev.map((u, i) => i === index ? { ...u, status: 'completed', progress: 100 } : u));
     } catch (error: any) {
       console.error("Upload failed", error);
+      surfaceUploadError(addToast, item.file, error, MAX_FILE_SIZE / (1024 * 1024));
       setUploads(prev => prev.map((u, i) => i === index ? { ...u, status: 'failed', error: error.message || 'Upload failed' } : u));
     }
   };

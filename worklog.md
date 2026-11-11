@@ -18178,3 +18178,145 @@ Work Log:
   closed and live in production.
 - Rounds stopped for review per the brief.
 [skip ci]
+
+## Task: V4 — DOCUMENT ENGINEERING AND DRAFTPRO RELIABILITY (2026-11-11)
+
+Task: Make Vega's document creation, editing, saving, retrieval, signing
+and export reliable (the V0 audit's V-DOC-3/4/5/11/12/13/15/18 findings),
+without touching the offline queue and optimistic sync architecture, the
+existing document-template and contract-analysis tests, or any unrelated
+schema/product surface. Stop after complete verification.
+
+Work Log:
+- SURVEY confirmed every finding at source: WordProcessor.handleSave
+  cleared the draft session and flipped isSaved at the MOMENT the save
+  dialog opened (a cancel or failed commit then destroyed the recovery
+  path — the editor claimed "saved" while nothing had been persisted);
+  DraftProEditor.handleManualSave toasted "Document saved successfully"
+  on dialog-open; DocumentForm received ctx.draftHtml and dropped it on
+  the floor (plain text only); every upload surface (DocumentForm,
+  BatchUploadModal, ClientDocumentsTab, LocalDocumentManager copy-to-
+  matter) inlined megabytes of base64 into the records — LocalDocument-
+  Manager persisted a session-scoped blob: URL that dies on refresh;
+  handleSignDocument was declared in the DataActions interface, called by
+  the Sign modal, and never implemented (the `as unknown as
+  ExtendedDataActions` cast on the context object hid it and 24 more
+  missing members); the shared-document chat message arrived as raw
+  "[FILE: …](id)" markdown; the versions field was written by nothing;
+  FolderPermissionsModal presented per-folder role restrictions that
+  nothing ever enforced; the DOCX export wrote US LETTER raw XML (not a
+  ZIP) with a new paragraph at every formatting boundary, literal "• "
+  for BOTH list kinds, and a heading whose bold state latched onto all
+  following text; the print pipeline rendered an empty
+  <div class="letterhead"></div> even when the firm had configured a
+  letterhead, and the Print Preview drawer was passed
+  letterheadHtml={undefined}.
+- A (V-DOC-4) THE RELIABLE-COMMIT PROTOCOL: handleSave only OPENS the
+  form. WordProcessor resolves onDraftCommitted / onDraftCancelled /
+  onDraftSaveError — carried through the modal ctx, resolved by
+  DocumentForm AFTER the vault write settles (committedRef guard;
+  unmount-without-submit = cancelled, covering X/backdrop/ESC). The
+  draft session is cleared ONLY on commit; a cancelled dialog leaves it
+  intact for refresh/navigation recovery. DraftProEditor's manual save
+  (button + Ctrl+S), "Save & Leave" guard modal and Done button now
+  route through the same protocol (SaveControl on onSave); the editor
+  only reports saved after persistence is confirmed, and an armed
+  close-after-save fires only on a committed save. draftHtml persists as
+  the document's content when the textarea is untouched (the rule lives
+  in utils/draftContentPersistence.ts — one implementation, tested); a
+  user edit persists the user's words. A DraftPro session editing an
+  EXISTING vault document (draft:doc:<id>) now UPDATES that document —
+  versioned — instead of silently creating a duplicate record (ctx.
+  documentId resolves through both ModalManager and DockedModal).
+- B (V-DOC-5) STORAGE: every upload surface moved to the established
+  generateUploadUrl pattern (DocumentForm, BatchUpload, ClientDocuments-
+  Tab, LocalDocumentManager) — records carry { storageId }, never base64.
+  Server-side fences on the generic paths (convex/documentsIntegrity.ts,
+  wired into createItem + updateItem): storage-backed files validated
+  (name/type/size, extension allowlist, 10MB bound, dataUrl stripped),
+  marker-only files kept honest (no fake bytes), legacy bare-string
+  shape preserved. On UPDATE, a legacy round-trip (dataUrl, no
+  storageId) keeps the STORED file untouched — the additive backfill
+  (convex/backfillDocumentFiles(.Internal).ts, dry-run-first,
+  never-guesses, idempotent; mutations cannot storage.store in this
+  Convex version so the backfill is an ACTION via anyApi) owns the
+  migration; a fresh upload replaces it with the validated shape.
+  The rent-receipt marker record needs no Atrium change (the fence
+  accepts the marker shape). Downloads already resolve storageIds; with
+  new writers storage-backed, "downloads retrieve real stored bytes".
+- C (V-DOC-3/18) SIGNING + SHARING: handleSignDocument is REAL — the
+  drawn/typed signature image uploads to Convex storage; the record
+  persists signatureData (storageId), signedAt and signerId attribution.
+  The modal labels the act honestly: an INTERNAL ACKNOWLEDGEMENT, not
+  presented as a legally valid electronic signature. The `as unknown
+  as` cast is REMOVED from the DataActions provider; all 25 members it
+  hid are now implemented (real where safe — automation rules, attorney
+  notes, checklist items, matter assignment, share options — honest
+  warning stubs for the mock-era utilities, never fake success;
+  validateInviteCode's hidden null/undefined mismatch fixed). Shared
+  documents: the [FILE: title](id) sentinel is now parsed
+  (utils/sharedDocumentMessage.ts) and MessageThread renders it as a
+  clickable document chip that opens the shared document — the
+  destination works; ShareDocumentModal's fake "Admin approval"
+  permission warning is gone (replaced by the honest model-wide note).
+- D (V-DOC-13/15) VERSIONS + FOLDERS: every committed edit snapshots
+  the PRIOR state (title/content/file/folder/matter, who, when, real
+  change summary — utils/documentVersions.ts) into a bounded (20),
+  server-sanitized versions array riding the existing column (no schema
+  change). DocumentDetailView gained a History tab (version list with
+  actor + change summary, Compare → the rewritten side-by-side
+  DocumentComparisonModal, Restore → reversible: current state is
+  snapshotted first). FolderPermissionsModal and its entry points are
+  REMOVED — the per-folder role restrictions were never enforced
+  anywhere; access stays firm-scoped, which is what the product actually
+  does (V-DOC-15's "remove the misleading permission controls").
+- E (V-DOC-11/12) FORMAT + EXPORTS: ONE page contract
+  (utils/pageFormat.ts — A4 11906×16838 twips, 25mm margins, Times
+  12pt/1.5) now drives the print pipeline, the Print Preview drawer and
+  the DOCX export (the pre-V4 DOCX was US Letter). The DOCX engine is
+  rewritten on a DOM walk: formatting boundaries emit <w:r> runs inside
+  ONE paragraph; lists get REAL numbering (per-list numIds so ordered
+  lists restart; nesting maps to ilvl; numbering.xml generated);
+  headings use pStyle and never leak bold; page-break nodes export as
+  <w:br w:type="page"/>; legal placeholders export as bracketed
+  [LABEL] text; tables export as w:tbl. The broken legacy paths are
+  retired: exportHtmlToDocx's raw-XML download now delegates to the
+  real Blob pipeline (PrintPreviewDrawer with it), and the html2canvas
+  rasterised "PDF" export is deleted — PDF output goes through the
+  browser's vector print engine, which also prints the REAL letterhead
+  (utils/letterhead.ts renders the firm's headerConfig inline-styled)
+  instead of the empty div, and prints placeholder labels instead of
+  invisible empty spans.
+- TESTS: 51 new tests across roundV4DocumentIntegrity.test.ts (30 — the
+  file/versions/signature fences on the REAL createItem/updateItem
+  handlers, the legacy round-trip protection, RLS, the backfill decoder)
+  + roundV4DocumentEngine.test.ts (21 — page contract, letterheads,
+  DOCX run/list/heading/break/placeholder/table rules, the real ZIP
+  package, draft-session survival, the save-content rule, version
+  snapshots/restores, the share-message format). jsdom added as a
+  devDependency for the DOM-dependent engine tests.
+- GATES: vitest 2354/2354 (117 files, +2/+51) / convex tsc 0 / root tsc
+  89 = 1 UNDER the V3 baseline of 90 (4 under the CI baseline 94) /
+  eslint changed files 0 errors 0 warnings / ui-primitives ratchet
+  IMPROVED 2296 → 2295 (baseline updated and committed) / design tokens
+  gray=0 / identity audit PASSED / main + admin builds green.
+- NON-NEGOTIABLES HELD: tenancyLifecycle.ts, Paystack and every
+  historical financial record untouched; E1-E4 suites untouched and
+  green; the offline queue and optimistic sync architecture preserved
+  (addItem/updateItem unchanged in shape — uploads fail honestly while
+  offline instead of queueing fake bytes); existing document-template
+  and contract-analysis tests pass unmodified; the only "schema" change
+  is additive typing (DocumentVersion gains optional content/title/
+  file?, FileDetails unchanged) — the documents table columns were
+  already open (v.any) and are now fenced.
+
+Stage Summary:
+- V4 COMPLETE, all gates green, and STOPPED FOR INDEPENDENT REVIEW per
+  the brief — pushed to main (CI runs the full quality gate on the
+  push); production promote NOT dispatched.
+- Documents now save when the save says it saved, keep their bytes in
+  storage instead of the row, keep their formatting through the round
+  trip, remember their history, sign with honest attribution, share to
+  a destination that opens, and print/export on one A4 contract with
+  the firm's real letterhead.
+[skip ci]

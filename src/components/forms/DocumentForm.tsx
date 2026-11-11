@@ -1,13 +1,16 @@
 
-import React, { useState, useEffect, DragEvent, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, DragEvent, useCallback, useMemo } from 'react';
 import { Document, Matter, DocumentCategory, View, User, FileDetails, DocumentTemplate, FirmDetails, DocumentTemplateCategory, Contact, AloaHint } from '../../types';
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatBytes } from '../../utils/formatting';
+import { uploadBlobToConvex, surfaceUploadError } from '../../utils/convexUpload';
+import { buildVersionSnapshot, capVersions } from '../../utils/documentVersions';
+import { resolvePersistedContent } from '../../utils/draftContentPersistence';
 import { DocumentsIcon, CloudArrowUpIcon, GavelIconLarge, SaveIcon, XIcon, OfficeBuildingIcon, FolderIcon, CalendarIcon, TrashIcon, InfoIcon, CheckBadgeIcon, SparklesIcon, ZapIcon, WarningIcon } from '../../constants';
 import { TemplateService } from '../../utils/TemplateService';
 import * as aiService from '../../services/aiService';
@@ -57,6 +60,36 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     const { openModal, addToast } = useUI();
     // V1-A (SEC-3): the bearer for the session-scoped getDocumentContent read.
     const { bearerToken } = useAuth();
+    // V4 (V-DOC-5): uploads go to Convex STORAGE via the established
+    // generateUploadUrl pattern (same as chat attachments and DraftPro's
+    // vault saves) — the record carries a storageId, NOT a base64 data URL.
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+    // V4 (V-DOC-4): reliable-commit protocol state. The DraftPro host
+    // (WordProcessor) passes onDraftCommitted / onDraftCancelled /
+    // onDraftSaveError through initialContext; the form resolves them the
+    // only honest way — after the vault write settles.
+    const committedRef = useRef(false);
+    const erroredRef = useRef(false);
+    // V4 (V-DOC-4): the DraftPro HTML for this save. Persisted as the
+    // document's content (instead of the plain-text textarea value) when
+    // the user has not edited the text themselves — formatting survives
+    // the save (the pre-V4 form dropped it on the floor).
+    const draftHtmlRef = useRef<string | null>(null);
+    const initialCtxRef = useRef<any>(null);
+    useEffect(() => {
+        initialCtxRef.current = initialContext as any;
+        // V4 (V-DOC-4): capture the DraftPro HTML for this save.
+        draftHtmlRef.current = (initialContext as any)?.draftHtml ?? null;
+        return () => {
+            // V4 (V-DOC-4): unmount without a successful submit = CANCELLED.
+            // This covers the X button, backdrop click and ESC identically —
+            // the draft session in the host stays intact for recovery.
+            if (!committedRef.current && !erroredRef.current) {
+                initialCtxRef.current?.onDraftCancelled?.();
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     // Use the canonical product-aware flags from ProductContext.
     // Previously this component checked `product === 'legal' || product === 'vega'`
     // which MISSED 'unified' (Komplete) — so Komplete firms wrongly saw "Property"
@@ -115,6 +148,15 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
             setCategoryId(documentToEdit.categoryId);
             setDateFiled(documentToEdit.dateFiled);
             setContent((fullDoc as any)?.content || documentToEdit.content);
+            // V4 (V-DOC-4): DraftPro round-trip — when this edit was opened BY
+            // DraftPro (ctx.documentId + ctx.draftHtml), the editor's current
+            // content is NEWER than the stored row. Show the fresh plain text
+            // in the textarea; the formatted HTML rides along (draftHtmlRef)
+            // and is persisted on submit unless the user edits the text.
+            const draftCtxAny = (initialContext as any) || {};
+            if (draftCtxAny.draftHtml && draftCtxAny.draftContent !== undefined) {
+                setContent(draftCtxAny.draftContent);
+            }
             setIsCourtProcess(documentToEdit.isCourtProcess || false);
             setLitigationStatus(documentToEdit.litigationStatus || 'draft');
         } else {
@@ -157,7 +199,14 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         }
     }, [isEditing, documentToEdit, initialContext, documentCategories]);
 
-    const handleFile = useCallback((selectedFile: File) => {
+    // V4 (V-DOC-5): file uploads go to Convex storage (generateUploadUrl
+    // pattern). The pre-V4 path read the file as a base64 data URL and
+    // stored it INSIDE the document record — megabytes of base64 in every
+    // row, unvalidated server-side, and a download path that could never
+    // fetch real stored bytes. Now the record carries { storageId } and
+    // nothing else; downloads resolve it via getFileUrl.
+    const [isUploadingFile, setIsUploadingFile] = useState(false);
+    const handleFile = useCallback(async (selectedFile: File) => {
         if (selectedFile.size > MAX_FILE_SIZE) {
             setError(`File exceeds limit (${formatBytes(MAX_FILE_SIZE)}). Please compress or split the file.`);
             return;
@@ -172,20 +221,26 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         }
 
         setError(null);
-        const reader = new FileReader();
-        reader.onerror = () => setError("Failed to read file.");
-        reader.onload = () => {
+        setIsUploadingFile(true);
+        try {
+            const storageId = await uploadBlobToConvex(selectedFile, () =>
+                generateUploadUrl({ sessionToken: bearerToken ?? undefined })
+            );
             setTitle(prev => (!prev || prev === 'New Document') ? selectedFile.name.replace(/\.[^/.]+$/, "") : prev);
             setFile({
                 name: selectedFile.name,
                 type: selectedFile.type,
                 size: selectedFile.size,
-                filePath: `uploads/${Date.now()}_${selectedFile.name}`,
-                dataUrl: reader.result as string,
+                filePath: '',
+                storageId,
             });
-        };
-        reader.readAsDataURL(selectedFile);
-    }, []);
+        } catch (uploadErr: any) {
+            surfaceUploadError(addToast, selectedFile, uploadErr, MAX_FILE_SIZE / (1024 * 1024));
+            setError(`"${selectedFile.name}" was not uploaded. Try again.`);
+        } finally {
+            setIsUploadingFile(false);
+        }
+    }, [generateUploadUrl, bearerToken, addToast]);
 
     const handleDraftPro = async () => {
         if (!title || !matterId) {
@@ -265,8 +320,37 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         const selectedMatter = matterId ? matters.find(m => m.id === matterId) : undefined;
         const selectedProperty = propertyId ? (coreState.properties || []).find(p => p.id === propertyId) : undefined;
 
+        // V4 (V-DOC-4): pick what actually gets persisted as `content`.
+        // If DraftPro supplied HTML and the user did not edit the textarea
+        // (its value still equals the pre-filled plain text), persist the
+        // HTML — formatting survives the round trip. A user who edited the
+        // text gets their own words, honestly. (Rule extracted to
+        // utils/draftContentPersistence.ts — testable, one implementation.)
+        const draftCtx = (initialContext as any) || {};
+        const finalContent = resolvePersistedContent({
+            content,
+            plainPrefill: draftCtx.draftContent,
+            draftHtml: draftHtmlRef.current,
+        });
+
         try {
             if (isEditing && onUpdateDocument && documentToEdit) {
+                // V4 (V-DOC-13): snapshot the PRIOR state before this commit
+                // overwrites it — every committed edit now preserves what the
+                // document said before (title/content/file), who changed it,
+                // and when.
+                const nowIso = new Date().toISOString();
+                const priorVersions = Array.isArray(documentToEdit.versions) ? documentToEdit.versions : [];
+                const nextShape = {
+                    title,
+                    content: finalContent,
+                    file: file || undefined,
+                    categoryId,
+                    matter: selectedMatter ? { id: selectedMatter.id, title: selectedMatter.title } : undefined,
+                };
+                const snapshot = buildVersionSnapshot(documentToEdit, nextShape, currentUser.id, nowIso);
+                const versions = capVersions([snapshot, ...priorVersions]);
+
                 const updatedDoc: Document = {
                     ...documentToEdit,
                     title,
@@ -280,11 +364,16 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     categoryId,
                     dateFiled,
                     file: file || undefined,
-                    content: content,
+                    content: finalContent,
+                    versions,
                     isCourtProcess,
                     litigationStatus: isCourtProcess ? litigationStatus : undefined,
                 };
                 await onUpdateDocument(updatedDoc);
+                // V4 (V-DOC-4): resolve the reliable-commit protocol — the
+                // vault write succeeded, so (and only so) we report success.
+                committedRef.current = true;
+                (initialContext as any)?.onDraftCommitted?.();
                 addToast("Document updated.", { type: 'success' });
             } else {
                 const newDocData = {
@@ -300,15 +389,18 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
                     categoryId,
                     dateFiled,
                     file: file ? { ...file } : undefined,
-                    content: content,
+                    content: finalContent,
                     assignedUsers: [],
-                    source: content ? 'generated' : 'upload',
+                    source: finalContent ? 'generated' : 'upload',
                     uploadedBy: currentUser.id,
                     isCourtProcess,
                     litigationStatus: isCourtProcess ? litigationStatus : undefined,
                 };
 
                 await onAddDocument(newDocData);
+                // V4 (V-DOC-4): resolve the reliable-commit protocol.
+                committedRef.current = true;
+                (initialContext as any)?.onDraftCommitted?.();
                 addToast("Document saved.", { type: 'success' });
             }
 
@@ -322,6 +414,11 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
         } catch (err: any) {
             console.error("Save Error:", err);
             setError(`Failed to save document. ${err.message || "Please try again."}`);
+            // V4 (V-DOC-4): resolve the protocol on the failure side — the
+            // host keeps the draft session (recovery intact) and the editor
+            // un-claims "saved".
+            erroredRef.current = true;
+            (initialContext as any)?.onDraftSaveError?.();
         } finally {
             setIsSubmitting(false);
         }

@@ -1,26 +1,49 @@
 /**
- * docxExport — client-side DOCX export utility.
+ * docxExport — client-side DOCX export utility (V4 rewrite).
  *
- * Converts HTML content (from DraftPro or ALOA chat) into a downloadable
- * .docx file that can be opened in Microsoft Word, Google Docs, or any
- * word processor.
+ * Converts HTML content (from DraftPro or ALOA chat) into a real Office
+ * Open XML .docx package (ZIP via JSZip) that Word opens without repair.
  *
- * This uses a lightweight approach: converts HTML to an Office Open XML
- * (OOXML) document wrapped in a .docx MIME type. The resulting file is
- * a valid .docx that Word can open and edit.
+ * V4 (V-DOC-11) — what was broken and is fixed here:
+ *   RUN SPLITTING: the pre-V4 tokenizer emitted a new <w:p> paragraph at
+ *     every formatting boundary, so "a <b>bold</b> word" exported as three
+ *     paragraphs. Formatting now emits <w:r> runs INSIDE one paragraph.
+ *   LIST SPLITTING: lists exported as literal "• " text (and 'ol' also got
+ *     a bullet — both ternary branches were identical). Lists now use real
+ *     OOXML numbering (<w:numPr> + numbering.xml), each top-level list gets
+ *     a fresh numId so ordered lists restart at 1, and nesting maps to ilvl.
+ *   HEADINGS: a heading left `isBold` latched ON for the rest of the
+ *     document (everything after an <h1> exported bold). Headings are now
+ *     paragraphs with pStyle Heading1-3 and never leak state.
+ *   PAGE SIZE: the export wrote US LETTER (12240×15840 twips). It now
+ *     derives A4 + 25mm margins from utils/pageFormat.ts, so the DOCX
+ *     paginates identically to the DraftPro canvas and the print pipeline.
+ *   PLACEHOLDERS: legal-placeholder chips exported as invisible empty
+ *     spans; they now export as bracketed [LABEL] text.
+ *   PAGE BREAKS: page-break nodes now export as real <w:br w:type="page"/>.
  *
- * No external dependencies — pure string manipulation + Blob creation.
+ * Legacy retirements (V-DOC-11 "retire broken legacy export paths"):
+ *   - exportHtmlToDocx previously wrote RAW XML with a .docx extension
+ *     (not a ZIP — Word could not open it). It is now a thin wrapper over
+ *     the real Blob pipeline below.
+ *   - exportHtmlToPdfBlob (html2canvas rasterised "PDF" — a screenshot,
+ *     no selectable text, gaps at every page seam) is DELETED. PDF output
+ *     goes through the browser's vector print engine (DraftPro pipeline).
+ *
+ * DOM note: parsing uses the browser DOM (document.createElement). In
+ * tests, run this module under jsdom (`@vitest-environment jsdom`).
  */
 
-interface DocxExportOptions {
+import { ooxmlSectionProperties } from './pageFormat';
+
+export interface DocxExportOptions {
   title?: string;
   author?: string;
   firmName?: string;
 }
 
-/**
- * Escape special XML characters for OOXML.
- */
+// ─── XML helpers ────────────────────────────────────────────────────────────
+
 function escapeXml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -30,204 +53,384 @@ function escapeXml(text: string): string {
     .replace(/'/g, '&apos;');
 }
 
-/**
- * Convert simple HTML to OOXML body content.
- * Supports: paragraphs, bold, italic, underline, headings, lists, tables.
- */
-function htmlToOoxml(html: string): string {
-  let result = '';
-  let pos = 0;
+// ─── Run/paragraph model ────────────────────────────────────────────────────
 
-  // Tokenize the HTML into tags and text
-  const tokens: { type: 'tag' | 'text'; value: string }[] = [];
-  while (pos < html.length) {
-    const tagStart = html.indexOf('<', pos);
-    if (tagStart === -1) {
-      tokens.push({ type: 'text', value: html.substring(pos) });
-      break;
-    }
-    if (tagStart > pos) {
-      tokens.push({ type: 'text', value: html.substring(pos, tagStart) });
-    }
-    const tagEnd = html.indexOf('>', tagStart);
-    if (tagEnd === -1) {
-      tokens.push({ type: 'text', value: html.substring(tagStart) });
-      break;
-    }
-    tokens.push({ type: 'tag', value: html.substring(tagStart, tagEnd + 1) });
-    pos = tagEnd + 1;
-  }
-
-  // Build OOXML from tokens
-  let currentRun = '';
-  let isBold = false;
-  let isItalic = false;
-  let isUnderline = false;
-  let inList = false;
-  let listType: 'ul' | 'ol' | null = null;
-
-  const flushRun = () => {
-    if (currentRun.trim()) {
-      const props: string[] = [];
-      if (isBold) props.push('<w:b/>');
-      if (isItalic) props.push('<w:i/>');
-      if (isUnderline) props.push('<w:u w:val="single"/>');
-      const rPr = props.length > 0 ? `<w:rPr>${props.join('')}</w:rPr>` : '';
-      result += `<w:p>${rPr ? `<w:pPr/>` : ''}<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(currentRun)}</w:t></w:r></w:p>`;
-    }
-    currentRun = '';
-  };
-
-  for (const token of tokens) {
-    if (token.type === 'text') {
-      currentRun += token.value;
-    } else if (token.type === 'tag') {
-      const tag = token.value.toLowerCase();
-      const isClosing = tag.startsWith('</');
-      const tagName = tag.replace(/[<\/>]/g, '').split(' ')[0];
-
-      if (tagName === 'p' || tagName === 'div') {
-        if (isClosing) {
-          flushRun();
-        }
-      } else if (tagName === 'br') {
-        flushRun();
-      } else if (tagName === 'b' || tagName === 'strong') {
-        if (isClosing) { flushRun(); isBold = false; } else { flushRun(); isBold = true; }
-      } else if (tagName === 'i' || tagName === 'em') {
-        if (isClosing) { flushRun(); isItalic = false; } else { flushRun(); isItalic = true; }
-      } else if (tagName === 'u') {
-        if (isClosing) { flushRun(); isUnderline = false; } else { flushRun(); isUnderline = true; }
-      } else if (tagName.match(/^h[1-6]$/)) {
-        if (isClosing) {
-          flushRun();
-        } else {
-          flushRun();
-          isBold = true;
-        }
-      } else if (tagName === 'li') {
-        if (isClosing) {
-          flushRun();
-        } else {
-          flushRun();
-          currentRun = (listType === 'ol' ? '• ' : '• ');
-        }
-      } else if (tagName === 'ul' || tagName === 'ol') {
-        if (!isClosing) {
-          listType = tagName as 'ul' | 'ol';
-          inList = true;
-        } else {
-          listType = null;
-          inList = false;
-        }
-      }
-    }
-  }
-  flushRun();
-
-  return result || '<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>';
+interface RunFlags {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  superscript?: boolean;
+  subscript?: boolean;
 }
 
+function runXml(text: string, flags: RunFlags): string {
+  const props: string[] = [];
+  if (flags.bold) props.push('<w:b/>');
+  if (flags.italic) props.push('<w:i/>');
+  if (flags.underline) props.push('<w:u w:val="single"/>');
+  if (flags.superscript) props.push('<w:vertAlign w:val="superscript"/>');
+  if (flags.subscript) props.push('<w:vertAlign w:val="subscript"/>');
+  const rPr = props.length > 0 ? `<w:rPr>${props.join('')}</w:rPr>` : '';
+  return `<w:r>${rPr}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
+}
+
+interface ParaOptions {
+  style?: string;         // pStyle id (Heading1…)
+  numbering?: number;     // numId allocated for this list
+  ilvl?: number;          // list nesting level (0-3)
+  indentLeft?: number;    // twips
+  quote?: boolean;
+  pageBreakBefore?: boolean;
+}
+
+function paraXml(runs: string[], opts: ParaOptions = {}): string {
+  const pPrParts: string[] = [];
+  if (opts.pageBreakBefore) pPrParts.push('<w:pageBreakBefore/>');
+  if (opts.style) pPrParts.push(`<w:pStyle w:val="${opts.style}"/>`);
+  if (opts.numbering !== undefined) {
+    pPrParts.push(`<w:numPr><w:ilvl w:val="${opts.ilvl ?? 0}"/><w:numId w:val="${opts.numbering}"/></w:numPr>`);
+  }
+  if (opts.indentLeft || opts.quote) {
+    pPrParts.push(`<w:ind w:left="${opts.indentLeft ?? 720}" w:hanging="0"/>`);
+  }
+  if (opts.quote) pPrParts.push('<w:i/>');
+  const pPr = pPrParts.length > 0 ? `<w:pPr>${pPrParts.join('')}</w:pPr>` : '';
+  const body = runs.length > 0 ? runs.join('') : '';
+  return `<w:p>${pPr}${body}</w:p>`;
+}
+
+// ─── List registry (each top-level list gets a fresh numId) ─────────────────
+
+interface ListKind { kind: 'ul' | 'ol'; numId: number }
+
+// ─── Conversion ─────────────────────────────────────────────────────────────
+
+interface ConvertState {
+  paragraphs: string[];
+  lists: ListKind[];      // numbering.xml is generated from this at the end
+}
+
+const MAX_LIST_DEPTH = 4;
+
 /**
- * Generate a .docx file from HTML content and trigger download.
+ * Convert the children of a DOM node into OOXML paragraphs appended to
+ * state.paragraphs. Block elements recurse; inline content accumulates
+ * into the current paragraph via a ParaAccumulator.
  */
-export function exportHtmlToDocx(html: string, filename: string, options: DocxExportOptions = {}): void {
-  const { title = 'Document', author = 'PracticePro', firmName = '' } = options;
+function convertChildren(parent: Node, flags: RunFlags, state: ConvertState, listCtx: { numId?: number; ilvl: number } = { ilvl: 0 }): void {
+  parent.childNodes.forEach((node) => convertNode(node, flags, state, listCtx));
+}
 
-  // Strip DraftPro-specific attributes and clean the HTML
-  const cleanHtml = html
-    .replace(/data-type="legal-placeholder"[^>]*>/g, '>')
-    .replace(/data-label="[^"]*"/g, '')
-    .replace(/data-category="[^"]*"/g, '')
-    .replace(/class="[^"]*"/g, '')
-    .replace(/style="[^"]*"/g, '')
-    .replace(/<span[^>]*>/g, '')
-    .replace(/<\/span>/g, '');
+function convertNode(node: Node, flags: RunFlags, state: ConvertState, listCtx: { numId?: number; ilvl: number }): void {
+  if (node.nodeType === Node.TEXT_NODE) {
+    // Top-level bare text: wrap into a paragraph (loose text between blocks).
+    const text = node.textContent ?? '';
+    if (!text.trim()) return;
+    state.paragraphs.push(paraXml([runXml(text, flags)]));
+    return;
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return;
 
-  const bodyContent = htmlToOoxml(cleanHtml);
+  const el = node as HTMLElement;
+  const tag = el.tagName.toLowerCase();
 
-  // Build the OOXML document
-  const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>
-    ${bodyContent}
-    <w:sectPr>
-      <w:pgSz w:w="12240" w:h="15840"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
-    </w:sectPr>
-  </w:body>
-</w:document>`;
+  switch (tag) {
+    case 'p':
+    case 'div': {
+      if (isPageBreak(el)) { emitPageBreak(state); return; }
+      // divs with block children recurse; plain divs act as paragraphs.
+      if (hasBlockChild(el)) { convertChildren(el, flags, state, listCtx); return; }
+      emitSimpleParagraph(el, flags, state, {});
+      return;
+    }
+    case 'h1':
+    case 'h2':
+    case 'h3':
+    case 'h4':
+    case 'h5':
+    case 'h6': {
+      const level = Number(tag[1]);
+      const style = level <= 1 ? 'Heading1' : level === 2 ? 'Heading2' : 'Heading3';
+      const runs = collectInline(el, { ...flags, bold: true });
+      state.paragraphs.push(paraXml(runs, { style }));
+      return;
+    }
+    case 'ul':
+    case 'ol': {
+      const numId = allocateList(state, tag as 'ul' | 'ol');
+      el.childNodes.forEach((child) => {
+        if (child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).tagName.toLowerCase() === 'li') {
+          convertListItem(child as HTMLElement, flags, state, numId, 0);
+        }
+      });
+      return;
+    }
+    case 'li': {
+      // Loose li outside a list: treat as a bullet paragraph.
+      const numId = listCtx.numId ?? allocateList(state, 'ul');
+      convertListItem(el, flags, state, numId, listCtx.ilvl);
+      return;
+    }
+    case 'table':
+      state.paragraphs.push(tableXml(el, flags));
+      return;
+    case 'blockquote': {
+      const runs = collectInline(el, { ...flags, italic: true });
+      state.paragraphs.push(paraXml(runs.length ? runs : [runXml('', {})], { quote: true, indentLeft: 720 }));
+      return;
+    }
+    case 'hr':
+      state.paragraphs.push(paraXml([runXml('', {})], {}));
+      return;
+    case 'br':
+      emitPageBreak(state); // only reached for a stray top-level <br>
+      return;
+    default:
+      // Inline or unknown element at block position: if it contains block
+      // children, recurse as a block container; otherwise emit a paragraph.
+      if (hasBlockChild(el)) { convertChildren(el, flags, state, listCtx); return; }
+      emitSimpleParagraph(el, flags, state, {});
+      return;
+  }
+}
 
-  // Build the .docx package (minimal valid structure)
-  // A .docx is a ZIP file — we use a Blob with the correct MIME type
-  // and let the browser handle it. For a full implementation we'd
-  // use JSZip, but this minimal approach produces a file Word can open.
-  const fullDoc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<?mso-application progid="Word.Document"?>
-<w:wordDocument xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-  xmlns:v="urn:schemas-microsoft-com:vml"
-  xmlns:o="urn:schemas-microsoft-com:office:office"
-  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <w:body>
-    ${bodyContent}
-  </w:body>
-</w:wordDocument>`;
+function convertListItem(li: HTMLElement, flags: RunFlags, state: ConvertState, numId: number, ilvl: number): void {
+  const boundedIlvl = Math.min(ilvl, MAX_LIST_DEPTH - 1);
+  const runs: string[] = [];
+  const nested: HTMLElement[] = [];
 
-  // Create a Blob with the Word MIME type
-  const blob = new Blob(['\ufeff' + fullDoc], {
-    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  li.childNodes.forEach((child) => {
+    if (child.nodeType !== Node.ELEMENT_NODE) {
+      const text = child.textContent ?? '';
+      if (text) runs.push(...splitRunsText(text, flags));
+      return;
+    }
+    const cel = child as HTMLElement;
+    const ctag = cel.tagName.toLowerCase();
+    if (ctag === 'ul' || ctag === 'ol') { nested.push(cel); return; }
+    if (ctag === 'p' || ctag === 'div') {
+      if (isPageBreak(cel)) { emitPageBreak(state); return; }
+      // A paragraph inside a list item: merge its inline content into this
+      // item's text (single w:p per item keeps Word's list behaviour sane).
+      runs.push(...collectInline(cel, flags));
+      return;
+    }
+    runs.push(...collectInline(cel, flags));
   });
 
-  // Trigger download
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename.endsWith('.docx') ? filename : `${filename}.docx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  state.paragraphs.push(paraXml(runs, { numbering: numId, ilvl: boundedIlvl }));
+
+  nested.forEach((cel) => {
+    const ctag = cel.tagName.toLowerCase();
+    const nestedNumId = allocateList(state, ctag as 'ul' | 'ol');
+    cel.childNodes.forEach((child) => {
+      if (child.nodeType === Node.ELEMENT_NODE && (child as HTMLElement).tagName.toLowerCase() === 'li') {
+        convertListItem(child as HTMLElement, flags, state, nestedNumId, boundedIlvl + 1);
+      }
+    });
+  });
 }
 
-/**
- * Export plain text to a .docx file.
- */
-export function exportTextToDocx(text: string, filename: string, options: DocxExportOptions = {}): void {
-  // Convert plain text to simple HTML paragraphs
-  const html = text
-    .split('\n')
-    .map((line) => line.trim() ? `<p>${escapeXml(line)}</p>` : '<p></p>')
+/** Inline content of an element as runs (no paragraph emission). */
+function collectInline(parent: Node, flags: RunFlags): string[] {
+  const runs: string[] = [];
+  const walk = (node: Node, current: RunFlags) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      runs.push(...splitRunsText(node.textContent ?? '', current));
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    const tag = el.tagName.toLowerCase();
+    const next: RunFlags = { ...current };
+    switch (tag) {
+      case 'b': case 'strong': next.bold = true; break;
+      case 'i': case 'em': next.italic = true; break;
+      case 'u': next.underline = true; break;
+      case 'sup': next.superscript = true; break;
+      case 'sub': next.subscript = true; break;
+      case 'br':
+        runs.push('<w:r><w:br/></w:r>');
+        return;
+      case 'a':
+        next.underline = true; // link text kept as underlined plain text
+        break;
+      case 'span': {
+        if (isLegalPlaceholder(el)) {
+          const label = el.getAttribute('data-label') || 'PLACEHOLDER';
+          runs.push(runXml(`[${label}]`, { ...next, bold: true }));
+          return;
+        }
+        break; // plain span: transparent
+      }
+      case 'img':
+        // Images: DOCX image embedding needs media parts + rels; emit an
+        // honest bracketed note instead of silently dropping the image.
+        runs.push(runXml('[image]', next));
+        return;
+      default:
+        if (isPageBreak(el)) { runs.push('<w:r><w:br w:type="page"/></w:r>'); return; }
+        break;
+    }
+    el.childNodes.forEach((child) => walk(child, next));
+  };
+  walk(parent, flags);
+  return runs;
+}
+
+/** A plain paragraph (p / text-only div): one w:p with inline runs. */
+function emitSimpleParagraph(el: HTMLElement, flags: RunFlags, state: ConvertState, opts: ParaOptions): void {
+  if (isPageBreak(el)) { emitPageBreak(state); return; }
+  const runs = collectInline(el, flags);
+  state.paragraphs.push(paraXml(runs, opts));
+}
+
+function emitPageBreak(state: ConvertState): void {
+  state.paragraphs.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>');
+}
+
+function isPageBreak(el: HTMLElement): boolean {
+  if (el.getAttribute('data-type') === 'page-break') return true;
+  const cls = el.getAttribute('class') || '';
+  return /(^|\s)(page-break|page-break-node)(\s|$)/.test(cls);
+}
+
+function isLegalPlaceholder(el: HTMLElement): boolean {
+  return el.getAttribute('data-type') === 'legal-placeholder';
+}
+
+function hasBlockChild(el: HTMLElement): boolean {
+  return Array.from(el.children).some((child) =>
+    BLOCK_TAGS.has(child.tagName.toLowerCase()) || isPageBreak(child as HTMLElement)
+  );
+}
+
+const BLOCK_TAGS = new Set([
+  'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li',
+  'table', 'blockquote', 'hr', 'section', 'article', 'header', 'footer', 'pre',
+]);
+
+/** Long text is split into ≤4000-char runs (Word's practical w:t limit safety). */
+function splitRunsText(text: string, flags: RunFlags): string[] {
+  if (!text) return [];
+  const out: string[] = [];
+  let rest = text;
+  while (rest.length > 4000) {
+    out.push(runXml(rest.slice(0, 4000), flags));
+    rest = rest.slice(4000);
+  }
+  if (rest) out.push(runXml(rest, flags));
+  return out;
+}
+
+function allocateList(state: ConvertState, kind: 'ul' | 'ol'): number {
+  const numId = 100 + state.lists.length; // numIds start past fixed ones
+  state.lists.push({ kind, numId });
+  return numId;
+}
+
+// ─── Tables ─────────────────────────────────────────────────────────────────
+
+function tableXml(table: HTMLElement, flags: RunFlags): string {
+  const rows = Array.from(table.querySelectorAll('tr'));
+  if (rows.length === 0) return paraXml([runXml('', {})], {});
+
+  const colCount = Math.max(...rows.map((r) => r.querySelectorAll('td,th').length), 1);
+  const gridCols = Array.from({ length: colCount }, () => '<w:gridCol w:w="' + Math.floor(9026 / colCount) + '"/>').join('');
+
+  const seen = new Set<HTMLElement>();
+  const bodyRows: string[] = [];
+  for (const row of rows) {
+    seen.add(row as HTMLElement);
+    const cells = Array.from((row as HTMLElement).querySelectorAll('td,th'));
+    const rowXml = cells.map((cell, idx) => {
+      const isHeader = cell.tagName.toLowerCase() === 'th' || idx === 0;
+      const runs = collectInline(cell, { ...flags, bold: isHeader });
+      return `<w:tc><w:tcPr><w:tcW w:w="${Math.floor(9026 / colCount)}" w:type="dxa"/></w:tcPr><w:p>${runs.join('') || ''}</w:p></w:tc>`;
+    }).join('');
+    bodyRows.push(`<w:tr>${rowXml}</w:tr>`);
+  }
+
+  return [
+    '<w:tbl>',
+    '<w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>',
+    '<w:top w:val="single" w:sz="4" w:color="cccccc"/><w:left w:val="single" w:sz="4" w:color="cccccc"/>',
+    '<w:bottom w:val="single" w:sz="4" w:color="cccccc"/><w:right w:val="single" w:sz="4" w:color="cccccc"/>',
+    '<w:insideH w:val="single" w:sz="4" w:color="cccccc"/><w:insideV w:val="single" w:sz="4" w:color="cccccc"/>',
+    '</w:tblBorders></w:tblPr>',
+    `<w:tblGrid>${gridCols}</w:tblGrid>`,
+    bodyRows.join(''),
+    '</w:tbl>',
+    paraXml([runXml('', {})], {}), // spacer paragraph after the table (Word requirement)
+  ].join('');
+}
+
+// ─── numbering.xml ──────────────────────────────────────────────────────────
+
+function numberingXml(lists: ListKind[]): string {
+  if (lists.length === 0) return '';
+  const levels = (kind: 'ul' | 'ol'): string => {
+    const fmt: string[] = [];
+    for (let lvl = 0; lvl < MAX_LIST_DEPTH; lvl++) {
+      const left = 720 * (lvl + 1);
+      const text = kind === 'ul' ? '•' : `%${lvl + 1}.`;
+      const numFmt = kind === 'ul' ? 'bullet' : 'decimal';
+      fmt.push(
+        `<w:lvl w:ilvl="${lvl}"><w:start w:val="1"/><w:numFmt w:val="${numFmt}"/><w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/>` +
+        `<w:pPr><w:ind w:left="${left}" w:hanging="360"/></w:pPr></w:lvl>`
+      );
+    }
+    return fmt.join('');
+  };
+  const abstracts =
+    `<w:abstractNum w:abstractNumId="0">${levels('ul')}</w:abstractNum>` +
+    `<w:abstractNum w:abstractNumId="1">${levels('ol')}</w:abstractNum>`;
+  const nums = lists
+    .map((l) => `<w:num w:numId="${l.numId}"><w:abstractNumId w:val="${l.kind === 'ul' ? 0 : 1}"/></w:num>`)
     .join('');
-  exportHtmlToDocx(html, filename, options);
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+${abstracts}
+${nums}
+</w:numbering>`;
 }
 
-// ─── Blob-returning variants (for uploading to Convex storage) ────────────
+// ─── Public API ─────────────────────────────────────────────────────────────
 
 /**
- * Generate a DOCX Blob from HTML (without triggering a download).
- * Use this when you want to upload the file to Convex storage
- * instead of (or in addition to) downloading it.
- *
- * FIX: This now creates a VALID OOXML zip archive (not just raw XML).
- * A real .docx file is a ZIP containing:
- *   - [Content_Types].xml
- *   - _rels/.rels
- *   - word/document.xml
- *   - word/_rels/document.xml.rels
- *   - word/styles.xml (optional but recommended)
- *
- * Previously this function returned raw XML with a .docx extension,
- * which Windows didn't recognize as a Word document. Now it uses JSZip
- * to create a proper OOXML package that Word opens without repair.
+ * Generate a DOCX Blob from HTML. Creates a valid OOXML ZIP package:
+ * [Content_Types].xml, _rels/.rels, word/document.xml (+ numbering.xml
+ * when lists are present), word/_rels/document.xml.rels, word/styles.xml,
+ * docProps/core.xml, docProps/app.xml.
  */
+
+/**
+ * Convert HTML to the raw OOXML paragraph stream + list registry (V4).
+ * Exported for tests: the DOCX engine's conversion rules (run splitting,
+ * list numbering allocation, heading styles, page breaks, placeholders)
+ * are assertable without building a ZIP.
+ */
+export function convertHtmlToOoxml(html: string): { paragraphs: string[]; lists: { kind: 'ul' | 'ol'; numId: number }[] } {
+  // Parse into a detached container so conversion never touches the live DOM.
+  const container = document.createElement('div');
+  container.innerHTML = html;
+  const state: ConvertState = { paragraphs: [], lists: [] };
+  convertChildren(container, {}, state);
+  return state;
+}
 export async function exportHtmlToDocxBlob(html: string, options: DocxExportOptions = {}): Promise<Blob> {
   const { title = 'Document', author = 'PracticePro', firmName = '' } = options;
 
   const JSZip = (await import('jszip')).default;
   const zip = new JSZip();
 
-  // Convert HTML to Word XML
-  const bodyContent = htmlToOoxml(html);
+  // V4: conversion is extracted (convertHtmlToOoxml) so the DOCX engine is
+  // unit-testable without building a ZIP.
+  const state = convertHtmlToOoxml(html);
+
+  const bodyContent = state.paragraphs.join('\n    ') || '<w:p><w:r><w:t xml:space="preserve"> </w:t></w:r></w:p>';
+  const numbering = numberingXml(state.lists);
+  const hasNumbering = numbering !== '';
 
   // ─── [Content_Types].xml ──────────────────────────────────────────
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -235,7 +438,8 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
-  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>${hasNumbering ? `
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>` : ''}
 </Types>`;
   zip.file('[Content_Types].xml', contentTypes);
 
@@ -247,15 +451,13 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
   zip.folder('_rels')!.file('.rels', rels);
 
   // ─── word/document.xml ────────────────────────────────────────────
+  // A4 + 25mm margins from the shared page contract (was US Letter).
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
   xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
   <w:body>
     ${bodyContent}
-    <w:sectPr>
-      <w:pgSz w:w="12240" w:h="15840"/>
-      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/>
-    </w:sectPr>
+    ${ooxmlSectionProperties()}
   </w:body>
 </w:document>`;
   zip.folder('word')!.file('document.xml', documentXml);
@@ -263,11 +465,16 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
   // ─── word/_rels/document.xml.rels ─────────────────────────────────
   const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${hasNumbering ? `
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>` : ''}
 </Relationships>`;
   zip.folder('word/_rels')!.file('document.xml.rels', docRels);
 
-  // ─── word/styles.xml ──────────────────────────────────────────────
+  if (hasNumbering) {
+    zip.folder('word')!.file('numbering.xml', numbering);
+  }
+
+  // ─── word/styles.xml — Times New Roman 12pt base + Heading1-3 ─────
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
@@ -320,10 +527,26 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
       <w:sz w:val="28"/>
     </w:rPr>
   </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading3">
+    <w:name w:val="heading 3"/>
+    <w:basedOn w:val="Normal"/>
+    <w:next w:val="Normal"/>
+    <w:qFormat/>
+    <w:pPr>
+      <w:keepNext/>
+      <w:spacing w:before="160" w:after="40"/>
+      <w:outlineLvl w:val="2"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman"/>
+      <w:b/>
+      <w:sz w:val="24"/>
+    </w:rPr>
+  </w:style>
 </w:styles>`;
   zip.folder('word')!.file('styles.xml', styles);
 
-  // ─── core.xml (document properties) ───────────────────────────────
+  // ─── docProps/core.xml + app.xml ──────────────────────────────────
   const coreXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
   xmlns:dc="http://purl.org/dc/elements/1.1/"
@@ -337,7 +560,6 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
 </cp:coreProperties>`;
   zip.folder('docProps')!.file('core.xml', coreXml);
 
-  // ─── app.xml (extended properties) ────────────────────────────────
   const appXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
   xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
@@ -346,7 +568,6 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
 </Properties>`;
   zip.folder('docProps')!.file('app.xml', appXml);
 
-  // Add the docProps relationship
   const relsCore = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
@@ -355,98 +576,36 @@ export async function exportHtmlToDocxBlob(html: string, options: DocxExportOpti
 </Relationships>`;
   zip.folder('_rels')!.file('.rels', relsCore);
 
-  // Generate the ZIP blob
-  const blob = await zip.generateAsync({
+  return zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
-
-  return blob;
 }
 
 /**
- * Generate a PDF Blob from HTML using jsPDF.
- *
- * PART 3 FIX — VISUAL FIDELITY TO EDITOR:
- * The PDF export now renders from the ACTUAL editor canvas element (if
- * provided) rather than a separate container with approximated styles.
- * This ensures margins, header/footer placement, and page breaks match
- * exactly what the user sees in DraftPro.
- *
- * If no canvasElement is provided, falls back to creating a temporary
- * container (the old behavior).
+ * Generate a .docx file from HTML content and trigger a download.
+ * V4: delegates to exportHtmlToDocxBlob — the download is now a real
+ * OOXML ZIP (the pre-V4 version wrote raw XML that Word could not open).
  */
-export async function exportHtmlToPdfBlob(
-  html: string,
-  options: DocxExportOptions & { canvasElement?: HTMLElement } = {}
-): Promise<Blob> {
-  const { title = 'Document', canvasElement } = options;
+export async function exportHtmlToDocx(html: string, filename: string, options: DocxExportOptions = {}): Promise<void> {
+  const blob = await exportHtmlToDocxBlob(html, options);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.endsWith('.docx') ? filename : `${filename}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
-  // ─── Use the actual editor canvas if provided (Part 3 fix) ────────
-  // This ensures the PDF matches the editor's exact layout: margins,
-  // header/footer spacing, page breaks, fonts — everything.
-  const renderTarget = canvasElement || (() => {
-    // Fallback: create a temporary container with the HTML
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.left = '-9999px';
-    container.style.top = '0';
-    container.style.width = '210mm'; // A4 width
-    container.style.padding = '20mm';
-    container.style.fontFamily = 'Times New Roman, serif';
-    container.style.fontSize = '12pt';
-    container.style.lineHeight = '1.5';
-    container.style.color = '#111827';
-    container.innerHTML = html;
-    document.body.appendChild(container);
-    return container;
-  })();
-
-  const isExternalElement = renderTarget !== canvasElement;
-
-  try {
-    const { jsPDF } = await import('jspdf');
-    const { default: html2canvas } = await import('html2canvas');
-
-    // Render the canvas element at high resolution
-    const canvas = await html2canvas(renderTarget, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      backgroundColor: '#ffffff',
-      // Use the element's actual scroll dimensions to capture full content
-      width: renderTarget.scrollWidth,
-      height: renderTarget.scrollHeight,
-      windowWidth: renderTarget.scrollWidth,
-      windowHeight: renderTarget.scrollHeight,
-    });
-
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    // First page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    // Additional pages if content is taller than one page
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-    }
-
-    return pdf.output('blob');
-  } finally {
-    // Only remove if we created it (not the editor's own canvas)
-    if (isExternalElement && renderTarget.parentNode) {
-      renderTarget.parentNode.removeChild(renderTarget);
-    }
-  }
+/**
+ * Export plain text to a .docx file.
+ */
+export async function exportTextToDocx(text: string, filename: string, options: DocxExportOptions = {}): Promise<void> {
+  const html = text
+    .split('\n')
+    .map((line) => (line.trim() ? `<p>${line}</p>` : '<p></p>'))
+    .join('');
+  await exportHtmlToDocx(html, filename, options);
 }

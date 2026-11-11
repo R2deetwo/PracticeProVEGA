@@ -7,6 +7,10 @@ import { UploadIcon, UserUploadIcon, DownloadIcon, CheckBadgeIcon, SignatureIcon
 import { ShieldCheck as IdentificationIcon } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { Select, Button } from '../ui';
+import { useAuth } from '../../contexts/AuthContext';
+import { useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { uploadBlobToConvex, surfaceUploadError } from '../../utils/convexUpload';
 
 /** KYC document types the firm's Compliance & KYC accordion expects. */
 const KYC_DOC_TYPES = [
@@ -29,6 +33,11 @@ interface ClientDocumentsTabProps {
 export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ documents, matter, currentUser, handleClientUploadDocument, handleClientMarkDocumentAsReviewed, isNew }) => {
     const { coreState, isDataLoaded } = useCoreState();
     const { openModal, addToast } = useUI();
+    const { bearerToken } = useAuth();
+    // V4 (V-DOC-5): client-portal uploads go to Convex storage — the record
+    // carries a storageId, not a base64 data URL (the pre-V4 path wrote the
+    // whole file inline into the documents row).
+    const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -39,9 +48,13 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ document
     const [kycDocType, setKycDocType] = useState('nin');
     const [kycPending, setKycPending] = useState(false);
 
-    const handleFile = (file: File) => {
-        const reader = new FileReader();
-        reader.onload = () => {
+    const handleFile = async (file: File) => {
+        // V4 (V-DOC-5): upload to Convex storage, then hand the record a
+        // { storageId } FileDetails — no base64 dataUrl.
+        try {
+            const storageId = await uploadBlobToConvex(file, () =>
+                generateUploadUrl({ sessionToken: bearerToken ?? undefined })
+            );
             const baseName = kycPending
                 ? `KYC \u2014 ${KYC_DOC_TYPES.find((t) => t.value === kycDocType)?.label || 'Compliance'} \u2014 ${file.name}`
                 : file.name;
@@ -49,16 +62,17 @@ export const ClientDocumentsTab: React.FC<ClientDocumentsTabProps> = ({ document
                 name: baseName,
                 type: file.type,
                 size: file.size,
-                filePath: `client_upload/${matter.id}/${file.name}`,
-                dataUrl: reader.result as string,
+                filePath: '',
+                storageId,
             };
             handleClientUploadDocument(matter.id, fileDetails);
             if (kycPending) {
                 addToast(`KYC document submitted \u2014 ${KYC_DOC_TYPES.find((t) => t.value === kycDocType)?.label}. Your firm has been notified.`, { type: 'success' });
                 setKycPending(false);
             }
-        };
-        reader.readAsDataURL(file);
+        } catch (uploadErr: any) {
+            surfaceUploadError(addToast, file, uploadErr, 10);
+        }
     };
 
     const handleDrop = (e: DragEvent<HTMLDivElement>) => {

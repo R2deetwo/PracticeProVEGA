@@ -54,6 +54,14 @@ import {
   appendStageHistory,
 } from "./matterLifecycle";
 import { normalizeEmail } from "./contactIntegrity";
+// V4 DOCUMENT INTEGRITY: server-side file/versions fences for the
+// documents table (V-DOC-5/13) — no base64 data URLs in rows, validated
+// storage-backed files, bounded version history.
+import {
+  sanitizeDocumentFileForCreate,
+  mergeDocumentFileForUpdate,
+  sanitizeDocumentVersions,
+} from "./documentsIntegrity";
 
 // --- SUBSCRIPTION CONFIGURATION (mirror: convex/tierLimits.ts) ---
 import { ATRIUM_LIMITS, getTierLimitsForFirm } from "./tierLimits";
@@ -3880,6 +3888,23 @@ export const createItem = mutation({
       }
     }
 
+    // ─── V4 DOCUMENT FILE + VERSIONS FENCE (V-DOC-5/13) ───────────
+    // `file` on a document row is either a validated storage-backed
+    // object, a bounded index marker, or absent — NEVER a base64 data
+    // URL (the pre-V4 path persisted the whole file inline).
+    if (table === "documents") {
+      const fileResult = sanitizeDocumentFileForCreate(sanitizedData.file);
+      if (fileResult.file === undefined) {
+        delete sanitizedData.file;
+      } else {
+        sanitizedData.file = fileResult.file;
+      }
+      if (sanitizedData.versions !== undefined) {
+        sanitizedData.versions = sanitizeDocumentVersions(sanitizedData.versions);
+        if ((sanitizedData.versions as any[]).length === 0) delete sanitizedData.versions;
+      }
+    }
+
     const dataWithTimestamp = {
       ...sanitizedData,
       firmId: effectiveFirmId,
@@ -5056,6 +5081,26 @@ export const updateItem = mutation({
       if (val === null) continue;
 
       patchData[key] = sanitizeForConvex(val);
+    }
+
+    // ─── V4 DOCUMENT FILE + VERSIONS FENCE (V-DOC-5/13) ───────────
+    // A legacy row round-tripping through a metadata edit keeps its stored
+    // file (the additive backfill migrates it to storage); a fresh upload
+    // carries a storageId and takes the validated path. Inline base64
+    // never enters the row through the generic update path.
+    if (table === "documents") {
+      let storedRow: any = null;
+      try { storedRow = await ctx.db.get(docId); } catch { storedRow = null; }
+      const merge = mergeDocumentFileForUpdate(patchData.file, storedRow?.file);
+      if (merge.mode === "keep-stored" || merge.mode === "absent") {
+        delete patchData.file;
+      } else {
+        patchData.file = merge.file;
+      }
+      if (patchData.versions !== undefined) {
+        patchData.versions = sanitizeDocumentVersions(patchData.versions);
+        if ((patchData.versions as any[]).length === 0) delete patchData.versions;
+      }
     }
 
     patchData.updatedAt = new Date().toISOString();

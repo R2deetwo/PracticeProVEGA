@@ -97,8 +97,8 @@ const EventDetailModal = lazy(() => import('../../components/details/EventDetail
 const LeadCaptureModal = lazy(() => import('../../components/modals/LeadCaptureModal').then(m => ({ default: m.default })));
 const WorkspaceSetupModal = lazy(() => import('../../components/modals/WorkspaceSetupModal').then(m => ({ default: m.default })));
 const SendPostActivationEmailModal = lazy(() => import('../../components/modals/SendPostActivationEmailModal').then(m => ({ default: m.default })));
-const FolderPermissionsModal = lazy(() => import('../../components/modals/FolderPermissionsModal').then(m => ({ default: m.default })));
 const BatchUploadModal = lazy(() => import('../../components/modals/BatchUploadModal').then(m => ({ default: m.default })));
+// V4 (V-DOC-15): FolderPermissionsModal lazy import removed with the modal.
 const JoinFirmModal = lazy(() => import('../../components/modals/JoinFirmModal').then(m => ({ default: m.default })));
 const MatterIngestionWizard = lazy(() => import('../../components/modals/MatterIngestionWizard').then(m => ({ default: m.default })));
 const BulkEditPropertyModal = lazy(() => import('../../components/modals/BulkEditPropertyModal').then(m => ({ default: m.BulkEditPropertyModal })));
@@ -283,11 +283,8 @@ export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
     title: 'Compare Versions',
     size: 'xl',
   },
-  folderPermissions: {
-    component: FolderPermissionsModal as any,
-    title: 'Folder Permissions',
-    size: 'sm',
-  },
+  // V4 (V-DOC-15): the folderPermissions registry entry is removed — the
+  // modal presented per-folder role restrictions that nothing enforced.
   newDocumentCategory: {
     component: DocumentCategoryForm as any,
     title: 'New Document Category',

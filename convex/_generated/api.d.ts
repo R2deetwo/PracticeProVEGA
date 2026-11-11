@@ -17,6 +17,8 @@ import type * as authUtils from "../authUtils.js";
 import type * as automationEngine from "../automationEngine.js";
 import type * as automationRules from "../automationRules.js";
 import type * as backups from "../backups.js";
+import type * as backfillDocumentFiles from "../backfillDocumentFiles.js";
+import type * as backfillDocumentFilesInternal from "../backfillDocumentFilesInternal.js";
 import type * as brainIngestion from "../brainIngestion.js";
 import type * as broadcasts from "../broadcasts.js";
 import type * as callerAuth from "../callerAuth.js";
@@ -102,6 +104,8 @@ declare const fullApi: ApiFromModules<{
   automationEngine: typeof automationEngine;
   automationRules: typeof automationRules;
   backups: typeof backups;
+  backfillDocumentFiles: typeof backfillDocumentFiles;
+  backfillDocumentFilesInternal: typeof backfillDocumentFilesInternal;
   brainIngestion: typeof brainIngestion;
   broadcasts: typeof broadcasts;
   callerAuth: typeof callerAuth;
