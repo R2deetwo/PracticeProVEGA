@@ -17641,3 +17641,22 @@ Work Log:
   APK ✅ / Build Admin APK ✅ — all green, zero failed runs.
 - Production promote dispatched on main (blank sha) immediately after.
 [skip ci]
+
+Task ID: V1-B (production promote record — 2026-11-11)
+Agent: Main agent (Super Z)
+Task: Record the V1-B production promote.
+
+Work Log:
+- "Deploy to Production (promote)" run 42954485785 on e6b9f2a6
+  (blank sha → latest main, carrying V1-B 0672d2fe).
+- Quality gate: PASS. Deploy to production (Vercel + Convex): PASS —
+  live verification confirmed. Cloudflare mirror: FAIL at the token
+  check — the standing dead CLOUDFLARE_API_TOKEN (owner action,
+  unchanged).
+- PRODUCTION VERIFIED LIVE: https://practice-pro-vega.vercel.app serves
+  e6b9f2a6 / v1.0.764 / build-1159 / status healthy. All V1-B closures
+  are enforced in production. NOTE for the next promote: the workflow's
+  Convex liveness probe now uses myFunctions:ping (SEC-16) — it passed
+  on this run, confirming the probe switch works live.
+- Round stopped for review per the brief — no V1-C work started.
+[skip ci]
