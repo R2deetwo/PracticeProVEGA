@@ -17378,3 +17378,22 @@ cache-bust probe, 2026-11-11). This round ships with v1.0.762; the
 promote (blank sha) carries the R96 public-action security closures to
 production and should run promptly. PAT transited chat a 7th time —
 rotate it.
+
+Task ID: R101 (CI record + publish)
+Agent: Main agent (Super Z)
+Task: Record the R101 CI result and release identifiers.
+
+Work Log:
+- CI on b8577185 (R101): Tests ✅ / Deploy to Staging ✅ / Build
+  Android APK ✅ — all green in ~3.5 minutes, zero failed runs.
+- Release record: v1.0.762 / build-1157 (bump e78b1f79, version.json
+  069a1e65, both by github-actions[bot]); APK artifact
+  PracticePro-v1.0.762.apk published as a pre-release asset.
+- Carries: the R96-R99 waves (v1.0.760/761, never yet promoted) PLUS
+  R101's tenancy write-path repair + lifecycle subsumption. Production
+  promote (blank sha) is the immediate next step — production has been
+  stuck on v1.0.759 through three owner complaints; this promote is
+  being triggered by the agent this round on the owner's explicit
+  instruction ("ensure that those atrium changes have actually been
+  made").
+[skip ci]
