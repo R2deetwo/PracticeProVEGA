@@ -17509,3 +17509,18 @@ Work Log:
 - Schema, Paystack, Atrium behaviour, offline queue, optimistic writes,
   reactive sync: ZERO changes.
 [skip ci-not-yet — this entry ships with the round commit]
+
+Task ID: V1-A (CI record + production promote)
+Agent: Main agent (Super Z)
+Task: Record the V1-A CI result; promote the security closure to
+production (continuing the owner's standing direction that pushed work
+must actually be live — three prior complaints about stale production).
+
+Work Log:
+- CI on 57f7a98e (V1-A): Tests ✅ / Deploy to Staging ✅ / Build Android
+  APK ✅ / Build Admin APK ✅ — all green, zero failed runs.
+- Production promote dispatched on main (blank sha) immediately after —
+  the sixteen closed readers are security-critical; leaving production
+  exposed while staging holds the fix would repeat the stale-production
+  complaint.
+[skip ci]
