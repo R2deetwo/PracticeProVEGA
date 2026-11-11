@@ -17524,3 +17524,23 @@ Work Log:
   exposed while staging holds the fix would repeat the stale-production
   complaint.
 [skip ci]
+
+Task ID: V1-A (production promote record — 2026-11-11)
+Agent: Main agent (Super Z)
+Task: Record the V1-A production promote.
+
+Work Log:
+- "Deploy to Production (promote)" run 42949643674 on bfc46b87
+  (blank sha → latest main, carrying V1-A 57f7a98e).
+- Quality gate: PASS (convex tsc 0 / root tsc 94 / identity audit /
+  ratchets / full vitest on the promoted commit).
+- Deploy to production (Vercel + Convex): PASS — live verification
+  confirmed.
+- Cloudflare mirror: FAIL at the token check — the standing dead
+  CLOUDFLARE_API_TOKEN (owner action, unchanged since 2026-09-18).
+- PRODUCTION VERIFIED LIVE: https://practice-pro-vega.vercel.app serves
+  bfc46b87 / v1.0.763 / build-1158 / status healthy. All sixteen V1-A
+  security closures are now enforced in production.
+- V1-B is NOT started — per the round brief, V1-A awaits independent
+  verification first.
+[skip ci]
