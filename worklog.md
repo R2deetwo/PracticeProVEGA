@@ -18523,3 +18523,49 @@ Stage Summary:
   of Charges cites one instrument, and AI-extracted metadata is labelled
   unverified.
 [skip ci]
+
+### Follow-up (same day, post-context-reset verification)
+
+- Re-verified the pushed V5 state end-to-end after the session reset,
+  before closing for review:
+  - vitest 2418/2418 (119 files) — including the six V5 suites
+    (citationClassifier 17, roundV5LegalAIReliability 31, aiTrust 20,
+    identityRedaction 10, intentGate 33, legalKnowledgeAndCharges 28);
+    the stale hand-rolled copies (src/utils/, scripts/) confirmed
+    deleted.
+  - convex tsc 0 errors; root tsc 89 ≤ CI baseline 94; eslint 0/0 on
+    all 34 existing changed files; ui-primitives ratchet HELD at 2295;
+    identity audit PASSED; design tokens gray=0.
+  - CI on GitHub: origin/main advanced 426d3d9b → 26350fa1 (bump to
+    1.0.769) → ea5c1d59 (version.json build-1164) + tag build-1164 —
+    the APK workflow only bumps/tags after its own typecheck+unit-test
+    quality gate passes, so the pushed V5 is CI-green. Production
+    promote remains NOT dispatched (V4's build-1163 also still awaits
+    that owner decision).
+- Content spot-checks against the brief all confirmed in the committed
+  tree: four-level verification vocabulary + LAW_REPORTS_DISCLOSURE,
+  "(heuristic)" chip + raw-text scoring, hedging retention,
+  [Ungrounded] prefix + real fetchUrlContentClient website adds,
+  "NOT AVAILABLE YET" law-report modules, [not established in sources]
+  persona, AI-extracted-unverified ALDIA banner, state-qualified
+  procedural rules + word-boundary tribunal routing + jurisdictionKey
+  retrieval, Land Matters Order 2023 scale, ALOA-origin marker.
+- One typo found in review: the standing-disclosure COMMENT in
+  citationVerification.ts read "LPEER" (the user-facing string was
+  already correct "LPELR"). Fixed in 0a2899d3 (comment-only).
+- 0a2899d3 NOT pushed: the PAT in the remote URL is now dead
+  ("Invalid username or token" — consistent with the advised rotation
+  after repeated chat exposure). The follow-up commit sits on the
+  local worktree awaiting a fresh credential; V5 itself (426d3d9b) is
+  already on origin/main and CI-green, so nothing user-facing is
+  blocked by this.
+
+Standing owner actions (unchanged): rotate/expose a fresh GitHub PAT
+to push 0a2899d3; rotate CLOUDFLARE_API_TOKEN (mirror still failing);
+decide the production promote for V4 (build-1163) and V5 (build-1164);
+reword the four flagged marketing/help claims; licensed-corpus
+decision (LawPavilion/NWLR/LPELR or equivalent) to enable real
+authority verification.
+
+STOPPED FOR REVIEW — V5 campaign complete.
+[skip ci]
