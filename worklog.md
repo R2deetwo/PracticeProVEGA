@@ -17732,3 +17732,83 @@ Work Log:
   Reminder (7th exposure last round): the old PAT must be ROTATED, not
   reused — paste a fresh one to unblock push/CI/promote.
 [skip ci]
+
+Task ID: V1-C (deployment record — 2026-11-11)
+Agent: Main agent (Super Z)
+Task: Record the V1-C push/CI/promote (unblocked by the credential in the
+V1-D brief; the prior record marked it BLOCKED).
+
+Work Log:
+- Pushed 89c25813 → CI on it: Tests ✅ / Deploy to Staging ✅ / Build
+  Android APK ✅ (Build Admin APK correctly not triggered — no admin
+  files changed in V1-C). Zero failed runs.
+- Production promote dispatched; run 42959597787 on 790a7056 (the CI
+  version-bump commit, v1.0.765/build-1160): Typecheck+tests PASS,
+  Vercel+Convex production deploy PASS, Cloudflare mirror FAIL at the
+  dead token (standing owner action). PRODUCTION VERIFIED LIVE:
+  https://practice-pro-vega.vercel.app serves 790a7056 / v1.0.765 /
+  build-1160 / status healthy — all V1-C closures enforced in
+  production.
+[skip ci]
+
+Task ID: V1-D (AI privacy truth and security campaign closure)
+Agent: Main agent (Super Z)
+Task: Correct privacy promises that do not match actual data
+transmission (V-AI-2 + the ALDIA binary/PDF review), then run the final
+independent V1 verification rescan and close what it finds.
+
+Work Log:
+- SURVEY found the V0 claim partially stale: the chat payload itself
+  (msg.content + systemInstruction) was ALREADY redacted in both
+  geminiService paths. The REAL remaining raw paths: (a) retrieval
+  queries — the Brain semantic search + legal-corpus search used the
+  RAW last user message and transited to the embedding provider;
+  (b) extracted attachment TEXT entered the payload unredacted;
+  (c) image/scanned binaries (ALOA attachments + ALDIA files) transit
+  raw and cannot be reliably redacted; (d) piiResult.found[].original
+  — RAW original values persisted into aloaMessages rows and (e) the
+  same class on ALDIA reports spread into documents rows; (f) the
+  audit preview (ai_output_logs) was unredacted model output.
+- FIXES: retrieval queries + attachment text redacted in both
+  sendMessage/streamMessage; new toPersistablePiiReport converts every
+  persisted report to masked previews (originals live only in the
+  in-memory scan); audit previews redacted; ALDIA reports carry a
+  plain-language transmission disclosure (file-mode: "the document
+  file itself was transmitted... not redacted"; text-mode: the
+  redaction statement); PIIShieldBadge rewritten truthful (states
+  redaction — removed/not stored/not reversible — NOT anonymisation,
+  NOT pseudonymisation — plus the attachments caveat via the new
+  attachmentsTransmitted flag); claim surfaces corrected
+  (AgentSettings ×2, WhatsNew, TermsOfService ×2, AIConsentModal —
+  the false "isolated within your firm's encrypted workspace" claim
+  replaced with the actual transmission disclosure).
+- FINAL VERIFICATION: scripts/v1d_rescan.py — 420 public functions
+  across convex/ re-derived from source (identity audit run too, but
+  NOT treated as sufficient proof). 315 gated / 3 throttle-gated /
+  15 allowlisted / 87 flagged → manual review of all 87 → most were
+  gated via helper families the first classifier pass didn't know
+  (requireFounder, requireEstateAdmin, requireEstateCommunityAccess,
+  requirePlatformFounder, requireProxyUser, checkRateLimit boards).
+  TWO genuine ungated endpoints found and CLOSED this round:
+  myFunctions.getChatMessages (any caller could read ANY firm's team
+  chat by firmId/conversationId — now requireStaffCaller +
+  assertSameFirm + per-conversation ownership; MessagesView forwards
+  the bearer) and myFunctions.createFirm (ungated firm creation with a
+  CALLER-SUPPLIED-EMAIL user linkage that could rebind a victim's
+  firmId/role/joinedFirmIds — now resolveCaller-gated with the linkage
+  applied to the caller's own row, server-derived; useFirm forwards
+  the bearer). Remaining low-sensitivity ungated surfaces documented
+  in the round report §7 (recordConsent, getTermsAcceptance,
+  getGettingStartedChecklist, getIndexStatus, legal reference catalog,
+  founder-recovery masked flows).
+- TESTS: roundV1DPrivacy.test.ts (19 — SYNTHETIC NIN/BVN/phone/email/
+  card/bank fixtures ONLY, never real client data; 17/19 FAIL pre-fix)
+  + roundV1DFinalVerification.test.ts (7 — 6/7 FAIL pre-fix) +
+  legalKnowledgeAndCharges wiring updated to the redacted retrieval
+  form. Proofs via git-stash runs against the pre-fix tree.
+- GATES (on 59672a74): vitest 2200/2200 (112 files, +26) / convex tsc
+  0 / root tsc 94 = baseline / eslint 0 errors / ui-primitives ratchet
+  held 2297 / gray=0 / identity audit PASSED / main + admin builds
+  green. CI on 59672a74: Tests ✅ / Staging ✅ / APK ✅ (Admin APK
+  correctly not triggered — no admin files changed).
+[skip ci]
