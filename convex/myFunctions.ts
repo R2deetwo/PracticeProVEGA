@@ -355,33 +355,28 @@ export const getFirmData = query({
   handler: async (ctx, args) => {
     // RLS: Require firm user authentication. This prevents portal users
     // and unauthenticated callers from reading the entire firm dataset.
-    const { firmId: authFirmId } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const { firmId: authFirmId, user: authUser } = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+
+    // V1-A (SEC-1): firm identity is derived from the AUTHENTICATED session
+    // — a caller-supplied firmId can no longer override it. The requested
+    // firm must be the caller's own firm or one they joined; anything else
+    // is a cross-firm read and is rejected (null, not an error — no
+    // disclosure of whether the other firm exists). The legacy email-based
+    // firm recovery is deleted with this change: it resolved firms from
+    // the caller-supplied email string, letting an authenticated user of
+    // one firm steer the read to any firm whose creator email they could
+    // name. requireFirmUser's settleFirmUser guarantees authFirmId, so no
+    // recovery path is needed.
+    const callerFirmIds = new Set(
+      [authUser.firmId, ...((authUser as any).joinedFirmIds || [])]
+        .filter(Boolean)
+        .map(String)
+    );
+    if (args.firmId && !callerFirmIds.has(String(args.firmId))) {
+      console.error(`[SECURITY] getFirmData: caller (firm ${authFirmId}) requested firm ${args.firmId} — rejected`);
+      return null;
+    }
     let targetFirmId = args.firmId || authFirmId;
-    const userEmail = args.userEmail;
-
-    // Recovery logic: find firm from email if firmId is missing
-    if (!targetFirmId && userEmail) {
-      // 500-cap audit: indexed exact+lowercase lookup (all writers store
-      // tokenIdentifier lowercased) — the old take(2000) scan missed every
-      // user created after the 2000th row.
-      const user = await findUserByTokenUncapped(ctx, userEmail.toLowerCase());
-
-      if (user && user.firmId) {
-        targetFirmId = user.firmId;
-      } else {
-        const allFirms = await ctx.db.query("firms").take(500);
-        const foundFirm = allFirms.find((f: any) => {
-          const creator = f.createdBy || (f.settings && f.settings.creatorEmail);
-          return creator && creator.toLowerCase() === userEmail.toLowerCase();
-        });
-        if (foundFirm) targetFirmId = foundFirm._id;
-      }
-    }
-
-    if (!targetFirmId) {
-        console.warn(`[getFirmData] No firmId found for the given email. Returning null.`);
-        return null;
-    }
 
     // CRITICAL: Normalize targetFirmId to a string to prevent type-mismatch in index queries
     targetFirmId = targetFirmId.toString();
@@ -622,9 +617,17 @@ export const getFirmData = query({
  * skips firm data loading for them, causing useFeatures to default to Core plan.
  */
 export const getFirmBasicInfo = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     if (!args.firmId) return null;
+    // V1-A (SEC-6): authenticated callers only, and the firm must be the
+    // caller's own or a joined firm — a bare firmId previously returned
+    // the FULL firm record (bank accounts, tax settings, invite codes…)
+    // to anyone, including anonymous callers. Portal users legitimately
+    // use this for lightweight firm context (feature gates), so any
+    // authenticated role passes; the firm scope is the protection.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    assertSameFirm(caller, args.firmId);
     try {
       const firm = await ctx.db.get(args.firmId as any);
       return firm || null;
@@ -649,10 +652,16 @@ export const getFirmBasicInfo = query({
  * Target: resolves in < 500ms for firms with up to 500 records.
  */
 export const getFirmMetadata = query({
-  args: { firmId: v.string() },
+  args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { firmId } = args;
     if (!firmId) return null;
+
+    // V1-A (SEC-7): firm metadata is staff-level data (every matter,
+    // contact, property, task, invoice…). The caller must be firm staff
+    // of the requested firm, derived from the verified session — the
+    // caller-supplied firmId alone previously proved nothing.
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId });
 
     const fid = firmId.toString();
 
@@ -863,10 +872,23 @@ export const ping = query({
 });
 
 export const getMatterDetails = query({
-  args: { matterId: v.string(), firmId: v.string(), requestUserId: v.optional(v.string()) },
+  args: { matterId: v.string(), firmId: v.string(), requestUserId: v.optional(v.string()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const { matterId, firmId, requestUserId } = args;
+    const { matterId, firmId } = args;
     if (!matterId || !firmId) return null;
+
+    // V1-A (SEC-2): identity is derived from the verified session. The
+    // caller must be staff of the requested firm; the caller-supplied
+    // firmId/requestUserId pair previously opened any matter to anyone
+    // (both args were attacker-steerable in lockstep).
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId });
+    const callerIds = new Set(
+      [String(caller._id), String((caller as any).id || ""), String(caller.email || "")].filter(Boolean)
+    );
+    if (args.requestUserId && !callerIds.has(String(args.requestUserId))) {
+      console.error(`[SECURITY] getMatterDetails: requestUserId does not match the session caller — rejected`);
+      return null;
+    }
 
     let matter: any = null;
     try { matter = await ctx.db.get(matterId as any); } catch (e) { return null; }
@@ -878,13 +900,18 @@ export const getMatterDetails = query({
       return null;
     }
 
-    // Privacy isolation: if matter is private, only assigned users and creator may access
-    if (matter.isPrivate && requestUserId) {
+    // Privacy isolation: if matter is private, only assigned users may
+    // access — the viewer's identity is the SESSION caller (server-
+    // derived). V1-A note: the old `_lastModifiedBy === requestUserId`
+    // creator fallback read a field that could never be written (Convex
+    // reserves `_`-prefixed document fields), so it never granted anyone
+    // access; it is deleted in favour of the honest assignedUsers rule
+    // (creators assign themselves, matching live behaviour).
+    if (matter.isPrivate) {
       const assigned: string[] = matter.assignedUsers || [];
-      const isAssigned = assigned.includes(requestUserId);
-      const isCreator = matter._lastModifiedBy === requestUserId;
-      if (!isAssigned && !isCreator) {
-        console.warn(`[RBAC] getMatterDetails: user ${requestUserId} denied access to private matter ${matterId}`);
+      const isAssigned = assigned.some((a) => callerIds.has(String(a)));
+      if (!isAssigned) {
+        console.warn(`[RBAC] getMatterDetails: user ${caller._id} denied access to private matter ${matterId}`);
         return null;
       }
     }
@@ -927,10 +954,16 @@ export const getMatterDetails = query({
  * Includes full units, maintenance history, rent payment history, and notes.
  */
 export const getPropertyDetails = query({
-  args: { propertyId: v.string(), firmId: v.string() },
+  args: { propertyId: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const { propertyId, firmId } = args;
     if (!propertyId || !firmId) return null;
+
+    // V1-A (SEC-8): the caller must be staff of the requested firm,
+    // derived from the verified session. The firmId comparison below
+    // previously trusted the caller-supplied firmId entirely — an
+    // anonymous caller could pair any propertyId with its firmId.
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId });
 
     let property: any = null;
     try { property = await ctx.db.get(propertyId as any); } catch (e) {
@@ -1155,8 +1188,12 @@ export const getResearchAnalysisResults = query({
  * This keeps notePages in getFirmData as metadata-only (no content).
  */
 export const getNotePage = query({
-  args: { pageId: v.string(), firmId: v.string() },
+  args: { pageId: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-8): staff caller of the requested firm, derived from the
+    // verified session — the firmId comparison below previously trusted
+    // the caller-supplied firmId alone (plus a "system" bypass).
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const page: any = await ctx.db.get(args.pageId as any);
     if (!page) return null;
     if (page.firmId !== args.firmId && page.firmId !== "system") {
@@ -1168,8 +1205,13 @@ export const getNotePage = query({
 });
 
 export const getDocumentContent = query({
-  args: { documentId: v.string(), firmId: v.string() },
+  args: { documentId: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-3): staff caller of the requested firm, derived from the
+    // verified session — the firmId comparison below previously trusted
+    // the caller-supplied firmId alone, so knowing a document's firmId
+    // was enough to read its full content.
+    await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
     const doc: any = await ctx.db.get(args.documentId as any);
     if (!doc) return null;
     if (doc.firmId !== args.firmId) {
@@ -3316,10 +3358,21 @@ export const fixProductMode = mutation({
 });
 
 export const getJoinedFirms = query({
-  args: { firmIds: v.array(v.string()) },
+  args: { firmIds: v.array(v.string()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-16): session-derived identity. Only the caller's own and
+    // joined firms are resolved; any other requested id is silently
+    // dropped — no disclosure of which other firms exist. Previously ANY
+    // caller could enumerate firm names/products for arbitrary ids.
+    const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const allowed = new Set(
+      [caller.firmId, ...((caller as any).joinedFirmIds || [])]
+        .filter(Boolean)
+        .map(String)
+    );
     const results = [];
     for (const id of args.firmIds) {
+      if (!allowed.has(String(id))) continue;
       try {
         const firm: any = await ctx.db.get(id as any);
         if (firm) {
@@ -5814,8 +5867,20 @@ export const generateUploadUrl = mutation({
   }
 });
 export const getFileUrl = query({
-  args: { storageId: v.string() },
-  handler: async (ctx, args) => await ctx.storage.getUrl(args.storageId),
+  args: { storageId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    // V1-A (SEC-5): authenticated callers only. Previously ANY caller —
+    // including fully anonymous ones — could resolve ANY storage id to
+    // its signed download URL. Storage ids are unguessable capabilities
+    // and the parent records (documents, payment proofs, portal
+    // attachments) are firm-scoped behind their own gated reads;
+    // resolving a URL now additionally requires a verified session (any
+    // role — staff and portal users both legitimately fetch files).
+    // Full per-file ownership enforcement would need a storageId→firm
+    // index (schema change) and is listed as deferred work.
+    await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    return await ctx.storage.getUrl(args.storageId);
+  },
 });
 
 /**
@@ -6458,8 +6523,20 @@ export const purgeOldArchiveData = internalMutation({
 });
 
 export const getAloaConversations = query({
-  args: { userId: v.string(), firmId: v.string() },
+  args: { userId: v.string(), firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-4): ownership is derived from the authenticated session.
+    // The caller-supplied userId previously listed ANY user's
+    // conversations; it must now be one of the caller's own ids (Convex
+    // _id or legacy id), and the caller must be staff of the firm.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
+    const callerIds = new Set(
+      [String(caller._id), String((caller as any).id || "")].filter(Boolean)
+    );
+    if (!callerIds.has(String(args.userId))) {
+      console.error(`[SECURITY] getAloaConversations: userId does not match the session caller — rejected`);
+      return [];
+    }
     return await ctx.db
       .query("aloaConversations")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))
@@ -6469,8 +6546,30 @@ export const getAloaConversations = query({
 });
 
 export const getAloaMessages = query({
-  args: { conversationId: v.string() },
+  args: { conversationId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-4): conversation ownership AND firm membership, both
+    // verified against the session caller. Previously ANY caller could
+    // read ANY conversation's full message history by id alone.
+    const caller = await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const conversation: any = await ctx.db.get(args.conversationId as any);
+    if (!conversation) return [];
+    const conversationOwner = String(conversation.userId || "");
+    const conversationFirm = String(conversation.firmId || "");
+    const callerIds = new Set(
+      [String(caller._id), String((caller as any).id || "")].filter(Boolean)
+    );
+    const callerFirms = new Set(
+      [String(caller.firmId || ""), ...(((caller as any).joinedFirmIds || []) as string[]).map(String)].filter(Boolean)
+    );
+    // Fail-closed: a tagged owner must be the caller, a tagged firm must
+    // be the caller's, and a conversation with NEITHER tag is unreadable.
+    const ownerOk = conversationOwner ? callerIds.has(conversationOwner) : false;
+    const firmOk = conversationFirm ? callerFirms.has(conversationFirm) : false;
+    if (!ownerOk || !firmOk) {
+      console.error(`[SECURITY] getAloaMessages: conversation ${args.conversationId} is not the caller's — rejected`);
+      return [];
+    }
     return await ctx.db
       .query("aloaMessages")
       .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))

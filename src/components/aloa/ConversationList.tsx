@@ -27,7 +27,7 @@ interface ConversationListProps {
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({ activeId, onSelect, onDelete }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
 
     // Reactive query — automatically re-runs whenever the underlying
     // `aloaConversations` table changes in Convex. No polling needed.
@@ -39,10 +39,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({ activeId, on
     // `firmDetails.id` is undefined for real admin/staff users, which
     // silently skips the query and shows "Loading history…" forever.
     // `currentUser.firmId` is reliably populated from the user document.
+    const isDemoUser = currentUser?.email === 'demo@practicepro.ng';
     const conversations = useQuery(
         api.myFunctions.getAloaConversations,
-        currentUser?.id && currentUser?.firmId
-            ? { userId: currentUser.id, firmId: currentUser.firmId }
+        !isDemoUser && currentUser?.id && currentUser?.firmId
+            ? { userId: currentUser.id, firmId: currentUser.firmId, sessionToken: (bearerToken ?? undefined) }
             : 'skip'
     );
 

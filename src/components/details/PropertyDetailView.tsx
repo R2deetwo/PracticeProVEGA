@@ -245,7 +245,7 @@ const PropertyDetailViewContent: React.FC = () => {
     const onDemandProperty = useQuery(
         api.myFunctions.getPropertyDetails,
         (propertyId && currentUser?.firmId && !coreState.properties?.find(p => p.id === propertyId))
-            ? { propertyId, firmId: currentUser.firmId }
+            ? { propertyId, firmId: currentUser.firmId, sessionToken: (bearerToken ?? undefined) }
             : 'skip'
     );
 

@@ -37,8 +37,11 @@ const DataManagementSettings: React.FC<DataManagementSettingsProps> = ({ onEnabl
     const { openModal, closeModal, addToast } = useUI();
     const { deleteAccount, currentUser, login, switchFirm, leaveFirm, deleteFirm, bearerToken } = useAuth();
     
-    const joinedFirms = useQuery(api.myFunctions.getJoinedFirms, { 
-        firmIds: Array.from(new Set([currentUser?.firmId, ...(currentUser?.joinedFirmIds || [])])).filter(Boolean) as string[] 
+    const joinedFirms = useQuery(api.myFunctions.getJoinedFirms, {
+        firmIds: Array.from(new Set([currentUser?.firmId, ...(currentUser?.joinedFirmIds || [])])).filter(Boolean) as string[],
+        // V1-A (SEC-16): forward the verified bearer — getJoinedFirms is
+        // session-scoped server-side now.
+        sessionToken: (bearerToken ?? undefined),
     });
 
     const handleSwitchFirm = async (id: string) => {

@@ -41,7 +41,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     uploadContext
 }) => {
     const { deleteItem } = useDataActions();
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { closeModal, addToast } = useUI();
     const convex = useConvex();
     const [isDragging, setIsDragging] = useState(false);
@@ -88,7 +88,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
             const storageId = typeof f === 'string' ? f : f?.storageId;
             if (storageId) {
                 try {
-                    href = await convex.query(api.myFunctions.getFileUrl, { storageId: String(storageId) });
+                    href = await convex.query(api.myFunctions.getFileUrl, { storageId: String(storageId), sessionToken: (bearerToken ?? undefined) });
                 } catch {
                     href = null;
                 }

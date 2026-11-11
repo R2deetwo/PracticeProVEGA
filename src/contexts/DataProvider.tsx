@@ -725,7 +725,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const shouldLoadFirmBasicInfo = !isDemo && isPortalUser && !!effectiveFirmId;
     const firmBasicInfo = useQuery(
         api.myFunctions.getFirmBasicInfo,
-        shouldLoadFirmBasicInfo ? { firmId: effectiveFirmId } : 'skip'
+        shouldLoadFirmBasicInfo ? { firmId: effectiveFirmId, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
 
     // Merge firm basic info into appState for portal users
@@ -753,7 +753,7 @@ export const DataProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const shouldLoadFirmData = !isDemo && !isPortalUser && !!currentUser?.firmId;
     const firmMetadata = useQuery(
         api.myFunctions.getFirmMetadata,
-        shouldLoadFirmData && currentUser?.firmId ? { firmId: currentUser.firmId } : 'skip'
+        shouldLoadFirmData && currentUser?.firmId ? { firmId: currentUser.firmId, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
 
     // Phase B — full data (runs in parallel, merges when ready)

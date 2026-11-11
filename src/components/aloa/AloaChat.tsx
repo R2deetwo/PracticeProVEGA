@@ -176,7 +176,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const createConversationMutation = useMutation(api.myFunctions.createAloaConversation);
     const deleteConversationMutation = useMutation(api.myFunctions.deleteAloaConversation);
     const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
-    const getFileUrl = useQuery as any;
+    // (V1-A: the dead `getFileUrl = useQuery as any` alias removed — it was
+    // declared but never called; real getFileUrl callers forward the bearer.)
 
     // ─── Phase 2: Proactive Intelligence & Conversation Memory ──────────
     // Use currentUser.firmId (reliably populated from the user document)
@@ -571,7 +572,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             if (cancelled) return;
             setIsLoading(true);
             try {
-                const history = await convex.query(api.myFunctions.getAloaMessages, { conversationId: activeConversationId });
+                const history = await convex.query(api.myFunctions.getAloaMessages, { conversationId: activeConversationId, sessionToken: (bearerToken ?? undefined) });
                 if (cancelled) return;
                 if (history && history.length > 0) {
                     setMessages(history.map((m: any) => ({

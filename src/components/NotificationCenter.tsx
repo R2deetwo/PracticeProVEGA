@@ -15,6 +15,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Capacitor } from '@capacitor/core';
 import { useUI } from '../contexts/UIContext';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NotificationCenterProps {
   userId: string;
@@ -23,11 +24,16 @@ interface NotificationCenterProps {
 const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { navigateTo } = useUI();
+  // V1-A (SEC-10): the verified bearer — notification reads are
+  // session-scoped server-side now. Dev-demo users have no session, so
+  // the queries stay skipped for them (empty centre, same as before).
+  const { currentUser, bearerToken } = useAuth();
+  const isDemo = currentUser?.email === 'demo@practicepro.ng';
   const notifications = useQuery(api.pushNotifications.getUserNotifications,
-    userId ? { userId, limit: 30 } : 'skip'
+    userId && !isDemo ? { userId, limit: 30, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const unreadCount = useQuery(api.pushNotifications.getUnreadNotificationCount,
-    userId ? { userId } : 'skip'
+    userId && !isDemo ? { userId, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const markRead = useMutation(api.pushNotifications.markNotificationRead);
   const markAllRead = useMutation(api.pushNotifications.markAllNotificationsRead);

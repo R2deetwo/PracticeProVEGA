@@ -211,7 +211,9 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     // REACTIVE: useQuery for real-time sales lead count (no polling needed).
     // Convex WebSocket subscriptions push updates instantly when data changes.
     // Falls back to 0 if the query fails (defensive).
-    const unreadSalesResult = useQuery(api.salesInquiries.getUnreadSalesInquiryCount, {});
+    // V1-A (SEC-14): forward the verified bearer — the count is
+    // Founder-gated server-side now.
+    const unreadSalesResult = useQuery(api.salesInquiries.getUnreadSalesInquiryCount, { sessionToken: (bearerToken ?? undefined) });
     const unreadSalesCount = typeof unreadSalesResult === 'number' ? unreadSalesResult : 0;
 
     // Shared badge formatter — caps at "9+" for counts > 9

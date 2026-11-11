@@ -1,7 +1,7 @@
 import { query, mutation, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
-import { resolveCaller } from "./callerAuth";
+import { resolveCaller, assertSameFirm } from "./callerAuth";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LEGAL MODULES — catalog reads
@@ -72,11 +72,16 @@ export const searchStatutes = action({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const getLicensesForFirm = query({
-    args: { firmId: v.string() },
-    handler: async (ctx, { firmId }) => {
+    args: { firmId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        // V1-A (SEC-15): session-derived firm scope (the getAllLicenses
+        // pattern in this file) — a caller-supplied firmId previously
+        // listed any firm's licenses with no authentication at all.
+        const caller = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+        assertSameFirm(caller, args.firmId);
         return await ctx.db
             .query("firm_licenses")
-            .withIndex("by_firmId", q => q.eq("firmId", firmId))
+            .withIndex("by_firmId", q => q.eq("firmId", args.firmId))
             .filter(q => q.eq(q.field("isActive"), true))
             .take(100);
     },

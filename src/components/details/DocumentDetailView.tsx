@@ -20,7 +20,10 @@ import HtmlPagePreview from '../documents/HtmlPagePreview';
 import DocumentPreviewModal from '../documents/DocumentPreviewModal';
 
 const FileViewer: React.FC<{ file: any }> = ({ file }) => {
-    const storageUrl = useQuery(api.myFunctions.getFileUrl, file?.storageId ? { storageId: file.storageId } : "skip");
+    // V1-A (SEC-5): forward the verified bearer — getFileUrl is
+    // session-scoped server-side now.
+    const { bearerToken } = useAuth();
+    const storageUrl = useQuery(api.myFunctions.getFileUrl, file?.storageId ? { storageId: file.storageId, sessionToken: (bearerToken ?? undefined) } : "skip");
     const lastUrlRef = React.useRef<string | null>(null);
     const blobUrlRef = React.useRef<string | null>(null);
     const [blobUrl, setBlobUrl] = useState<string | null>(null);

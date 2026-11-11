@@ -43,8 +43,11 @@ export const SalesPipeline: React.FC = () => {
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const inquiries = useQuery(api.salesInquiries.listSalesInquiries,
-        statusFilter ? { status: statusFilter as any } : {});
-    const unreadCount = useQuery(api.salesInquiries.getUnreadSalesInquiryCount, {});
+        // V1-A (SEC-14): forward the verified bearer — the sales pipeline
+        // reads are Founder-gated server-side now.
+        { status: statusFilter as any, sessionToken: (bearerToken ?? undefined), userEmail: currentUser?.email });
+    const unreadCount = useQuery(api.salesInquiries.getUnreadSalesInquiryCount,
+        { sessionToken: (bearerToken ?? undefined), userEmail: currentUser?.email });
     const updateStatus = useMutation(api.salesInquiries.updateInquiryStatus);
 
     const handleStatusChange = async (inquiryId: string, newStatus: string) => {

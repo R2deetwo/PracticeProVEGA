@@ -147,7 +147,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
   const [urlStorageIds, setUrlStorageIds] = useState<string[]>([]);
   const fileUrlResults = useQuery(
     api.myFunctions.getFileUrl,
-    urlStorageIds.length > 0 ? { storageId: urlStorageIds[0] } : 'skip'
+    urlStorageIds.length > 0 ? { storageId: urlStorageIds[0], sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const [fileUrls, setFileUrls] = useState<Record<string, string>>({});
 

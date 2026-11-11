@@ -4,6 +4,7 @@ import { Document, Matter, DocumentCategory, View, User, FileDetails, DocumentTe
 import { useUI } from '../../contexts/UIContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { formatBytes } from '../../utils/formatting';
@@ -54,6 +55,8 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     const { coreState } = useCoreState();
     const { view, selectedId, navigateTo } = useUI();
     const { openModal, addToast } = useUI();
+    // V1-A (SEC-3): the bearer for the session-scoped getDocumentContent read.
+    const { bearerToken } = useAuth();
     // Use the canonical product-aware flags from ProductContext.
     // Previously this component checked `product === 'legal' || product === 'vega'`
     // which MISSED 'unified' (Komplete) — so Komplete firms wrongly saw "Property"
@@ -100,7 +103,7 @@ export const DocumentForm: React.FC<DocumentFormProps> = ({
     }, [title, matterId, matters]);
 
     const fullDoc = useQuery(api.myFunctions.getDocumentContent,
-        (isEditing && documentToEdit) ? { documentId: documentToEdit.id, firmId: currentUser?.firmId || '' } : "skip"
+        (isEditing && documentToEdit) ? { documentId: documentToEdit.id, firmId: currentUser?.firmId || '', sessionToken: (bearerToken ?? undefined) } : "skip"
     );
 
     useEffect(() => {

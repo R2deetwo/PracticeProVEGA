@@ -63,11 +63,14 @@ const Header: React.FC = React.memo(() => {
     const seenIdsRef = useRef<Set<string>>(new Set());
 
     // ─── App Notifications (APK updates, system alerts) ────────────────────
+    // V1-A (SEC-10): forward the verified bearer — notification reads are
+    // session-scoped server-side now. Dev-demo users have no session, so
+    // the queries stay skipped for them (badge 0, same as before).
     const appNotifications = useQuery(api.pushNotifications.getUserNotifications,
-        currentUser?.id ? { userId: currentUser.id, limit: 10 } : 'skip'
+        currentUser?.id && currentUser?.email !== 'demo@practicepro.ng' ? { userId: currentUser.id, limit: 10, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
     const appUnreadCount = useQuery(api.pushNotifications.getUnreadNotificationCount,
-        currentUser?.id ? { userId: currentUser.id } : 'skip'
+        currentUser?.id && currentUser?.email !== 'demo@practicepro.ng' ? { userId: currentUser.id, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
     const markAppNotifRead = useMutation(api.pushNotifications.markNotificationRead);
     const markAllAppNotifsRead = useMutation(api.pushNotifications.markAllNotificationsRead);

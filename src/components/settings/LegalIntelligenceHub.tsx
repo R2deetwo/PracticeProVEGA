@@ -430,9 +430,12 @@ const CATEGORY_ORDER: ModuleCategory[] = [
 
 export const LegalIntelligenceHub: React.FC<LegalIntelligenceHubProps> = ({ firmId, className = '' }) => {
     const [topLevelTab, setTopLevelTab] = useState<'modules' | 'licenses' | 'logs'>('modules');
-    
+    // V1-A (SEC-15): forward the verified bearer — getLicensesForFirm is
+    // session-scoped server-side now.
+    const { bearerToken } = useAuth() as any;
+
     // Fetch live licenses from Convex
-    const activeLicenses = useQuery(api.legalRepo.getLicensesForFirm, { firmId }) || [];
+    const activeLicenses = useQuery(api.legalRepo.getLicensesForFirm, { firmId, sessionToken: (bearerToken ?? undefined) }) || [];
     const activeKeys = new Set(activeLicenses.map((l: any) => l.moduleKey));
 
     const [showAloaX, setShowAloaX] = useState(() => localStorage.getItem('aloax_sidebar_enabled') === 'true');

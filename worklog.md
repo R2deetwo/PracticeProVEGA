@@ -17422,3 +17422,90 @@ Work Log:
   Production now carries R92-R100 + R101 (tenancy write-path repair +
   lifecycle subsumption).
 [skip ci]
+
+Task ID: V1-A (VEGA SECURITY CLOSURE — public reader authentication + firm
+isolation; the V0 audit's confirmed SEC-1..SEC-16 findings)
+Agent: Main agent (Super Z)
+Task: Close the confirmed unauthorised-read and cross-firm data exposure
+vulnerabilities. Security remediation only — no feature redesign, no
+schema changes, no Paystack/Atrium changes, no weakened tests.
+
+Work Log:
+- THE 16 CLOSED READERS (all previously attacker-reachable with NO
+  session or with attacker-steerable identity args):
+  SEC-1  getFirmData — caller-supplied firmId overrode the session firm;
+         an authenticated user of one firm could read ANY firm's entire
+         dataset; the email-recovery branch resolved firms from the
+         caller-supplied email string (deleted). Now: firm must be the
+         caller's own or joined firm (session-derived); offline-first
+         contract untouched (the DataProvider caller already sent the
+         bearer).
+  SEC-2  getMatterDetails — firmId+requestUserId were both attacker-
+         steerable in lockstep; the private-matter creator fallback read
+         the never-writable _lastModifiedBy (deleted — it never granted
+         anyone access). Now: requireStaffCaller + requestUserId must
+         match the session caller + private matters gated by assignedUsers
+         against server-derived ids.
+  SEC-3  getDocumentContent — knowing a document's firmId was enough to
+         read its full content. Now: requireStaffCaller + firm match.
+  SEC-4  getAloaConversations/getAloaMessages — a caller-supplied userId
+         listed ANY user's chats; a bare conversationId read ANY firm's
+         full chat history. Now: ownership derived from the session
+         (owner match + firm membership, fail-closed on untagged rows).
+  SEC-5  getFileUrl — ANY caller (fully anonymous) resolved ANY storage
+         id to its signed URL. Now: a verified session is required (any
+         role — staff and portal users both fetch files legitimately);
+         storage ids remain unguessable capabilities and the parent
+         records are firm-scoped behind their own gated reads. Per-file
+         ownership enforcement would need a storageId→firm index (schema
+         change) — listed as deferred work.
+  SEC-6  getFirmBasicInfo — a bare firmId returned the FULL firm record
+         (bank accounts, tax settings, invite codes) to anyone. Now:
+         resolveCaller + assertSameFirm (any authenticated role — portal
+         users legitimately use it for feature gates).
+  SEC-7  getFirmMetadata — firm-wide staff metadata by bare firmId. Now:
+         requireStaffCaller + firm match.
+  SEC-8  getPropertyDetails/getNotePage — anonymous callers could pair
+         any resource id with its firmId (both leaked elsewhere). Now:
+         requireStaffCaller + firm match (system note pages stay
+         readable to staff).
+  SEC-10 getUserNotifications/getUnreadNotificationCount — a caller-
+         supplied userId listed any user's notifications. Now: the
+         markAllNotificationsRead pattern — userId must be one of the
+         session caller's ids.
+  SEC-14 listSalesInquiries/getUnreadSalesInquiryCount — the ENTIRE sales
+         pipeline (every lead's name/email/company/phone) was readable
+         anonymously. Now: requireFounderCaller — the read gate finally
+         matches the write gate (updateInquiryStatus).
+  SEC-15 getLicensesForFirm — any firm's licenses by bare firmId. Now:
+         the getAllLicenses pattern — resolveCaller + assertSameFirm.
+  SEC-16 getJoinedFirms — arbitrary firm-id enumeration returned names/
+         products. Now: only the caller's own + joined firms resolve;
+         other ids silently dropped (no existence disclosure).
+- CALLER MIGRATION (23 call sites, all verified forwarding the bearer):
+  DataProvider (firmBasicInfo/firmMetadata), OnboardingWizard,
+  LegalIntelligenceHub, DataManagementSettings, DocumentForm,
+  NotificationCenter, Header, PaymentProofsTab, DocumentsTab,
+  DocumentDetailView (FileViewer), TenantPortal/MessagesTab (portal),
+  NoteEditor, useCommunications, MatterDetailView, PropertyDetailView,
+  AloaChat (+ dead getFileUrl alias removed), ConversationList,
+  SalesPipeline (×2), FounderBottomNav, attachmentProcessor (the AI
+  attachment pipeline's raw ConvexHttpClient — now forwards the session
+  bearer via the established readSessionBearer convention; covers
+  useResearch + geminiService automatically). Dev-demo users (no session
+  by construction) skip the now-gated queries exactly like the existing
+  NoteEditor/DataProvider demo skips.
+- TESTS: NEW tests/unit/roundV1ASecurity.test.ts — 28 tests driving the
+  REAL handlers through the seven-level matrix per endpoint (anonymous /
+  never-issued / expired / revoked session / cross-firm user / owning-
+  firm user / portal-vs-staff / Founder-only / resource-ID substitution /
+  claimed-identity substitution). Verified 22/28 FAIL against the pre-fix
+  tree and 28/28 PASS against the fix — every gate is load-bearing.
+- GATES: vitest 2,130/2,130 (108 files, +28) / convex tsc 0 / root tsc 94
+  = baseline (net-neutral; the AloaChat/MatterDetailView/MessagesTab
+  errors in the log are pre-existing generateUploadUrl debt, unchanged) /
+  eslint 0 errors / ui-primitives ratchet held 2297 / gray=0 / main build
+  green / admin (Founder) build green.
+- Schema, Paystack, Atrium behaviour, offline queue, optimistic writes,
+  reactive sync: ZERO changes.
+[skip ci-not-yet — this entry ships with the round commit]

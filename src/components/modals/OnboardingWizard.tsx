@@ -168,7 +168,7 @@ const PlanCard: React.FC<{
 
 const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const { createFirm, joinFirm, handleUpdateFirmDetails, addItem, updateItem, deleteItem } = useDataActions();
-  const { currentUser, logout, refreshUser } = useAuth();
+  const { currentUser, logout, refreshUser, bearerToken } = useAuth();
   const { navigateTo, addToast } = useUI();
   const repairAccountMutation = useMutation(api.myFunctions.repairAccountConnection);
 
@@ -400,7 +400,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
   const lookupFirmId = createdFirmId || currentUser?.firmId || '';
   const firmBasicInfo = useQuery(
     api.myFunctions.getFirmBasicInfo,
-    lookupFirmId ? { firmId: lookupFirmId } : 'skip'
+    lookupFirmId ? { firmId: lookupFirmId, sessionToken: (bearerToken ?? undefined) } : 'skip'
   );
   const firmInviteCode: string | undefined =
     (firmBasicInfo as any)?.inviteCode || undefined;

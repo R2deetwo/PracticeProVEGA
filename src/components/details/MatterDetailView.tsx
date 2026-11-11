@@ -83,7 +83,7 @@ const MatterDetailViewContent: React.FC = () => {
     const { financeState, financeActions } = useFinanceState();
     const dataHandlers = useDataActions();
     const { deleteItem } = dataHandlers;
-    const { currentUser } = useAuth();
+    const { currentUser, bearerToken } = useAuth();
     const { canViewBilling } = usePermissions();
     const setMatterPrivacyMutation = useMutation(api.myFunctions.setMatterPrivacy);
     const [privacyLoading, setPrivacyLoading] = useState(false);
@@ -96,7 +96,7 @@ const MatterDetailViewContent: React.FC = () => {
     const onDemandMatter = useQuery(
         api.myFunctions.getMatterDetails, 
         (!matterState.matters.find(m => m.id === selectedId) && selectedId && currentUser?.firmId) 
-            ? { matterId: selectedId, firmId: currentUser.firmId, requestUserId: currentUser?.id } 
+            ? { matterId: selectedId, firmId: currentUser.firmId, requestUserId: currentUser?.id, sessionToken: (bearerToken ?? undefined) } 
             : 'skip'
     );
 

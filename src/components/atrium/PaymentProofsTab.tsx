@@ -128,7 +128,7 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
     const [viewStorageId, setViewStorageId] = useState<string | null>(null);
     const fileUrl = useQuery(
         api.myFunctions.getFileUrl,
-        viewStorageId ? { storageId: viewStorageId } : 'skip'
+        viewStorageId ? { storageId: viewStorageId, sessionToken: (bearerToken ?? undefined) } : 'skip'
     );
 
     React.useEffect(() => {

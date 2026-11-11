@@ -63,8 +63,14 @@ export const submitSalesInquiry = mutation({
 });
 
 // List all sales inquiries (for Founder App — Sales Pipeline tab)
+// V1-A (SEC-14): the read gates now match the write gate
+// (updateInquiryStatus): Founder-only, session-derived. Previously ANY
+// caller — including fully anonymous ones — could read the entire sales
+// pipeline (every lead's name, email, company, phone).
 export const listSalesInquiries = query({
     args: {
+        sessionToken: v.optional(v.string()),
+        userEmail: v.optional(v.string()),
         status: v.optional(v.union(
             v.literal("unread"),
             v.literal("contacted"),
@@ -75,6 +81,7 @@ export const listSalesInquiries = query({
         )),
     },
     handler: async (ctx, args) => {
+        await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         let q = ctx.db.query("sales_inquiries").order("desc");
         const all = await q.collect();
 
@@ -86,9 +93,11 @@ export const listSalesInquiries = query({
 });
 
 // Get unread sales inquiry count (for badge)
+// V1-A (SEC-14): Founder-only, session-derived (same as listSalesInquiries).
 export const getUnreadSalesInquiryCount = query({
-    args: {},
-    handler: async (ctx) => {
+    args: { sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
+    handler: async (ctx, args) => {
+        await requireFounderCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
         const all = await ctx.db.query("sales_inquiries").collect();
         return all.filter(i => i.status === "unread").length;
     },

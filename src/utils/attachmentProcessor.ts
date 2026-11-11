@@ -281,6 +281,16 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
+ * V1-A (SEC-5): the session bearer for the session-scoped getFileUrl read.
+ * Same storage keys and convention as geminiService's readSessionBearer —
+ * shared read helper, never stored, never logged.
+ */
+const readSessionBearer = (): string | undefined =>
+    (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('practicepro_session_bearer'))
+    || (typeof localStorage !== 'undefined' && localStorage.getItem('practicepro_session_bearer'))
+    || undefined;
+
+/**
  * Process a single attachment: fetch from Convex storage, extract text or
  * convert to inlineData as appropriate.
  *
@@ -300,7 +310,7 @@ export async function processAttachment(
   try {
     const { ConvexHttpClient } = await import('convex/browser');
     const convexClient = new ConvexHttpClient(convexUrl);
-    const url = await convexClient.query('myFunctions:getFileUrl' as any, { storageId });
+    const url = await convexClient.query('myFunctions:getFileUrl' as any, { storageId, sessionToken: readSessionBearer() });
     if (!url) {
       return {
         name,

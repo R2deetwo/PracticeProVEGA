@@ -132,8 +132,18 @@ export const unregisterPushToken = mutation({
 // ─── In-App Notification Center ──────────────────────────────────────────────
 
 export const getUserNotifications = query({
-  args: { userId: v.string(), limit: v.optional(v.number()) },
+  args: { userId: v.string(), limit: v.optional(v.number()), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-10): notification ownership is derived from the verified
+    // session (the markAllNotificationsRead pattern) — a caller-supplied
+    // userId alone previously listed ANY user's notifications.
+    const caller: any = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const callerId = caller._id;
+    const callerLegacyId = (caller as any).id || (caller as any).userId || "";
+    if (args.userId !== callerId && args.userId !== callerLegacyId) {
+      console.error(`[SECURITY] getUserNotifications: userId does not match the session caller — rejected`);
+      return [];
+    }
     const notifications = await ctx.db
       .query("app_notifications")
       .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
@@ -145,8 +155,17 @@ export const getUserNotifications = query({
 });
 
 export const getUnreadNotificationCount = query({
-  args: { userId: v.string() },
+  args: { userId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
+    // V1-A (SEC-10): same session-derived ownership as
+    // getUserNotifications — an unread count for another user is a leak.
+    const caller: any = await resolveCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
+    const callerId = caller._id;
+    const callerLegacyId = (caller as any).id || (caller as any).userId || "";
+    if (args.userId !== callerId && args.userId !== callerLegacyId) {
+      console.error(`[SECURITY] getUnreadNotificationCount: userId does not match the session caller — rejected`);
+      return 0;
+    }
     const unread = await ctx.db
       .query("app_notifications")
       .withIndex("by_user_read", (q: any) =>

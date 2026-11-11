@@ -775,7 +775,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     // PHASE 1: Fetch full content on-demand if missing
     const fullPage = useQuery(
         api.myFunctions.getNotePage,
-        isDemo ? 'skip' : { pageId: page.id, firmId: currentUser?.firmId || '' }
+        !isDemo && currentUser?.firmId ? { pageId: page.id, firmId: currentUser?.firmId || '', sessionToken: (bearerToken ?? undefined) } : 'skip'
     ) as any;
 
     useEffect(() => {

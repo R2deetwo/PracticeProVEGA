@@ -134,6 +134,7 @@ export const useCommunications = (actions: any) => {
                 matterId,
                 firmId: currentUser?.firmId || '',
                 requestUserId: currentUser?.id,
+                sessionToken: (bearerToken ?? undefined),
             });
             const clientId = (matter as any)?.clientId || (matter as any)?.clientIds?.[0] || (matter as any)?.matter?.clientId;
             if (!clientId) {
