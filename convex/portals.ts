@@ -4287,21 +4287,30 @@ export const getInboundMessagesByTenant = query({
 export const getClientDocuments = query({
   args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // ── ROUND A (C2 sibling): unauthenticated client-documents read →
-    //    portal auth + firm binding + session-derived contact identity
-    //    (a caller-supplied contactId that is not the caller's own alias
-    //    is rebound to the session identity).
-    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, userId: args.contactId });
+    // ── V1-C (CP-1/CP-3): the client document vault was empty on both
+    //    surfaces — this query rebound the contactId to the USER id (basic
+    //    alias set) while matters key on the CONTACT id, so the matter
+    //    match never hit; and had delivery worked, the projection would
+    //    have exposed every unshared document's metadata. Now:
+    //    portal auth + firm binding (unchanged), the SAME extended-alias
+    //    resolution as the sibling reads (messages/activity/invoices —
+    //    the established portal authentication pattern), server-side
+    //    document visibility, and a read-side repair of the
+    //    matterId/snapshot split-brain (V-MATTER-13) — no row is rewritten.
+    const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     assertSameFirm(caller, args.firmId);
-    if (!portalCallerAliases(caller).has(String(args.contactId))) args.contactId = String(caller._id);
-    // Find matters for this contact
+    const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller, args.firmId);
+    if (!aliases.has(String(args.contactId))) args.contactId = contact ? String(contact._id) : String(caller._id);
+    // Find matters for this contact (server-derived: the caller's own
+    // matters only — the client's ownership of the associated matter is
+    // established here, never by the caller's claim).
     const matters = await ctx.db
       .query("matters")
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(2000);
 
     const clientMatters = matters.filter(m => m.clientId === args.contactId);
-    const matterIds = clientMatters.map(m => m._id);
+    const matterIds = clientMatters.map(m => String(m._id));
 
     if (matterIds.length === 0) return [];
 
@@ -4314,13 +4323,34 @@ export const getClientDocuments = query({
     // Also build a map of matterId -> matter title for enrichment
     const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
 
+    // V-MATTER-13 (read-side only): a document's matter linkage is stored
+    // under EITHER convention — `matterId` (portal/batch uploads) or the
+    // legacy `matter: {id, title}` snapshot (the main upload form). Resolve
+    // across both, WITHOUT rewriting any historical row.
+    const resolveDocMatter = (d: any): string | null => {
+      if (d.matterId && matterIds.includes(String(d.matterId))) return String(d.matterId);
+      const snap = d.matter as any;
+      const snapId = snap?.id ? String(snap.id) : (typeof snap === "string" ? String(snap) : null);
+      if (snapId && matterIds.includes(snapId)) return snapId;
+      return null;
+    };
+
+    // CP-3: server-side visibility — a document reaches the client ONLY
+    // when it was explicitly shared with them (isSharedWithClient) or they
+    // uploaded it themselves (uploadedBy is one of the session caller's own
+    // alias keys — the same person, session-derived). Staff-only and
+    // unshared documents are excluded BEFORE the projection: their titles,
+    // review/signature status and source never leave the server.
     return allDocs
-      .filter(d => d.matterId && matterIds.includes(d.matterId as any))
-      .map(d => ({
+      .map(d => ({ d, matterId: resolveDocMatter(d) }))
+      .filter((row): row is { d: any; matterId: string } =>
+        row.matterId !== null &&
+        (row.d.isSharedWithClient === true || aliases.has(String(row.d.uploadedBy ?? ""))))
+      .map(({ d, matterId }) => ({
         _id: d._id,
         title: d.title,
-        matterId: d.matterId,
-        matterTitle: d.matterId ? (matterMap.get(String(d.matterId)) || null) : null,
+        matterId,
+        matterTitle: matterMap.get(matterId) || null,
         dateFiled: d.dateFiled,
         isSharedWithClient: d.isSharedWithClient,
         clientReviewStatus: d.clientReviewStatus,
@@ -4453,9 +4483,14 @@ export const getClientActivity = query({
 export const getClientInvoices = query({
   args: { firmId: v.string(), contactId: v.string(), sessionToken: v.optional(v.string()), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    // ─── ROUND A2: unauthenticated client invoice read (bare contactId) → portal
-    //    auth + firm binding + contactId rebound to the caller's own
-    //    contact/user aliases (a foreign contactId returns nothing).
+    // ─── V1-C (CP-5): this read previously returned the FULL invoice
+    //    document to the client — voidReason, voidedByEmail, auditId,
+    //    priorStatus, providerReference, paymentDetails and all — and
+    //    with no recordStatus filter, voided and test invoices reached
+    //    the portal as outstanding obligations. Now: recordStatus
+    //    quarantine + a minimal client-safe projection. The invoice↔
+    //    matter matching already handles both id conventions (the same
+    //    read-side split-brain repair as documents).
     const caller = await requirePortalCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail });
     assertSameFirm(caller, args.firmId);
     const { aliases, contact } = await portalCallerExtendedAliases(ctx, caller, args.firmId);
@@ -4477,11 +4512,51 @@ export const getClientInvoices = query({
       .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
       .take(1000);
 
-    return allInvoices.filter(inv => {
+    const matterMap = new Map(clientMatters.map(m => [String(m._id), m.title || ""]));
+    const resolveInvMatter = (inv: any): string | null => {
       const matterField = inv.matter as any;
-      const matterId = matterField?.id || matterField;
-      return matterId && matterIds.includes(String(matterId));
-    });
+      const candidates = [
+        inv.matterId ? String(inv.matterId) : null,
+        matterField?.id ? String(matterField.id) : null,
+        typeof matterField === "string" ? String(matterField) : null,
+      ].filter(Boolean);
+      for (const c of candidates) {
+        if (matterIds.includes(String(c))) return String(c);
+      }
+      return null;
+    };
+
+    // CP-5 filter: voided and test invoices are quarantined from the
+    // client view entirely — they can never render as outstanding
+    // obligations. `recordStatus` is the lifecycle authority; the 'Void'
+    // status check is belt-and-braces for rows voided by pre-lifecycle
+    // status flips that predate the recordStatus cluster.
+    return allInvoices
+      .map(inv => ({ inv, matterId: resolveInvMatter(inv) }))
+      .filter((row): row is { inv: any; matterId: string } =>
+        row.matterId !== null &&
+        row.inv.recordStatus !== "voided" &&
+        row.inv.recordStatus !== "test" &&
+        row.inv.status !== "Void")
+      // CP-5 projection: minimal client-safe invoice. The internal
+      // lifecycle cluster (voidReason, voidedByEmail, voidedAt, auditId,
+      // priorStatus, recordStatus), the Paystack integration fields
+      // (provider, providerReference, paymentMethod), paymentDetails and
+      // the `client` blob are NEVER returned to the portal.
+      .map(({ inv, matterId }) => ({
+        _id: inv._id,
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        status: inv.status,
+        issueDate: inv.issueDate,
+        dueDate: inv.dueDate,
+        paidDate: inv.paidDate,
+        lineItems: inv.lineItems,
+        subTotal: inv.subTotal,
+        taxAmount: inv.taxAmount,
+        total_amount: inv.total_amount,
+        matter: { id: matterId, title: matterMap.get(matterId) || "" },
+      }));
   },
 });
 // ─── Client Contact Lookup for Portal ──────────────────────────────────────

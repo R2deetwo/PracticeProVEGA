@@ -96,7 +96,11 @@ const ClientMatterDetailViewContent: React.FC = () => {
     );
     const portalDocuments = useQuery(
         api.portals.getClientDocuments,
-        (effectiveFirmId && clientContactId) ? { firmId: effectiveFirmId, contactId: clientContactId } : 'skip'
+        // V1-C (CP-1): this call previously omitted the sessionToken —
+        // strict identity mode rejected it and the document tab rendered
+        // empty on the matter-detail surface. Forward the bearer like the
+        // sibling portal queries.
+        (effectiveFirmId && clientContactId) ? { firmId: effectiveFirmId, contactId: clientContactId, sessionToken: portalBearer ?? undefined } : 'skip'
     );
     const { handleClientUploadDocument, handleClientMarkDocumentAsReviewed, handleUpdateClientActionItem, handleSendClientMessage } = useDataActions();
     const { currentUser } = useAuth();

@@ -17660,3 +17660,75 @@ Work Log:
   on this run, confirming the probe switch works live.
 - Round stopped for review per the brief — no V1-C work started.
 [skip ci]
+
+Task ID: V1-C (client portal security and data delivery)
+Agent: Main agent (Super Z)
+Task: Repair the confirmed client portal document-delivery failure
+(CP-1) and close the client-facing projection leaks (CP-3 unshared
+document metadata, CP-5 voided/sensitive invoice projection); forward
+the missing sessionToken from ClientMatterDetailView; repair the
+matterId/snapshot split-brain ONLY to the extent required for correct
+portal retrieval (read-side, no rewrites of historical rows).
+
+Work Log:
+- SURVEY: confirmed the V0 findings at source —
+  convex/portals.ts getClientDocuments bound the caller with the BASIC
+  portalCallerAliases set (rebinding contactId to the USER _id) while
+  matters key on the CONTACT id, so m.clientId never matched and the
+  vault returned [] on every surface; the projection matched documents
+  ONLY on d.matterId (the main upload form writes the matter:{id,title}
+  snapshot instead — most docs carry no matterId, schemaValidation is
+  false so both conventions persist); there was NO server-side
+  visibility filter (every unshared document's title/review-status/
+  source was projected to the client); and ClientMatterDetailView called
+  getClientDocuments WITHOUT sessionToken (the only portal query omitting
+  it — strict identity mode threw, documents tab empty).
+- FIX (convex/portals.ts getClientDocuments): switched to the SAME
+  portalCallerExtendedAliases resolution as the sibling reads
+  (messages/activity/invoices — the established pattern, no parallel
+  identity model); matter ownership stays server-derived (the client's
+  matters come from the session-derived contact, never the caller's
+  claim); document visibility enforced server-side BEFORE the projection
+  (isSharedWithClient === true OR uploadedBy ∈ the caller's own aliases
+  — explicitly shared with the client, or uploaded by that client);
+  documents matched across BOTH matter conventions (matterId OR the
+  legacy matter.id snapshot) with the projection returning the RESOLVED
+  matterId — read-side only, no historical row rewritten.
+- FIX (convex/portals.ts getClientInvoices): recordStatus quarantine —
+  voided and test invoices are never returned to the portal at all (can
+  no longer render as outstanding obligations); status 'Void'
+  belt-and-braces covers pre-lifecycle status-flip voids; minimal
+  client-safe projection (invoiceNumber/status/issueDate/dueDate/
+  paidDate/lineItems/subTotal/taxAmount/total_amount/matter{id,title});
+  voidReason, voidedByEmail, voidedAt, auditId, priorStatus,
+  recordStatus, provider, providerReference, paymentMethod,
+  paymentDetails, client and userId are NEVER returned. Invoice↔matter
+  matching normalised across both id conventions.
+- FIX (src/components/client/ClientMatterDetailView.tsx): the
+  getClientDocuments call now forwards sessionToken: portalBearer like
+  its sibling queries.
+- PRESERVED: portal login/isolation/service-request/messaging behaviour
+  untouched (getClientMessages/getClientActivity/getClientMattersByUserId
+  unchanged); no Paystack client payments enabled; nothing implies a
+  payment was received; Atrium resident portal untouched.
+- TESTS: NEW tests/unit/roundV1CSecurity.test.ts — 24 real-handler tests
+  + source contracts on the frontend integration points. Load-bearing
+  proof: 13/24 FAIL against the pre-fix tree, 24/24 PASS on the fix.
+  Matrix: cross-client probes rebound to the caller's own identity;
+  staff-only/unshared documents invisible even on direct calls; uploaded
+  docs scoped to the appropriate client/matter; split-brain snapshot doc
+  resolves without rewriting the stored row; voided/test/legacy-void
+  invoices excluded; internal invoice metadata absent from the
+  projection; unauthenticated/expired/revoked/cross-firm/staff-role
+  rejections; existing messaging behaviour pinned.
+- GATES (all on commit 9f161780): vitest 2174/2174 (110 files, +24) /
+  convex tsc 0 / root tsc 94 = baseline / eslint 0 errors /
+  ui-primitives ratchet held 2297 / gray=0 / identity audit PASSED /
+  main build green / admin build green.
+- DEPLOY: push + CI + production promote are BLOCKED — no GitHub
+  credential is available this round (the PAT is not in the V1-C brief;
+  prior rounds used x-access-token in the remote URL, since cleaned).
+  Commit 9f161780 sits on local main awaiting the owner's credential.
+  Reminder (7th exposure last round): the old PAT must be ROTATED, not
+  reused — paste a fresh one to unblock push/CI/promote.
+[skip ci]
