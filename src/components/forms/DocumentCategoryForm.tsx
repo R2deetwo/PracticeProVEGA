@@ -19,6 +19,9 @@ const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCatego
   const { addToast } = useUI();
     const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
+  // UX-04 (double-submit guard): a second click during the awaited save
+  // duplicated the category — the button disables itself.
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const isEditing = !!categoryToEdit;
 
@@ -33,27 +36,33 @@ const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCatego
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim()) {
       addToast("Please provide a name for the document category.", { type: 'error' });
       return;
     }
     
-    if (isEditing && onUpdateCategory && categoryToEdit) {
-        const updatedDocCat: DocumentCategory = {
-            ...categoryToEdit,
-            name: name.trim(),
-            parentId: parentId,
-        };
-        await onUpdateCategory(updatedDocCat);
-    } else if (!isEditing && onAddCategory) {
-        const newDocCat: Omit<DocumentCategory, 'id' | 'isCore'> = {
-            firmId: coreState.firmDetails.id,
-            name: name.trim(),
-            parentId: parentId,
-        };
-        await onAddCategory(newDocCat);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && onUpdateCategory && categoryToEdit) {
+          const updatedDocCat: DocumentCategory = {
+              ...categoryToEdit,
+              name: name.trim(),
+              parentId: parentId,
+          };
+          await onUpdateCategory(updatedDocCat);
+      } else if (!isEditing && onAddCategory) {
+          const newDocCat: Omit<DocumentCategory, 'id' | 'isCore'> = {
+              firmId: coreState.firmDetails.id,
+              name: name.trim(),
+              parentId: parentId,
+          };
+          await onAddCategory(newDocCat);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
     const commonInputClass = inputClassic;
@@ -110,7 +119,7 @@ const DocumentCategoryForm: React.FC<DocumentCategoryFormProps> = ({ onAddCatego
         </div>
         <div className="space-x-2">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Category'}</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Category')}</button>
         </div>
       </div>
     </form>

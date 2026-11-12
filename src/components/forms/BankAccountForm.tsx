@@ -35,6 +35,9 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
   const [accountName, setAccountName] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  // UX-04 (double-submit guard): a fast second click re-fired the bank
+  // account write — the button disables itself for the save.
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = !!accountToEdit;
 
@@ -48,6 +51,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     // TASK 64: the user's standard — every bank account record carries an
     // ACCOUNT NAME, BANK and ACCOUNT NUMBER (shared validation util keeps
     // this consistent with the backend manageBankAccount gate).
@@ -57,12 +61,17 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
       return;
     }
     const accountData = validation.value;
-    if (isEditing && accountToEdit) {
-      await onUpdateAccount({ ...accountToEdit, ...accountData });
-    } else {
-      await onAddAccount(accountData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && accountToEdit) {
+        await onUpdateAccount({ ...accountToEdit, ...accountData });
+      } else {
+        await onAddAccount(accountData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   return (
@@ -113,7 +122,7 @@ const BankAccountForm: React.FC<BankAccountFormProps> = ({ accountToEdit, onAddA
         <div>{isEditing && <Button variant="danger-soft" onClick={() => onDelete(accountToEdit.id)}>Delete</Button>}</div>
         <div className="space-x-2">
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button type="submit">{isEditing ? 'Save Changes' : 'Add Account'}</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving…' : (isEditing ? 'Save Changes' : 'Add Account')}</Button>
         </div>
       </div>
     </form>

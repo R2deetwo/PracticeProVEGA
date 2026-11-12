@@ -24,9 +24,13 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
     const [roleInMatter, setRoleInMatter] = useState('');
     const [accessLevel, setAccessLevel] = useState<AccessLevel>('Standard');
     const [duration, setDuration] = useState('30'); // in days
+    // UX-04 (double-submit guard): a second click during the awaited invite
+    // sent duplicate invitations — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!name || !email || !firmName || !roleInMatter) {
             addToast('Please fill all required fields.', { type: 'error' });
             return;
@@ -47,9 +51,14 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
             status: 'pending',
             invitedBy: currentUser!.id,
         };
-        await onInvite(invite);
-        addToast(`Invite sent to ${invite.email}`, { type: 'success' });
-        onClose();
+        setIsSubmitting(true);
+        try {
+            await onInvite(invite);
+            addToast(`Invite sent to ${invite.email}`, { type: 'success' });
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const commonInputClass = inputClassic;
@@ -115,7 +124,7 @@ const ExternalCounselInviteForm: React.FC<ExternalCounselInviteFormProps> = ({ m
             </div>
              <div className="pt-4 flex justify-end gap-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-zinc-600 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-zinc-500">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700">Send Invitation</button>
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Inviting…' : 'Send Invitation'}</button>
             </div>
         </form>
         )

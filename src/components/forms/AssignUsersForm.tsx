@@ -23,6 +23,9 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
     const { isProperty } = useProduct();
     const { addToast } = useUI();
     const [assigned, setAssigned] = useState(() => new Set(item.assignedUsers || []));
+    // UX-04 (double-submit guard): a second click while the assignment
+    // write is in flight re-fired the update — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleToggle = (userId: string) => {
         setAssigned(prev => {
@@ -35,12 +38,18 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (assigned.size === 0) {
             addToast('At least one user must be assigned.', { type: 'info' });
             return;
         }
-        await onUpdate(item.id, Array.from(assigned));
-        onClose();
+        setIsSubmitting(true);
+        try {
+            await onUpdate(item.id, Array.from(assigned));
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // Filter to Lawyers + Paralegals, AND exclude deactivated members.
@@ -89,7 +98,7 @@ const AssignUsersForm: React.FC<AssignUsersFormProps> = ({ item, itemType, itemT
             </div>
             <div className="mt-4 flex justify-end space-x-2">
                 <button type="button" onClick={onClose} className="px-6 py-2 text-sm bg-slate-200 dark:bg-dim-600 rounded-lg font-semibold">Cancel</button>
-                <button type="submit" className="px-6 py-2 text-sm bg-primary-600 text-white rounded-lg font-semibold">Save</button>
+                <button type="submit" disabled={isSubmitting} className="px-6 py-2 text-sm bg-primary-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Saving…' : 'Save'}</button>
             </div>
         </form>
     );

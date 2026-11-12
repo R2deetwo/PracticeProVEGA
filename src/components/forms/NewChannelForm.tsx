@@ -16,6 +16,9 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
     const { navigateTo, addToast } = useUI();
     const [channelName, setChannelName] = useState('');
     const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+    // UX-04 (double-submit guard): a second click during the awaited channel
+    // creation made duplicate channels — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleToggleUser = (userId: string) => {
         setSelectedUsers(prev => {
@@ -31,23 +34,29 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!channelName.trim()) {
             addToast('Please provide a channel name.', { type: 'info' });
             return;
         }
         if (!currentUser) return;
 
-        // Include self
-        const allMembers = Array.from(selectedUsers);
-        if (!allMembers.includes(currentUser.id)) allMembers.push(currentUser.id);
+        setIsSubmitting(true);
+        try {
+            // Include self
+            const allMembers = Array.from(selectedUsers);
+            if (!allMembers.includes(currentUser.id)) allMembers.push(currentUser.id);
 
-        const newChannelId = await onCreateChannel(channelName.trim(), allMembers, currentUser.id);
+            const newChannelId = await onCreateChannel(channelName.trim(), allMembers, currentUser.id);
 
-        // Close modal then navigate
-        onClose();
-        setTimeout(() => {
-            navigateTo('messaging', null, { activeConversationId: newChannelId });
-        }, 100);
+            // Close modal then navigate
+            onClose();
+            setTimeout(() => {
+                navigateTo('messaging', null, { activeConversationId: newChannelId });
+            }, 100);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const commonInputClass = inputClassic;
@@ -90,7 +99,7 @@ const NewChannelForm: React.FC<NewChannelFormProps> = ({ users, onCreateChannel,
             </div>
             <div className="pt-4 flex justify-end space-x-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 rounded-lg font-semibold">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold">Create Channel</button>
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Creating…' : 'Create Channel'}</button>
             </div>
         </form>
     );

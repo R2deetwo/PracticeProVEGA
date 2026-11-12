@@ -16,6 +16,9 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
     const [name, setName] = useState('');
     const [matterId, setMatterId] = useState<string | undefined>(undefined);
     const [files, setFiles] = useState<File[]>([]);
+    // UX-04 (double-submit guard): a second click re-fired the notebook
+    // creation — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,11 +33,17 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!name.trim()) {
             addToast("Please enter a name for the notebook.", { type: 'error' });
             return;
         }
-        onSubmit({ name: name.trim(), matterId: matterId || undefined, files });
+        setIsSubmitting(true);
+        try {
+            onSubmit({ name: name.trim(), matterId: matterId || undefined, files });
+        } finally {
+            setIsSubmitting(false);
+        }
         // The parent component handles closing after async operations
     };
 
@@ -110,8 +119,8 @@ const NewResearchNotebookForm: React.FC<NewResearchNotebookFormProps> = ({ matte
 
             <div className="pt-4 flex justify-end space-x-2 border-t border-slate-200 dark:border-zinc-700">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">
-                    {files.length > 0 ? `Create & Add ${files.length} Sources` : 'Create Notebook'}
+                <button type="submit" disabled={isSubmitting} className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isSubmitting ? 'Creating…' : (files.length > 0 ? `Create & Add ${files.length} Sources` : 'Create Notebook')}
                 </button>
             </div>
         </form>

@@ -17,12 +17,16 @@ interface NotePageFormProps {
 
 const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialContext }) => {
     const [title, setTitle] = useState('');
+    // UX-04 (double-submit guard): a second click during the awaited save
+    // duplicated the page — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { coreState, isDataLoaded } = useCoreState();
     const { currentUser } = useAuth();
     const { addToast } = useUI();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         if (!title.trim()) { addToast('Please enter a page title.', { type: 'info' }); return; }
 
         const now = new Date().toISOString();
@@ -41,8 +45,13 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
             type: 'user' as const
         };
 
-        await onAdd(newPage);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            await onAdd(newPage);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -69,9 +78,10 @@ const NotePageForm: React.FC<NotePageFormProps> = ({ onAdd, onClose, initialCont
                 </button>
                 <button
                     type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm"
+                    disabled={isSubmitting}
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Create Page
+                    {isSubmitting ? 'Creating…' : 'Create Page'}
                 </button>
             </div>
         </form>

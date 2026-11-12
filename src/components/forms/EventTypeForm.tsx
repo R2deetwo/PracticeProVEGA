@@ -27,6 +27,9 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
   const { addToast } = useUI();
     const [name, setName] = useState('');
   const [color, setColor] = useState(PALETTE_COLORS[0]);
+  // UX-04 (double-submit guard): a fast second click re-fired the event
+  // type write — the button disables itself for the save.
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = !!eventTypeToEdit;
 
@@ -39,30 +42,36 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim()) {
       addToast("Please provide a name for the event type.", { type: 'error' });
       return;
     }
 
-    if (isEditing && onUpdateEventType && eventTypeToEdit) {
-      /* Added firmId to satisfy CustomEventType interface */
-      const eventTypeData: CustomEventType = {
-          id: eventTypeToEdit.id,
-          firmId: coreState.firmDetails.id,
-          name: name.trim(),
-          color,
-      };
-      await onUpdateEventType(eventTypeData);
-    } else if (onAddEventType) {
-      /* Added firmId to satisfy Omit<CustomEventType, "id"> interface */
-      const eventTypeData: Omit<CustomEventType, 'id'> = {
-          firmId: coreState.firmDetails.id,
-          name: name.trim(),
-          color,
-      };
-      await onAddEventType(eventTypeData);
+    setIsSubmitting(true);
+    try {
+      if (isEditing && onUpdateEventType && eventTypeToEdit) {
+        /* Added firmId to satisfy CustomEventType interface */
+        const eventTypeData: CustomEventType = {
+            id: eventTypeToEdit.id,
+            firmId: coreState.firmDetails.id,
+            name: name.trim(),
+            color,
+        };
+        await onUpdateEventType(eventTypeData);
+      } else if (onAddEventType) {
+        /* Added firmId to satisfy Omit<CustomEventType, "id"> interface */
+        const eventTypeData: Omit<CustomEventType, 'id'> = {
+            firmId: coreState.firmDetails.id,
+            name: name.trim(),
+            color,
+        };
+        await onAddEventType(eventTypeData);
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   return (
@@ -105,7 +114,7 @@ const EventTypeForm: React.FC<EventTypeFormProps> = ({ onAddEventType, onUpdateE
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button variant="secondary" onClick={onClose} className="w-full sm:w-auto">Cancel</Button>
-            <Button type="submit" className="w-full sm:w-auto">{isEditing ? 'Save Changes' : 'Create Event Type'}</Button>
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">{isSubmitting ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Event Type')}</Button>
         </div>
       </div>
     </form>

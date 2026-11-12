@@ -50,26 +50,41 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
   }, [newChecklistItems.length]);
 
   const [shareWithClient, setShareWithClient] = useState(false);
+  // UX-04 (double-submit guard): a second click during the awaited apply
+  // duplicated the checklist — the button disables itself.
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const selectedTemplate = useMemo(() => checklistTemplates.find(t => t.id === templateId), [templateId, checklistTemplates]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (activeTab === 'template') {
         if (!templateId) {
             addToast("Please select a template to apply.", { type: 'error' });
             return;
         }
-        await handleApplyStageChecklist(matter.id, stage, templateId, shareWithClient);
+        setIsSubmitting(true);
+        try {
+            await handleApplyStageChecklist(matter.id, stage, templateId, shareWithClient);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     } else { // 'create' tab
         const finalItems = newChecklistItems.filter(i => i.text.trim());
         if (!newChecklistName.trim() || finalItems.length === 0) {
             addToast("Please provide a name and at least one item for the new checklist.", { type: 'error' });
             return;
         }
-        await handleApplyCustomStageChecklist(matter.id, stage, newChecklistName, finalItems, saveAsTemplate, shareWithClient);
+        setIsSubmitting(true);
+        try {
+            await handleApplyCustomStageChecklist(matter.id, stage, newChecklistName, finalItems, saveAsTemplate, shareWithClient);
+            onClose();
+        } finally {
+            setIsSubmitting(false);
+        }
     }
-    onClose();
   };
   
   const handleItemChange = (index: number, text: string) => {
@@ -164,7 +179,7 @@ export const StageChecklistForm: React.FC<StageChecklistFormProps> = ({
 
         <div className="pt-4 flex justify-end space-x-2">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Apply Checklist</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Applying…' : 'Apply Checklist'}</button>
         </div>
     </form>
   );

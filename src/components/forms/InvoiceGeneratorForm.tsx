@@ -36,6 +36,9 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
     const defaultAccount = bankAccounts?.find(acc => acc.isDefault) || bankAccounts?.[0];
     const [paymentAccountId, setPaymentAccountId] = useState<string>(defaultAccount?.id || '');
     const [applyVat, setApplyVat] = useState(true);
+    // UX-04 (double-submit guard): a second click during the awaited
+    // generation created duplicate invoices — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // ─── V2 TAX CONTRACT (V-FIN-15): percentages at the boundary; the firm
     //    setting (legacy fraction storage) is normalized once, here. The
@@ -134,6 +137,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
         const timeLineItems: InvoiceLineItem[] = selectedTimeItems.map(entry => ({
             id: `li_te_${entry.id}`,
             description: entry.description,
@@ -187,11 +191,16 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
         }
         const paymentDetails = selectedAccount;
 
-        // V2 (V-FIN-2): the tax statement travels EXPLICITLY — { applicable,
-        // ratePct }. The pre-V2 { subTotal, taxAmount } payload carried no
-        // `applicable` flag, so the receiving hook's `tax?.applicable` check
-        // silently zeroed VAT on every generated invoice.
-        await onGenerateInvoice(matter, finalLineItems, { invoiceNumber: invoiceNumberHint, issueDate, dueDate }, Array.from(selectedTimeEntryIds), Array.from(selectedExpenseIds), paymentDetails, { applicable: applyVat, ratePct: vatRatePct, subTotal, taxAmount });
+        setIsSubmitting(true);
+        try {
+            // V2 (V-FIN-2): the tax statement travels EXPLICITLY — { applicable,
+            // ratePct }. The pre-V2 { subTotal, taxAmount } payload carried no
+            // `applicable` flag, so the receiving hook's `tax?.applicable` check
+            // silently zeroed VAT on every generated invoice.
+            await onGenerateInvoice(matter, finalLineItems, { invoiceNumber: invoiceNumberHint, issueDate, dueDate }, Array.from(selectedTimeEntryIds), Array.from(selectedExpenseIds), paymentDetails, { applicable: applyVat, ratePct: vatRatePct, subTotal, taxAmount });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const commonInputClass = inputClassic;
@@ -296,7 +305,7 @@ export const InvoiceGeneratorForm: React.FC<InvoiceGeneratorFormProps> = ({ matt
 
             <div className="pt-4 flex justify-end space-x-2">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Generate Invoice</button>
+                <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Generating…' : 'Generate Invoice'}</button>
             </div>
         </form>
     );

@@ -46,6 +46,9 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
     const [linkedMatterId, setLinkedMatterId] = useState<string>('');
 
     const [message, setMessage] = useState('');
+    // UX-04 (double-submit guard): a second click during the awaited
+    // conversation creation duplicated it — the button disables itself.
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Filter available users (excluding self and external/clients)
     const availableUsers = useMemo(() =>
@@ -90,22 +93,15 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
 
         if (!currentUser) return;
 
-        let targetConversationId: string;
-        let membersToNotify: string[] = [];
-
-        if (mode === 'direct') {
-            if (!recipientId) {
-                addToast('Please select a colleague.', { type: 'info' });
-                return;
-            }
-            membersToNotify = [currentUser.id, recipientId];
-            // 1. Create Conversation or Get Existing ID
-            targetConversationId = await handleCreateDirectMessage(recipientId, undefined, currentUser.id, undefined, false);
-        } else {
-            // Group Chat
+        if (mode === 'direct' && !recipientId) {
+            addToast('Please select a colleague.', { type: 'info' });
+            return;
+        }
+        if (mode === 'group') {
             if (selectedUsers.size === 0) {
                 addToast('Please select at least one member.', { type: 'info' });
                 return;
@@ -114,30 +110,45 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
                 addToast('Please provide a group name.', { type: 'info' });
                 return;
             }
-
-            const members = Array.from(selectedUsers);
-            if (!members.includes(currentUser.id)) members.push(currentUser.id);
-            membersToNotify = members;
-
-            // 1. Create Channel
-            targetConversationId = await handleCreateChannel(
-                groupName.trim(),
-                members,
-                currentUser.id,
-                linkedMatterId || undefined
-            );
         }
 
-        // 2. If there is a message, send it immediately to that ID
-        if (message.trim()) {
-            handleSendMessage(targetConversationId, message.trim(), currentUser.id, membersToNotify);
-        }
+        setIsSubmitting(true);
+        try {
+            let targetConversationId: string;
+            let membersToNotify: string[] = [];
 
-        // 3. Navigate
-        onClose();
-        setTimeout(() => {
-            navigateTo('messaging', null, { activeConversationId: targetConversationId });
-        }, 50);
+            if (mode === 'direct') {
+                membersToNotify = [currentUser.id, recipientId];
+                // 1. Create Conversation or Get Existing ID
+                targetConversationId = await handleCreateDirectMessage(recipientId, undefined, currentUser.id, undefined, false);
+            } else {
+                // Group Chat
+                const members = Array.from(selectedUsers);
+                if (!members.includes(currentUser.id)) members.push(currentUser.id);
+                membersToNotify = members;
+
+                // 1. Create Channel
+                targetConversationId = await handleCreateChannel(
+                    groupName.trim(),
+                    members,
+                    currentUser.id,
+                    linkedMatterId || undefined
+                );
+            }
+
+            // 2. If there is a message, send it immediately to that ID
+            if (message.trim()) {
+                handleSendMessage(targetConversationId, message.trim(), currentUser.id, membersToNotify);
+            }
+
+            // 3. Navigate
+            onClose();
+            setTimeout(() => {
+                navigateTo('messaging', null, { activeConversationId: targetConversationId });
+            }, 50);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleOpenExisting = () => {
@@ -288,8 +299,8 @@ const NewDirectMessageForm: React.FC<NewDirectMessageFormProps> = ({ users, onCl
             <div className="pt-4 flex justify-end items-center space-x-2 border-t border-slate-100 dark:border-zinc-800">
                 <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-700 dark:text-slate-200 rounded-lg font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 dark:hover:bg-zinc-600 transition-colors">Cancel</button>
                 {(mode === 'group' || !existingChatId) && (
-                    <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-2">
-                        {mode === 'direct' ? 'Start Chat' : 'Create Group'}
+                    <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isSubmitting ? 'Creating…' : (mode === 'direct' ? 'Start Chat' : 'Create Group')}
                     </button>
                 )}
             </div>

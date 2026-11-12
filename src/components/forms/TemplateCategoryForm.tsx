@@ -16,6 +16,9 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
   const { coreState, isDataLoaded } = useCoreState();
   const { addToast } = useUI();
     const [name, setName] = useState('');
+  // UX-04 (double-submit guard): a second click during the awaited save
+  // duplicated the category — the button disables itself.
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const isEditing = !!categoryToEdit;
 
@@ -27,19 +30,25 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim()) {
       addToast("Please provide a name for the category.", { type: 'error' });
       return;
     }
     
-    if (isEditing && onUpdate && categoryToEdit) {
-        /* Added firmId to satisfy DocumentTemplateCategory interface */
-        await onUpdate({ id: categoryToEdit.id, firmId: coreState.firmDetails.id, name: name.trim() });
-    } else if (onAdd) {
-        /* Added firmId to satisfy Omit<DocumentTemplateCategory, "id"> interface */
-        await onAdd({ firmId: coreState.firmDetails.id, name: name.trim() });
+    setIsSubmitting(true);
+    try {
+      if (isEditing && onUpdate && categoryToEdit) {
+          /* Added firmId to satisfy DocumentTemplateCategory interface */
+          await onUpdate({ id: categoryToEdit.id, firmId: coreState.firmDetails.id, name: name.trim() });
+      } else if (onAdd) {
+          /* Added firmId to satisfy Omit<DocumentTemplateCategory, "id"> interface */
+          await onAdd({ firmId: coreState.firmDetails.id, name: name.trim() });
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
     const commonInputClass = inputClassic;
@@ -65,7 +74,7 @@ const TemplateCategoryForm: React.FC<TemplateCategoryFormProps> = ({ onAdd, onUp
         </div>
         <div className="space-x-2">
             <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-            <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Category'}</button>
+            <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Category')}</button>
         </div>
       </div>
     </form>

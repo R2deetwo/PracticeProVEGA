@@ -19,6 +19,9 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
   const [name, setName] = useState('');
   const [color, setColor] = useState(PALETTE_COLORS[0]);
   const [scope, setScope] = useState<NoteScope>(NoteScope.Firm);
+  // UX-04 (double-submit guard): a second click during the awaited save
+  // duplicated the notebook — the button disables itself.
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = !!notebookToEdit;
 
@@ -32,17 +35,23 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim()) {
       addToast("Please provide a name for the notebook.", { type: 'info' });
       return;
     }
 
-    if (isEditing && notebookToEdit) {
-      await onUpdate({ ...notebookToEdit, name, color, scope });
-    } else {
-      await onAdd({ name, color, scope: appMode === 'solo' ? NoteScope.Private : scope });
+    setIsSubmitting(true);
+    try {
+      if (isEditing && notebookToEdit) {
+        await onUpdate({ ...notebookToEdit, name, color, scope });
+      } else {
+        await onAdd({ name, color, scope: appMode === 'solo' ? NoteScope.Private : scope });
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
     const commonInputClass = inputClassic;
@@ -85,7 +94,7 @@ const NotebookForm: React.FC<NotebookFormProps> = ({ onAdd, onUpdate, onClose, n
       </div>
       <div className="pt-4 flex justify-end space-x-2">
         <button type="button" onClick={() => onClose()} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-        <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Notebook'}</button>
+        <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Notebook')}</button>
       </div>
     </form>
   );
