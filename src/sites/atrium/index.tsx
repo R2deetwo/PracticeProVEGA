@@ -20,6 +20,7 @@ import { AtriumWhyRunOn } from './sections/AtriumWhyRunOn';
 import { AtriumFAQ } from './sections/AtriumFAQ';
 import { AtriumFinalCTA } from './sections/AtriumFinalCTA';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * AtriumSite — /atrium, "The Well-Kept Estate" (P0 split). 12 bands, this
  * exact order: photo hero → sage stat band → features grid → trust strip →
@@ -76,7 +77,7 @@ export const AtriumSite: React.FC = () => {
                 emerald. */}
             <a
                 href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-atrium-emerald focus:text-white"
+                className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:${Z_CLASS.siteOverlay} focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-atrium-emerald focus:text-white`}
             >
                 Skip to content
             </a>

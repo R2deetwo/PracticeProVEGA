@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { XIcon } from '../../constants';
 
+import { Z_CLASS } from '../../overlays/constants';
 interface ModalProps {
  isOpen: boolean;
  onClose: () => void;
@@ -196,7 +197,7 @@ export const Modal: React.FC<ModalProps> = ({
 
  return (
   <div
-   className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto overscroll-contain"
+   className={`fixed inset-0 ${Z_CLASS.modal} flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto overscroll-contain`}
    // V7 (E: accessible naming): hideHeader modals (confirmations, themed
    // auth) never render the #modal-title element, so aria-labelledby
    // pointed at nothing — screen readers announced an unnamed dialog.

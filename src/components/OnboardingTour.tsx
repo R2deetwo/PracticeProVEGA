@@ -6,6 +6,7 @@ import { getTourStepsForProduct, isMobileViewport, TourStep } from '../onboardin
 import { useProduct } from '../contexts/ProductContext';
 import { DismissIcon, ChevronRightIcon, ChevronLeftIcon } from '../constants';
 
+import { Z_CLASS } from '../overlays/constants';
 const OnboardingTour: React.FC = () => {
     const { isTourRunning, stepIndex, nextStep, backStep, stopTour } = useOnboarding();
     const { navigateTo, view } = useUI();
@@ -178,7 +179,7 @@ const OnboardingTour: React.FC = () => {
         // `isMobile` state (which considers isNativePlatform()) to decide
         // which branch to render — CSS classes would hide the wrong branch.
         return (
-            <div className="fixed inset-0 z-[9999] pointer-events-none">
+            <div className={`fixed inset-0 ${Z_CLASS.systemAlert} pointer-events-none`}>
                 {/* Backdrop */}
                 <div
                     className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"
@@ -326,7 +327,7 @@ const OnboardingTour: React.FC = () => {
     }
 
     return (
-        <div className="fixed inset-0 z-[9999] pointer-events-none">
+        <div className={`fixed inset-0 ${Z_CLASS.systemAlert} pointer-events-none`}>
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] transition-opacity duration-500 pointer-events-auto"

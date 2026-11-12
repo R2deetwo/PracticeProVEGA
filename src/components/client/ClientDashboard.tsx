@@ -24,6 +24,7 @@ import { timeAgo, getInitials } from '../../utils/colorUtils';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
+import { Z_CLASS } from '../../overlays/constants';
 // VersionRefreshBanner is now globally mounted in App.tsx via ToastRefreshNotification
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
@@ -2130,7 +2131,7 @@ const ClientDashboard: React.FC = () => {
         const inv = receiptInvoice;
         const matterTitle = inv.matter?.title || inv.matterTitle || 'Professional Services';
         return (
-            <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setReceiptInvoice(null)}>
+            <div className={`fixed inset-0 ${Z_CLASS.refreshBanner} bg-black/60 backdrop-blur-sm flex items-center justify-center p-4`} onClick={() => setReceiptInvoice(null)}>
                 <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                     <div className="p-6 space-y-5">
                         <div className="flex items-start justify-between">

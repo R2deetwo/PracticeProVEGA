@@ -6,6 +6,7 @@ import { useUI } from '../../contexts/UIContext';
 import ErrorBoundary from '../ErrorBoundary';
 import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
+import { Z_CLASS } from '../../overlays/constants';
 const AloaPanel: React.FC = () => {
     const { isPanelOpen, closePanel } = useAloa();
     const { dockedModalType } = useUI();
@@ -40,7 +41,7 @@ const AloaPanel: React.FC = () => {
                 touch events meant for the panel's buttons on mobile. */}
             {isPanelOpen && (
                 <div
-                    className={`fixed inset-0 z-[1999] transition-opacity duration-200 ${isMobile ? 'bg-black/40' : 'bg-black/5'}`}
+                    className={`fixed inset-0 ${Z_CLASS.panelVeil} transition-opacity duration-200 ${isMobile ? 'bg-black/40' : 'bg-black/5'}`}
                     onClick={handleClose}
                 />
             )}
@@ -48,7 +49,7 @@ const AloaPanel: React.FC = () => {
             {/* Main Side Panel */}
             {isPanelOpen && (
                 <div
-                    className={`fixed top-0 bottom-0 right-0 h-[100dvh] z-[2000] flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 animate-in slide-in-from-right duration-200 ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[520px] max-w-[calc(100vw-40px)] rounded-l-2xl overflow-hidden'}`}
+                    className={`fixed top-0 bottom-0 right-0 h-[100dvh] ${Z_CLASS.sidePanel} flex flex-col bg-white dark:bg-zinc-950 border-l border-slate-200 dark:border-zinc-800 animate-in slide-in-from-right duration-200 ${isMobile ? 'w-full inset-0 rounded-none' : 'w-[520px] max-w-[calc(100vw-40px)] rounded-l-2xl overflow-hidden'}`}
                     style={{ right: isShifted ? '520px' : '0' }}
                     // Only stop click propagation (NOT touch) so the backdrop
                     // doesn't close the panel when clicking inside it. Touch

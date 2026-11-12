@@ -8,6 +8,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { captureError } from '../utils/sentry';
 
+import { Z_CLASS } from '../overlays/constants';
 interface Props {
   children: ReactNode;
 }
@@ -62,7 +63,7 @@ class GlobalErrorBoundary extends Component<Props, State> {
       try {
         return (
           <div
-            className="fixed inset-0 z-[99999] flex flex-col items-center justify-center px-6"
+            className={`fixed inset-0 ${Z_CLASS.crashScreen} flex flex-col items-center justify-center px-6`}
             style={{ background: '#0a0a0a', color: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif' }}
           >
             {/* Subtle glow */}

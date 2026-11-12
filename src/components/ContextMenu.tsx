@@ -8,6 +8,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { EditIcon, TrashIcon, PlusIcon, ShareIcon, ArchiveIcon, CheckIcon } from '../constants';
 import { TaskStatus } from '../types';
 
+import { Z_CLASS } from '../overlays/constants';
 const MenuItem: React.FC<{ 
     icon: React.ReactNode; 
     label: string; 
@@ -127,7 +128,7 @@ const ContextMenu: React.FC = () => {
         <div 
             ref={menuRef}
             style={style}
-            className="fixed z-[9999] w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 animate-fade-in overflow-hidden backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95"
+            className={`fixed ${Z_CLASS.systemAlert} w-56 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 animate-fade-in overflow-hidden backdrop-blur-sm bg-opacity-95 dark:bg-opacity-95`}
         >
             {contextMenu.type === 'matter' && (
                 <>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApkVersionCheck } from '../hooks/useApkVersionCheck';
 
+import { Z_CLASS } from '../overlays/constants';
 /**
  * ApkUpdateBanner — shows a non-intrusive update prompt at the bottom
  * of the screen when a new APK build is available.
@@ -18,7 +19,7 @@ const ApkUpdateBanner: React.FC = () => {
   if (!updateAvailable) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[4000] px-4 py-3 pb-safe animate-slide-in-up">
+    <div className={`fixed bottom-0 left-0 right-0 ${Z_CLASS.modalRaised} px-4 py-3 pb-safe animate-slide-in-up`}>
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
         {/* Brand accent bar */}
         <div className="h-1 w-full bg-gradient-to-r from-primary-600 to-primary-500" />

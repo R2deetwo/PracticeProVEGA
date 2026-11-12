@@ -26,6 +26,7 @@ import { formatNairaCompact, formatDateShort } from '../../utils/formatting';
 import { XIcon, CheckCircleIcon, PlusIcon, DownloadIcon } from '../../constants';
 import { resolveServiceChargeAmount } from '../../utils/serviceCharge';
 import { buildTimeline, resolveCadence, deriveAdvanceRequirementRows, type TimelinePeriod } from '../../utils/leaseTimeline';
+import { Z_CLASS } from '../../overlays/constants';
 // ─── Period computation: SHARED ENGINE (see src/utils/leaseTimeline.ts) ────
 
 const FULL_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -206,7 +207,7 @@ export const OnboardUnitLedgerModal: React.FC<OnboardUnitLedgerModalProps> = ({
     const advanceDueCount = periods.filter(p => p.isAdvance && p.status === 'outstanding').length;
 
     return createPortal(
-        <div className="fixed inset-0 z-[4600] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className={`fixed inset-0 ${Z_CLASS.modalStack} flex items-center justify-center p-4`} role="dialog" aria-modal="true">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 sm:backdrop-blur-sm pointer-events-auto"

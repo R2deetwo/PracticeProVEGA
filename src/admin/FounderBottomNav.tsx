@@ -21,6 +21,7 @@ import { api } from '../../convex/_generated/api';
 import { useFounderAuth } from './FounderContexts';
 import type { AdminView } from './AdminApp';
 
+import { Z_CLASS } from '../overlays/constants';
 interface NavItem {
     view: AdminView;
     label: string;
@@ -269,7 +270,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
     return (
         <>
             <nav
-                className="fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 pb-safe pt-1"
+                className={`fixed bottom-0 left-0 right-0 ${Z_CLASS.bottomNav} bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 pb-safe pt-1`}
             >
                 <div className="flex items-start">
                     {NAV_ITEMS.map(item => {
@@ -326,10 +327,10 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
             {isMoreOpen && (
                 <>
                     <div
-                        className="fixed inset-0 z-[1001] bg-black/40 backdrop-blur-[2px]"
+                        className={`fixed inset-0 ${Z_CLASS.bottomNavVeil} bg-black/40 backdrop-blur-[2px]`}
                         onClick={() => setIsMoreOpen(false)}
                     />
-                    <div className="fixed bottom-20 left-4 right-4 z-[1002] animate-slide-in-up origin-bottom max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar">
+                    <div className={`fixed bottom-20 left-4 right-4 ${Z_CLASS.bottomNavSheet} animate-slide-in-up origin-bottom max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar`}>
                         <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-zinc-700/50 p-4">
                             <div className="flex justify-between items-center mb-4 px-2">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">More Options</h3>

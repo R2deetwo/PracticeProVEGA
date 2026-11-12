@@ -40,6 +40,7 @@ import PaymentGatewayModal from './PaymentGatewayModal';
 // focus ring and a11y come free). Raw <button> growth is ratchet-banned.
 import { Button } from '../ui';
 
+import { Z_CLASS } from '../../overlays/constants';
 // SETUP WIZARD EXTENSION (Steps 3-5):
 // Channel-relevance copy for Step 3 (Communication Channels).
 // IMPORTANT: per user spec, we ask the user which channels they INTEND to use
@@ -1084,7 +1085,7 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
                 (no immediate plan flip) — the founder admin or Paystack webhook
                 activates the subscription after verification. */}
             {paymentAction === 'pay_now' && showPaymentModal && (
-              <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50">
+              <div className={`fixed inset-0 ${Z_CLASS.modal} flex items-center justify-center p-4 bg-black/50`}>
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
                   <PaymentGatewayModal
                     amount={(() => {

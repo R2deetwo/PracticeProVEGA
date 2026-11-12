@@ -484,6 +484,7 @@ import * as aiService from '../../../services/aiService';
 import { installBeforeUnloadGuard, shouldBlockNavigation, openInNewTab, buildRouteUrlWithHashContext } from '../../../utils/tabNavigation';
 import { Button } from '../../ui';
 
+import { Z_CLASS } from '../../../overlays/constants';
 export interface DraftProEditorProps {
     initialContent?: string;
     /** The original prompt used to generate (or last redraft of) this document.
@@ -2284,7 +2285,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
         <div className="flex flex-col h-full bg-slate-100 dark:bg-zinc-950 overflow-hidden font-sans">
 
             {/* ── Top bar (Title + Meta) ── */}
-            <div className="flex-shrink-0 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 h-12 flex items-center justify-between z-[60] no-print">
+            <div className={`flex-shrink-0 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800 px-4 h-12 flex items-center justify-between ${Z_CLASS.panelRaise} no-print`}>
                 <div className="flex items-center gap-3 min-w-0">
                     {/* ── Back button ─────────────────────────────────────────
                         Only shown when DraftPro is NOT in a dedicated new tab.
@@ -2535,8 +2536,8 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                             {openDropdown === 'watermark' && (
                                 <>
                                     {/* Click-outside overlay */}
-                                    <div className="fixed inset-0 z-[60]" onClick={() => setOpenDropdown(null)} />
-                                    <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-[61] min-w-[140px]">
+                                    <div className={`fixed inset-0 ${Z_CLASS.panelRaise}`} onClick={() => setOpenDropdown(null)} />
+                                    <div className={`absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 ${Z_CLASS.panelMenu} min-w-[140px]`}>
                                         {['DRAFT', 'CONFIDENTIAL', 'WITHOUT PREJUDICE', 'PRIVATE & CONFIDENTIAL'].map(wm => (
                                             <button
                                                 key={wm}
@@ -2574,8 +2575,8 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                             />
                             {openDropdown === 'pageNumber' && (
                                 <>
-                                    <div className="fixed inset-0 z-[60]" onClick={() => setOpenDropdown(null)} />
-                                    <div className="absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 z-[61] min-w-[200px]">
+                                    <div className={`fixed inset-0 ${Z_CLASS.panelRaise}`} onClick={() => setOpenDropdown(null)} />
+                                    <div className={`absolute top-full mt-1 left-0 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-2 ${Z_CLASS.panelMenu} min-w-[200px]`}>
                                         {/* Toggle on/off */}
                                         <label className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-100 dark:hover:bg-zinc-700 cursor-pointer">
                                             <input
@@ -3083,8 +3084,8 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                             {/* Zoom presets dropdown — click-to-toggle */}
                             {openDropdown === 'zoom' && (
                                 <>
-                                    <div className="fixed inset-0 z-[60]" onClick={() => setOpenDropdown(null)} />
-                                    <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 z-[61] min-w-[100px]">
+                                    <div className={`fixed inset-0 ${Z_CLASS.panelRaise}`} onClick={() => setOpenDropdown(null)} />
+                                    <div className={`absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl py-1 ${Z_CLASS.panelMenu} min-w-[100px]`}>
                                         {[
                                             { label: '50%', value: 0.5 },
                                             { label: '75%', value: 0.75 },
@@ -3170,7 +3171,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                 Mirrors the Sources floater (bottom-right) from the left so
                 the two draft-quality surfaces never collide. */}
             {(draftReviewRunning || draftReview) && (
-                <div className="fixed bottom-20 left-4 z-[70] w-80 max-w-[calc(100vw-2rem)] no-print">
+                <div className={`fixed bottom-20 left-4 ${Z_CLASS.panelFloat} w-80 max-w-[calc(100vw-2rem)] no-print`}>
                     <Button
                         variant="bare"
                         onClick={() => draftReview && setDraftReviewOpen(!draftReviewOpen)}
@@ -3251,7 +3252,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                     {/* Floating "Sources" button — always visible when citations exist */}
                     <button
                         onClick={() => setShowCitationPanel(!showCitationPanel)}
-                        className="fixed bottom-20 right-4 z-[70] flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-colors text-xs font-bold no-print"
+                        className={`fixed bottom-20 right-4 ${Z_CLASS.panelFloat} flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-colors text-xs font-bold no-print`}
                         title="View sources"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3262,7 +3263,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
 
                     {/* Slide-in panel */}
                     {showCitationPanel && (
-                        <div className="fixed top-0 right-0 h-full w-96 bg-white dark:bg-zinc-900 shadow-2xl z-[71] flex flex-col border-l border-slate-200 dark:border-zinc-800 no-print animate-in slide-in-from-right duration-200">
+                        <div className={`fixed top-0 right-0 h-full w-96 bg-white dark:bg-zinc-900 shadow-2xl ${Z_CLASS.panelDock} flex flex-col border-l border-slate-200 dark:border-zinc-800 no-print animate-in slide-in-from-right duration-200`}>
                             <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                     <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -3359,7 +3360,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                 navigation to Research, etc.) with unsaved edits.
                 Three options: Save & Leave, Leave Without Saving, Stay on Page. */}
             {pendingNav && (
-                <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 animate-in fade-in duration-150">
+                <div className={`fixed inset-0 ${Z_CLASS.sidePanel} flex items-center justify-center p-4 animate-in fade-in duration-150`}>
                     <div
                         className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
                         onClick={() => {
@@ -3479,7 +3480,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
             {
                 activeModal && (
                     <div
-                        className="fixed inset-0 z-[1000] flex items-center justify-center"
+                        className={`fixed inset-0 ${Z_CLASS.bottomNav} flex items-center justify-center`}
                         onKeyDown={(e) => { if (e.key === 'Escape') setActiveModal(null); }}
                         tabIndex={-1}
                     >

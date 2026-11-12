@@ -19,6 +19,7 @@ import Underline from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 
+import { Z_CLASS } from '../../overlays/constants';
 // ─── Web Speech API types ─────────────────────────────────────────────
 // The Web Speech API (SpeechRecognition) is available in Chrome/Edge and
 // Android WebView. Not available in Safari/Firefox — the dictation button
@@ -960,7 +961,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                 {/* Bidirectional Link Autocomplete Dropdown */}
                 {linkVisible && linkResults.length > 0 && (
                     <div
-                        className="fixed z-[3000] bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden min-w-[280px] max-w-[360px] animate-in zoom-in-95 duration-150"
+                        className={`fixed ${Z_CLASS.modal} bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden min-w-[280px] max-w-[360px] animate-in zoom-in-95 duration-150`}
                         style={{ top: linkPosition.top, left: linkPosition.left }}
                     >
                         <div className="px-3 py-1.5 bg-slate-50 dark:bg-zinc-900/50 border-b border-slate-100 dark:border-zinc-700">

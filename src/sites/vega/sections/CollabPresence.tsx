@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Button } from '../../../components/ui';
 import { CheckIcon, ChatAltIcon, SendIcon, UserCircleIcon } from '../../../constants';
 
+import { Z_CLASS } from '../../../overlays/constants';
 /**
  * CollabPresence — the team-presence overlay on the app captures.
  *
@@ -206,7 +207,7 @@ export const CollabPresence: React.FC<{
                     role="menu"
                     aria-label="Teammates online"
                     data-collab-menu
-                    className="fixed z-[290] w-[300px] rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 overflow-hidden"
+                    className={`fixed ${Z_CLASS.hotspot} w-[300px] rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 overflow-hidden`}
                     style={{ top: Math.min(anchor.top, window.innerHeight - 420), right: Math.max(anchor.right, 12) }}
                 >
                     {view.kind === 'roster' && (

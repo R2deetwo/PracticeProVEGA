@@ -9,6 +9,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
+import { Z_CLASS } from '../../overlays/constants';
 const ConnectionStatus: React.FC = () => {
   const { currentUser, refreshUser, bearerToken } = useAuth();
   const { matterState } = useMatterState();
@@ -228,7 +229,7 @@ const ConnectionStatus: React.FC = () => {
 
   // The Modal Content
   const modalContent = showDiagnostics ? (
-    <div className="fixed inset-0 z-[9999] flex justify-center items-start pt-24 animate-fade-in pointer-events-auto">
+    <div className={`fixed inset-0 ${Z_CLASS.systemAlert} flex justify-center items-start pt-24 animate-fade-in pointer-events-auto`}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"

@@ -32,6 +32,7 @@ import { RealEstateUnit } from '../../types';
 import { UserAssignment } from './UserAssignment';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 
+import { Z_CLASS } from '../../overlays/constants';
 // ── Icons ────────────────────────────────────────────────────────────────────
 const Icon: React.FC<{ d: string; className?: string }> = ({ d, className = 'w-5 h-5' }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -536,7 +537,7 @@ export const SmartMatterModal: React.FC<SmartMatterModalProps> = ({
     }, [users, assignedUsers]);
 
     return (
-        <div className="fixed inset-0 z-[4000] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="smart-matter-title">
+        <div className={`fixed inset-0 ${Z_CLASS.modalRaised} flex items-center justify-center p-4`} role="dialog" aria-modal="true" aria-labelledby="smart-matter-title">
             <div className="absolute inset-0 bg-black/50 sm:backdrop-blur-sm" onClick={onClose} />
             <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl bg-white dark:bg-zinc-900 border border-slate-200/70 dark:border-zinc-700/60">
 

@@ -374,8 +374,13 @@ describe('V7 §G — honest gating and demo-mode integrity', () => {
 
     it('modal layering: the Terms acceptance bar renders BELOW open modals (mobile modal controls stay reachable)', () => {
         const terms = read('src/components/TermsAcceptance.tsx');
+        // UX-18: z-index moved to the named tier ladder — the bar takes
+        // Z_TIERS.termsBar (2990), one rung below the modal tier (3000).
         expect(terms).not.toContain('z-[9998]');
-        expect(terms).toContain('z-[2990]');
+        expect(terms).toContain('Z_CLASS.termsBar');
+        const tiers = read('src/overlays/constants.ts');
+        expect(tiers).toContain('termsBar: 2990');
+        expect(tiers).toContain('modal: 3000');
     });
 });
 

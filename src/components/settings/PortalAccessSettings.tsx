@@ -31,6 +31,7 @@ import { whatsappShareUrl } from '../../utils/whatsappShare';
 import { portalInviteUrl, portalSetupPasswordBase } from '../../utils/portalOrigins';
 import { ServiceRequestTypesConfig } from './ServiceRequestTypesConfig';
 import { InviteForm } from './InviteForm';
+import { Z_CLASS } from '../../overlays/constants';
 import {
   ShieldCheckIcon, LockClosedIcon, LockOpenIcon,
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
@@ -51,7 +52,7 @@ const DeleteConfirmDialog: React.FC<{
 }> = ({ isOpen, inviteName, inviteEmail, isDeleting, onConfirm, onCancel }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className={`fixed inset-0 ${Z_CLASS.panelOverlay} flex items-center justify-center bg-black/50 backdrop-blur-sm p-4`}>
       <div
         className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200"
         onClick={e => e.stopPropagation()}

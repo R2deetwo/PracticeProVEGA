@@ -40,6 +40,7 @@ import { formatLargeNumber } from '../../utils/formatting';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 import { chargeTypeOptions, ChargeTypeOption } from '../../utils/chargeTypeUtils';
 
+import { Z_CLASS } from '../../overlays/constants';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const AlertIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -953,7 +954,7 @@ const ServiceChargeMonitor: React.FC<{
       
       {/* Partial Payment Modal */}
       {partialPaymentCharge && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPartialPaymentCharge(null)}>
+        <div className={`fixed inset-0 ${Z_CLASS.siteOverlay} flex items-center justify-center bg-black/60 backdrop-blur-sm`} onClick={() => setPartialPaymentCharge(null)}>
           <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Record Partial Payment</h3>
             <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">

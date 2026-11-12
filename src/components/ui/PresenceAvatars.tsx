@@ -8,6 +8,7 @@ import Tooltip from '../Tooltip';
 import { Button } from '../ui';
 import { CheckIcon } from '../../constants';
 
+import { Z_CLASS } from '../../overlays/constants';
 export interface PresenceAvatarsProps {
     activePeers: Array<{ userId: string; updatedAt: number; isOnline: boolean }>;
     currentUser: User | null;
@@ -254,7 +255,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                                 ${showInactive ? 'ring-2 ring-amber-400 opacity-70' : ''}
                                 ${item.state === 'offline' ? 'opacity-40 grayscale filter ring-0' : ''}
                                 ${isFading ? 'scale-75 opacity-0' : ''}
-                                cursor-pointer hover:scale-110 hover:z-[110] active:scale-95
+                                cursor-pointer hover:scale-110 hover:${Z_CLASS.panelTop} active:scale-95
                             `}
                             style={{ zIndex, transition: 'all 0.7s ease-in-out' }}
                         >
@@ -292,7 +293,7 @@ export const PresenceAvatars: React.FC<PresenceAvatarsProps> = ({ activePeers, c
                         +{overflowCount}
                     </button>
                     {showOverflowList && (
-                        <div className="absolute right-0 top-full mt-2 w-72 max-h-96 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 z-[100] animate-fade-in-up">
+                        <div className={`absolute right-0 top-full mt-2 w-72 max-h-96 overflow-y-auto custom-scrollbar bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 ${Z_CLASS.panelOverlay} animate-fade-in-up`}>
                             <div className="p-3 border-b border-slate-100 dark:border-zinc-700">
                                 <p className="text-xs font-bold text-slate-700 dark:text-zinc-200">Team Members ({visibleItems.length})</p>
                                 <p className="text-2xs text-slate-400">

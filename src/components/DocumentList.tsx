@@ -15,6 +15,7 @@ import { LocalDocumentManager } from './LocalDocumentManager';
 import { useProduct, useTerminology } from '../contexts/ProductContext';
 import DocumentPreviewModal from './documents/DocumentPreviewModal';
 
+import { Z_CLASS } from '../overlays/constants';
 interface DocumentListProps {
     documents: Document[];
     matters: Matter[];
@@ -144,7 +145,7 @@ const DocumentRow: React.FC<{
 
             {/* Bottom Sheet — shown on ALL screen sizes */}
             {showBottomSheet && (
-                <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center animate-in fade-in duration-200">
+                <div className={`fixed inset-0 ${Z_CLASS.sidePanel} flex items-end sm:items-center justify-center animate-in fade-in duration-200`}>
                     <div
                         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                         onClick={() => setShowBottomSheet(false)}

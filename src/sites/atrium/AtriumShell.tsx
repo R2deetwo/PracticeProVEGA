@@ -3,6 +3,7 @@ import { ArrowLeftIcon, ExternalLinkIcon } from '../../constants';
 import { VegaMark, AtriumMark } from '../../components/marketing/brand/ProductMarks';
 import { PrimaryButton } from '../shared/ctas';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * AtriumShell — /atrium's chrome (P0 split). A copy of the shared
  * NavBar/Footer/MobileStickyCTA/WhatsAppFAB from LandingPage.tsx with
@@ -75,7 +76,7 @@ export const AtriumNavBar: React.FC<{
     };
 
     return (
-    <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
+    <header className={`fixed top-0 left-0 right-0 ${Z_CLASS.shellHeader} transition-all duration-300 pt-safe`}>
         {/* Glass layer — light on /atrium. R73 (the silk pass): blur-xl →
             blur-md (see the Vega/Hub shells — the fixed nav's backdrop
             re-blurs every scroll frame; half the radius, same glass). */}
@@ -215,7 +216,7 @@ export const AtriumNavBar: React.FC<{
 
         {/* Mobile overlay menu — shown below lg (1024px). */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto bg-white">
+            <div className={`lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] ${Z_CLASS.shellMenu} overflow-y-auto bg-white`}>
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     {/* Back-to-hub affordance — mobile users need a way back. */}
                     <button
@@ -325,7 +326,7 @@ export const AtriumFooter: React.FC<{
 
 /** Mobile sticky bottom CTA — the light bar with emerald primary. */
 export const AtriumMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] bg-white/95 border-slate-200">
+    <div className={`md:hidden fixed bottom-0 inset-x-0 ${Z_CLASS.shellDock} backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] bg-white/95 border-slate-200`}>
         <button
             onClick={onContactSales}
             className="flex-1 py-3 rounded-lg border text-sm font-semibold transition-colors border-slate-300 text-slate-700 hover:bg-slate-50 active:bg-slate-100"
@@ -348,7 +349,7 @@ export const AtriumMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSa
 export const AtriumChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform bg-atrium-emerald"
+        className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 ${Z_CLASS.shellFab} w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-transform bg-atrium-emerald`}
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

@@ -58,6 +58,7 @@ import { StageChecklistForm } from '../forms/StageChecklistForm';
 import ExternalCounselInviteForm from '../forms/ExternalCounselInviteForm';
 import UpgradeModal from './UpgradeModal';
 
+import { Z_CLASS } from '../../overlays/constants';
 export const DockedModal: React.FC = () => {
   const { dockedModalType, modalContext, editingId, closeModal, getModalTitle, navigateTo, openModal, setHighlightTarget, addToast } = useUI();
   const { matterState } = useMatterState();
@@ -724,12 +725,12 @@ export const DockedModal: React.FC = () => {
     return (
       <>
         <div 
-          className={`fixed inset-0 bg-black/20 sm:backdrop-blur-sm z-[2100] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+          className={`fixed inset-0 bg-black/20 sm:backdrop-blur-sm ${Z_CLASS.dockedVeil} transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
           onClick={() => closeModal()}
         />
         <div
           className={`
-            fixed top-0 right-0 h-full w-[480px] max-w-[90vw] z-[2101] flex flex-col 
+            fixed top-0 right-0 h-full w-[480px] max-w-[90vw] ${Z_CLASS.docked} flex flex-col 
             bg-white dark:bg-zinc-900/95 sm:backdrop-blur-xl shadow-2xl 
             border-l border-slate-200 dark:border-zinc-700 
             transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]

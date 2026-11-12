@@ -17,13 +17,14 @@
  *   reloads the page with a cache-busting _refresh param.
  *
  * Z-INDEX HIERARCHY:
- * - Standard toasts: z-[9999] (ToastContainer)
- * - This refresh toast: z-[9998] (just below standard toasts)
- * - Critical modals/dialogs: z-[10000]+ (above all toasts)
+ * - Standard toasts: Z_TIERS.toast (ToastContainer)
+ * - This refresh toast: Z_TIERS.toastSub (just below standard toasts)
+ * - Critical modals/dialogs: Z_TIERS.refreshBanner+ (above all toasts)
  */
 import React, { useState, useEffect } from 'react';
 import { useVersionCheck } from '../hooks/useVersionCheck';
 
+import { Z_CLASS } from '../overlays/constants';
 const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -66,7 +67,7 @@ const ToastRefreshNotification: React.FC = () => {
   if (!visible && !exiting) return null;
 
   // Glassmorphic toast — bottom-right corner
-  // z-[9998] = just below standard toasts (z-[9999]) so they stack above
+  // Z_TIERS.toastSub = just below standard toasts (Z_TIERS.toast) so they stack above
   const animationClass = exiting
     ? 'translate-y-4 opacity-0'
     : visible
@@ -77,7 +78,7 @@ const ToastRefreshNotification: React.FC = () => {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-0 right-0 z-[9998] transition-all duration-300 ease-out pointer-events-none px-4 sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6"
+      className={`fixed bottom-0 right-0 ${Z_CLASS.toastSub} transition-all duration-300 ease-out pointer-events-none px-4 sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6`}
       style={{ }}
     >
       <div className="relative w-full max-w-sm pointer-events-auto">

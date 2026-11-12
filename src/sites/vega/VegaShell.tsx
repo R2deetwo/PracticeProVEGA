@@ -4,6 +4,7 @@ import { VegaMark, AtriumMark } from '../../components/marketing/brand/ProductMa
 import { PrimaryButton } from '../shared/ctas';
 import { vegaSiteConfig } from './siteConfig';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * VegaShell — /vega's chrome (P0 split). A copy of the shared
  * NavBar/Footer/MobileStickyCTA/WhatsAppFAB from LandingPage.tsx with
@@ -83,7 +84,7 @@ export const VegaNavBar: React.FC<{
     };
 
     return (
-    <header className="fixed top-0 left-0 right-0 z-[250] transition-all duration-300 pt-safe">
+    <header className={`fixed top-0 left-0 right-0 ${Z_CLASS.shellHeader} transition-all duration-300 pt-safe`}>
         {/* Glass layer — white glass on the white page (R56) */}
         {/* R73 (the silk pass): blur-xl → blur-md — at 90% white the radius
             difference is invisible, and the fixed nav's backdrop re-blurs on
@@ -231,7 +232,7 @@ export const VegaNavBar: React.FC<{
         {/* Mobile overlay menu — shown below lg (1024px). R56: the white
             sheet, slate type — the same stock as the page. */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] z-[240] overflow-y-auto bg-white menu-in-top origin-top">
+            <div className={`lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] ${Z_CLASS.shellMenu} overflow-y-auto bg-white menu-in-top origin-top`}>
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     {/* Back-to-hub affordance — mobile users need a way back. */}
                     <button
@@ -341,7 +342,7 @@ export const VegaFooter: React.FC<{
 
 /** Mobile sticky bottom CTA — R56: the white bar with the navy pill. */
 export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSales: () => void }> = ({ onSignup, onContactSales }) => (
-    <div className="md:hidden fixed bottom-0 inset-x-0 z-[210] backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_16px_rgb(15_23_42/0.08)] bg-white/95 border-slate-200">
+    <div className={`md:hidden fixed bottom-0 inset-x-0 ${Z_CLASS.shellDock} backdrop-blur-md border-t px-4 py-3 flex gap-2 shadow-[0_-4px_16px_rgb(15_23_42/0.08)] bg-white/95 border-slate-200`}>
         <button
             onClick={onContactSales}
             className="flex-1 py-3 rounded-full border text-sm font-semibold transition-all duration-150 active:scale-[0.98] border-slate-300 text-slate-700 hover:border-[#1E3A8A] hover:text-[#1E3A8A]"
@@ -363,7 +364,7 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
 export const VegaChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center transition-all duration-150 active:scale-95 bg-[#1E3A8A] border-[#1E3A8A] hover:bg-[#1E40AF] hover:shadow-lg hover:shadow-[rgb(30_58_138/0.35)]"
+        className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 ${Z_CLASS.shellFab} w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center transition-all duration-150 active:scale-95 bg-[#1E3A8A] border-[#1E3A8A] hover:bg-[#1E40AF] hover:shadow-lg hover:shadow-[rgb(30_58_138/0.35)]`}
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

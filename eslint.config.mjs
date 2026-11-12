@@ -94,6 +94,19 @@ const eslintConfig = [
           selector: "TemplateElement[value.raw=/\\brounded-xl\\b/]",
           message: "rounded-xl is deprecated (STYLE_GUIDE.md §2). Use rounded-md (buttons/inputs/chips), rounded-lg (cards/list items/dropdowns), or rounded-2xl (modals/hero blocks).",
         },
+        // UX-18 (z-index governance): raw z-[NNNN] literals are banned —
+        // every fixed layer takes a named tier from src/overlays/constants.ts
+        // (Z_TIERS for style={{zIndex}}, Z_CLASS for classNames). The literals
+        // live ONLY in that file, which the CI count-gate
+        // (scripts/check-design-tokens.mjs, Z_INDEX_BASELINE = 0) allows.
+        {
+          selector: "Literal[value=/\\bz-\\[\\d+\\]/]",
+          message: "Raw z-index literal. Import Z_CLASS (className) or Z_TIERS (style) from src/overlays/constants.ts and pick a named tier (UX-18).",
+        },
+        {
+          selector: "TemplateElement[value.raw=/\\bz-\\[\\d+\\]/]",
+          message: "Raw z-index literal. Import Z_CLASS (className) or Z_TIERS (style) from src/overlays/constants.ts and pick a named tier (UX-18).",
+        },
       ],
     },
   },
@@ -134,6 +147,16 @@ const eslintConfig = [
           message: "Boundary violation: src/sites/hub/** may not import from src/sites/vega/** or src/sites/atrium/**. Only src/sites/shared/** is shared.",
         }],
       }],
+    },
+  },
+  {
+    // UX-18: the z-[NNNN] tier ladder lives HERE — the literals are legal in
+    // this one file (Z_CLASS strings must be static for the Tailwind
+    // scanner) and banned everywhere else (CI count-gate at zero in
+    // scripts/check-design-tokens.mjs).
+    files: ["src/overlays/constants.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
     },
   },
   {

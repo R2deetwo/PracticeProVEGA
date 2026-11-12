@@ -2,6 +2,7 @@ import React from 'react';
 import { Logo, ExternalLinkIcon } from '../../constants';
 import { VegaMark, AtriumMark } from '../../components/marketing/brand/ProductMarks';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * HubShell — the W18-era hub chrome, restored (P1's systems-studio chrome
  * retired with the P1 redesign).
@@ -79,7 +80,7 @@ export const HubNavBar: React.FC<{
     };
 
     return (
-    <header className="fixed top-0 left-0 right-0 z-[250] pt-safe pointer-events-none">
+    <header className={`fixed top-0 left-0 right-0 ${Z_CLASS.shellHeader} pt-safe pointer-events-none`}>
         {/* R42: the floating glass pill — one rounded container centred at
             the top, floating OVER the hero (and every section below). */}
         <div className="container mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pointer-events-auto">
@@ -200,7 +201,7 @@ export const HubNavBar: React.FC<{
 
         {/* Mobile overlay menu (offset clears the floating pill) */}
         {mobileMenuOpen && (
-            <div className="lg:hidden fixed inset-0 top-[84px] z-[240] bg-white/95 backdrop-blur-md overflow-y-auto menu-in-top origin-top pointer-events-auto">
+            <div className={`lg:hidden fixed inset-0 top-[84px] ${Z_CLASS.shellMenu} bg-white/95 backdrop-blur-md overflow-y-auto menu-in-top origin-top pointer-events-auto`}>
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
                     <div className="mb-2">
                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400 px-4 py-2">Products</p>
@@ -316,7 +317,7 @@ export const HubFooter: React.FC<{
 export const WhatsAppFAB: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
     <button
         onClick={onContactSales}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-[220] w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-600 flex items-center justify-center transition-all duration-150 active:scale-95 hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-600/30"
+        className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 ${Z_CLASS.shellFab} w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary-600 flex items-center justify-center transition-all duration-150 active:scale-95 hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-600/30`}
         aria-label="Chat with us — Contact Sales"
         title="Chat with us"
     >

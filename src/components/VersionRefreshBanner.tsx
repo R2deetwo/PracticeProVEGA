@@ -12,6 +12,7 @@
 import React, { useState, useEffect } from 'react';
 import { useVersionCheck } from '../hooks/useVersionCheck';
 
+import { Z_CLASS } from '../overlays/constants';
 const RefreshIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -47,7 +48,7 @@ const VersionRefreshBanner: React.FC = () => {
 
   if (!visible && !exiting) return null;
 
-  // FULL-WIDTH banner at the TOP — z-[10000] ensures it's above everything
+  // FULL-WIDTH banner at the TOP — Z_TIERS.refreshBanner ensures it's above everything
   const animationClass = exiting
     ? '-translate-y-full opacity-0'
     : visible
@@ -58,7 +59,7 @@ const VersionRefreshBanner: React.FC = () => {
     <div
       role="status"
       aria-live="assertive"
-      className={`fixed top-0 left-0 right-0 z-[10000] transition-all duration-300 ease-out ${animationClass}`}
+      className={`fixed top-0 left-0 right-0 ${Z_CLASS.refreshBanner} transition-all duration-300 ease-out ${animationClass}`}
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="bg-gradient-to-r from-emerald-600 to-green-600 text-white shadow-2xl border-b-2 border-emerald-400/50">

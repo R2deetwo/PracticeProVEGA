@@ -4,6 +4,7 @@ import { inputLarge } from '../utils/formStyles';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
 
+import { Z_CLASS } from '../overlays/constants';
 interface LockScreenProps {
     onUnlock: () => void;
 }
@@ -63,7 +64,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
     const commonInputClass = inputLarge.replace('rounded-md', 'rounded-lg').replace('dark:bg-zinc-700', 'dark:bg-zinc-700/50') + " focus:ring-2 focus:border-transparent transition-all placeholder:text-slate-500";
 
     return (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center animate-fade-in">
+        <div className={`fixed inset-0 ${Z_CLASS.sidePanel} flex items-center justify-center animate-fade-in`}>
             {/* Darker background and heavier blur */}
             <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl"></div>
             

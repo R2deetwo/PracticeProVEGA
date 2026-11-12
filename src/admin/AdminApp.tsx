@@ -43,6 +43,7 @@ import { FinancialSettings } from './views/FinancialSettings';
 import { SalesPipeline } from './views/SalesPipeline';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
+import { Z_CLASS } from '../overlays/constants';
 // ─── Early-init: apply persisted screen capture preference ──────────
 // The Java default for FLAG_SECURE is now OFF (screenshots allowed).
 // If a user previously toggled screen capture OFF in Settings, we must
@@ -346,7 +347,7 @@ const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
             {/* ─── Unified Glassmorphic Toast Container ───────────────────
                 Matches the user app's toast system: glassmorphic dark container,
                 large rounded-square icon, contextual colors, max 3 visible. */}
-            <div className="fixed bottom-0 right-0 z-[9999] flex flex-col-reverse items-end gap-2.5 px-4 pointer-events-none sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6">
+            <div className={`fixed bottom-0 right-0 ${Z_CLASS.toast} flex flex-col-reverse items-end gap-2.5 px-4 pointer-events-none sm:px-6 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6`}>
                 {toasts.slice().reverse().map(t => {
                     const config = {
                         success: { icon: '✓', iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600' },

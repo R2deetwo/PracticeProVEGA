@@ -46,6 +46,14 @@ const ROUNDED_XL_BASELINE = 74;
 const TEXT_PX_RE = /\btext-\[\d+(?:\.\d+)?px\]/g;
 const TEXT_PX_BASELINE = 72;
 
+// UX-18 (z-index governance): raw z-[NNNN] literals are banned outside
+// src/overlays/constants.ts (the single home of the tier ladder). The
+// migration took the codebase to zero, so the baseline is zero — any new
+// fixed layer must take a named tier (Z_TIERS / Z_CLASS).
+const Z_INDEX_RE = /\bz-\[\d+\]/g;
+const Z_INDEX_BASELINE = 0;
+const Z_INDEX_EXEMPT = /src[\\/]overlays[\\/]constants\.ts$/;
+
 /** Recursively collect .tsx/.ts files under a directory. */
 function walk(dir, acc = []) {
   for (const entry of readdirSync(dir)) {
@@ -58,7 +66,7 @@ function walk(dir, acc = []) {
 }
 
 function scan() {
-  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0, textPx: 0 };
+  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0, textPx: 0, zIndex: 0 };
   const perFile = {};
   for (const f of walk(SRC)) {
     const rel = relative(ROOT, f);
@@ -68,6 +76,7 @@ function scan() {
     const tpx = text.match(TEXT_PX_RE) || [];
     counts.roundedXl += rxl.length;
     counts.textPx += tpx.length;
+    if (!Z_INDEX_EXEMPT.test(rel)) counts.zIndex += (text.match(Z_INDEX_RE) || []).length;
     // perFile stays NEUTRAL-SCALE ONLY — the committed .token-baseline.json
     // per-file counts were captured without rounded-xl; mixing the new
     // counter in would false-trigger the migrated-files soft gate.
@@ -136,5 +145,13 @@ if (counts.textPx > TEXT_PX_BASELINE) {
   console.log(`✓ text-[Npx] ratchet held (${counts.textPx}/${TEXT_PX_BASELINE} — banned per tailwind.config.ts, may only shrink)`);
 }
 
-console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} textPx=${counts.textPx} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
+// ── HARD GATE: raw z-[NNNN] literals stay at zero (UX-18) ─────────────
+if (counts.zIndex > Z_INDEX_BASELINE) {
+  console.error(`::error::raw z-[NNNN] literal found outside src/overlays/constants.ts (${counts.zIndex} occurrence(s)). Import Z_CLASS (className) or Z_TIERS (style={{zIndex}}) from src/overlays/constants.ts and pick a named tier; add a tier there (with a comment) only if the ladder genuinely lacks a rung.`);
+  exitCode = 1;
+} else {
+  console.log(`✓ z-index literals at zero outside the tier ladder (UX-18)`);
+}
+
+console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} textPx=${counts.textPx} zIndex=${counts.zIndex} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
 process.exit(exitCode);

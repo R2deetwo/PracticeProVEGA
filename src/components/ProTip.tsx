@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useTipManager } from '../hooks/useTipManager';
 import { InfoIcon } from '../constants';
 
+import { Z_CLASS } from '../overlays/constants';
 interface ProTipProps {
     id: string;
     children: React.ReactNode;
@@ -111,7 +112,7 @@ const ProTip: React.FC<ProTipProps> = ({ id, children }) => {
                 {isSnoozeOpen && createPortal(
                     <div
                         id="snooze-portal-dropdown"
-                        className="fixed z-[9999] w-28 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg animate-fade-in"
+                        className={`fixed ${Z_CLASS.systemAlert} w-28 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg animate-fade-in`}
                         style={{ top: snoozePos.top, left: snoozePos.left }}
                     >
                         <button onClick={(e) => handleSnooze(e, 1)} className="block w-full text-left px-3 py-1.5 text-sm text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600 rounded-t-md">For 1 Day</button>

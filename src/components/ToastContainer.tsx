@@ -14,22 +14,23 @@
  * - Does NOT overlap the mobile bottom tab bar (padding-bottom accounts for it)
  * - Does NOT overlap the messaging text-input field (toasts are above the dock)
  *
- * Z-INDEX:
- * - Standard toasts: z-[9999]
- * - Refresh toast (ToastRefreshNotification): z-[9998] (below standard toasts)
- * - Critical modals/dialogs: z-[10000]+ (above all toasts)
+ * Z-INDEX (Z_TIERS, see src/overlays/constants.ts):
+ * - Standard toasts: Z_TIERS.toast
+ * - Refresh toast (ToastRefreshNotification): Z_TIERS.toastSub (below standard toasts)
+ * - Critical modals/dialogs: Z_TIERS.refreshBanner+ (above all toasts)
  */
 import React from 'react';
 import { useUI } from '../contexts/UIContext';
 import Toast from './Toast';
 
+import { Z_CLASS } from '../overlays/constants';
 const ToastContainer: React.FC = () => {
     const { toasts, removeToast } = useUI();
 
     return (
         <div
             aria-live="assertive"
-            className="fixed bottom-0 right-0 flex flex-col-reverse items-end justify-end px-4 pointer-events-none sm:px-6 z-[9999] gap-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6"
+            className={`fixed bottom-0 right-0 flex flex-col-reverse items-end justify-end px-4 pointer-events-none sm:px-6 ${Z_CLASS.toast} gap-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:pb-6`}
         >
             {/* Render in reverse order so newest is at the bottom.
                 flex-col-reverse handles the visual stacking. */}

@@ -13,6 +13,7 @@ import { HowWeWorkSection } from './sections/HowWeWorkSection';
 import { AboutSection } from './sections/AboutSection';
 import { HubFinalCTASection } from './sections/HubFinalCTASection';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * HubSite — the PracticePro corporate hub (/), W18-era look restored on
  * the P0 split architecture (hub-restore task, Phase B).
@@ -74,7 +75,7 @@ export const HubSite: React.FC = () => {
             {/* Skip to content link for accessibility. */}
             <a
                 href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold"
+                className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:${Z_CLASS.siteOverlay} focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold`}
             >
                 Skip to content
             </a>

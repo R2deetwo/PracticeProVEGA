@@ -37,6 +37,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useUI } from '../contexts/UIContext';
 
+import { Z_CLASS } from '../overlays/constants';
 // CRO AUDIT FIX — increased from 2 to 4 max simultaneous banners.
 const MAX_BANNERS = 4;
 
@@ -300,7 +301,7 @@ const SnoozeButton: React.FC<{ bannerId: string }> = ({ bannerId }) => {
             {isOpen && createPortal(
                 <div
                     id="banner-snooze-dropdown"
-                    className="fixed z-[9999] w-40 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg animate-fade-in"
+                    className={`fixed ${Z_CLASS.systemAlert} w-40 bg-white dark:bg-dim-700 border border-slate-200 dark:border-dim-600 rounded-md shadow-lg animate-fade-in`}
                     style={{ top: pos.top, left: pos.left }}
                 >
                     <button onClick={() => handleSnooze(1)} className="block w-full text-left px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-dim-200 hover:bg-slate-100 dark:hover:bg-dim-600 rounded-t-md">Snooze 1 Day</button>

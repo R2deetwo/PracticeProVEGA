@@ -24,6 +24,7 @@ import { useMutation, useQuery, useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
 
+import { Z_CLASS } from '../../overlays/constants';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
 
@@ -639,7 +640,7 @@ export const BroadcastConsole: React.FC = () => {
 
                 {/* In-app Confirmation Modal — replaces browser confirm() dialogs */}
                 {confirmAction && (
-                    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4" onClick={() => setConfirmAction(null)}>
+                    <div className={`fixed inset-0 ${Z_CLASS.modal} flex items-center justify-center p-4`} onClick={() => setConfirmAction(null)}>
                         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
                         <div
                             className="relative bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full max-w-sm p-6 animate-fade-in-up"

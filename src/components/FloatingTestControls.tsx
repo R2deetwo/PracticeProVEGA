@@ -9,6 +9,7 @@ import { useUI } from '../contexts/UIContext';
 import { ToolkitIcon, AddDataIcon, PurgeDataIcon, MassiveDataIcon, TimeTravelIcon, BellPlusIcon, TaskGeneratorIcon, CalendarStressIcon, UserGeneratorIcon, ChevronDownIcon, ZapIcon, ShieldCheckIcon, UserCircleIcon, CheckCircleIcon, DismissIcon, GavelIconLarge, CalculatorIcon, DocumentIcon, ResearchIcon, ClipboardListIcon, CalendarIcon } from '../constants';
 import { SubscriptionPlan, UserRole, MatterType, TaskPriority, TaskStatus } from '../types';
 
+import { Z_CLASS } from '../overlays/constants';
 // ... (Internal components DevButton and AccordionSection remain the same)
 const DevButton: React.FC<{
   onClick?: () => void;
@@ -305,7 +306,7 @@ const FloatingTestControls: React.FC<FloatingTestControlsProps> = ({ isOpen, onC
     if (!isOpen) return null;
 
     return (
-        <div ref={panelRef} style={style} className="hidden md:flex w-72 bg-white/80 dark:bg-zinc-800/80 backdrop-blur-lg border border-slate-200/50 dark:border-white/10 rounded-lg shadow-2xl z-[110] flex-col max-h-[80vh]">
+        <div ref={panelRef} style={style} className={`hidden md:flex w-72 bg-white/80 dark:bg-zinc-800/80 backdrop-blur-lg border border-slate-200/50 dark:border-white/10 rounded-lg shadow-2xl ${Z_CLASS.panelTop} flex-col max-h-[80vh]`}>
             <div onMouseDown={handleMouseDown} className="flex items-center justify-between p-2 border-b border-slate-200/50 dark:border-white/10 cursor-grab flex-shrink-0">
                 <div className="flex items-center gap-2"><ToolkitIcon className="w-5 h-5 mr-0" /><h3 className="font-bold text-slate-800 dark:text-white">{appMode === ('demo' as any) ? "Demo AI Scenarios" : "Dev Toolkit"}</h3></div>
                 <button onClick={onClose} aria-label="Collapse developer toolkit" className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-zinc-700"><ChevronDownIcon className="w-4 h-4"/></button>

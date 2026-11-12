@@ -16,6 +16,7 @@ import ConnectionStatus from './auth/ConnectionStatus';
 import { PresenceAvatars } from './ui/PresenceAvatars';
 import { useProduct } from '../contexts/ProductContext';
 
+import { Z_CLASS } from '../overlays/constants';
 interface HeaderProps {
     onToggleToolkit: () => void;
 }
@@ -457,7 +458,7 @@ const Header: React.FC = React.memo(() => {
                         {(unreadCount > 0 || appUnread > 0) && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-800 animate-pulse"></span>}
                     </button>
                     {isNotificationsOpen && (
-                        <div className="fixed top-16 right-4 w-96 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl z-[3000] overflow-hidden animate-fade-in-up">
+                        <div className={`fixed top-16 right-4 w-96 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] flex flex-col bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-2xl shadow-2xl ${Z_CLASS.modal} overflow-hidden animate-fade-in-up`}>
                             <div className="p-4 border-b border-slate-100 dark:border-zinc-700 flex justify-between items-center bg-slate-50/50 dark:bg-zinc-900/50 backdrop-blur-sm">
                                 <div className="flex items-center gap-2">
                                     <h3 className="font-bold text-sm text-slate-800 dark:text-white">Notifications</h3>
@@ -694,7 +695,7 @@ const Header: React.FC = React.memo(() => {
                     </button>
 
                     {isUserMenuOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 z-[60] overflow-hidden animate-fade-in-up">
+                        <div className={`absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 ${Z_CLASS.panelRaise} overflow-hidden animate-fade-in-up`}>
                             <div className="py-1">
                                 {/* CRO AUDIT FIX — all menu items now have matching icons
                                     for visual consistency. Previously only Lock Workspace

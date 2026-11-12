@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import PdfViewer from './PdfViewer';
 import HtmlPagePreview from './HtmlPagePreview';
 
+import { Z_CLASS } from '../../overlays/constants';
 export interface DocumentPreviewModalProps {
     html?: string;
     fileUrl?: string;
@@ -43,7 +44,7 @@ const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 z-[5000] flex flex-col bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+            className={`fixed inset-0 ${Z_CLASS.modalPeak} flex flex-col bg-black/80 backdrop-blur-sm animate-in fade-in duration-200`}
             role="dialog"
             aria-modal="true"
             aria-label={title}

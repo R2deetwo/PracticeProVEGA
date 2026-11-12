@@ -9,6 +9,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { useUI } from '../contexts/UIContext';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { useMessagesBadge } from '../hooks/useMessagesBadge';
+import { Z_CLASS } from '../overlays/constants';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
     DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, ScalesIcon
@@ -273,7 +274,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
 
     return (
         <>
-            <nav id="bottom-nav" className="fixed bottom-0 left-0 right-0 z-[1000] bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 md:hidden pb-safe pt-1">
+            <nav id="bottom-nav" className={`fixed bottom-0 left-0 right-0 ${Z_CLASS.bottomNav} bg-white/95 dark:bg-zinc-900/95 backdrop-blur-lg border-t border-slate-200 dark:border-zinc-700 md:hidden pb-safe pt-1`}>
                 <div className="flex items-start">
                     {primaryItems.map(item => {
                         return (
@@ -302,11 +303,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
             {isMoreMenuOpen && (
                 <>
                     <div 
-                        className="fixed inset-0 z-[1001] bg-black/40 backdrop-blur-[2px] md:hidden" 
+                        className={`fixed inset-0 ${Z_CLASS.bottomNavVeil} bg-black/40 backdrop-blur-[2px] md:hidden`} 
                         onClick={() => setIsMoreMenuOpen(false)} 
                     />
                     
-                    <div className="fixed bottom-24 left-4 right-4 z-[1002] md:hidden outline-none animate-slide-in-up origin-bottom max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar">
+                    <div className={`fixed bottom-24 left-4 right-4 ${Z_CLASS.bottomNavSheet} md:hidden outline-none animate-slide-in-up origin-bottom max-h-[calc(100vh-7rem)] overflow-y-auto custom-scrollbar`}>
                         <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-zinc-700/50 p-4">
                             <div className="flex justify-between items-center mb-4 px-2">
                                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">More Options</h3>

@@ -191,6 +191,7 @@ import { isNativePlatform } from '../utils/capacitor';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 
+import { Z_CLASS } from '../overlays/constants';
 const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes
 const IDLE_TIMEOUT_REMEMBER = 7 * 24 * 60 * 60 * 1000; // 7 days when Remember Me is on
 
@@ -621,7 +622,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             {/* Skip-to-main link: visually hidden until focused. Lets keyboard
                 + screen-reader users jump straight to the primary content area
                 instead of tabbing through the entire sidebar/header each time. */}
-            <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[10000] focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:text-sm focus:font-bold">Skip to main content</a>
+            <a href="#main-content" className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:${Z_CLASS.refreshBanner} focus:px-4 focus:py-2 focus:bg-primary-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:text-sm focus:font-bold`}>Skip to main content</a>
             {/* Screenshot deterrent overlay — shows a black screen when the
                 window loses focus or PrintScreen is pressed. Best-effort only. */}
             {showScreenshotOverlay && (
@@ -710,8 +711,8 @@ export const App: React.FC = () => {
     // 2026-09-23 DraftPro-ambush fix: the auto-starting product tour was
     // firing inside dedicated DraftPro tabs (opened by ALOA start_drafting)
     // 5 seconds into drafting, covering the editor with a "Welcome to Vega"
-    // modal. Same for the ALOA chat panel — the tour backdrop (z-[9999])
-    // buried the open conversation. Both surfaces now suppress the tour.
+    // modal. Same for the ALOA chat panel — the tour backdrop
+    // (Z_CLASS.systemAlert) buried the open conversation. Both surfaces now suppress the tour.
     const { isPanelOpen: isAloaPanelOpen } = useAloa();
 
     // ─── PROFESSIONAL IDENTITY — one-shot apply from signup ─────────────────
@@ -1328,7 +1329,7 @@ export const App: React.FC = () => {
             // non-editor view instead; it's always available from Help.
             if (view === 'editor') return;
             // Same for an open ALOA/ARIA chat panel: the tour backdrop
-            // (z-[9999]) would bury the live conversation.
+            // (Z_CLASS.systemAlert) would bury the live conversation.
             if (isAloaPanelOpen) return;
             // Don't auto-start the tour while the OnboardingWizard is showing
             // (user has no firm yet, or the wizard-in-progress flag is set) —
@@ -1354,7 +1355,7 @@ export const App: React.FC = () => {
             if (hasCompletedTourLocal !== 'true' && !hasCompletedTourDB) {
                 // PHASE 1 FIX: Defer tour start to 5000ms (was 800ms) so it
                 // doesn't collide with the auto-open create modal (which fires
-                // at 800ms). The tour's z-[9999] backdrop was covering the
+                // at 800ms). The tour's Z_CLASS.systemAlert backdrop was covering the
                 // modal, making both invisible/confusing.
                 const timer = setTimeout(() => startTour(), 5000);
                 return () => clearTimeout(timer);
@@ -1861,7 +1862,7 @@ export const App: React.FC = () => {
     }, [currentUser, hasInitialSplashFinished, hasAcceptedTerms, serverTermsRecord]);
 
     // COOKIE-BANNER SUPPRESSION (2026-09-23 audit): the cookie banner is a
-    // fixed z-[9999] bar that overlaps the bottom of the screen — it
+    // fixed Z_CLASS.systemAlert bar that overlaps the bottom of the screen — it
     // physically blocked the signup form's "Create Account" button and the
     // onboarding wizard's footer buttons (NEXT / CONFIRM PLAN / START FREE)
     // until acknowledged. It stays hidden while an auth modal or the
@@ -1954,7 +1955,7 @@ export const App: React.FC = () => {
             {/* Toast-based refresh notification — persistent, non-intrusive.
                 Replaces the full-width VersionRefreshBanner with a glassmorphic
                 toast in the bottom-right corner. Does NOT auto-dismiss.
-                Stacks below standard system toasts (z-[9998] vs z-[9999]).
+                Stacks below standard system toasts (Z_CLASS.toastSub vs Z_CLASS.toast).
                 Never enters the Notification Center or messaging inbox.
                 BULLETPROOF: Always rendered (not auth-gated) so the toast
                 shows on ALL routes including landing pages, login, and portals. */}
@@ -1997,7 +1998,7 @@ const DataOverflowBanner: React.FC = () => {
         <div
             role="status"
             aria-live="polite"
-            className="fixed left-1/2 top-20 z-[70] w-[min(94vw,640px)] -translate-x-1/2 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-lg dark:border-amber-500/30 dark:bg-amber-950/90 dark:text-amber-100"
+            className={`fixed left-1/2 top-20 ${Z_CLASS.panelFloat} w-[min(94vw,640px)] -translate-x-1/2 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-lg dark:border-amber-500/30 dark:bg-amber-950/90 dark:text-amber-100`}
         >
             <div className="flex items-start gap-3">
                 <svg aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>

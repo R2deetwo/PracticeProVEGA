@@ -17,6 +17,7 @@ import { exportHtmlToDocxBlob } from '../../../utils/docxExport';
 import { PAGE_CSS_PRINT } from '../../../utils/pageFormat';
 import { useUI } from '../../../contexts/UIContext';
 
+import { Z_CLASS } from '../../../overlays/constants';
 interface PrintPreviewDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -124,12 +125,12 @@ ${PAGE_CSS_PRINT}
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000] transition-opacity"
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm ${Z_CLASS.printVeil} transition-opacity`}
         onClick={onClose}
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[600px] md:w-[700px] bg-slate-50 dark:bg-zinc-900 z-[9001] flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
+      <div className={`fixed right-0 top-0 bottom-0 w-full sm:w-[600px] md:w-[700px] bg-slate-50 dark:bg-zinc-900 ${Z_CLASS.print} flex flex-col shadow-2xl animate-in slide-in-from-right duration-300`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">
           <div className="flex items-center gap-2">

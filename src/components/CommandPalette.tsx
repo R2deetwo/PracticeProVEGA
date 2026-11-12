@@ -17,6 +17,7 @@ import { useQuery_experimental } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { searchResultDestination, type ServerSearchResult } from '../utils/searchGrouping';
 
+import { Z_CLASS } from '../overlays/constants';
 type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task' | 'Property';
 
 interface SearchResult {
@@ -324,7 +325,7 @@ const CommandPalette: React.FC = () => {
     if (!isCommandPaletteOpen) return null;
 
     return (
-        <div ref={paletteRef} role="dialog" aria-modal="true" aria-label="Command palette" className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] px-4">
+        <div ref={paletteRef} role="dialog" aria-modal="true" aria-label="Command palette" className={`fixed inset-0 ${Z_CLASS.palette} flex items-start justify-center pt-[10vh] px-4`}>
             <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => setCommandPaletteOpen(false)} />
             
             <div className="w-full max-w-2xl bg-white dark:bg-zinc-800 rounded-lg shadow-2xl border border-slate-200 dark:border-zinc-700 overflow-hidden relative z-10 flex flex-col max-h-[70vh] animate-slide-in-up">

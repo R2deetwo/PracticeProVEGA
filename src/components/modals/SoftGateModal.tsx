@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * SoftGateModal — CRO AUDIT Track C (C6)
  *
@@ -101,7 +102,7 @@ const SoftGateModal: React.FC<SoftGateModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+    <div className={`fixed inset-0 ${Z_CLASS.modal} flex items-center justify-center p-4 bg-black/50 animate-fade-in`}>
       <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
         {/* Header */}
         <div className="text-center">

@@ -24,6 +24,7 @@ import { buildMessage } from '../../utils/messageTemplates';
 export { buildMessage } from '../../utils/messageTemplates';
 import { PenLine, Calendar, AlertTriangle, Receipt, Zap, Lock, Wallet, ClipboardList, Users, Gift, Wrench, Megaphone, FileText, ChevronDown, ChevronUp, X, Clock, Radio, Building2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 
+import { Z_CLASS } from '../../overlays/constants';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const SendIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -1028,7 +1029,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
   // regardless of where the modal is mounted in the tree. Same pattern
   // as ComposeMessageModal.
   return createPortal(
-    <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4" onClick={onClose}>
+    <div className={`fixed inset-0 ${Z_CLASS.modal} flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm sm:p-4`} onClick={onClose}>
       <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-t-2xl sm:rounded-2xl w-full max-w-xl shadow-2xl flex flex-col max-h-[92dvh] text-slate-900 dark:text-white" onClick={(e) => e.stopPropagation()}>
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200 dark:border-zinc-700 flex-shrink-0">

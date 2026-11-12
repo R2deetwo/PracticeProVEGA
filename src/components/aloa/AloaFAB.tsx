@@ -9,6 +9,7 @@ import { AloaIcon, LockClosedIcon, MicrophoneIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
 import { getAssistantName } from '../../utils/assistantIdentity';
 
+import { Z_CLASS } from '../../overlays/constants';
 const AloaFAB: React.FC = () => {
     const { togglePanel, isPanelOpen, aloaState } = useAloa();
     const { coreState } = useCoreState();
@@ -69,7 +70,7 @@ const AloaFAB: React.FC = () => {
         : 'opacity-100 translate-y-0 pointer-events-auto';
 
     return (
-        <div className={`fixed bottom-20 md:bottom-8 right-6 z-[1001] transition-all duration-200 ease-out ${visibilityClass}`}>
+        <div className={`fixed bottom-20 md:bottom-8 right-6 ${Z_CLASS.bottomNavVeil} transition-all duration-200 ease-out ${visibilityClass}`}>
             <Tooltip text={isAiActive ? `Open ${assistantName}®` : `Unlock ${assistantName}® AI`}>
                 <button
                     onClick={handleClick}

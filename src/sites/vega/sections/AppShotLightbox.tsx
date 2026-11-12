@@ -5,6 +5,7 @@ import { ArrowsExpandIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from '../.
 import { CollabPresence } from './CollabPresence';
 import { DashboardHotspots } from './DashboardHotspots';
 
+import { Z_CLASS } from '../../../overlays/constants';
 /**
  * AppShotLightbox — R69: the expandable, navigable view of the live
  * captures.
@@ -92,7 +93,7 @@ export const AppShotLightbox: React.FC<{
             aria-labelledby="appshot-lightbox-title"
             ref={dialogRef}
             tabIndex={-1}
-            className="fixed inset-0 z-[280] flex flex-col bg-slate-950/85 backdrop-blur-sm animate-swap-in outline-none"
+            className={`fixed inset-0 ${Z_CLASS.lightbox} flex flex-col bg-slate-950/85 backdrop-blur-sm animate-swap-in outline-none`}
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
             {/* Header — the prominent label + the close. */}

@@ -30,6 +30,7 @@ import { CheckIcon, DeviceMobileIcon, ExternalLinkIcon, LockClosedIcon, PlusIcon
 import { Button } from '../../../components/ui';
 import { SystemTour, type TourSystem } from '../../../components/marketing/SystemTour';
 import { createPortal } from 'react-dom';
+import { Z_CLASS } from '../../../overlays/constants';
 // ─── OUR WORK (corporate hub) — the portfolio ──────────────────────────────
 // P8: every card maps to a real, deployed system. Vega and Atrium are
 // PracticePro's own products (their marketing pages live at /vega and
@@ -383,9 +384,10 @@ const WorkDetailModal: React.FC<{
     if (!work) return null;
 
     return createPortal(
-        // z-[10000] — above the cookie consent banner (z-[9999]) so a preview
-        // is never obscured; the banner reappears once the modal closes.
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-label={`${work.name} — system preview`}>
+        // Z_CLASS.refreshBanner — above the cookie consent banner
+        // (Z_CLASS.systemAlert) so a preview is never obscured; the banner
+        // reappears once the modal closes.
+        <div className={`fixed inset-0 ${Z_CLASS.refreshBanner} flex items-center justify-center p-4 sm:p-6`} role="dialog" aria-modal="true" aria-label={`${work.name} — system preview`}>
             <div className="absolute inset-0 bg-[#070D18]/85 backdrop-blur-md" onClick={onClose} aria-hidden="true" />
             <div className="relative bg-white rounded-3xl shadow-2xl shadow-black/50 w-full max-w-5xl max-h-[88vh] overflow-hidden flex flex-col menu-in">
                 {/* Header */}

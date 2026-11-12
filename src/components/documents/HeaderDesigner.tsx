@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, MouseEvent } from 'react';
 import { HeaderConfiguration } from '../../types';
 import { UploadIcon, TrashIcon, CheckIcon, ZoomInIcon, ZoomOutIcon, ArrowPathIcon as RefreshCcwIcon } from '../../constants';
 
+import { Z_CLASS } from '../../overlays/constants';
 interface HeaderDesignerProps {
     config: HeaderConfiguration;
     onChange: (newConfig: HeaderConfiguration) => void;
@@ -282,7 +283,7 @@ export const HeaderDesigner: React.FC<HeaderDesignerProps> = ({ config, onChange
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-xl animate-fade-in cursor-default"
+            className={`fixed inset-0 ${Z_CLASS.panelOverlay} flex items-center justify-center bg-black/80 backdrop-blur-xl animate-fade-in cursor-default`}
             onClick={(e) => {
                 if (e.target === e.currentTarget) onClose();
             }}

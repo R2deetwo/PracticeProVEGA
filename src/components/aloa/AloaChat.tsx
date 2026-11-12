@@ -104,6 +104,7 @@ import { validateAIResponse } from '../../constants/identityGuardrails';
 import { DynamicChatForm } from './DynamicChatForm';
 import { useConfirm } from '../ui/ConfirmDialog';
 
+import { Z_CLASS } from '../../overlays/constants';
 const SendIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
         <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
@@ -4269,7 +4270,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     - "Dismiss" button to clear the insight
                     - "Ask ALOA" button to get AI help with the insight */}
                 {showInsightPanel && proactiveInsights && (
-                    <div className="absolute inset-0 z-[60] bg-black/20" onClick={() => setShowInsightPanel(null)}>
+                    <div className={`absolute inset-0 ${Z_CLASS.panelRaise} bg-black/20`} onClick={() => setShowInsightPanel(null)}>
                         <div
                             className="absolute top-0 right-0 h-full w-full max-w-md bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800 flex flex-col animate-in slide-in-from-right duration-200"
                             onClick={e => e.stopPropagation()}

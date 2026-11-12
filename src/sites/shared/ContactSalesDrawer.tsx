@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * ContactSalesDrawer — Unauthenticated slide-out drawer for high-intent lead capture.
  *
@@ -132,7 +133,7 @@ const ContactSalesDrawer: React.FC<{
         <>
             {/* Backdrop — flex container that centers the panel in the viewport */}
             <div
-                className={`fixed inset-0 z-[9500] bg-black/40 backdrop-blur-sm transition-opacity duration-300 flex items-end sm:items-center sm:justify-center p-0 sm:p-4 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+                className={`fixed inset-0 ${Z_CLASS.contactVeil} bg-black/40 backdrop-blur-sm transition-opacity duration-300 flex items-end sm:items-center sm:justify-center p-0 sm:p-4 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
                 onClick={handleClose}
                 role="dialog"
                 aria-modal="true"
@@ -143,7 +144,7 @@ const ContactSalesDrawer: React.FC<{
                 vertically centered in the visible viewport, regardless of
                 scroll position. */}
             <div
-                className={`relative z-[9600] flex flex-col bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200 dark:border-zinc-700
+                className={`relative ${Z_CLASS.contact} flex flex-col bg-white dark:bg-zinc-900 shadow-2xl border border-slate-200 dark:border-zinc-700
                     transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]
                     ${isVisible ? 'opacity-100 translate-y-0 sm:scale-100' : 'opacity-0 translate-y-full sm:translate-y-0 sm:scale-95'}
                     w-full rounded-t-2xl max-h-[85vh]

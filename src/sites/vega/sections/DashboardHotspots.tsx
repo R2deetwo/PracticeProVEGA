@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../../components/ui';
+import { Z_CLASS } from '../../../overlays/constants';
 import {
     CheckIcon, CheckCircleIcon, ChevronDownIcon, CogIcon,
     LockClosedIcon, LogoutIcon, PlusIcon, SendIcon, SparklesIcon, UserIcon,
@@ -235,7 +236,7 @@ export const DashboardHotspots: React.FC<{
                     role={open === 'aloa' ? 'dialog' : 'menu'}
                     aria-label={open === 'workspace' ? 'Workspaces' : open === 'profile' ? 'Your menu' : 'Aloa'}
                     data-hs-menu
-                    className="fixed z-[290] w-[300px] rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 overflow-hidden"
+                    className={`fixed ${Z_CLASS.hotspot} w-[300px] rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 overflow-hidden`}
                     style={anchor.left !== undefined
                         ? { top: Math.min(anchor.top, window.innerHeight - 300), left: anchor.left }
                         : { top: Math.min(anchor.top, window.innerHeight - 380), right: anchor.right }}

@@ -14,6 +14,7 @@ import { requestMicrophonePermission, getMicrophoneErrorMessage } from '../../ut
 import * as geminiService from '../../services/geminiService';
 import { convertBlobToWav } from '../../utils/webmToWav';
 
+import { Z_CLASS } from '../../overlays/constants';
 interface SaveToNoteFormProps {
     initialContent: string;
     onClose: () => void;
@@ -510,7 +511,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
         <div className={`relative flex flex-col h-full animate-fade-in bg-white dark:bg-zinc-950`}>
             
             {!window.isSecureContext && window.location.hostname !== 'localhost' && viewMode === 'compose' && (
-                <div className="absolute top-0 left-0 right-0 z-[60] bg-amber-500 text-white text-2xs font-bold text-center py-2 px-4 shadow-sm animate-fade-in">
+                <div className={`absolute top-0 left-0 right-0 ${Z_CLASS.panelRaise} bg-amber-500 text-white text-2xs font-bold text-center py-2 px-4 shadow-sm animate-fade-in`}>
                     <WarningIcon className="w-4 h-4 inline-block -mt-1" /> VOICE DISABLED: Microphone requires HTTPS (Secure Connection)
                 </div>
             )}
@@ -632,7 +633,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
 
             {/* STEP 2: SAVE TARGET SELECTOR (Overlay Drawer) */}
             {viewMode === 'target' && (
-                <div className="absolute inset-0 z-[100] bg-black/40 backdrop-blur-sm animate-fade-in flex flex-col justify-end">
+                <div className={`absolute inset-0 ${Z_CLASS.panelOverlay} bg-black/40 backdrop-blur-sm animate-fade-in flex flex-col justify-end`}>
                     <div className="bg-white dark:bg-zinc-950 rounded-t-[40px] shadow-2xl p-3 sm:p-4 pb-6 sm:p-8 animate-slide-up max-h-[90vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-8">
                             <div>

@@ -4,6 +4,7 @@ import { api } from '../../../convex/_generated/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button, Textarea } from '../ui';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * ConflictReviewDialog — V3 (V-MATTER-6): the human-review step of the
  * conflict-of-interest screen, shown BEFORE a matter is created when the
@@ -74,7 +75,7 @@ const ConflictReviewDialog: React.FC<ConflictReviewDialogProps> = ({
   const strongCount = matches.filter(m => m.strength === 'strong').length;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div className={`fixed inset-0 ${Z_CLASS.panelOverlay} flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4`}>
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700">
         <div className="p-6 space-y-4">
           <div className="flex items-start justify-between gap-3">

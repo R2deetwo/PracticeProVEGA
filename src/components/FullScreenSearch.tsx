@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useQuery_experimental } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { MattersIcon, ContactsIcon, DocumentsIcon, TasksIcon, SearchIcon, OfficeBuildingIcon } from '../constants';
+import { Z_CLASS } from '../overlays/constants';
 import {
     groupServerResults,
     searchResultDestination,
@@ -119,7 +120,7 @@ const FullScreenSearch: React.FC = () => {
 
     return (
         <div
-            className="fixed inset-0 z-[100] bg-white dark:bg-zinc-900 flex flex-col sm:hidden animate-fade-in-up"
+            className={`fixed inset-0 ${Z_CLASS.panelOverlay} bg-white dark:bg-zinc-900 flex flex-col sm:hidden animate-fade-in-up`}
             role="dialog"
             aria-modal="true"
             aria-label="Search"

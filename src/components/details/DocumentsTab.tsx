@@ -11,6 +11,7 @@ import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import Tooltip from '../Tooltip';
 
+import { Z_CLASS } from '../../overlays/constants';
 interface DocumentsTabProps {
     documents: Document[];
     matterId: string;
@@ -225,7 +226,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
 
             {/* Editor Choice Modal */}
             {editorChoiceDoc && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in" onClick={() => setEditorChoiceDoc(null)}>
+                <div className={`fixed inset-0 ${Z_CLASS.panelOverlay} flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in`} onClick={() => setEditorChoiceDoc(null)}>
                     <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-up border border-slate-200 dark:border-zinc-700" onClick={e => e.stopPropagation()}>
                         <div className="p-6 text-center">
                             <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-700 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-900 dark:text-white">

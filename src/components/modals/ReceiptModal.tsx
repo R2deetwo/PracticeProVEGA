@@ -33,6 +33,7 @@ import { buildReceiptEmailHtml, buildReceiptEmailSubject, buildReceiptPdfBase64,
 import { formatFirmLegalName, formatSignerBlock } from '../../utils/professionalIdentity';
 import { ServiceChargePeriod } from '../../types';
 
+import { Z_CLASS } from '../../overlays/constants';
 interface ReceiptModalProps {
     period: ServiceChargePeriod;
     chargeType: 'SC' | 'MV';
@@ -280,7 +281,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-[4600] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+        <div className={`fixed inset-0 ${Z_CLASS.modalStack} flex items-center justify-center p-4`} role="dialog" aria-modal="true">
             {/* Backdrop */}
             <div
                 className="absolute inset-0 bg-black/60 sm:backdrop-blur-sm pointer-events-auto"

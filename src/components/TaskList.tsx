@@ -11,6 +11,7 @@ import { useUI } from '../contexts/UIContext';
 import { useAuth } from '../contexts/AuthContext';
 import PriorityPopover from './PriorityPopover';
 
+import { Z_CLASS } from '../overlays/constants';
 type SortableKey = 'title' | 'matter' | 'dueDate' | 'priority' | 'status';
 type SortDirection = 'asc' | 'desc';
 
@@ -192,7 +193,7 @@ const TaskRow: React.FC<{
 
                     {isStatusOpen && (
                         <div
-                            className={`absolute ${statusDropsUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-32 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[50] py-1 animate-fade-in-up`}
+                            className={`absolute ${statusDropsUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-32 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 ${Z_CLASS.panelDropdown} py-1 animate-fade-in-up`}
                             role="menu"
                         >
                             {TaskStatusValues.map(status => (
@@ -493,7 +494,7 @@ const TaskCard: React.FC<{
 
                         {isStatusOpen && (
                             <div
-                                className={`absolute ${statusDropsUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 z-[60] py-1 animate-fade-in-up`}
+                                className={`absolute ${statusDropsUp ? 'bottom-full mb-1' : 'top-full mt-1'} left-0 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-hairline dark:border-zinc-700 ${Z_CLASS.panelRaise} py-1 animate-fade-in-up`}
                                 role="menu"
                             >
                                 {TaskStatusValues.map(status => (

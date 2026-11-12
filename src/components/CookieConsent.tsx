@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { openLegalDocument } from '../utils/legalLinks';
 
+import { Z_CLASS } from '../overlays/constants';
 const CookieConsent: React.FC = () => {
     const [isVisible, setIsVisible] = useState(false);
 
@@ -24,7 +25,7 @@ const CookieConsent: React.FC = () => {
     if (!isVisible) return null;
 
     return (
-        <div className="fixed bottom-[4.5rem] md:bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-700 text-white z-[9999] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl animate-slide-up">
+        <div className={`fixed bottom-[4.5rem] md:bottom-0 left-0 right-0 p-3 bg-slate-900/95 backdrop-blur-md border-t border-slate-700 text-white ${Z_CLASS.systemAlert} flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xl animate-slide-up`}>
             <div className="cookie-copy flex-1 text-xs text-slate-300 max-w-5xl mx-auto pl-4">
                 We use cookies to enhance your experience and analyze usage in accordance with the NDPA 2023.{' '}
                 <button onClick={() => openLegalDocument('privacy')} className="cookie-link text-primary-400 hover:text-primary-300 underline font-medium">Privacy Policy</button>

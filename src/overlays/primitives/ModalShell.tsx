@@ -6,7 +6,7 @@
  * ESC close, body scroll lock, brand accent bar) and adds:
  *   - `position: 'center' | 'right' | 'left'` for docked variants
  *   - `presentation: 'center' | 'fullscreen'` for full-screen overlays
- *   - Z_TIERS reference instead of hardcoded z-[3000]
+ *   - Z_TIERS reference instead of hardcoded z-index literals
  *
  * The legacy `<Modal>` component still exists for backward compat — new
  * modals should use `<ModalShell>` and add themselves to modalRegistry.tsx.

@@ -4,6 +4,7 @@ import { Button } from '../ui';
 import { useUI } from '../../contexts/UIContext';
 import { ShieldCheckIcon } from '../../constants';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * RegulatoryGateModal — the add-on gate for MODULE 2 (R48).
  *
@@ -29,7 +30,7 @@ export const RegulatoryGateModal: React.FC<{ onClose: () => void }> = ({ onClose
     };
 
     return (
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/50 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="regulatory-gate-title">
+        <div className={`fixed inset-0 ${Z_CLASS.modal} flex items-center justify-center p-4 bg-black/50 animate-fade-in`} role="dialog" aria-modal="true" aria-labelledby="regulatory-gate-title">
             <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
                 <div className="flex items-start gap-4">
                     <div className="p-2.5 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex-shrink-0">

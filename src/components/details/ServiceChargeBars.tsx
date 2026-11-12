@@ -61,6 +61,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 
+import { Z_CLASS } from '../../overlays/constants';
 // ─── Helpers ────────────────────────────────────────────────────────────────
 const FULL_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -215,7 +216,7 @@ const PillTooltip: React.FC<PillTooltipProps> = ({ period, chargeType, targetRef
 
     return createPortal(
         <div
-            className="fixed w-56 p-3 rounded-lg bg-slate-900 dark:bg-zinc-800 text-white shadow-xl z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-150"
+            className={`fixed w-56 p-3 rounded-lg bg-slate-900 dark:bg-zinc-800 text-white shadow-xl ${Z_CLASS.systemAlert} pointer-events-none animate-in fade-in zoom-in-95 duration-150`}
             style={{ top: pos.top, left: pos.left }}
         >
             <div className="space-y-1.5">
@@ -303,7 +304,7 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
     return (
         <>
             <div
-                className="fixed inset-0 z-[4500] bg-black/60 sm:backdrop-blur-sm pointer-events-auto"
+                className={`fixed inset-0 ${Z_CLASS.drawerVeil} bg-black/60 sm:backdrop-blur-sm pointer-events-auto`}
                 onClick={(e) => {
                     e.stopPropagation();
                     onClose();
@@ -312,7 +313,7 @@ const QuickPaymentDrawer: React.FC<QuickPaymentDrawerProps> = ({
                 aria-hidden="true"
             />
             <div
-                className="fixed top-0 right-0 bottom-0 z-[4501] w-full sm:max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 pointer-events-auto"
+                className={`fixed top-0 right-0 bottom-0 ${Z_CLASS.drawer} w-full sm:max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 pointer-events-auto`}
                 role="dialog"
                 aria-modal="true"
                 onClick={(e) => e.stopPropagation()}

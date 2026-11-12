@@ -14,6 +14,7 @@ import { createPortal } from 'react-dom';
 import { Task, TaskPriority } from '../types';
 import { PriorityHighIcon, PriorityMediumIcon, PriorityLowIcon } from '../constants';
 
+import { Z_CLASS } from '../overlays/constants';
 interface PriorityPopoverProps {
     task: Task;
     onUpdate: (taskId: string, priority: Task['priority']) => void;
@@ -89,7 +90,7 @@ const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClo
         <div
             ref={popoverRef}
             style={{ position: 'fixed', top: `${position.top}px`, left: `${position.left}px`, opacity: position.opacity, transition: 'opacity 0.15s ease-in-out' }}
-            className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl z-[9999] py-1 w-32 animate-fade-in-up"
+            className={`bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-xl ${Z_CLASS.systemAlert} py-1 w-32 animate-fade-in-up`}
         >
             {priorityOptions.map(option => (
                 <button

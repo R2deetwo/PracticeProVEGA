@@ -3,6 +3,7 @@ import * as React from 'react';
 import { Logo } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 
+import { Z_CLASS } from '../../overlays/constants';
 interface AuthLayoutProps {
   title: string;
   children: React.ReactNode;
@@ -13,7 +14,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ title, children }) => {
 
   return (
     <div 
-      className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-black/75 animate-fade-in"
+      className={`fixed inset-0 ${Z_CLASS.modal} flex items-center justify-center p-4 bg-black/75 animate-fade-in`}
       // FIX: Wrapped closeModal call in an arrow function to match the expected MouseEventHandler type.
       onClick={() => closeModal()}
     >

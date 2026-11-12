@@ -37,6 +37,7 @@ import {
 } from '../utils/errorRecovery';
 import { clearAllAuthStorage, authSignInUrl } from '../utils/sessionInvalidation';
 
+import { Z_CLASS } from '../overlays/constants';
 // ─── Flashlight Background Component ─────────────────────────────────────────
 
 const FlashlightBackground: React.FC = () => {
@@ -146,7 +147,7 @@ const SleekErrorScreen: React.FC<SleekErrorScreenProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center px-6"
+      className={`fixed inset-0 ${Z_CLASS.systemAlert} flex flex-col items-center justify-center px-6`}
       style={{ background: '#0a0a0a', color: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif' }}
     >
       <FlashlightBackground />

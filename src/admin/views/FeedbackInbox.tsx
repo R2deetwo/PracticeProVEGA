@@ -11,6 +11,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
 
+import { Z_CLASS } from '../../overlays/constants';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
 type CategoryFilter = 'all' | 'product_feedback' | 'technical' | 'general' | 'billing';
@@ -299,7 +300,7 @@ const FeedbackInboxInner: React.FC = () => {
 
                 {/* Reply Drawer — all property accesses guarded */}
                 {selected && (
-                    <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center" onClick={() => setSelectedId(null)}>
+                    <div className={`fixed inset-0 ${Z_CLASS.sidePanel} flex items-end sm:items-center justify-center`} onClick={() => setSelectedId(null)}>
                         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
                         <div
                             className="relative bg-white dark:bg-zinc-800 rounded-t-2xl sm:rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-700 w-full sm:max-w-lg max-h-[80vh] overflow-y-auto custom-scrollbar"

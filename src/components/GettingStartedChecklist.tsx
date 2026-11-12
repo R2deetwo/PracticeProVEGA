@@ -13,6 +13,7 @@ import { ChevronUp as ChevronUpIcon } from 'lucide-react';
 // = zero visual change, but type='button' default + focus ring + a11y).
 import { Button } from './ui';
 
+import { Z_CLASS } from '../overlays/constants';
 /**
  * GettingStartedChecklist — persistent sidebar widget shown after the Setup
  * Wizard completes. Each item links to the relevant page/modal so the user
@@ -739,7 +740,7 @@ const GettingStartedChecklist: React.FC = () => {
       {/* WHY FLOATER — dismissible "Why this matters" card. Portal-mounted so
           it escapes the sidebar's stacking/transform context and sits fixed
           over the viewport: above the Aloa FAB (bottom-20/right-6), below
-          toasts (z-[9999]).
+          toasts (Z_CLASS.toast).
 
           2026-09-24 ALOA-panel ambush fix (caught by the Task 70 E2E): the
           floater anchors to the bottom-RIGHT (sm:left-auto sm:w-[350px]) —
@@ -752,7 +753,7 @@ const GettingStartedChecklist: React.FC = () => {
         <div
           role="dialog"
           aria-label={`Why this matters: ${whyItem.label}`}
-          className="fixed z-[9990] bottom-[9.5rem] md:bottom-[7rem] left-4 right-4 sm:left-auto sm:w-[350px] animate-slide-up"
+          className={`fixed ${Z_CLASS.checklist} bottom-[9.5rem] md:bottom-[7rem] left-4 right-4 sm:left-auto sm:w-[350px] animate-slide-up`}
         >
           <div className="rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl overflow-hidden">
             {/* Header */}

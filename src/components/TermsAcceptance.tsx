@@ -28,6 +28,7 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useAuth } from '../contexts/AuthContext';
 
+import { Z_CLASS } from '../overlays/constants';
 interface TermsAcceptanceProps {
     onAccepted: () => void;
     onDeclined: () => void;
@@ -197,7 +198,7 @@ const TermsAcceptance: React.FC<TermsAcceptanceProps> = ({ onAccepted, onDecline
     // any open modal renders above it and re-reveals it on close. Toasts
     // (z-9999) still rank above it.
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-[2990] animate-in slide-in-from-bottom-4 duration-300">
+        <div className={`fixed bottom-0 left-0 right-0 ${Z_CLASS.termsBar} animate-in slide-in-from-bottom-4 duration-300`}>
             <div className="bg-slate-900 dark:bg-zinc-950 border-t border-slate-700 dark:border-zinc-800 shadow-2xl">
                 <div className="max-w-6xl mx-auto px-4 py-3 sm:py-4 flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
                     {/* Message + links */}

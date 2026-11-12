@@ -15,6 +15,7 @@ import { VegaTrust } from './sections/VegaTrust';
 import { VegaPricing } from './sections/VegaPricing';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * VegaSite — /vega, the light-enterprise edition (R56).
  *
@@ -134,7 +135,7 @@ export const VegaSite: React.FC = () => {
             {/* Skip to content link — Vega's focus state lands on ink. */}
             <a
                 href="#main-content"
-                className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-vega-gilt focus:text-vega-parchment"
+                className={`sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:${Z_CLASS.siteOverlay} focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:rounded-lg focus:bg-vega-gilt focus:text-vega-parchment`}
             >
                 Skip to content
             </a>

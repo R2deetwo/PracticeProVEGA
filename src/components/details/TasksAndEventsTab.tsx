@@ -9,6 +9,7 @@ import { Button } from '../ui';
 import { StatutoryTaskTimeline } from './StatutoryTaskTimeline';
 import { ENTERPRISE_WORKFLOWS } from '../../utils/enterpriseWorkflows';
 
+import { Z_CLASS } from '../../overlays/constants';
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ export const TasksAndEventsTab: React.FC<TasksAndEventsTabProps> = ({
                                                 <ChevronDownIcon className="w-2.5 h-2.5" />
                                             </button>
                                             {openDropdownId === task.id && (
-                                                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 z-[100] overflow-hidden py-1 ring-1 ring-black/5">
+                                                <div className={`absolute right-0 mt-1 w-40 bg-white dark:bg-zinc-800 rounded-lg shadow-xl border border-slate-200 dark:border-zinc-700 ${Z_CLASS.panelOverlay} overflow-hidden py-1 ring-1 ring-black/5`}>
                                                     {TaskStatusValues.map(status => (
                                                         <button
                                                             key={status}

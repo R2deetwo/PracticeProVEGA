@@ -9,6 +9,7 @@ import { useUI } from '../../contexts/UIContext';
 import { XIcon, SendIcon } from '../../constants';
 import { getInitials, getUserColor } from '../../utils/colorUtils';
 
+import { Z_CLASS } from '../../overlays/constants';
 /**
  * TeamMessageModal — multi-recipient team messaging with Select All.
  *
@@ -135,7 +136,7 @@ const TeamMessageModal: React.FC<TeamMessageModalProps> = ({ onClose }) => {
     // ComposeModal (ancestors with retained transforms must not capture
     // this `fixed inset-0` overlay).
     return createPortal(
-        <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center sm:p-4">
+        <div className={`fixed inset-0 ${Z_CLASS.modal} flex items-end sm:items-center justify-center sm:p-4`}>
             {/* Backdrop */}
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
 
