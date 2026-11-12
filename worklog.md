@@ -19066,3 +19066,104 @@ feature removal, no architecture changes, no test changes).
 2. CLOUDFLARE_API_TOKEN rotation (Round 15 note).
 3. Roadmap Phases 1-6 start only on owner approval (Phase 3 target now
    decided via ADR-0005).
+
+---
+
+## PHASE 0 ROADMAP IMPLEMENTATION, ROUNDS A-C (2026-11-13)
+
+**Round focus:** the owner asked why the Phase 0 audit had not been
+implemented and requested page-by-page analysis and improvement across all
+apps. That message is the owner approval the roadmap was gated on
+(worklog, Phase 0 owner decisions, item 4). Three implementation rounds
+landed locally: Phase 4 row 1 (nav/IA parity), Phase 2 rows 2-4
+(design-system consolidation), and Phase 5 quick wins — 30 of the 60
+findings now implemented, on top of Phase 1's 15 (shipped in 7daedb9d,
+v1.0.773/774).
+
+### Round A — feat(phase4-a) bb5a2244: nav & IA parity (UX-13/15/26/29/42/43/44/53/55/57)
+- Sidebar gains Archive (canViewArchive, same solo/admin gate as mobile)
+  and Help in OPERATIONS; mobile More sheet gains Contract Analyzer
+  (legal firms, never locked — R48 parity) — desktop and mobile now reach
+  every surface [UX-42].
+- CommandPalette enforces the SAME locks/permissions as the other two
+  surfaces: Research/Financials/Analytics carry plan locks (locked opens
+  the upgrade modal), Archive carries canViewBilling/canViewArchive
+  gates; Financials/Analytics keyboard entries added [UX-15/26].
+- Timeline (Case Roadmap) joins the Matters toolbar — was palette-only
+  [UX-26]. ReportingView lock CTAs route through openModal('upgradePlan')
+  with the correct target plan [UX-55]. Hub footer's Komplete entry opens
+  SIGNUP with Komplete preselected instead of the Contact Sales drawer
+  [UX-13]. OnboardingWizard Komplete plan step states what the bundle
+  includes [UX-44; the all-steps progress indicator was already fixed
+  post-audit]. Naming pass: Financials everywhere (matter tab, invoice +
+  receipt breadcrumbs/back buttons) [UX-29]. Messages badge extracted to
+  useMessagesBadge — ONE selector both nav surfaces render [UX-43].
+- Dead code deleted: NotificationCenter.tsx (198 lines), admin
+  UserManagement + FirmManagement (orphaned by OrganizationsHub)
+  [UX-53/57].
+
+### Round B — cc37ca5e + 0011d3f7 + cb15644c: design-system consolidation (UX-02/16/17/19/20/45/46)
+- UX-16: index.html's never-loaded 'Inter' body-font rule deleted (it
+  fought index.css's Figtree rule in a same-specificity cascade);
+  check-design-tokens gains a text-[Npx] ratchet (72, may only shrink).
+- UX-19: the dead shadcn toolkit layer retired — 6 zero-importer
+  primitives + components.json deleted; 6 live survivors moved to ui/
+  (file-kebab Accordion → ui/CollapsibleAccordion); ui/ is the ONE
+  primitives layer; ui-primitives ratchet tightened 2295 → 2274 and
+  locked.
+- UX-02/20: semantic status tokens (--status-success/warning/danger/info,
+  light+dark ramps) wired into Tailwind as the status family; converged:
+  FinancialStatusBadge (canon, first adoption), Badge, BillingView
+  invoice list (private hue map deleted), LedgerManager dots,
+  PriorityPopover, Toast accents. tests/unit/statusTokens.test.ts (+7
+  source-contract guards); the Badge-mirror contract updated to tokens.
+- UX-46: type-aware toast duration presets in UIContext.addToast (error
+  8000 / warning 6000 / success+info 3500 when the caller passes none) —
+  all 437 error toasts stop vanishing at 3500ms without touching a call
+  site. UX-17: STYLE_GUIDE radius section now documents the compiled
+  truth; the 4 unused --radius vars deleted. UX-45: STYLE_GUIDE elevation
+  section documents the one boxShadow block (elevation-N preferred for
+  new marketing code).
+
+### Round C — b2fd7def: workflow-truth page fixes (UX-04/22/24/50/51/52/54/59)
+- UX-22: InvoiceDetailView's raw permanent Delete replaced by the list's
+  audited Void/Reinstate flow (VoidInvoiceModal extracted to modals/).
+- UX-24: ContactDetailView gains 'Invite to Portal' — the same InviteForm
+  as Settings (extracted to settings/InviteForm.tsx) with the contact's
+  identity prefilled; portal type follows the firm's capabilities.
+- UX-50/51/52/54/59: real focusable select-all checkbox on Matters;
+  per-unit actions visible on touch in the contact portfolio; LockScreen
+  names the product that locked; Relationship Map copy no longer promises
+  properties; dead handlers deleted (handleAddProperty,
+  onGenerateReceipt stubs + dead optional prop).
+- UX-04 (first four): isSubmitting guards on FirmDetailsForm,
+  TemplateForm, ContactCategoryForm, SaveToNoteForm.
+
+### Gates (verified locally on the final tree)
+- vitest 2568/2568 (127 files — +7 statusTokens contract suite).
+- root tsc 87 — the documented baseline, byte-identical error set.
+- convex tsc 0. ui-primitives ratchet 2277 (Round C +3: the select-all
+  checkbox input, the invite toggle, the void/reinstate pair — each the
+  a11y-correct element, justified in the commit; locked at the new
+  floor). Design-token gate: gray=0, rounded-xl 72/74, textPx 72/72.
+- vite production build green; status-* utilities verified in the
+  compiled CSS (38 utilities across the four hues).
+
+### Blocker — push blocked on credentials (again)
+- origin's embedded PAT is dead (401 on the API check), as is the
+  set_fcm_secret.py PAT. All five commits (bb5a2244..b2fd7def) sit on a
+  detached worktree at /home/z/my-project/tmp/wt ready to push to
+  origin/main. The owner must supply a fresh PAT (then:
+  git -C <wt> push origin HEAD:main) — same blocker as the why-floater
+  round. Push auto-deploys STAGING only; production promotion remains a
+  separate owner action.
+
+### Owner decisions (not made silently)
+1. Fresh GitHub PAT needed to push these five commits.
+2. Production promotion of the outstanding builds (1163-1169 + the next
+   CI build after this push) — refresh toast on production follows it.
+3. Remaining roadmap rows stay queued: Phase 2 leftovers (UX-01 modal
+   migration, UX-18 z-index, UX-47/48), Phase 3 identity implementation
+   (UX-08 dark-tab re-skins, gated on Phase 2 per ADR-0005), Phase 5
+   remainder (UX-03/23/27/28/32/33/34/35/36/37 + 16 more UX-04 forms),
+   Phase 6 contrast (UX-21).
