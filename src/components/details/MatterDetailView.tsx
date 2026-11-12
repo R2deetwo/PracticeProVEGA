@@ -120,7 +120,7 @@ const MatterDetailViewContent: React.FC = () => {
     // ── Derived helpers wired to contexts ──────────────────────────────────────
     const users = coreState.users;
     const onGoBack = () => navigateTo('matters');
-    const onUpdateStage = (id: string, stage: string) => matterActions.updateMatter({ id, stage, stageLastUpdated: new Date().toISOString() });
+    const onUpdateStage = async (id: string, stage: string) => matterActions.updateMatter({ id, stage, stageLastUpdated: new Date().toISOString() });
     const onUpdateMatter = (m: any) => matterActions.updateMatter(m);
     const handleUpdateTaskStatus = (taskId: string, status: any) => executionActions.handleUpdateTaskStatus(taskId, status);
     const onDeleteTimeEntry = (id: string) => financeActions.deleteTimeEntry(id, 'Time Entry');
@@ -300,9 +300,21 @@ const MatterDetailViewContent: React.FC = () => {
         // be gated behind actual network latency (show spinner only if
         // mutation hasn't resolved in 300ms), not artificial delay.
 
-        onUpdateStage(matterData!.id, newStage);
-        addToast(`Matter moved to ${newStage}`, { type: 'success' });
-        setUpdatingStage(null);
+        // UX-06 (Phase 1): the toast now reflects the actual write result.
+        // The old flow fired "Matter moved to X" without awaiting the
+        // mutation, so a failed stage change still told the user it
+        // succeeded. updateMatter rolls the optimistic state back and
+        // surfaces the failure reason via its own error toast — here we
+        // only confirm on success and stay quiet (no duplicate error) on
+        // failure.
+        try {
+            await onUpdateStage(matterData!.id, newStage);
+            addToast(`Matter moved to ${newStage}`, { type: 'success' });
+        } catch {
+            // already surfaced by the update pipeline
+        } finally {
+            setUpdatingStage(null);
+        }
     };
 
     const confirmDelete = () => {

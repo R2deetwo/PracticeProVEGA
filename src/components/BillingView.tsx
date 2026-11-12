@@ -4,6 +4,7 @@ import { Invoice, InvoiceStatus, ModalType, AppState } from '../types';
 import { CheckCircleIcon, MailIcon, RevertIcon, BillingIcon, PlusIcon, ExclamationTriangleIcon } from '../constants';
 import { Clock, AlertCircle, CheckCircle, FileText, Ban, Undo2 } from 'lucide-react';
 import Tooltip from './Tooltip';
+import { Select } from './ui';
 // SIMPLIFY FIX: StatCard import removed with the duplicate KPI row.
 import { formatNaira } from '../utils/formatting';
 import { isActiveFinancialRecord } from '../utils/financialLifecycle';
@@ -324,6 +325,25 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], showOriginBadges?: boolea
                     onChange={e => setFilter(e.target.value)}
                     className="w-full md:w-1/3 px-4 py-2 bg-white dark:bg-zinc-700 text-slate-900 dark:text-dim-300 border border-slate-300 dark:border-zinc-600 rounded-lg focus:ring-primary-500 focus:border-primary-500"
                 />
+                {/* UX-25 (Phase 1): the status filter now has a control. The
+                    statusFilter state and the filteredInvoices logic always
+                    existed — only the toolbar never rendered anything but
+                    search, so Unpaid/Overdue filtering was unreachable.
+                    ui/Select (ADR-0004) in 'bare' mode carrying the toolbar's
+                    legacy look until Phase 2 consolidates this surface. */}
+                <Select
+                    id="invoice-status-filter"
+                    aria-label="Filter invoices by status"
+                    styleVariant="bare"
+                    selectClassName="w-full md:w-auto px-4 py-2 bg-white dark:bg-zinc-700 text-slate-900 dark:text-dim-300 border border-slate-300 dark:border-zinc-600 rounded-lg focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    value={statusFilter}
+                    onChange={e => setStatusFilter(e.target.value as 'All' | InvoiceStatus)}
+                >
+                    <option value="All">All statuses</option>
+                    {(Object.values(InvoiceStatus) as InvoiceStatus[]).map(s => (
+                        <option key={s} value={s}>{s}</option>
+                    ))}
+                </Select>
             </div>
 
             <div className="transition-all duration-300">

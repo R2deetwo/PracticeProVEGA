@@ -28,6 +28,7 @@ import { useProduct } from '../../contexts/ProductContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import { translateError } from '../../utils/errorTranslator';
 import { whatsappShareUrl } from '../../utils/whatsappShare';
+import { portalInviteUrl, portalSetupPasswordBase } from '../../utils/portalOrigins';
 import { ServiceRequestTypesConfig } from './ServiceRequestTypesConfig';
 import {
   ShieldCheckIcon, LockClosedIcon, LockOpenIcon,
@@ -288,6 +289,10 @@ const InviteForm: React.FC<{
         relatedId: relatedId || undefined,
         channel,
         userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined,
+        // UX-12 (Phase 1): tell the server which deployment is sending, so
+        // the invite link matches it (allowlisted server-side) instead of
+        // always routing to the Vega-branded production domain.
+        origin: window.location.origin,
       });
 
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -329,7 +334,10 @@ const InviteForm: React.FC<{
       const waNotDelivered = wantsWhatsApp && !result.whatsappSent;
       if (waNotDelivered && result.token) {
         const portalName = isProperty ? "Residents' Portal" : 'Client Portal';
-        const inviteLink = `https://practice-pro-vega.vercel.app/setup-password?token=${result.token}`;
+        // UX-12 (Phase 1): the share link is the EXACT link the email would
+        // carry (server-returned inviteUrl) with the client resolver as
+        // fallback — never a divergent hard-coded domain.
+        const inviteLink = result.inviteUrl || portalInviteUrl(result.token, window.location.origin);
         const shareText = `PracticePro ${portalName} Invitation\n\nHello ${name.trim() || email.trim() || ''}, you've been invited to the ${portalName}.\n\nClick here to access: ${inviteLink}\n\nThis link expires in 30 days.\n\n— PracticePro`;
         setManualWaShare({
           url: whatsappShareUrl(phone.trim(), shareText),
@@ -1084,7 +1092,7 @@ export const PortalAccessSettings: React.FC = () => {
   const handleResend = async (invite: any) => {
     setResendingId(String(invite._id));
     try {
-      const result = await resendInvite({ inviteId: invite._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined });
+      const result = await resendInvite({ inviteId: invite._id, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) || undefined, origin: window.location.origin });
       const parts: string[] = [];
       if (result.emailSent) parts.push('email delivered');
       else if (result.emailSimulated) parts.push('email simulated (Brevo API key not configured)');
@@ -1107,8 +1115,10 @@ export const PortalAccessSettings: React.FC = () => {
 
   // FIX: Copy link now uses /setup-password URL (not the login page)
   // This ensures new users without accounts can create their password
+  // UX-12 (Phase 1): the copied link now reflects the CURRENT deployment
+  // (allowlisted) instead of the hard-coded Vega-branded domain.
   const handleCopyInviteLink = (invite: any, portalType: string) => {
-    const portalBase = 'https://practice-pro-vega.vercel.app/setup-password';
+    const portalBase = portalSetupPasswordBase(window.location.origin);
     const inviteUrl = invite.token
       ? `${portalBase}?token=${invite.token}`
       : portalBase;

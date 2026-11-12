@@ -203,6 +203,20 @@ const VacancyPipeline: React.FC = () => {
 
   const { unitById } = usePropertyGroups(coreState.properties || []);
 
+  // UX-11 (Phase 1): a loading funnel is no longer indistinguishable from an
+  // empty one. While the live query is in flight the board rendered "No
+  // applicants" columns — managers thought their leads had vanished. The
+  // spinner pattern mirrors MaintenanceQueue.tsx:178-184. When the query is
+  // skipped (no firm yet) or has resolved, the board renders normally.
+  const isPipelineLoading = liveLeads === undefined && Boolean(firmId);
+  if (isPipelineLoading) {
+    return (
+      <div className="h-full flex items-center justify-center bg-slate-950">
+        <div className="w-6 h-6 border-2 border-slate-700 border-t-primary-500 rounded-full animate-spin" role="status" aria-label="Loading vacancy pipeline" />
+      </div>
+    );
+  }
+
   const getUnitLabel = (unitId: string): string => {
     // 1. Try the smart label from usePropertyGroups (includes unit name + property address)
     const unitOpt = unitById.get(unitId);

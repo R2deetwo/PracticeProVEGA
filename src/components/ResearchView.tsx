@@ -12,7 +12,11 @@ import { ResearchNotebookColumn } from './research/ResearchNotebookColumn';
 import { ResearchSourceColumn } from './research/ResearchSourceColumn';
 import { ResearchChat } from './research/ResearchChat';
 import { ResearchStudio } from './research/ResearchStudio';
-import LawReportsView from './research/LawReportsView';
+// UX-05 (Phase 1): LawReportsView is no longer mounted — the Case Law tab
+// was a permanent stub (no law-report database is connected). The component
+// file remains for the day a licensed corpus is wired in (see
+// docs/audits/2026-11-12-phase0-ux-audit.md UX-05).
+import { LAW_REPORTS_DISCLOSURE } from '../utils/citationVerification';
 import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
 import { ChevronRightIcon, LockClosedIcon, ResearchIcon, PlusIcon } from '../constants';
@@ -37,6 +41,11 @@ const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => 
         </div>
         <h3 className="mt-2 text-lg font-semibold text-slate-600 dark:text-zinc-300">PracticePro Research</h3>
         <p className="mt-2 text-sm max-w-sm">Create a notebook to organise your case sources and run AI-powered legal analysis.</p>
+        {/* UX-05 (Phase 1): the corpus disclosure now lives where research
+            actually happens. The permanently-empty Case Law tab was removed
+            — its fine-print disclosure was the only place users learned the
+            law-report database is not connected. */}
+        <p className="mt-3 text-2xs max-w-md text-slate-400 dark:text-zinc-500">{LAW_REPORTS_DISCLOSURE}</p>
         <button
             onClick={onClick}
             className="mt-5 px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 text-sm"
@@ -46,7 +55,7 @@ const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => 
     </div>
 );
 
-type ResearchTab = 'research_notes' | 'case_law' | 'notes';
+type ResearchTab = 'research_notes' | 'notes';
 
 const ResearchView: React.FC = () => {
     const { matterState } = useMatterState();
@@ -471,7 +480,10 @@ const ResearchView: React.FC = () => {
 
     const tabDef: { id: ResearchTab; label: string; locked?: boolean }[] = [
         { id: 'research_notes', label: 'AI Notebooks', locked: !canUseResearchStudio },
-        { id: 'case_law', label: 'Case Law' },
+        // UX-05 (Phase 1): the Case Law tab is gone — it was a permanent
+        // stub (no law-report database is connected, MOCK_CASE_LAW is []).
+        // Its corpus disclosure moved into the AI Notebooks empty state so
+        // the honesty survives without the dead navigation.
         { id: 'notes', label: 'Practice Notes' },
     ];
 
@@ -507,7 +519,6 @@ const ResearchView: React.FC = () => {
             <div className="flex-grow min-h-0 overflow-hidden">
                 <ErrorBoundary>
                     {activeTab === 'research_notes' && renderMyResearch()}
-                    {activeTab === 'case_law' && <LawReportsView />}
                     {activeTab === 'notes' && (
                         <div className="h-full overflow-hidden p-0 bg-transparent">
                             <NotesView noBox={true} />

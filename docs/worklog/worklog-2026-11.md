@@ -397,3 +397,81 @@ F data integrity + payments (schemaValidation flip, offline queue,
 Paystack). Owner picks the pace; each round runs the full gates
 (tsc 125 baseline, vitest 1421, ratchet 2312, live verify, promotion
 record).
+
+## Phase 1 — interaction-truth quick wins + the Research crash hotfix (2026-11-12)
+
+**Context.** The owner greenlit implementation off the Phase 0 audit
+roadmap ("push the ui/ux changes") and reported the Research section
+crashing in production (screenshot: `getResearchMessages → db.get →
+"Unable to decode ID: ID wasn't valid base32"`, whole view down behind
+the "Something went wrong" boundary).
+
+**Hotfix (production Research crash).** Root cause: notebooks created
+through the generic createItem path carry the CLIENT uuid v4 in their
+`id` field; DataProvider deliberately keeps that UUID as `nb.id`
+(the duplicate-cards fix) — and ResearchView passes `nb.id` to
+getResearchMessages/getResearchAnalysisResults, which handed it straight
+to `ctx.db.get()`. db.get throws on non-base32 ids → the query throws →
+ErrorBoundary eats the whole Research view. The unit tests never caught
+it because the mock db.get doesn't validate id shape (mock-fidelity
+gap, now closed). Fix: `resolveResearchNotebook()` resolves by the
+client UUID via the existing by_custom_id index first, then by Convex
+document id via `db.normalizeId` (returns null instead of throwing);
+message/analysis queries key on the notebook's own `id` field (what
+researchMessages.notebookId actually stores). Tests: roundDWave3b
+fixtures rewritten to production shape (`_id` + client UUID `id`);
+regression tests pin both id forms and the no-throw contract.
+
+**Phase 1 (roadmap row 1 — 15 findings, all rated S):**
+- UX-05 Case Law stub tab folded into AI Notebooks (corpus disclosure
+  now rendered in the ResearchPlaceholder; LawReportsView file retained
+  for the licensed-corpus future).
+- UX-06 matter-stage toast now awaits the mutation (success only on a
+  real write; failure already surfaces via the update pipeline).
+- UX-09 public vacancy application shows the FETCHED property address
+  in header + success state (route label is only the pre-fetch
+  fallback).
+- UX-10 Estate Community upsell CTAs wired to openModal('upgradePlan')
+  (were dead `#subscription` anchors); ui/Button primitives.
+- UX-11 vacancy pipeline gates on `liveLeads === undefined` — loading
+  is no longer rendered as "No applicants" columns.
+- UX-12 portal invite links derive from the deployment origin via an
+  ALLOWLIST (production, Cloudflare mirror, this project's Vercel
+  previews — owner-controlled, so no phishing vector); unknown origins
+  fall back to production (the old behaviour). createPortalInvite
+  returns `inviteUrl`; PortalAccessSettings passes
+  window.location.origin and displays the same link; client mirror in
+  src/utils/portalOrigins.ts (unit-tested).
+- UX-25 the half-wired invoice statusFilter now has a rendered Select
+  (ui/Select bare, legacy toolbar look).
+- UX-30 rent ledger skeleton gates on isDataLoaded (the `!entries`
+  branch was unreachable dead code behind `|| []`).
+- UX-31 expected rent drops the `|| p.value` valuation fallback.
+- UX-39 upgrade modal names the ACTIVE product's assistant
+  (getAssistantName(isProperty); Komplete/Vega no longer sold "ARIA").
+- UX-40 dashboard OutstandingCard follows canViewBilling (the same
+  staffCanViewBilling rule as Financials) instead of isAdmin-only.
+- UX-41 contact Properties tab always visible for property-capable
+  firms — the empty tab IS the Komplete bridge entry point; empty state
+  points at Add Property.
+- UX-49 workspace switcher failure toasts (was a silent catch).
+- UX-58 the last native browser prompt dialog (FirmSettings
+  deactivation reason) replaced by the app's confirmation dialog; the
+  optional free-text reason is dropped (server field stays optional;
+  audit trail keeps the session-derived acting admin).
+- UX-60 demo persona gets honest search copy (search disabled in demo
+  build, not "sign in" to an already-signed-in user).
+
+**Gates (all green):** vitest 2561/2561 (126 files; +22 Phase 1 tests
+in tests/unit/phase1InteractionTruth.test.ts, roundDWave3b extended);
+`npx tsc -p convex --noEmit` 0 errors; root tsc 87 (baseline 94, V7's
+87 held); eslint changed files 0/0; check-ui-primitives ratchet held at
+2295 (the 3 new raw controls were migrated to ui/Select + ui/Button —
+the gate caught the +3 first, exactly as designed); audit-identity.py
+PASSED (the new `origin` arg is allowlisted server-side, never trusted
+as identity); check-design-tokens gray=0, rounded-xl 72 held.
+
+**Not done here (deliberately):** Phases 2–6 of the roadmap remain
+gated per the audit (Phase 3 identity work behind Phase 2
+consolidation); ADR-0005 unchanged; no styling/token work was touched
+beyond the interaction-truth fixes above.

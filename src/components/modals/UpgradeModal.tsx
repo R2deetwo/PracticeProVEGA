@@ -4,6 +4,7 @@ import { CheckIcon, SparklesIcon } from '../../constants';
 import { SubscriptionPlan } from '../../types';
 import { useIsProperty } from '../../contexts/ProductContext';
 import { VEGA_TIERS, ATRIUM_TIERS, KOMPLETE_TIER } from '../../constants/tiers';
+import { getAssistantName } from '../../utils/assistantIdentity';
 
 interface UpgradeModalProps {
   featureName: string;
@@ -14,6 +15,13 @@ interface UpgradeModalProps {
 
 const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onClose, targetPlan = SubscriptionPlan.Pro }) => {
   const isProperty = useIsProperty();
+  // UX-39 (Phase 1): the assistant is named by the ACTIVE PRODUCT, not
+  // unconditionally "ARIA". Komplete (and Vega) users were shown "ARIA AI
+  // Copilot" at the upgrade moment — brand confusion exactly when they are
+  // deciding what to buy. Same derivation HelpView already uses.
+  const assistantName = getAssistantName(isProperty);
+  const assistantCopilot = isProperty ? 'ARIA AI Copilot' : `${assistantName} AI Copilot`;
+  const assistantAssistant = isProperty ? 'ARIA AI Assistant' : `${assistantName} AI Assistant`;
 
   const planConfig = useMemo(() => {
     if (targetPlan === SubscriptionPlan.Komplete) {
@@ -24,7 +32,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
           "Unlimited Users",
           isProperty ? 'Unlimited Properties & Units' : 'Unlimited Matters & Units',
           "Unlimited Active Tenants",
-          "ARIA AI Copilot (Uncapped Priority)",
+          assistantCopilot + " (Uncapped Priority)",
           isProperty ? 'Full Property Suite' : 'Full Legal + Property Suite',
           "Sentry Pass (VMS) included",
           "500 GB shared storage",
@@ -40,7 +48,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
         title: "Pro Plan",
         price: proTier.monthlyPriceDisplay + "/mo",
         features: [
-          "ARIA AI Assistant (Uncapped Priority)",
+          assistantAssistant + " (Uncapped Priority)",
           "Unlimited Team Users",
           isProperty ? 'Advanced Revenue Billing & Analytics' : 'Advanced Legal Billing & Analytics',
           isProperty ? 'Unlimited Active Properties' : 'Unlimited Active Matters',
@@ -50,7 +58,7 @@ const UpgradeModal: React.FC<UpgradeModalProps> = ({ featureName, onUpgrade, onC
         accentColor: "text-emerald-600"
       };
     }
-  }, [targetPlan, isProperty]);
+  }, [targetPlan, isProperty, assistantCopilot, assistantAssistant]);
 
   return (
     <div className="space-y-6">

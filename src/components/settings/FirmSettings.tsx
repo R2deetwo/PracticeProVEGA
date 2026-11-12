@@ -125,8 +125,11 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             addToast("You cannot deactivate your own account.", { type: 'error' });
             return;
         }
-        const reason = window.prompt(`Deactivate ${user.name}? They will lose login access immediately but their contributions remain attributed to them. Optional: provide a reason.`);
-        if (reason === null) return; // cancelled
+        // UX-58 (Phase 1): the app's LAST native browser prompt dialog is
+        // gone. It blocked the JS thread, was unstyled, and is invisible to
+        // tests. The optional free-text reason it collected is omitted —
+        // the server field stays optional and the audit trail still records
+        // the acting admin from the session (the D1 identity rule).
         openModal('deleteConfirmation', user.id, {
             title: 'Deactivate Team Member?',
             message: `${user.name} will lose login access immediately. Their matters, tasks, and messages will remain attributed to them. They can be reactivated later.`,
@@ -140,7 +143,6 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
                     await deactivateMutation({
                         userId: user._id || (user as any).id,
                         sessionToken: (bearerToken ?? undefined) || undefined,
-                        reason: reason || undefined,
                     });
                     addToast(`${user.name} deactivated.`, { type: 'success' });
                     closeModal();

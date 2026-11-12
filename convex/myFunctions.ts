@@ -1218,6 +1218,28 @@ export const getChatMessages = query({
  * already invisible to the firm-scoped bootstrap (getFirmData fetchByFirm).
  * Auth failures now THROW (the D6 convention) instead of silently [].
  */
+/**
+ * HOTFIX (2026-11-12, production Research crash): notebooks created through
+ * the generic createItem path carry the CLIENT uuid v4 in their `id` field,
+ * and documentState keeps that UUID as nb.id — which is exactly what
+ * ResearchView passes here. Handing that UUID to db.get() threw
+ * "Invalid argument 'id' for 'db.get': Unable to decode ID: ID wasn't valid
+ * base32" and crashed the entire Research view. The notebook is now resolved
+ * by EITHER id form: the client UUID via the by_custom_id index first, then
+ * the Convex document id via normalizeId (which returns null for invalid ids
+ * instead of throwing). The message/analysis queries key on the notebook's
+ * own `id` field — that is what researchMessages.notebookId stores.
+ */
+async function resolveResearchNotebook(ctx: any, rawId: string): Promise<any | null> {
+  const byCustomId: any = await ctx.db
+    .query("researchNotebooks")
+    .withIndex("by_custom_id", (q: any) => q.eq("id", rawId))
+    .first();
+  if (byCustomId) return byCustomId;
+  const internalId = ctx.db.normalizeId("researchNotebooks", rawId);
+  return internalId ? await ctx.db.get(internalId) : null;
+}
+
 export const getResearchMessages = query({
   args: {
     notebookId: v.optional(v.string()),
@@ -1230,14 +1252,18 @@ export const getResearchMessages = query({
       sessionToken: args.sessionToken,
       userEmail: args.userEmail,
     });
-    const notebook: any = await ctx.db.get(args.notebookId as any);
+    const notebook: any = await resolveResearchNotebook(ctx, args.notebookId);
     if (!notebook) return [];
     const nbFirmId: string | null = notebook.firmId ?? null;
     if (!nbFirmId) return [];
     assertSameFirm(caller, nbFirmId);
+    // Key on the notebook's client id — researchMessages.notebookId stores
+    // the UUID the notebook was created with, even when the caller passed
+    // the Convex _id to identify the notebook itself.
+    const notebookKey: string = notebook.id ?? args.notebookId;
     return await ctx.db
       .query("researchMessages")
-      .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
+      .withIndex("by_notebook", (q) => q.eq("notebookId", notebookKey))
       .take(500);
   },
 });
@@ -1262,14 +1288,18 @@ export const getResearchAnalysisResults = query({
       sessionToken: args.sessionToken,
       userEmail: args.userEmail,
     });
-    const notebook: any = await ctx.db.get(args.notebookId as any);
+    // HOTFIX (2026-11-12): same id-form fix as getResearchMessages — the
+    // caller passes the notebook's client UUID (nb.id), never hand it to
+    // db.get directly.
+    const notebook: any = await resolveResearchNotebook(ctx, args.notebookId);
     if (!notebook) return [];
     const nbFirmId: string | null = notebook.firmId ?? null;
     if (!nbFirmId) return [];
     assertSameFirm(caller, nbFirmId);
+    const notebookKey: string = notebook.id ?? args.notebookId;
     return await ctx.db
       .query("researchAnalysisResults")
-      .withIndex("by_notebook", (q) => q.eq("notebookId", args.notebookId))
+      .withIndex("by_notebook", (q) => q.eq("notebookId", notebookKey))
       .take(200);
   },
 });

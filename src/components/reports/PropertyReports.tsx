@@ -66,7 +66,12 @@ const PropertyReports: React.FC = () => {
         const currentYear = new Date().getFullYear();
 
         const propertiesWithStats = allProperties.map(p => {
-            const expected = p.rentalDetails?.rentAmount || p.value || 0;
+            // UX-31 (Phase 1): the `|| p.value` fallback is gone. A property's
+            // VALUATION is not RENT — a single unconfigured estate was
+            // inflating "Total Expected Rent" by its market value. Expected
+            // rent now comes only from the lease configuration (precedent:
+            // CollectRentModal.tsx:89-95, which never falls back to value).
+            const expected = p.rentalDetails?.rentAmount || 0;
             totalExpectedRent += expected;
 
             const collectedYTD = (coreState.ledgerEntries || []).filter(e => {

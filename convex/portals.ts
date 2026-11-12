@@ -1358,6 +1358,34 @@ function generateToken(): string {
 }
 
 /**
+ * UX-12 (Phase 1): portal invite links are no longer welded to one
+ * hard-coded Vega-branded domain. The client passes the origin of the
+ * deployment the admin is actually using; it is accepted only when it is
+ * a KNOWN deployment of this app — production, the Cloudflare mirror, or
+ * a Vercel preview of this project (all controlled by the project owner,
+ * so a hostile staff caller cannot point invite emails at a phishing
+ * domain). Unknown origins fall back to production, which is exactly what
+ * the old hard-coded behaviour did — but now preview/staging deployments
+ * stop silently routing residents to production, and a product-specific
+ * origin can be added to the allowlist the day one exists.
+ * (Client mirror of this list: src/utils/portalOrigins.ts — keep in sync.)
+ */
+const PRODUCTION_PORTAL_ORIGIN = "https://practice-pro-vega.vercel.app";
+const ALLOWED_PORTAL_ORIGINS = [
+  PRODUCTION_PORTAL_ORIGIN,
+  "https://practice-pro-vega.prototypechigo.workers.dev",
+];
+const PREVIEW_ORIGIN_PATTERN = /^https:\/\/practice-pro-vega(-[\w-]+)?\.vercel\.app$/;
+
+function resolvePortalBase(origin?: string | null): string {
+  const candidate = (origin ?? "").trim().replace(/\/+$/, "");
+  const allowed =
+    ALLOWED_PORTAL_ORIGINS.includes(candidate) ||
+    PREVIEW_ORIGIN_PATTERN.test(candidate);
+  return `${allowed ? candidate : PRODUCTION_PORTAL_ORIGIN}/setup-password`;
+}
+
+/**
  * createPortalInvite — ACTION (not a plain mutation) so it can call
  * sendEmail / sendWhatsApp via ctx.runAction.
  *
@@ -1378,8 +1406,9 @@ export const createPortalInvite = action({
     channel: v.optional(v.string()),       // "email" | "whatsapp" | "both" — default "email"
     message: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    origin: v.optional(v.string()),        // UX-12: deployment origin for the invite link (allowlisted)
   },
-  handler: async (ctx, args): Promise<{ inviteId: string; token: string; channel: string; emailSent: boolean; emailSimulated: boolean; emailError: string; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean; whatsappError: string }> => {
+  handler: async (ctx, args): Promise<{ inviteId: string; token: string; inviteUrl: string; channel: string; emailSent: boolean; emailSimulated: boolean; emailError: string; whatsappSent: boolean; whatsappSimulated: boolean; whatsappSkipped: boolean; whatsappError: string }> => {
     // Round 8 auth retrofit: firmId/inviterId were trusted — any caller could
     // send invites (email/WhatsApp via the firm's sender) for any firm.
     await requireStaffCaller(ctx, { sessionToken: args.sessionToken, userEmail: args.userEmail, firmId: args.firmId });
@@ -1530,7 +1559,9 @@ export const createPortalInvite = action({
     }
 
     // 2. Build the magic-link URL (setup-password page, not login)
-    const portalBase = "https://practice-pro-vega.vercel.app/setup-password";
+    // UX-12 (Phase 1): derived from the (allowlisted) deployment origin
+    // instead of a hard-coded Vega-branded domain.
+    const portalBase = resolvePortalBase(args.origin);
     const inviteUrl = `${portalBase}?token=${token}`;
     const portalLabel = args.portalType === "client" ? "Client Portal" : "Residents' Portal";
     const productName = args.portalType === "client" ? "VEGA" : "ATRIUM";
@@ -1659,6 +1690,7 @@ export const createPortalInvite = action({
     return {
       inviteId,
       token,
+      inviteUrl,
       channel,
       emailSent: emailResult.success && !emailResult.simulated,
       emailSimulated: emailResult.simulated || false,
@@ -1957,6 +1989,7 @@ export const resendPortalInvite = action({
     inviteId: v.id("portal_invites"),
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
+    origin: v.optional(v.string()),        // UX-12: deployment origin for the invite link (allowlisted)
   },
   handler: async (ctx, args): Promise<{
     token: string;
@@ -1985,7 +2018,9 @@ export const resendPortalInvite = action({
     });
 
     // Re-send via stored channel
-    const portalBase = "https://practice-pro-vega.vercel.app/setup-password";
+    // UX-12 (Phase 1): derived from the (allowlisted) deployment origin
+    // instead of a hard-coded Vega-branded domain.
+    const portalBase = resolvePortalBase(args.origin);
     const inviteUrl = `${portalBase}?token=${newToken}`;
     const portalLabel = existing.portalType === "client" ? "Client Portal" : "Residents' Portal";
     const productName = existing.portalType === "client" ? "VEGA" : "ATRIUM";

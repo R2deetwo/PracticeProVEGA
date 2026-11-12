@@ -4,9 +4,10 @@ import { Building2, ClipboardCheck } from 'lucide-react';
 import StatCard from '../StatCard';
 import Tooltip from '../Tooltip';
 import { formatLargeNumber, formatNairaFull } from '../../utils/formatting';
-import { View, UserRole, User } from '../../types';
+import { View, User } from '../../types';
 import { Skeleton } from '../toolkit/Skeleton';
 import { useProduct } from '../../contexts/ProductContext';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface StatsWidgetProps {
     activeMattersCount: number;
@@ -127,14 +128,19 @@ const OutstandingCard: React.FC<OutstandingCardProps> = ({
     );
 };
 
-const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, managedUnits, propertyRevenue = 0, activeLeasesCount = 0, occupancyRate = 0, navigateTo, isCompact, isLoading = false, currentUser }) => {
-    const isAdmin = currentUser.role === UserRole.Admin;
+const StatsWidget: React.FC<StatsWidgetProps> = ({ activeMattersCount, overdueTasksCount, outstandingRevenue, contactsCount, propertyCount = 0, managedUnits, propertyRevenue = 0, activeLeasesCount = 0, occupancyRate = 0, navigateTo, isCompact, isLoading = false, currentUser: _currentUser }) => {
     // Use hasPropertyFeatures (not isProperty) so Komplete (unified) mode
     // shows the Managed Units card. isProperty only controls the assistant
     // name (ALOA vs ARIA), not feature availability.
     const { isLegal, hasPropertyFeatures } = useProduct();
 
-    const showFinanceCard = isAdmin && (isLegal || hasPropertyFeatures);
+    // UX-40 (Phase 1): the money KPI now follows the SAME rule as the
+    // Financials view itself — staffCanViewBilling (via usePermissions).
+    // It was isAdmin-only, so non-admin staff on property-capable firms
+    // (who can open Financials) saw an under-informed dashboard — the IA
+    // disagreed with itself for the same role.
+    const { canViewBilling } = usePermissions();
+    const showFinanceCard = canViewBilling && (isLegal || hasPropertyFeatures);
 
     const totalCards =
         (isLegal ? 1 : 0) +

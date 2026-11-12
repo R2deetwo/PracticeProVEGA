@@ -26,6 +26,7 @@ import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeatures } from '../../hooks/useFeatures';
 import { SettingsCard } from './FirmSettings';
+import { Button } from '../ui';
 import { SubscriptionPlan } from '../../types';
 import NairaSymbol from '../NairaSymbol';
 // ROUND D (Wave 2, D3): the management console the texts below always
@@ -35,7 +36,7 @@ import EstateCommunityAdminPanel from './EstateCommunityAdminPanel';
 
 const EstateCommunitySettings: React.FC = () => {
   const { coreState } = useCoreState();
-  const { addToast } = useUI();
+  const { addToast, openModal } = useUI();
   const { currentUser, bearerToken } = useAuth();
   const updateFirm = useMutation(api.myFunctions.updateFirmSettings);
 
@@ -140,18 +141,25 @@ const EstateCommunitySettings: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 mt-3">
-            <a
-              href="#subscription"
+            {/* UX-10 (Phase 1): both CTAs were dead in-page anchors to an
+                element that exists nowhere in the app — clicking "Start
+                30-day free trial" silently did nothing on a paid upsell
+                path. Both now open the real upgrade modal (ui/Button per
+                ADR-0004, 'bare' mode carrying the card's legacy look). */}
+            <Button
+              variant="bare"
+              onClick={() => openModal('upgradePlan')}
               className="text-center px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors"
             >
               Start 30-day free trial
-            </a>
-            <a
-              href="#subscription"
+            </Button>
+            <Button
+              variant="bare"
+              onClick={() => openModal('upgradePlan')}
               className="text-center px-4 py-2 border border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
             >
               Upgrade to Pro
-            </a>
+            </Button>
           </div>
           <p className="text-2xs text-slate-500 dark:text-zinc-500 mt-2 leading-relaxed">
             Below Sentry pricing (₦7,500/mo). Bundle both add-ons for ₦10,000/mo and save ₦2,500.

@@ -162,7 +162,17 @@ const FullScreenSearch: React.FC = () => {
                     ) : trimmed.length < 2 ? (
                         <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Keep typing to search…</p>
                     ) : !canSearch ? (
-                        <p className="p-16 text-center text-slate-500 dark:text-zinc-400">Sign in with your firm account to search your matters, properties, contacts, documents and tasks.</p>
+                        // UX-60 (Phase 1): the signed-in DEMO persona (dev
+                        // builds only) saw "Sign in with your firm account…"
+                        // while already signed in — evaluators concluded
+                        // search was broken. The copy now names the demo
+                        // limitation instead of telling a signed-in user to
+                        // sign in.
+                        <p className="p-16 text-center text-slate-500 dark:text-zinc-400">
+                            {isDemo
+                                ? 'Search is disabled in the demo build — create a firm account to search your matters, properties, contacts, documents and tasks.'
+                                : 'Sign in with your firm account to search your matters, properties, contacts, documents and tasks.'}
+                        </p>
                     ) : searchResults && searchResults.totalCount > 0 ? (
                         <div>
                              <div className="px-4 py-2 text-sm text-slate-500 dark:text-zinc-400 border-b border-slate-200 dark:border-zinc-700">

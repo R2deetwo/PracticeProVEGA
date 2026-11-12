@@ -162,6 +162,14 @@ function makeCtx(fix: Fixtures = {}, overrides: Record<string, any> = {}) {
       }
       return null;
     },
+    // HOTFIX (2026-11-12) fidelity: mirror Convex's normalizeId — a valid
+    // table id normalizes to itself; anything else (a client UUID v4, a
+// fixture label with dashes, garbage) returns null instead of the throw
+    // a real db.get() would produce for non-base32 ids.
+    normalizeId: (_table: string, id: any) => {
+      const s = String(id ?? '');
+      return /^[a-z0-9]{22,40}$/.test(s) ? (id as any) : null;
+    },
     insert: async (table: string, value: any) => {
       writes.inserts.push({ table, value });
       const _id = `${table}_${tables[table]?.length ?? 0}_${writes.inserts.length}`;
@@ -221,52 +229,65 @@ afterEach(() => { vi.restoreAllMocks(); });
 // D8(c) — the research reads are authenticated (the unauth'd read cluster)
 // ═══════════════════════════════════════════════════════════════════════════
 describe('D8 — research reads auth truth (getResearchMessages / getResearchAnalysisResults)', () => {
+  // HOTFIX (2026-11-12) fixture fidelity: production notebooks carry the
+  // CLIENT uuid v4 in their `id` field (createItem path; documentState keeps
+  // it as nb.id) alongside the Convex `_id`. Messages are keyed by that
+  // client UUID. The old fixtures only had `_id` labels, so the mock never
+  // exercised the id form that actually crashed production.
+  const NB1_UUID = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+  const NB2_UUID = 'b6c2a7d0-8f11-4c22-9e3f-1a2b3c4d5e6f';
+  const NB_LEGACY_UUID = '0d5f9a22-6d51-4d84-8b1e-77c9b0a12345';
+  const NB1_CONVEX_ONLY = 'k57convexonly000000000000000000';
   const researchTables = {
     researchNotebooks: [
-      { _id: 'nb-1', firmId: 'firm-1', userId: 'u-admin-1', name: 'Firm 1 notebook', title: 'Lead matter research' },
-      { _id: 'nb-2', firmId: 'firm-2', userId: 'u-f2-admin', name: 'Firm 2 notebook', title: 'Competitor research' },
-      { _id: 'nb-legacy', firmId: null, userId: 'u-admin-1', name: 'Legacy unbound notebook', title: 'pre-firm era' },
+      { _id: 'k57f1nb000000000000000000000000', id: NB1_UUID, firmId: 'firm-1', userId: 'u-admin-1', name: 'Firm 1 notebook', title: 'Lead matter research' },
+      { _id: 'k57f2nb000000000000000000000000', id: NB2_UUID, firmId: 'firm-2', userId: 'u-f2-admin', name: 'Firm 2 notebook', title: 'Competitor research' },
+      { _id: 'k57legnb00000000000000000000000', id: NB_LEGACY_UUID, firmId: null, userId: 'u-admin-1', name: 'Legacy unbound notebook', title: 'pre-firm era' },
+      // No client `id` field — resolvable ONLY by its Convex _id (exercises
+      // the normalizeId + db.get fallback path).
+      { _id: NB1_CONVEX_ONLY, firmId: 'firm-1', userId: 'u-admin-1', name: 'Convex-id-only notebook' },
     ],
     researchMessages: [
-      { _id: 'rm-1', notebookId: 'nb-1', firmId: 'firm-1', role: 'user', content: 'F1 research chat', createdAt: NOW },
-      { _id: 'rm-2', notebookId: 'nb-2', firmId: 'firm-2', role: 'user', content: 'F2 SECRET research chat', createdAt: NOW },
+      { _id: 'rm-1', notebookId: NB1_UUID, firmId: 'firm-1', role: 'user', content: 'F1 research chat', createdAt: NOW },
+      { _id: 'rm-2', notebookId: NB2_UUID, firmId: 'firm-2', role: 'user', content: 'F2 SECRET research chat', createdAt: NOW },
+      { _id: 'rm-3', notebookId: NB1_CONVEX_ONLY, firmId: 'firm-1', role: 'user', content: 'F1 convex-keyed chat', createdAt: NOW },
     ],
     researchAnalysisResults: [
-      { _id: 'ar-1', notebookId: 'nb-1', firmId: 'firm-1', summary: 'F1 analysis', createdAt: NOW },
-      { _id: 'ar-2', notebookId: 'nb-2', firmId: 'firm-2', summary: 'F2 SECRET analysis', createdAt: NOW },
+      { _id: 'ar-1', notebookId: NB1_UUID, firmId: 'firm-1', summary: 'F1 analysis', createdAt: NOW },
+      { _id: 'ar-2', notebookId: NB2_UUID, firmId: 'firm-2', summary: 'F2 SECRET analysis', createdAt: NOW },
     ],
   };
 
   it('REJECTS a caller with no session (was: bare notebookId, cross-firm reads)', async () => {
     const { ctx } = makeCtx({ tables: researchTables });
     await expect(
-      (getResearchMessages as any)._handler(ctx, { notebookId: 'nb-1' })
+      (getResearchMessages as any)._handler(ctx, { notebookId: NB1_UUID })
     ).rejects.toThrow(/Unauthenticated|sign in/i);
     await expect(
-      (getResearchAnalysisResults as any)._handler(ctx, { notebookId: 'nb-1' })
+      (getResearchAnalysisResults as any)._handler(ctx, { notebookId: NB1_UUID })
     ).rejects.toThrow(/Unauthenticated|sign in/i);
   });
 
   it('REJECTS a staff caller from ANOTHER firm reading firm-1 notebooks', async () => {
     const { ctx } = makeCtx({ session: FIRM2_ADMIN_SESSION, user: FIRM2_ADMIN, tables: researchTables });
     await expect(
-      (getResearchMessages as any)._handler(ctx, { notebookId: 'nb-1', sessionToken: 'tok-f2-admin' })
+      (getResearchMessages as any)._handler(ctx, { notebookId: NB1_UUID, sessionToken: 'tok-f2-admin' })
     ).rejects.toThrow(/Not authorized|firm/i);
     await expect(
-      (getResearchAnalysisResults as any)._handler(ctx, { notebookId: 'nb-1', sessionToken: 'tok-f2-admin' })
+      (getResearchAnalysisResults as any)._handler(ctx, { notebookId: NB1_UUID, sessionToken: 'tok-f2-admin' })
     ).rejects.toThrow(/Not authorized|firm/i);
   });
 
   it('REJECTS a portal (Tenant) caller', async () => {
     const { ctx } = makeCtx({ session: TENANT_SESSION, user: TENANT, tables: researchTables });
     await expect(
-      (getResearchMessages as any)._handler(ctx, { notebookId: 'nb-1', sessionToken: 'tok-tenant-1' })
+      (getResearchMessages as any)._handler(ctx, { notebookId: NB1_UUID, sessionToken: 'tok-tenant-1' })
     ).rejects.toThrow(/Portal users do not have access/i);
   });
 
   it('returns [] for an unbound (legacy firmId=null) notebook — never a cross-firm leak', async () => {
     const { ctx } = makeCtx({ session: ADMIN_SESSION, user: ADMIN, tables: researchTables });
-    const rows: any[] = await (getResearchMessages as any)._handler(ctx, { notebookId: 'nb-legacy', sessionToken: 'tok-admin-xyz' });
+    const rows: any[] = await (getResearchMessages as any)._handler(ctx, { notebookId: NB_LEGACY_UUID, sessionToken: 'tok-admin-xyz' });
     expect(rows).toEqual([]);
   });
 
@@ -279,13 +300,47 @@ describe('D8 — research reads auth truth (getResearchMessages / getResearchAna
 
   it('RETURNS own-firm rows for a legitimate staff caller — the workflow works', async () => {
     const { ctx } = makeCtx({ session: ADMIN_SESSION, user: ADMIN, tables: researchTables });
-    const msgs: any[] = await (getResearchMessages as any)._handler(ctx, { notebookId: 'nb-1', sessionToken: 'tok-admin-xyz' });
+    const msgs: any[] = await (getResearchMessages as any)._handler(ctx, { notebookId: NB1_UUID, sessionToken: 'tok-admin-xyz' });
     expect(msgs.length).toBe(1);
     expect(msgs[0]._id).toBe('rm-1');
     expect(JSON.stringify(msgs)).not.toContain('F2 SECRET');
-    const ars: any[] = await (getResearchAnalysisResults as any)._handler(ctx, { notebookId: 'nb-1', sessionToken: 'tok-admin-xyz' });
+    const ars: any[] = await (getResearchAnalysisResults as any)._handler(ctx, { notebookId: NB1_UUID, sessionToken: 'tok-admin-xyz' });
     expect(ars.length).toBe(1);
     expect(ars[0]._id).toBe('ar-1');
+  });
+
+  // ── HOTFIX (2026-11-12) — the production Research crash regression tests ──
+  // ResearchView passes selectedNotebook.id, which is the CLIENT uuid v4 the
+  // notebook was created with (createItem keeps it in the `id` field;
+  // documentState preserves it as nb.id). The old handler handed that UUID
+  // straight to db.get(), which threw "Unable to decode ID: ID wasn't valid
+  // base32" and took the whole Research view down with "Something went wrong".
+  it('accepts a client-uuid-v4 notebookId (the production crash form) WITHOUT throwing, and resolves it by the id field', async () => {
+    const { ctx } = makeCtx({ session: ADMIN_SESSION, user: ADMIN, tables: researchTables });
+    const arbitraryUuid = '9c858661-3c12-4d0e-a3b2-71f6c1e84f11';
+    // A uuid that matches NO notebook: [] — not a throw (this is the exact
+    // production error surface: any fresh/optimistic notebook id).
+    await expect(
+      (getResearchMessages as any)._handler(ctx, { notebookId: arbitraryUuid, sessionToken: 'tok-admin-xyz' })
+    ).resolves.toEqual([]);
+    await expect(
+      (getResearchAnalysisResults as any)._handler(ctx, { notebookId: arbitraryUuid, sessionToken: 'tok-admin-xyz' })
+    ).resolves.toEqual([]);
+    // A uuid that DOES match a notebook resolves via the by_custom_id index
+    // and returns that notebook's messages.
+    const msgs: any[] = await (getResearchMessages as any)._handler(ctx, { notebookId: NB1_UUID, sessionToken: 'tok-admin-xyz' });
+    expect(msgs.map((m: any) => m._id)).toEqual(['rm-1']);
+  });
+
+  it('resolves a notebook passed by its CONVEX document id (the normalizeId fallback)', async () => {
+    const { ctx } = makeCtx({ session: ADMIN_SESSION, user: ADMIN, tables: researchTables });
+    const msgs: any[] = await (getResearchMessages as any)._handler(ctx, { notebookId: NB1_CONVEX_ONLY, sessionToken: 'tok-admin-xyz' });
+    expect(msgs.map((m: any) => m._id)).toEqual(['rm-3']);
+    // The convex fallback is still firm-bound: firm-2's admin gets rejected.
+    const f2 = makeCtx({ session: FIRM2_ADMIN_SESSION, user: FIRM2_ADMIN, tables: researchTables });
+    await expect(
+      (getResearchMessages as any)._handler(f2.ctx, { notebookId: NB1_CONVEX_ONLY, sessionToken: 'tok-f2-admin' })
+    ).rejects.toThrow(/Not authorized|firm/i);
   });
 
   it('ResearchView passes the session bearer to both research reads', () => {

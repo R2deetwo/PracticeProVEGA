@@ -144,7 +144,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
-    const { isSidebarRetracted, openModal } = useUI();
+    const { isSidebarRetracted, openModal, addToast } = useUI();
     const { isLegal, isProperty, isUnified, product, hasPropertyFeatures, terminology } = useProduct();
     const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
 
@@ -237,8 +237,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
         try {
             await repairMutation({ email: currentUser.email, targetFirmId });
             window.location.reload();
-        } catch (e) {
-            // Error handled silently — user stays on current workspace
+        } catch (e: any) {
+            // UX-49 (Phase 1): silent failure made the switcher look broken —
+            // users retried blind with no idea anything had failed. The
+            // error is now surfaced; the user stays on the current workspace
+            // and can retry from the same switcher.
+            addToast(
+                e?.message || 'Could not switch workspace. Please try again — you remain in your current workspace.',
+                { type: 'error', duration: 6000 }
+            );
         }
     };
 

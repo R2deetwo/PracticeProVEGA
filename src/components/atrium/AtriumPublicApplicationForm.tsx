@@ -36,6 +36,15 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
     // Fetch the property to get its firmId (required for the lead pipeline)
     const property = useQuery(api.myFunctions.getPropertyById, { propertyId });
 
+    // UX-09 (Phase 1): the applicant must be able to confirm WHICH property
+    // they are applying to. The route wrapper passes a generic label
+    // ("Property Application") because it doesn't have the record — this
+    // form does (fetched above), so the fetched ADDRESS wins and the label
+    // is only the pre-fetch fallback. The same display name is reused in
+    // the success state so the applicant knows exactly what they applied
+    // for, and the firm can tell which listing converted.
+    const displayName = ((property as any)?.address) || propertyName;
+
     // ── Move-in cost disclosure (Task 59 follow-up: application-side
     // enforcement) ────────────────────────────────────────────────────
     // The Lease & Rent Configuration sets what a new resident pays — rent
@@ -123,7 +132,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Application Received</h2>
                 <p className="text-slate-600 dark:text-slate-400">
-                    Thank you for your interest in {propertyName}. The property manager has been notified and will contact you shortly.
+                    Thank you for your interest in {displayName}. The property manager has been notified and will contact you shortly.
                 </p>
             </div>
         );
@@ -137,7 +146,7 @@ export const AtriumPublicApplicationForm: React.FC<{ propertyId: string; propert
                 </div>
                 <div>
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">Tenancy Application</h2>
-                    <p className="text-sm text-slate-500">Applying for: <span className="font-semibold text-slate-700 dark:text-slate-300">{propertyName}{unitHint ? ` — Unit ${unitHint}` : ''}</span></p>
+                    <p className="text-sm text-slate-500">Applying for: <span className="font-semibold text-slate-700 dark:text-slate-300">{displayName}{unitHint ? ` — Unit ${unitHint}` : ''}</span></p>
                 </div>
             </div>
 

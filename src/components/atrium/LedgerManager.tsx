@@ -438,7 +438,7 @@ const CashFlowChart: React.FC<{ data: Record<string, { income: number; risk: num
 // ── Main Component ────────────────────────────────────────────────────────
 const LedgerManager: React.FC = () => {
   const { currentUser, bearerToken } = useAuth();
-  const { coreState } = useCoreState();
+  const { coreState, isDataLoaded } = useCoreState();
   const { addToast } = useUI();
   const firmId = coreState.firmDetails?.id || currentUser?.firmId || '';
 
@@ -668,7 +668,13 @@ const LedgerManager: React.FC = () => {
 
       {/* Table */}
       <div className="flex-1 sm:overflow-y-auto px-6 pb-44 sm:pb-6">
-        {!entries ? (
+        {/* UX-30 (Phase 1): the skeleton was dead code — `entries` is coerced
+            with `|| []` above, so `!entries` was never true and a slow load
+            rendered the "No ledger entries yet" empty state instead. Loading
+            is now gated on the real hydration flag (isDataLoaded, same
+            pattern as PropertyManagerView), so an accountant can no longer
+            mistake a loading ledger for an empty one and double-record. */}
+        {!isDataLoaded ? (
           <div className="space-y-2">
             {[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-slate-900 rounded-lg animate-pulse" />)}
           </div>

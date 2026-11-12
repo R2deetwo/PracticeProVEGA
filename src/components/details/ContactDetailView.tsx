@@ -12,6 +12,7 @@ import { ExpandablePropertyGroup } from '../sentry/ExpandablePropertyGroup';
 import { ResidentProfilePanel } from './ResidentProfilePanel';
 import { Breadcrumbs } from '../Breadcrumbs';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { AriaChatContext } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
@@ -316,13 +317,20 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   
   const hasRealEstateMatters = matters.some(m => m.type === MatterType.RealEstate);
   const [activeTab, setActiveTab] = useState<ContactTab>('overview');
+  // UX-41 (Phase 1): the Properties tab is now visible to every
+  // property-capable firm (Atrium and Komplete) even when the contact has
+  // no property yet — that empty tab IS the natural starting point of the
+  // "link a matter and a tenancy" bridge. Vega-only firms still see it
+  // only when there is real-estate data to show.
+  const { hasPropertyFeatures } = useProduct();
+  const showPropertiesTab = hasPropertyFeatures || hasRealEstateMatters || allProperties.length > 0;
 
   // Reset active tab if the current tab's render condition becomes false
   useEffect(() => {
-      if (activeTab === 'properties' && !(hasRealEstateMatters || allProperties.length > 0)) {
+      if (activeTab === 'properties' && !showPropertiesTab) {
           setActiveTab('overview');
       }
-  }, [activeTab, hasRealEstateMatters, allProperties.length]);
+  }, [activeTab, showPropertiesTab]);
 
   if (!contact) {
       return <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8"><p className="text-lg font-medium">Contact not found</p></div>;
@@ -415,7 +423,8 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                     ) : (
                         <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-zinc-700 rounded-lg">
                             <OfficeBuildingIcon className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                            <p className="text-sm text-slate-500">No properties recorded.</p>
+                            <p className="text-sm text-slate-500">No properties recorded yet.</p>
+                            <p className="text-xs text-slate-400 mt-1">Use “Add Property” above to record this contact's first property.</p>
                         </div>
                     )}
 
@@ -656,7 +665,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             <nav className="-mb-px flex space-x-6 overflow-x-auto no-scrollbar whitespace-nowrap">
                 <button onClick={() => setActiveTab('overview')} className={`flex-shrink-0 py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'overview' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>Overview</button>
                 <button onClick={() => setActiveTab('matters')} className={`flex-shrink-0 py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'matters' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>Matters ({matters.length})</button>
-                {(hasRealEstateMatters || allProperties.length > 0) && (
+                {showPropertiesTab && (
                     <button onClick={() => setActiveTab('properties')} className={`flex-shrink-0 py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${activeTab === 'properties' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-zinc-400'}`}>
                         Properties ({new Set(allProperties.map(p => p.address)).size}) {allProperties.length > 1 && <span className="text-2xs opacity-60 ml-1 font-bold">• {allProperties.length} Units</span>}
                     </button>
