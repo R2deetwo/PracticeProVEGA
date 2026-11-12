@@ -1,10 +1,12 @@
 /**
  * FinancialStatusBadge — Single source of truth for financial status
- * styling across PracticePro.
+ * styling across PracticePro (UX-02/UX-20).
  *
- * Replaces 8+ hand-rolled status-color implementations across
- * BillingView, LedgerManager, ServiceChargeMonitor, TrustAccountTab,
- * InvoiceDetailView, ClientDashboard, TenantPortal, and more.
+ * The variant palette is expressed in the semantic status TOKENS (the
+ * status Tailwind family backed by the --status-* CSS vars in index.css;
+ * see tailwind.config.ts), so it is theme-aware by construction: the same
+ * badge reads correctly in light and dark and every theme that overrides
+ * the CSS vars. Hand-rolled hue maps elsewhere converge here.
  *
  * Usage:
  *   <FinancialStatusBadge status="Paid" />
@@ -13,16 +15,11 @@
  *
  * The status prop is case-insensitive and handles the various status
  * string values found across the app:
- *   - Paid / paid / CLEARED / cleared → success (emerald)
- *   - Overdue / overdue / Defaulted / defaulted → danger (rose)
- *   - Pending / pending / Staged / staged → warning (amber)
- *   - Partial / PARTIALLY_PAID / partial → info (blue)
- *   - Draft / draft → neutral (slate)
- *   - Sent / sent → success (emerald, lighter)
- *   - Failed / failed → danger (rose)
- *   - Cancelled / cancelled / Expired / expired → neutral (slate)
- *   - Active / active / Occupied / occupied → success (emerald)
- *   - Vacant / vacant → neutral (slate)
+ *   - Paid / paid / CLEARED / cleared / Sent / Active / Occupied → success
+ *   - Overdue / Defaulted / Failed / Rejected / Void → danger (struck)
+ *   - Pending / Staged / Draft / Unpaid / Trial → warning
+ *   - Partial / PARTIALLY_PAID / partial → info
+ *   - Cancelled / Expired / Reversed / Vacant / archived → neutral (Reversed struck)
  */
 
 import React from 'react';
@@ -35,12 +32,15 @@ interface FinancialStatusBadgeProps {
   className?: string;
 }
 
+// UX-02: token-based, theme-aware. A 10% tint of the semantic hue carries
+// the background; the same hue carries the text — identical treatment for
+// every status on every screen, in both themes.
 const VARIANT_STYLES: Record<BadgeVariant, string> = {
-  success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  danger: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  neutral: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+  success: 'bg-status-success/10 text-status-success',
+  danger: 'bg-status-danger/10 text-status-danger',
+  warning: 'bg-status-warning/10 text-status-warning',
+  info: 'bg-status-info/10 text-status-info',
+  neutral: 'bg-dim-100 text-dim-600 dark:bg-dim-800 dark:text-dim-400',
 };
 
 const SIZE_STYLES: Record<string, string> = {
@@ -62,8 +62,9 @@ function statusToVariant(status: string): BadgeVariant {
     return 'danger';
   }
 
-  // Warning states
-  if (['pending', 'staged', 'in_progress', 'in-progress', 'todo', 'draft', 'trial'].includes(s)) {
+  // Warning states (UX-02: 'unpaid' joins pending/draft — an unpaid invoice
+  // is money expected, the same semantic as Pending, not neutral)
+  if (['pending', 'staged', 'in_progress', 'in-progress', 'todo', 'draft', 'trial', 'unpaid'].includes(s)) {
     return 'warning';
   }
 
@@ -72,8 +73,16 @@ function statusToVariant(status: string): BadgeVariant {
     return 'info';
   }
 
-  // Neutral states (vacant, archived, inactive, etc.)
+  // Neutral states (vacant, archived, inactive, reversed, etc.)
   return 'neutral';
+}
+
+// Retired statuses render struck-through — the record exists for the audit
+// trail but no longer counts (the same contract as the invoice list's
+// Void/Reversed treatment).
+function isRetiredStatus(status: string): boolean {
+  const s = (status || '').toLowerCase().trim();
+  return ['void', 'reversed', 'cancelled', 'expired'].includes(s);
 }
 
 function statusToLabel(status: string): string {
@@ -101,7 +110,7 @@ export const FinancialStatusBadge: React.FC<FinancialStatusBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-sm font-bold uppercase tracking-wider ${variantStyle} ${sizeStyle} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-sm font-bold uppercase tracking-wider ${variantStyle} ${sizeStyle} ${isRetiredStatus(status) ? 'line-through' : ''} ${className}`}
     >
       {label}
     </span>

@@ -3,10 +3,11 @@ import React from 'react';
 /**
  * Badge — the shared status-pill primitive (design-system Chunk A).
  *
- * Tone vocabulary and color strings deliberately mirror
- * ui/FinancialStatusBadge.tsx (the existing de-facto standard:
- * bg-X-100 text-X-700 dark:bg-X-900/30 dark:text-X-400) so the two
- * components render identically for the same tone and can converge later.
+ * UX-02: the tone palette is expressed in the SAME semantic status tokens
+ * as FinancialStatusBadge (bg-status-X/10 + text-status-X on the status
+ * family) — one vocabulary,
+ * theme-aware by construction, identical rendering for the same tone in
+ * both components.
  *
  * Use FinancialStatusBadge when you have a raw payment/lease status STRING
  * that needs mapping; use Badge when you already know the tone.
@@ -21,11 +22,11 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 }
 
 const TONES: Record<BadgeTone, string> = {
-  success: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  danger: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
-  info: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  neutral: 'bg-slate-100 text-slate-600 dark:bg-zinc-800 dark:text-zinc-400',
+  success: 'bg-status-success/10 text-status-success',
+  warning: 'bg-status-warning/10 text-status-warning',
+  danger: 'bg-status-danger/10 text-status-danger',
+  info: 'bg-status-info/10 text-status-info',
+  neutral: 'bg-dim-100 text-dim-600 dark:bg-dim-800 dark:text-dim-400',
   outline: 'border border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-400',
 };
 

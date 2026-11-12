@@ -159,13 +159,15 @@ describe('Primitives — single source of truth', () => {
     it('Badge tone strings mirror FinancialStatusBadge exactly', () => {
         const b = stripComments(badgeSrc);
         const fb = stripComments(finBadgeSrc);
+        // UX-02: both components express tones in the semantic status tokens
+        // (bg-status-*/10 + text-status-*) — one vocabulary, theme-aware.
         const tones: Array<[string, string]> = [
-            ['success', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'],
-            ['danger', 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'],
+            ['success', 'bg-status-success/10 text-status-success'],
+            ['danger', 'bg-status-danger/10 text-status-danger'],
         ];
         for (const [tone, str] of tones) {
             expect(b).toContain(str);
-            expect(fb).toContain(str.split(' ').slice(0, 4).join(' '));
+            expect(fb).toContain(str);
         }
     });
 });

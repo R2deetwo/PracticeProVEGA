@@ -698,7 +698,7 @@ const LedgerManager: React.FC = () => {
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Type dot */}
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${nonActive ? 'bg-slate-600' : entry.status === 'cleared' ? 'bg-emerald-500' : entry.status === 'defaulted' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${nonActive ? 'bg-slate-600' : entry.status === 'cleared' ? 'bg-status-success' : entry.status === 'defaulted' ? 'bg-status-danger' : 'bg-status-warning'}`} />
                     
                     {/* Meta */}
                     <div className="flex-1 min-w-0">

@@ -153,7 +153,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
         </svg>
       ),
       iconBg: 'bg-gradient-to-br from-emerald-500 to-green-600',
-      accent: 'border-emerald-500/30',
+      accent: 'border-status-success/30',
     },
     error: {
       icon: (
@@ -162,7 +162,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
         </svg>
       ),
       iconBg: 'bg-gradient-to-br from-rose-500 to-red-600',
-      accent: 'border-rose-500/30',
+      accent: 'border-status-danger/30',
     },
     info: {
       icon: (
@@ -171,7 +171,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
         </svg>
       ),
       iconBg: 'bg-gradient-to-br from-blue-500 to-violet-600',
-      accent: 'border-blue-500/30',
+      accent: 'border-status-info/30',
     },
     warning: {
       icon: (
@@ -180,7 +180,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
         </svg>
       ),
       iconBg: 'bg-gradient-to-br from-amber-500 to-yellow-600',
-      accent: 'border-amber-500/30',
+      accent: 'border-status-warning/30',
     },
   };
 

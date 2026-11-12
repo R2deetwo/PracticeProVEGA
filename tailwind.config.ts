@@ -29,6 +29,18 @@ const config: Config = {
                         vega: ['var(--font-vega-display)', 'Georgia', 'serif'],
                 },
                 colors: {
+                        // ─── UX-02: SEMANTIC STATUS COLORS ────────────────────
+                        // The ONE status vocabulary, CSS-var driven and
+                        // theme-aware (light ramps in :root, dark ramps in
+                        // .dark — see index.css). Every status map, badge,
+                        // dot and toast accent converges on these instead of
+                        // hand-picking from 7 raw hue scales.
+                        status: {
+                                success: 'rgb(var(--status-success) / <alpha-value>)',
+                                warning: 'rgb(var(--status-warning) / <alpha-value>)',
+                                danger: 'rgb(var(--status-danger) / <alpha-value>)',
+                                info: 'rgb(var(--status-info) / <alpha-value>)',
+                        },
                         background: 'hsl(var(--background))',
                         foreground: 'hsl(var(--foreground))',
                         card: {

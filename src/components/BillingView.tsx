@@ -4,7 +4,7 @@ import { Invoice, InvoiceStatus, ModalType, AppState } from '../types';
 import { CheckCircleIcon, MailIcon, RevertIcon, BillingIcon, PlusIcon, ExclamationTriangleIcon } from '../constants';
 import { Clock, AlertCircle, CheckCircle, FileText, Ban, Undo2 } from 'lucide-react';
 import Tooltip from './Tooltip';
-import { Select } from './ui';
+import { Select, FinancialStatusBadge } from './ui';
 // SIMPLIFY FIX: StatCard import removed with the duplicate KPI row.
 import { formatNaira } from '../utils/formatting';
 import { isActiveFinancialRecord } from '../utils/financialLifecycle';
@@ -49,17 +49,10 @@ import { ComposeModal, ComposeModalPrefill } from './atrium/ComposeModal';
 // and audit trail now live ONLY in Messages (Conversations / Sent).
 import { PaymentProofsScreen } from './atrium/PaymentProofsScreen';
 
-const getStatusBadgeClass = (status: InvoiceStatus) => {
-    switch (status) {
-        case InvoiceStatus.Paid: return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-        case InvoiceStatus.PartiallyPaid: return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300';
-        case InvoiceStatus.Unpaid: return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-        case InvoiceStatus.Overdue: return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-        case InvoiceStatus.Reversed: return 'bg-dim-100 text-dim-500 dark:bg-dim-700 dark:text-dim-400 line-through';
-        case InvoiceStatus.Void: return 'bg-rose-100 text-rose-700 dark:bg-rose-900/60 dark:text-rose-300 line-through';
-        default: return 'bg-dim-100 text-dim-800 dark:bg-dim-700 dark:text-dim-300';
-    }
-};
+// UX-02/UX-20: the invoice status palette converges on FinancialStatusBadge
+// (semantic status tokens, theme-aware) instead of this file's private
+// green/teal/yellow/red hue map — the same status now renders identically
+// on every money screen. The old private hue map is deleted.
 
 // ── Void / Reinstate Invoice Modal (accounting-integrity round) ──────────
 // The audited retirement path: a reason is REQUIRED and becomes part of the
@@ -167,7 +160,7 @@ const InvoiceRow: React.FC<{
             <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 dark:text-dim-300">{new Date(invoice.dueDate).toLocaleDateString('en-GB')}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(total)}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadgeClass(invoice.status)}`}>{invoice.status}</span>
+                <FinancialStatusBadge status={invoice.status} size="md" />
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <div className="flex items-center justify-end space-x-2">
@@ -224,7 +217,7 @@ const InvoiceMobileCard: React.FC<{
                         <p className="text-xs text-rose-500 dark:text-rose-400 mt-0.5" title={`Voided by ${invoice.voidedByEmail || 'unknown'}: "${invoice.voidReason}"`}>Voided — {invoice.voidReason}</p>
                     )}
                 </div>
-                <span className={`px-2 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusBadgeClass(invoice.status)}`}>{invoice.status}</span>
+                <FinancialStatusBadge status={invoice.status} size="sm" />
             </div>
             <div className="flex justify-between items-end">
                 <div className="text-xs text-slate-500 dark:text-zinc-400">

@@ -22,9 +22,9 @@ interface PriorityPopoverProps {
 }
 
 const priorityOptions: { level: Task['priority']; label: string; icon: React.FC<{className?: string}>; colorClass: string }[] = [
-    { level: TaskPriority.High, label: 'High', icon: PriorityHighIcon, colorClass: 'text-red-500' },
-    { level: TaskPriority.Medium, label: 'Medium', icon: PriorityMediumIcon, colorClass: 'text-yellow-500' },
-    { level: TaskPriority.Low, label: 'Low', icon: PriorityLowIcon, colorClass: 'text-blue-500' },
+    { level: TaskPriority.High, label: 'High', icon: PriorityHighIcon, colorClass: 'text-status-danger' },
+    { level: TaskPriority.Medium, label: 'Medium', icon: PriorityMediumIcon, colorClass: 'text-status-warning' },
+    { level: TaskPriority.Low, label: 'Low', icon: PriorityLowIcon, colorClass: 'text-status-info' },
 ];
 
 const PriorityPopover: React.FC<PriorityPopoverProps> = ({ task, onUpdate, onClose, anchorEl }) => {
