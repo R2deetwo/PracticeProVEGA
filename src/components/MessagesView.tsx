@@ -1284,7 +1284,7 @@ const MessagesView: React.FC = () => {
                                         value={conversationSearch}
                                         onChange={e => setConversationSearch(e.target.value)}
                                         placeholder="Search conversations..."
-                                        className="flex-1 min-w-0 px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 placeholder:text-slate-400 focus:ring-1 focus:ring-primary-500/30 focus:border-primary-400"
+                                        className="flex-1 min-w-0 px-2.5 py-1 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 text-slate-700 dark:text-zinc-200 placeholder:text-slate-500 focus:ring-1 focus:ring-primary-500/30 focus:border-primary-400"
                                     />
                                     {conversationSearch && (
                                         <button

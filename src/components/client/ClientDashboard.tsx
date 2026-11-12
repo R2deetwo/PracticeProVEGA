@@ -1270,7 +1270,7 @@ const ClientDashboard: React.FC = () => {
                                 onChange={(e) => setMessageText(e.target.value)}
                                 placeholder="Type your message here..."
                                 rows={3}
-                                className="w-full text-sm border border-slate-200 dark:border-zinc-600 rounded-lg px-4 py-3 bg-slate-50 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
+                                className="w-full text-sm border border-slate-200 dark:border-zinc-600 rounded-lg px-4 py-3 bg-slate-50 dark:bg-zinc-700 text-slate-800 dark:text-zinc-200 placeholder:text-slate-500 dark:placeholder:text-zinc-500 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none resize-none"
                             />
                             {/* File attachments */}
                             {pendingFiles.length > 0 && (

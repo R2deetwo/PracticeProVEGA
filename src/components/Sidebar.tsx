@@ -48,7 +48,7 @@ const NavSection: React.FC<{ title?: string; children: React.ReactNode; isRetrac
     <div className={`mb-2 ${isRetracted ? 'px-1' : 'px-3'}`}>
         {title && (
             <h4 className={`
-                px-1 mb-2 text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-2 transition-all duration-300
+                px-1 mb-2 text-2xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-widest mt-2 transition-all duration-300
                 ${isRetracted ? 'text-center opacity-40' : 'px-3'}
             `}>
                 {isRetracted ? (title === 'OPERATIONS' ? 'OPS' : 'MENU') : title}

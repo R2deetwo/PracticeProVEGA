@@ -349,7 +349,7 @@ const ComposerView: React.FC<{
                         onChange={(e) => setGroupName(e.target.value)}
                         placeholder="hearing-prep"
                         autoFocus
-                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     />
                 </label>
             )}
@@ -361,7 +361,7 @@ const ComposerView: React.FC<{
                     rows={3}
                     placeholder={isGroup ? 'Round everyone up in one thread…' : `Say hi to ${recipients[0].name.split(' ')[0]}…`}
                     autoFocus={!isGroup}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                 />
             </label>
             <div className="flex items-center justify-between gap-2">

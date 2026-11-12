@@ -60,7 +60,7 @@ const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
 
 
     // inputLarge is now imported at top level
-    const commonInputClass = inputLarge.replace('rounded-md', 'rounded-lg').replace('dark:bg-zinc-700', 'dark:bg-zinc-700/50') + " focus:ring-2 focus:border-transparent transition-all placeholder:text-slate-400";
+    const commonInputClass = inputLarge.replace('rounded-md', 'rounded-lg').replace('dark:bg-zinc-700', 'dark:bg-zinc-700/50') + " focus:ring-2 focus:border-transparent transition-all placeholder:text-slate-500";
 
     return (
         <div className="fixed inset-0 z-[2000] flex items-center justify-center animate-fade-in">

@@ -1098,7 +1098,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                           ? 'Search clients, residents, or team…'
                           : 'Search units or residents…')
                     : 'Add more…'}
-                  className="flex-1 min-w-[100px] bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 py-1"
+                  className="flex-1 min-w-[100px] bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-500 py-1"
                 />
               </div>
 
@@ -1576,7 +1576,7 @@ export const ComposeModal: React.FC<{ firmId: string; onClose: () => void; onToa
                 value={customText} 
                 onChange={e => { setCustomText(e.target.value); setIsEdited(true); }} 
                 rows={7}
-                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-3 text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder:text-slate-400 leading-relaxed resize-none"
+                className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-3 text-base text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400 placeholder:text-slate-500 leading-relaxed resize-none"
                 placeholder="Type your message here..."
               />
             </div>

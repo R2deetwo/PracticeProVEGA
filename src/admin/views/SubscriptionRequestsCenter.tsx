@@ -491,7 +491,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                               placeholder="Discount reason (e.g. Annual bundle loyalty)"
                               value={discountReason[r.id] || ''}
                               onChange={e => setDiscountReason(prev => ({ ...prev, [r.id]: e.target.value }))}
-                              className="w-full px-2 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-1 focus:ring-emerald-500/30 outline-none"
+                              className="w-full px-2 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-1 focus:ring-emerald-500/30 outline-none"
                             />
                             <div className="mt-2 flex justify-between items-center text-xs">
                               <span className="text-slate-500 dark:text-zinc-400">
@@ -512,7 +512,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                               placeholder="e.g. Confirmed ₦20,000 transfer received"
                               value={adminNotes[r.id] || ''}
                               onChange={e => setAdminNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
-                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
+                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
                             />
                           </div>
                           <div>
@@ -522,7 +522,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                               placeholder="e.g. Payment not received. Contact support."
                               value={rejectReason[r.id] || ''}
                               onChange={e => setRejectReason(prev => ({ ...prev, [r.id]: e.target.value }))}
-                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-red-500/30 focus:border-red-500 outline-none"
+                              className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-red-500/30 focus:border-red-500 outline-none"
                             />
                           </div>
                           <div className="flex gap-2 pt-1">
@@ -605,7 +605,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
             placeholder="Search by firm, email, reference, or plan..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 outline-none"
+            className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 outline-none"
           />
           <div className="flex gap-1 mt-3 overflow-x-auto no-scrollbar">
             {STATUS_FILTERS.map(f => (
@@ -782,7 +782,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                             placeholder="Discount reason (e.g. Early adopter loyalty discount)"
                             value={discountReason[r.id] || ''}
                             onChange={e => setDiscountReason(prev => ({ ...prev, [r.id]: e.target.value }))}
-                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-1 focus:ring-emerald-500/30 outline-none"
+                            className="w-full px-2 py-1.5 text-xs bg-white dark:bg-zinc-900 border border-emerald-200 dark:border-emerald-800 rounded text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-1 focus:ring-emerald-500/30 outline-none"
                           />
                           {/* Live discount calculation */}
                           <div className="mt-2 flex justify-between items-center text-xs">
@@ -808,7 +808,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                             placeholder="e.g. Verified transfer of ₦80,000 received at 14:32"
                             value={adminNotes[r.id] || ''}
                             onChange={e => setAdminNotes(prev => ({ ...prev, [r.id]: e.target.value }))}
-                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none"
                           />
                         </div>
                         {/* Reject reason */}
@@ -819,7 +819,7 @@ export const SubscriptionRequestsCenter: React.FC = () => {
                             placeholder="e.g. Transfer not received. Please contact support."
                             value={rejectReason[r.id] || ''}
                             onChange={e => setRejectReason(prev => ({ ...prev, [r.id]: e.target.value }))}
-                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-red-500/30 focus:border-red-500 outline-none"
+                            className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-red-500/30 focus:border-red-500 outline-none"
                           />
                         </div>
                         {/* Action buttons */}

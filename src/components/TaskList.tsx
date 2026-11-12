@@ -144,7 +144,7 @@ const TaskRow: React.FC<{
                     <span className="px-2 py-1 bg-surface-2 dark:bg-zinc-700 rounded text-xs font-medium truncate max-w-[150px] inline-block" title={matter.title}>
                         {matter.title}
                     </span>
-                ) : <span className="text-dim-400 italic text-xs">No matter</span>}
+                ) : <span className="text-dim-500 dark:text-dim-400 italic text-xs">No matter</span>}
             </td>
             {appMode === 'multi' && (
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -158,7 +158,7 @@ const TaskRow: React.FC<{
                                 </Tooltip>
                             ))}
                         </div>
-                    ) : <div className="flex justify-center items-center w-full"><span className="text-xs text-dim-400">—</span></div>}
+                    ) : <div className="flex justify-center items-center w-full"><span className="text-xs text-dim-500 dark:text-dim-400">—</span></div>}
                 </td>
             )}
             <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
@@ -548,7 +548,7 @@ const TaskCard: React.FC<{
                                         </Tooltip>
                                     ))}
                                 </div>
-                            ) : <span className="text-3xs text-dim-400">Unassigned</span>
+                            ) : <span className="text-3xs text-dim-500 dark:text-dim-400">Unassigned</span>
                         )}
 
                         {/* Quick action buttons — visible (no opacity hover trick on touch) */}

@@ -286,7 +286,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             value={visitorName}
                             onChange={(e) => setVisitorName(e.target.value)}
                             placeholder="e.g. John Doe"
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                         />
                     </div>
 
@@ -298,7 +298,7 @@ export const VisitorPortal: React.FC<VisitorPortalProps> = ({
                             value={visitorPhone}
                             onChange={(e) => setVisitorPhone(e.target.value)}
                             placeholder="+234 801 234 5678"
-                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-base text-slate-900 dark:text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
                         />
                         <p className="text-2xs text-slate-400 mt-1">Required for portal delivery. Include country code.</p>
                     </div>

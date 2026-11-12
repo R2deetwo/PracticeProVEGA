@@ -200,7 +200,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.email}
                                         onChange={e => updateField('email', e.target.value)}
                                         placeholder="you@firm.com"
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.email ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-500 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.email && <p className="text-2xs text-red-500 mt-1">{errors.email}</p>}
@@ -219,7 +219,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.name}
                                         onChange={e => updateField('name', e.target.value)}
                                         placeholder="Full name"
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.name ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.name ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-500 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.name && <p className="text-2xs text-red-500 mt-1">{errors.name}</p>}
@@ -237,7 +237,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.companyName}
                                         onChange={e => updateField('companyName', e.target.value)}
                                         placeholder="Firm or company name"
-                                        className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+                                        className="w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border border-slate-200 dark:border-zinc-700 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-500 dark:placeholder:text-zinc-500"
                                     />
                                 </div>
                             </div>
@@ -254,7 +254,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.phone}
                                         onChange={e => updateField('phone', e.target.value)}
                                         placeholder="+1, +44, +234..."
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.phone ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.phone ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all placeholder:text-slate-500 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.phone && <p className="text-2xs text-red-500 mt-1">{errors.phone}</p>}
@@ -273,7 +273,7 @@ const ContactSalesDrawer: React.FC<{
                                         value={formData.message}
                                         onChange={e => updateField('message', e.target.value)}
                                         placeholder="Tell us about your firm's legal or property management operations..."
-                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.message ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-400 dark:placeholder:text-zinc-500`}
+                                        className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.message ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-500 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
                                 {errors.message && <p className="text-2xs text-red-500 mt-1">{errors.message}</p>}

@@ -288,7 +288,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
  // to the hub register; vega/atrium modals get their product's ring.
  const commonInputClass = inputLarge
   + ` ${authTheme.inputFocus}`
-  + " min-h-[52px] transition-all placeholder:text-slate-400";
+  + " min-h-[52px] transition-all placeholder:text-slate-500";
 
  // ─── STEP 3: RESTORE REQUEST (migration users only) ───────────────────────
  if (step === 'restore') {
@@ -342,7 +342,7 @@ const Signup: React.FC<SignupProps> = ({ onSwitchToLogin }) => {
         onChange={e => setRestoreNotes(e.target.value)}
         rows={3}
         placeholder="Anything that helps us locate your workspace..."
-        className="w-full text-slate-900 bg-white border border-slate-300 rounded-sm shadow-sm p-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-slate-400 resize-none text-sm"
+        className="w-full text-slate-900 bg-white border border-slate-300 rounded-sm shadow-sm p-3 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all placeholder:text-slate-500 resize-none text-sm"
        />
       </div>
 
