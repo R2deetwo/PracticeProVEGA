@@ -14,7 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { getInitials, getUserColor, formatDueDate, getDueDateColor } from '../utils/colorUtils';
 import { Button } from './ui';
-import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon } from '../constants';
+import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon, CalendarIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
 import EmptyState from './EmptyState';
 import { MattersSkeleton } from './toolkit/Skeleton';
@@ -457,6 +457,19 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                                 <BoardIcon className="w-4 h-4" />
                             </button>
                         </div>
+
+                        {/* UX-26 (reachability): Timeline (Case Roadmap) was a
+                            fully built view with NO navigation entry anywhere —
+                            palette-only. It belongs with the matters it
+                            visualises: one click from the master list toolbar. */}
+                        <button
+                            onClick={() => navigateTo('timeline')}
+                            title="Timeline (Case Roadmap)"
+                            aria-label="Open Timeline (Case Roadmap)"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-all"
+                        >
+                            <CalendarIcon className="w-4 h-4" />
+                        </button>
 
                         {/* Ingest button REMOVED per user request — the New
                             button is sufficient for creating matters. The

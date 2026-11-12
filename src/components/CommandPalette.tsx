@@ -6,6 +6,8 @@ import { useExecutionState } from '../contexts/ExecutionContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useProduct } from '../contexts/ProductContext';
+import { useFeatures } from '../hooks/useFeatures';
+import { usePermissions } from '../hooks/usePermissions';
 import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, CalendarIcon, CogIcon, PlusIcon, MoonIcon, SunIcon, ArchiveIcon, DocumentsIcon, ResearchIcon, OfficeBuildingIcon } from '../constants';
 import Fuse from 'fuse.js';
 import { useFocusTrap } from '../hooks/useFocusTrap';
@@ -40,6 +42,16 @@ const CommandPalette: React.FC = () => {
     const { isLegal, hasPropertyFeatures } = useProduct();
     const isLegalFirm = isLegal;
     const isPropertyFirm = hasPropertyFeatures;
+    // UX-15 (lock parity): the palette is the third nav surface. Locks that
+    // the Sidebar/BottomNav enforce (Research = Growth+; Financials = Pro+
+    // for Vega-only firms; Analytics = Growth+) must behave identically
+    // here — a locked entry either hides (when the surface itself is
+    // hidden) or opens the upgrade modal instead of navigating.
+    const features = useFeatures();
+    const permissions = usePermissions();
+    const researchLocked = !features.canUseResearchStudio;
+    const reportingLocked = !features.canUseReportGenerator;
+    const billingLocked = !hasPropertyFeatures && !features.canUseAdvancedBilling;
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -59,14 +71,22 @@ const CommandPalette: React.FC = () => {
         { id: 'nav-contacts', title: 'Go to Contacts', type: 'Navigation', icon: <ContactsIcon />, action: () => navigateTo('contacts') },
         { id: 'nav-tasks', title: 'Go to Tasks', type: 'Navigation', icon: <TasksIcon />, action: () => navigateTo('tasks') },
         { id: 'nav-calendar', title: 'Go to Calendar', type: 'Navigation', icon: <CalendarIcon />, action: () => navigateTo('calendar') },
-        ...(isLegalFirm ? ([{ id: 'nav-research', title: 'Go to Research Studio', type: 'Navigation', icon: <ResearchIcon />, action: () => navigateTo('research') }] as SearchResult[]) : []),
+        ...(isLegalFirm ? ([{ id: 'nav-research', title: researchLocked ? 'Research Studio (Upgrade)' : 'Go to Research Studio', type: 'Navigation', icon: <ResearchIcon />, action: () => researchLocked ? openModal('upgradePlan') : navigateTo('research') }] as SearchResult[]) : []),
         // REACHABILITY FIXES: Timeline and Billing Monitor are fully built
         // views that previously had NO navigation entry anywhere — only
         // reachable by typing the URL. Exposed here (and Timeline is linked
         // from Reporting) so they're discoverable.
         ...(isLegalFirm ? ([{ id: 'nav-timeline', title: 'Go to Timeline (Case Roadmap)', type: 'Navigation', icon: <CalendarIcon />, action: () => navigateTo('timeline') }] as SearchResult[]) : []),
         ...(isLegalFirm ? ([{ id: 'nav-billing-monitor', title: 'Open Retainer Billing Monitor', type: 'Navigation', icon: <DashboardIcon />, action: () => navigateTo('billingMonitor') }] as SearchResult[]) : []),
-        { id: 'nav-archive', title: 'Go to Archive', type: 'Navigation', icon: <ArchiveIcon />, action: () => navigateTo('archive') },
+        // UX-26: Archive palette entry now carries the same permission gate
+        // (solo/admin) the Sidebar and BottomNav apply, instead of being the
+        // one ungated path into the archive.
+        ...(permissions.canViewArchive ? ([{ id: 'nav-archive', title: 'Go to Archive', type: 'Navigation', icon: <ArchiveIcon />, action: () => navigateTo('archive') }] as SearchResult[]) : []),
+        // UX-26 (palette permission parity): Financials/Analytics nav entries
+        // previously absent here — desktop palette users had no keyboard path
+        // to the money surfaces. Added with the SAME lock rules as Sidebar.
+        ...(permissions.canViewBilling ? ([{ id: 'nav-billing', title: billingLocked ? 'Financials (Upgrade)' : 'Go to Financials', type: 'Navigation', icon: <DashboardIcon />, action: () => billingLocked ? openModal('upgradePlan') : navigateTo('billing') }] as SearchResult[]) : []),
+        ...(permissions.canViewBilling ? ([{ id: 'nav-reporting', title: reportingLocked ? 'Analytics (Upgrade)' : 'Go to Analytics', type: 'Navigation', icon: <DashboardIcon />, action: () => reportingLocked ? openModal('upgradePlan') : navigateTo('reporting') }] as SearchResult[]) : []),
         { id: 'nav-settings', title: 'Go to Settings', type: 'Navigation', icon: <CogIcon />, action: () => navigateTo('settings') },
 
         // Actions
@@ -79,7 +99,7 @@ const CommandPalette: React.FC = () => {
         // System
         { id: 'sys-theme', title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, type: 'System', icon: theme === 'dark' ? <SunIcon /> : <MoonIcon />, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
         { id: 'sys-sidebar', title: 'Toggle Sidebar', type: 'System', icon: <div className="w-5 h-5 border border-current rounded flex items-center justify-center text-2xs">|||</div>, action: () => toggleSidebar() },
-    ], [navigateTo, openModal, theme, setTheme, toggleSidebar, isLegalFirm, isPropertyFirm]);
+    ], [navigateTo, openModal, theme, setTheme, toggleSidebar, isLegalFirm, isPropertyFirm, researchLocked, reportingLocked, billingLocked, permissions.canViewBilling, permissions.canViewArchive]);
 
     // 2. Dynamic Data Search Index
     const searchIndex = useMemo(() => {

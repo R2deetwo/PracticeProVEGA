@@ -830,6 +830,15 @@ const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ onComplete }) => {
             {/* Komplete single-tier display */}
             {isKomplete(product) ? (
               <div className="max-w-md mx-auto">
+                {/* UX-44: Komplete shows ONE annual tier with nothing to
+                    compare against — the highest-intent moment of the funnel
+                    offered no basis for evaluation. One compact includes-line
+                    states what the unified product bundles, using the same
+                    vocabulary as the hub footer. */}
+                <p className="text-center text-sm text-slate-500 leading-relaxed mb-4">
+                  Komplete bundles <span className="font-semibold text-slate-700">everything in Vega and Atrium</span> —
+                  matters, drafting and court-rule diaries alongside estates, tenants, rent and receipts — in one firm.
+                </p>
                 <PlanCard
                   tier={tiers.Core}
                   selected={selectedTierId === 'Core'}

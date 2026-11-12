@@ -601,7 +601,7 @@ const MatterDetailViewContent: React.FC = () => {
                         court dates (which are events) live here. The checklist hint
                         previously said "Schedule tab" which didn't exist. */}
                     <TabButton label="Tasks & Events" isActive={activeTab === 'schedule_tasks'} onClick={() => handleTabClick('schedule_tasks')} badgeCount={tabBadges.tasks} data-tour-id="matter-tab-tasks" />
-                    {canViewBilling && <TabButton label="Finance" isActive={activeTab === 'billing'} onClick={() => handleTabClick('billing')} />}
+                    {canViewBilling && <TabButton label="Financials" isActive={activeTab === 'billing'} onClick={() => handleTabClick('billing')} />}
                     <TabButton label="Documents" isActive={activeTab === 'documents'} onClick={() => handleTabClick('documents')} badgeCount={tabBadges.docs} />
                 </nav>
             </header>

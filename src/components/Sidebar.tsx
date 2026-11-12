@@ -4,18 +4,19 @@ import { useMatterState } from '../contexts/MatterContext';
 import { useExecutionState } from '../contexts/ExecutionContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useUI } from '../contexts/UIContext';
-import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
 import { useProduct } from '../contexts/ProductContext';
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon, ScalesIcon
+    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon, ScalesIcon,
+    ArchiveIcon, HelpIcon
 } from '../constants';
 import { lazyWithReload } from '../utils/lazyWithReload';
+import { useMessagesBadge } from '../hooks/useMessagesBadge';
 
 // V7 (A: initial payload): the onboarding checklist (~40 KB source) rode
 // the eager entry chunk via Sidebar's static import though it only renders
@@ -140,7 +141,6 @@ const NavItemLink: React.FC<{
 // BottomNav has its own icon copy). ~45 LOC of unreachable code.
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) => {
-    const { bearerToken } = useAuth();
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
     const { coreState, isDataLoaded } = useCoreState();
@@ -154,33 +154,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const [availableWorkspaces, setAvailableWorkspaces] = useState<any[]>([]);
     const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(false);
 
-    // Fetch inbound resident messages for unified badge count
-    // Demo sessions (DEV demo mode) have no verified bearer — the server-authed
-    // inbox and portal queries would throw Unauthenticated and trip the error boundary.
-    const sidebarFirmId = coreState.firmDetails?.id || currentUser?.firmId || '';
-    const sidebarIsDemo = currentUser?.email === 'demo@practicepro.ng';
-    const inboundMessages = useQuery(api.sentry.getInboundMessages, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId, userEmail: currentUser?.email, sessionToken: (bearerToken ?? undefined) } : 'skip') || [];
-    const inboundUnread = (inboundMessages as any[]).filter((m: any) => !m.isRead).length;
-
-    // R27: the Messages badge must count what the admin can actually OPEN —
-    // conversation threads with unread admin-side messages (unreadByAdmin).
-    // The old formula counted legacy flat portal_messages rows (status
-    // 'unread') that never render as list rows, so the badge could never be
-    // cleared by opening anything. Conversations drop one thread at a time
-    // as each is opened (markConversationReadByAdmin on click).
-    const portalConvs = useQuery(api.portals.getPortalConversationsByFirm, sidebarFirmId && !sidebarIsDemo ? { firmId: sidebarFirmId, sessionToken: bearerToken ?? undefined } : 'skip') || [];
-    const portalUnread = (portalConvs as any[]).reduce((sum: number, c: any) => sum + (c.unreadByAdmin || 0), 0);
-
-    const chatNotificationCount = (coreState.notifications || []).filter(n => n.userId === currentUser.id && !n.isRead && n.link?.view === 'messaging').length;
+    // Fetch inbound resident messages for unified badge count.
+    // UX-43: the Messages badge itself moved to useMessagesBadge — the ONE
+    // selector both nav surfaces render (the Sidebar previously computed
+    // chat+inbound+portal here while BottomNav counted notifications only,
+    // so the two badges could never be reconciled).
+    const unifiedMessagesBadge = useMessagesBadge();
 
     const counts = {
         updatedMatters: (matterState.clientMessages || []).filter(m => !m.isRead && m.authorId !== currentUser.id).length,
         tasks: (executionState.tasks || []).filter(t => t && t.assignedUsers && t.assignedUsers.includes(currentUser.id) && t.status !== 'done').length,
-        // Use hasPropertyFeatures (not isProperty) so Komplete firms also
-        // see unread resident/portal messages in the badge count. The count
-        // is computed LIVE from the queries — it drops as threads are opened,
-        // never on page entry (R27 messages read model).
-        messages: chatNotificationCount + (hasPropertyFeatures ? inboundUnread + portalUnread : 0),
+        // UX-43: same selector as BottomNav — identical number on both
+        // surfaces, drops live as threads are opened (R27 read model).
+        messages: unifiedMessagesBadge,
     };
 
     const currentPlan = coreState.firmDetails?.subscriptionPlan || SubscriptionPlan.Core; // Task 62: firmDetails can be undefined booting from the offline cache
@@ -472,6 +458,22 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         onLockedClick={() => openModal('upgradePlan')}
                     />
                     )}
+                    {/* UX-42 (nav parity): Archive and Help were reachable on
+                        mobile's More sheet but absent from the desktop Sidebar
+                        (Help was Settings-only, Archive Cmd+K-only). Both now
+                        sit in OPERATIONS with the same permission gate the
+                        mobile surface applies (canViewArchive = solo/admin;
+                        Help is universal). */}
+                    {permissions.canViewArchive && (
+                    <NavItemLink
+                        item={{ view: 'archive', text: 'Archive', icon: <ArchiveIcon /> }}
+                        setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                    />
+                    )}
+                    <NavItemLink
+                        item={{ view: 'help', text: 'Help', icon: <HelpIcon /> }}
+                        setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
+                    />
                     {/* Compliance page deprecated — moved to Settings */}
                     <NavItemLink
                         id="nav-settings-sidebar"

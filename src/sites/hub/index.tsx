@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSiteChrome } from '../shared/useSiteChrome';
 import { useSiteScroll } from '../shared/useSiteScroll';
-import { useContactSales } from '../shared/useSignupOpener';
+import { useContactSales, useSignupOpener } from '../shared/useSignupOpener';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
 import { HubNavBar, HubFooter, WhatsAppFAB } from './HubShell';
 import { HubHero } from './sections/HeroSection';
@@ -46,6 +46,9 @@ export const HubSite: React.FC = () => {
         openContactSales,
         closeContactSales,
     } = useContactSales();
+    // UX-13: the hub's Komplete entry opens the SIGNUP funnel with Komplete
+    // preselected (null site product + 'komplete' override → unified).
+    const openSignup = useSignupOpener(null);
 
     // R21 (routing keep): selecting a product OPENS ITS OWN PAGE IN A
     // NEW TAB — Vega and Atrium are separate product surfaces.
@@ -120,6 +123,7 @@ export const HubSite: React.FC = () => {
                 onUsageClick={() => navigate('/usage-policy')}
                
                 onContactSales={() => openContactSales('Footer')}
+                onStartKomplete={() => openSignup('komplete')}
             />
         </div>
     );

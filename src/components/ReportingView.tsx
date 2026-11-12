@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 /* Added AppMode to imports */
 import { ReportDateRangeOption, TimesheetData, UtilizationData, MatterStatusReportData, ProfitLossData, ArAgingData, InvoiceStatus, AppMode, UserRole } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { SubscriptionPlan } from '../types';
 import { generateTimesheetReport, generateUtilizationReport, generateMatterStatusReport, generateProfitLossReport, generateArAgingReport } from '../services/reportGenerator';
 import { parseDateString } from '../utils/calendarUtils';
 import { useFeatures } from '../hooks/useFeatures';
@@ -23,7 +24,7 @@ type ReportType = 'timesheet' | 'utilization' | 'matter_status' | 'profit_loss' 
 
 const ReportGenerator: React.FC = () => {
     const { currentUser, appMode } = useAuth();
-    const { addToast } = useUI();
+    const { addToast, openModal } = useUI();
     const { coreState } = useCoreState();
     const { matterState } = useMatterState();
     const { executionState } = useExecutionState();
@@ -238,7 +239,7 @@ const ReportGenerator: React.FC = () => {
 
 
 const ReportingView: React.FC = () => {
-    const { currentHistoryEntry, navigateTo } = useUI();
+    const { currentHistoryEntry, navigateTo, openModal } = useUI();
     const context = currentHistoryEntry?.context || {};
 
     const [activeMainTab, setActiveMainTab] = useState<MainTab>(context.activeMainTab || 'dashboard');
@@ -263,8 +264,13 @@ const ReportingView: React.FC = () => {
                             <p className="text-slate-500 dark:text-zinc-400 max-w-md mb-2">
                                 Business Intelligence reports including Case Velocity, Utilization Rates, and Client Acquisition data are available on the Pro plan and above.
                             </p>
+                            {/* UX-55: both lock CTAs route through the UpgradeModal
+                                (openModal('upgradePlan')) — the same convention every
+                                other lock in the app uses — instead of dumping the
+                                user into Settings with no context. Advanced
+                                Analytics = Pro, Report Generator = Growth. */}
                             <button
-                                onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}
+                                onClick={() => openModal('upgradePlan', null, { featureName: 'Advanced Analytics', targetPlan: SubscriptionPlan.Pro })}
                                 className="px-6 py-3 bg-purple-600 text-white rounded-lg font-bold hover:bg-primary-700 transition-colors shadow-lg"
                             >
                                 Upgrade to Pro
@@ -350,7 +356,7 @@ const ReportingView: React.FC = () => {
                                 Generate professional PDF reports including Timesheets, P&L, A/R Aging, and Matter Status when you upgrade to Growth or above.
                             </p>
                             <button
-                                onClick={() => navigateTo('settings', null, { settingsTargetId: 'subscription-management' })}
+                                onClick={() => openModal('upgradePlan', null, { featureName: 'Report Generator', targetPlan: SubscriptionPlan.Growth })}
                                 className="px-6 py-3 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 transition-colors shadow-lg"
                             >
                                 Upgrade to Growth

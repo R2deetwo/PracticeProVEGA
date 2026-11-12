@@ -8,9 +8,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
 import { useUI } from '../contexts/UIContext';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
+import { useMessagesBadge } from '../hooks/useMessagesBadge';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
-    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon
+    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, ScalesIcon
 } from '../constants';
 
 interface NavItemDef {
@@ -36,6 +37,11 @@ const navItemsList: NavItemDef[] = [
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },
     { view: 'contacts', text: 'Contacts', icon: <ContactsIcon />, permission: () => true },
     { view: 'documents', text: 'Documents', icon: <DocumentsIcon />, permission: () => true },
+    // UX-42 (nav parity): Contract Analyzer was desktop-only — mobile users
+    // had no path to it at all. It joins the More sheet gated exactly like
+    // the Sidebar: legal firms only, never locked (MODULE 1 is standard on
+    // every plan per R48).
+    { view: 'analyzer', text: 'Contract Analyzer', icon: <ScalesIcon />, permission: () => true },
     { view: 'billing', text: 'Financials', icon: <BillingIcon />, permission: (p) => p.canViewBilling },
     { view: 'reporting', text: 'Analytics', icon: <ReportingIcon />, permission: (p) => p.canViewBilling },
     { view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon />, permission: () => true },
@@ -106,6 +112,14 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
     const { light } = useHapticFeedback();
 
+    // UX-43 (badge parity): the Messages badge is the ONE selector shared
+    // with the desktop Sidebar (chat notifications + unread inbound resident
+    // messages + unread admin-side portal conversations). BottomNav
+    // previously counted coreState.notifications only — a badge that could
+    // not be cleared by opening the threads it pointed at and disagreed
+    // with the desktop number.
+    const unifiedMessagesBadge = useMessagesBadge();
+
     // Unified Badge Logic: Strictly filters for the current user and maps notifications to their respective tabs.
     // HOME/DASHBOARD: No badges — notifications belong on the Bell icon and Messages tab only.
     const getBadgeCountForView = React.useCallback((view: View) => {
@@ -113,6 +127,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
 
         // Dashboard/Home gets NO badge — clean home view, no duplicate alerts
         if (view === 'dashboard') return 0;
+
+        // UX-43: Messages uses the shared selector (see useMessagesBadge).
+        if (view === 'messaging') return unifiedMessagesBadge;
 
         // We filter notifications that:
         // 1. Belong to this user
@@ -133,7 +150,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
 
             return false;
         }).length;
-    }, [coreState.notifications, currentUser]);
+    }, [coreState.notifications, currentUser, unifiedMessagesBadge]);
 
     const { isLegal, hasPropertyFeatures, isUnified, terminology } = useProduct();
     const features = useFeatures();
@@ -169,6 +186,7 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         if (item.view === 'matters' && !isLegal) return false;
         if (item.view === 'research' && !isLegal) return false;
         if (item.view === 'documents' && !isLegal) return false;
+        if (item.view === 'analyzer' && !isLegal) return false;
         if (item.view === 'properties' && !hasPropertyFeatures) return false;
         return item.permission(permissions);
     });

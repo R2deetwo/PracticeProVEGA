@@ -238,7 +238,8 @@ export const HubFooter: React.FC<{
     onCookieClick: () => void;
     onUsageClick: () => void;
     onContactSales: () => void;
-}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onContactSales }) => (
+    onStartKomplete: () => void;
+}> = ({ onPrivacyClick, onTermsClick, onCookieClick, onUsageClick, onContactSales, onStartKomplete }) => (
     <footer className="bg-slate-950 border-t border-white/5 py-10 md:py-16 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] md:pb-16">
         <div className="container mx-auto px-4 sm:px-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-10 mb-12">
@@ -262,7 +263,14 @@ export const HubFooter: React.FC<{
                         <a href="/atrium" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
                             Atrium — Property Management OS
                         </a>
-                        <button onClick={onContactSales} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
+                        {/* UX-13 (Komplete acquisition funnel): the footer's
+                            Komplete entry previously opened Contact Sales — a
+                            visitor who had already decided to BUY the unified
+                            product was handed a form to talk about it. It now
+                            opens the signup flow with Komplete preselected
+                            ('komplete' normalizes to unified); sales stays one
+                            click away under Company → Contact Sales. */}
+                        <button onClick={onStartKomplete} className="text-slate-500 hover:text-slate-300 text-sm text-left transition-colors min-h-[2rem] flex items-center">
                             Komplete — both, for real-estate attorneys
                         </button>
                         <a href="https://kozycare.ng" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 text-sm transition-colors min-h-[2rem] flex items-center">
