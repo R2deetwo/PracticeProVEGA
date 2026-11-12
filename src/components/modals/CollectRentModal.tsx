@@ -25,6 +25,8 @@ import NairaSymbol from '../NairaSymbol';
 import { formatNaira, formatDateWithOrdinal } from '../../utils/formatting';
 import { v4 as uuidv4 } from 'uuid';
 import { generateReceiptPdf } from '../../services/reportGenerator';
+import { buildRentTimeline, summarizeTimeline } from '../../utils/leaseTimeline';
+import { DEFAULT_MANAGEMENT_FEE_PERCENT } from '../../utils/propertyDefaults';
 
 interface CollectRentModalProps {
   property: Property;
@@ -97,7 +99,31 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
   const [displayAmount, setDisplayAmount] = useState(initialAmount.toLocaleString());
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState('Bank Transfer');
-  const [periodStart, setPeriodStart] = useState(new Date().toISOString().split('T')[0]);
+  // UX-35: the covered period is prefilled from the rent timeline — the
+  // earliest unsettled cycle (or, when everything is settled, the next due
+  // cycle). "Today" is only the last resort when no timeline can be built
+  // (no lease start / no rent configured), so receipts stop misstating the
+  // covered period on day one.
+  const timelinePeriodStart = (() => {
+    try {
+      const periods = buildRentTimeline({
+        leaseStart: property.rentalDetails?.leaseStart,
+        leaseEnd: property.rentalDetails?.leaseEnd,
+        rentFrequency: property.rentalDetails?.rentFrequency,
+        rentAmount: property.rentalDetails?.rentAmount,
+        payments: property.rentPaymentHistory ?? [],
+      });
+      if (periods.length === 0) return '';
+      const unsettled = periods.filter(
+        p => p.status === 'due' || p.status === 'overdue' || p.status === 'outstanding' || p.status === 'partial'
+      );
+      if (unsettled.length > 0) return unsettled[0].dueDate;
+      return summarizeTimeline(periods).nextDueDate ?? '';
+    } catch {
+      return '';
+    }
+  })();
+  const [periodStart, setPeriodStart] = useState(timelinePeriodStart || new Date().toISOString().split('T')[0]);
   const [periodEnd, setPeriodEnd] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -115,8 +141,10 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
     }
   };
 
-  // Fee Calculation — informational only, NOT deducted from receipt
-  const feePercentage = property.managementFeePercentage || 0;
+  // Fee Calculation — informational only, NOT deducted from receipt.
+  // UX-35: the ONE fee-default chain — an unconfigured property (undefined)
+  // gets the same 10% PropertyForm advertises; an EXPLICIT 0 stays 0.
+  const feePercentage = property.managementFeePercentage ?? DEFAULT_MANAGEMENT_FEE_PERCENT;
   const feeAmount = useMemo(() => (amountValue * feePercentage) / 100, [amountValue, feePercentage]);
   const tenantName = overrideTenantName || property.rentalDetails?.tenantName;
   // Build display label — allow wrapping instead of truncating
@@ -600,7 +628,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
               <div className="p-3 bg-primary-500/10 rounded-lg border border-primary-500/20">
                 <div className="flex justify-between items-start text-sm mb-2">
                   <div>
-                    <span className="text-slate-300 font-semibold">Management Fee</span>
+                    <span className="text-slate-700 dark:text-zinc-300 font-semibold">Management Fee</span>
                     <span className="ml-2 text-3xs px-1.5 py-0.5 bg-primary-500/20 text-primary-400 rounded font-bold uppercase">{feePercentage}%</span>
                   </div>
                   <span className="font-bold text-primary-400"><NairaSymbol />{formatNaira(feeAmount)}</span>
@@ -609,8 +637,8 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
                   Fee is invoiced separately to the landlord. Receipt remains at full amount for proper accounting.
                 </p>
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/10 text-2xs">
-                  <span className="text-slate-400">Landlord retains (after fee)</span>
-                  <span className="font-bold text-emerald-400"><NairaSymbol />{formatNaira(amountValue - feeAmount)}</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Landlord retains (after fee)</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400"><NairaSymbol />{formatNaira(amountValue - feeAmount)}</span>
                 </div>
               </div>
             )}
@@ -618,7 +646,7 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
             {/* Zero-fee properties */}
             {feePercentage <= 0 && (
               <div className="p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                <p className="text-2xs text-emerald-400 font-semibold">No management fee configured</p>
+                <p className="text-2xs text-emerald-600 dark:text-emerald-400 font-semibold">No management fee on this property (0%)</p>
                 <p className="text-3xs text-slate-500 mt-0.5">Full amount is remitted to the landlord.</p>
               </div>
             )}
@@ -626,14 +654,14 @@ const CollectRentModal: React.FC<CollectRentModalProps> = ({ property, onClose }
 
           <div className="mt-8 pt-6 border-t border-white/10 space-y-3">
             <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 text-2xs text-slate-400">
+              <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400">
                 <UserIcon className="w-3 h-3" />
-                <span>Client: <strong className="text-white">{owner?.name || 'Unknown'}</strong></span>
+                <span>Client: <strong className="text-slate-900 dark:text-white">{owner?.name || 'Unknown'}</strong></span>
               </div>
               {tenantName && (
-                <div className="flex items-center gap-2 text-2xs text-slate-400">
+                <div className="flex items-center gap-2 text-2xs text-slate-500 dark:text-zinc-400">
                   <UserIcon className="w-3 h-3 opacity-50" />
-                  <span>Tenant: <strong className="text-white/80">{tenantName}</strong></span>
+                  <span>Tenant: <strong className="text-slate-900/80 dark:text-white/80">{tenantName}</strong></span>
                 </div>
               )}
             </div>

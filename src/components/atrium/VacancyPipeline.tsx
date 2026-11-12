@@ -58,12 +58,12 @@ function formatDate(ts: number) {
 }
 
 function ScoreBar({ score }: { score?: number }) {
-  if (score === undefined) return <span className="text-2xs text-slate-600">No score</span>;
+  if (score === undefined) return <span className="text-2xs text-slate-600 dark:text-zinc-400">No score</span>;
   const pct = Math.min(100, Math.max(0, score));
   const color = pct >= 75 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-rose-500';
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className={`text-2xs font-bold ${pct >= 75 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-rose-400'}`}>{pct}</span>
@@ -93,15 +93,15 @@ const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmI
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
-          <h3 className="font-bold text-white text-lg">Add Applicant</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl">×</button>
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800">
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg">Add Applicant</h3>
+          <button onClick={onClose} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xl">×</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Vacant Unit</label>
-            <select value={form.unitId} onChange={e => setForm(f => ({ ...f, unitId: e.target.value }))} required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+            <select value={form.unitId} onChange={e => setForm(f => ({ ...f, unitId: e.target.value }))} required className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500">
               <option value="">Select vacant unit...</option>
               {units.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
@@ -109,27 +109,27 @@ const AddLeadModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firmI
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Applicant Name</label>
-              <input value={form.applicantName} onChange={e => setForm(f => ({ ...f, applicantName: e.target.value }))} required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="Full name" />
+              <input value={form.applicantName} onChange={e => setForm(f => ({ ...f, applicantName: e.target.value }))} required className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="Full name" />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Phone / Email</label>
-              <input value={form.contactInfo} onChange={e => setForm(f => ({ ...f, contactInfo: e.target.value }))} required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="+234..." />
+              <input value={form.contactInfo} onChange={e => setForm(f => ({ ...f, contactInfo: e.target.value }))} required className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="+234..." />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Proposed Rent (₦)</label>
-              <input type="number" value={form.proposedRent} onChange={e => setForm(f => ({ ...f, proposedRent: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+              <input type="number" value={form.proposedRent} onChange={e => setForm(f => ({ ...f, proposedRent: e.target.value }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="0" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Vetting Score (0-100)</label>
-              <input type="number" min="0" max="100" value={form.vettingScore} onChange={e => setForm(f => ({ ...f, vettingScore: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="Leave blank to score later" />
+              <input type="number" min="0" max="100" value={form.vettingScore} onChange={e => setForm(f => ({ ...f, vettingScore: e.target.value }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="Leave blank to score later" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Notes</label>
-              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Employment, references, etc." />
+              <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500 resize-none" placeholder="Employment, references, etc." />
             </div>
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
             <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
               {loading ? 'Adding...' : 'Add Applicant'}
             </button>
@@ -147,20 +147,20 @@ const LeadCard: React.FC<{ lead: LeadPipelineEntry; unitLabel: string; onAdvance
   const next = NEXT_STAGE[lead.stage];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg p-3 transition-all space-y-2.5">
+    <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 rounded-lg p-3 transition-all space-y-2.5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-bold text-white">{lead.applicantName}</p>
+          <p className="text-sm font-bold text-slate-900 dark:text-white">{lead.applicantName}</p>
           <p className="text-2xs text-slate-500">{lead.contactInfo}</p>
         </div>
         {lead.proposedRent && <span className="text-xs font-black text-emerald-400">₦{formatLargeNumber(lead.proposedRent)}</span>}
       </div>
-      <p className="text-2xs text-slate-600 truncate">{unitLabel}</p>
+      <p className="text-2xs text-slate-600 dark:text-zinc-400 truncate">{unitLabel}</p>
       <div className="space-y-1">
-        <p className="text-3xs text-slate-600 uppercase tracking-wider">Vetting Score</p>
+        <p className="text-3xs text-slate-600 dark:text-zinc-400 uppercase tracking-wider">Vetting Score</p>
         {editScore ? (
           <div className="flex gap-1">
-            <input type="number" min="0" max="100" value={scoreInput} onChange={e => setScoreInput(e.target.value)} className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white focus:ring-1 focus:ring-emerald-500" />
+            <input type="number" min="0" max="100" value={scoreInput} onChange={e => setScoreInput(e.target.value)} className="w-16 bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded px-2 py-1 text-xs text-slate-900 dark:text-zinc-100 focus:ring-1 focus:ring-emerald-500" />
             <button onClick={() => { onScore(parseInt(scoreInput) || 0); setEditScore(false); }} className="px-2 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-500">OK</button>
           </div>
         ) : (
@@ -169,11 +169,11 @@ const LeadCard: React.FC<{ lead: LeadPipelineEntry; unitLabel: string; onAdvance
           </div>
         )}
       </div>
-      {lead.notes && <p className="text-2xs text-slate-600 italic truncate">"{lead.notes}"</p>}
+      {lead.notes && <p className="text-2xs text-slate-600 dark:text-zinc-400 italic truncate">"{lead.notes}"</p>}
       <div className="flex items-center justify-between pt-1">
-        <span className="text-3xs text-slate-700">{formatDate(lead.createdAt)}</span>
+        <span className="text-3xs text-slate-500 dark:text-zinc-400">{formatDate(lead.createdAt)}</span>
         {next && (
-          <button onClick={onAdvance} className="flex items-center gap-1 text-2xs font-bold px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg transition-colors">
+          <button onClick={onAdvance} className="flex items-center gap-1 text-2xs font-bold px-2 py-1 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white rounded-lg transition-colors">
             {STAGE_LABELS[next]} <ChevronRightIcon className="w-3 h-3" />
           </button>
         )}
@@ -211,8 +211,8 @@ const VacancyPipeline: React.FC = () => {
   const isPipelineLoading = liveLeads === undefined && Boolean(firmId);
   if (isPipelineLoading) {
     return (
-      <div className="h-full flex items-center justify-center bg-slate-950">
-        <div className="w-6 h-6 border-2 border-slate-700 border-t-primary-500 rounded-full animate-spin" role="status" aria-label="Loading vacancy pipeline" />
+      <div className="h-full flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-500 rounded-full animate-spin" role="status" aria-label="Loading vacancy pipeline" />
       </div>
     );
   }
@@ -264,11 +264,11 @@ const VacancyPipeline: React.FC = () => {
   };
 
   return (
-    <div className="min-h-full flex flex-col bg-slate-950 text-white sm:overflow-hidden">
+    <div className="min-h-full flex flex-col text-slate-900 dark:text-white sm:overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Vacancy Pipeline</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Vacancy Pipeline</h2>
           <p className="text-xs text-slate-500 mt-0.5">Inquiry → Closed conversion tracking</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -321,7 +321,7 @@ const VacancyPipeline: React.FC = () => {
               </div>
               <div className="flex-1 sm:overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                 {byStage[stage].length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-slate-700 border-2 border-dashed border-slate-800 rounded-lg">
+                  <div className="flex flex-col items-center justify-center py-8 text-slate-500 dark:text-zinc-400 border-2 border-dashed border-slate-300 dark:border-zinc-800 rounded-lg">
                     <UserPlusIcon className="w-6 h-6 mb-1" />
                     <p className="text-xs">No applicants</p>
                   </div>

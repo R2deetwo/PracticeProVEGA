@@ -53,9 +53,9 @@ const STATUS_STYLES: Record<LedgerEntryStatus, string> = {
   defaulted: 'bg-rose-900/40 text-rose-400 border-rose-800',
 };
 const TYPE_COLORS: Record<string, string> = {
-  rent: 'text-emerald-400', service_charge: 'text-sky-400', penalty: 'text-rose-400', deposit: 'text-violet-400',
+  rent: 'text-emerald-600 dark:text-emerald-400', service_charge: 'text-sky-600 dark:text-sky-400', penalty: 'text-rose-600 dark:text-rose-400', deposit: 'text-violet-600 dark:text-violet-400',
 };
-const typeColor = (t: string) => TYPE_COLORS[t] ?? 'text-amber-400';
+const typeColor = (t: string) => TYPE_COLORS[t] ?? 'text-amber-600 dark:text-amber-400';
 
 function formatTs(ts: number) {
   return new Date(ts).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -146,19 +146,19 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800">
           <div>
-            <h3 className="font-bold text-white text-lg">Record a Payment</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg">Record a Payment</h3>
             <p className="text-xs text-slate-500 mt-0.5">This goes into the Atrium ledger — separate from formal invoices</p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none">×</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Property */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-semibold">Which property?</label>
-            <select value={form.unitId} onChange={e => setForm(f => ({ ...f, unitId: e.target.value }))} required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+            <label className="block text-xs text-slate-600 dark:text-zinc-400 mb-1.5 font-semibold">Which property?</label>
+            <select value={form.unitId} onChange={e => setForm(f => ({ ...f, unitId: e.target.value }))} required className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
               <option value="">Select a property...</option>
               {units.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
@@ -166,14 +166,14 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
 
           {/* Type pills */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-semibold">What type of payment?</label>
+            <label className="block text-xs text-slate-600 dark:text-zinc-400 mb-1.5 font-semibold">What type of payment?</label>
             <div className="grid grid-cols-4 gap-2 flex-wrap">
               {TYPE_OPTIONS.map(opt => (
                 <button key={opt.value} type="button" onClick={() => setForm(f => ({ ...f, type: opt.value }))}
                   className={`flex flex-col items-center gap-1 py-2 px-1 rounded-lg border text-2xs font-bold transition-all ${
                     form.type === opt.value
                       ? 'bg-emerald-600 border-emerald-500 text-white'
-                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                      : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-slate-400 dark:hover:border-zinc-600'
                   }`}>
                   <span className="flex items-center justify-center mb-0.5">{opt.icon}</span>{opt.label}
                 </button>
@@ -183,55 +183,55 @@ const AddEntryModal: React.FC<{ firmId: string; onClose: () => void }> = ({ firm
 
           {/* Amount */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-semibold">Amount</label>
+            <label className="block text-xs text-slate-600 dark:text-zinc-400 mb-1.5 font-semibold">Amount</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₦</span>
-              <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required min="0" className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-zinc-400 font-bold">₦</span>
+              <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required min="0" className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg pl-8 pr-3 py-2.5 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="0.00" />
             </div>
           </div>
 
           {/* Did they pay? */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-semibold">Did they pay?</label>
+            <label className="block text-xs text-slate-600 dark:text-zinc-400 mb-1.5 font-semibold">Did they pay?</label>
             <div className="grid grid-cols-3 gap-2">
               {([
-                ['cleared', 'Yes, paid', 'border-emerald-600 bg-emerald-900/30 text-emerald-300', <CheckCircle2 className="w-3.5 h-3.5" />], 
-                ['pending', 'Pending', 'border-amber-600 bg-amber-900/30 text-amber-300', <Clock className="w-3.5 h-3.5" />], 
-                ['defaulted', 'Defaulted', 'border-rose-600 bg-rose-900/30 text-rose-300', <XCircle className="w-3.5 h-3.5" />]
+                ['cleared', 'Yes, paid', 'border-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300', <CheckCircle2 className="w-3.5 h-3.5" />], 
+                ['pending', 'Pending', 'border-amber-600 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300', <Clock className="w-3.5 h-3.5" />], 
+                ['defaulted', 'Defaulted', 'border-rose-600 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300', <XCircle className="w-3.5 h-3.5" />]
               ] as const).map(([val, label, activeClass, icon]) => (
                 <button key={val as string} type="button" onClick={() => setForm(f => ({ ...f, status: val as LedgerEntryStatus }))}
                   className={`py-2 px-2 rounded-lg border text-2xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    form.status === val ? activeClass : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                    form.status === val ? activeClass : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:border-slate-400 dark:hover:border-zinc-600'
                   }`}>{icon} {label as string}</button>
               ))}
             </div>
           </div>
 
           {/* Advanced toggle */}
-          <button type="button" onClick={() => setShowAdvanced(v => !v)} className="text-2xs text-slate-500 hover:text-slate-300 font-bold uppercase tracking-wider flex items-center gap-1">
+          <button type="button" onClick={() => setShowAdvanced(v => !v)} className="text-2xs text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 font-bold uppercase tracking-wider flex items-center gap-1">
             {showAdvanced ? '▾' : '▸'} Advanced options
           </button>
           {showAdvanced && (
             <div className="space-y-3 pt-1">
               <div>
                 <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Payment Channel</label>
-                <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+                <select value={form.channel} onChange={e => setForm(f => ({ ...f, channel: e.target.value }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500">
                   {['Bank Transfer', 'Cash', 'POS', 'Mobile Transfer', 'Cheque'].map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Payment Reference</label>
-                <input value={form.paymentRef} onChange={e => setForm(f => ({ ...f, paymentRef: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="e.g. TXN-2025-0412" />
+                <input value={form.paymentRef} onChange={e => setForm(f => ({ ...f, paymentRef: e.target.value }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="e.g. TXN-2025-0412" />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Notes</label>
-                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="Optional note..." />
+                <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="Optional note..." />
               </div>
             </div>
           )}
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
             <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
               {loading ? 'Recording...' : 'Record Payment'}
             </button>
@@ -314,31 +314,31 @@ const LifecycleActionModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
-          <h3 className="font-bold text-white text-lg">{copy.title}</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">×</button>
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800">
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg">{copy.title}</h3>
+          <button onClick={onClose} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none">×</button>
         </div>
         <form onSubmit={submit} className="p-5 space-y-4">
-          <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 flex items-center justify-between">
+          <div className="bg-slate-100 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-slate-500 dark:text-zinc-400 flex items-center justify-between">
             <span className="truncate">{typeLabel(entry.type)} · {formatNairaWhole(entry.amount)}</span>
-            <span className="font-mono text-3xs text-slate-600 ml-2">{entry.txHash?.slice(0, 14)}</span>
+            <span className="font-mono text-3xs text-slate-600 dark:text-zinc-400 ml-2">{entry.txHash?.slice(0, 14)}</span>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">{copy.body}</p>
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">{copy.body}</p>
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5 font-semibold">Reason <span className="text-rose-400">(required — becomes part of the audit trail)</span></label>
+            <label className="block text-xs text-slate-600 dark:text-zinc-400 mb-1.5 font-semibold">Reason <span className="text-rose-600 dark:text-rose-400">(required — becomes part of the audit trail)</span></label>
             <textarea
               value={reason}
               onChange={e => { setReason(e.target.value); if (error) setError(''); }}
               rows={3}
               autoFocus
               placeholder={copy.placeholder}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500 resize-none"
+              className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500 resize-none"
             />
             {error && <p className="text-xs text-rose-400 mt-1.5">{error}</p>}
           </div>
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
             <button type="submit" disabled={loading} className={`flex-1 py-2.5 text-white rounded-lg text-sm font-bold transition-colors disabled:opacity-50 ${copy.tone}`}>
               {loading ? 'Working…' : copy.confirm}
             </button>
@@ -351,12 +351,12 @@ const LifecycleActionModal: React.FC<{
 
 // ── Audit Trail Modal ────────────────────────────────────────────────────
 const ACTION_STYLES: Record<string, string> = {
-  void: 'bg-rose-900/40 text-rose-400 border-rose-800',
-  reinstate: 'bg-emerald-900/40 text-emerald-400 border-emerald-800',
-  mark_test: 'bg-violet-900/40 text-violet-400 border-violet-800',
-  unmark_test: 'bg-emerald-900/40 text-emerald-400 border-emerald-800',
-  edit: 'bg-sky-900/40 text-sky-400 border-sky-800',
-  delete: 'bg-rose-900/40 text-rose-400 border-rose-800',
+  void: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+  reinstate: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+  mark_test: 'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400 border-violet-200 dark:border-violet-800',
+  unmark_test: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+  edit: 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400 border-sky-200 dark:border-sky-800',
+  delete: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800',
 };
 
 const AuditTrailModal: React.FC<{
@@ -379,35 +379,35 @@ const AuditTrailModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800">
           <div>
-            <h3 className="font-bold text-white text-lg flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-400" /> Financial Audit Trail</h3>
+            <h3 className="font-bold text-slate-900 dark:text-white text-lg flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-emerald-400" /> Financial Audit Trail</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {scope?.label ? <>Scope: <span className="text-slate-400">{scope.label}</span> · </> : null}
+              {scope?.label ? <>Scope: <span className="text-slate-500 dark:text-zinc-400">{scope.label}</span> · </> : null}
               Append-only — every void, edit and test-mark, with its reason
             </p>
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xl leading-none">×</button>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-2">
           {!rows ? (
-            [...Array(5)].map((_, i) => <div key={i} className="h-16 bg-slate-800 rounded-lg animate-pulse" />)
+            [...Array(5)].map((_, i) => <div key={i} className="h-16 bg-slate-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)
           ) : rows.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-slate-600">
+            <div className="flex flex-col items-center justify-center h-40 text-slate-600 dark:text-zinc-400">
               <ShieldCheck className="w-8 h-8 mb-2" />
               <p className="text-sm">No lifecycle actions recorded yet</p>
               <p className="text-xs mt-1">Voids, edits, test-marks and reinstatements will appear here</p>
             </div>
           ) : rows.map(r => (
-            <div key={r.id} className="bg-slate-800/50 border border-slate-800 rounded-lg px-4 py-3">
+            <div key={r.id} className="bg-slate-100 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-800 rounded-lg px-4 py-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full border ${ACTION_STYLES[r.action] || 'bg-slate-800 text-slate-400 border-slate-700'}`}>{r.action.replace('_', ' ')}</span>
+                <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full border ${ACTION_STYLES[r.action] || 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 border-slate-200 dark:border-zinc-700'}`}>{r.action.replace('_', ' ')}</span>
                 <span className="text-2xs text-slate-500 font-mono">{r.tableName} · {String(r.recordId).slice(0, 18)}</span>
-                <span className="text-2xs text-slate-600 ml-auto">{new Date(r.createdAt).toLocaleString('en-NG')}</span>
+                <span className="text-2xs text-slate-600 dark:text-zinc-400 ml-auto">{new Date(r.createdAt).toLocaleString('en-NG')}</span>
               </div>
-              <p className="text-xs text-slate-300 mt-1.5 leading-relaxed"><span className="text-slate-500">Reason:</span> {r.reason}</p>
-              <p className="text-3xs text-slate-600 mt-1">by {r.actorEmail || 'system'}</p>
+              <p className="text-xs text-slate-600 dark:text-zinc-300 mt-1.5 leading-relaxed"><span className="text-slate-500">Reason:</span> {r.reason}</p>
+              <p className="text-3xs text-slate-600 dark:text-zinc-400 mt-1">by {r.actorEmail || 'system'}</p>
             </div>
           ))}
         </div>
@@ -428,7 +428,7 @@ const CashFlowChart: React.FC<{ data: Record<string, { income: number; risk: num
             <div className="w-full rounded-sm bg-emerald-500/80 transition-all" style={{ height: `${(v.income / max) * 60}px` }} title={`Income: ${formatNairaWhole(v.income)}`} />
             {v.risk > 0 && <div className="w-full rounded-sm bg-rose-500/60" style={{ height: `${(v.risk / max) * 60}px` }} title={`At Risk: ${formatNairaWhole(v.risk)}`} />}
           </div>
-          <span className="text-3xs text-slate-600 font-medium">{month.slice(5)}</span>
+          <span className="text-3xs text-slate-600 dark:text-zinc-400 font-medium">{month.slice(5)}</span>
         </div>
       ))}
     </div>
@@ -582,18 +582,18 @@ const LedgerManager: React.FC = () => {
   };
 
   return (
-    <div className="min-h-full flex flex-col bg-slate-950 text-white sm:overflow-hidden">
+    <div className="min-h-full flex flex-col text-slate-900 dark:text-white sm:overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">Financial Ledger</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">Financial Ledger</h2>
           <p className="text-xs text-slate-500 mt-0.5">Immutable append-only financial truth</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setAuditScope(null)}
             title="Financial audit trail — every void, edit and test-mark with its reason"
-            className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold rounded-lg transition-colors border border-slate-700"
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 text-sm font-semibold rounded-lg transition-colors border border-slate-200 dark:border-zinc-700"
           >
             <ShieldCheck className="w-4 h-4 text-emerald-400" /> Audit Trail
           </button>
@@ -605,23 +605,23 @@ const LedgerManager: React.FC = () => {
 
       {/* KPI Row */}
       <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-3 px-4 sm:px-6 py-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendUpIcon className="w-4 h-4 text-emerald-400" />
             <span className="text-xs text-slate-500 uppercase tracking-wider">Total Income</span>
           </div>
           <p className="text-2xl font-black text-emerald-400">₦{formatLargeNumber(cashFlow?.totalIncome ?? 0)}</p>
-          <p className="text-2xs text-slate-600 mt-1">{cashFlow?.totalTransactions ?? 0} transactions</p>
+          <p className="text-2xs text-slate-600 dark:text-zinc-400 mt-1">{cashFlow?.totalTransactions ?? 0} transactions</p>
         </div>
-        <div className="bg-slate-900 border border-rose-900/30 rounded-lg p-4">
+        <div className="bg-white dark:bg-zinc-900 border border-rose-200 dark:border-rose-900/30 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
             <span className="text-xs text-slate-500 uppercase tracking-wider">Revenue at Risk</span>
           </div>
           <p className="text-2xl font-black text-rose-400">₦{formatLargeNumber(cashFlow?.revenueAtRisk ?? 0)}</p>
-          <p className="text-2xs text-slate-600 mt-1">Pending + Defaulted</p>
+          <p className="text-2xs text-slate-600 dark:text-zinc-400 mt-1">Pending + Defaulted</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
             <HashIcon className="w-4 h-4 text-slate-500" />
             <span className="text-xs text-slate-500 uppercase tracking-wider">6-Month Flow</span>
@@ -632,38 +632,38 @@ const LedgerManager: React.FC = () => {
 
       {/* Filters */}
       <div className="flex-shrink-0 px-6 pb-3 flex flex-wrap items-center gap-2">
-        <FilterIcon className="w-4 h-4 text-slate-600" />
+        <FilterIcon className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by property or description..."
-          className="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-white focus:ring-1 focus:ring-emerald-500 w-56"
+          className="bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:ring-1 focus:ring-emerald-500 w-56"
         />
         {(['all', 'rent', 'service_charge', 'penalty', 'deposit'] as const).map(t => (
-          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterType === t ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterType === t ? 'bg-slate-700 dark:bg-zinc-700 text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'}`}>
             {t === 'all' ? 'All Types' : typeLabel(t)}
           </button>
         ))}
-        <div className="h-4 w-px bg-slate-800" />
+        <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800" />
         {(['all', 'cleared', 'pending', 'defaulted'] as const).map(s => (
-          <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterStatus === s ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+          <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterStatus === s ? 'bg-slate-700 dark:bg-zinc-700 text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'}`}>
             {s === 'all' ? 'All Status' : s}
           </button>
         ))}
         {hiddenCount > 0 && (
           <>
-            <div className="h-4 w-px bg-slate-800" />
+            <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800" />
             <button
               onClick={() => setShowLifecycleRecords(v => !v)}
               title="Voided and test-quarantined records are excluded from all totals. They stay in the books for the audit trail."
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${showLifecycleRecords ? 'bg-violet-900/50 text-violet-300 border border-violet-800' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${showLifecycleRecords ? 'bg-violet-100 dark:bg-violet-900/50 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 border border-transparent'}`}
             >
               {showLifecycleRecords ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
               {showLifecycleRecords ? 'Hide' : 'Show'} voided/test ({hiddenCount})
             </button>
           </>
         )}
-        <span className="ml-auto text-xs text-slate-600">{filtered.length} entries</span>
+        <span className="ml-auto text-xs text-slate-600 dark:text-zinc-400">{filtered.length} entries</span>
       </div>
 
       {/* Table */}
@@ -676,10 +676,10 @@ const LedgerManager: React.FC = () => {
             mistake a loading ledger for an empty one and double-record. */}
         {!isDataLoaded ? (
           <div className="space-y-2">
-            {[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-slate-900 rounded-lg animate-pulse" />)}
+            {[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-slate-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-slate-600">
+          <div className="flex flex-col items-center justify-center h-48 text-slate-600 dark:text-zinc-400">
             <HashIcon className="w-8 h-8 mb-2" />
             <p className="text-sm">No ledger entries yet</p>
             <p className="text-xs mt-1">Record your first transaction to begin</p>
@@ -694,7 +694,7 @@ const LedgerManager: React.FC = () => {
                 ? `Voided ${entry.voidedAt ? new Date(entry.voidedAt).toLocaleDateString('en-NG') : ''} by ${entry.voidedByEmail || 'unknown'} — "${entry.voidReason || 'no reason recorded'}"`
                 : isTest ? 'Test-quarantined record — excluded from all totals' : '';
               return (
-              <div key={entry._id} className={`group relative bg-slate-900 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-lg px-4 py-3.5 transition-all ${nonActive ? 'opacity-50 hover:opacity-80 border-dashed' : ''}`}>
+              <div key={entry._id} className={`group relative bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800/80 border border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 rounded-lg px-4 py-3.5 transition-all ${nonActive ? 'opacity-50 hover:opacity-80 border-dashed' : ''}`}>
                 <div className="flex flex-col md:flex-row md:items-center gap-3">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     {/* Type dot */}
@@ -703,10 +703,10 @@ const LedgerManager: React.FC = () => {
                     {/* Meta */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <p className={`text-sm font-bold truncate ${nonActive ? 'text-slate-400 line-through decoration-slate-600' : 'text-white'}`}>
+                        <p className={`text-sm font-bold truncate ${nonActive ? 'text-slate-400 dark:text-zinc-500 line-through decoration-slate-400 dark:decoration-zinc-600' : 'text-slate-900 dark:text-white'}`}>
                           {getUnitLabel(entry.unitId)} — {entry.description || typeLabel(entry.type)}
                         </p>
-                        <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-800 ${typeColor(entry.type)}`}>
+                        <span className={`text-3xs font-black uppercase px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 ${typeColor(entry.type)}`}>
                           {typeLabel(entry.type)}
                         </span>
                         {isVoided && (
@@ -726,18 +726,18 @@ const LedgerManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between md:justify-end gap-4 border-t border-slate-800 md:border-0 pt-3 md:pt-0">
+                  <div className="flex items-center justify-between md:justify-end gap-4 border-t border-slate-200 dark:border-zinc-800 md:border-0 pt-3 md:pt-0">
                     <div className="flex items-center gap-3">
                       <span className={`text-3xs font-bold uppercase px-2 py-0.5 rounded-full border ${STATUS_STYLES[entry.status]}`}>
                         {entry.status}
                       </span>
-                      <span className={`font-black text-base tabular-nums ${nonActive ? 'text-slate-500 line-through decoration-slate-700' : entry.status === 'cleared' ? 'text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-400' : 'text-amber-400'}`}>
+                      <span className={`font-black text-base tabular-nums ${nonActive ? 'text-slate-500 dark:text-zinc-500 line-through decoration-slate-400 dark:decoration-zinc-700' : entry.status === 'cleared' ? 'text-emerald-600 dark:text-emerald-400' : entry.status === 'defaulted' ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
                         ₦{entry.amount.toLocaleString('en-NG')}
                       </span>
                     </div>
                     
                     <div className="flex items-center gap-1">
-                      <button onClick={() => generateReceipt(entry)} aria-label="Generate Receipt" title="Generate Receipt" className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-700 rounded-lg transition-all">
+                      <button onClick={() => generateReceipt(entry)} aria-label="Generate Receipt" title="Generate Receipt" className="p-2 text-slate-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-all">
                         <ReceiptIcon className="w-5 h-5 sm:w-4 sm:h-4" />
                       </button>
                       {/* Lifecycle kebab — void / test-mark / reinstate, each
@@ -747,15 +747,15 @@ const LedgerManager: React.FC = () => {
                           onClick={(e) => { e.stopPropagation(); setMenuFor(menuFor === String(entry._id) ? null : String(entry._id)); }}
                           aria-label="Record actions"
                           title="Void, mark as test, or view audit history"
-                          className={`p-2 rounded-lg transition-all ${menuFor === String(entry._id) ? 'text-white bg-slate-700' : 'text-slate-500 hover:text-white hover:bg-slate-700'}`}
+                          className={`p-2 rounded-lg transition-all ${menuFor === String(entry._id) ? 'text-slate-900 dark:text-white bg-slate-200 dark:bg-zinc-700' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
                         >
                           <MoreVertical className="w-5 h-5 sm:w-4 sm:h-4" />
                         </button>
                         {menuFor === String(entry._id) && (
-                          <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-full mt-1 z-30 w-52 bg-slate-800 border border-slate-700 rounded-lg shadow-2xl py-1 text-sm">
+                          <div onClick={(e) => e.stopPropagation()} className="absolute right-0 top-full mt-1 z-30 w-52 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-2xl py-1 text-sm">
                             <button
                               onClick={() => { setMenuFor(null); setAuditScope({ tableName: 'ledger_entries', recordId: String((entry as any)._id ?? (entry as any).id), label: `${typeLabel(entry.type)} · ${formatNairaWhole(entry.amount)}` }); }}
-                              className="w-full text-left px-3 py-2 hover:bg-slate-700 text-slate-300 flex items-center gap-2"
+                              className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-300 flex items-center gap-2"
                             >
                               <FileSearch className="w-3.5 h-3.5 text-sky-400" /> Audit history
                             </button>
@@ -763,13 +763,13 @@ const LedgerManager: React.FC = () => {
                               <>
                                 <button
                                   onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'void' }); }}
-                                  className="w-full text-left px-3 py-2 hover:bg-slate-700 text-rose-400 flex items-center gap-2"
+                                  className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-700 text-rose-600 dark:text-rose-400 flex items-center gap-2"
                                 >
                                   <Ban className="w-3.5 h-3.5" /> Void entry…
                                 </button>
                                 <button
                                   onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'test' }); }}
-                                  className="w-full text-left px-3 py-2 hover:bg-slate-700 text-violet-400 flex items-center gap-2"
+                                  className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-700 text-violet-600 dark:text-violet-400 flex items-center gap-2"
                                 >
                                   <FlaskConical className="w-3.5 h-3.5" /> Mark as test data…
                                 </button>
@@ -778,7 +778,7 @@ const LedgerManager: React.FC = () => {
                             {isVoided && (
                               <button
                                 onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'reinstate' }); }}
-                                className="w-full text-left px-3 py-2 hover:bg-slate-700 text-emerald-400 flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-700 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
                               >
                                 <Undo2 className="w-3.5 h-3.5" /> Reinstate entry…
                               </button>
@@ -786,7 +786,7 @@ const LedgerManager: React.FC = () => {
                             {isTest && (
                               <button
                                 onClick={() => { setMenuFor(null); setLifecycleModal({ entry, action: 'unmark' }); }}
-                                className="w-full text-left px-3 py-2 hover:bg-slate-700 text-emerald-400 flex items-center gap-2"
+                                className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-zinc-700 text-emerald-600 dark:text-emerald-400 flex items-center gap-2"
                               >
                                 <Undo2 className="w-3.5 h-3.5" /> Return to active…
                               </button>

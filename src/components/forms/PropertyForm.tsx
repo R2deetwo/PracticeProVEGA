@@ -6,6 +6,7 @@ import { useDataState } from '../../contexts/DataContext';
 import { MapPinIcon, CurrencyDollarIcon, UserIcon, CalendarIcon, InfoIcon, XIcon, SaveIcon, SparklesIcon, ZapIcon, PlusIcon, TrashIcon, OfficeBuildingIcon, KeyIcon, GavelIconLarge, CalculatorIcon, CheckCircleIcon } from '../../constants';
 import { Home as HomeIcon, Briefcase as BriefcaseIcon, ExternalLink as ExternalLinkIcon, Upload as UploadIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
+import { DEFAULT_MANAGEMENT_FEE_PERCENT } from '../../utils/propertyDefaults';
 import NairaSymbol from '../NairaSymbol';
 import { formatNumberWithCommas, parseFormattedNumber, normalizeAddress } from '../../utils/formatting';
 import { useUI } from '../../contexts/UIContext';
@@ -161,7 +162,7 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
         wasteManagement: true,
     });
     const [value, setValue] = useState<number>(propertyToEdit?.value || 0);
-    const [managementFee, setManagementFee] = useState<number>(propertyToEdit?.managementFeePercentage || 10);
+    const [managementFee, setManagementFee] = useState<number>(propertyToEdit?.managementFeePercentage ?? DEFAULT_MANAGEMENT_FEE_PERCENT);
     const [numberOfUnits, setNumberOfUnits] = useState<number>(() => {
         if (propertyToEdit) {
             const count = (coreState.properties || []).filter(p => normalizeAddress(p.address) === normalizeAddress(propertyToEdit.address)).length;

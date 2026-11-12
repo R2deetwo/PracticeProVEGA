@@ -264,15 +264,15 @@ const AutomationCenter: React.FC = () => {
   };
 
   return (
-    <div className="min-h-full flex flex-col bg-slate-950 text-white sm:overflow-hidden">
+    <div className="min-h-full flex flex-col text-slate-900 dark:text-white sm:overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Automated Messages</h2>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Automated Messages</h2>
           <p className="text-xs text-slate-500 mt-0.5">WhatsApp · Email · Portal reminders, sent automatically</p>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
-          <button onClick={() => setShowTemplates(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
+          <button onClick={() => setShowTemplates(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
             <PenLine className="w-3.5 h-3.5" /> Templates
           </button>
           <button onClick={handleBulkRentReminder} className="flex items-center gap-2 px-3 py-2 bg-green-900/30 hover:bg-green-900/50 text-green-400 text-xs font-bold rounded-lg border border-green-800 transition-colors whitespace-nowrap">
@@ -289,15 +289,15 @@ const AutomationCenter: React.FC = () => {
 
       {/* KPIs */}
       <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-6 py-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-center">
-          <p className="text-2xl font-black text-white">{stats.total}</p>
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4 text-center">
+          <p className="text-2xl font-black text-slate-900 dark:text-white">{stats.total}</p>
           <p className="text-2xs text-slate-500 uppercase tracking-wider mt-1">Total Sent</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-center">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4 text-center">
           <p className="text-2xl font-black text-green-400">{stats.whatsapp}</p>
           <p className="text-2xs text-slate-500 uppercase tracking-wider mt-1">via WhatsApp</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4 text-center">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4 text-center">
           <p className="text-2xl font-black text-sky-400">{stats.today}</p>
           <p className="text-2xs text-slate-500 uppercase tracking-wider mt-1">Today</p>
         </div>
@@ -305,13 +305,13 @@ const AutomationCenter: React.FC = () => {
 
       {/* Automation Rules Accordion & Late Fee Callout */}
       <div className="flex-shrink-0 px-6 pb-3 space-y-3">
-        <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg overflow-hidden">
           <button 
             onClick={() => setShowHowItWorks(!showHowItWorks)} 
-            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-800/50 transition-colors"
+            className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-slate-100 dark:hover:bg-zinc-800/50 transition-colors"
           >
             <div>
-              <p className="text-sm font-bold text-white flex items-center gap-2">
+              <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <ZapIcon className="w-4 h-4 text-emerald-400" />
                 How Automations Work
               </p>
@@ -321,27 +321,27 @@ const AutomationCenter: React.FC = () => {
           </button>
           
           {showHowItWorks && (
-            <div className="px-4 pb-4 border-t border-slate-800 pt-3 animate-fade-in">
+            <div className="px-4 pb-4 border-t border-slate-200 dark:border-zinc-800 pt-3 animate-fade-in">
               <table className="w-full text-2xs text-left">
-                <thead className="text-slate-500 uppercase tracking-widest border-b border-slate-800">
+                <thead className="text-slate-500 dark:text-zinc-400 uppercase tracking-widest border-b border-slate-200 dark:border-zinc-800">
                   <tr>
                     <th className="pb-2 font-semibold">Rule</th>
                     <th className="pb-2 font-semibold">Trigger</th>
                     <th className="pb-2 font-semibold">Message Sent</th>
                   </tr>
                 </thead>
-                <tbody className="text-slate-300">
-                  <tr className="border-b border-slate-800/50">
+                <tbody className="text-slate-600 dark:text-zinc-300">
+                  <tr className="border-b border-slate-200 dark:border-zinc-800/50">
                     <td className="py-2 flex items-center gap-1"><span className="text-emerald-500"></span> T-7 Rent Reminder</td>
                     <td className="py-2">7 days before lease end</td>
                     <td className="py-2">Rent reminder template</td>
                   </tr>
-                  <tr className="border-b border-slate-800/50">
+                  <tr className="border-b border-slate-200 dark:border-zinc-800/50">
                     <td className="py-2 flex items-center gap-1"><span className="text-rose-500"></span> T+1 Late Notice</td>
                     <td className="py-2">1 day after due date</td>
                     <td className="py-2">Late notice + penalty warning</td>
                   </tr>
-                  <tr className="border-b border-slate-800/50">
+                  <tr className="border-b border-slate-200 dark:border-zinc-800/50">
                     <td className="py-2 flex items-center gap-1"><span className="text-sky-500"></span> On Payment: Receipt</td>
                     <td className="py-2">Ledger entry "cleared"</td>
                     <td className="py-2">Payment receipt template</td>
@@ -362,7 +362,7 @@ const AutomationCenter: React.FC = () => {
             <div className="p-1.5 bg-amber-500/20 text-amber-500 rounded-lg"></div>
             <div className="flex-1">
               <h4 className="text-xs font-bold text-amber-400">Billing Policies</h4>
-              <p className="text-2xs text-slate-400 mt-0.5 mb-3 leading-relaxed">
+              <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5 mb-3 leading-relaxed">
                 How your firm handles residents who pay late or incomplete. The fine for default
                 applies per cycle settled late or left overdue; partial payments let residents
                 bank what they have while the remainder stays owed.
@@ -380,7 +380,7 @@ const AutomationCenter: React.FC = () => {
                   value={penaltyRateInput}
                   onChange={(e) => setPenaltyRateInput(e.target.value)}
                   aria-label="Late penalty rate percent"
-                  className="w-20 px-2 py-1 text-xs font-bold text-white bg-slate-800 border border-slate-700 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
+                  className="w-20 px-2 py-1 text-xs font-bold text-slate-900 dark:text-zinc-100 bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none"
                 />
                 <span className="text-2xs text-slate-500">% per defaulting cycle</span>
               </div>
@@ -393,7 +393,7 @@ const AutomationCenter: React.FC = () => {
                   onChange={(e) => setAllowPartialInput(e.target.checked)}
                   className="w-4 h-4 accent-amber-500 cursor-pointer"
                 />
-                <span className="text-2xs text-slate-300 leading-snug">
+                <span className="text-2xs text-slate-600 dark:text-zinc-300 leading-snug">
                   Accept partial payments
                   <span className="text-slate-500"> — {allowPartialInput
                     ? 'residents can bank part of a charge; the cycle stays amber until completed.'
@@ -418,15 +418,15 @@ const AutomationCenter: React.FC = () => {
       {/* MESSAGES OVERHAUL: the Message Logs feed was removed — it
           duplicated Messages → Sent one navigation away. This card routes
           users to the single send-history instead. */}
-      <div className="flex-shrink-0 px-6 pb-6 pt-2 mt-2 border-t border-slate-800">
+      <div className="flex-shrink-0 px-6 pb-6 pt-2 mt-2 border-t border-slate-200 dark:border-zinc-800">
         <button
           onClick={() => navigateTo('messaging', undefined, { initialTab: 'outbox' })}
-          className="w-full bg-slate-900 border border-slate-800 hover:border-emerald-600/50 rounded-lg px-4 py-4 flex items-center justify-between transition-colors group"
+          className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 hover:border-emerald-600/50 w-full rounded-lg px-4 py-4 flex items-center justify-between transition-colors group"
         >
           <div className="flex items-center gap-3 text-left">
             <SendIcon />
             <div>
-              <p className="text-sm font-bold text-white">Sent messages & delivery history</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">Sent messages & delivery history</p>
               <p className="text-2xs text-slate-500 mt-0.5">
                 Every message this firm has sent — per-recipient status and failure reasons — lives in Messages → Sent.
               </p>
@@ -439,17 +439,17 @@ const AutomationCenter: React.FC = () => {
       {showCompose && <ComposeModal firmId={firmId} onClose={() => setShowCompose(false)} onToast={(msg) => addToast(msg, { type: msg.includes('Error') || msg.includes('Failed') ? 'error' : 'success' })} />}
       
       {showTemplates && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col animate-slide-in-right">
-          <div className="p-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 border-l border-slate-200 dark:border-zinc-800 shadow-2xl flex flex-col animate-slide-in-right">
+          <div className="p-5 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
             <div>
-              <h3 className="font-bold text-white text-lg">Message Templates</h3>
+              <h3 className="font-bold text-slate-900 dark:text-white text-lg">Message Templates</h3>
               <p className="text-xs text-slate-500">Customise automated messages</p>
             </div>
-            <button onClick={() => setShowTemplates(false)} className="text-slate-500 hover:text-white text-xl">×</button>
+            <button onClick={() => setShowTemplates(false)} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xl">×</button>
           </div>
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
-            <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700/50 mb-6 space-y-2">
-              <strong className="text-slate-300 text-sm block mb-1">Available Variables:</strong>
+            <div className="bg-slate-100 dark:bg-zinc-800/50 p-4 rounded-lg border border-slate-200 dark:border-zinc-700/50 mb-6 space-y-2">
+              <strong className="text-slate-700 dark:text-zinc-300 text-sm block mb-1">Available Variables:</strong>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                 <code className="text-emerald-400 text-2xs">{"{{TENANT_NAME}}"}</code>
                 <code className="text-emerald-400 text-2xs">{"{{PROPERTY_ADDRESS}}"}</code>
@@ -463,32 +463,32 @@ const AutomationCenter: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              <h4 className="text-2xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1">Revenue Pipeline</h4>
+              <h4 className="text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest border-b border-slate-200 dark:border-zinc-800 pb-1">Revenue Pipeline</h4>
               {Object.entries(MSG_TYPE_LABELS).filter(([k]) => ['rent_reminder', 'late_notice', 'payment_receipt', 'penalty_notice', 'service_charge_alert'].includes(k)).map(([k, label]) => (
                 <div key={k}>
-                  <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1 flex items-center gap-1.5">
                     {MSG_TYPE_ICONS[k as AutomationMessageType]} {label}
                   </label>
                   <textarea 
                     value={templates[k] !== undefined ? templates[k] : buildMessage(k as AutomationMessageType, '{{PROPERTY_ADDRESS}}', '{{TENANT_NAME}}', 0)} 
                     onChange={e => setTemplates(prev => ({ ...prev, [k]: e.target.value }))}
                     rows={3}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               ))}
 
-              <h4 className="text-2xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 pt-4">CRM & Announcements</h4>
+              <h4 className="text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest border-b border-slate-200 dark:border-zinc-800 pb-1 pt-4">CRM & Announcements</h4>
               {Object.entries(MSG_TYPE_LABELS).filter(([k]) => ['welcome_note', 'promotion', 'vendor_update', 'general_announcement', 'maintenance_update'].includes(k)).map(([k, label]) => (
                 <div key={k}>
-                  <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1 flex items-center gap-1.5">
                     {getMsgTypeIcon(k)} {label}
                   </label>
                   <textarea 
                     value={templates[k] !== undefined ? templates[k] : buildMessage(k as AutomationMessageType, '{{PROPERTY_ADDRESS}}', '{{TENANT_NAME}}', 0)} 
                     onChange={e => setTemplates(prev => ({ ...prev, [k]: e.target.value }))}
                     rows={3}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               ))}
@@ -496,10 +496,10 @@ const AutomationCenter: React.FC = () => {
               {/* Custom Templates */}
               {Object.keys(templates).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).length > 0 && (
                 <>
-                  <h4 className="text-2xs font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1 pt-4">Custom Templates</h4>
+                  <h4 className="text-2xs font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest border-b border-slate-200 dark:border-zinc-800 pb-1 pt-4">Custom Templates</h4>
                   {Object.keys(templates).filter(k => !MSG_TYPE_LABELS[k as AutomationMessageType]).map(k => (
                     <div key={k} className="group relative">
-                      <label className="block text-xs font-bold text-slate-300 mb-1 flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-zinc-300 mb-1 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">{getMsgTypeLabel(k)}</span>
                         <button 
                           onClick={() => {
@@ -507,7 +507,7 @@ const AutomationCenter: React.FC = () => {
                             delete next[k];
                             setTemplates(next);
                           }}
-                          className="text-slate-600 hover:text-rose-500 text-2xs opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                          className="text-slate-600 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-500 text-2xs opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                         >
                           Delete
                         </button>
@@ -516,7 +516,7 @@ const AutomationCenter: React.FC = () => {
                         value={templates[k]} 
                         onChange={e => setTemplates(prev => ({ ...prev, [k]: e.target.value }))}
                         rows={3}
-                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500"
+                        className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500"
                         placeholder="Type message content here..."
                       />
                     </div>
@@ -525,7 +525,7 @@ const AutomationCenter: React.FC = () => {
               )}
 
               {/* Add New Template Input */}
-              <div className="pt-4 border-t border-slate-800">
+              <div className="pt-4 border-t border-slate-200 dark:border-zinc-800">
                 <label className="block text-2xs font-black text-slate-500 uppercase tracking-widest mb-2">Create New Template</label>
                 <div className="flex gap-2">
                   <input 
@@ -533,11 +533,11 @@ const AutomationCenter: React.FC = () => {
                     onChange={e => setNewTemplateKey(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleAddCustomTemplate()}
                     placeholder="e.g. Easter Greeting"
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:ring-2 focus:ring-emerald-500"
+                    className="flex-1 bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500"
                   />
                   <button 
                     onClick={handleAddCustomTemplate}
-                    className="px-4 py-2 bg-slate-800 text-white text-xs font-bold rounded-lg hover:bg-slate-700 transition-colors"
+                    className="px-4 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-white text-xs font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                   >
                     Add
                   </button>
@@ -545,8 +545,8 @@ const AutomationCenter: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="p-4 border-t border-slate-800 flex gap-3">
-            <button onClick={() => setShowTemplates(false)} className="flex-1 py-2 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+          <div className="p-4 border-t border-slate-200 dark:border-zinc-800 flex gap-3">
+            <button onClick={() => setShowTemplates(false)} className="flex-1 py-2 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
             <button onClick={handleSaveTemplates} className="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors">Save Templates</button>
           </div>
         </div>

@@ -217,15 +217,15 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl my-4 sm:my-0">
-        <div className="flex items-center justify-between p-5 border-b border-slate-800">
-          <h3 className="font-bold text-white text-lg">Add Service Charge</h3>
-          <button onClick={onClose} className="text-slate-500 hover:text-white text-xl">×</button>
+      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl w-full max-w-lg shadow-2xl my-4 sm:my-0">
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-zinc-800">
+          <h3 className="font-bold text-slate-900 dark:text-white text-lg">Add Service Charge</h3>
+          <button onClick={onClose} className="text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white text-xl">×</button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Unit</label>
-            <select value={form.unitId} onChange={e => setForm(f => ({ ...f, unitId: e.target.value }))} required className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+            <select value={form.unitId} onChange={e => setForm(f => ({ ...f, unitId: e.target.value }))} required className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500">
               <option value="">Select unit...</option>
               {units.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
             </select>
@@ -238,7 +238,7 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
                   const val = e.target.value;
                   if (val === '__new__') { setShowNewType(true); return; }
                   setForm(f => ({ ...f, category: val as ServiceChargeCategory }));
-                }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+                }} className="flex-1 bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500">
                   {categoryOptions.map(c => <option key={c.key} value={c.key}>{c.label}{c.isSystem ? '' : ' ★'}</option>)}
                   <option value="__new__">＋ New charge type…</option>
                 </select>
@@ -251,35 +251,35 @@ const AddChargeModal: React.FC<{ firmId: string; onClose: () => void; prefill?: 
                     onChange={e => setNewTypeLabel(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateType(); } }}
                     placeholder="e.g. Waste Management"
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500"
+                    className="flex-1 bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500"
                   />
                   <button type="button" onClick={handleCreateType} className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-lg">Add</button>
-                  <button type="button" onClick={() => { setShowNewType(false); setNewTypeError(''); }} className="px-3 py-2 bg-slate-800 border border-slate-700 text-slate-400 text-xs font-bold rounded-lg">Cancel</button>
+                  <button type="button" onClick={() => { setShowNewType(false); setNewTypeError(''); }} className="px-3 py-2 bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 text-xs font-bold rounded-lg">Cancel</button>
                 </div>
               )}
               {newTypeError && <p className="text-2xs text-rose-400 mt-1">{newTypeError}</p>}
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Cycle</label>
-              <select value={form.cycle} onChange={e => setForm(f => ({ ...f, cycle: e.target.value as any }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500">
+              <select value={form.cycle} onChange={e => setForm(f => ({ ...f, cycle: e.target.value as any }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500">
                 <option>Monthly</option><option>Quarterly</option><option>Annually</option>
               </select>
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Amount (₦)</label>
-              <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required min="0" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+              <input type="number" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} required min="0" className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="0" />
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Next Due (days)</label>
-              <input type="number" value={form.nextDueDays} onChange={e => setForm(f => ({ ...f, nextDueDays: e.target.value }))} min="0" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="0 = today" />
+              <input type="number" value={form.nextDueDays} onChange={e => setForm(f => ({ ...f, nextDueDays: e.target.value }))} min="0" className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="0 = today" />
             </div>
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1 uppercase tracking-wider">Notes</label>
-            <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:ring-2 focus:ring-emerald-500" placeholder="Optional note..." />
+            <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-zinc-100 focus:ring-2 focus:ring-emerald-500" placeholder="Optional note..." />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
             <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-500 transition-colors disabled:opacity-50">
               {loading ? 'Saving...' : 'Add Charge'}
             </button>
@@ -310,17 +310,17 @@ const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: (
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 border border-rose-900/50 rounded-2xl w-full max-w-sm shadow-2xl my-4 sm:my-0">
+      <div className="bg-white dark:bg-zinc-900 border border-rose-200 dark:border-rose-900/50 rounded-2xl w-full max-w-sm shadow-2xl my-4 sm:my-0">
         <div className="p-6 text-center">
           <div className="w-12 h-12 bg-rose-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <ZapIcon className="w-6 h-6 text-rose-400" />
           </div>
-          <h3 className="text-white font-bold text-lg mb-2">Apply Late Penalty</h3>
-          <p className="text-slate-400 text-sm mb-1">A <span className="text-rose-400 font-bold">5% penalty</span> will be added to the ledger.</p>
+          <h3 className="text-slate-900 dark:text-slate-900 dark:text-white font-bold text-lg mb-2">Apply Late Penalty</h3>
+          <p className="text-slate-500 dark:text-zinc-400 text-sm mb-1">A <span className="text-rose-400 font-bold">5% penalty</span> will be added to the ledger.</p>
           <p className="text-2xl font-black text-rose-400 my-4">₦{penalty.toLocaleString('en-NG')}</p>
-          <p className="text-slate-600 text-xs mb-6">Category: {charge.category} · Overdue: {charge.daysOverdue ?? 0} days</p>
+          <p className="text-slate-600 dark:text-zinc-400 text-xs mb-6">Category: {charge.category} · Overdue: {charge.daysOverdue ?? 0} days</p>
           <div className="flex gap-3">
-            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-semibold hover:bg-slate-700 transition-colors">Cancel</button>
+            <button onClick={onClose} className="flex-1 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors">Cancel</button>
             <button onClick={handleApply} disabled={loading} className="flex-1 py-2.5 bg-rose-600 text-white rounded-lg text-sm font-bold hover:bg-rose-500 transition-colors disabled:opacity-50">
               {loading ? 'Applying...' : 'Apply Penalty'}
             </button>
@@ -348,11 +348,11 @@ const ChargeRow: React.FC<{
   const isPaidFully = charge.serviceChargeStatus === 'PAID_FULLY';
   return (
     <div className={`relative flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 border rounded-lg transition-all ${
-      isPaidFully ? 'bg-emerald-950/20 border-emerald-800/40' :
-      isCritical ? 'bg-rose-950/30 border-rose-800/60 shadow-rose-900/10 shadow-md' :
-      isPartial ? 'bg-amber-950/20 border-amber-800/40' :
-      charge.isDefaulter ? 'bg-amber-950/20 border-amber-800/40' :
-      'bg-slate-900 border-slate-800'
+      isPaidFully ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/40' :
+      isCritical ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 shadow-rose-900/10 shadow-md' :
+      isPartial ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40' :
+      charge.isDefaulter ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/40' :
+      'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-800'
     }`}>
       {isCritical && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-rose-500 rounded-r-full" />}
       
@@ -361,12 +361,12 @@ const ChargeRow: React.FC<{
         <span className="text-xl flex-shrink-0 w-8 text-center">{charge.isMinimumVend ? '⚡' : catIcon(charge.category)}</span>
         {/* Unit info */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{unitLabel}</p>
+          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{unitLabel}</p>
           <div className="flex flex-wrap items-center gap-2 mt-0.5">
             <span className={`text-3xs font-bold uppercase px-1.5 py-0.5 rounded-full ${
-              isPaidFully ? 'bg-emerald-900/60 text-emerald-300' :
-              isPartial ? 'bg-amber-900/60 text-amber-300' :
-              isCritical ? 'bg-rose-900/60 text-rose-300' : charge.isDefaulter ? 'bg-amber-900/60 text-amber-300' : 'bg-slate-800 text-slate-500'
+              isPaidFully ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300' :
+              isPartial ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' :
+              isCritical ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' : charge.isDefaulter ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400'
             }`}>{charge.isMinimumVend ? 'Min Vend' : charge.category}</span>
             {/* No-tenant chip (round 7): round-6 backfill leaves rows unlinked
                 when the unit itself carries no tenant info — those rows are
@@ -395,34 +395,34 @@ const ChargeRow: React.FC<{
         </div>
       </div>
 
-      <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-800 sm:border-0 pt-3 sm:pt-0">
+      <div className="flex items-center justify-between sm:justify-end gap-4 border-t border-slate-200 dark:border-zinc-800 sm:border-0 pt-3 sm:pt-0">
         {/* Amount + outstanding */}
         <div className="text-left sm:text-right flex-shrink-0 sm:w-28">
-          <p className="text-xs font-black text-white">₦{charge.amount.toLocaleString('en-NG')}</p>
+          <p className="text-xs font-black text-slate-900 dark:text-white">₦{charge.amount.toLocaleString('en-NG')}</p>
           {isPartial && <p className="text-2xs text-amber-400 font-bold">Bal: ₦{(charge.outstandingBalance ?? 0).toLocaleString()}</p>}
           <p className={`text-2xs ${charge.isDefaulter ? 'text-rose-400' : 'text-slate-500'}`}>Due: {formatDate(charge.nextDueDate)}</p>
         </div>
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={onSendWhatsApp} aria-label="Send WhatsApp" title="Send WhatsApp" className="p-2.5 sm:p-2 text-slate-500 hover:text-green-400 hover:bg-slate-800 rounded-lg transition-colors">
+          <button onClick={onSendWhatsApp} aria-label="Send WhatsApp" title="Send WhatsApp" className="p-2.5 sm:p-2 text-slate-500 dark:text-zinc-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors">
             <MessageIcon className="w-5 h-5" />
           </button>
           {charge.isDefaulter && !charge.penaltyApplied && (
-            <button onClick={onPenalty} aria-label="Apply Late Penalty" title="Apply Late Penalty" className="p-2.5 sm:p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors">
+            <button onClick={onPenalty} aria-label="Apply Late Penalty" title="Apply Late Penalty" className="p-2.5 sm:p-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors">
               <ZapIcon className="w-5 h-5" />
             </button>
           )}
           {isCritical && (
-            <button onClick={onRestrict} aria-label="Restrict Access" title="Restrict Access" className="p-2.5 sm:p-2 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors">
+            <button onClick={onRestrict} aria-label="Restrict Access" title="Restrict Access" className="p-2.5 sm:p-2 text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors">
               <BanIcon className="w-5 h-5" />
             </button>
           )}
           {!isPaidFully && (
-            <button onClick={onPartialPayment} aria-label="Record Partial Payment" title="Record Partial Payment" className="p-2.5 sm:p-2 text-slate-500 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition-colors">
+            <button onClick={onPartialPayment} aria-label="Record Partial Payment" title="Record Partial Payment" className="p-2.5 sm:p-2 text-slate-500 dark:text-zinc-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
             </button>
           )}
-          <button onClick={onMarkPaid} aria-label="Mark as Fully Paid" title="Mark as Fully Paid" className="p-2.5 sm:p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors">
+          <button onClick={onMarkPaid} aria-label="Mark as Fully Paid" title="Mark as Fully Paid" className="p-2.5 sm:p-2 text-slate-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-lg transition-colors">
             <CheckIcon className="w-5 h-5" />
           </button>
         </div>
@@ -786,12 +786,12 @@ const ServiceChargeMonitor: React.FC<{
   };
 
   return (
-    <div className="min-h-full flex flex-col bg-slate-950 text-white sm:overflow-hidden">
+    <div className="min-h-full flex flex-col text-slate-900 dark:text-white sm:overflow-hidden">
       {/* Header */}
-      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-white tracking-tight">Service Charge Monitor</h2>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Service Charge Monitor</h2>
             {critical.length > 0 && <span className="flex items-center gap-1 text-2xs font-bold bg-rose-900/50 text-rose-400 px-2 py-0.5 rounded-full border border-rose-800 animate-pulse"><AlertIcon className="w-3 h-3" />{critical.length} CRITICAL</span>}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">Automated defaulter tracking & enforcement</p>
@@ -808,15 +808,15 @@ const ServiceChargeMonitor: React.FC<{
           <p className="text-2xl sm:text-3xl font-black text-rose-300">₦{formatLargeNumber(revenueAtRisk)}</p>
           <p className="text-2xs text-rose-700 mt-1">{defaulters.length} defaulting units</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Critical Defaults</p>
           <p className="text-2xl sm:text-3xl font-black text-rose-400">{critical.length}</p>
-          <p className="text-2xs text-slate-600 mt-1">&gt;14 days overdue</p>
+          <p className="text-2xs text-slate-600 dark:text-zinc-400 mt-1">&gt;14 days overdue</p>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-lg p-4">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg p-4">
           <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Active Charges</p>
           <p className="text-2xl sm:text-3xl font-black text-emerald-400">{(allCharges || []).filter(c => !c.isDefaulter).length}</p>
-          <p className="text-2xs text-slate-600 mt-1">on-time payments</p>
+          <p className="text-2xs text-slate-600 dark:text-zinc-400 mt-1">on-time payments</p>
         </div>
       </div>
 
@@ -824,12 +824,12 @@ const ServiceChargeMonitor: React.FC<{
           charge's next due date. Distinct from the at-risk card above:
           this is SCHEDULED revenue, not overdue balances. */}
       <div className="flex-shrink-0 px-4 sm:px-6 pb-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+        <div className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-800 rounded-lg px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
           <div className="flex items-center gap-2 flex-shrink-0">
             <svg className="w-4 h-4 text-sky-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Projected billings</p>
+            <p className="text-xs text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-bold">Projected billings</p>
           </div>
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
             {projections.windows.map((w, i) => (
@@ -843,7 +843,7 @@ const ServiceChargeMonitor: React.FC<{
               <span className="text-2xs text-slate-500 ml-1">outstanding now</span>
             </span>
           </div>
-          <p className="text-2xs text-slate-600 sm:ml-auto max-w-xs">
+          <p className="text-2xs text-slate-600 dark:text-zinc-400 sm:ml-auto max-w-xs">
             Billed forward from each charge's next due date at its cycle — scheduled revenue, not a collection promise.
           </p>
         </div>
@@ -867,7 +867,7 @@ const ServiceChargeMonitor: React.FC<{
                   <button
                     key={l.unitKey}
                     onClick={() => { setAddPrefill(bridgeOne(l)); setShowAddModal(true); }}
-                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-md text-2xs font-semibold text-slate-200 transition-colors max-w-[220px] truncate"
+                    className="px-2.5 py-1 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 border border-slate-200 dark:border-zinc-700 rounded-md text-2xs font-semibold text-slate-700 dark:text-zinc-200 transition-colors max-w-[220px] truncate"
                     title={`${l.label} — ₦${l.amount.toLocaleString('en-NG')}${l.frequency ? ` · ${l.frequency}` : ''}`}
                   >
                     {l.label} · ₦{formatLargeNumber(l.amount)}
@@ -892,7 +892,7 @@ const ServiceChargeMonitor: React.FC<{
             <button
               onClick={dismissBridge}
               aria-label="Dismiss"
-              className="text-slate-500 hover:text-slate-300 text-sm leading-none flex-shrink-0"
+              className="text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300 text-sm leading-none flex-shrink-0"
             >×</button>
           </div>
         </div>
@@ -900,9 +900,9 @@ const ServiceChargeMonitor: React.FC<{
 
       {/* Filter Tabs */}
       <div className="flex-shrink-0 px-6 pb-3 flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
-        <FilterIcon className="w-4 h-4 text-slate-600 flex-shrink-0" />
+        <FilterIcon className="w-4 h-4 text-slate-600 dark:text-zinc-400 flex-shrink-0" />
         {(['all', 'defaulters', 'critical', 'partial'] as const).map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filter === f ? (f === 'critical' ? 'bg-rose-600 text-white' : f === 'partial' ? 'bg-amber-600 text-white' : 'bg-slate-700 text-white') : 'text-slate-500 hover:text-slate-300'}`}>
+          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filter === f ? (f === 'critical' ? 'bg-rose-600 text-white' : f === 'partial' ? 'bg-amber-600 text-white' : 'bg-slate-700 text-white') : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'}`}>
             {f === 'all' ? `All (${(allCharges || []).length})` : f === 'defaulters' ? `Defaulters (${defaulters.length})` : f === 'partial' ? `Partial (${partialPayers.length})` : `Critical (${critical.length})`}
           </button>
         ))}
@@ -911,9 +911,9 @@ const ServiceChargeMonitor: React.FC<{
       {/* Charges List */}
       <div className="flex-1 sm:overflow-y-auto px-4 sm:px-6 pb-44 sm:pb-6 space-y-2 custom-scrollbar scroll-smooth-ios">
         {!allCharges ? (
-          [...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-900 rounded-lg animate-pulse" />)
+          [...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)
         ) : charges.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-slate-600">
+          <div className="flex flex-col items-center justify-center h-48 text-slate-600 dark:text-zinc-400">
             <CheckIcon className="w-8 h-8 mb-2 text-emerald-600" />
             <p className="text-sm">{filter === 'all' ? 'No service charges configured' : 'No charges in this category'}</p>
           </div>
@@ -954,9 +954,9 @@ const ServiceChargeMonitor: React.FC<{
       {/* Partial Payment Modal */}
       {partialPaymentCharge && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPartialPaymentCharge(null)}>
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="text-lg font-bold text-white mb-1">Record Partial Payment</h3>
-            <p className="text-sm text-slate-400 mb-4">
+          <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Record Partial Payment</h3>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
               {partialPaymentCharge.isMinimumVend ? 'Minimum Vend' : partialPaymentCharge.category} — Total: ₦{partialPaymentCharge.amount.toLocaleString()}
               {partialPaymentCharge.serviceChargeStatus === 'PARTIALLY_PAID' && (
                 <> (₦{(partialPaymentCharge.amountPaidThisCycle ?? 0).toLocaleString()} already paid)</>
@@ -964,14 +964,14 @@ const ServiceChargeMonitor: React.FC<{
             </p>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Payment Amount</label>
+                <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider block mb-1">Payment Amount</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold">₦</span>
                   <input
                     type="text"
                     value={partialAmount}
                     onChange={e => setPartialAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 pl-8 text-white text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    className="w-full bg-slate-50 dark:bg-zinc-800/60 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2.5 pl-8 text-slate-900 dark:text-zinc-100 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     placeholder="Enter amount received"
                     autoFocus
                   />
@@ -985,7 +985,7 @@ const ServiceChargeMonitor: React.FC<{
               <div className="flex gap-3">
                 <button
                   onClick={() => setPartialPaymentCharge(null)}
-                  className="flex-1 px-4 py-2.5 bg-slate-800 text-slate-300 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors"
+                  className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-sm font-bold hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
                 >
                   Cancel
                 </button>
