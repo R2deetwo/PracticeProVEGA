@@ -43,6 +43,7 @@ import { getUnitDisplay } from '../../utils/propertyPayload';
 import { resolveServiceCharge, resolveServiceChargeAmount, serviceChargeDebugTitle } from '../../utils/serviceCharge';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { Skeleton } from '../ui/Skeleton';
+import { Table, TableHeader, TableBody, TableHead, TableCell } from '../ui/Table';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
     <div className="w-full min-w-0 overflow-x-hidden break-words whitespace-normal text-left max-w-full" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5 whitespace-normal">{label}</p>
@@ -2490,25 +2491,25 @@ const PropertyDetailViewContent: React.FC = () => {
                                 </button>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-50 dark:bg-zinc-900/50">
+                                <Table density="compact">
+                                    <TableHeader>
                                         <tr>
-                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Unit</th>
-                                            <th className="text-left px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Resident</th>
+                                            <TableHead>Unit</TableHead>
+                                            <TableHead>Resident</TableHead>
                                             {/* RENT column — hidden for Management Only properties */}
                                             {property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Rent</th>
+                                                <TableHead align="right">Rent</TableHead>
                                             )}
-                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Service Charge</th>
+                                            <TableHead align="right">Service Charge</TableHead>
                                             {/* MINIMUM VEND column — shown when property has MV enabled */}
                                             {property.minimumVendEnabled && (
-                                                <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Min Vend</th>
+                                                <TableHead align="right">Min Vend</TableHead>
                                             )}
-                                            <th className="text-center px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">SC Status</th>
-                                            <th className="text-right px-4 py-2.5 text-2xs font-black text-slate-400 uppercase tracking-widest">Outstanding</th>
+                                            <TableHead align="center">SC Status</TableHead>
+                                            <TableHead align="right">Outstanding</TableHead>
                                         </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
+                                    </TableHeader>
+                                    <TableBody>
                                         {units.map((unit: Property) => {
                                             const d = getUnitDisplay(unit);
                                             const rd = (unit.rentalDetails || {}) as any;
@@ -2537,31 +2538,31 @@ const PropertyDetailViewContent: React.FC = () => {
                                                     data-entry-id={unit.id}
                                                     className={`hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-all ${isHighlighted ? 'ring-2 ring-amber-500/50 animate-pulse bg-amber-50 dark:bg-amber-900/20' : ''}`}
                                                 >
-                                                    <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-white">{d.name}</td>
-                                                    <td className="px-4 py-2.5 text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</td>
+                                                    <TableCell className="font-semibold text-slate-800 dark:text-white">{d.name}</TableCell>
+                                                    <TableCell className="text-slate-600 dark:text-zinc-300">{d.tenantName || '—'}</TableCell>
                                                     {/* RENT cell — hidden for Management Only */}
                                                     {property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                        <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</td>
+                                                        <TableCell align="right" className="font-semibold text-slate-800 dark:text-white">₦{d.rentAmount.toLocaleString()}</TableCell>
                                                     )}
-                                                    <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white" data-sc-source={import.meta.env.DEV ? scResolution.source : undefined} title={serviceChargeDebugTitle(scResolution.source)}>{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</td>
+                                                    <TableCell align="right" className="font-semibold text-slate-800 dark:text-white" data-sc-source={import.meta.env.DEV ? scResolution.source : undefined} title={serviceChargeDebugTitle(scResolution.source)}>{scAmount > 0 ? `₦${scAmount.toLocaleString()}` : '—'}</TableCell>
                                                     {/* MINIMUM VEND cell — shown when MV enabled */}
                                                     {property.minimumVendEnabled && (
-                                                        <td className="px-4 py-2.5 text-right font-semibold text-slate-800 dark:text-white">{mvAmount > 0 ? `₦${mvAmount.toLocaleString()}` : '—'}</td>
+                                                        <TableCell align="right" className="font-semibold text-slate-800 dark:text-white">{mvAmount > 0 ? `₦${mvAmount.toLocaleString()}` : '—'}</TableCell>
                                                     )}
-                                                    <td className="px-4 py-2.5 text-center">
+                                                    <TableCell align="center">
                                                         {isPaidFully && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircleIcon className="w-3 h-3" /> Paid</span>}
                                                         {isPartial && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>}
                                                         {isOutstanding && <span className="inline-flex items-center gap-0.5 text-3xs font-black px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>}
                                                         {!isPaidFully && !isPartial && !isOutstanding && <span className="text-2xs text-slate-400">—</span>}
-                                                    </td>
-                                                    <td className="px-4 py-2.5 text-right">
+                                                    </TableCell>
+                                                    <TableCell align="right">
                                                         {isPartial && outstanding > 0 ? <span className="text-xs font-bold text-red-600 dark:text-red-400">₦{outstanding.toLocaleString()}</span> : <span className="text-2xs text-slate-400">—</span>}
-                                                    </td>
+                                                    </TableCell>
                                                 </tr>
                                             );
                                         })}
-                                    </tbody>
-                                </table>
+                                    </TableBody>
+                                </Table>
                             </div>
                         </div>
 
@@ -2727,30 +2728,30 @@ const PropertyDetailViewContent: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
-                                        <thead className="bg-slate-50 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 font-bold uppercase text-xs">
+                                    <Table density="compact">
+                                        <TableHeader>
                                             <tr>
-                                                <th className="px-4 py-3">Invoice #</th>
-                                                <th className="px-4 py-3">Date</th>
-                                                <th className="px-4 py-3">Status</th>
-                                                <th className="px-4 py-3">Amount</th>
+                                                <TableHead>Invoice #</TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Amount</TableHead>
                                             </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
+                                        </TableHeader>
+                                        <TableBody>
                                             {propertyInvoices.map(inv => (
                                                 <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer" onClick={() => navigateTo('invoiceDetail', inv.id)}>
-                                                    <td className="px-4 py-3 font-mono font-medium text-primary-600">{inv.invoiceNumber}</td>
-                                                    <td className="px-4 py-3 text-slate-600 dark:text-zinc-300">{inv.issueDate}</td>
-                                                    <td className="px-4 py-3">
+                                                    <TableCell className="font-mono font-medium text-primary-600">{inv.invoiceNumber}</TableCell>
+                                                    <TableCell className="text-slate-600 dark:text-zinc-300">{inv.issueDate}</TableCell>
+                                                    <TableCell>
                                                         <span className={`px-2 py-1 rounded-full text-xs font-bold ${inv.status === InvoiceStatus.Paid ? 'bg-green-100 text-green-700' : inv.status === InvoiceStatus.Overdue ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
                                                             {inv.status}
                                                         </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(inv.total_amount || inv.subTotal)}</td>
+                                                    </TableCell>
+                                                    <TableCell className="font-bold text-slate-900 dark:text-white"><NairaSymbol />{formatNaira(inv.total_amount || inv.subTotal)}</TableCell>
                                                 </tr>
                                             ))}
-                                        </tbody>
-                                    </table>
+                                        </TableBody>
+                                    </Table>
                                 </div>
                             )}
                         </div>

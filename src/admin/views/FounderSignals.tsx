@@ -20,6 +20,7 @@ import { useFounderAuth } from '../FounderContexts';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
+import { Table, TableHeader, TableBody, TableHead, TableCell } from '../../components/ui/Table';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
 const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3';
@@ -180,43 +181,43 @@ export const FounderSignals: React.FC = () => {
                 <div className={CARD}>
                     <p className={SECTION_TITLE}>Product Breakdown — Push the Right Product</p>
                     <div className="overflow-x-auto custom-scrollbar -mx-2">
-                        <table className="w-full text-xs min-w-[640px]">
-                            <thead>
-                                <tr className="border-b border-slate-200 dark:border-zinc-700 text-left">
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400">Product</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Firms</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Users</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Matters</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">7d Velocity</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Per-Firm</th>
-                                    <th className="py-2 px-2 font-bold text-slate-500 dark:text-zinc-400 text-right">Platform Rev.</th>
+                        <Table density="compact">
+                            <TableHeader>
+                                <tr>
+                                    <TableHead>Product</TableHead>
+                                    <TableHead align="right">Firms</TableHead>
+                                    <TableHead align="right">Users</TableHead>
+                                    <TableHead align="right">Matters</TableHead>
+                                    <TableHead align="right">7d Velocity</TableHead>
+                                    <TableHead align="right">Per-Firm</TableHead>
+                                    <TableHead align="right">Platform Rev.</TableHead>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-700/50">
+                            </TableHeader>
+                            <TableBody>
                                 {(alerts.productBreakdown as any[]).map(p => {
                                     const perFirm = p.firms > 0 ? p.matters7d / p.firms : 0;
                                     const isPush = alerts.pushProduct?.product === p.product;
                                     return (
                                         <tr key={p.product} className={isPush ? 'bg-emerald-50 dark:bg-emerald-900/10' : ''}>
-                                            <td className="py-2 px-2 font-bold text-slate-700 dark:text-zinc-200">
+                                            <TableCell className="font-bold text-slate-700 dark:text-zinc-200">
                                                 <div className="flex items-center gap-2">
                                                     <span>{PRODUCT_LABEL[p.product] || p.product}</span>
                                                     {isPush && (
                                                         <span className="px-1.5 py-0.5 rounded text-3xs font-black bg-emerald-600 text-white">PUSH</span>
                                                     )}
                                                 </div>
-                                            </td>
-                                            <td className="py-2 px-2 text-right text-slate-600 dark:text-zinc-300">{p.firms}</td>
-                                            <td className="py-2 px-2 text-right text-slate-600 dark:text-zinc-300">{p.users}</td>
-                                            <td className="py-2 px-2 text-right text-slate-600 dark:text-zinc-300">{p.matters}</td>
-                                            <td className="py-2 px-2 text-right font-bold text-slate-700 dark:text-zinc-200">{p.matters7d}</td>
-                                            <td className="py-2 px-2 text-right text-slate-600 dark:text-zinc-300">{perFirm.toFixed(1)}</td>
-                                            <td className="py-2 px-2 text-right text-slate-600 dark:text-zinc-300"><NairaSymbol />{formatNaira(p.revenue)}</td>
+                                            </TableCell>
+                                            <TableCell align="right" className="text-slate-600 dark:text-zinc-300">{p.firms}</TableCell>
+                                            <TableCell align="right" className="text-slate-600 dark:text-zinc-300">{p.users}</TableCell>
+                                            <TableCell align="right" className="text-slate-600 dark:text-zinc-300">{p.matters}</TableCell>
+                                            <TableCell align="right" className="font-bold text-slate-700 dark:text-zinc-200">{p.matters7d}</TableCell>
+                                            <TableCell align="right" className="text-slate-600 dark:text-zinc-300">{perFirm.toFixed(1)}</TableCell>
+                                            <TableCell align="right" className="text-slate-600 dark:text-zinc-300"><NairaSymbol />{formatNaira(p.revenue)}</TableCell>
                                         </tr>
                                     );
                                 })}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
                     {alerts.pushProduct && (
                         <div className="mt-4 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">

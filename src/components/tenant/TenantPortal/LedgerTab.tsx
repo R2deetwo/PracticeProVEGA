@@ -13,6 +13,7 @@ import { Receipt as ReceiptIcon } from 'lucide-react';
 import { formatNaira, formatDate } from './shared';
 
 import { Skeleton } from '../../ui/Skeleton';
+import { Table, TableHeader, TableBody, TableHead, TableCell } from '../../ui/Table';
 export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
   const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
@@ -232,34 +233,34 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
           </h4>
           <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
-                    <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Category</th>
-                    <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Amount</th>
-                    <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Outstanding</th>
-                    <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Cycle</th>
-                    <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
+              <Table density="compact">
+                <TableHeader>
+                  <tr>
+                    <TableHead>Category</TableHead>
+                    <TableHead align="right">Amount</TableHead>
+                    <TableHead align="right">Outstanding</TableHead>
+                    <TableHead align="center">Cycle</TableHead>
+                    <TableHead align="center">Status</TableHead>
                   </tr>
-                </thead>
-                <tbody>
+                </TableHeader>
+                <TableBody>
                   {filteredCharges.map((sc: any) => {
                     const isMV = sc.isMinimumVend;
                     const statusLabel = sc.serviceChargeStatus === 'PAID_FULLY'
                       ? 'Paid' : sc.serviceChargeStatus === 'PARTIALLY_PAID'
                       ? 'Partial' : 'Unpaid';
                     return (
-                      <tr key={sc._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
-                        <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
+                      <tr key={sc._id}>
+                        <TableCell className="font-medium text-slate-800 dark:text-zinc-200">
                           {isMV ? (sc.category === 'Other' ? 'Minimum Vend' : sc.category) : sc.category}
                           {isMV && <span className="ml-1 text-3xs text-emerald-500 font-bold">(MV)</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">{formatNaira(sc.amount)}</td>
-                        <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
+                        </TableCell>
+                        <TableCell align="right" className="text-slate-600 dark:text-zinc-300">{formatNaira(sc.amount)}</TableCell>
+                        <TableCell align="right" className="text-slate-600 dark:text-zinc-300">
                           {formatNaira(sc.outstandingBalance ?? sc.amount)}
-                        </td>
-                        <td className="px-4 py-3 text-center text-slate-500 dark:text-zinc-400 text-xs">{sc.cycle}</td>
-                        <td className="px-4 py-3 text-center">
+                        </TableCell>
+                        <TableCell align="center" className="text-slate-500 dark:text-zinc-400 text-xs">{sc.cycle}</TableCell>
+                        <TableCell align="center">
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${
                             sc.serviceChargeStatus === 'PAID_FULLY'
                               ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
@@ -272,12 +273,12 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
                               : <ExclamationTriangleIcon className="w-3 h-3" />}
                             {statusLabel}
                           </span>
-                        </td>
+                        </TableCell>
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         </div>
@@ -288,29 +289,29 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
       {hasLedgerData ? (
         <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 dark:bg-zinc-800 border-b border-slate-200 dark:border-zinc-700">
-                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Period</th>
-                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Type</th>
-                  <th className="text-right px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Amount</th>
-                  <th className="text-center px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Status</th>
-                  <th className="text-left px-4 py-3 font-bold text-slate-500 dark:text-zinc-400 text-xs uppercase tracking-wider">Ref</th>
+            <Table density="compact">
+              <TableHeader>
+                <tr>
+                  <TableHead>Period</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead align="right">Amount</TableHead>
+                  <TableHead align="center">Status</TableHead>
+                  <TableHead>Ref</TableHead>
                 </tr>
-              </thead>
-              <tbody>
+              </TableHeader>
+              <TableBody>
                 {ledgerEntries.map((entry: any) => (
-                  <tr key={entry._id} className="border-b border-slate-100 dark:border-zinc-700/50 last:border-0">
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-zinc-200">
+                  <tr key={entry._id}>
+                    <TableCell className="font-medium text-slate-800 dark:text-zinc-200">
                       {entry.period || formatDate(entry.timestamp)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-zinc-300 capitalize">
+                    </TableCell>
+                    <TableCell className="text-slate-600 dark:text-zinc-300 capitalize">
                       {entry.type?.replace('_', ' ')}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-600 dark:text-zinc-300">
+                    </TableCell>
+                    <TableCell align="right" className="text-slate-600 dark:text-zinc-300">
                       {formatNaira(entry.amount)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
+                    </TableCell>
+                    <TableCell align="center">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold ${
                         entry.status === 'cleared'
                           ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
@@ -323,14 +324,14 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
                           : <ExclamationTriangleIcon className="w-3 h-3" />}
                         {entry.status === 'cleared' ? 'Paid' : entry.status === 'defaulted' ? 'Defaulted' : 'Pending'}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 dark:text-zinc-500 text-xs font-mono">
+                    </TableCell>
+                    <TableCell className="text-slate-400 dark:text-zinc-500 text-xs font-mono">
                       {entry.txHash || '—'}
-                    </td>
+                    </TableCell>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       ) : (

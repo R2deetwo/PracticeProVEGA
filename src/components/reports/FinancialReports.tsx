@@ -17,6 +17,7 @@ import ProTip from '../ProTip';
 import { parseDateString } from '../../utils/calendarUtils';
 import { ChartBarIcon, ClockIcon } from '../../constants';
 
+import { Table, TableHeader, TableBody, TableHead, TableCell } from '../ui/Table';
 // --- Icons ---
 const TrendingUpIconStyled = () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>;
 const AlertIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
@@ -341,30 +342,30 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
                         <h3 className="text-lg font-bold text-slate-800 dark:text-white">Top Overdue Invoices</h3>
                     </div>
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase bg-slate-50 dark:bg-zinc-900/50">
+                        <Table density="compact">
+                            <TableHeader>
                                 <tr>
-                                    <th className="py-3 px-4 rounded-l-lg">Client</th>
-                                    <th className="py-3 px-4">Invoice #</th>
-                                    <th className="py-3 px-4 text-right">Amount</th>
-                                    <th className="py-3 px-4 text-right rounded-r-lg">Days Overdue</th>
+                                    <TableHead className="rounded-l-lg">Client</TableHead>
+                                    <TableHead>Invoice #</TableHead>
+                                    <TableHead align="right">Amount</TableHead>
+                                    <TableHead align="right" className="rounded-r-lg">Days Overdue</TableHead>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
+                            </TableHeader>
+                            <TableBody>
                                 {financialSummary.overdueInvoicesList.map(item => (
                                     <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors group">
-                                        <td className="py-3 px-4 font-medium text-slate-800 dark:text-white">{item.client}</td>
-                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400">{item.number}</td>
-                                        <td className="py-3 px-4 text-right font-bold text-slate-700 dark:text-slate-200"><NairaSymbol />{formatNaira(item.amount)}</td>
-                                        <td className="py-3 px-4 text-right">
+                                        <TableCell className="font-medium text-slate-800 dark:text-white">{item.client}</TableCell>
+                                        <TableCell className="text-slate-500 dark:text-zinc-400">{item.number}</TableCell>
+                                        <TableCell align="right" className="font-bold text-slate-700 dark:text-slate-200"><NairaSymbol />{formatNaira(item.amount)}</TableCell>
+                                        <TableCell align="right">
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${item.days > 90 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'}`}>
                                                 {item.days} Days
                                             </span>
-                                        </td>
+                                        </TableCell>
                                     </tr>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
                 </div>
             )}
@@ -390,35 +391,35 @@ const FinancialReports: React.FC<FinancialReportsProps> = () => {
                     <p className="text-sm text-slate-400 dark:text-zinc-500 py-4 text-center">No financial audit entries yet — they appear as payments are recorded and invoices voided, reinstated or reversed.</p>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-slate-500 dark:text-zinc-400 uppercase bg-slate-50 dark:bg-zinc-900/50">
+                        <Table density="compact">
+                            <TableHeader>
                                 <tr>
-                                    <th className="py-3 px-4 rounded-l-lg">When</th>
-                                    <th className="py-3 px-4">Action</th>
-                                    <th className="py-3 px-4">Record</th>
-                                    <th className="py-3 px-4">By</th>
-                                    <th className="py-3 px-4 rounded-r-lg">Reason</th>
+                                    <TableHead className="rounded-l-lg">When</TableHead>
+                                    <TableHead>Action</TableHead>
+                                    <TableHead>Record</TableHead>
+                                    <TableHead>By</TableHead>
+                                    <TableHead className="rounded-r-lg">Reason</TableHead>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-zinc-700">
+                            </TableHeader>
+                            <TableBody>
                                 {auditLog.map((entry: any) => (
                                     <tr key={entry.id} className="hover:bg-slate-50 dark:hover:bg-zinc-700/30 transition-colors">
-                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400 whitespace-nowrap">{new Date(entry.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
-                                        <td className="py-3 px-4">
+                                        <TableCell className="text-slate-500 dark:text-zinc-400 whitespace-nowrap">{new Date(entry.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</TableCell>
+                                        <TableCell>
                                             <span className={`px-2 py-1 rounded text-xs font-bold ${
                                                 entry.action === 'record_payment' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
                                                 : entry.action === 'void' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
                                                 : entry.action === 'reinstate' || entry.action === 'revert_payment' || entry.action === 'reverse' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
                                                 : 'bg-slate-100 text-slate-600 dark:bg-zinc-700 dark:text-zinc-300'
                                             }`}>{entry.action.replace(/_/g, ' ')}</span>
-                                        </td>
-                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400 font-mono text-xs">{entry.tableName} · {String(entry.recordId).slice(-8)}</td>
-                                        <td className="py-3 px-4 text-slate-500 dark:text-zinc-400">{entry.actorEmail || '—'}</td>
-                                        <td className="py-3 px-4 text-slate-600 dark:text-zinc-300 max-w-xs truncate" title={entry.reason || ''}>{entry.reason || '—'}</td>
+                                        </TableCell>
+                                        <TableCell className="text-slate-500 dark:text-zinc-400 font-mono text-xs">{entry.tableName} · {String(entry.recordId).slice(-8)}</TableCell>
+                                        <TableCell className="text-slate-500 dark:text-zinc-400">{entry.actorEmail || '—'}</TableCell>
+                                        <TableCell className="text-slate-600 dark:text-zinc-300 max-w-xs truncate" title={entry.reason || ''}>{entry.reason || '—'}</TableCell>
                                     </tr>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
                 )}
             </div>

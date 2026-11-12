@@ -56,6 +56,7 @@ export { SectionErrorBoundary } from './SectionErrorBoundary';
 // Accordion lives on as CollapsibleAccordion (the root-level Accordion.tsx
 // is a different component used by HelpView).
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonList, SkeletonTable, SkeletonDetail, DashboardSkeleton, TasksSkeleton, MattersSkeleton, ContactsSkeleton, DocumentsSkeleton, GenericSkeleton, ListItemSkeleton, CardSkeleton, TabContentSkeleton, DetailSkeleton, TableSkeleton } from './Skeleton';
+export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './Table';
 export { AutoExpandingChatInput } from './AutoExpandingChatInput';
 export type { AutoExpandingChatInputProps, PendingAttachment } from './AutoExpandingChatInput';
 export { ChatMessageBubble } from './ChatMessageBubble';

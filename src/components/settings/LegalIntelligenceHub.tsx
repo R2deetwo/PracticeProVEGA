@@ -17,6 +17,7 @@ import {
 } from '../../constants';
 import { ReportingIcon as ActivityIcon, ShieldCheckIcon as ShieldIcon, DismissIcon as XCircleIcon } from '../../constants';
 
+import { Table, TableHeader, TableBody, TableHead, TableCell } from '../ui/Table';
 interface LegalIntelligenceHubProps {
     className?: string;
     firmId: string;
@@ -259,36 +260,36 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
 
             <div className="bg-white dark:bg-zinc-900/40 rounded-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-slate-50 dark:bg-zinc-800/80 border-b border-slate-200 dark:border-zinc-700">
+                    <Table>
+                        <TableHeader>
                             <tr>
-                                <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Firm / Tenant</th>
-                                <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Law Library</th>
-                                <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider text-center">Plan</th>
-                                <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider text-center">Status</th>
-                                <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider text-right">Action</th>
+                                <TableHead>Firm / Tenant</TableHead>
+                                <TableHead>Law Library</TableHead>
+                                <TableHead align="center">Plan</TableHead>
+                                <TableHead align="center">Status</TableHead>
+                                <TableHead align="right">Action</TableHead>
                             </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                        </TableHeader>
+                        <TableBody>
                             {allLicenses.map((l: any) => {
                                 const mod = allModules.find((m: any) => m.moduleKey === l.moduleKey);
                                 return (
                                     <tr key={l._id} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors text-xs">
-                                        <td className="py-4 px-6 font-mono text-slate-400 dark:text-zinc-500">
+                                        <TableCell className="font-mono text-slate-400 dark:text-zinc-500">
                                             <div className="flex items-center gap-2">
                                                 <OfficeBuildingIcon className="w-3.5 h-3.5 opacity-50" />
                                                 <span className="truncate max-w-[80px]">{l.firmId}</span>
                                             </div>
-                                        </td>
-                                        <td className="py-4 px-6 font-bold text-slate-700 dark:text-zinc-200">
+                                        </TableCell>
+                                        <TableCell className="font-bold text-slate-700 dark:text-zinc-200">
                                             {mod ? mod.name : <span className="text-rose-500 italic">Unknown Ruleset</span>}
-                                        </td>
-                                        <td className="py-4 px-6 text-center">
+                                        </TableCell>
+                                        <TableCell align="center">
                                             <span className="px-2 py-1 bg-slate-100 dark:bg-zinc-800 rounded-md font-bold text-3xs uppercase text-slate-600 dark:text-zinc-400">
                                                 {l.plan}
                                             </span>
-                                        </td>
-                                        <td className="py-4 px-6">
+                                        </TableCell>
+                                        <TableCell>
                                             <div className="flex justify-center">
                                                 {l.isActive ? (
                                                     <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold uppercase text-3xs">
@@ -300,8 +301,8 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                                                     </span>
                                                 )}
                                             </div>
-                                        </td>
-                                        <td className="py-4 px-6 text-right">
+                                        </TableCell>
+                                        <TableCell align="right">
                                             {l.isActive ? (
                                                 <button 
                                                     onClick={() => revokeLicenseMutation({ firmId: l.firmId, moduleKey: l.moduleKey, userEmail })}
@@ -317,19 +318,19 @@ const LicensesTab: React.FC<{ firmId: string }> = ({ firmId }) => {
                                                     Reactivate
                                                 </button>
                                             )}
-                                        </td>
+                                        </TableCell>
                                     </tr>
                                 );
                             })}
                             {allLicenses.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="py-16 text-center text-slate-400 dark:text-zinc-600 italic">
+                                    <TableCell colSpan={5} className="py-16 text-center text-slate-400 dark:text-zinc-600 italic">
                                         No firm activity recorded in the license registry.
-                                    </td>
+                                    </TableCell>
                                 </tr>
                             )}
-                        </tbody>
-                    </table>
+                        </TableBody>
+                    </Table>
                 </div>
             </div>
         </div>
@@ -358,33 +359,33 @@ const UsageLogsTab: React.FC = () => {
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                    <thead className="bg-slate-50/20 dark:bg-zinc-800/20 border-b border-slate-200 dark:border-zinc-700/50">
+                <Table>
+                    <TableHeader>
                         <tr>
-                            <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Time</th>
-                            <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Tenant</th>
-                            <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Action</th>
-                            <th className="py-4 px-6 font-bold text-slate-500 dark:text-zinc-400 text-2xs uppercase tracking-wider">Source Engine</th>
+                            <TableHead>Time</TableHead>
+                            <TableHead>Tenant</TableHead>
+                            <TableHead>Action</TableHead>
+                            <TableHead>Source Engine</TableHead>
                         </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/40">
+                    </TableHeader>
+                    <TableBody>
                         {usageLogs.map((log: any) => {
                             const mod = allModules.find((m: any) => m.moduleKey === log.moduleKey);
                             return (
                                 <tr key={log._id} className="hover:bg-slate-50/50 dark:hover:bg-zinc-800/20 transition-all group">
-                                    <td className="py-4 px-6 text-2xs font-mono text-slate-400 transition-colors group-hover:text-slate-500">
+                                    <TableCell className="text-2xs font-mono text-slate-400 transition-colors group-hover:text-slate-500">
                                         {new Date(log.loggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                    </td>
-                                    <td className="py-4 px-6 text-xs font-bold text-slate-700 dark:text-zinc-300">
+                                    </TableCell>
+                                    <TableCell className="text-xs font-bold text-slate-700 dark:text-zinc-300">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 rounded bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-3xs font-black text-slate-400 uppercase">F</div>
                                             {log.firmId.slice(0, 8)}...
                                         </div>
-                                    </td>
-                                    <td className="py-4 px-6">
+                                    </TableCell>
+                                    <TableCell>
                                         <p className="text-xs text-slate-600 dark:text-zinc-400 line-clamp-1">{log.action}</p>
-                                    </td>
-                                    <td className="py-4 px-6 whitespace-nowrap">
+                                    </TableCell>
+                                    <TableCell className="whitespace-nowrap">
                                         <div className="flex flex-col">
                                             <span className="text-2xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">
                                                 {log.sourceType === 'module' ? 'ALOA Core' : log.sourceType.toUpperCase()}
@@ -393,22 +394,22 @@ const UsageLogsTab: React.FC = () => {
                                                 {mod ? mod.shortName : log.moduleKey}
                                             </span>
                                         </div>
-                                    </td>
+                                    </TableCell>
                                 </tr>
                             );
                         })}
                         {usageLogs.length === 0 && (
                             <tr>
-                                <td colSpan={4} className="py-20 text-center">
+                                <TableCell colSpan={4} className="py-20 text-center">
                                     <div className="flex flex-col items-center gap-2 opacity-30">
                                         <ActivityIcon className="w-10 h-10 text-slate-300" />
                                         <p className="text-sm font-medium text-slate-400 italic">Listening for intelligence events...</p>
                                     </div>
-                                </td>
+                                </TableCell>
                             </tr>
                         )}
-                    </tbody>
-                </table>
+                    </TableBody>
+                </Table>
             </div>
         </div>
     );

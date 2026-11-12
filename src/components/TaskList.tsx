@@ -12,6 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 import PriorityPopover from './PriorityPopover';
 
 import { Z_CLASS } from '../overlays/constants';
+import { Table, TableHeader, TableBody, TableHead, TableCell } from './ui/Table';
 type SortableKey = 'title' | 'matter' | 'dueDate' | 'priority' | 'status';
 type SortDirection = 'asc' | 'desc';
 
@@ -126,7 +127,7 @@ const TaskRow: React.FC<{
                 ${isKeyboardSelected ? 'bg-primary-50 dark:bg-primary-900/20 ring-1 ring-inset ring-primary-300 dark:ring-primary-700 z-10' : (isSelected ? 'bg-blue-50 dark:bg-zinc-800' : 'hover:bg-surface dark:hover:bg-zinc-800/50')}
             `}
         >
-            <td className="px-6 py-4 whitespace-nowrap w-10">
+            <TableCell className="whitespace-nowrap w-10">
                 <div className="flex items-center justify-center">
                     <input autoComplete="off" data-lpignore="true" 
                         type="checkbox"
@@ -135,20 +136,20 @@ const TaskRow: React.FC<{
                         className="h-4 w-4 rounded border-dim-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
                     />
                 </div>
-            </td>
-            <td className="px-6 py-4 cursor-pointer group" onClick={() => onViewDetails(task.id, {})}>
+            </TableCell>
+            <TableCell className="cursor-pointer group" onClick={() => onViewDetails(task.id, {})}>
                 <div className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-primary-600 transition-colors">{task.title}</div>
                 {task.description && <div className="text-xs text-slate-500 dark:text-dim-400 truncate max-w-[300px] mt-0.5">{task.description}</div>}
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-dim-300 cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
+            </TableCell>
+            <TableCell className="whitespace-nowrap text-sm text-slate-600 dark:text-dim-300 cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
                 {matter ? (
                     <span className="px-2 py-1 bg-surface-2 dark:bg-zinc-700 rounded text-xs font-medium truncate max-w-[150px] inline-block" title={matter.title}>
                         {matter.title}
                     </span>
                 ) : <span className="text-dim-500 dark:text-dim-400 italic text-xs">No matter</span>}
-            </td>
+            </TableCell>
             {appMode === 'multi' && (
-                <td className="px-6 py-4 whitespace-nowrap">
+                <TableCell className="whitespace-nowrap">
                     {assignedUsers.length > 0 ? (
                         <div className="flex justify-center items-center w-full -space-x-2">
                             {assignedUsers.map(user => (
@@ -160,14 +161,14 @@ const TaskRow: React.FC<{
                             ))}
                         </div>
                     ) : <div className="flex justify-center items-center w-full"><span className="text-xs text-dim-500 dark:text-dim-400">—</span></div>}
-                </td>
+                </TableCell>
             )}
-            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
+            <TableCell className="whitespace-nowrap text-sm font-semibold cursor-pointer" onClick={() => onViewDetails(task.id, {})}>
                 <span className={`${task.status === 'done' ? 'text-subtle dark:text-zinc-500' : getDueDateColor(task.dueDate || null)} text-xs`}>
                     {task.status === 'done' ? 'Completed' : (task.dueDate ? formatDueDate(task.dueDate) : '—')}
                 </span>
-            </td>
-            <td className="px-6 py-4 whitespace-nowrap overflow-visible">
+            </TableCell>
+            <TableCell className="whitespace-nowrap overflow-visible">
                 <button
                     onClick={(e) => { e.stopPropagation(); onPriorityClick(e, task); }}
                     className={`px-2.5 py-1 inline-flex items-center gap-1 text-2xs font-bold tracking-wide uppercase rounded-full cursor-pointer hover:opacity-80 transition-opacity ${getPriorityColorClass(task.priority)}`}
@@ -175,10 +176,10 @@ const TaskRow: React.FC<{
                     {task.priority || 'Medium'}
                     <ChevronDownIcon className="w-3 h-3" />
                 </button>
-            </td>
+            </TableCell>
 
             {/* Status with Inline Dropdown */}
-            <td className="px-6 py-4 whitespace-nowrap overflow-visible interactive-cell">
+            <TableCell className="whitespace-nowrap overflow-visible interactive-cell">
                 <div className="relative" ref={statusRef}>
                     <button
                         onClick={toggleStatusDropdown}
@@ -209,10 +210,10 @@ const TaskRow: React.FC<{
                         </div>
                     )}
                 </div>
-            </td>
+            </TableCell>
 
             {/* Delivery column */}
-            <td className="px-6 py-4 whitespace-nowrap text-center">
+            <TableCell className="whitespace-nowrap text-center">
                 {(() => {
                     const deliveryStatus = (task as any).deliveryStatus || (task as any).notificationStatus || 'in_app';
                     if (deliveryStatus === 'delivered' || deliveryStatus === 'sent') {
@@ -248,9 +249,9 @@ const TaskRow: React.FC<{
                         </Tooltip>
                     );
                 })()}
-            </td>
+            </TableCell>
 
-            <td className="px-6 py-4 whitespace-nowrap text-right">
+            <TableCell className="whitespace-nowrap text-right">
                 <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {task.status === 'todo' && (
                         <Tooltip text="Start Task">
@@ -267,7 +268,7 @@ const TaskRow: React.FC<{
                         </Tooltip>
                     )}
                 </div>
-            </td>
+            </TableCell>
         </tr>
     );
 };
@@ -877,10 +878,11 @@ const TaskList: React.FC<TaskListProps> = ({
 
                     {/* ─── Desktop table layout (sm: and up) ─── */}
                     <div className="hidden sm:block flex-grow overflow-auto custom-scrollbar">
-                        <table className="min-w-[600px] w-full divide-y divide-slate-200 dark:divide-zinc-700">
-                            <thead className="bg-surface dark:bg-zinc-800 sticky top-0 z-10 shadow-sm">
+                        {/* UX-48: shared table grammar (ui/Table) */}
+                        <Table className="min-w-[600px] divide-y divide-slate-200 dark:divide-zinc-700">
+                            <TableHeader sticky className="z-10 shadow-sm">
                                 <tr>
-                                    <th scope="col" className="px-6 py-3 text-left w-10">
+                                    <TableHead className="w-10">
                                         <input autoComplete="off" data-lpignore="true" 
                                             type="checkbox"
                                             ref={selectAllCheckboxRef}
@@ -888,25 +890,25 @@ const TaskList: React.FC<TaskListProps> = ({
                                             onChange={(e) => onToggleSelection(e.target.checked ? `__ALL_SELECT__:${sortedTasks.map(t => t.id).join(',')}` : '__ALL_CLEAR__')}
                                             checked={sortedTasks.length > 0 && selectedTasks.size === sortedTasks.length}
                                         />
-                                    </th>
-                                    <th scope="col" onClick={() => requestSort('title')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 upper tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Task</th>
-                                    <th scope="col" onClick={() => requestSort('matter')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Matter</th>
-                                    {appMode === 'multi' && <th scope="col" className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider">Assigned</th>}
-                                    <th scope="col" onClick={() => requestSort('dueDate')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Due Date</th>
-                                    <th scope="col" onClick={() => requestSort('priority')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Priority</th>
-                                    <th scope="col" onClick={() => requestSort('status')} className="px-6 py-3 text-left text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-body dark:hover:text-zinc-300">Status</th>
-                                    <th scope="col" className="px-6 py-3 text-center text-xs font-bold text-muted dark:text-zinc-400 uppercase tracking-wider">Delivery</th>
-                                    <th scope="col" className="relative px-6 py-3">
+                                    </TableHead>
+                                    <TableHead sortable onClick={() => requestSort('title')}>Task</TableHead>
+                                    <TableHead sortable onClick={() => requestSort('matter')}>Matter</TableHead>
+                                    {appMode === 'multi' && <TableHead>Assigned</TableHead>}
+                                    <TableHead sortable onClick={() => requestSort('dueDate')}>Due Date</TableHead>
+                                    <TableHead sortable onClick={() => requestSort('priority')}>Priority</TableHead>
+                                    <TableHead sortable onClick={() => requestSort('status')}>Status</TableHead>
+                                    <TableHead align="center">Delivery</TableHead>
+                                    <TableHead className="relative">
                                         <span className="sr-only">Actions</span>
-                                    </th>
+                                    </TableHead>
                                 </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-zinc-800 divide-y divide-slate-100 dark:divide-zinc-700/50">
+                            </TableHeader>
+                            <TableBody className="bg-white dark:bg-zinc-800">
                                 {taskGroups.map((group) => (
                                     <React.Fragment key={group.key}>
                                         {group.title && (
                                             <tr className="bg-surface/50 dark:bg-zinc-900/30">
-                                                <td colSpan={appMode === 'multi' ? 9 : 8} className="px-6 py-2">
+                                                <TableCell colSpan={appMode === 'multi' ? 9 : 8} className="px-6 py-2">
                                                     <div className="flex items-center gap-2">
                                                         <div className="h-4 w-1 bg-primary-500 rounded-full" />
                                                         <span className="text-2xs font-black uppercase tracking-wide-label text-muted dark:text-zinc-400">
@@ -914,7 +916,7 @@ const TaskList: React.FC<TaskListProps> = ({
                                                         </span>
                                                         <span className="text-3xs font-bold text-subtle ml-2">({group.tasks.length} items)</span>
                                                     </div>
-                                                </td>
+                                                </TableCell>
                                             </tr>
                                         )}
                                         {group.tasks.map((task) => {
@@ -938,8 +940,8 @@ const TaskList: React.FC<TaskListProps> = ({
                                         })}
                                     </React.Fragment>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
                 </>
             ) : (
