@@ -496,7 +496,6 @@ const ModalManager: React.FC = () => {
       }
       break;
     }
-    case 'viewInvoice':
     case 'newInvoice':
     case 'editInvoice': {
       const invoice = (financeState.invoices || []).find(i => i.id === editingId);
@@ -818,7 +817,7 @@ const ModalManager: React.FC = () => {
   //  sm → simple confirmations and tiny forms
   const lgModals = ['matterIngestion', 'editMatter', 'newMatter', 'composeEmail',
            'newContact', 'editContact', 'newProperty', 'editProperty',
-           'newInvoice', 'editInvoice', 'viewInvoice', 'generateInvoice',
+           'newInvoice', 'editInvoice', 'generateInvoice',
            'newEvent', 'editEvent', 'bulkEditProperty'];
   const smModals = ['leadCapture', 'deleteConfirmation', 'aiConsent', 'keyboardShortcuts',
            'noTeamMembers', 'aloaHelp', 'upgradePlan', 'sendIntakeLink',

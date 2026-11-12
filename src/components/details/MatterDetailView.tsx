@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { MoreVertical, ListChecks } from 'lucide-react';
 import { Matter, WorkflowDefinition, User, Document, Task, TimeEntry, Expense, CalendarEvent, Invoice, CustomEventType, NotePage, ClientMessage, FirmDetails, ModalType, AppMode, Contact, View, TaskStatus, MatterType, AriaChatContext } from '../../types';
-import { ChevronRightIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon, EditIcon } from '../../constants';
+import { ChevronRightIcon, GavelIconLarge, ScalesIcon, CogIcon, TrashIcon, CloudArrowUpIcon, LockClosedIcon, EditIcon, PlusIcon } from '../../constants';
 import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation } from "convex/react";
@@ -22,9 +22,7 @@ const CONTENTIOUS_MATTER_TYPES: string[] = [
     MatterType.EmploymentLabor,
 ];
 import TeamDiscussionTab from './TeamDiscussionTab';
-// import ActivityLogTab from './ActivityLogTab'; // Removed
 // import { AiIntakeAnalysis } from './AiIntakeAnalysis'; // Removed
-// import FilingDeadlineNotice from './FilingDeadlineNotice'; // Removed
 import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -636,21 +634,48 @@ const MatterDetailViewContent: React.FC = () => {
                                 Will be re-enabled when the backlinks persistence layer is implemented. */}
                         </div>
                     ) : activeTab === 'schedule_tasks' ? (
-                        <TasksAndEventsTab
-                            tasks={tasks}
-                            events={events}
-                            matterId={matterData.id}
-                            matter={matterData}
-                            documents={documents}
-                            openModal={openModal}
-                            onUpdateTaskStatus={handleUpdateTaskStatus}
-                            lastViewedAt={getTabBaseline('schedule_tasks')}
-                            currentUser={currentUser || {} as User}
-                            navigateTo={navigateTo}
-                            onDeleteItem={deleteItem as any}
-                            initialSubView={((currentHistoryEntry as any).initialSubView ?? (currentHistoryEntry.context as any)?.initialSubView) as 'timeline' | 'list' | 'events' | undefined}
-                            checklistAction={((currentHistoryEntry as any).checklistAction ?? (currentHistoryEntry.context as any)?.checklistAction) ?? null}
-                        />
+                        <div className="space-y-3">
+                            {/* UX-03: a time-entry affordance visible to ALL staff on
+                                the matter — the Financials tab (BillingSummaryWidget,
+                                the old sole entry point) is canViewBilling-gated, so
+                                non-admin lawyers in a multi-lawyer firm had NO way to
+                                log billable time or expenses from any screen while the
+                                first-run banner told them to. Placed on the work tab. */}
+                            <div className="flex items-center gap-2 justify-end px-1">
+                                <span className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 mr-auto hidden sm:inline">Billable work</span>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => openModal('newTimeEntry', matterData.id)}
+                                    title="Log billable time against this matter"
+                                >
+                                    <PlusIcon className="w-3.5 h-3.5" /> Log Time
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => openModal('newExpense', matterData.id)}
+                                    title="Log an expense against this matter"
+                                >
+                                    <PlusIcon className="w-3.5 h-3.5" /> Log Expense
+                                </Button>
+                            </div>
+                            <TasksAndEventsTab
+                                tasks={tasks}
+                                events={events}
+                                matterId={matterData.id}
+                                matter={matterData}
+                                documents={documents}
+                                openModal={openModal}
+                                onUpdateTaskStatus={handleUpdateTaskStatus}
+                                lastViewedAt={getTabBaseline('schedule_tasks')}
+                                currentUser={currentUser || {} as User}
+                                navigateTo={navigateTo}
+                                onDeleteItem={deleteItem as any}
+                                initialSubView={((currentHistoryEntry as any).initialSubView ?? (currentHistoryEntry.context as any)?.initialSubView) as 'timeline' | 'list' | 'events' | undefined}
+                                checklistAction={((currentHistoryEntry as any).checklistAction ?? (currentHistoryEntry.context as any)?.checklistAction) ?? null}
+                            />
+                        </div>
                     ) : activeTab === 'billing' ? (
                         !canViewBilling ? null : <BillingSummaryWidget matter={matterData} timeEntries={timeEntries} expenses={expenses} invoices={invoices} openModal={openModal} onDeleteTimeEntry={onDeleteTimeEntry} onDeleteExpense={onDeleteExpense} navigateTo={navigateTo} />
                     ) : activeTab === 'documents' ? (

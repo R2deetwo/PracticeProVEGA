@@ -134,7 +134,6 @@ const getModalTitle = (modalType: ModalType): string => {
         case 'viewEvent': return 'Event Details';
         case 'newInvoice': return 'New Invoice';
         case 'editInvoice': return 'Edit Invoice';
-        case 'viewInvoice': return 'Invoice Details';
         case 'generateInvoice': return 'Generate Invoice';
         case 'newUser': return 'Invite User';
         case 'editUser': return 'Edit User';

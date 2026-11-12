@@ -330,7 +330,6 @@ export const DockedModal: React.FC = () => {
         break;
       }
       // ─── INVOICE FORMS ────────────────────────────────────────────────
-      case 'viewInvoice':
       case 'newInvoice':
       case 'editInvoice': {
         const invoice = (financeState.invoices || []).find(i => i.id === editingId);

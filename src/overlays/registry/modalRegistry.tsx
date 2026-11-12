@@ -349,11 +349,6 @@ export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
     title: 'Edit Invoice',
     size: 'lg',
   },
-  viewInvoice: {
-    component: InvoiceForm as any,
-    title: 'View Invoice',
-    size: 'lg',
-  },
   generateInvoice: {
     component: InvoiceGeneratorForm as any,
     title: 'Generate Invoice',
