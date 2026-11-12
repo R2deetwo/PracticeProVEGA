@@ -740,7 +740,23 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
             // of alerts (e.g. when deleting a multi-unit property).
             // duration is stored on the toast — the Toast component owns
             // dismissal (auto-dismiss with hover-hold; see ToastAutoDismiss).
-            const newToasts = [...prev, { id, message, type: options?.type || 'info', link: options?.link, duration: options?.duration }];
+            //
+            // UX-46 (duration presets): when the caller does not pass a
+            // duration, the TYPE decides urgency. Errors and warnings
+            // carry information the user must read before it disappears
+            // (the audit found 8 hand-picked durations, with critical
+            // errors vanishing at the 3500ms default before they could be
+            // read); success/info confirmations are glanceable. Explicit
+            // durations still win — this only replaces the silent default.
+            const DEFAULT_TOAST_DURATIONS: Record<string, number> = {
+                error: 8000,
+                warning: 6000,
+                success: 3500,
+                info: 3500,
+            };
+            const toastType = options?.type || 'info';
+            const duration = options?.duration ?? DEFAULT_TOAST_DURATIONS[toastType] ?? 3500;
+            const newToasts = [...prev, { id, message, type: toastType, link: options?.link, duration }];
             if (newToasts.length > 3) {
                 return newToasts.slice(-3);
             }

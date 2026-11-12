@@ -274,11 +274,11 @@
   --text-main: 15, 23, 42;
   --text-muted: 100, 116, 139;
 
-  /* Radii */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  /* UX-17: the unused --radius-sm/md/lg/xl vars are DELETED (zero
+     consumers — the compiled radii live in tailwind.config.ts
+     borderRadius; the card-family vars below are the ones actually
+     consumed). The STYLE_GUIDE radius section now documents the compiled
+     truth. */
 
   /* Motion timing — shared site-wide for consistency */
   --duration-fast: 150ms;    /* hover feedback, button transitions */

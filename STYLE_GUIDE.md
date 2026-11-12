@@ -31,12 +31,13 @@ To prevent brand confusion with Dark Moss Green, use these desaturated, soft sem
 
 ## 2. Border-Radius Scale (Strictly Enforced)
 
-All components must strictly adhere to this 3-tier scale to prevent visual drift:
-- `rounded-md` (8px): Form inputs, action buttons, small utility chips.
-- `rounded-lg` (12px): Information cards, list items, navigation dropdowns, popovers.
-- `rounded-2xl` (16px): Dashboard widgets, modal containers, hero blocks, layout wrappers.
-
-**Note:** `rounded-xl` (14px) is deprecated — migrate existing uses to `rounded-lg` or `rounded-2xl` based on context.
+**UX-17: this section now documents the COMPILED TRUTH** (tailwind.config.ts `borderRadius`) — the previous prose described a scale that never shipped (8/12/16px) and a "deprecated 14px" rounded-xl that is actually an alias of 20px. The real scale:
+- `rounded-sm` (6px): Buttons, inputs, badges, pills.
+- `rounded-md` (12px): Form inputs in dense toolbars, action buttons, small utility chips.
+- `rounded-lg` (20px): Cards, modals, banners, dashboard widgets, hero blocks, layout wrappers — the dominant tier (2,100+ uses).
+- `rounded-xl` and `rounded-2xl` are ALIASES of `rounded-lg` (20px). `rounded-xl` is deprecated per the CI ratchet (check-design-tokens.mjs — the count may only shrink); prefer `rounded-lg`. `rounded-2xl` is the accepted spelling for the same 20px.
+- `rounded-3xl` (24px): hero cards only.
+- `rounded-full`: pills, avatars.
 
 ---
 
@@ -51,9 +52,13 @@ All padding, margin, gaps, and layouts should align to the Golden Ratio proporti
 - **Extra Large:** `48px` (`space-12` / `p-12`) — used instead of 55px for Tailwind alignment
 
 ### Elevation Shadows
-- `shadow-sm`: Default flat card elevation.
-- `shadow-md`: Interactive hover states.
-- `shadow-xl`: Layered modal overlays and floating drop-downs.
+**UX-45: the authoritative mapping is the `boxShadow` block in tailwind.config.ts.** The semantic levels:
+- `shadow-elevation-1` (=`shadow-sm`): buttons at rest.
+- `shadow-elevation-2` (=`shadow-md`/`DEFAULT`/`soft`): cards, list items.
+- `shadow-elevation-3`: modals, dropdowns, popovers.
+- `shadow-elevation-4` (=`shadow-lg`): floating elements (tooltips, bottom sheets).
+
+The `elevation-N` names are preferred in NEW marketing-site code (the Atrium site already uses them); `sm/md/lg` aliases are the established app spelling — both resolve to the same four compiled values, so there is exactly one elevation system, not three.
 
 ---
 
