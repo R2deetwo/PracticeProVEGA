@@ -18914,3 +18914,88 @@ nav parity V6).
   (dismissible); flagged for a future onboarding-surface pass.
 - Desktop advisory: several text chips measure 16–20px height (fine for
   mouse, below touch guidance on hybrid devices).
+
+---
+
+## P0 — UI/UX TRANSFORMATION, PHASE 0: COMPREHENSIVE AUDIT (2026-11-12)
+
+**Round focus:** investigation and recommendation only, per the brief. No
+styling, components, navigation or behaviour were changed in this round; all
+safeguards held (no feature removal, no architectural rewrites, no backend
+business-logic changes, no test weakening, product boundaries preserved).
+
+### What was audited (revision f8646b73, build-1166 — includes V5+V6+V7)
+- Four parallel deep explorations of the full tree: Vega surfaces (63
+  screens), Atrium surfaces (32), Komplete + cross-product + auth/onboarding
+  + admin (59), and the shared design system (31 measured aspects).
+- 22 end-to-end workflows traced through code (matters/billing/documents/
+  DraftPro/portals; property/tenancy/rent/maintenance/documents; unified
+  onboarding, cross-product search, shared contacts, cross-product money).
+- Lead verification of every load-bearing claim (time-entry single-caller
+  grep, hard-dark tab grep, hub CTA grep, demo-mode availability, z-index
+  census replication). Live production deployment confirmed reachable
+  (vercel + workers, both 200); 12 public-surface screenshots captured and
+  machine-verified (8 embedded in the report).
+
+### Findings (60: 4 Critical / 17 High / 28 Medium / 11 Low)
+- Critical: UX-01 two parallel modal systems with path-dependent z-order;
+  UX-02 no semantic status tokens (raw hues, theme-blind); UX-03 Vega time
+  entry exists only in the admin-only Finance tab (sole caller
+  BillingSummaryWidget — non-admin lawyers cannot log billable time
+  anywhere while onboarding tells them to); UX-04 21/35 form files lack
+  isSubmitting guards.
+- High (selection): four Atrium Financials tabs hard-code dark
+  (bg-slate-950); hub//komplet has no signup CTA at all; desktop palette
+  search is client-subset-only (mobile is server-complete — same query,
+  different answers) and bypasses the Research plan lock; body-font cascade
+  ambiguous (never-loaded 'Inter' vs Figtree) + 8-10px micro-type with
+  sub-AA contrast pairs; unawaited stage-change toast; portal invite links
+  hard-code the Vega domain for every product; three contradictory radius
+  specs with the rounded-xl ratchet chasing cosmetic-only debt (xl/2xl
+  alias lg); dead shadcn toolkit layer beside the live ui/ primitives;
+  canon components (FinancialStatusBadge, ViewHeader) with zero adopters.
+- Honest-money strengths verified and preserved: audited voids with
+  reasons, offline queues with sync references, origin-partitioned KPIs
+  with no double counting, idempotent ledgers, per-recipient delivery.
+
+### Deliverables (docs/audits/ + download/)
+- docs/audits/2026-11-12-phase0-ux-audit.md — full register + inventories +
+  census + roadmap summary (this record).
+- docs/audits/PracticePro_Phase0_Findings_and_Inventories.xlsx — 6 sheets
+  (Read Me, Findings Register, Vega/Atrium/Komplete inventories, Design
+  System Census); validated (audit 0, scan 0, validate exit 0).
+- PracticePro_Phase0_UX_Audit_Report.docx (+ PDF) — authored report:
+  methodology and limitations, inventory summaries, design-system
+  assessment, interaction-truth audit, workflow friction table,
+  responsive/a11y audit, THREE PRODUCT IDENTITY PROPOSALS (Vega chambers
+  navy+serif titles; Atrium estate-office emerald-on-cream; Komplete
+  graphite base with dual-accent inheritance + teal unified marks — all on
+  the one existing skin-class token mechanism, no second system), IA
+  recommendations, workflow recommendations, and a six-phase transformation
+  roadmap with dependencies and acceptance criteria. postcheck 9/9; 25
+  rendered pages, zero blank; TOC field update-ready.
+
+### Explicit limitations (documented in the report, §2.3)
+- No authenticated runtime inspection (no credentials in scope; demo mode
+  is dev-builds-only, AuthContext.tsx:1409). Interior screens evidenced by
+  code with file:line; COULD-NOT-INSPECT lists carried in the workbook.
+- Contrast ratios computed from token values; responsive claims from class
+  analysis + the V7 browser-verified worklog; screenshots machine-verified
+  non-blank (authoring environment has no vision model — stated openly).
+
+### Git verification (owner request for this round)
+- origin/main = f8646b73 [build-1166] (v1.0.771); V5, V5-tail, V6 and V7
+  all confirmed pushed with CI green (bot bump + version.json commits +
+  build tags through build-1166). The previous session's two
+  pending commits were found already superseded on main by 9a667267 +
+  9faa08e0 (recreated after the sandbox reset). No unpushed work existed
+  anywhere in the environment; this round adds only docs/audits/ + this
+  worklog entry.
+
+### Owner decisions (NOT made silently)
+1. Three identity directions are PROPOSALS — none implemented.
+2. Roadmap phases 1-6 start only on owner approval.
+3. Standing from earlier rounds: builds 1163-1166 production promotion;
+   CLOUDFLARE_API_TOKEN rotation.
+
+[skip ci]
