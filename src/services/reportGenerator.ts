@@ -368,7 +368,7 @@ export const getCreditNotePdfDataUrl = async (originalInvoice: Invoice, firmDeta
 
 export const generateReceiptPdf = async (invoice: Invoice, firmDetails: FirmDetails, client: Contact, additionalDetails?: { tenancyPeriod?: string }) => {
     const { jsPDF } = await ensurePdfLibs();
-    const { doc, y: startY } = createPdf(jsPDF, firmDetails, 'Receipt of Payment');
+    const { doc, y: startY } = createPdf(jsPDF, firmDetails, 'Official Payment Receipt');
     let y = startY;
 
     doc.setFont('helvetica', 'bold');
@@ -378,7 +378,7 @@ export const generateReceiptPdf = async (invoice: Invoice, firmDetails: FirmDeta
 
     doc.setFontSize(12);
     doc.text(`Payment Date: ${invoice.paidDate ? new Date(invoice.paidDate).toLocaleDateString('en-GB') : 'N/A'}`, A4_WIDTH - MARGIN, y, { align: 'right' });
-    doc.text(`Original Invoice: ${invoice.invoiceNumber}`, A4_WIDTH - MARGIN, y + 5, { align: 'right' });
+    doc.text(`Receipt No: ${invoice.invoiceNumber}`, A4_WIDTH - MARGIN, y + 5, { align: 'right' });
     y += 20;
 
     const calcSubTotal = invoice.lineItems.reduce((sum, item) => sum + item.total, 0);

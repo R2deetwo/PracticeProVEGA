@@ -610,7 +610,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                         </button>
                         {/* Upload — icon only on small screens, full label on larger screens */}
                         <button
-                            onClick={() => openModal('newDocument')}
+                            onClick={() => openModal('batchUpload')}
                             className="p-2 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm flex items-center gap-1.5 text-xs font-bold shrink-0"
                         >
                             <PlusIcon className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Upload</span>
@@ -833,7 +833,7 @@ export const DocumentList: React.FC<{ isCompact?: boolean; onPreviewLocalFile?: 
                                     description={searchTerm ? "No matches found for your search." : (selectedCategory ? "This folder is empty. Upload a document to get started." : "Upload your first document to get started. You can organize files by matter, category, or keep them firm-wide.")}
                                     icon={<DocumentIcon />}
                                     actionLabel={searchTerm ? undefined : "Upload Document"}
-                                    onAction={searchTerm ? undefined : () => openModal('newDocument')}
+                                    onAction={searchTerm ? undefined : () => openModal('batchUpload')}
                                 />
                             )}
                         </div>

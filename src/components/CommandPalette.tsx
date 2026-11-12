@@ -94,7 +94,7 @@ const CommandPalette: React.FC = () => {
         { id: 'act-new-contact', title: 'Add New Contact', type: 'Actions', icon: <PlusIcon />, action: () => openModal('newContact') },
         { id: 'act-new-task', title: 'Create New Task', type: 'Actions', icon: <PlusIcon />, action: () => openModal('newTask') },
         { id: 'act-new-event', title: 'Schedule Event', type: 'Actions', icon: <PlusIcon />, action: () => openModal('newEvent') },
-        { id: 'act-new-doc', title: 'Upload Document', type: 'Actions', icon: <PlusIcon />, action: () => openModal('newDocument') },
+        { id: 'act-new-doc', title: 'Upload Document', type: 'Actions', icon: <PlusIcon />, action: () => openModal('batchUpload') },
 
         // System
         { id: 'sys-theme', title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`, type: 'System', icon: theme === 'dark' ? <SunIcon /> : <MoonIcon />, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },

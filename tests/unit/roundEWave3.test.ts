@@ -596,7 +596,11 @@ describe('E3(d) — source contracts', () => {
     it('DocumentsTab: uploadContext stamps propertyId on uploads and the download path handles storage-id files', () => {
         const tab = read('src/components/details/DocumentsTab.tsx');
         expect(tab).toContain('uploadContext?: Record<string, any>');
-        expect(tab).toContain('{ matterId, ...uploadContext, droppedFile: file }');
+        // UX-23: ONE upload flow — every path (single or many) routes through
+        // the batch uploader with the matter + uploadContext stamped on it.
+        expect(tab).toContain('{ matterId, ...uploadContext, files: droppedFiles }');
+        expect(tab).toContain('{ matterId, ...uploadContext, files: selectedFiles }');
+        expect(tab).not.toContain("openModal('newDocument'");
         expect(tab).toContain('getFileUrl');
         expect(tab).toContain('f?.storageId');
     });

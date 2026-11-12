@@ -16,6 +16,7 @@
  */
 
 import { buildEmailHtml } from './emailTemplate';
+import { RECEIPT_HEADING, receiptFooterLine } from '../services/receiptDocument';
 import { jsPDF } from 'jspdf';
 import type { AutomationChannel } from '../types';
 
@@ -185,7 +186,7 @@ export function buildReceiptPdfBase64(input: ReceiptEmailInput): string {
 
     doc.setFontSize(9.5);
     doc.setTextColor(100, 116, 139);
-    doc.text('OFFICIAL PAYMENT RECEIPT', 105, 35, { align: 'center' });
+    doc.text(RECEIPT_HEADING, 105, 35, { align: 'center' });
     doc.text(`Receipt No: ${input.receiptNumber}`, 105, 40, { align: 'center' });
     doc.setDrawColor(16, 185, 129);
     doc.setLineWidth(0.7);
@@ -233,7 +234,7 @@ export function buildReceiptPdfBase64(input: ReceiptEmailInput): string {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text(`This is an official receipt issued by ${legalName} via PracticePro.`, 105, 282, { align: 'center' });
+    doc.text(receiptFooterLine(legalName), 105, 282, { align: 'center' });
     if (input.signerBlock) {
         doc.text(`Issued by ${input.signerBlock}.`, 105, 286.5, { align: 'center' });
     }

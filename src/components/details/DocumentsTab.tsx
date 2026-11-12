@@ -48,27 +48,24 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     const [editorChoiceDoc, setEditorChoiceDoc] = useState<Document | null>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    const handleFile = (file: File) => {
-        openModal('newDocument', null, { matterId, ...uploadContext, droppedFile: file });
-    };
+    // UX-23: ONE upload flow — every file (single or many, dropped or picked)
+    // goes through the batch uploader, which already handles single files.
+    // The old split (single → DocumentForm, multi → batch) gave the same job
+    // two different UX and two different category defaults.
 
     const handleDrop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
         const droppedFiles = Array.from(e.dataTransfer.files || []);
-        if (droppedFiles.length === 1) {
-            handleFile(droppedFiles[0]);
-        } else if (droppedFiles.length > 1) {
+        if (droppedFiles.length >= 1) {
             openModal('batchUpload', null, { matterId, ...uploadContext, files: droppedFiles });
         }
     };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const selectedFiles = Array.from(e.target.files || []);
-        if (selectedFiles.length === 1) {
-            handleFile(selectedFiles[0]);
-        } else if (selectedFiles.length > 1) {
+        if (selectedFiles.length >= 1) {
             openModal('batchUpload', null, { matterId, ...uploadContext, files: selectedFiles });
         }
     };

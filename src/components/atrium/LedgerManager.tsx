@@ -11,6 +11,7 @@ import { isActiveFinancialRecord, makeLedgerIdempotencyKey } from '../../utils/f
 import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles, MoreVertical, ShieldCheck, Eye, EyeOff, Undo2, FlaskConical, Ban, FileSearch, Tag } from 'lucide-react';
 import { chargeTypeLabel, chargeTypeOptions, ChargeTypeOption } from '../../utils/chargeTypeUtils';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
+import { buildReceiptDocumentHtml } from '../../services/receiptDocument';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const HashIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -547,36 +548,36 @@ const LedgerManager: React.FC = () => {
   }, [entries, filterType, filterStatus, search, coreState.properties, showLifecycleRecords]);
 
   const generateReceipt = (entry: LedgerEntry) => {
-    // Record Rent Payment — calls the Atrium ledger directly from the cog menu
+    // Record Rent Payment — calls the Atrium ledger directly from the cog menu.
+    // UX-37: this print receipt renders from the ONE receipt-document contract
+    // (services/receiptDocument) — same heading, same "Receipt No" presentation,
+    // same row grammar and issuer footer as the rent-collection and Service
+    // Charge receipts. The builder escapes all user-originated values itself
+    // (the old raw document.write interpolation was a self-XSS vector).
+    // The ledger's numbering regime is the tx hash; it is now PRESENTED as
+    // "Receipt No" with the immutability anchor kept in the footer note.
     const win = window.open('', '_blank');
     if (!win) return;
     const firm = coreState.firmDetails;
-    // FIX: description/paymentRef were interpolated RAW into document.write —
-    // any '<' in user text broke the receipt markup (self-XSS in the print
-    // window). Escape all user-originated values.
-    const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch] as string));
-    win.document.write(`
-      <html><head><title>Receipt ${entry.txHash}</title>
-      <style>body{font-family:monospace;max-width:400px;margin:40px auto;padding:20px;border:1px solid #ccc}
-      .logo{font-size:20px;font-weight:bold;color:#10b981;margin-bottom:4px}
-      .hash{font-size:10px;color:#666;margin-bottom:20px}
-      table{width:100%;border-collapse:collapse}td{padding:6px 0;border-bottom:1px solid #eee}
-      .total{font-weight:bold;font-size:18px;color:#10b981;margin-top:20px}
-      .footer{font-size:10px;color:#999;margin-top:20px;text-align:center}
-      </style></head><body>
-      <div class="logo">${esc(firm?.name || 'Atrium OS')}</div>
-      <div class="hash">TX: ${esc(entry.txHash)}</div>
-      <table>
-        <tr><td>Date</td><td>${formatTs(entry.timestamp)}</td></tr>
-        <tr><td>Type</td><td>${typeLabel(entry.type)}</td></tr>
-        <tr><td>Status</td><td>${entry.status.toUpperCase()}</td></tr>
-        <tr><td>Channel</td><td>${entry.channel || 'N/A'}</td></tr>
-        ${entry.paymentRef ? `<tr><td>Ref</td><td>${esc(entry.paymentRef)}</td></tr>` : ''}
-        ${entry.description ? `<tr><td>Note</td><td>${esc(entry.description)}</td></tr>` : ''}
-      </table>
-      <div class="total">${formatNairaWhole(entry.amount)}</div>
-      <div class="footer">This is an auto-generated receipt from Atrium OS.<br/>Hash: ${entry.txHash} — Immutable Record</div>
-      </body></html>`);
+    const rows: Array<[string, string]> = [
+      ['Property', getUnitLabel(entry.unitId)],
+      ['Type', typeLabel(entry.type)],
+      ['Status', entry.status.toUpperCase()],
+      ['Channel', entry.channel || '—'],
+      ['Payment Date', formatTs(entry.timestamp)],
+    ];
+    if (entry.paymentRef) rows.push(['Reference', entry.paymentRef]);
+    if (entry.period) rows.push(['Covers', entry.period]);
+    if (entry.description) rows.push(['Note', entry.description]);
+    win.document.write(buildReceiptDocumentHtml({
+      firmLegalName: firm?.name || 'Atrium OS',
+      receiptNumber: entry.txHash,
+      kindLabel: `${typeLabel(entry.type)} Receipt`,
+      rows,
+      amount: entry.amount,
+      amountLabel: 'Amount Recorded',
+      immutabilityNote: `Hash: ${entry.txHash} — immutable record. Void/edit reasons are on the audit trail.`,
+    }));
     win.document.close();
     win.print();
   };

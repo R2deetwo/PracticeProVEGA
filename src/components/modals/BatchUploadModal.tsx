@@ -28,6 +28,7 @@ interface FileUploadState {
 
 const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles, context, onClose }) => {
   const { matterState } = useMatterState();
+  const { coreState } = useCoreState();
   const { handleAddDocumentAndAnalyze } = useDataActions();
   const { addToast } = useUI();
   const { currentUser, bearerToken } = useAuth();
@@ -38,6 +39,12 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
   const [uploads, setUploads] = useState<FileUploadState[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCourtProcess, setIsCourtProcess] = useState(false);
+  // UX-23: the category is EXPLICIT when the caller did not force one and
+  // there is no matter context to file under. The old silent 'cat_clients'
+  // default misfiled every matter-less vault upload into Clients.
+  const [chosenCategoryId, setChosenCategoryId] = useState('');
+  const categoryRequired = !context?.categoryId && !context?.matterId;
+  const categories = coreState.documentCategories || [];
 
   // MAX File Size Check (10MB)
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -55,11 +62,14 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
   useEffect(() => {
     if (uploads.length > 0 && !isProcessing) {
       const hasPending = uploads.some(u => u.status === 'pending');
-      if (hasPending) {
+      // UX-23: the queue never starts until the required category is chosen —
+      // choosing it re-triggers this effect and starts the queue.
+      const gated = categoryRequired && !chosenCategoryId;
+      if (hasPending && !gated) {
         processQueue();
       }
     }
-  }, [uploads, isProcessing]);
+  }, [uploads, isProcessing, categoryRequired, chosenCategoryId]);
 
   const processQueue = async () => {
     setIsProcessing(true);
@@ -122,7 +132,7 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
         firmId: currentUser?.firmId,
         matterId: context?.matterId, // Explicitly linking matterId for querying
         matter,
-        categoryId: context?.categoryId || 'cat_clients',
+        categoryId: context?.categoryId || (context?.matterId ? 'cat_clients' : chosenCategoryId),
         dateFiled: new Date().toISOString().split('T')[0],
         file: fileDetails,
         assignedUsers: [currentUser?.id].filter(Boolean),
@@ -168,6 +178,26 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
           {completedCount} of {uploads.length} documents indexed and analyzing...
         </p>
       </div>
+
+      {categoryRequired && (
+        <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
+          <label className="block text-sm font-bold text-slate-800 dark:text-zinc-100 mb-1">
+            Vault category <span className="text-rose-500 ml-0.5" aria-hidden="true">*</span>
+          </label>
+          <p className="text-xs text-slate-500 mb-2">Required — this is how the vault folders this upload. It is never guessed for you.</p>
+          <select
+            value={chosenCategoryId}
+            onChange={e => setChosenCategoryId(e.target.value)}
+            disabled={isProcessing}
+            className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+          >
+            <option value="">Choose a category…</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="max-h-80 overflow-y-auto space-y-2 border border-slate-200 dark:border-zinc-700 rounded-lg p-3 bg-slate-50 dark:bg-zinc-900/50 backdrop-blur-sm custom-scrollbar">
         {uploads.map((item, idx) => (
