@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { EyeIcon, EyeOffIcon, LogoutIcon, LockClosedIcon } from '../constants';
 import { inputLarge } from '../utils/formStyles';
 import { useAuth } from '../contexts/AuthContext';
+import { useProduct } from '../contexts/ProductContext';
 
 interface LockScreenProps {
     onUnlock: () => void;
@@ -9,6 +10,14 @@ interface LockScreenProps {
 
 const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
     const { currentUser, logout, login } = useAuth();
+    // UX-52: the lock screen knows WHICH product locked. An Atrium manager
+    // resuming their phone saw the same unbranded 'Session Locked' a Vega
+    // lawyer sees — brand discontinuity at the most suspicious moment a
+    // user can experience (a lock). The product context resolves the same
+    // way every other surface resolves it; unresolved (fresh boot) stays
+    // product-neutral.
+    const { isAtrium, isVega, isUnified } = useProduct();
+    const productName = isUnified ? 'Komplete' : isVega ? 'Vega' : isAtrium ? 'Atrium' : null;
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +74,11 @@ const LockScreen: React.FC<LockScreenProps> = ({ onUnlock }) => {
                 
                 <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Session Locked</h2>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-8 max-w-[280px] mx-auto">
-                    Please enter your password to unlock your workspace.
+                    {/* UX-52: name the product — the lock reads as the app the
+                        user was in, not a generic system dialog. */}
+                    {productName
+                        ? <>Enter your password to unlock your <span className="font-bold text-slate-700 dark:text-zinc-200">{productName}</span> workspace.</>
+                        : 'Please enter your password to unlock your workspace.'}
                 </p>
 
                 <form onSubmit={handleUnlock} className="space-y-5 text-left">

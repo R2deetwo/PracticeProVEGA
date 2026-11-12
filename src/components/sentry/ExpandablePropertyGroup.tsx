@@ -81,7 +81,10 @@ export const ExpandablePropertyGroup: React.FC<ExpandablePropertyGroupProps> = (
                 </div>
               </div>
               
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* UX-51: unit actions are VISIBLE on touch (opacity-100) and
+                  hover-revealed only on md+ pointers — the old always-hidden
+                  treatment made per-unit edit/delete undiscoverable on mobile. */}
+              <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();

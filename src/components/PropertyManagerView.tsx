@@ -442,9 +442,6 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         return diff > 0 && diff <= 90;
     }).length;
 
-    const handleAddProperty = () => {
-        openModal('newProperty');
-    };
 
     if (isCompact) {
         return (

@@ -1748,9 +1748,6 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                     const full = units.find((u: Property) => u.id === unit.id) || unit;
                                                                     updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
                                                                 }}
-                                                                onGenerateReceipt={(period, chargeType) => {
-                                                                    addToast(`${chargeType} Period ${period.index} receipt generation queued.`, { type: 'info' });
-                                                                }}
                                                             />
 
                                                             {/* Statutory Timeline Milestone */}
@@ -2150,10 +2147,6 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                                 onUpdate={(updatedRental) => {
                                                                                     const full = units.find((u: Property) => u.id === unit.id) || unit;
                                                                                     updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
-                                                                                }}
-                                                                                onGenerateReceipt={(period, chargeType) => {
-                                                                                    const monthYear = (() => { try { return new Date(period.dueDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); } catch { return `Period ${period.index}`; } })();
-                                                                                    addToast(`${chargeType} ${monthYear} receipt generation queued.`, { type: 'info' });
                                                                                 }}
                                                                             />
                                                                         </div>

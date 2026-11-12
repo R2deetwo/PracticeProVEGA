@@ -13,13 +13,14 @@ import { useFinanceState } from '../../contexts/FinanceContext';
 import { useMatterState } from '../../contexts/MatterContext';
 import Tooltip from '../Tooltip';
 import { Breadcrumbs } from '../Breadcrumbs';
+import { VoidInvoiceModal } from '../BillingView';
 import ErrorBoundary from '../ErrorBoundary';
 
 const InvoiceDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
     const { coreState, isDataLoaded } = useCoreState();
     const { matterState } = useMatterState();
-    const { handleUpdateInvoiceStatus, handleRevertPayment, handleRecordInvoicePayment, handleSendInvoiceReminder, deleteItem: onDeleteInvoice } = useDataActions();
+    const { handleUpdateInvoiceStatus, handleRevertPayment, handleRecordInvoicePayment, handleSendInvoiceReminder, handleVoidInvoice, handleReinstateInvoice } = useDataActions();
     const { closeModal, navigateTo, openModal, addToast, selectedId: invoiceId, currentHistoryEntry, goBack } = useUI();
 
     const invoice = financeState.invoices.find((i: any) => i.id === invoiceId);
@@ -87,17 +88,14 @@ const InvoiceDetailViewContent: React.FC = () => {
     const netReceivable = (invoice as any).netReceivable ?? totalAmount - whtAmount;
 
     const isLocked = invoice.status === InvoiceStatus.Paid || invoice.status === InvoiceStatus.Reversed;
+    const isVoided = (invoice as any).recordStatus === 'voided' || invoice.status === InvoiceStatus.Void;
 
-    const handleDelete = () => {
-        openModal('deleteConfirmation', invoice.id, {
-            title: `Delete Invoice ${invoice.invoiceNumber}?`,
-            message: 'Are you sure you want to permanently delete this invoice? This action cannot be undone.',
-            onConfirm: () => {
-                onDeleteInvoice('invoices', invoice.id, invoice.invoiceNumber);
-                closeModal();
-            }
-        });
-    };
+    // UX-22 (one retirement path): the raw permanent Delete is REPLACED by
+    // the same audited Void/Reinstate flow the invoice list uses
+    // (reason REQUIRED, financial_audit_log entry, record kept for
+    // forensics, excluded from every total). The detail page previously
+    // punched a hole in the audit trail the list view promises.
+    const [voidModal, setVoidModal] = useState<'void' | 'reinstate' | null>(null);
 
     // V2 (V-FIN-7/9): records a REAL payment through the audited lifecycle.
     //    The pre-V2 dialog promised it would "create a permanent financial
@@ -197,12 +195,15 @@ const InvoiceDetailViewContent: React.FC = () => {
                         </>
                     ) : null}
 
-                    {!isLocked && (
+                    {isVoided ? (
                         <>
                             <div className="hidden sm:block h-6 w-px bg-slate-200 dark:border-zinc-700 mx-1 sm:mx-2"></div>
-                            <button onClick={handleDelete} className="flex items-center justify-center sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-white dark:bg-zinc-700 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 border border-transparent hover:border-red-200 dark:hover:border-red-800 rounded-lg font-medium text-xs sm:text-sm transition-colors ml-1">
-                                <TrashIcon className="w-4 h-4" />
-                            </button>
+                            <Tooltip text="Reinstate (audited)"><button onClick={() => setVoidModal('reinstate')} aria-label="Reinstate invoice" className="p-1.5 sm:p-2 rounded-lg hover:bg-emerald-100 text-status-success border border-transparent hover:border-emerald-200 transition-all"><RevertIcon className="w-4 h-4 sm:w-5 sm:h-5" /></button></Tooltip>
+                        </>
+                    ) : (
+                        <>
+                            <div className="hidden sm:block h-6 w-px bg-slate-200 dark:border-zinc-700 mx-1 sm:mx-2"></div>
+                            <Tooltip text="Void (audited — keeps the audit trail)"><button onClick={() => setVoidModal('void')} aria-label="Void invoice" className="p-1.5 sm:p-2 rounded-lg hover:bg-rose-100 text-status-danger border border-transparent hover:border-rose-200 transition-all"><TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" /></button></Tooltip>
                         </>
                     )}
                 </div>
@@ -353,6 +354,17 @@ const InvoiceDetailViewContent: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* UX-22: the audited retirement path — same modal, same
+                reason-required contract as the invoice list. */}
+            {voidModal && (
+                <VoidInvoiceModal
+                    invoice={invoice}
+                    mode={voidModal}
+                    onClose={() => setVoidModal(null)}
+                    onConfirm={voidModal === 'void' ? handleVoidInvoice : handleReinstateInvoice}
+                />
+            )}
         </div>
     );
 };

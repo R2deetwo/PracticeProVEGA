@@ -16,6 +16,9 @@ interface FirmDetailsFormProps {
 const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdateFirmDetails, onClose }) => {
   const { addToast } = useUI();
   const [name, setName] = useState(firmDetails.name);
+  // UX-04 (double-submit guard): a fast second click before the modal closes
+  // re-fired the firm-details write — the button now disables itself.
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [address, setAddress] = useState(firmDetails.address);
   const [logoUrl, setLogoUrl] = useState(firmDetails.logoUrl || '');
   const [letterheadUrl, setLetterheadUrl] = useState(firmDetails.letterheadUrl || '');
@@ -47,29 +50,35 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim()) { addToast('Firm name is required.', { type: 'error' }); return; }
 
     // Parse VAT rate
     let newVatRate = parseFloat(vatRateInput) / 100;
     if (isNaN(newVatRate)) newVatRate = 0.075;
 
-    onUpdateFirmDetails({ 
-        ...firmDetails, 
-        name, 
-        address, 
-        legalEntityType,
-        ...(legalEntityType === 'Other' ? { legalEntityCustom } : { legalEntityCustom: '' }),
-        logoUrl, 
-        letterheadUrl, 
-        monthlyRevenueTarget: revenueTarget,
-        headerTextColor,
-        defaultStateOfPractice,
-        taxSettings: {
-            ...firmDetails.taxSettings,
-            vatRate: newVatRate
-        }
-    });
-    onClose();
+    setIsSubmitting(true);
+    try {
+        onUpdateFirmDetails({
+            ...firmDetails,
+            name,
+            address,
+            legalEntityType,
+            ...(legalEntityType === 'Other' ? { legalEntityCustom } : { legalEntityCustom: '' }),
+            logoUrl,
+            letterheadUrl,
+            monthlyRevenueTarget: revenueTarget,
+            headerTextColor,
+            defaultStateOfPractice,
+            taxSettings: {
+                ...firmDetails.taxSettings,
+                vatRate: newVatRate
+            }
+        });
+        onClose();
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
     const commonInputClass = inputClassic;
@@ -266,7 +275,7 @@ const FirmDetailsForm: React.FC<FirmDetailsFormProps> = ({ firmDetails, onUpdate
 
       <div className="pt-4 flex justify-end space-x-2 border-t border-slate-200 dark:border-zinc-700">
         <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-        <button type="submit" className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">Save Changes</button>
+        <button type="submit" disabled={isSubmitting} className="px-6 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Saving…' : 'Save Changes'}</button>
       </div>
     </form>
   );

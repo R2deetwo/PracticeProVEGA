@@ -45,6 +45,8 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
         return snippet || '';
     });
     const [content, setContent] = useState(existingNote?.content || initialContent);
+    // UX-04: double-submit guard for the archive flow.
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [destinationType, setDestinationType] = useState<DestinationType>(() => {
         if (existingNote) return existingNote.propertyId ? 'property' : existingNote.matterId ? 'matter' : 'notebook';
         if (view === 'properties' || view === 'propertyDetail') return 'property';
@@ -387,11 +389,17 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        // UX-04 (double-submit guard): the awaited notebook/note writes left
+        // a window where a second tap archived the same note twice.
+        if (isSubmitting) return;
 
         let notebookId = '';
         let matterId = undefined;
         let propertyId = undefined;
         let contextType = 'notebook';
+
+        setIsSubmitting(true);
+        try {
 
         if (destinationType === 'matter') {
             if (!selectedMatterId) {
@@ -476,6 +484,12 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
             handleClose();
         } catch (error) {
             addToast("Failed to save note. Please check connection.", { type: 'error' });
+        }
+        } finally {
+            // UX-04: closes the OUTER try opened at setIsSubmitting(true) —
+            // validation early-returns above also land here and re-enable
+            // the button so the user can fix the form and retry.
+            setIsSubmitting(false);
         }
     };
 
@@ -740,9 +754,10 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                             <div className="pt-6">
                                 <button
                                     onClick={handleSubmit}
-                                    className="w-full py-5 bg-primary-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[4px] shadow-2xl hover:bg-primary-700 transition-all active:scale-95 flex items-center justify-center gap-3"
+                                    disabled={isSubmitting}
+                                    className="w-full py-5 bg-primary-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[4px] shadow-2xl hover:bg-primary-700 transition-all active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Archive Note
+                                    {isSubmitting ? 'Archiving…' : 'Archive Note'}
                                 </button>
                                 <button
                                     onClick={() => setViewMode('compose')}

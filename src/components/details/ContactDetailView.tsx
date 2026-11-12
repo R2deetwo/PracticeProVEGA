@@ -13,6 +13,7 @@ import { ResidentProfilePanel } from './ResidentProfilePanel';
 import { Breadcrumbs } from '../Breadcrumbs';
 import { useUI } from '../../contexts/UIContext';
 import { useProduct } from '../../contexts/ProductContext';
+import { InviteForm } from '../settings/InviteForm';
 import { useAloa } from '../../contexts/AloaProvider';
 import { AriaChatContext } from '../../types';
 import { useMatterState } from '../../contexts/MatterContext';
@@ -323,6 +324,14 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
   // "link a matter and a tenancy" bridge. Vega-only firms still see it
   // only when there is real-estate data to show.
   const { hasPropertyFeatures } = useProduct();
+  // UX-24: portal invite directly from the contact — previously the ONLY
+  // invite entry point was Settings > Portal Access; staff had to know the
+  // path to give a client portal access. The form prefills this contact's
+  // identity; legal-capable firms invite to the client portal, property-only
+  // firms to the resident portal (the same split PortalAccessSettings makes).
+  const { hasLegalFeatures } = useProduct();
+  const invitePortalType: 'client' | 'resident' = hasLegalFeatures ? 'client' : 'resident';
+  const [showInviteForm, setShowInviteForm] = useState(false);
   const showPropertiesTab = hasPropertyFeatures || hasRealEstateMatters || allProperties.length > 0;
 
   // Reset active tab if the current tab's render condition becomes false
@@ -474,7 +483,7 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                             </>
                         )}
                         {matters.length === 0 && (
-                             <p className="text-sm text-slate-500 mt-6">No linked matters or properties to map.</p>
+                             <p className="text-sm text-slate-500 mt-6">No linked matters to map.</p>
                         )}
                     </div>
                 </div>
@@ -580,6 +589,14 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
                 Message
             </button>
             <button
+                onClick={() => setShowInviteForm(v => !v)}
+                className="px-3 py-1.5 bg-white dark:bg-zinc-700 border border-primary-500/60 text-primary-600 dark:text-primary-400 rounded-lg text-xs font-bold hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors shadow-sm flex items-center gap-1.5"
+                title={`Invite ${contact.name} to the ${invitePortalType === 'client' ? 'client' : 'resident'} portal`}
+            >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                {showInviteForm ? 'Close Invite' : 'Invite to Portal'}
+            </button>
+            <button
                 onClick={() => openModal('editContact', contact.id)}
                 className="px-3 py-1.5 bg-primary-600 border border-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors shadow-sm flex items-center gap-1.5"
             >
@@ -659,6 +676,24 @@ const ContactDetailViewContent: React.FC<ContactDetailViewProps> = ({ contactId,
             </button>
         </div>
       </div>
+
+      {/* UX-24: the portal invite, opened from the contact's own header.
+          Same InviteForm as Settings > Portal Access (one composer, one
+          security firewall), prefilled with this contact's identity. */}
+      {showInviteForm && (
+        <div className="flex-shrink-0 px-6 py-4 bg-primary-50/50 dark:bg-primary-900/10 border-b border-primary-100 dark:border-primary-900/30">
+            <InviteForm
+                firmId={(coreState.firmDetails as any)?.id || (currentUser as any)?.firmId || ''}
+                inviterId={(currentUser as any)?.id || ''}
+                portalType={invitePortalType}
+                onSent={() => setShowInviteForm(false)}
+                onCancel={() => setShowInviteForm(false)}
+                initialEmail={contact.email || ''}
+                initialName={contact.name || ''}
+                initialPhone={contact.phone || ''}
+            />
+        </div>
+      )}
       
       {/* Tabs */}
       <div className="flex-shrink-0 px-6 border-b border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">

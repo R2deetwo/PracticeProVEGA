@@ -729,7 +729,6 @@ interface ServiceChargeBarsProps {
     /** Called when period status changes, with the updated rentalDetails. */
     onUpdate: (updatedRentalDetails: Property['rentalDetails']) => void;
     /** Callback to generate a receipt for a paid period. */
-    onGenerateReceipt?: (period: TimelinePeriod, chargeType: 'SC' | 'MV') => void;
     /** When true (expanded card), shows the full month-labeled history.
      *  When false (collapsed card), shows readable status chips. */
     expanded?: boolean;
@@ -741,7 +740,7 @@ interface ServiceChargeBarsProps {
 }
 
 export const ServiceChargeBars: React.FC<ServiceChargeBarsProps> = ({
-    unit, onUpdate, onGenerateReceipt, expanded = false, includeRent = true, onCollectRent,
+    unit, onUpdate, expanded = false, includeRent = true, onCollectRent,
 }) => {
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedPeriod, setSelectedPeriod] = useState<TimelinePeriod | null>(null);

@@ -24,6 +24,9 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
   const [content, setContent] = useState('');
   const [categoryId, setCategoryId] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  // UX-04 (double-submit guard): a second click during the awaited mutation
+  // created duplicate templates — the button disables itself for the save.
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditing = !!templateToEdit;
 
@@ -46,18 +49,24 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!name.trim() || !content.trim() || !categoryId) {
       addToast("Please provide a template name, content, and select a category.", { type: 'error' });
       return;
     }
 
-    if (isEditing && onUpdateTemplate && templateToEdit) {
-      await onUpdateTemplate({ ...templateToEdit, name: name.trim(), content: content.trim(), categoryId });
-    } else if (onAddTemplate) {
-      /* Added firmId to satisfy Omit<DocumentTemplate, "id"> interface */
-      await onAddTemplate({ firmId: coreState.firmDetails.id, name: name.trim(), content: content.trim(), categoryId, createdAt: new Date().toISOString() });
+    setIsSubmitting(true);
+    try {
+      if (isEditing && onUpdateTemplate && templateToEdit) {
+        await onUpdateTemplate({ ...templateToEdit, name: name.trim(), content: content.trim(), categoryId });
+      } else if (onAddTemplate) {
+        /* Added firmId to satisfy Omit<DocumentTemplate, "id"> interface */
+        await onAddTemplate({ firmId: coreState.firmDetails.id, name: name.trim(), content: content.trim(), categoryId, createdAt: new Date().toISOString() });
+      }
+      onClose();
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
     const commonInputClass = inputClassic;
@@ -112,7 +121,7 @@ const TemplateForm: React.FC<TemplateFormProps> = ({ onAddTemplate, onUpdateTemp
                 </div>
                 <div className="space-x-2">
                     <button type="button" onClick={onClose} className="px-4 py-2 bg-slate-200 dark:bg-dim-600 text-slate-800 dark:text-dim-200 rounded-lg font-semibold hover:bg-slate-300 dark:hover:bg-zinc-700 dark:hover:bg-dim-500 transition-colors">Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm">{isEditing ? 'Save Changes' : 'Create Template'}</button>
+                    <button type="submit" disabled={isSubmitting} className="px-4 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">{isSubmitting ? 'Saving…' : (isEditing ? 'Save Changes' : 'Create Template')}</button>
                 </div>
             </div>
         </form>

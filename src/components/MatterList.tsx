@@ -578,16 +578,26 @@ export const MatterList: React.FC<MatterListProps> = ({ viewMode: propViewMode, 
                     sticky header OUTSIDE the scroll container, same padding/border. */}
                 {filteredMatters.length > 0 && (
                     <div className="bg-slate-50 dark:bg-zinc-900/50 px-4 py-2 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
-                        <div
-                            onClick={toggleSelectAll}
+                        {/* UX-50: Select-all is a REAL checkbox input — the old
+                            div+onClick was not focusable, so keyboard users could
+                            select individual matters but never all of them
+                            (V7 hardened the per-row inputs; this was the gap). */}
+                        <label
                             className="flex items-center gap-2 cursor-pointer group"
                         >
-                            <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${allSelected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}>
+                            <input
+                                type="checkbox"
+                                checked={allSelected}
+                                onChange={toggleSelectAll}
+                                aria-label="Select all matters"
+                                className={`appearance-none shrink-0 w-5 h-5 rounded border-2 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${allSelected ? 'bg-primary-600 border-primary-600' : 'border-slate-300 dark:border-zinc-700 group-hover:border-primary-400'}`}
+                            />
+                            <span className="relative -ml-5 pointer-events-none w-5 h-5 flex items-center justify-center" aria-hidden="true">
                                 {allSelected && <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>}
                                 {!allSelected && selectedIds.size > 0 && <div className="w-2.5 h-0.5 bg-primary-600 rounded"></div>}
-                            </div>
+                            </span>
                             <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest group-hover:text-primary-600 transition-colors">Select all</span>
-                        </div>
+                        </label>
                         <span className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">{filteredMatters.length} Total Matters</span>
                     </div>
                 )}
