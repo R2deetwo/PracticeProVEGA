@@ -18999,3 +18999,70 @@ business-logic changes, no test weakening, product boundaries preserved).
    CLOUDFLARE_API_TOKEN rotation.
 
 [skip ci]
+
+---
+
+## P0 — IDENTITY DIRECTIONS DECIDED; PUSH/CI VERIFICATION ROUND (2026-11-12)
+
+**Round focus:** owner message: "you choose for me the three identity
+directions. also you have not pushed cause i have not seen the refresh to
+update toast." Two jobs: (1) make the identity decision the owner delegated;
+(2) verify and evidence the push state. Documentation only — no code, style,
+navigation or behaviour changes (Phase 0 safeguards still in force; no
+feature removal, no architecture changes, no test changes).
+
+### Identity decision (owner-delegated)
+- All three Phase 0 proposals ADOPTED as the decided directions; recorded in
+  docs/adr/ADR-0005-product-identity-directions.md ("one design system, three
+  voices"): Vega "Chambers" (navy spine, deepened ink, gilt for authority
+  moments only, Fraunces major titles, sharper md/lg radius, denser calmer
+  dashboards, never emerald); Atrium "Estate Office" (emerald reserved for
+  positive/actionable states, cream/clay warm surfaces, light/dark-aware
+  everywhere — retires the four hard-dark tabs, Figtree-only sentence case,
+  warmer lg radius, status-first dashboards, never navy); Komplete "Fusion
+  Desk" (new app-skin-komplete class + accentTheme enum value, graphite base,
+  dual-accent inheritance navy+emerald with a teal unified register, Space
+  Grotesk display, product chips in nav, origin-labelled money, combined
+  dashboard view). All three ride the ONE existing skin-class token
+  mechanism — no second design system, no forked components.
+- Implementation remains gated: roadmap Phase 3, depends on Phase 2 (esp.
+  UX-02 semantic status tokens). Nothing implemented in this round.
+- Audit record amended (owner-decisions section + roadmap row 3 annotation);
+  report §9 annotated with the decision (DECISION callout + exec-summary,
+  §9-intro and §12-note updates; callout verified single-page with border +
+  shading rendered; postcheck 9/9; 27 pages) and re-exported to PDF.
+
+### Push / CI verification (owner request)
+- Everything IS pushed. origin/main = 4b45b88f "chore: update version.json
+  with APK release info [build-1167]" (2026-11-12 00:39 UTC), which includes
+  035b01fb (the Phase 0 audit docs commit, pushed 00:35 UTC) with CI green
+  evidence: dbe8eed9 bump→1.0.772 + tag build-1167. Earlier: V5 follow-ups
+  (9a667267/9faa08e0), V6 (8ecd95a3, build-1165), V7 (9736efe6, build-1166).
+- No unpushed work anywhere: wt-phase0 clean before this round's commit;
+  pprepo 0 ahead of origin/main (822 behind — stale clone, do not use); no
+  other PracticePro checkout carries commits.
+- Why no refresh toast: the toast fires only when the environment the user is
+  on serves a NEW buildTimestamp (useVersionCheck.ts compares /version.json
+  against the baked-in VITE_BUILD_TIMESTAMP, 60s poll + focus/online checks).
+  Push to main auto-deploys STAGING only; PRODUCTION changes exclusively via
+  the manual "Deploy to Production (promote)" workflow
+  (production-deploy.yml, workflow_dispatch). Builds 1163-1167 are NOT
+  promoted (standing owner decision) — production's buildTimestamp is
+  unchanged, so the toast correctly does not fire. The toast will appear on
+  production immediately after the owner-approved promotion.
+- This round's commit is pushed WITHOUT [skip ci] so CI produces a fresh
+  build tag as verifiable push evidence (expected: build-1168 / v1.0.773).
+
+### Gates
+- No code changed (docs only). Full suite re-verified by CI on the pushed
+  commit — the gate of record. Last local full run (build-1166 audit round):
+  vitest 2535/2535 (125 files); convex tsc 0; root tsc 87 (baseline);
+  ui-primitives ratchet 2295 exact; gray=0; rounded-xl 72/74;
+  audit-identity PASSED; main + admin builds green.
+
+### Owner decisions (unchanged, not made silently)
+1. Production promotion of builds 1163-1167 — the action that will make the
+   refresh toast appear on production; runs only on owner instruction.
+2. CLOUDFLARE_API_TOKEN rotation (Round 15 note).
+3. Roadmap Phases 1-6 start only on owner approval (Phase 3 target now
+   decided via ADR-0005).

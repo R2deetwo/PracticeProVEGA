@@ -288,7 +288,7 @@
 |---|---|---|---|
 | 1. Interaction-truth quick wins | dead anchors, unawaited toast, loading gates, identity/domain copy, KPI gating, status filter | UX-05/06/09/10/11/12/25/30/31/39/40/41/49/58/60 | - |
 | 2. Design-system consolidation | modal migration + Z_TIERS gate, status tokens, dead toolkit deletion, canon adoption, typography fixes, docs reconciliation, toast/table/skeleton | UX-01/02/04/16/17/18/19/20/45/46/47/48 | - |
-| 3. Identity implementation | per-product skin extensions (Vega serif titles, Atrium cream surfaces, Komplete skin class), re-skin dark tabs | UX-08/52 | Phase 2 |
+| 3. Identity implementation | per-product skin extensions (Vega serif titles, Atrium cream surfaces, Komplete skin class), re-skin dark tabs — directions DECIDED 2026-11-12, ADR-0005 | UX-08/52 | Phase 2 |
 | 4. IA and navigation parity | server search unification, lock parity, nav item placement, Financials tab/scope, badge selector, naming pass | UX-13/14/15/26/29/38/42/43/44/53/55/56 | Phase 1 |
 | 5. Workflow surgery | time entry, form guards, invoice retirement, upload unification, rent defaults, receipts, tenancy write-path, maintenance inline, dead-code sweep | UX-03/04/22/23/24/27/28/32/33/34/35/36/37/57 | Phases 1-2 |
 | 6. Accessibility and polish | contrast remediation, 12px floor, touch-target systematization, reduced-motion rule, keyboard gaps | UX-21 | Phases 2-5 |
@@ -297,6 +297,6 @@
 
 vitest 2535/2535 (125 files); convex tsc 0; root tsc 87 (baseline); ui-primitives ratchet 2295 exact; gray=0; rounded-xl 72/74; audit-identity PASSED; main + admin builds green.
 
-## Owner decisions (unchanged, not made silently)
+## Owner decisions (amended 2026-11-12 — identity directions now decided)
 
-1. Production promotion of builds 1163-1166; 2. CLOUDFLARE_API_TOKEN rotation; 3. the three identity directions in the report are proposals, not decisions; 4. roadmap phases start only on owner approval.
+1. Production promotion of builds 1163-1167 — still pending owner action (pushes auto-deploy staging only; production changes exclusively via the manual promote workflow, which is why no refresh toast appears on production until this runs); 2. CLOUDFLARE_API_TOKEN rotation — still pending; 3. the three identity directions — DECIDED 2026-11-12 by owner delegation, recorded in ADR-0005 (docs/adr/ADR-0005-product-identity-directions.md); implementation still gated on item 4; 4. roadmap phases start only on owner approval — unchanged.
