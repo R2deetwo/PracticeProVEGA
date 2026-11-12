@@ -368,7 +368,10 @@ export const BillingView: React.FC = () => {
     type FinancialsTab = 'overview' | 'invoices' | 'revenue' | 'payments' | 'vacancies' | 'automations' | 'inbox' | 'reconcile' | 'reports' | 'monitor' | 'trust' | 'maintenance' | 'residents';
     const [activeTab, setActiveTab] = useState<FinancialsTab>(() => {
         const t = currentHistoryEntry.context?.billingTab as FinancialsTab | undefined;
-        return t || 'invoices';
+        // UX-38: a pure-property firm lands on Overview (its money dashboard),
+        // not the legal-flavoured Invoices tab.
+        if (t) return t;
+        return isProperty && !isUnified ? 'overview' : 'invoices';
     });
     // Unified composer state — opened by ServiceChargeMonitor's per-charge
     // WhatsApp button (MESSAGES OVERHAUL: one compose experience app-wide).
@@ -422,9 +425,16 @@ export const BillingView: React.FC = () => {
 
     useEffect(() => {
         if (tabs.length > 0 && !tabs.some(t => t.id === activeTab)) {
-            setActiveTab('invoices');
+            // UX-38: preserve the user's tab intent across a scope switch —
+            // fall back to the scope's natural home (Overview for property,
+            // Invoices for legal) instead of silently dumping them on the
+            // first tab of the new list.
+            const fallback: FinancialsTab = productScope === 'property' && tabs.some(t => t.id === 'overview')
+                ? 'overview'
+                : 'invoices';
+            setActiveTab(fallback);
         }
-    }, [tabs, activeTab]);
+    }, [tabs, activeTab, productScope]);
 
     // K-4 (invoice product attribution): the evidence the legacy-row
     // classifier needs (matters for the realEstate link, properties for

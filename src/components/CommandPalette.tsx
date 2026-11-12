@@ -12,6 +12,10 @@ import { SearchIcon, DashboardIcon, MattersIcon, ContactsIcon, TasksIcon, Calend
 import Fuse from 'fuse.js';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { resolveContactById } from '../utils/resolveContact';
+import { useAuth } from '../contexts/AuthContext';
+import { useQuery_experimental } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { searchResultDestination, type ServerSearchResult } from '../utils/searchGrouping';
 
 type ResultType = 'Navigation' | 'Actions' | 'System' | 'Matter' | 'Contact' | 'Document' | 'Task' | 'Property';
 
@@ -61,6 +65,30 @@ const CommandPalette: React.FC = () => {
     // reach background UI behind the backdrop.
     const paletteRef = useRef<HTMLDivElement>(null);
     useFocusTrap(paletteRef, isCommandPaletteOpen);
+
+    // UX-14: the desktop palette now searches the SAME server index as the
+    // mobile FullScreenSearch (api.search.searchAll) instead of a client-side
+    // Fuse over the synced subset — the 1,000-row/table sync cap used to give
+    // desktop and mobile different answers for the same query on large firms.
+    // Commands stay local; DATA results come from the server. The legacy
+    // client index remains the honest fallback for demo/unauthenticated
+    // sessions (server search requires a firm bearer).
+    const { currentUser, bearerToken } = useAuth();
+    const [debouncedQuery, setDebouncedQuery] = useState('');
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedQuery(query), 250);
+        return () => clearTimeout(t);
+    }, [query]);
+    const trimmedServerQuery = debouncedQuery.trim();
+    const isDemo = currentUser?.email === 'demo@practicepro.ng';
+    const canServerSearch = !isDemo && Boolean(currentUser?.firmId && currentUser?.email) && trimmedServerQuery.length >= 2;
+    const serverState = useQuery_experimental({
+        query: api.search.searchAll,
+        args: canServerSearch
+            ? { userEmail: currentUser!.email!, sessionToken: bearerToken ?? undefined, query: trimmedServerQuery }
+            : 'skip',
+        throwOnError: false,
+    }) as { status: 'pending' } | { status: 'success'; data: ServerSearchResult } | { status: 'error'; error: Error };
 
     // 1. Static Commands (product-filtered)
     const staticCommands: SearchResult[] = useMemo(() => [
@@ -173,26 +201,65 @@ const CommandPalette: React.FC = () => {
         return dataItems;
     }, [matterState, executionState, documentState, coreState.properties, navigateTo, openModal, isPropertyFirm]);
 
-    // 3. Fuse Configuration
-    const fuse = useMemo(() => {
-        return new Fuse([...staticCommands, ...searchIndex], {
-            keys: [
-                { name: 'title', weight: 2 },
-                { name: 'subtitle', weight: 1 },
-                { name: 'type', weight: 0.5 }
-            ],
-            threshold: 0.3,
-            includeScore: true
-        });
-    }, [staticCommands, searchIndex]);
+    // 3.5 Server Data Items (UX-14) — built from the server response when it
+    // is available; the client index below remains the fallback.
+    const serverDataItems = useMemo((): SearchResult[] | null => {
+        if (!(canServerSearch && serverState.status === 'success')) return null;
+        const data = serverState.data;
+        const out: SearchResult[] = [];
+        const push = (rows: { id: string }[] | undefined, type: ResultType, icon: React.ReactNode, decorate: (row: any) => { title: string; subtitle?: string }) => {
+            (rows || []).forEach(row => {
+                const { title, subtitle } = decorate(row);
+                const dest = searchResultDestination(type as any, row.id);
+                out.push({
+                    id: `${type.toLowerCase()}-${row.id}`,
+                    title,
+                    subtitle,
+                    type,
+                    icon,
+                    action: () => dest.modal ? openModal(dest.modal as any, row.id) : navigateTo(dest.view as any, row.id),
+                });
+            });
+        };
+        push(data.matters, 'Matter', <MattersIcon />, (m) => ({ title: m.title, subtitle: m.suitNumber }));
+        push(data.contacts, 'Contact', <ContactsIcon />, (c) => ({ title: c.name, subtitle: c.email }));
+        push(data.documents, 'Document', <DocumentsIcon />, (d) => ({ title: d.title }));
+        push(data.tasks, 'Task', <TasksIcon />, (t) => ({ title: t.title }));
+        if (isPropertyFirm) {
+            push(data.properties, 'Property', <OfficeBuildingIcon />, (p) => ({ title: p.address, subtitle: p.status }));
+        }
+        return out;
+    }, [canServerSearch, serverState, isPropertyFirm, openModal, navigateTo]);
+
 
     // 4. Filtering Logic
     const results = useMemo(() => {
         if (!query.trim()) return staticCommands; // Default to commands if empty
-        
-        const fuseResults = fuse.search(query).map((r: any) => r.item);
-        return fuseResults.slice(0, 15); // Limit to 15 results for performance
-    }, [query, fuse, staticCommands]);
+
+        // Commands always match locally; DATA results come from the server
+        // when it answered (UX-14), otherwise the legacy client index.
+        const commandFuse = new Fuse(staticCommands, { keys: [{ name: 'title', weight: 2 }, { name: 'type', weight: 0.5 }], threshold: 0.3, includeScore: true });
+        const commandMatches = commandFuse.search(query).map((r: any) => r.item);
+
+        const dataItems = serverDataItems ?? searchIndex;
+        const dataMatches: SearchResult[] = serverDataItems
+            ? dataItems // server already filtered by the query
+            : new Fuse(dataItems, { keys: [{ name: 'title', weight: 2 }, { name: 'subtitle', weight: 1 }], threshold: 0.3, includeScore: true }).search(query).map((r: any) => r.item);
+
+        const merged = [...commandMatches, ...dataMatches];
+        return merged.slice(0, 15); // Limit to 15 results for performance
+    }, [query, staticCommands, serverDataItems, searchIndex]);
+
+    // UX-14 truncation state — the 15-row cap is honest about what it hides.
+    const totalMatches = useMemo(() => {
+        if (!query.trim()) return staticCommands.length;
+        const dataItems = serverDataItems ?? searchIndex;
+        const dataCount = serverDataItems
+            ? dataItems.length
+            : new Fuse(dataItems, { keys: [{ name: 'title', weight: 2 }, { name: 'subtitle', weight: 1 }], threshold: 0.3 }).search(query).length;
+        const commandFuse = new Fuse(staticCommands, { keys: [{ name: 'title', weight: 2 }, { name: 'type', weight: 0.5 }], threshold: 0.3 });
+        return commandFuse.search(query).length + dataCount;
+    }, [query, staticCommands, serverDataItems, searchIndex]);
 
     // Handle Open/Close Shortcut (Cmd+K)
     useEffect(() => {
@@ -305,6 +372,11 @@ const CommandPalette: React.FC = () => {
                                 </button>
                             ))}
                         </div>
+                    )}
+                    {results.length > 0 && totalMatches > results.length && (
+                        <p className="px-3 py-2 text-2xs text-slate-400 dark:text-zinc-500 text-center border-t border-slate-100 dark:border-zinc-800">
+                            Showing {results.length} of {totalMatches} — refine your search to see the rest.
+                        </p>
                     )}
                 </div>
                 

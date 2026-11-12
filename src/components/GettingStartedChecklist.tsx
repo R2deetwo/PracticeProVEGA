@@ -825,4 +825,21 @@ const GettingStartedChecklist: React.FC = () => {
   );
 };
 
+/** UX-56: ONE progress number shared with the Dashboard banner stack so the
+ *  onboarding surfaces can deduplicate against the sidebar widget (checklist
+ *  OR banner, never both; welcome suppressed at >=50%). Mirrors the widget's
+ *  own computation, including the skipped-team-invite solo path.
+ */
+export function checklistProgressPct(checklist: any, isProperty: boolean, isUnified: boolean): number | null {
+    if (!checklist) return null;
+    const items = getActiveItems(isProperty, isUnified);
+    if (items.length === 0) return null;
+    const done = items.filter(item =>
+        checklist[item.key] === true ||
+        (item.key === 'hasInvitedUser' && checklist.skippedTeamInvite === true)
+    ).length;
+    return Math.round((done / items.length) * 100);
+}
+
+
 export default GettingStartedChecklist;

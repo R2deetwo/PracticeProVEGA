@@ -14,6 +14,9 @@ import { useExecutionState } from '../contexts/ExecutionContext';
 import { useFinanceState } from '../contexts/FinanceContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
+import { checklistProgressPct } from './GettingStartedChecklist';
 import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
 import { Skeleton } from './ui/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
@@ -140,7 +143,7 @@ const Dashboard: React.FC = () => {
     const { financeState } = useFinanceState();
     const { currentUser } = useAuth();
     const { navigateTo, openModal, setHighlightTarget } = useUI();
-    const { isLegal, isUnified, hasPropertyFeatures } = useProduct();
+    const { isLegal, isUnified, isProperty, hasPropertyFeatures } = useProduct();
     const [activeUnifiedTab, setActiveUnifiedTab] = useState<'matters' | 'properties'>('matters');
     
     // De-structure state
@@ -230,6 +233,17 @@ const Dashboard: React.FC = () => {
         try { sessionStorage.setItem(`practicepro_welcome_dismissed_${coreState?.firmDetails?.id || 'x'}`, '1'); } catch { /* noop */ }
     };
 
+    // UX-56: ONE progress number shared with the sidebar checklist widget, so
+    // the banner stack can deduplicate against it (checklist OR banner, never
+    // both; welcome suppressed at >=50% completion).
+    const checklistFirmId = (coreState?.firmDetails as any)?.id || (currentUser as any)?.firmId || '';
+    const setupChecklist = useQuery(
+        api.myFunctions.getGettingStartedChecklist,
+        checklistFirmId ? { firmId: checklistFirmId } : 'skip'
+    ) as any;
+    const checklistProgress = checklistProgressPct(setupChecklist, isProperty, isUnified);
+    const welcomeSuppressedByProgress = (checklistProgress ?? 0) >= 50;
+
     useEffect(() => {
         // Only auto-open the create modal if:
         //   1. Data is loaded (not still fetching)
@@ -273,7 +287,7 @@ const Dashboard: React.FC = () => {
                     suppressed while records are zero (see below). A new user now
                     sees: welcome banner + auto-opened create modal + the sidebar
                     Getting Started checklist, instead of 4 competing banners. */}
-                {!welcomeDismissed && (
+                {!welcomeDismissed && !welcomeSuppressedByProgress && (
                   <FirstRunWelcome
                     firstName={currentUser.name?.split(' ')[0] || 'User'}
                     productName={productNameStr}
@@ -309,8 +323,13 @@ const Dashboard: React.FC = () => {
                     and the auto-opened create modal is the active call-to-action.
                     The banner returns once the user has records but hasn't
                     finished setup. */}
+                {/* UX-56 dedup: the setup banner renders ONLY when the sidebar
+                    checklist has been dismissed — checklist OR banner, never both.
+                    While the checklist widget is live it is the single onboarding
+                    surface; once the user dismisses it, the banner takes over the
+                    remaining steps. */}
                 <ErrorBoundary fallback={null}>
-                    {hasAnyRecords && <CompleteSetupBanner />}
+                    {hasAnyRecords && setupChecklist?.dismissed === true && <CompleteSetupBanner />}
                 </ErrorBoundary>
 
                 {/* CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
