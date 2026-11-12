@@ -16,6 +16,7 @@ import { ModalType, FileDetails, CalendarEvent } from '../../types';
 import { lazyWithReload } from '../../utils/lazyWithReload';
 import { expandRecurringEvents, parseDateString, computeAtriumVirtualEvents } from '../../utils/calendarUtils';
 
+import { Skeleton } from '../ui/Skeleton';
 // ── V7 (A: ModalManager form imports) ────────────────────────────────────
 // Every modal/form below is now a LAZY component. ModalManager used to
 // statically import all ~50 of them, which dragged the entire forms
@@ -858,9 +859,9 @@ const ModalManager: React.FC = () => {
 // visual language. Announced politely to screen readers.
 const ModalSkeleton: React.FC = () => (
   <div className="py-8 space-y-3" role="status" aria-live="polite" aria-label="Loading…">
-    <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse w-3/4" />
-    <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse w-1/2" />
-    <div className="h-4 rounded bg-black/5 dark:bg-white/5 animate-pulse w-2/3" />
+    <Skeleton variant="text" className="h-4 w-3/4" />
+    <Skeleton variant="text" className="h-4 w-1/2" />
+    <Skeleton variant="text" className="h-4 w-2/3" />
   </div>
 );
 

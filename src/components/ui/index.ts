@@ -55,8 +55,7 @@ export { SectionErrorBoundary } from './SectionErrorBoundary';
 // survivors moved here so ui/ is the ONE primitives layer. The file-kebab
 // Accordion lives on as CollapsibleAccordion (the root-level Accordion.tsx
 // is a different component used by HelpView).
-export { Skeleton, DashboardSkeleton, TasksSkeleton, MattersSkeleton, ContactsSkeleton, DocumentsSkeleton, GenericSkeleton } from './Skeleton';
-export { ListItemSkeleton, CardSkeleton, TabContentSkeleton, DetailSkeleton, TableSkeleton } from './DataSkeleton';
+export { Skeleton, SkeletonText, SkeletonCard, SkeletonList, SkeletonTable, SkeletonDetail, DashboardSkeleton, TasksSkeleton, MattersSkeleton, ContactsSkeleton, DocumentsSkeleton, GenericSkeleton, ListItemSkeleton, CardSkeleton, TabContentSkeleton, DetailSkeleton, TableSkeleton } from './Skeleton';
 export { AutoExpandingChatInput } from './AutoExpandingChatInput';
 export type { AutoExpandingChatInputProps, PendingAttachment } from './AutoExpandingChatInput';
 export { ChatMessageBubble } from './ChatMessageBubble';

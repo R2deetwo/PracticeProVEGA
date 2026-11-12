@@ -21,6 +21,7 @@ import PdfViewer from '../documents/PdfViewer';
 import HtmlPagePreview from '../documents/HtmlPagePreview';
 import DocumentPreviewModal from '../documents/DocumentPreviewModal';
 
+import { Skeleton } from '../ui/Skeleton';
 const FileViewer: React.FC<{ file: any }> = ({ file }) => {
     // V1-A (SEC-5): forward the verified bearer — getFileUrl is
     // session-scoped server-side now.
@@ -302,9 +303,9 @@ const DocumentDetailViewContent: React.FC = () => {
         if (selectedId) {
             return (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-                    <div className="w-full max-w-3xl space-y-4 animate-pulse">
-                        <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded-lg w-1/4" />
-                        <div className="h-64 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                    <div className="w-full max-w-3xl space-y-4">
+                        <Skeleton variant="text" className="h-8 w-1/4" />
+                        <Skeleton variant="text" className="h-64" />
                     </div>
                     <p className="text-sm text-slate-400 mt-4">Loading document…</p>
                 </div>

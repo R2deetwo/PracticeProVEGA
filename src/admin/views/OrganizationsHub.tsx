@@ -23,6 +23,7 @@ import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
 import { Z_CLASS } from '../../overlays/constants';
+import { Skeleton } from '../../components/ui/Skeleton';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
 const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3';
@@ -254,7 +255,7 @@ export const OrganizationsHub: React.FC = () => {
                     <h2 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Organizations</h2>
                 </div>
                 <div className="px-4 sm:px-6 lg:px-8 space-y-3">
-                    {[1,2,3].map(i => <div key={i} className="h-20 bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 animate-pulse" />)}
+                    {[1,2,3].map(i => <Skeleton key={i} className="h-20 rounded-2xl" />)}
                 </div>
             </div>
         );

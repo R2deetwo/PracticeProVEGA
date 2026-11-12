@@ -25,6 +25,7 @@ import { useConfirm } from '../ui/ConfirmDialog';
 import { ServiceTypePicker } from '../portal/ServiceTypePicker';
 import { PortalFontSizeControl } from '../portal/PortalFontSizeControl';
 import { Z_CLASS } from '../../overlays/constants';
+import { Skeleton, SkeletonList } from '../ui/Skeleton';
 // VersionRefreshBanner is now globally mounted in App.tsx via ToastRefreshNotification
 
 // ─── Local Icons ──────────────────────────────────────────────────────────────
@@ -719,17 +720,7 @@ const ClientDashboard: React.FC = () => {
                 </div>
 
                 {clientActivityLoading ? (
-                    <div className="space-y-3">
-                        {[1, 2, 3].map(i => (
-                            <div key={i} className="flex items-start gap-3 animate-pulse">
-                                <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-zinc-700" />
-                                <div className="flex-1 space-y-2">
-                                    <div className="h-3 bg-slate-100 dark:bg-zinc-700 rounded w-3/4" />
-                                    <div className="h-2 bg-slate-100 dark:bg-zinc-700 rounded w-1/3" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    <SkeletonList count={3} />
                 ) : !clientActivityResolved ? (
                     <div className="text-center py-4">
                         <ClockIcon className="w-6 h-6 text-slate-300 dark:text-zinc-600 mx-auto mb-2" />
@@ -787,17 +778,17 @@ const ClientDashboard: React.FC = () => {
             return (
                 <div className="space-y-4">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1 space-y-2">
-                                    <div className="h-5 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
-                                    <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                                    <Skeleton variant="text" className="h-5 w-3/4" />
+                                    <Skeleton variant="text" className="h-3 w-1/2" />
                                 </div>
-                                <div className="h-6 w-20 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+                                <Skeleton variant="circular" className="h-6 w-20" />
                             </div>
                             <div className="mt-4 flex gap-6">
-                                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
-                                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-20" />
+                                <Skeleton variant="text" className="h-4 w-24" />
+                                <Skeleton variant="text" className="h-4 w-20" />
                             </div>
                         </div>
                     ))}
@@ -1085,12 +1076,12 @@ const ClientDashboard: React.FC = () => {
                     {isLoading ? (
                         <div className="space-y-3">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+                                        <Skeleton variant="text" className="w-10 h-10" />
                                         <div className="flex-1 space-y-2">
-                                            <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
-                                            <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                                            <Skeleton variant="text" className="h-4 w-3/4" />
+                                            <Skeleton variant="text" className="h-3 w-1/2" />
                                         </div>
                                     </div>
                                 </div>
@@ -1320,12 +1311,12 @@ const ClientDashboard: React.FC = () => {
                 {isLoading ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
                                 <div className="flex items-start gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-zinc-700" />
+                                    <Skeleton variant="circular" className="w-8 h-8" />
                                     <div className="flex-1 space-y-2">
-                                        <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/4" />
-                                        <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
+                                        <Skeleton variant="text" className="h-3 w-1/4" />
+                                        <Skeleton variant="text" className="h-4 w-3/4" />
                                     </div>
                                 </div>
                             </div>
@@ -1651,7 +1642,7 @@ const ClientDashboard: React.FC = () => {
                             {clientRequestTypes === undefined ? (
                                 <>
                                     <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-2">Request Type</label>
-                                    <div className="h-12 rounded-lg bg-slate-100 dark:bg-zinc-700 animate-pulse" />
+                                    <Skeleton className="h-12" />
                                 </>
                             ) : clientRequestTypes && clientRequestTypes.length > 0 ? (
                                 <ServiceTypePicker
@@ -1772,12 +1763,12 @@ const ClientDashboard: React.FC = () => {
                 {isLoading ? (
                     <div className="space-y-2">
                         {[1, 2].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-zinc-700" />
+                                    <Skeleton variant="text" className="w-8 h-8" />
                                     <div className="flex-1">
-                                        <div className="h-4 bg-slate-100 dark:bg-zinc-700 rounded w-40 mb-2" />
-                                        <div className="h-3 bg-slate-100 dark:bg-zinc-700 rounded w-24" />
+                                        <Skeleton variant="text" className="h-4 w-40 mb-2" />
+                                        <Skeleton variant="text" className="h-3 w-24" />
                                     </div>
                                 </div>
                             </div>
@@ -1966,12 +1957,12 @@ const ClientDashboard: React.FC = () => {
                     {isLoading ? (
                         <div className="space-y-2">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+                                <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-zinc-700" />
+                                        <Skeleton variant="text" className="w-10 h-10" />
                                         <div className="flex-1 space-y-2">
-                                            <div className="h-4 bg-slate-100 dark:bg-zinc-700 rounded w-3/4" />
-                                            <div className="h-3 bg-slate-100 dark:bg-zinc-700 rounded w-1/2" />
+                                            <Skeleton variant="text" className="h-4 w-3/4" />
+                                            <Skeleton variant="text" className="h-3 w-1/2" />
                                         </div>
                                     </div>
                                 </div>

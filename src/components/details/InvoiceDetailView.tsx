@@ -16,6 +16,7 @@ import { Breadcrumbs } from '../Breadcrumbs';
 import { VoidInvoiceModal } from '../BillingView';
 import ErrorBoundary from '../ErrorBoundary';
 
+import { Skeleton } from '../ui/Skeleton';
 const InvoiceDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
     const { coreState, isDataLoaded } = useCoreState();
@@ -52,10 +53,10 @@ const InvoiceDetailViewContent: React.FC = () => {
         if (!isDataLoaded) {
             return (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 p-8">
-                    <div className="w-full max-w-2xl space-y-4 animate-pulse">
-                        <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded-lg w-1/3" />
-                        <div className="h-32 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
-                        <div className="h-48 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                    <div className="w-full max-w-2xl space-y-4">
+                        <Skeleton variant="text" className="h-8 w-1/3" />
+                        <Skeleton variant="text" className="h-32" />
+                        <Skeleton variant="text" className="h-48" />
                     </div>
                     <p className="text-sm text-slate-400 mt-4">Loading invoice…</p>
                 </div>

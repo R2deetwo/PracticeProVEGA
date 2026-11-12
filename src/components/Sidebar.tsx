@@ -38,6 +38,7 @@ import { useFeatures } from '../hooks/useFeatures';
 import { usePermissions } from '../hooks/usePermissions';
 import { formatFirmLegalName } from '../utils/professionalIdentity';
 
+import { Skeleton } from './ui/Skeleton';
 interface SidebarProps {
     currentView: View;
     setView: (view: View, targetId?: string | null, context?: any) => void;
@@ -341,8 +342,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
              currentUser.role !== UserRole.Client && currentUser.role !== UserRole.Tenant && (
                 <React.Suspense fallback={
                     <div className="mx-3 mb-3 rounded-lg border border-black/5 dark:border-white/5 p-4 space-y-2" role="status" aria-label="Loading checklist…">
-                        <div className="h-3 rounded bg-black/5 dark:bg-white/5 animate-pulse w-2/3" />
-                        <div className="h-3 rounded bg-black/5 dark:bg-white/5 animate-pulse w-1/2" />
+                        <Skeleton variant="text" className="h-3 w-2/3" />
+                        <Skeleton variant="text" className="h-3 w-1/2" />
                     </div>
                 }>
                     <GettingStartedChecklist />

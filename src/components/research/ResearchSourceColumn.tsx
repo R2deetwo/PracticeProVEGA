@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { ResearchSource } from '../../types';
 import { PlusIcon, GlobeIcon, DocumentIcon, ChevronRightIcon, DismissIcon } from '../../constants';
 
+import { Skeleton } from '../ui/Skeleton';
 interface ResearchSourceColumnProps {
     notebookName: string;
     sources: ResearchSource[];
@@ -278,14 +279,14 @@ export const ResearchSourceColumn: React.FC<ResearchSourceColumnProps> = ({
             {/* Source List */}
             <div className="flex-grow overflow-y-auto px-3 pb-3 space-y-1.5 custom-scrollbar">
                 {isLoading && (
-                    <div className="animate-pulse p-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30">
+                    <div className="p-2.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30">
                         <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700 flex items-center justify-center">
                                 <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                             </div>
                             <div className="flex-1 space-y-2">
-                                <div className="h-2.5 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
-                                <div className="h-2 bg-slate-200 dark:bg-zinc-700 rounded w-1/3" />
+                                <Skeleton variant="text" className="h-2.5 w-2/3" />
+                                <Skeleton variant="text" className="h-2 w-1/3" />
                             </div>
                         </div>
                     </div>

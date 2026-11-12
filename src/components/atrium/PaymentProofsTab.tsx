@@ -17,6 +17,7 @@ import { translateError } from '../../utils/errorTranslator';
 // (bare variant with the verbatim legacy classes, the established escape hatch).
 import { Input, Select } from '../ui';
 
+import { Skeleton } from '../ui/Skeleton';
 /**
  * PaymentProofsTab — firm-side review of tenant payment proof submissions.
  *
@@ -208,14 +209,14 @@ export const PaymentProofsTab: React.FC<PaymentProofsTabProps> = ({
         return (
             <div className="p-6 space-y-3">
                 {[1, 2].map(i => (
-                    <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+                    <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+                            <Skeleton variant="text" className="w-9 h-9" />
                             <div className="flex-1">
-                                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-2" />
-                                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-32" />
+                                <Skeleton variant="text" className="h-4 w-48 mb-2" />
+                                <Skeleton variant="text" className="h-3 w-32" />
                             </div>
-                            <div className="h-6 w-20 bg-slate-200 dark:bg-zinc-700 rounded-full" />
+                            <Skeleton variant="circular" className="h-6 w-20" />
                         </div>
                     </div>
                 ))}

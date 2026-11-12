@@ -46,6 +46,7 @@ import {
 import EmptyState from './EmptyState';
 
 import { Z_CLASS } from '../overlays/constants';
+import { Skeleton } from './ui/Skeleton';
 type OutboxEntry = {
     _id: string;
     firmId: string;
@@ -350,10 +351,7 @@ const BillingMonitorInner: React.FC = () => {
             {isLoading ? (
                 <div className="space-y-2.5">
                     {[1, 2, 3].map((i) => (
-                        <div
-                            key={i}
-                            className="h-24 bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 animate-pulse"
-                        />
+                        <Skeleton key={i} className="h-24" />
                     ))}
                 </div>
             ) : !outbox || outbox.length === 0 ? (

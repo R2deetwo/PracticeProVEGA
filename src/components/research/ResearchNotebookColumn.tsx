@@ -3,6 +3,7 @@ import React from 'react';
 import { ResearchNotebook, Matter, ModalType } from '../../types';
 import { PlusIcon, TrashIcon, BookOpenIcon } from '../../constants';
 
+import { Skeleton } from '../ui/Skeleton';
 interface ResearchNotebookColumnProps {
     notebooks: ResearchNotebook[];
     matters: Matter[];
@@ -28,14 +29,14 @@ export const ResearchNotebookColumn: React.FC<ResearchNotebookColumnProps> = ({ 
             <div className="flex-grow overflow-y-auto p-2 custom-scrollbar">
                 <ul className="space-y-1">
                     {isLoading && (
-                        <li className="animate-pulse">
+                        <li>
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-100 dark:bg-zinc-800/50 border border-dashed border-slate-300 dark:border-zinc-700">
                                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700 flex items-center justify-center">
                                     <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                                 </div>
                                 <div className="space-y-2 flex-1">
-                                    <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
-                                    <div className="h-2 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                                    <Skeleton variant="text" className="h-3 w-3/4" />
+                                    <Skeleton variant="text" className="h-2 w-1/2" />
                                 </div>
                             </div>
                         </li>

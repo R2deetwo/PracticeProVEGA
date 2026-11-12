@@ -41,6 +41,7 @@ import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/useProper
 import { chargeTypeOptions, ChargeTypeOption } from '../../utils/chargeTypeUtils';
 
 import { Z_CLASS } from '../../overlays/constants';
+import { Skeleton } from '../ui/Skeleton';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const AlertIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -912,7 +913,7 @@ const ServiceChargeMonitor: React.FC<{
       {/* Charges List */}
       <div className="flex-1 sm:overflow-y-auto px-4 sm:px-6 pb-44 sm:pb-6 space-y-2 custom-scrollbar scroll-smooth-ios">
         {!allCharges ? (
-          [...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)
+          [...Array(6)].map((_, i) => <Skeleton key={i} className="h-16" />)
         ) : charges.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-600 dark:text-zinc-400">
             <CheckIcon className="w-8 h-8 mb-2 text-emerald-600" />

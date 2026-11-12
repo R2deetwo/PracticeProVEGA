@@ -54,6 +54,16 @@ const Z_INDEX_RE = /\bz-\[\d+\]/g;
 const Z_INDEX_BASELINE = 0;
 const Z_INDEX_EXEMPT = /src[\\/]overlays[\\/]constants\.ts$/;
 
+// UX-47 (loading-state consistency): animate-pulse is reserved for the
+// skeleton family (src/components/ui/Skeleton.tsx — the one home) and
+// for SEMANTIC attention states (live dots, unread badges, recording
+// rings). 80 semantic uses remain; hand-rolled skeleton blocks were
+// migrated to the family. New raw animate-pulse loading placeholders
+// fail this ratchet — use <Skeleton>/<SkeletonList>/composites.
+const ANIMATE_PULSE_RE = /\banimate-pulse\b/g;
+const ANIMATE_PULSE_BASELINE = 80;
+const ANIMATE_PULSE_EXEMPT = /src[\\/]components[\\/]ui[\\/]Skeleton\.tsx$/;
+
 /** Recursively collect .tsx/.ts files under a directory. */
 function walk(dir, acc = []) {
   for (const entry of readdirSync(dir)) {
@@ -66,7 +76,7 @@ function walk(dir, acc = []) {
 }
 
 function scan() {
-  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0, textPx: 0, zIndex: 0 };
+  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0, textPx: 0, zIndex: 0, animatePulse: 0 };
   const perFile = {};
   for (const f of walk(SRC)) {
     const rel = relative(ROOT, f);
@@ -77,6 +87,7 @@ function scan() {
     counts.roundedXl += rxl.length;
     counts.textPx += tpx.length;
     if (!Z_INDEX_EXEMPT.test(rel)) counts.zIndex += (text.match(Z_INDEX_RE) || []).length;
+    if (!ANIMATE_PULSE_EXEMPT.test(rel)) counts.animatePulse += (text.match(ANIMATE_PULSE_RE) || []).length;
     // perFile stays NEUTRAL-SCALE ONLY — the committed .token-baseline.json
     // per-file counts were captured without rounded-xl; mixing the new
     // counter in would false-trigger the migrated-files soft gate.
@@ -153,5 +164,13 @@ if (counts.zIndex > Z_INDEX_BASELINE) {
   console.log(`✓ z-index literals at zero outside the tier ladder (UX-18)`);
 }
 
-console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} textPx=${counts.textPx} zIndex=${counts.zIndex} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
+// ── RATCHET: animate-pulse may only shrink (UX-47) ────────────────────
+if (counts.animatePulse > ANIMATE_PULSE_BASELINE) {
+  console.error(`::error::animate-pulse usage grew outside the skeleton family (${ANIMATE_PULSE_BASELINE} → ${counts.animatePulse}). Loading placeholders must use the ONE family (src/components/ui/Skeleton.tsx: Skeleton, SkeletonText, SkeletonCard, SkeletonList, SkeletonTable, SkeletonDetail + per-screen composites); animate-pulse stays reserved for semantic attention states (live dots, unread badges, recording rings).`);
+  exitCode = 1;
+} else {
+  console.log(`✓ animate-pulse ratchet held (${counts.animatePulse}/${ANIMATE_PULSE_BASELINE} — semantic attention states only, skeletons live in the family)`);
+}
+
+console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} textPx=${counts.textPx} zIndex=${counts.zIndex} animatePulse=${counts.animatePulse} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
 process.exit(exitCode);

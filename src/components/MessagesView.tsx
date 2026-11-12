@@ -40,7 +40,7 @@ import {
     persistCollapsed,
 } from '../messaging/sections';
 import type { InboxSectionId } from '../messaging/sections';
-import { ListItemSkeleton } from './ui/DataSkeleton';
+import { ListItemSkeleton } from './ui/Skeleton';
 import { useConfirm } from './ui/ConfirmDialog';
 import { AutoExpandingChatInput } from './ui/AutoExpandingChatInput';
 import { InlineTicketReply } from './messaging/InlineTicketReply';

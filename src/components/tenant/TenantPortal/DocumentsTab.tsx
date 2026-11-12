@@ -12,6 +12,7 @@ import { EyeIcon, OfficeBuildingIcon, CheckIcon, ExclamationTriangleIcon, Docume
 import { Receipt as ReceiptIcon } from 'lucide-react';
 import { XCircleIcon, PrinterIcon, FolderOpenIcon, ShieldCheckIcon, formatDate } from './shared';
 
+import { Skeleton } from '../../ui/Skeleton';
 export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
   const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
@@ -246,16 +247,16 @@ export const DocumentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string;
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-4" />
-          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
-          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-2" />
-          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6">
+          <Skeleton variant="text" className="h-4 w-48 mb-4" />
+          <Skeleton variant="text" className="h-3 w-full mb-2" />
+          <Skeleton variant="text" className="h-3 w-3/4 mb-2" />
+          <Skeleton variant="text" className="h-3 w-1/2" />
         </div>
-        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-48 mb-4" />
-          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
-          <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-3/4" />
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6">
+          <Skeleton variant="text" className="h-4 w-48 mb-4" />
+          <Skeleton variant="text" className="h-3 w-full mb-2" />
+          <Skeleton variant="text" className="h-3 w-3/4" />
         </div>
       </div>
     );

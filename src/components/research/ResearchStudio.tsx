@@ -7,6 +7,7 @@ import { analyzeSources, AnalysisType } from '../../agents/ResearchAgent';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
 import { sanitize } from '../../utils/sanitization';
 
+import { Skeleton } from '../ui/Skeleton';
 interface ResearchStudioProps {
     notebook: ResearchNotebook;
     sources: ResearchSource[];
@@ -322,10 +323,10 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                         <div ref={resultsRef} className="space-y-2">
                             <p className="text-2xs font-bold text-slate-400 uppercase tracking-wider">Analysis Results</p>
                             {loadingType && (
-                                <div className="animate-pulse bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3">
-                                    <div className="h-2.5 bg-slate-200 dark:bg-zinc-700 rounded w-1/3 mb-2" />
-                                    <div className="h-2 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-1.5" />
-                                    <div className="h-2 bg-slate-200 dark:bg-zinc-700 rounded w-4/5" />
+                                <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-lg p-3">
+                                    <Skeleton variant="text" className="h-2.5 w-1/3 mb-2" />
+                                    <Skeleton variant="text" className="h-2 w-full mb-1.5" />
+                                    <Skeleton variant="text" className="h-2 w-4/5" />
                                 </div>
                             )}
                             {generatedItems.map(item => (
@@ -341,10 +342,10 @@ export const ResearchStudio: React.FC<ResearchStudioProps> = ({
                     )}
 
                     {loadingType && generatedItems.length === 0 && (
-                        <div className="animate-pulse bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg p-3">
-                            <div className="h-2.5 bg-slate-200 dark:bg-zinc-700 rounded w-1/3 mb-2" />
-                            <div className="h-2 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-1.5" />
-                            <div className="h-2 bg-slate-200 dark:bg-zinc-700 rounded w-4/5" />
+                        <div className="bg-slate-50 dark:bg-zinc-800/50 border border-slate-200 dark:border-zinc-700 rounded-lg p-3">
+                            <Skeleton variant="text" className="h-2.5 w-1/3 mb-2" />
+                            <Skeleton variant="text" className="h-2 w-full mb-1.5" />
+                            <Skeleton variant="text" className="h-2 w-4/5" />
                         </div>
                     )}
 

@@ -16,6 +16,7 @@ import { sanitize } from '../../utils/sanitization';
 import { ClientBillingTab } from './ClientBillingTab';
 import ErrorBoundary from '../ErrorBoundary';
 
+import { Skeleton } from '../ui/Skeleton';
 // Inline ChatBubble for client messaging (previously from EndorsementsTab)
 const ChatBubble: React.FC<{ message: ClientMessage; author: User | undefined; isCurrentUser: boolean }> = ({ message, author, isCurrentUser }) => {
     const initials = author ? getInitials(author.name) : '?';
@@ -140,16 +141,16 @@ const ClientMatterDetailViewContent: React.FC = () => {
             (!isPortalUser && !isDataLoaded);
         if (portalDataLoading) {
             return (
-                <div className="animate-pulse space-y-6">
-                    <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+                <div className="space-y-6">
+                    <Skeleton variant="text" className="h-4 w-24" />
                     <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6">
-                        <div className="h-8 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
-                        <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+                        <Skeleton variant="text" className="h-8 w-3/4 mb-3" />
+                        <Skeleton variant="text" className="h-4 w-1/2" />
                     </div>
                     <div className="bg-white dark:bg-zinc-800 rounded-lg shadow-md p-6 space-y-4">
-                        <div className="h-6 bg-slate-200 dark:bg-zinc-700 rounded w-1/3" />
-                        <div className="h-20 bg-slate-200 dark:bg-zinc-700 rounded" />
-                        <div className="h-20 bg-slate-200 dark:bg-zinc-700 rounded" />
+                        <Skeleton variant="text" className="h-6 w-1/3" />
+                        <Skeleton variant="text" className="h-20" />
+                        <Skeleton variant="text" className="h-20" />
                     </div>
                 </div>
             );

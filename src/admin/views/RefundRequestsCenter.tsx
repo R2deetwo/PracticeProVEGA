@@ -34,6 +34,7 @@ import { useFounderAuth, useFounderToast } from '../FounderContexts';
 import { formatNaira } from '../../utils/formatting';
 import NairaSymbol from '../../components/NairaSymbol';
 
+import { Skeleton } from '../../components/ui/Skeleton';
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
 
@@ -367,7 +368,7 @@ export const RefundRequestsCenter: React.FC = () => {
                 {requests === undefined ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map(i => (
-                            <div key={i} className={`${CARD} animate-pulse h-32`} />
+                            <Skeleton key={i} className="h-32" />
                         ))}
                     </div>
                 ) : filtered.length === 0 ? (

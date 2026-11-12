@@ -11,6 +11,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { BellIcon } from '../../../constants';
 import { formatDate } from './shared';
 
+import { Skeleton } from '../../ui/Skeleton';
 // ─── Notice Board Tab ────────────────────────────────────────────────────────
 export const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
   const { currentUser, bearerToken } = useAuth();
@@ -43,10 +44,10 @@ export const NoticesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }>
         <p className="text-sm text-slate-500 dark:text-zinc-400 mb-6">Updates from your property manager</p>
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-5 border border-slate-200 dark:border-zinc-700 animate-pulse">
-              <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
-              <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
-              <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-5 border border-slate-200 dark:border-zinc-700">
+              <Skeleton variant="text" className="h-4 w-3/4 mb-3" />
+              <Skeleton variant="text" className="h-3 w-full mb-2" />
+              <Skeleton variant="text" className="h-3 w-2/3" />
             </div>
           ))}
         </div>

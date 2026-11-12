@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-12T21:02:29.947Z",
+  "generatedAt": "2026-11-12T23:42:28.141Z",
   "totals": {
-    "button": 1668,
-    "input": 410,
-    "select": 141,
+    "button": 1643,
+    "input": 404,
+    "select": 140,
     "textarea": 58
   },
-  "total": 2277,
+  "total": 2245,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -21,9 +21,6 @@
       "button": 4,
       "input": 1,
       "select": 1
-    },
-    "src/components/BacklinksPanel.tsx": {
-      "button": 2
     },
     "src/components/BillingMonitorView.tsx": {
       "button": 10,
@@ -140,7 +137,7 @@
       "select": 2
     },
     "src/components/MessagesView.tsx": {
-      "button": 30,
+      "button": 29,
       "input": 4,
       "select": 2,
       "textarea": 2
@@ -378,32 +375,14 @@
     "src/components/details/EventDetailModal.tsx": {
       "button": 5
     },
-    "src/components/details/FilingDeadlineNotice.tsx": {
-      "button": 2
-    },
     "src/components/details/InvoiceDetailView.tsx": {
       "button": 10
-    },
-    "src/components/details/MatterBrief.tsx": {
-      "button": 1
     },
     "src/components/details/MatterDetailView.tsx": {
       "button": 12
     },
-    "src/components/details/MatterProcessTracking.tsx": {
-      "button": 8,
-      "input": 3,
-      "select": 1
-    },
-    "src/components/details/MatterReviewReminderPanel.tsx": {
-      "button": 6,
-      "input": 2
-    },
     "src/components/details/ProceduralComplianceReport.tsx": {
       "button": 2
-    },
-    "src/components/details/ProcessActionCenter.tsx": {
-      "button": 4
     },
     "src/components/details/PropertyDetailView.tsx": {
       "button": 44,
@@ -657,6 +636,9 @@
       "select": 1,
       "textarea": 1
     },
+    "src/components/messaging/InlineTicketReply.tsx": {
+      "button": 1
+    },
     "src/components/messaging/MessageThread.tsx": {
       "button": 6
     },
@@ -876,10 +858,6 @@
     },
     "src/components/research/ResearchSourceColumn.tsx": {
       "button": 6,
-      "input": 1
-    },
-    "src/components/research/ResearchSourcePanel.tsx": {
-      "button": 2,
       "input": 1
     },
     "src/components/research/ResearchStudio.tsx": {

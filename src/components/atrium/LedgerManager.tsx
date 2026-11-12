@@ -12,6 +12,7 @@ import { Home, Zap, Lock, AlertTriangle, CheckCircle2, Clock, XCircle, Sparkles,
 import { chargeTypeLabel, chargeTypeOptions, ChargeTypeOption } from '../../utils/chargeTypeUtils';
 import { useUnitDropdownOptions, usePropertyGroups } from '../../hooks/usePropertyGroups';
 import { buildReceiptDocumentHtml } from '../../services/receiptDocument';
+import { Skeleton } from '../ui/Skeleton';
 // ── Icons ─────────────────────────────────────────────────────────────────
 const HashIcon = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -393,7 +394,7 @@ const AuditTrailModal: React.FC<{
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-2">
           {!rows ? (
-            [...Array(5)].map((_, i) => <div key={i} className="h-16 bg-slate-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)
+            [...Array(5)].map((_, i) => <Skeleton key={i} className="h-16" />)
           ) : rows.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-slate-600 dark:text-zinc-400">
               <ShieldCheck className="w-8 h-8 mb-2" />
@@ -645,7 +646,7 @@ const LedgerManager: React.FC = () => {
             {t === 'all' ? 'All Types' : typeLabel(t)}
           </button>
         ))}
-        <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800" />
+        <Skeleton variant="text" className="h-4 w-px" />
         {(['all', 'cleared', 'pending', 'defaulted'] as const).map(s => (
           <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1 rounded-full text-2xs font-bold uppercase tracking-wider transition-colors ${filterStatus === s ? 'bg-slate-700 dark:bg-zinc-700 text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-300'}`}>
             {s === 'all' ? 'All Status' : s}
@@ -653,7 +654,7 @@ const LedgerManager: React.FC = () => {
         ))}
         {hiddenCount > 0 && (
           <>
-            <div className="h-4 w-px bg-slate-200 dark:bg-zinc-800" />
+            <Skeleton variant="text" className="h-4 w-px" />
             <button
               onClick={() => setShowLifecycleRecords(v => !v)}
               title="Voided and test-quarantined records are excluded from all totals. They stay in the books for the audit trail."
@@ -677,7 +678,7 @@ const LedgerManager: React.FC = () => {
             mistake a loading ledger for an empty one and double-record. */}
         {!isDataLoaded ? (
           <div className="space-y-2">
-            {[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-slate-200 dark:bg-zinc-800 rounded-lg animate-pulse" />)}
+            {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-14" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 text-slate-600 dark:text-zinc-400">

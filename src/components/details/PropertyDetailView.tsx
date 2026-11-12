@@ -42,6 +42,7 @@ import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 import { getUnitDisplay } from '../../utils/propertyPayload';
 import { resolveServiceCharge, resolveServiceChargeAmount, serviceChargeDebugTitle } from '../../utils/serviceCharge';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
+import { Skeleton } from '../ui/Skeleton';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
     <div className="w-full min-w-0 overflow-x-hidden break-words whitespace-normal text-left max-w-full" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5 whitespace-normal">{label}</p>
@@ -3003,10 +3004,10 @@ const PropertyNoticeBoard: React.FC<{
             {isLoading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5 animate-pulse">
-                            <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
-                            <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-2" />
-                            <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-2/3" />
+                        <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
+                            <Skeleton variant="text" className="h-4 w-3/4 mb-3" />
+                            <Skeleton variant="text" className="h-3 w-full mb-2" />
+                            <Skeleton variant="text" className="h-3 w-2/3" />
                         </div>
                     ))}
                 </div>

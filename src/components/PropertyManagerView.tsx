@@ -23,6 +23,7 @@ import ErrorBoundary from './ErrorBoundary';
 // called it, and the form field feeding it (nextRentReview) was retired.
 import { MailIcon } from '../constants';
 
+import { Skeleton } from './ui/Skeleton';
 interface PropertyManagerViewProps {
     contacts: Contact[];
     onViewDetails: (id: string) => void;
@@ -312,28 +313,28 @@ const PropertyManagerView: React.FC<PropertyManagerViewProps> = ({ contacts, onV
         return (
             <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-nav">
                 <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-6">
-                    <div className="h-8 w-32 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
-                    <div className="h-9 w-20 bg-slate-200 dark:bg-zinc-700 rounded-lg animate-pulse" />
+                    <Skeleton variant="text" className="h-8 w-32" />
+                    <Skeleton className="h-9 w-20" />
                 </header>
                 <div className="px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
-                                <div className="h-3 w-20 bg-slate-200 dark:bg-zinc-700 rounded mb-3" />
-                                <div className="h-6 w-28 bg-slate-200 dark:bg-zinc-700 rounded mb-2" />
-                                <div className="h-3 w-12 bg-slate-200 dark:bg-zinc-700 rounded" />
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700">
+                                <Skeleton variant="text" className="h-3 w-20 mb-3" />
+                                <Skeleton variant="text" className="h-6 w-28 mb-2" />
+                                <Skeleton variant="text" className="h-3 w-12" />
                             </div>
                         ))}
                     </div>
                     <div className="space-y-2">
                         {[1, 2, 3, 4].map(i => (
-                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 animate-pulse flex items-center gap-4">
-                                <div className="w-10 h-10 bg-slate-200 dark:bg-zinc-700 rounded-lg" />
+                            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 flex items-center gap-4">
+                                <Skeleton variant="text" className="w-10 h-10" />
                                 <div className="flex-1 space-y-2">
-                                    <div className="h-4 w-40 bg-slate-200 dark:bg-zinc-700 rounded" />
-                                    <div className="h-3 w-24 bg-slate-200 dark:bg-zinc-700 rounded" />
+                                    <Skeleton variant="text" className="h-4 w-40" />
+                                    <Skeleton variant="text" className="h-3 w-24" />
                                 </div>
-                                <div className="h-3 w-16 bg-slate-200 dark:bg-zinc-700 rounded" />
+                                <Skeleton variant="text" className="h-3 w-16" />
                             </div>
                         ))}
                     </div>

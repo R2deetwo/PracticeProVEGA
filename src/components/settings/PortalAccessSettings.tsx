@@ -32,6 +32,7 @@ import { portalInviteUrl, portalSetupPasswordBase } from '../../utils/portalOrig
 import { ServiceRequestTypesConfig } from './ServiceRequestTypesConfig';
 import { InviteForm } from './InviteForm';
 import { Z_CLASS } from '../../overlays/constants';
+import { Skeleton } from '../ui/Skeleton';
 import {
   ShieldCheckIcon, LockClosedIcon, LockOpenIcon,
   PlusIcon, XIcon, ClipboardIcon, RefreshIcon, TrashIcon,
@@ -750,16 +751,16 @@ export const PortalAccessSettings: React.FC = () => {
     return (
       <div className="space-y-6">
         <div>
-          <div className="h-7 w-48 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse mb-2" />
-          <div className="h-4 w-72 bg-slate-200 dark:bg-zinc-700 rounded animate-pulse" />
+          <Skeleton variant="text" className="h-7 w-48 mb-2" />
+          <Skeleton variant="text" className="h-4 w-72" />
         </div>
         {[1, 2, 3].map(i => (
-          <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+          <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-zinc-700" />
+              <Skeleton variant="circular" className="w-10 h-10" />
               <div className="flex-1 space-y-2">
-                <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/3" />
-                <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-1/4" />
+                <Skeleton variant="text" className="h-4 w-1/3" />
+                <Skeleton variant="text" className="h-3 w-1/4" />
               </div>
             </div>
           </div>

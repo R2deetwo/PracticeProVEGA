@@ -12,6 +12,7 @@ import { CheckIcon, ExclamationTriangleIcon } from '../../../constants';
 import { Receipt as ReceiptIcon } from 'lucide-react';
 import { formatNaira, formatDate } from './shared';
 
+import { Skeleton } from '../../ui/Skeleton';
 export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> = ({ tenantInfo, effectiveFirmId }) => {
   const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
@@ -87,17 +88,17 @@ export const LedgerTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string }> 
       <div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700 animate-pulse">
-              <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24 mb-2" />
-              <div className="h-7 bg-slate-200 dark:bg-zinc-700 rounded w-32 mb-1" />
-              <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-16" />
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg p-4 border border-slate-200 dark:border-zinc-700">
+              <Skeleton variant="text" className="h-3 w-24 mb-2" />
+              <Skeleton variant="text" className="h-7 w-32 mb-1" />
+              <Skeleton variant="text" className="h-4 w-16" />
             </div>
           ))}
         </div>
-        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6 animate-pulse">
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-full mb-3" />
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-3/4 mb-3" />
-          <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-1/2" />
+        <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-6">
+          <Skeleton variant="text" className="h-4 w-full mb-3" />
+          <Skeleton variant="text" className="h-4 w-3/4 mb-3" />
+          <Skeleton variant="text" className="h-4 w-1/2" />
         </div>
       </div>
     );

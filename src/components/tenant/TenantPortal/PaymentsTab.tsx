@@ -13,6 +13,7 @@ import { CheckIcon, ExclamationTriangleIcon } from '../../../constants';
 import { Receipt as ReceiptIcon } from 'lucide-react';
 import { UploadIcon, XCircleIcon, formatDate } from './shared';
 
+import { Skeleton } from '../../ui/Skeleton';
 export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; addToast: (msg: React.ReactNode, opts?: any) => void }> = ({ tenantInfo, effectiveFirmId, addToast }) => {
   const { currentUser, bearerToken } = useAuth();
   const firmId = effectiveFirmId || currentUser?.firmId || '';
@@ -503,12 +504,12 @@ export const PaymentsTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
       {paymentProofs === undefined ? (
         <div className="space-y-2">
           {[1, 2].map(i => (
-            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4 animate-pulse">
+            <div key={i} className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-zinc-700" />
+                <Skeleton variant="text" className="w-8 h-8" />
                 <div className="flex-1">
-                  <div className="h-4 bg-slate-200 dark:bg-zinc-700 rounded w-40 mb-2" />
-                  <div className="h-3 bg-slate-200 dark:bg-zinc-700 rounded w-24" />
+                  <Skeleton variant="text" className="h-4 w-40 mb-2" />
+                  <Skeleton variant="text" className="h-3 w-24" />
                 </div>
               </div>
             </div>
