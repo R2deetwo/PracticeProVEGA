@@ -1443,9 +1443,18 @@ const PropertyDetailViewContent: React.FC = () => {
                                         <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Maintenance</span>
                                     </div>
                                 </div>
-                                {/* Add Unit button removed per user request —
-                                    adding units is done via the Edit Property
-                                    modal's "Lease & Rent Configuration" section. */}
+                                {/* UX-32: the scoped Add-unit action is restored — the inline form
+                                    below (name + type → addUnit) was fully built but unreachable
+                                    after the button was removed, leaving the heaviest path
+                                    (edit modal → Lease & Rent Configuration) as the only way to
+                                    add a unit. */}
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() => setShowAddUnitForm(true)}
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add Unit
+                                </Button>
                             </div>
 
                             {/* Add Unit inline form */}
@@ -1770,7 +1779,15 @@ const PropertyDetailViewContent: React.FC = () => {
                                                                         }`}
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
-                                                                            navigateTo('messaging' as any);
+                                                                            // UX-33: deep-link to the ticket's conversation when the
+                                                                            // link exists (legacy tickets without one fall back to
+                                                                            // the messaging hub).
+                                                                            const targetConv = openTickets.map((t: any) => t.conversationId).find(Boolean);
+                                                                            if (targetConv) {
+                                                                                navigateTo('messaging', null, { initialTab: 'inbox', selectedInboxId: String(targetConv) });
+                                                                            } else {
+                                                                                navigateTo('messaging' as any);
+                                                                            }
                                                                         }}
                                                                         title={hasStale
                                                                             ? `${openTickets.length} open ticket(s) — one or more has been pending for >24 hours. Tap to view in Conversations.`

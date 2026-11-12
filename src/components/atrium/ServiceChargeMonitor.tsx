@@ -312,8 +312,8 @@ const PenaltyModal: React.FC<{ charge: ServiceCharge; firmId: string; onClose: (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white dark:bg-zinc-900 border border-rose-200 dark:border-rose-900/50 rounded-2xl w-full max-w-sm shadow-2xl my-4 sm:my-0">
         <div className="p-6 text-center">
-          <div className="w-12 h-12 bg-rose-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-            <ZapIcon className="w-6 h-6 text-rose-400" />
+          <div className="w-12 h-12 bg-rose-100 dark:bg-rose-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ZapIcon className="w-6 h-6 text-rose-500 dark:text-rose-400" />
           </div>
           <h3 className="text-slate-900 dark:text-slate-900 dark:text-white font-bold text-lg mb-2">Apply Late Penalty</h3>
           <p className="text-slate-500 dark:text-zinc-400 text-sm mb-1">A <span className="text-rose-400 font-bold">5% penalty</span> will be added to the ledger.</p>
@@ -792,7 +792,7 @@ const ServiceChargeMonitor: React.FC<{
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Service Charge Monitor</h2>
-            {critical.length > 0 && <span className="flex items-center gap-1 text-2xs font-bold bg-rose-900/50 text-rose-400 px-2 py-0.5 rounded-full border border-rose-800 animate-pulse"><AlertIcon className="w-3 h-3" />{critical.length} CRITICAL</span>}
+            {critical.length > 0 && <span className="flex items-center gap-1 text-2xs font-bold bg-rose-100 dark:bg-rose-900/50 text-rose-700 dark:text-rose-400 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 animate-pulse"><AlertIcon className="w-3 h-3" />{critical.length} CRITICAL</span>}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">Automated defaulter tracking & enforcement</p>
         </div>

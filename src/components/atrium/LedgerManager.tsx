@@ -49,9 +49,9 @@ const TYPE_LABELS: Record<string, string> = {
 };
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? chargeTypeLabel(t);
 const STATUS_STYLES: Record<LedgerEntryStatus, string> = {
-  cleared: 'bg-emerald-900/40 text-emerald-400 border-emerald-800',
-  pending: 'bg-amber-900/40 text-amber-400 border-amber-800',
-  defaulted: 'bg-rose-900/40 text-rose-400 border-rose-800',
+  cleared: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+  pending: 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+  defaulted: 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800',
 };
 const TYPE_COLORS: Record<string, string> = {
   rent: 'text-emerald-600 dark:text-emerald-400', service_charge: 'text-sky-600 dark:text-sky-400', penalty: 'text-rose-600 dark:text-rose-400', deposit: 'text-violet-600 dark:text-violet-400',

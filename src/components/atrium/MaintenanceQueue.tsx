@@ -28,6 +28,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
 import { Textarea } from '../ui/Textarea';
+import { InlineTicketReply } from '../messaging/InlineTicketReply';
 
 type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | 'cancelled';
 
@@ -48,6 +49,7 @@ interface MaintenanceTicket {
     assignedTo?: string;
     resolution?: string;
     cancellationNote?: string;
+    conversationId?: string;
     createdAt: number;
     updatedAt: number;
 }
@@ -86,6 +88,10 @@ export const MaintenanceQueue: React.FC = () => {
 
     const updateStatus = useMutation(api.portals.updateMaintenanceTicketStatus);
     const assignTicket = useMutation(api.portals.assignTicketToTeamMember);
+    // UX-33: guards can reply where they triage — the same composer the
+    // MessagesView threads use, embedded in the queue row.
+    const sendAdminReply = useMutation(api.portals.sendAdminReply);
+    const [activeReplyId, setActiveReplyId] = useState<string | null>(null);
 
     const properties = useMemo(() => (coreState.properties || []) as Array<{ id: string; address: string; units?: Array<{ id: string; label?: string; name?: string }> }>, [coreState.properties]);
     const staffUsers = useMemo(
@@ -324,6 +330,33 @@ export const MaintenanceQueue: React.FC = () => {
                                             Mark Addressed
                                         </Button>
                                     </div>
+                                )}
+
+                                {t.status !== 'cancelled' && t.conversationId && (
+                                    activeReplyId === t._id ? (
+                                        <InlineTicketReply
+                                            ticketId={t._id}
+                                            conversationId={t.conversationId}
+                                            firmId={firmId}
+                                            adminId={currentUser?.id || ''}
+                                            adminName={currentUser?.name || 'Admin'}
+                                            sendAdminReply={sendAdminReply}
+                                            addToast={addToast}
+                                            onSent={() => setActiveReplyId(null)}
+                                            onCancel={() => setActiveReplyId(null)}
+                                        />
+                                    ) : (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setActiveReplyId(t._id)}
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                            </svg>
+                                            Reply to resident
+                                        </Button>
+                                    )
                                 )}
                             </div>
                         );

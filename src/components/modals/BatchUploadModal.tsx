@@ -10,6 +10,7 @@ import { FileDetails } from '../../types';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { uploadBlobToConvex, surfaceUploadError } from '../../utils/convexUpload';
+import { Select } from '../ui/Select';
 
 interface BatchUploadModalProps {
   files?: File[];
@@ -181,21 +182,15 @@ const BatchUploadModal: React.FC<BatchUploadModalProps> = ({ files: initialFiles
 
       {categoryRequired && (
         <div className="p-4 bg-slate-50 dark:bg-zinc-900 rounded-lg border border-slate-200 dark:border-zinc-700">
-          <label className="block text-sm font-bold text-slate-800 dark:text-zinc-100 mb-1">
-            Vault category <span className="text-rose-500 ml-0.5" aria-hidden="true">*</span>
-          </label>
-          <p className="text-xs text-slate-500 mb-2">Required — this is how the vault folders this upload. It is never guessed for you.</p>
-          <select
+          <Select
+            label="Vault category"
+            hint="Required — this is how the vault folders this upload. It is never guessed for you."
             value={chosenCategoryId}
             onChange={e => setChosenCategoryId(e.target.value)}
             disabled={isProcessing}
-            className="w-full bg-white dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
-          >
-            <option value="">Choose a category…</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            placeholder="Choose a category…"
+            options={categories.map(c => ({ value: c.id, label: c.name }))}
+          />
         </div>
       )}
 

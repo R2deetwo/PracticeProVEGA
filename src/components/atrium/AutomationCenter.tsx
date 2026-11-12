@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { AutomationMessageType } from '../../types';
-import { useTerminology } from '../../contexts/ProductContext';
+import { useTerminology, useIsLegal, useIsUnified } from '../../contexts/ProductContext';
+import { Button } from '../ui/Button';
 import { ComposeModal } from './ComposeModal';
 import { buildMessage } from '../../utils/messageTemplates';
 import { resolveTemplateFor, buildVarsForOrder, FirmTemplateMapping } from '../../utils/deliveryErrors';
@@ -42,6 +43,11 @@ const getMsgTypeIcon = (type: string) => (MSG_TYPE_ICONS as any)[type] || <FileT
 // ── Main Component ────────────────────────────────────────────────────────
 const AutomationCenter: React.FC = () => {
   const terminology = useTerminology();
+  // UX-34: the two automation surfaces link to each other — property firms
+  // get the pointer to the matter-workflow recipes only when the firm has
+  // legal capability.
+  const isLegal = useIsLegal();
+  const isUnified = useIsUnified();
   const { currentUser, bearerToken } = useAuth();
   const { coreState, coreActions } = useCoreState();
   const convex = useConvex();
@@ -272,13 +278,23 @@ const AutomationCenter: React.FC = () => {
           <p className="text-xs text-slate-500 mt-0.5">WhatsApp · Email · Portal reminders, sent automatically</p>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar flex-nowrap">
+          {(isLegal || isUnified) && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => navigateTo('settings', null, { settingsTargetId: 'automation-settings' })}
+              title="Matter workflow automations (matter created, hearing prep, task rescue) live in Settings → Templates → Automations."
+            >
+              Matter workflows → Settings
+            </Button>
+          )}
           <button onClick={() => setShowTemplates(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-900 dark:text-white text-xs font-bold rounded-lg transition-colors whitespace-nowrap">
             <PenLine className="w-3.5 h-3.5" /> Templates
           </button>
-          <button onClick={handleBulkRentReminder} className="flex items-center gap-2 px-3 py-2 bg-green-900/30 hover:bg-green-900/50 text-green-400 text-xs font-bold rounded-lg border border-green-800 transition-colors whitespace-nowrap">
+          <button onClick={handleBulkRentReminder} className="flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-400 text-xs font-bold rounded-lg border border-green-200 dark:border-green-800 transition-colors whitespace-nowrap">
             <WhatsAppIcon /> Bulk
           </button>
-          <button onClick={handleBulkEmailReminder} className="flex items-center gap-2 px-3 py-2 bg-sky-900/30 hover:bg-sky-900/50 text-sky-400 text-xs font-bold rounded-lg border border-sky-800 transition-colors whitespace-nowrap" title="Email rent reminders to every occupied property with a tenant email — the WhatsApp-free channel while Chakra is billing-gated.">
+          <button onClick={handleBulkEmailReminder} className="flex items-center gap-2 px-3 py-2 bg-sky-100 dark:bg-sky-900/30 hover:bg-sky-200 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-400 text-xs font-bold rounded-lg border border-sky-200 dark:border-sky-800 transition-colors whitespace-nowrap" title="Email rent reminders to every occupied property with a tenant email — the WhatsApp-free channel while Chakra is billing-gated.">
             <Mail className="w-3.5 h-3.5" /> Email Bulk
           </button>
           <button onClick={() => setShowCompose(true)} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition-colors whitespace-nowrap">
@@ -357,11 +373,11 @@ const AutomationCenter: React.FC = () => {
           )}
         </div>
 
-        <div className="bg-amber-900/10 border border-amber-900/30 rounded-lg p-3">
+        <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-lg p-3">
           <div className="flex items-start gap-3">
-            <div className="p-1.5 bg-amber-500/20 text-amber-500 rounded-lg"></div>
+            <div className="p-1.5 bg-amber-500/20 text-amber-600 dark:text-amber-500 rounded-lg"></div>
             <div className="flex-1">
-              <h4 className="text-xs font-bold text-amber-400">Billing Policies</h4>
+              <h4 className="text-xs font-bold text-amber-600 dark:text-amber-400">Billing Policies</h4>
               <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5 mb-3 leading-relaxed">
                 How your firm handles residents who pay late or incomplete. The fine for default
                 applies per cycle settled late or left overdue; partial payments let residents

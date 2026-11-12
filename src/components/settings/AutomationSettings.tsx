@@ -9,7 +9,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { PlusIcon, TrashIcon, ZapIcon, LockClosedIcon, MailIcon, CalendarIcon, CheckCircleIcon, ChevronRightIcon, EditIcon, ArchiveIcon, DocumentIcon, ChatAltIcon } from '../../constants';
 import { useFeatures } from '../../hooks/useFeatures';
 import { useUI } from '../../contexts/UIContext';
+import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
+import { Button } from '../ui/Button';
 import { SectionErrorBoundary } from '../ui/SectionErrorBoundary';
 import { getProfilesForAreas } from '../../config/practiceProfileLibrary';
 import { getAtriumProfilesForPortfolio } from '../../config/atriumProfileLibrary';
@@ -293,7 +295,8 @@ const AutomationSettings: React.FC<AutomationSettingsProps> = ({ rules, workflow
     const { handleAddAutomationRule, handleDeleteAutomationRule, handleToggleAutomationRule } = useDataActions();
     const { coreState, isDataLoaded } = useCoreState();
     const { canUseAutomation } = useFeatures();
-    const { openModal } = useUI();
+    const { openModal, navigateTo } = useUI();
+    const { isProperty, isUnified } = useProduct();
     const { currentUser, bearerToken } = useAuth();
     const [view, setView] = useState<RuleView>('list');
     const firmId = coreState.firmDetails?.id || '';
@@ -369,6 +372,21 @@ const AutomationSettings: React.FC<AutomationSettingsProps> = ({ rules, workflow
 
     return (
         <div className="space-y-6">
+            {(isProperty || isUnified) && (
+                <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-900/30 rounded-lg p-3 flex items-start gap-3">
+                    <ZapIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                        These are matter-workflow automations. Property automations — rent reminders, WhatsApp templates, billing policies — live in{' '}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigateTo('billing', null, { billingTab: 'automations' })}
+                        >
+                            Financials → Reminder Rules
+                        </Button>.
+                    </p>
+                </div>
+            )}
             <div className="bg-white dark:bg-zinc-800 rounded-lg p-6 border border-slate-200 dark:border-zinc-700 shadow-sm">
                 <div className="flex items-center gap-3 mb-2">
                     <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
