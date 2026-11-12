@@ -4,7 +4,7 @@ import { Matter, FirmActivity, User, View, Contact, ModalType } from '../../type
 import { timeAgo } from '../../utils/colorUtils';
 import { sanitize } from '../../utils/sanitization';
 import { MattersIcon } from '../../constants';
-import { Skeleton } from '../toolkit/Skeleton';
+import { Skeleton } from '../ui/Skeleton';
 
 interface RecentMattersWidgetProps {
     matters: Matter[];

@@ -12,7 +12,7 @@ import { useTerminology } from '../contexts/ProductContext';
 import { PlusIcon, ContactsIcon, SearchIcon, RevertIcon } from '../constants';
 import { useHighlight } from '../hooks/useHighlight';
 import EmptyState from './EmptyState';
-import { ContactsSkeleton } from './toolkit/Skeleton';
+import { ContactsSkeleton } from './ui/Skeleton';
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
 
 const ContactCard: React.FC<{ contact: Contact, onViewDetails: (id: string) => void, isActive?: boolean, isSelected?: boolean, index: number }> = React.memo(({ contact, onViewDetails, isActive, isSelected, index }) => {

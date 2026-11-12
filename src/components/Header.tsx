@@ -13,7 +13,7 @@ import { useDataActions } from '../contexts/DataContext';
 import { getInitials, getUserColor, timeAgo } from '../utils/colorUtils';
 import { usePermissions } from '../hooks/usePermissions';
 import ConnectionStatus from './auth/ConnectionStatus';
-import { PresenceAvatars } from './toolkit/PresenceAvatars';
+import { PresenceAvatars } from './ui/PresenceAvatars';
 import { useProduct } from '../contexts/ProductContext';
 
 interface HeaderProps {

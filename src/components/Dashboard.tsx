@@ -15,7 +15,7 @@ import { useFinanceState } from '../contexts/FinanceContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useProduct } from '../contexts/ProductContext';
 import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
-import { Skeleton } from './toolkit/Skeleton';
+import { Skeleton } from './ui/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 import {
     activeMattersCount as activeMattersCountOf,

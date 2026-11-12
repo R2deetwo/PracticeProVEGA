@@ -304,17 +304,6 @@
     "src/components/tenant/TenantPortal/VisitorDisabledState.tsx": 7,
     "src/components/tenant/TenantPortal/index.tsx": 2,
     "src/components/tenant/TenantPortal/shared.tsx": 3,
-    "src/components/toolkit/Accordion.tsx": 3,
-    "src/components/toolkit/AutoExpandingChatInput.tsx": 29,
-    "src/components/toolkit/Button.tsx": 8,
-    "src/components/toolkit/ChatMessageBubble.tsx": 26,
-    "src/components/toolkit/DataSkeleton.tsx": 8,
-    "src/components/toolkit/FieldLabel.tsx": 2,
-    "src/components/toolkit/Input.tsx": 4,
-    "src/components/toolkit/PlatinumSkeleton.tsx": 26,
-    "src/components/toolkit/PresenceAvatars.tsx": 29,
-    "src/components/toolkit/Select.tsx": 3,
-    "src/components/toolkit/Skeleton.tsx": 8,
     "src/components/ui/ConfirmDialog.tsx": 29,
     "src/components/ui/FinancialStatusBadge.tsx": 4,
     "src/constants.tsx": 2,
@@ -324,6 +313,12 @@
     "src/utils/colorUtils.ts": 22,
     "src/utils/designTokens.ts": 47,
     "src/utils/formStyles.ts": 26,
-    "src/utils/markdownUtils.ts": 21
+    "src/utils/markdownUtils.ts": 21,
+    "src/components/ui/CollapsibleAccordion.tsx": 3,
+    "src/components/ui/AutoExpandingChatInput.tsx": 29,
+    "src/components/ui/ChatMessageBubble.tsx": 26,
+    "src/components/ui/DataSkeleton.tsx": 8,
+    "src/components/ui/PresenceAvatars.tsx": 29,
+    "src/components/ui/Skeleton.tsx": 8
   }
 }

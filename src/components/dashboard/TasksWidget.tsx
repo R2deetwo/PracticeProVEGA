@@ -4,7 +4,7 @@ import { Task, User, View, Matter } from '../../types';
 import { formatDueDate, getHighlightColorForTask } from '../../utils/colorUtils';
 import { TasksIcon } from '../../constants';
 import { parseDateString } from '../../utils/calendarUtils';
-import { Skeleton } from '../toolkit/Skeleton';
+import { Skeleton } from '../ui/Skeleton';
 import { useProduct } from '../../contexts/ProductContext';
 
 

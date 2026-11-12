@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { UserCircleIcon, PhoneIcon, MailIcon, MapPinIcon, BriefcaseIcon, GlobeIcon, SaveIcon, XIcon, PlusIcon, InfoIcon, TagIcon, TrashIcon } from '../../constants';
 import { Building as BuildingIcon, ShieldCheck as ShieldCheckIcon, Building2 as OfficeBuildingIcon, ChevronRight as ChevronRightIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../toolkit/Accordion';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/CollapsibleAccordion';
 import { useCoreState } from '../../contexts/CoreContext';
 import { useUI } from '../../contexts/UIContext';
 import { useDataActions } from '../../contexts/DataContext';

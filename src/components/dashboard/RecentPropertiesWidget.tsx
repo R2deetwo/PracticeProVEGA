@@ -3,7 +3,7 @@ import React from 'react';
 import { Property, FirmActivity, User, View, ModalType } from '../../types';
 import { timeAgo } from '../../utils/colorUtils';
 import { OfficeBuildingIcon } from '../../constants';
-import { Skeleton } from '../toolkit/Skeleton';
+import { Skeleton } from '../ui/Skeleton';
 import NairaSymbol from '../NairaSymbol';
 import { formatNaira } from '../../utils/formatting';
 

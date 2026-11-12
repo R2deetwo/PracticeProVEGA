@@ -245,7 +245,7 @@ describe('messaging-UX regression guards (source contract)', () => {
     it('no message-content element uses break-all (the "WELL?" → "WE"/"LL?" mid-word wrap)', () => {
         // Comments legitimately MENTION break-all when explaining why it was
         // removed — only a real className usage violates this contract.
-        expect(stripComments(read('src/components/toolkit/ChatMessageBubble.tsx'))).not.toMatch(
+        expect(stripComments(read('src/components/ui/ChatMessageBubble.tsx'))).not.toMatch(
             /break-all/
         );
         expect(stripComments(read('src/components/messaging/MessageThread.tsx'))).not.toMatch(

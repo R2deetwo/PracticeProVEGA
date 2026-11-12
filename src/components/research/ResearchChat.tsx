@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ResearchMessage, ResearchSource } from '../../types';
 import { ResearchIcon, SendIcon, UserCircleIcon } from '../../constants';
 import Tooltip from '../Tooltip';
-import { AutoExpandingChatInput } from '../toolkit/AutoExpandingChatInput';
+import { AutoExpandingChatInput } from '../ui/AutoExpandingChatInput';
 import { MessageThread } from '../messaging/MessageThread';
 import { normalizeResearchMessage, UnifiedMessage } from '../../messaging/model';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';

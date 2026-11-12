@@ -38,6 +38,14 @@ const CLASS_RE = /\b(?:slate|gray|zinc|dim)-\d{2,3}\b/g;
 const ROUNDED_XL_RE = /\brounded-xl\b/g;
 const ROUNDED_XL_BASELINE = 74;
 
+// UX-16 (typography foundation): arbitrary text sizes (text-[11px] etc.)
+// bypass the compiled type scale — tailwind.config.ts bans them by comment
+// but nothing enforced it. 72 remain (concentrated in marketing-site
+// sections); ratcheted so the count may only shrink. Use the scale: 3xs/2xs/
+// xs/sm/base (8/10/12/14/16px).
+const TEXT_PX_RE = /\btext-\[\d+(?:\.\d+)?px\]/g;
+const TEXT_PX_BASELINE = 72;
+
 /** Recursively collect .tsx/.ts files under a directory. */
 function walk(dir, acc = []) {
   for (const entry of readdirSync(dir)) {
@@ -50,14 +58,16 @@ function walk(dir, acc = []) {
 }
 
 function scan() {
-  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0 };
+  const counts = { gray: 0, slate: 0, zinc: 0, dim: 0, roundedXl: 0, textPx: 0 };
   const perFile = {};
   for (const f of walk(SRC)) {
     const rel = relative(ROOT, f);
     const text = readFileSync(f, 'utf8');
     const matches = text.match(CLASS_RE) || [];
     const rxl = text.match(ROUNDED_XL_RE) || [];
+    const tpx = text.match(TEXT_PX_RE) || [];
     counts.roundedXl += rxl.length;
+    counts.textPx += tpx.length;
     // perFile stays NEUTRAL-SCALE ONLY — the committed .token-baseline.json
     // per-file counts were captured without rounded-xl; mixing the new
     // counter in would false-trigger the migrated-files soft gate.
@@ -118,5 +128,13 @@ if (counts.roundedXl > ROUNDED_XL_BASELINE) {
   console.log(`✓ rounded-xl ratchet held (${counts.roundedXl}/${ROUNDED_XL_BASELINE} — deprecated per STYLE_GUIDE, may only shrink)`);
 }
 
-console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
+// ── RATCHET: arbitrary text-[Npx] must not grow (UX-16) ──────────────
+if (counts.textPx > TEXT_PX_BASELINE) {
+  console.error(`::error::arbitrary text-[Npx] usage grew (${TEXT_PX_BASELINE} → ${counts.textPx}). tailwind.config.ts bans arbitrary text sizes — use the compiled scale (text-3xs/2xs/xs/sm/base = 8/10/12/14/16px). Raise TEXT_PX_BASELINE in scripts/check-design-tokens.mjs only to LOWER it (ratchet moves down, never up).`);
+  exitCode = 1;
+} else {
+  console.log(`✓ text-[Npx] ratchet held (${counts.textPx}/${TEXT_PX_BASELINE} — banned per tailwind.config.ts, may only shrink)`);
+}
+
+console.log(`Design-token gate: gray=${counts.gray} slate=${counts.slate} zinc=${counts.zinc} dim=${counts.dim} roundedXl=${counts.roundedXl} textPx=${counts.textPx} | migrated files: ${MIGRATED_FILES.length} | hard gate: gray zero-tolerance`);
 process.exit(exitCode);

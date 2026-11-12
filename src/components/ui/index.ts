@@ -47,3 +47,20 @@ export { default as FinancialStatusBadge } from './FinancialStatusBadge';
 // rather than duplicate (single source of truth).
 export { default as EmptyState } from '../EmptyState';
 export { SectionErrorBoundary } from './SectionErrorBoundary';
+
+// ── UX-19: the toolkit/ layer is RETIRED ────────────────────────────────
+// The dead shadcn-era primitives (toolkit Button/Input/Select/Icon/
+// FieldLabel/PlatinumSkeleton — 0 importers) and components.json (pointing
+// at a non-existent src/app/globals.css) are deleted; the six live
+// survivors moved here so ui/ is the ONE primitives layer. The file-kebab
+// Accordion lives on as CollapsibleAccordion (the root-level Accordion.tsx
+// is a different component used by HelpView).
+export { Skeleton, DashboardSkeleton, TasksSkeleton, MattersSkeleton, ContactsSkeleton, DocumentsSkeleton, GenericSkeleton } from './Skeleton';
+export { ListItemSkeleton, CardSkeleton, TabContentSkeleton, DetailSkeleton, TableSkeleton } from './DataSkeleton';
+export { AutoExpandingChatInput } from './AutoExpandingChatInput';
+export type { AutoExpandingChatInputProps, PendingAttachment } from './AutoExpandingChatInput';
+export { ChatMessageBubble } from './ChatMessageBubble';
+export type { ChatMessageBubbleProps } from './ChatMessageBubble';
+export { PresenceAvatars } from './PresenceAvatars';
+export type { PresenceAvatarsProps } from './PresenceAvatars';
+export { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './CollapsibleAccordion';

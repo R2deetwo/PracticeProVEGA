@@ -40,10 +40,10 @@ import {
     persistCollapsed,
 } from '../messaging/sections';
 import type { InboxSectionId } from '../messaging/sections';
-import { ListItemSkeleton } from './toolkit/DataSkeleton';
+import { ListItemSkeleton } from './ui/DataSkeleton';
 import { useConfirm } from './ui/ConfirmDialog';
-import { AutoExpandingChatInput } from './toolkit/AutoExpandingChatInput';
-import { ChatMessageBubble } from './toolkit/ChatMessageBubble';
+import { AutoExpandingChatInput } from './ui/AutoExpandingChatInput';
+import { ChatMessageBubble } from './ui/ChatMessageBubble';
 
 // --- Icons (If not in constants) ---
 const DotsVerticalIcon = () => (

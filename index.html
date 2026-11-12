@@ -207,11 +207,12 @@
       flex-direction: column;
     }
 
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
+    /* UX-16: the body font-family line is DELETED. It set 'Inter' — a font
+       that is never loaded anywhere in the app — as the first family of a
+       same-specificity cascade against index.css's Figtree body rule, so
+       app text could silently render the system fallback. index.css
+       (--font-sans → Figtree, self-hosted @fontsource) is the single
+       source of truth for the body font now. */
 
     * {
       scrollbar-width: thin;

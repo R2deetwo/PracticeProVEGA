@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-11T14:09:31.212Z",
+  "generatedAt": "2026-11-12T20:29:24.350Z",
   "totals": {
-    "button": 1683,
-    "input": 410,
-    "select": 142,
-    "textarea": 60
+    "button": 1666,
+    "input": 409,
+    "select": 141,
+    "textarea": 58
   },
-  "total": 2295,
+  "total": 2274,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -136,7 +136,7 @@
       "input": 2
     },
     "src/components/MatterList.tsx": {
-      "button": 9,
+      "button": 10,
       "input": 2,
       "select": 2
     },
@@ -151,9 +151,6 @@
     },
     "src/components/NotFoundView.tsx": {
       "button": 2
-    },
-    "src/components/NotificationCenter.tsx": {
-      "button": 3
     },
     "src/components/OnboardingTour.tsx": {
       "button": 4
@@ -1011,29 +1008,6 @@
     },
     "src/components/tenant/TenantPortal/shared.tsx": {
       "button": 1
-    },
-    "src/components/toolkit/Accordion.tsx": {
-      "button": 1
-    },
-    "src/components/toolkit/AutoExpandingChatInput.tsx": {
-      "button": 6,
-      "textarea": 1
-    },
-    "src/components/toolkit/Button.tsx": {
-      "button": 1
-    },
-    "src/components/toolkit/ChatMessageBubble.tsx": {
-      "button": 6,
-      "textarea": 1
-    },
-    "src/components/toolkit/Input.tsx": {
-      "input": 1
-    },
-    "src/components/toolkit/PresenceAvatars.tsx": {
-      "button": 1
-    },
-    "src/components/toolkit/Select.tsx": {
-      "select": 1
     }
   }
 }

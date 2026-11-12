@@ -5,7 +5,7 @@ import StatCard from '../StatCard';
 import Tooltip from '../Tooltip';
 import { formatLargeNumber, formatNairaFull } from '../../utils/formatting';
 import { View, User } from '../../types';
-import { Skeleton } from '../toolkit/Skeleton';
+import { Skeleton } from '../ui/Skeleton';
 import { useProduct } from '../../contexts/ProductContext';
 import { usePermissions } from '../../hooks/usePermissions';
 

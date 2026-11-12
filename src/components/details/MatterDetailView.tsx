@@ -35,7 +35,7 @@ import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useFinanceState } from '../../contexts/FinanceContext';
 // CRO AUDIT FIX — MatterBrief import removed (unused, dead code)
 import ErrorBoundary from '../ErrorBoundary';
-import { MattersSkeleton } from '../toolkit/Skeleton';
+import { MattersSkeleton } from '../ui/Skeleton';
 import { useHighlight } from '../../hooks/useHighlight';
 import { resolveContactById } from '../../utils/resolveContact';
 

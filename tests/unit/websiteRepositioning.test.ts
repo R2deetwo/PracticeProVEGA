@@ -1119,7 +1119,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // and if we don't, we need to have it immediately. So make sure it
     // actually works as a system." The header's PresenceAvatars becomes
     // a messaging surface wired to the real conversation system.
-    const presence = read("src", "components", "toolkit", "PresenceAvatars.tsx");
+    const presence = read("src", "components", "ui", "PresenceAvatars.tsx");
     // Click an avatar (or roster row) → the DM form, pre-addressed.
     expect(presence).toContain("openModal('newDirectMessage', null, { recipientId: memberId })");
     // Tick several → the same form in group mode with members preselected.

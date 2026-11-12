@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useConvex, useMutation, useAction, useQuery } from 'convex/react';
 import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } from '../../types';
-import { AutoExpandingChatInput } from '../toolkit/AutoExpandingChatInput';
+import { AutoExpandingChatInput } from '../ui/AutoExpandingChatInput';
 import { MessageThread } from '../messaging/MessageThread';
 import { normalizeAloaMessage } from '../../messaging/model';
 import { GoogleGenAI } from '@google/genai';

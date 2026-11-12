@@ -125,7 +125,7 @@ import {
     ContactsSkeleton,
     DocumentsSkeleton,
     GenericSkeleton
-} from './toolkit/Skeleton';
+} from './ui/Skeleton';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import ModalManager from './modals/ModalManager';
 import { ModalLayer } from '../overlays/layers/ModalLayer';

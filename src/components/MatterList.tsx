@@ -17,7 +17,7 @@ import { Button } from './ui';
 import { ShieldCheckIcon, TrashIcon, PlusIcon, CloudArrowUpIcon, SearchIcon, MattersIcon, CalendarIcon } from '../constants';
 import InlineMatterReview from './InlineMatterReview';
 import EmptyState from './EmptyState';
-import { MattersSkeleton } from './toolkit/Skeleton';
+import { MattersSkeleton } from './ui/Skeleton';
 import MatterBoardView from './MatterBoardView';
 import { resolveContactById } from '../utils/resolveContact';
 

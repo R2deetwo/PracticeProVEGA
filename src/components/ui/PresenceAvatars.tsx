@@ -8,7 +8,7 @@ import Tooltip from '../Tooltip';
 import { Button } from '../ui';
 import { CheckIcon } from '../../constants';
 
-interface PresenceAvatarsProps {
+export interface PresenceAvatarsProps {
     activePeers: Array<{ userId: string; updatedAt: number; isOnline: boolean }>;
     currentUser: User | null;
     className?: string;
