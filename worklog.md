@@ -19167,3 +19167,92 @@ v1.0.773/774).
    (UX-08 dark-tab re-skins, gated on Phase 2 per ADR-0005), Phase 5
    remainder (UX-03/23/27/28/32/33/34/35/36/37 + 16 more UX-04 forms),
    Phase 6 contrast (UX-21).
+
+## PHASE 0 ROADMAP IMPLEMENTATION, ROUNDS D-K (2026-11-13, same day)
+
+**Context:** continuation of rounds A-C. On top of the 45 findings already
+implemented (Phase 1's 15 in 7daedb9d + rounds A-C's 30), eight more rounds
+landed locally, taking the register to 54 of 60 findings implemented.
+
+### Round D — e1f3701d: Phase 3 identity + Phase 5 rent defaults (UX-08/35)
+- UX-08: the five hard-coded dark surfaces in the Atrium revenue hub
+  (LedgerManager, ServiceChargeMonitor, VacancyPipeline, AutomationCenter,
+  IntegrationSettings' Communications panel) re-skinned to the shared paired
+  light/dark token idiom — 249 class-site replacements across surfaces,
+  inputs (formStyles family), template-literal fragments, and the
+  TYPE_COLORS/ACTION_STYLES/STATUS_STYLES/status-pill maps; hues paired
+  600-light/400-dark so they pass contrast on WHITE. One deliberate
+  exception kept: SCM's floating confirmation toast is dark in both modes.
+- UX-35: CollectRentModal prefills the covered period from the lease
+  timeline (earliest unsettled cycle; next due when clear); the management
+  fee default is ONE chain (new src/utils/propertyDefaults.ts) feeding both
+  PropertyForm's field seed and the invoice maths, with ?? so an explicit 0%
+  survives.
+
+### Round E — 5eb6dcdd: one receipt document + one upload flow (UX-37/23)
+- UX-37: new services/receiptDocument.ts carries the ONE receipt contract
+  (heading, "Receipt No" presentation, row grammar, amount block, issuer
+  footer); all three issuers render from it (rent PDF: 'Official Payment
+  Receipt' title + Receipt No relabel; SC drawer: shared constants; ledger
+  print: the monospace document.write outlier replaced, tx hash presented
+  as Receipt No with the immutability anchor kept).
+- UX-23: every upload path (vault button, empty state, palette action,
+  DocumentsTab single+multi) routes through the batch uploader; the batch
+  uploader requires an EXPLICIT vault category when there is no matter
+  context (picker + queue gate; the silent cat_clients default deleted).
+
+### Round F — 9bacc6a0: workflow surgery II (UX-32/33/34)
+- UX-32: the scoped Add-unit action restored on the Units tab (the inline
+  form was fully built but unreachable).
+- UX-33: InlineTicketReply extracted to components/messaging/ and embedded
+  in MaintenanceQueue rows (guards reply where they triage); the property
+  maintenance badge deep-links to the ticket's conversation, legacy tickets
+  fall back honestly.
+- UX-34: the two automation surfaces cross-link each other with
+  product-capability gating (deep links both ways).
+
+### Round G — 18de63b2: the Critical time-entry fix + dead stack (UX-03/28)
+- UX-03 (Critical): Log Time / Log Expense actions on the matter's Tasks &
+  Events tab, OUTSIDE the canViewBilling gate — non-admin lawyers in
+  multi-lawyer firms could previously log billable work from NO screen.
+- UX-28: the eight-file orphaned legacy stack deleted plus the dead
+  viewInvoice modal type removed from all five registration sites.
+
+### Round H — c6cc8520: the form census closed (UX-04 remainder)
+- 15 more forms gain the canonical isSubmitting guard; ContactForm was
+  already guarded; UserAssignment documented as not-a-submit-form. 35/35
+  form files now resist double submission. (Ratchet shrank 2277→2245.)
+
+### Round I — dbab0883: search parity + scope behaviour + dedup (UX-14/38/56)
+- UX-14: the desktop palette routes DATA queries through api.search.searchAll
+  (debounced, bearer-gated; client index stays as the demo/no-auth fallback)
+  and discloses the 15-row truncation.
+- UX-38 (parts 1-2): property firms land on Overview; scope switches fall
+  back to the scope's natural home tab. Part 3 (scope-aware New) deferred —
+  rent receipts need a property picker that does not exist yet.
+- UX-56: banner stack deduplicated against the sidebar checklist via ONE
+  shared progress export (checklistProgressPct); welcome suppressed at
+  >=50%; setup banner only renders once the checklist is dismissed.
+
+### Round K — 1bb7e493: contrast remediation (UX-21)
+- 26 placeholder sites raised to slate-500; the dim-400-in-light census
+  paired; Sidebar group labels 8px→10px at AA colors; --text-subtle
+  slate-400→slate-500.
+
+### Gates (verified on the final tree, this session)
+- vitest 2666/2666 (134 files; +51 phaseRoundD–K contract tests).
+- root tsc 87 (byte-identical baseline); convex tsc 0.
+- vite production build green (24.9s). ui-primitives 2245 (shrank from
+  2277 — may only shrink). Design tokens: gray=0, roundedXl 72/74,
+  textPx 72/72.
+
+### Remaining queue (owner decisions, unchanged in kind)
+- Phase 2 leftovers: UX-01 (modal registry migration, 92 entries / 72
+  legacy cases), UX-18 (Z_TIERS + z-[NNNN] gate), UX-47 (skeleton family),
+  UX-48 (table primitive).
+- Phase 5 design-first items: UX-27 (matter-notes canonical surface),
+  UX-36 (tenancy write-path) — the audit itself gates these on a design
+  decision; UX-38 part 3 (scope-aware New needs a property picker).
+- Push remains blocked on credentials: rounds A-K all sit on the detached
+  worktree /home/z/my-project/tmp/wt ready to push to origin/main once a
+  fresh PAT exists (git -C /home/z/my-project/tmp/wt push origin HEAD:main).
