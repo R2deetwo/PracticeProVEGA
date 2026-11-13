@@ -19256,3 +19256,83 @@ landed locally, taking the register to 54 of 60 findings implemented.
 - Push remains blocked on credentials: rounds A-K all sit on the detached
   worktree /home/z/my-project/tmp/wt ready to push to origin/main once a
   fresh PAT exists (git -C /home/z/my-project/tmp/wt push origin HEAD:main).
+
+## PHASE 0 ROADMAP IMPLEMENTATION, ROUNDS L-O (2026-11-13, same day)
+
+**Context:** continuation of rounds D-K. The four Phase 2 leftovers —
+including the Critical modal finding and every item NOT gated on an
+owner design decision — are now implemented. The register stands at
+58 of 60 findings; only the two design-gated Phase 5 items remain.
+
+### Round L — af88ca4c: z-index governance (UX-18)
+- src/overlays/constants.ts rewritten as the REAL ladder (39 named
+  rungs, local panel chrome 50-110 through crash screen 99999) with
+  Z_CLASS static Tailwind twins; 125 hardcoded z-[NNNN] literals across
+  76 files migrated, values preserved.
+- TWO deliberate corrections, both audit findings: Z_TIERS.modal
+  300→3000 (registry ModalShell dialogs rendered UNDER the bottom nav
+  1000, side panels 2000 and every legacy modal 3000 — the
+  path-dependent stacking UX-01 catalogues) and the banner scaffold
+  500→9990.
+- Gates: eslint no-restricted-syntax warns on raw z-[NNNN]
+  (constants.ts exempt as the single home);
+  check-design-tokens.mjs adds the CI hard gate (Z_INDEX_BASELINE=0).
+  tests/unit/zTiers.test.ts (6 invariants). All 39 tier utilities
+  verified present in the built CSS.
+
+### Round M — a03f933b: one skeleton family (UX-47)
+- Skeleton.tsx is THE family: primitive + SkeletonText/Card/List/Table/
+  Detail + composites; DataSkeleton.tsx deleted (names kept as aliases).
+- 44 hand-rolled skeleton clusters migrated across 26 files — tenant
+  portal tabs, client dashboard, property manager, money hub (incl. the
+  audit's LedgerManager dark-skeleton hand-rolls), research studio,
+  admin hub, ModalManager/Sidebar suspense lines.
+- animate-pulse ratchet at 80 (semantic attention states only;
+  ui/Skeleton.tsx exempt). tests/unit/skeletonFamily.test.ts (5
+  contracts). ui-primitives ratchet tightened 2277→2245.
+
+### Round N — 169c0e86: ui/Table primitives (UX-48)
+- New ui/Table.tsx: Table (density comfortable|compact via context),
+  TableHeader (sticky), TableBody (hairline dividers), TableRow (opt-in
+  hover), TableHead (align, sortable, uppercase label grammar),
+  TableCell (align; colour inherited so money cells never fight a
+  default).
+- The six biggest tables migrated (10 instances, previously four
+  competing header styles): TaskList, PropertyDetailView ×2, tenant
+  LedgerTab ×2, LegalIntelligenceHub ×2, FinancialReports ×2,
+  FounderSignals. tests/unit/tablePrimitive.test.ts (4 contracts; raw
+  <table> ratchet at 24, may only shrink).
+
+### Round O — c20af804: modal registry migration COMPLETE (UX-01, Critical)
+- ModalLayer absorbs the ENTIRE former ModalManager switch (71 cases),
+  prop wiring copied 1:1 verbatim — auth themes, calendar
+  virtual-event resolution, Lagos-TZ date parsing, bulk assign, TASK-64
+  bank writer, research-notebook reader, all of it.
+- ModalShell gains the legacy chrome overrides (overlayClass/cardClass/
+  accentBarClass) and the V7 aria-label fallback; LocalDocumentManager
+  migrated; ModalManager.tsx + Modal.tsx DELETED; allowlist gates gone
+  (every registry entry renders except the documented 'onboarding'
+  delegation); aiConsent flag lifted; dead recordRentPayment wrapper
+  entry removed.
+- 8 contract tests (tests/unit/modalArchitecture.test.ts) incl. the
+  closure check: every openModal('x') in the codebase resolves to a
+  registry entry or builder. Six earlier-round source contracts
+  re-pointed at the new pipeline.
+
+### Gates (verified on the final tree, this session)
+- vitest 2689/2689 (137 files; +17 round L-O contract tests).
+- root tsc 87 (baseline-identical after every round); convex tsc 0.
+- vite production build green; entry chunks unchanged (every form stays
+  lazyWithReload). ui-primitives 2244 (tightened from 2245). Design
+  tokens: gray=0, roundedXl 72/74, textPx 72/72, zIndex=0,
+  animatePulse=80.
+
+### Remaining queue (both items are design-gated on the owner)
+- UX-27 (matter-notes canonical surface) and UX-36 (tenancy write-path)
+  — the audit itself gates these on a design decision, not code.
+- UX-38 part 3 (scope-aware New) needs a property picker that does not
+  exist yet.
+- Push remains blocked on credentials: rounds A-O sit on the detached
+  worktree /home/z/my-project/tmp/wt ready to push to origin/main once
+  a fresh PAT exists (git -C /home/z/my-project/tmp/wt push origin
+  HEAD:main).
