@@ -5,6 +5,9 @@ import { NoteNotebook, NotePage, ModalType, User, Matter, View } from '../types'
 import { NotesIcon, MATTERS_NOTEBOOK_ID, PRACTICE_NOTES_NOTEBOOK_ID } from '../constants';
 import { NoteColumn } from './notes/NoteColumn';
 import { NoteEditor } from './notes/NoteEditor';
+// UX-27: the read-only renderer for matter pages browsed in the Matters
+// notebook — the canonical write surface is the matter's own Notes tab.
+import MatterPageReadOnly from './notes/MatterPageReadOnly';
 import { useCoreState } from '../contexts/CoreContext';
 import { useMatterState } from '../contexts/MatterContext';
 import { useDocumentState } from '../contexts/DocumentContext';
@@ -99,7 +102,9 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
 
     const handleBackCol2 = () => setSelectionPath([]);
     const handleBackCol3 = () => setSelectionPath([`notebook_${selectedNotebookId}`]);
-    const handleBackCol4 = () => isMatterNotebook ? setSelectionPath([`notebook_${selectedNotebookId}`, `matter_${selectedMatterId}`]) : setSelectionPath([`notebook_${selectedNotebookId}`]);
+    // UX-27: handleBackCol4 (the matter-notebook editor's mobile back
+    // action) went with the editor — Column 4 is now the read-only page
+    // view with a single jump affordance.
 
     // --- Drag & Drop ---
     const onDragEnd = (result: DropResult) => {
@@ -223,6 +228,10 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
 
                     {/* Column 3 & 4 Wrapper */}
                     <div className={`flex-1 min-w-0 h-full md:flex ${isMobileCol3 || isMobileCol4 ? 'block' : 'hidden md:flex'}`}>
+                        {/* Column 3 (matter pages) is a BROWSER — UX-27: no
+                            add-page affordance here. New matter notes are
+                            written in the matter's Notes tab (the canonical
+                            surface); this column just navigates to them. */}
                         {isMatterNotebook && selectedMatter ? (
                              <div className={`w-full md:w-72 flex-shrink-0 h-full md:border-r border-slate-200 dark:border-dim-700 ${isMobileCol3 ? 'block' : 'hidden md:block'}`}>
                                 <NoteColumn 
@@ -236,7 +245,6 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                                     onSelect={handleSelect}
                                     onBack={handleBackCol3}
                                     showBackButton={true}
-                                    onAddPage={(nbId, pId, mId) => openModal('newPage', null, { notebookId: nbId, parentId: pId, matterId: selectedMatter.id })} 
                                     onRenamePage={documentActions.handleRenamePage}
                                     onDeletePage={confirmDeletePage}
                                     allPages={notePages}
@@ -265,22 +273,18 @@ export const NotesView: React.FC<{ noBox?: boolean }> = ({ noBox }) => {
                              <div className="flex-1 h-full hidden md:block"><NotesPlaceholder /></div>
                         ) : null}
 
-                        {/* Column 4: Editor (Only for Matter Notebook when page selected) */}
+                        {/* Column 4 (matter notebook) — UX-27: READ-ONLY.
+                            The matter's Notes tab is the canonical surface;
+                            this browser renders the page and offers one
+                            affordance: jump to the matter. */}
                         {isMatterNotebook && selectedMatter && (
                             <div className={`flex-1 h-full md:border-l border-slate-200 dark:border-dim-700 ${isMobileCol4 ? 'block' : 'hidden md:block'}`}>
                                 {pageForEditor ? (
-                                     <NoteEditor
-                                        key={`editor-${pageForEditor.id}`}
+                                     <MatterPageReadOnly
+                                        key={`readonly-${pageForEditor.id}`}
                                         page={pageForEditor}
                                         matter={selectedMatter}
-                                        onSave={(id, title, content) => documentActions.handleUpdatePageContent(id, title, content)}
-                                        onDelete={confirmDeletePage}
-                                        onCopy={(pageId) => openModal('newPage', null, { copyFromPageId: pageId })}
-                                        onNavigateToMatter={(matterId) => navigateTo('matterDetail', matterId, { initialTab: 'endorsements' })}
-                                        onBack={handleBackCol4}
-                                        showBackButton={true}
-                                        breadcrumbItems={breadcrumbItems}
-                                        onBreadcrumbNav={handleBreadcrumbNav}
+                                        onOpenInMatter={() => navigateTo('matterDetail', selectedMatter.id, { initialTab: 'notes' })}
                                     />
                                 ) : (
                                     <div className="hidden md:block"><NotesPlaceholder /></div>

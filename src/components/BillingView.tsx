@@ -183,7 +183,7 @@ const InvoiceMobileCard: React.FC<{
 
 
 // Sub-component for the main invoice list logic
-const InvoicesContent: React.FC<{ invoices: Invoice[], showOriginBadges?: boolean, originEvidence?: { matters: any[]; properties: any[] }, openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleRecordInvoicePayment: any, onRevertPaymentRequest: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any }> = ({ invoices, showOriginBadges, originEvidence, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleRecordInvoicePayment, onRevertPaymentRequest, handleVoidInvoice, closeModal, openConfirmationModal }) => {
+const InvoicesContent: React.FC<{ invoices: Invoice[], showOriginBadges?: boolean, originEvidence?: { matters: any[]; properties: any[] }, openModal: any, onViewDetails: any, handleUpdateInvoiceStatus: any, handleSendInvoiceReminder: any, handleRevertPayment: any, handleRecordInvoicePayment: any, onRevertPaymentRequest: any, handleVoidInvoice: any, closeModal: any, openConfirmationModal: any, onNewInvoice?: () => void }> = ({ invoices, showOriginBadges, originEvidence, openModal, onViewDetails, handleUpdateInvoiceStatus, handleSendInvoiceReminder, handleRevertPayment, handleRecordInvoicePayment, onRevertPaymentRequest, handleVoidInvoice, closeModal, openConfirmationModal, onNewInvoice }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     useHighlight(containerRef, 'billing');
     const [filter, setFilter] = useState('');
@@ -335,7 +335,7 @@ const InvoicesContent: React.FC<{ invoices: Invoice[], showOriginBadges?: boolea
                         description="Create an invoice to start billing your clients and tracking payments."
                         icon={<div className="flex items-center justify-center text-slate-400 dark:text-zinc-500"><NairaSymbol /></div>}
                         actionLabel="Create Invoice"
-                        onAction={() => openModal('newInvoice')}
+                        onAction={onNewInvoice || (() => openModal('newInvoice'))}
                     />
                 )}
             </div>
@@ -517,6 +517,16 @@ export const BillingView: React.FC = () => {
         };
     }, [financeState.invoices, (coreState as any).ledgerEntries, (coreState as any).serviceCharges, productScope, originEvidence]);
 
+    // UX-38 part 3 — the scope-aware New action. The old button always
+    // opened the LEGAL invoice composer, so a Properties-scope user's
+    // creation entry ignored their intent (wrong-form friction at the
+    // revenue moment). In property scope the composer now opens
+    // property-first: pick the property, the landlord's invoice follows
+    // (the CollectRentModal pseudo-matter convention, product='property').
+    // Legal/combined keep the standard composer — legal is the
+    // classifier's documented default.
+    const handleNewInvoice = () => openModal('newInvoice', null, productScope === 'property' ? { propertyIntent: true } : undefined);
+
     return (
         <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
             <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-2.5 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-2">
@@ -550,8 +560,9 @@ export const BillingView: React.FC = () => {
                         </div>
                     )}
                     <button
-                        onClick={() => openModal('newInvoice')}
+                        onClick={handleNewInvoice}
                         className="p-1 px-3 sm:p-2 sm:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all shadow-sm flex items-center gap-2 text-2xs sm:text-xs font-bold uppercase tracking-wider"
+                        title={productScope === 'property' ? 'New property invoice — pick the property first' : 'New invoice'}
                     >
                         <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4" /> New
                     </button>
@@ -643,6 +654,7 @@ export const BillingView: React.FC = () => {
                         handleVoidInvoice={(inv: Invoice) => setVoidModal({ invoice: inv, mode: inv.recordStatus === 'voided' || inv.status === InvoiceStatus.Void ? 'reinstate' : 'void' })}
                         closeModal={closeModal}
                         openConfirmationModal={openModal}
+                        onNewInvoice={handleNewInvoice}
                     />
                 )}
 

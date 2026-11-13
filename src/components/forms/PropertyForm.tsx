@@ -26,13 +26,18 @@ import {
     type UnitRentalInput,
 } from '../../utils/propertyPayload';
 import { useConfirm } from '../ui/ConfirmDialog';
-import { Select, Input, Textarea } from '../ui';
+import { Select, Input, Textarea, Button } from '../ui';
 // ROUND E (WAVE E3) — intelligent forms: the validation + duplicate-
 // detection brain, extracted pure so every rule is unit-testable.
 import { validatePropertyForm, scanForDuplicateUnits, type FormErrors, type UnitErrors } from '../../utils/propertyFormValidation';
 import { OnboardUnitLedgerModal } from '../modals/OnboardUnitLedgerModal';
 import { ServiceChargePeriod } from '../../types';
 import { matchResidentContact, planContactSync } from '../../utils/residentContactSync';
+// UX-36: the tenancy-ledger status feed — the SAME one the lifecycle panel
+// renders from (one reactive query, one source of truth). When the active
+// unit has an ACTIVE ledger row, the resident/lease fields in this form
+// render read-only with a jump link to the panel.
+import { useUnitsTenancyStatus } from '../details/TenancyLifecyclePanel';
 import { unitLabelForIndex, isBlockStyleLabel, type UnitNamingScheme } from '../../utils/unitNaming';
 
 // ─── AccordionSection (MODULE-LEVEL — outside PropertyForm) ──────────
@@ -637,6 +642,37 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
     };
 
     const activeUnit = unitsData[activeUnitIndex];
+
+    // ─── UX-36: TENANCY WRITE-PATH ──────────────────────────────────
+    // Design decision (ratified from the phase-0 audit register): the
+    // tenancy lifecycle panel (allocate / renew / transfer / move-out) is
+    // the ONE write path for resident + lease fields. Its mutations write
+    // the tenancy_ledger AND sync the denormalized rentalDetails snapshot
+    // (mergeRd), so the snapshot this form displays can never drift from
+    // the ledger again. When the active unit has an ACTIVE ledger row, the
+    // resident/lease fields below render read-only with a jump link to the
+    // panel. Units WITHOUT a ledger row (new units, units let before the
+    // ledger) stay writable here — the panel's allocate/backfill is what
+    // creates the ledger row in the first place. Rent/fee MONEY stays
+    // form-editable (billing configuration, out of UX-36's scope).
+    const tenancyFeedUnits = useMemo(() => (propertyToEdit ? unitsData : []).map(u => ({
+        id: String(u.id || ''),
+        label: u.unitName || 'Unit',
+        unitName: u.unitName || 'Unit',
+        status: u.status,
+        tenantName: u.tenantName || '',
+        tenantPhone: u.tenantPhone || '',
+        tenantEmail: (u as any).tenantEmail || '',
+        rentAmount: Number(u.rentAmount) || 0,
+        rentFrequency: String(u.rentFrequency || ''),
+        leaseStart: u.leaseStart || '',
+        leaseEnd: u.leaseEnd || '',
+    })), [unitsData, propertyToEdit]);
+    const tenancyStatus = useUnitsTenancyStatus(coreState.firmDetails?.id || '', tenancyFeedUnits);
+    const tenancyLocked = !!(tenancyStatus?.[String(activeUnit?.id ?? '')]?.active);
+    // Disabled controls must LOOK disabled (the ui Input forwards the raw
+    // attribute; this adds the affordance the design system expects).
+    const tenancyLockedInputClass = 'disabled:opacity-60 disabled:cursor-not-allowed';
 
     // ─── E3 LIVE DUPLICATE DETECTION ─────────────────────────────────
     // Same normalized address + same normalized unit name on a row
@@ -2240,6 +2276,41 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 )}
                             </div>
 
+                            {/* UX-36 — THE LOCK NOTICE. When this unit has an
+                                active tenancy ledger row, the resident/lease
+                                fields below are read-only: the lifecycle panel
+                                is the write path (it writes the ledger AND
+                                syncs this form's snapshot), so editing here
+                                could only reintroduce the drift the audit
+                                found. One affordance: jump to the panel. */}
+                            {tenancyLocked && (
+                                <div className="md:col-span-2 mb-1 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30" role="note">
+                                    <div className="flex items-start gap-2.5">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0 mt-1.5" />
+                                        <div className="min-w-0 flex-grow">
+                                            <p className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                                                This unit has an active tenancy record
+                                            </p>
+                                            <p className="text-2xs text-amber-700/90 dark:text-amber-400/90 mt-0.5">
+                                                Resident and lease changes are made from the tenancy panel — the ledger is the record this form follows. Renewals, transfers and move-outs all happen there.
+                                            </p>
+                                            <div className="mt-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        onClose();
+                                                        navigateTo('propertyDetail', propertyToEdit!.id, { tab: 'units', targetUnit: String(activeUnit?.id ?? '') });
+                                                    }}
+                                                >
+                                                    Manage tenancy in Units tab →
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                                 <div className="space-y-2 group col-span-1 md:col-span-2">
                                     <label className={labelClass}>Resident Name</label>
@@ -2253,7 +2324,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <Input autoComplete="off" data-lpignore="true"
                                             type="text"
                                             styleVariant="bare"
-                                            inputClassName={`${commonInputClass} min-w-0 w-full`}
+                                            inputClassName={`${commonInputClass} ${tenancyLockedInputClass} min-w-0 w-full`}
+                                            disabled={tenancyLocked}
                                             value={unitsData[activeUnitIndex].occupantFirstName || ''}
                                             onChange={e => {
                                                 const firstName = e.target.value;
@@ -2266,7 +2338,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                         <Input autoComplete="off" data-lpignore="true"
                                             type="text"
                                             styleVariant="bare"
-                                            inputClassName={`${commonInputClass} min-w-0 w-full`}
+                                            inputClassName={`${commonInputClass} ${tenancyLockedInputClass} min-w-0 w-full`}
+                                            disabled={tenancyLocked}
                                             value={unitsData[activeUnitIndex].occupantLastName || ''}
                                             onChange={e => {
                                                 const lastName = e.target.value;
@@ -2283,7 +2356,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Resident Phone</label>
-                                    <Input autoComplete="off" data-lpignore="true" type="tel" styleVariant="bare" inputClassName={commonInputClass}
+                                    <Input autoComplete="off" data-lpignore="true" type="tel" styleVariant="bare" inputClassName={`${commonInputClass} ${tenancyLockedInputClass}`}
+                                        disabled={tenancyLocked}
                                         value={unitsData[activeUnitIndex].tenantPhone}
                                         onChange={e => {
                                             updateUnit(activeUnitIndex, 'tenantPhone', e.target.value);
@@ -2295,7 +2369,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Resident Email <span className="text-slate-300 dark:text-zinc-600 normal-case tracking-normal font-normal">(required for portal invite)</span></label>
-                                    <Input autoComplete="off" data-lpignore="true" type="email" styleVariant="bare" inputClassName={commonInputClass}
+                                    <Input autoComplete="off" data-lpignore="true" type="email" styleVariant="bare" inputClassName={`${commonInputClass} ${tenancyLockedInputClass}`}
+                                        disabled={tenancyLocked}
                                         value={unitsData[activeUnitIndex].tenantEmail || ''}
                                         onChange={e => {
                                             updateUnit(activeUnitIndex, 'tenantEmail', e.target.value);
@@ -2334,7 +2409,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Lease Start</label>
-                                    <Input autoComplete="off" data-lpignore="true" type="date" styleVariant="bare" inputClassName={commonInputClass}
+                                    <Input autoComplete="off" data-lpignore="true" type="date" styleVariant="bare" inputClassName={`${commonInputClass} ${tenancyLockedInputClass}`}
+                                        disabled={tenancyLocked}
                                         value={unitsData[activeUnitIndex].leaseStart}
                                         onChange={e => {
                                             updateUnit(activeUnitIndex, 'leaseStart', e.target.value);
@@ -2346,7 +2422,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Tenancy Period</label>
                                     <select 
-                                        className={commonInputClass} 
+                                        className={`${commonInputClass} ${tenancyLockedInputClass}`} 
+                                        disabled={tenancyLocked}
                                         value={unitsData[activeUnitIndex].tenancyPeriod || ''} 
                                         onChange={e => updateUnit(activeUnitIndex, 'tenancyPeriod', e.target.value)}
                                     >
@@ -2360,7 +2437,8 @@ const PropertyForm: React.FC<PropertyFormProps> = ({ contact, propertyToEdit, ac
                                 </div>
                                 <div className="space-y-2 group">
                                     <label className={labelClass}>Lease End</label>
-                                    <Input autoComplete="off" data-lpignore="true" type="date" styleVariant="bare" inputClassName={commonInputClass}
+                                    <Input autoComplete="off" data-lpignore="true" type="date" styleVariant="bare" inputClassName={`${commonInputClass} ${tenancyLockedInputClass}`}
+                                        disabled={tenancyLocked}
                                         value={unitsData[activeUnitIndex].leaseEnd}
                                         onChange={e => {
                                             updateUnit(activeUnitIndex, 'leaseEnd', e.target.value);

@@ -19336,3 +19336,69 @@ owner design decision — are now implemented. The register stands at
   worktree /home/z/my-project/tmp/wt ready to push to origin/main once
   a fresh PAT exists (git -C /home/z/my-project/tmp/wt push origin
   HEAD:main).
+
+## PHASE 5 DESIGN GATES, ROUND P (2026-11-13) — the register closes
+
+**Context:** continuation of rounds A-O (58/60). Two events unblocked the
+close: a fresh PAT arrived, and the owner's standing direction ("make
+progress") let the audit's own recommendations be ratified as the design
+decisions the register was waiting on.
+
+### Push restored first
+- eb8d7af8 went to origin/main (522d3f36..eb8d7af8) with the new PAT;
+  CI went green on it (Tests + Staging deploy + both APK builds).
+
+### UX-27 (matter-notes canonical surface) — IMPLEMENTED
+- Design decision: the matter's own Notes tab (MatterDetailView →
+  TeamDiscussionTab) is THE canonical write surface — the point of work,
+  the composer with the task/event conversions, and it already renders
+  every matter note from every origin (one notePages table, one write
+  function: handleAddMatterNote).
+- The Firm Knowledge "Matters" notebook is now a read-only browser: the
+  level-2 column lost onAddPage (no add-page, no add-subpage); Column 4
+  renders the new MatterPageReadOnly (sanitized rich content, the same
+  contract as the endorsement timeline) with ONE affordance: "Open in
+  matter" → matterDetail initialTab notes.
+- Firm notebooks (Practice Notes etc.) remain fully writable — firm
+  knowledge is a different content kind, not a matter note.
+
+### UX-36 (tenancy write-path) — IMPLEMENTED
+- Design decision: the audit's own recommendation — the lifecycle panel
+  is the write path (its mutations write the tenancy_ledger AND sync the
+  denormalized rentalDetails snapshot via mergeRd, so the form's display
+  can never drift again); the form renders read-only with a jump link.
+- PropertyForm now reads the SAME ledger-status feed the panel renders
+  from (useUnitsTenancyStatus). When the active unit has an ACTIVE
+  ledger row: the 7 resident/lease controls (first/last name, phone,
+  email, lease start, tenancy period, lease end) render disabled with a
+  lock notice and a "Manage tenancy in Units tab" button that deep-links
+  to propertyDetail {tab: 'units', targetUnit}. Units WITHOUT a ledger
+  row (new units, un-let, pre-ledger) stay writable — allocate/backfill
+  is what creates the row. Rent/fee MONEY stays form-editable (billing
+  configuration; out of UX-36's scope, documented in the source header).
+
+### UX-38 part 3 (scope-aware New) — IMPLEMENTED
+- The property picker that did not exist: BillingView's New action is
+  now scope-aware — property scope opens the composer property-first
+  (openModal('newInvoice', null, {propertyIntent: true})); legal and
+  combined keep the standard composer (the classifier's documented
+  default). The invoice list's empty state matches the active scope.
+- InvoiceForm property mode: pick the property, then the landlord
+  (client) is RESOLVED (the CollectRentModal convention: contactId or
+  properties[] link), never typed; the matter link is the real linked
+  realEstate matter, else the pseudo-matter convention
+  ("Property Management — {address}"); the origin is product='property'
+  by construction. No-owner guard refuses rather than guessing a client.
+- ui/ primitives only: the ratchet gate caught the first draft's raw
+  select/input (+2) — rebuilt on Select/Input before commit; the
+  baseline held at 2244.
+
+### Gates (verified on the final tree, this session)
+- vitest 2701/2701 (141 files; +12 contract tests: matterNotesSurface 4,
+  tenancyWritePath 4, scopeAwareNew 4; one K-4 assertion in
+  invoiceProductScope updated to the extended product line).
+- root tsc 87 (baseline-identical; stash-verified); convex tsc 0.
+- vite production build green (24.2s). ui-primitives ratchet held at
+  2244. Design tokens: no gray-*, z-[NNNN], text-[NNpx], animate-pulse
+  or rounded-xl introduced by this round.
+- The register: 60 of 60. The phase-0 roadmap is complete.

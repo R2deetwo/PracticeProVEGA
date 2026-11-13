@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Invoice, InvoiceLineItem, Contact, Matter, BankAccount, InvoiceStatus, ContactType } from '../../types';
+import { Invoice, InvoiceLineItem, Contact, Matter, BankAccount, InvoiceStatus, ContactType, Property } from '../../types';
 import { CurrencyDollarIcon, UserIcon, CalendarIcon, PlusIcon, TrashIcon, SaveIcon, XIcon, BriefcaseIcon, InfoIcon, ClockIcon } from '../../constants';
 import { FileText as FileTextIcon, Calculator as CalculatorIcon, CheckCircle as CheckCircleIcon, Scale as ScaleIcon } from 'lucide-react';
 import { inputModern } from '../../utils/formStyles';
@@ -10,19 +10,28 @@ import { useProduct } from '../../contexts/ProductContext';
 import NairaSymbol from '../NairaSymbol';
 import { computeInvoiceTotals, normalizeTaxRate, invoiceOutstanding } from '../../utils/invoiceFinancials';
 import { computeScaleFeeNote, scaleAppliesToMatter } from '../../utils/scaleOfCharges';
-import { Button, Input } from '../ui';
+import { Button, Input, Select } from '../ui';
 
 interface InvoiceFormProps {
   clients: Contact[];
   matters: Matter[];
   bankAccounts: BankAccount[];
   invoiceToEdit?: Invoice;
+  /** UX-38 part 3: open in property-first mode — pick the property, the
+   *  landlord's invoice follows (CollectRentModal pseudo-matter convention,
+   *  product='property'). Ignored when editing. */
+  propertyIntent?: boolean;
+  /** The firm's properties (property mode). */
+  properties?: Property[];
+  /** All contacts — a property's owner is resolved here, not from `clients`
+   *  (owners are not necessarily in the Client category). */
+  ownerContacts?: Contact[];
   onAddInvoice: (invoice: Omit<Invoice, 'id'>) => void;
   onUpdateInvoice: (invoice: Invoice) => void;
   onClose: () => void;
 }
 
-export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bankAccounts, invoiceToEdit, onAddInvoice, onUpdateInvoice, onClose }) => {
+export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bankAccounts, invoiceToEdit, propertyIntent, properties, ownerContacts, onAddInvoice, onUpdateInvoice, onClose }) => {
   const { coreState, isDataLoaded } = useCoreState();
   const { isProperty, terminology } = useProduct();
     const { openModal, navigateTo, addToast } = useUI();
@@ -44,6 +53,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const [clientId, setClientId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [matterId, setMatterId] = useState('');
+  // UX-38 part 3 — the property picker state (property-first mode).
+  const [propertyId, setPropertyId] = useState('');
   const [lineItems, setLineItems] = useState<Partial<InvoiceLineItem>[]>([{ description: '', total: 0, hours: 0, rate: 0 }]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
@@ -94,6 +105,33 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const isEditing = !!invoiceToEdit;
   const selectedClient = clients.find(c => c.id === clientId);
   const isCorporate = selectedClient?.contactType === ContactType.Company;
+
+  // ─── UX-38 part 3: PROPERTY-FIRST MODE ─────────────────────────
+  // In property scope the composer opens property-first: the user picks
+  // the PROPERTY (the picker that did not exist), and the client (the
+  // landlord), the matter link (real linked matter, else the pseudo-matter
+  // convention) and the origin (product='property') all follow from it.
+  // Falls back to the standard composer when there are no properties.
+  const propertyMode = !!propertyIntent && !isEditing && (properties?.length ?? 0) > 0;
+  const selectedProperty = propertyMode ? (properties || []).find(p => p.id === propertyId) : undefined;
+  const propertyOwner = useMemo(() => {
+      if (!selectedProperty) return undefined;
+      // Same resolution as CollectRentModal: linked by contactId, or a
+      // contact whose properties[] contains this property.
+      return (ownerContacts || []).find(c => c.id === selectedProperty.contactId || (c.properties || []).some(p => p.id === selectedProperty.id));
+  }, [selectedProperty, ownerContacts]);
+  const linkedPropertyMatter = useMemo(() => {
+      if (!selectedProperty) return undefined;
+      // specialtyData link first (unified convention), then the
+      // CollectRentModal convention (owner-linked + title mentions the
+      // property address).
+      const byLink = (matters || []).find(m => (m as any).specialtyData?.realEstate?.propertyId === selectedProperty.id);
+      if (byLink) return byLink;
+      if (propertyOwner) {
+          return (matters || []).find(m => m.clientId === propertyOwner.id && String(m.title || '').includes(selectedProperty.address));
+      }
+      return undefined;
+  }, [selectedProperty, propertyOwner, matters]);
 
   useEffect(() => {
     if (isEditing && invoiceToEdit) {
@@ -188,13 +226,26 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-    if (!clientId || !matterId) {
+    if (propertyMode) {
+      // UX-38 part 3: property-first validation — property picked, owner
+      // resolvable. Everything else (dates, line items, VAT) is shared.
+      if (!selectedProperty) {
+        addToast('Please select a property.', { type: 'info' });
+        return;
+      }
+      if (!propertyOwner) {
+        addToast('This property has no linked owner contact — link one from the property record, then invoice here.', { type: 'info' });
+        return;
+      }
+    } else if (!clientId || !matterId) {
       addToast(`Please select a ${terminology.client.toLowerCase()} and ${terminology.matter.toLowerCase()}.`, { type: 'info' });
       return;
     }
 
-    const client = clients.find(c => c.id === clientId);
-    const matter = matters.find(m => m.id === matterId);
+    const client = propertyMode ? propertyOwner : clients.find(c => c.id === clientId);
+    const matter = propertyMode
+      ? (linkedPropertyMatter || { id: selectedProperty!.id, title: `Property Management — ${selectedProperty!.address}` })
+      : matters.find(m => m.id === matterId);
     const paymentDetails = safeBankAccounts.find(b => b.id === paymentAccountId);
 
     if (!paymentDetails) {
@@ -246,9 +297,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
       matter: { id: matter!.id, title: matter!.title },
       // K-4 (invoice product attribution): the explicit origin — a
       // real-estate matter makes this a property invoice; every other
-      // matter is legal billing. (Legacy rows without the field are
-      // classified at read time by utils/invoiceOrigin.ts.)
-      product: matter!.specialtyData?.realEstate?.propertyId ? 'property' : 'legal',
+      // matter is legal billing. In property-first mode the origin is
+      // 'property' by construction (UX-38 part 3). (The pseudo-matter
+      // branch carries no specialtyData — hence the cast.)
+      product: propertyMode ? 'property' : ((matter as any)!.specialtyData?.realEstate?.propertyId ? 'property' : 'legal'),
       lineItems: finalLineItems,
       status: invoiceToEdit?.status || InvoiceStatus.Unpaid,
       issueDate,
@@ -298,20 +350,68 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ clients, matters, bank
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="space-y-2 group">
-                      <label className={labelClass}>Client</label>
-                      <select value={clientId} onChange={e => setClientId(e.target.value)} className={commonInputClass} required>
-                          <option value="" disabled>Select client</option>
-                          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                  </div>
-                  <div className="space-y-2 group">
-                      <label className={labelClass}>{isProperty ? 'Property' : 'Matter'}</label>
-                      <select value={matterId} onChange={e => setMatterId(e.target.value)} className={commonInputClass} required disabled={!clientId}>
-                          <option value="" disabled>Select {isProperty ? 'property' : 'matter'}</option>
-                          {matters.filter(m => m.clientId === clientId).map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
-                      </select>
-                  </div>
+                  {propertyMode ? (
+                      <>
+                          {/* UX-38 part 3 — the property picker. Pick the
+                              property; the landlord (client) is resolved from
+                              the property record, never typed. ui/ primitives
+                              per ADR-0004 — no raw select/input. */}
+                          <div className="space-y-2 group">
+                              <label className={labelClass}>Property</label>
+                              <Select
+                                  value={propertyId}
+                                  onChange={e => setPropertyId(e.target.value)}
+                                  styleVariant="bare"
+                                  selectClassName={commonInputClass}
+                                  required
+                                  placeholder="Select property"
+                                  options={(properties || [])
+                                      .slice()
+                                      .sort((a, b) => String(a.address || '').localeCompare(String(b.address || '')))
+                                      .map(p => ({
+                                          value: p.id,
+                                          label: `${p.address}${p.rentalDetails?.unitName && p.rentalDetails.unitName !== 'Unit' ? ` · ${p.rentalDetails.unitName}` : ''}`,
+                                      }))}
+                              />
+                          </div>
+                          <div className="space-y-2 group">
+                              <label className={labelClass}>Client (landlord)</label>
+                              {selectedProperty ? (
+                                  propertyOwner ? (
+                                      <Input
+                                          readOnly
+                                          value={propertyOwner.name}
+                                          styleVariant="bare"
+                                          inputClassName={`${commonInputClass} bg-slate-50 dark:bg-zinc-800`}
+                                      />
+                                  ) : (
+                                      <p className="text-2xs text-amber-600 dark:text-amber-400 pt-2" role="alert">
+                                          This property has no linked owner contact — link one from the property record first.
+                                      </p>
+                                  )
+                              ) : (
+                                  <p className="text-2xs text-slate-400 dark:text-zinc-500 pt-2">Pick a property — the landlord is resolved automatically.</p>
+                              )}
+                          </div>
+                      </>
+                  ) : (
+                      <>
+                          <div className="space-y-2 group">
+                              <label className={labelClass}>Client</label>
+                              <select value={clientId} onChange={e => setClientId(e.target.value)} className={commonInputClass} required>
+                                  <option value="" disabled>Select client</option>
+                                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </select>
+                          </div>
+                          <div className="space-y-2 group">
+                              <label className={labelClass}>{isProperty ? 'Property' : 'Matter'}</label>
+                              <select value={matterId} onChange={e => setMatterId(e.target.value)} className={commonInputClass} required disabled={!clientId}>
+                                  <option value="" disabled>Select {isProperty ? 'property' : 'matter'}</option>
+                                  {matters.filter(m => m.clientId === clientId).map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+                              </select>
+                          </div>
+                      </>
+                  )}
               </div>
 
               {/* R40 — THE SCALE OF CHARGES ((Remuneration for Legal Documentation

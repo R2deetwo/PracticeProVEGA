@@ -692,7 +692,10 @@ export const ModalLayer: React.FC = () => {
         const invoice = (financeState.invoices || []).find(i => i.id === editingId);
         const clients = (matterState.contacts || []).filter(c => c.category === 'Client');
         const bankAccounts = coreState.firmDetails?.bankAccounts || [];
-        return <InvoiceForm clients={clients} matters={matterState.matters || []} bankAccounts={bankAccounts} invoiceToEdit={invoice} onAddInvoice={(inv) => dataHandlers.addItem('invoices', inv, inv.invoiceNumber)} onUpdateInvoice={(inv) => dataHandlers.updateItem('invoices', inv, inv.invoiceNumber)} onClose={closeModal} />;
+        // UX-38 part 3: property scope opens the composer property-first
+        // (pick the property → the landlord's invoice follows). The intent
+        // travels as modal context from the scope-aware New action.
+        return <InvoiceForm clients={clients} matters={matterState.matters || []} bankAccounts={bankAccounts} invoiceToEdit={invoice} propertyIntent={editingId ? false : !!modalContext?.propertyIntent} properties={coreState.properties || []} ownerContacts={matterState.contacts || []} onAddInvoice={(inv) => dataHandlers.addItem('invoices', inv, inv.invoiceNumber)} onUpdateInvoice={(inv) => dataHandlers.updateItem('invoices', inv, inv.invoiceNumber)} onClose={closeModal} />;
       }
       case 'generateInvoice': {
         const matter = matterState.matters.find(m => m.id === editingId);

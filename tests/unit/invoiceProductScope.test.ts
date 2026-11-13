@@ -129,7 +129,10 @@ describe('creation paths stamp the field (source contract)', () => {
 
     it('InvoiceForm stamps the origin from the selected matter', () => {
         const src = read('src/components/forms/InvoiceForm.tsx');
-        expect(src).toContain("product: matter!.specialtyData?.realEstate?.propertyId ? 'property' : 'legal'");
+        // UX-38 part 3 extended the line: property-first mode stamps
+        // 'property' by construction; the standard composer still stamps
+        // from the selected matter (specialtyData realEstate link).
+        expect(src).toContain("product: propertyMode ? 'property' : ((matter as any)!.specialtyData?.realEstate?.propertyId ? 'property' : 'legal')");
     });
 
     it('the schema carries the additive field + index', () => {
