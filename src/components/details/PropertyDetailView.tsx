@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Property, Contact, ModalType, MatterStatus, InvoiceStatus, BillingModel } from '../../types';
 import { OfficeBuildingIcon, EditIcon, DocumentIcon, CalendarIcon, CheckCircleIcon, PlusIcon, MinusIcon, GavelIconLarge, CalculatorIcon, ZapIcon, LockClosedIcon, SearchIcon, CurrencyDollarIcon, MattersIcon, CogIcon, XIcon, TrashIcon } from '../../constants';
 import { formatNaira, formatNairaCompact, formatNairaFull, normalizeAddress } from '../../utils/formatting';
 import NairaSymbol from '../NairaSymbol';
-import { ClipboardList, ClipboardCheck, Home, Folder, Megaphone, FileText, Wrench, Scale, Eye, Radio, Receipt, Wallet, LogOut, Plus, Trash2, MessageSquare, Mail, Phone, FileDown, Share2, Link2 } from 'lucide-react';
+import { ClipboardList, Home, Megaphone, FileText, Eye, Radio, Receipt, Wallet, Mail, Phone, FileDown, Link2 } from 'lucide-react';
 import { useUI } from '../../contexts/UIContext';
 import { useAloa } from '../../contexts/AloaProvider';
 import { useQuery, useMutation, useConvex } from "convex/react";
@@ -25,13 +25,11 @@ import { PropertyRelationshipsTab } from './PropertyRelationshipsTab';
 // ROUND E (Wave E1): the tenancy lifecycle console — allocate / record /
 // renew / end / transfer + per-unit tenancy history, backed by the
 // tenancies ledger (convex/tenancyLifecycle.ts).
-import { TenancyLifecyclePanel, UnitTenancySection, useUnitsTenancyStatus } from './TenancyLifecyclePanel';
+import { TenancyLifecyclePanel, useUnitsTenancyStatus } from './TenancyLifecyclePanel';
 import { PropertyFinancialSummaryPanel } from './PropertyFinancialSummaryPanel';
 import { useAuth } from '../../contexts/AuthContext';
 import { useProduct } from '../../contexts/ProductContext';
 import ErrorBoundary from '../ErrorBoundary';
-import { ServiceChargeBars } from './ServiceChargeBars';
-import { serviceChargeTimeline, monthLabel as monthLabelLite } from '../../utils/leaseTimeline';
 // MESSAGES OVERHAUL: the property-side compose entry points now use the
 // ONE unified composer (atrium/ComposeModal) — templates, resident
 // financials auto-fill, honest per-recipient delivery results, retry. The
@@ -40,10 +38,18 @@ import { serviceChargeTimeline, monthLabel as monthLabelLite } from '../../utils
 import { ComposeModal, ComposeModalPrefill } from '../atrium/ComposeModal';
 
 import { getUnitDisplay } from '../../utils/propertyPayload';
-import { resolveServiceCharge, resolveServiceChargeAmount, serviceChargeDebugTitle } from '../../utils/serviceCharge';
+import { resolveServiceCharge, serviceChargeDebugTitle } from '../../utils/serviceCharge';
 import { draftSessionKey, loadDraftSession } from '../../utils/draftSession';
 import { Skeleton } from '../ui/Skeleton';
 import { Table, TableHeader, TableBody, TableHead, TableCell } from '../ui/Table';
+// UNITS CONSOLE REFACTOR (UNITS_PAGE_REDESIGN.md): the ~1,000-line inline
+// Units-tab IIFE below is replaced by the focused UnitsConsole family in
+// ./units/ — same queries, same hardened mutations, same guardrails; every
+// signal and action is re-homed, none is lost. The statutory eviction
+// state machine moved verbatim to ./units/evictionTracker.ts (shared,
+// import-cycle-free).
+import UnitsConsole from './units/UnitsConsole';
+import { getEvictionTracker, getNoticePeriodMonths, type EvictionTracker, type EvictionEvent } from './units/evictionTracker';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
     <div className="w-full min-w-0 overflow-x-hidden break-words whitespace-normal text-left max-w-full" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5 whitespace-normal">{label}</p>
@@ -56,54 +62,8 @@ const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: st
 
 type PropertyTab = 'summary' | 'units' | 'notices' | 'financials' | 'relationships' | 'tracking';
 
-// ─── Eviction Tracker Types & Helpers ───
-interface EvictionTracker {
-    // STATUTORY EVICTION STATE MACHINE (Nigerian Tenancy Law compliant)
-    // Streamlined: "Mark as Delivered" removed — "Served" is the sole
-    // statutory milestone. Countdown activates on serve.
-    //   none → drafted → served → (countdown expires) → sevenDayDue
-    //   superseded: when a fresh notice is generated while a served notice
-    //   is active, the old notice transitions to 'superseded' and the
-    //   countdown resets.
-    quitNoticeStatus: 'none' | 'drafted' | 'served' | 'superseded';
-    quitNoticeDraftedDate?: number;
-    quitNoticeServedDate?: number;
-    quitNoticeSupersededDate?: number;
-    quitNoticeDocumentId?: string;
-    quitNoticeServiceMethod?: string; // 'personal' | 'substituted' | 'registered_post'
-    // Countdown — calculated when notice is marked served
-    quitNoticeCountdownEndDate?: number; // when the statutory period expires
-    sevenDayNoticeStatus: 'none' | 'due' | 'drafted' | 'served' | 'delivered';
-    sevenDayNoticeDueDate?: number;
-    sevenDayNoticeDraftedDate?: number;
-    sevenDayNoticeDocumentId?: string;
-    // Audit trail — immutable event log stored on the tracker
-    eventLog?: EvictionEvent[];
-}
-
-interface EvictionEvent {
-    type: 'drafted' | 'served' | 'superseded' | 'seven_day_issued' | 'seven_day_served' | 'retracted';
-    timestamp: number;
-    documentId?: string;
-    notes?: string;
-    actorId?: string;
-}
-
-/** Calculate statutory notice period in months based on tenancy frequency */
-const getNoticePeriodMonths = (frequency?: string): number => {
-    const f = (frequency || '').toLowerCase();
-    if (f.includes('year')) return 6;
-    if (f.includes('6-month')) return 3;
-    if (f.includes('quarter')) return 1;
-    if (f.includes('month')) return 1;
-    return 6; // Default to 6 months for yearly tenancy (most common in Nigeria)
-};
-
-/** Get eviction tracker from a unit's rentalDetails */
-const getEvictionTracker = (unit: any): EvictionTracker => {
-    const rd = unit?.rentalDetails || unit;
-    return rd?.evictionTracker || { quitNoticeStatus: 'none', sevenDayNoticeStatus: 'none' };
-};
+// ─── Eviction Tracker — see ./units/evictionTracker.ts (moved verbatim;
+//     shared with the Units Console) ───
 
 const calculateRentReviewDate = (leaseEnd?: string, frequency?: string) => {
     if (!leaseEnd) return null;
@@ -132,28 +92,21 @@ const PropertyDetailViewContent: React.FC = () => {
     const { financeState } = useFinanceState();
     const { documentState } = useDocumentState();
     const { coreState, isDataLoaded } = useCoreState();
-    const { updateItem, onAddMatter, handleDeleteProperty, addUnit, removeUnit } = useDataActions() as any;
+    const { updateItem, onAddMatter, handleDeleteProperty } = useDataActions() as any;
     const { currentUser, bearerToken } = useAuth();
     const convex = useConvex();
     const { isGrowthOrAbove, isKompleteFirm } = useFeatures();
     const { openWithContext } = useAloa();
     const [activeTab, setActiveTab] = useState<PropertyTab>('summary');
-    const [openUnitMenuId, setOpenUnitMenuId] = useState<string | null>(null);
-    const [openUnitMenuPos, setOpenUnitMenuPos] = useState<{ top: number; right: number } | null>(null);
-    const unitMenuRef = useRef<HTMLDivElement>(null);
+    // UNITS CONSOLE REFACTOR: the unit-menu / add-unit-form / full-detail
+    // states moved into UnitsConsole; only the deep-link selection
+    // (selectedUnit — shared with the notification auto-expander) remains.
     const [selectedUnit, setSelectedUnit] = useState<Property | null>(null);
 
-    const [showAddUnitForm, setShowAddUnitForm] = useState(false);
-    const [newUnitName, setNewUnitName] = useState('');
-    const [newUnitType, setNewUnitType] = useState<'Residential' | 'Commercial'>('Residential');
     // Unified compose prefill — when set, the ONE ComposeModal opens with the
     // resident (and their contact info + financials) pre-selected. Set by
-    // clicking [Message] on any unit card.
+    // clicking [Message] on any unit row.
     const [composePrefill, setComposePrefill] = useState<ComposeModalPrefill | undefined>(undefined);
-    // SIMPLIFY FIX: showUnitMessaging / showCompose / composePrefill removed —
-    // none could ever become true, and the UI they gated never rendered.
-    const [showFullUnitDetail, setShowFullUnitDetail] = useState(false);
-    const unitMenuInnerRef = useRef<HTMLDivElement>(null);
 
     // ─── Deep-link context handling ───────────────────────────────────
     // When navigated from a notification banner (e.g. "OVERDUE RENT"),
@@ -167,7 +120,6 @@ const PropertyDetailViewContent: React.FC = () => {
     const [highlightTarget, setHighlightTarget] = useState<string | null>(null);
     const [targetUnitId, setTargetUnitId] = useState<string | null>(null);
     const [deepLinkReason, setDeepLinkReason] = useState<string | null>(null);
-    const [dismissTick, setDismissTick] = useState(0);
     useEffect(() => {
         const ctx = currentHistoryEntry?.context as any;
         if (ctx?.tab) {
@@ -208,40 +160,6 @@ const PropertyDetailViewContent: React.FC = () => {
     //   ReferenceError: Cannot access 'm' before initialization
     // because `allUnits` is a const that's accessed before its
     // declaration is evaluated.
-
-    useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
-            if (unitMenuRef.current && !unitMenuRef.current.contains(e.target as Node)) {
-                setOpenUnitMenuId(null);
-                setOpenUnitMenuPos(null);
-            }
-        };
-        document.addEventListener('mousedown', onDocClick);
-        return () => document.removeEventListener('mousedown', onDocClick);
-    }, []);
-
-    // Smart menu repositioning — measure actual rendered menu height and flip if overflowing
-    useEffect(() => {
-        if (!openUnitMenuId || !openUnitMenuPos || !unitMenuInnerRef.current) return;
-        const menuEl = unitMenuInnerRef.current;
-        const menuHeight = menuEl.offsetHeight;
-        const menuWidth = menuEl.offsetWidth;
-        const pos = openUnitMenuPos;
-
-        // Check if menu overflows bottom of viewport
-        const menuBottom = pos.top + menuHeight;
-        if (menuBottom > window.innerHeight - 8) {
-            // Flip upward: position above the anchor instead
-            const newTop = Math.max(8, pos.top - menuHeight - 8);
-            setOpenUnitMenuPos({ ...pos, top: newTop });
-        }
-
-        // Check if menu overflows left edge (positioned from right)
-        const menuLeft = window.innerWidth - pos.right - menuWidth;
-        if (menuLeft < 8) {
-            setOpenUnitMenuPos({ ...pos, right: Math.max(8, window.innerWidth - menuWidth - 8) });
-        }
-    }, [openUnitMenuId, openUnitMenuPos]);
 
     // On-demand fetch for deep-linking
     const onDemandProperty = useQuery(
@@ -461,13 +379,14 @@ const PropertyDetailViewContent: React.FC = () => {
 
         if (targetUnit) {
             setSelectedUnit(targetUnit);
-            // Scroll into view after a short delay (let the drawer expand).
-            // Try BOTH id forms — data-unit-id renders the custom id, but the
-            // deep-link target may be the Convex _id (see ID-SHAPE FIX above).
+            // Scroll into view after a short delay (let the row expand).
+            // UNITS CONSOLE: rows carry BOTH id forms — data-unit-id (custom
+            // id) and data-unit-convex-id (Convex _id) — so the deep-link
+            // target lands on the right row whichever shape it carries.
             setTimeout(() => {
                 const byCustomId = document.querySelector(`[data-unit-id="${targetUnit!.id}"]`);
                 const byConvexId = (targetUnit as any)._id && String((targetUnit as any)._id) !== String(targetUnit!.id)
-                    ? document.querySelector(`[data-unit-id="${String((targetUnit as any)._id)}"]`)
+                    ? document.querySelector(`[data-unit-convex-id="${String((targetUnit as any)._id)}"]`)
                     : null;
                 const el = byCustomId || byConvexId;
                 if (el) {
@@ -1336,1019 +1255,44 @@ const PropertyDetailViewContent: React.FC = () => {
                     </div>
                 )}
 
-                {activeTab === 'units' && (() => {
-                    const legacyUnits = ((property as any)?.units || [])
-                        .map((u: any, idx: number) => ({ ...u, id: u.id || `temp-unit-${idx}` }))
-                        .filter((u: any) => u);
-                    
-                    const units = [...(allUnits || [])]
-                        .map(u => u && u.id ? u : null)
-                        .filter((u): u is Property => u !== null);
-
-                    legacyUnits.forEach((lu: any) => {
-                        if (!units.some(u => u.id === lu.id || (u as any).name === lu.name)) {
-                            units.push(lu);
-                        }
-                    });
-                    const isEmbeddedUnit = (unit: any) => legacyUnits.some((lu: any) => lu.id === unit.id);
-                    const statusColors: Record<string, string> = {
-                        'Occupied': 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
-                        'Vacant': 'bg-slate-50 dark:bg-zinc-800/50 text-slate-600 border-slate-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-600',
-                        'Maintenance': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800',
-                        'Listed': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800',
-                    };
-                    const occupiedCount = units.filter(u => u?.status === 'Occupied').length;
-                    const vacantCount = units.filter(u => u?.status === 'Vacant').length;
-                    const maintenanceCount = units.filter(u => u?.status === 'Maintenance').length;
-                    const minimumVendEnabled = (property as any).minimumVendEnabled || false;
-                    const vendLabel = (property as any).minimumVendLabel || 'Min Vend';
-
-                    const handleAddUnitSubmit = async () => {
-                        if (!newUnitName.trim()) { addToast('Unit name is required', { type: 'error' }); return; }
-                        // FIX: include a rentalDetails object so the unit is
-                        // immediately recognized by getUnitDisplay() and
-                        // financial aggregations. Previously, new units had
-                        // only a bare rentAmount field, which meant they
-                        // contributed ₦0 to "Total Annual Rent" until the
-                        // user opened the Edit modal and saved.
-                        const newUnit = {
-                            id: `unit-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-                            unitName: newUnitName.trim(),
-                            name: newUnitName.trim(),
-                            propertyType: newUnitType,
-                            status: 'Vacant',
-                            rentAmount: 0,
-                            rentalDetails: {
-                                unitName: newUnitName.trim(),
-                                rentAmount: 0,
-                                rentFrequency: 'Annually',
-                                leaseStart: '',
-                                leaseEnd: '',
-                                tenantName: '',
-                                tenantPhone: '',
-                                tenantEmail: '',
-                                serviceCharge: 0,
-                                serviceChargeAmount: 0,
-                                serviceChargeStatus: 'UNPAID',
-                                legalFee: 0,
-                                agencyFee: 0,
-                                cautionDeposit: 0,
-                            },
-                        };
-                        try {
-                            await addUnit(property.id, newUnit);
-                            setNewUnitName('');
-                            setNewUnitType('Residential');
-                            setShowAddUnitForm(false);
-                        } catch (e) { addToast('Failed to add unit.', { type: 'error' }); }
-                    };
-
-                    const handleRemoveUnit = (unit: any, d: ReturnType<typeof getUnitDisplay>) => {
-                        openModal('deleteConfirmation', unit.id, {
-                            title: 'Remove Unit',
-                            message: `Remove "${d.name}" from this property? The unit will be archived — ledger entries, receipts, and historical records will be preserved.`,
-                            onConfirm: async () => {
-                                try {
-                                    // SOFT-DELETE FIX — instead of hard-deleting the property
-                                    // record (which destroys rentPaymentHistory) or splicing
-                                    // the units array (which orphans ledger entries), we mark
-                                    // the unit as 'Deleted' with a timestamp. The unit is
-                                    // filtered out of the display layer but all financial
-                                    // and legal history is preserved in the database.
-                                    const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
-                                    const updatePayload: any = { ...full, status: 'Deleted', deletedAt: new Date().toISOString() };
-                                    if ((full as any)._id) updatePayload._id = (full as any)._id;
-                                    await updateItem('properties', updatePayload, 'Property');
-                                    addToast(`Unit "${d.name}" archived. Historical records preserved.`, { type: 'success' });
-                                    setSelectedUnit(null);
-                                } catch (e) { addToast('Failed to archive unit.', { type: 'error' }); }
-                            },
-                            confirmText: 'Archive Unit',
-                        });
-                    };
-
-                    return (
-                        <div className="space-y-6 animate-fade-in">
-                            {/* Header: status pills + Add Unit button */}
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <div className="flex gap-2 flex-1 overflow-x-auto pb-1 no-scrollbar">
-                                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg px-4 py-2 border border-green-100 dark:border-green-800 flex items-center gap-2 flex-shrink-0">
-                                        <span className="text-xl font-black text-green-700 dark:text-green-300">{occupiedCount}</span>
-                                        <span className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-wider">Occupied</span>
-                                    </div>
-                                    <div className="bg-slate-100 dark:bg-zinc-800 rounded-lg px-4 py-2 border border-slate-200 dark:border-zinc-700 flex items-center gap-2 flex-shrink-0">
-                                        <span className="text-xl font-black text-slate-700 dark:text-white">{vacantCount}</span>
-                                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Vacant</span>
-                                    </div>
-                                    <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg px-4 py-2 border border-amber-100 dark:border-amber-800 flex items-center gap-2 flex-shrink-0">
-                                        <span className="text-xl font-black text-amber-700 dark:text-amber-300">{maintenanceCount}</span>
-                                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Maintenance</span>
-                                    </div>
-                                </div>
-                                {/* UX-32: the scoped Add-unit action is restored — the inline form
-                                    below (name + type → addUnit) was fully built but unreachable
-                                    after the button was removed, leaving the heaviest path
-                                    (edit modal → Lease & Rent Configuration) as the only way to
-                                    add a unit. */}
-                                <Button
-                                    variant="primary"
-                                    size="sm"
-                                    onClick={() => setShowAddUnitForm(true)}
-                                >
-                                    <Plus className="w-3.5 h-3.5" /> Add Unit
-                                </Button>
-                            </div>
-
-                            {/* Add Unit inline form */}
-                            {showAddUnitForm && (
-                                <div className="bg-white dark:bg-zinc-800 rounded-lg border border-primary-200 dark:border-primary-700 shadow-sm p-5">
-                                    <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                                        <Plus className="w-4 h-4 text-primary-500" /> Add New Unit
-                                    </h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Name / Number <span className="text-rose-500">*</span></label>
-                                            <input
-                                                type="text"
-                                                value={newUnitName}
-                                                onChange={e => setNewUnitName(e.target.value)}
-                                                placeholder="e.g. Unit 1A, Flat 3, Shop 2"
-                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                                onKeyDown={e => { if (e.key === 'Enter') handleAddUnitSubmit(); if (e.key === 'Escape') setShowAddUnitForm(false); }}
-                                                autoFocus
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-2xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unit Type</label>
-                                            <select
-                                                value={newUnitType}
-                                                onChange={e => setNewUnitType(e.target.value as 'Residential' | 'Commercial')}
-                                                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                            >
-                                                <option value="Residential">Residential</option>
-                                                <option value="Commercial">Commercial</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 mt-4">
-                                        <button onClick={handleAddUnitSubmit} className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-bold rounded-lg transition-colors">Add Unit</button>
-                                        <button onClick={() => { setShowAddUnitForm(false); setNewUnitName(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 text-sm font-bold rounded-lg transition-colors">Cancel</button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── HIGH-DENSITY UNIT CARDS ── Inline expansion layout */}
-                            {(() => {
-                                return (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                        {units.map((unit: Property) => {
-                                                const d = getUnitDisplay(unit);
-                                                const isFloor = d.name.toLowerCase().includes('floor');
-                                                const menuOpen = openUnitMenuId === unit.id;
-                                                const isSelected = selectedUnit?.id === unit.id;
-                                                const rental = (unit as any).rentalDetails || {};
-                                                const uStatus = String(unit.status || 'Vacant');
-                                                const uType = (unit as any).propertyType || (unit as any).unitType || '';
-
-                                                // ── Visual status — contextual tooltips replace static labels ──
-                                                // R28 — EXPIRED TENANCY: a distinct at-a-glance cue, separate from
-                                                // the solid red already used for overdue rent / service charge.
-                                                // Striped rose wash + solid rose keyline + an EXPIRED badge with
-                                                // days overstayed, so the Units tab answers "whose tenancy has
-                                                // expired?" without opening anything (owner round 2026-10-17).
-                                                const leaseEndMs = d.leaseEnd ? new Date(d.leaseEnd).getTime() : NaN;
-                                                const tenancyExpired = uStatus === 'Occupied' && !isNaN(leaseEndMs) && leaseEndMs < Date.now();
-                                                const daysOverstayed = tenancyExpired ? Math.max(0, Math.floor((Date.now() - leaseEndMs) / (24 * 60 * 60 * 1000))) : 0;
-                                                let statusBorder = '#94A3B8';
-                                                let statusBadge: { label: string; cls: string; tooltip: string } | null = null;
-                                                if (tenancyExpired) {
-                                                    statusBorder = '#9F1239'; // rose-800 — the expired keyline
-                                                }
-                                                if (uStatus === 'Occupied') {
-                                                    const hasTier1 = !!(d.tenantName && d.leaseEnd);
-                                                    const hasTier2 = !!((rental.tenantPhone || (unit as any).tenantPhone) && d.rentAmount > 0);
-                                                    if (hasTier1 && hasTier2) {
-                                                        statusBorder = '#22C55E';
-                                                        statusBadge = { label: 'Info Complete', cls: 'text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400', tooltip: d.statusTooltip };
-                                                    } else if (!hasTier1) {
-                                                        statusBorder = '#EF4444';
-                                                        statusBadge = { label: 'Action Required', cls: 'text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400', tooltip: d.statusTooltip };
-                                                    } else {
-                                                        statusBorder = '#F59E0B';
-                                                        statusBadge = { label: 'Needs Info', cls: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-400', tooltip: d.statusTooltip };
-                                                    }
-                                                }
-
-                                                const typeBg = uType === 'Commercial'
-                                                    ? 'bg-amber-50/60 dark:bg-amber-950/20'
-                                                    : 'bg-blue-50/40 dark:bg-blue-950/10';
-
-                                                // Unified service-charge resolution (Item 2): 0 is a REAL value at
-                                                // every level; the parent property is the last-resort fallback.
-                                                const scResolution = resolveServiceCharge({ unit, rental, defaultProperty: property });
-                                                const scAmount = scResolution.amount;
-                                                // LIVE billing timeline (units-tab overhaul): the expanded card's
-                                                // SC badge + outstanding figures derive from the same engine the
-                                                // pill strips use — time- and payment-driven, never the stale
-                                                // stored snapshot. Falls back to the stored aggregate only when
-                                                // no timeline can be computed (e.g. no lease dates).
-                                                const scTimeline = serviceChargeTimeline({ unit, rental: (unit as any).rentalDetails, defaultProperty: property });
-                                                const scLive = scTimeline.summary.state;
-                                                const scOutstandingLive = Math.round(scTimeline.summary.outstandingTotal);
-
-                                                // ── Statutory timeline milestone ──
-                                                // DISMISSIBLE + SUPPRESSED if quit notice has been served.
-                                                // Users with their own agreements outside the app can dismiss
-                                                // this advisory. If a quit notice is active (served/drafted),
-                                                // the advisory is suppressed — the user has already taken action.
-                                                const renderTermMilestone = () => {
-                                                    if (!d.isPastHalfway || uStatus !== 'Occupied') return null;
-                                                    // SUPPRESS if quit notice has been served or drafted
-                                                    const eviction = getEvictionTracker(unit);
-                                                    if (eviction.quitNoticeStatus === 'served' || eviction.quitNoticeStatus === 'drafted') return null;
-                                                    // Check if user dismissed this advisory for this unit
-                                                    const dismissKey = `dismiss_term_milestone_${unit.id}`;
-                                                    const isDismissed = (() => {
-                                                        try { return localStorage.getItem(dismissKey) === 'true'; } catch { return false; }
-                                                    })();
-                                                    if (isDismissed) return null;
-
-                                                    const pct = Math.round((d.termProgress ?? 0) * 100);
-                                                    const isCompressed = pct >= 75;
-                                                    const tooltipText = isCompressed
-                                                        ? `Tenancy ${pct}% elapsed. Statutory notice window compressed—review lease terms or engage tenant for waiver.`
-                                                        : `Tenancy ${pct}% elapsed. Statutory notice window is active.`;
-                                                    return (
-                                                        <div className="flex items-center gap-1 mt-1 group" title={tooltipText}>
-                                                            <CalendarIcon className="w-3 h-3 text-orange-500" />
-                                                            <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">{pct}% Elapsed</span>
-                                                            {/* Dismiss button — fades in on hover */}
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    try { localStorage.setItem(dismissKey, 'true'); } catch {}
-                                                                    // Force re-render by toggling a state
-                                                                    setDismissTick(t => t + 1);
-                                                                }}
-                                                                className="ml-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300"
-                                                                title="Dismiss this advisory"
-                                                                aria-label="Dismiss"
-                                                            >
-                                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                                </svg>
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                };
-
-                                                // Expanded view data
-                                                const tenantPhone: string = (unit as any).rentalDetails?.tenantPhone || (unit as any).tenantPhone || '';
-                                                const tenantEmail: string = (unit as any).rentalDetails?.tenantEmail || (unit as any).tenantEmail || '';
-                                                const hasContactInfo = !!(tenantPhone || tenantEmail);
-
-                                                // R101: this card's tenancy-ledger entry (same unit id shape
-                                                // as the shared status feed; fallback mirrors the card data).
-                                                const tUnit = tenancyUnitById.get(String(unit.id)) || {
-                                                    id: String(unit.id),
-                                                    label: d.name || 'Unit',
-                                                    unitName: String((unit as any).unitName || (unit as any).name || ''),
-                                                    status: uStatus,
-                                                    tenantName: d.tenantName || (rental as any).tenantName,
-                                                    tenantPhone,
-                                                    tenantEmail,
-                                                    rentAmount: Number((rental as any).rentAmount ?? d.rentAmount ?? 0) || 0,
-                                                    rentFrequency: (rental as any).rentFrequency,
-                                                    leaseStart: (rental as any).leaseStart || d.leaseStart,
-                                                    leaseEnd: (rental as any).leaseEnd || d.leaseEnd,
-                                                };
-
-                                                // ── Eviction Tracker State ──
-                                                const eviction = getEvictionTracker(unit);
-                                                const isEvictionActive = eviction.quitNoticeStatus !== 'none' || eviction.sevenDayNoticeStatus !== 'none';
-                                                const isSevenDayDue = eviction.sevenDayNoticeStatus === 'due' && eviction.sevenDayNoticeDueDate && Date.now() >= eviction.sevenDayNoticeDueDate;
-                                                const isSevenDayUpcoming = eviction.sevenDayNoticeStatus === 'due' && eviction.sevenDayNoticeDueDate && Date.now() < eviction.sevenDayNoticeDueDate;
-                                                const canUseEviction = isGrowthOrAbove || isKompleteFirm;
-
-                                                // SIMPLIFY FIX: the old unit messaging strip + its five
-                                                // handlers (handleWhatsApp / handleEmailTenant /
-                                                // handleOpenInbox / handleSendPortalMessage /
-                                                // handleOpenCompose) were unreachable — showUnitMessaging
-                                                // was only ever set false, so the strip never rendered.
-                                                // Messaging now flows exclusively through the unified
-                                                // ComposeMessageModal via the Message button above.
-
-                                                return (
-                                                    <div
-                                                        key={unit.id}
-                                                        data-unit-id={unit.id}
-                                                        ref={isSelected ? (el: HTMLDivElement | null) => { /* removed scrollIntoView — caused scroll bounce when expanding unit details */ } : undefined}
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedUnit(isSelected ? null : unit); setShowAddUnitForm(false); setShowFullUnitDetail(false); }}
-                                                        style={{ borderLeftColor: isSelected ? undefined : statusBorder, borderLeftWidth: 4 }}
-                                                        className={`${typeBg} rounded-lg border shadow-sm hover:shadow-md transition-all duration-300 ease-in-out cursor-pointer overflow-hidden ${
-                                                            isSelected ? 'col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 border-primary-400 dark:border-primary-600 ring-2 ring-primary-100 dark:ring-primary-900/50 p-4 sm:p-5' : 'border-slate-200 dark:border-zinc-700 hover:border-primary-300 dark:hover:border-primary-700 p-3'
-                                                        } ${tenancyExpired ? 'unit-tenancy-expired' : ''} ${
-                                                            // EMERALD GLOW HIGHLIGHT — when this unit is the target of a
-                                                            // critical lease notification deep-link, apply a high-visibility
-                                                            // emerald glow + pulse animation for 3 seconds to draw focus.
-                                                            // ID-SHAPE FIX (2026-09-14): deep-links may carry either the
-                                                            // custom id OR the Convex _id — compare both so the pulse
-                                                            // actually lands on the unit in question.
-                                                            highlightTarget && (highlightTarget === unit.id || String(highlightTarget) === String(unit.id) || String(highlightTarget) === String((unit as any)._id) || highlightTarget === 'overdue')
-                                                                ? 'unit-card-highlight ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/30'
-                                                                : ''
-                                                        }`}
-                                                    >
-                                                        {/* ── Card Header ── */}
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <div className="min-w-0 flex-1 pr-2">
-                                                                <p className="font-bold text-slate-900 dark:text-white text-sm truncate">{d.name}</p>
-                                                                {d.floor && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">Floor {d.floor}</p>}
-                                                                {/* R28 — the EXPIRED badge: WHO overstayed and by how long,
-                                                                    visible without expanding the card. */}
-                                                                {tenancyExpired && (
-                                                                    <div
-                                                                        className="unit-expired-badge mt-1.5"
-                                                                        title={`Tenancy expired ${daysOverstayed === 0 ? 'today' : `${daysOverstayed} day(s) ago`} — statutory notice windows apply`}
-                                                                    >
-                                                                        <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-                                                                        </svg>
-                                                                        <span>Tenancy Expired</span>
-                                                                        <span className="unit-expired-days">
-                                                                            {daysOverstayed === 0 ? 'ended today' : `+${daysOverstayed}d overstayed`}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                            {/* DIRECT STATUS BADGE — clickable to open a quick status
-                                                                selector without expanding the card or opening edit modal. */}
-                                                            <div className="relative">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        const el = e.currentTarget.nextElementSibling as HTMLElement;
-                                                                        if (el) el.classList.toggle('hidden');
-                                                                    }}
-                                                                    className={`px-2 py-0.5 rounded-md text-2xs font-bold uppercase tracking-wide flex-shrink-0 border cursor-pointer hover:ring-2 hover:ring-primary-500/30 transition-all ${statusColors[uStatus] || 'bg-slate-50 dark:bg-zinc-800/50 text-slate-600 border-slate-200 dark:border-zinc-600'}`}
-                                                                    title="Click to change status"
-                                                                >
-                                                                    {uStatus}
-                                                                </button>
-                                                                <div className="hidden absolute right-0 top-full mt-1 z-50 w-36 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg">
-                                                                    {(['Occupied', 'Vacant', 'Maintenance', 'Listed'] as const).map(s => (
-                                                                        <button
-                                                                            key={s}
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
-                                                                                const updatePayload: any = { ...full, status: s };
-                                                                                if ((full as any)._id) updatePayload._id = (full as any)._id;
-                                                                                updateItem('properties', updatePayload, 'Property');
-                                                                                addToast(`${d.name} marked as ${s}`, { type: 'success' });
-                                                                                const el = e.currentTarget.parentElement as HTMLElement;
-                                                                                if (el) el.classList.add('hidden');
-                                                                            }}
-                                                                            className={`block w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-700 ${uStatus === s ? 'text-primary-600 dark:text-primary-400 font-bold' : 'text-slate-600 dark:text-zinc-300'}`}
-                                                                        >
-                                                                            {s}
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* ── Micro-Profile: Operational dynamics only ── */}
-                                                        <div className="space-y-1 text-xs min-w-0 overflow-hidden">
-                                                            {d.tenantName && (
-                                                                <div className="flex items-center gap-1.5 mb-0.5">
-                                                                    <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-zinc-600 flex items-center justify-center flex-shrink-0">
-                                                                        <span className="text-3xs font-black text-slate-500 dark:text-zinc-300">{d.tenantName.charAt(0).toUpperCase()}</span>
-                                                                    </div>
-                                                                    <div className="min-w-0">
-                                                                        <p className="text-slate-800 dark:text-zinc-100 text-xs font-semibold truncate min-w-0">
-                                                                            {d.tenantName}
-                                                                        </p>
-                                                                        {/* Tenancy Ends date — directly beneath tenant name,
-                                                                            aligned with the avatar's left margin (pl-5 to match
-                                                                            the w-5 avatar width + gap-1.5). Previously this was
-                                                                            a separate row lower down with just "Ends" label. */}
-                                                                        {d.leaseEnd && (
-                                                                            <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                                                                                <span className="font-bold text-slate-400 uppercase tracking-wider mr-1">Tenancy Ends:</span>
-                                                                                {(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return '—'; } })()}
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Billing chips — RENT / SC / MV. Readable text chips
-                                                                ("SC DUE", "RENT CLEAR", "SC 3 MO OVERDUE") driven by
-                                                                the live timeline engine: each month a DUE chip appears
-                                                                until settled, then it goes green. Clicking opens the
-                                                                payment drawer (SC/MV) or Collect Rent (RENT). */}
-                                                            <ServiceChargeBars
-                                                                unit={unit}
-                                                                expanded={false}
-                                                                includeRent={property.rentCollectionMode !== 'Management Only (No Rent)'}
-                                                                onCollectRent={d.tenantName ? () => {
-                                                                    openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id });
-                                                                } : undefined}
-                                                                onUpdate={(updatedRental) => {
-                                                                    const full = units.find((u: Property) => u.id === unit.id) || unit;
-                                                                    updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
-                                                                }}
-                                                            />
-
-                                                            {/* Statutory Timeline Milestone */}
-                                                            {renderTermMilestone()}
-
-                                                            {/* ── Maintenance Ticket Indicator ──────────────────────────
-                                                                Shows a badge if this unit has open maintenance tickets.
-                                                                Turns amber/red if any ticket is stale (>24h in same status). */}
-                                                            {(() => {
-                                                                const unitTickets = ticketsByUnit[String(unit.id)] || [];
-                                                                const openTickets = unitTickets.filter((t: any) => t.status === 'open' || t.status === 'in_progress');
-                                                                if (openTickets.length === 0) return null;
-                                                                const hasStale = openTickets.some((t: any) => t.isStale);
-                                                                return (
-                                                                    <div
-                                                                        className={`flex items-center gap-1.5 mt-1 px-2 py-1 rounded-lg cursor-pointer ${
-                                                                            hasStale
-                                                                                ? 'bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800/40'
-                                                                                : 'bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30'
-                                                                        }`}
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            // UX-33: deep-link to the ticket's conversation when the
-                                                                            // link exists (legacy tickets without one fall back to
-                                                                            // the messaging hub).
-                                                                            const targetConv = openTickets.map((t: any) => t.conversationId).find(Boolean);
-                                                                            if (targetConv) {
-                                                                                navigateTo('messaging', null, { initialTab: 'inbox', selectedInboxId: String(targetConv) });
-                                                                            } else {
-                                                                                navigateTo('messaging' as any);
-                                                                            }
-                                                                        }}
-                                                                        title={hasStale
-                                                                            ? `${openTickets.length} open ticket(s) — one or more has been pending for >24 hours. Tap to view in Conversations.`
-                                                                            : `${openTickets.length} open ticket(s). Tap to view in Conversations.`
-                                                                        }
-                                                                    >
-                                                                        <Wrench className={`w-3 h-3 ${hasStale ? 'text-rose-500' : 'text-amber-500'}`} />
-                                                                        <span className={`text-3xs font-black uppercase tracking-wide ${hasStale ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                                                                            {openTickets.length} Open Ticket{openTickets.length > 1 ? 's' : ''}
-                                                                        </span>
-                                                                        {hasStale && (
-                                                                            <span className="text-3xs font-bold text-rose-500 dark:text-rose-400 ml-1">
-                                                                                ⚠ Stale
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })()}
-
-                                                            {/* Lease end — moved to beneath tenant name above.
-                                                                This duplicate display removed per user request. */}
-
-                                                            {/* Eviction Status Badge — on collapsed card */}
-                                                            {isEvictionActive && (
-                                                                <div className="flex items-center gap-1 mt-0.5">
-                                                                    <Scale className="w-3 h-3 text-rose-500" />
-                                                                    {eviction.quitNoticeStatus === 'drafted' && (
-                                                                        <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Drafted</span>
-                                                                    )}
-                                                                    {eviction.quitNoticeStatus === 'served' && (
-                                                                        <span className="text-3xs font-black text-amber-600 dark:text-amber-400 uppercase">Quit: Served</span>
-                                                                    )}
-                                                                    {eviction.quitNoticeStatus === 'superseded' && (
-                                                                        <span className="text-3xs font-black text-slate-400 dark:text-zinc-500 uppercase line-through">Quit: Superseded</span>
-                                                                    )}
-                                                                    {/* "Quit: Delivered" badge removed — "Served" is the sole
-                                                                        statutory milestone. Countdown shows in the tracking tab. */}
-                                                                    {isSevenDayDue && (
-                                                                        <span className="text-3xs font-black text-rose-600 dark:text-rose-400 uppercase animate-pulse">7-Day Notice Due!</span>
-                                                                    )}
-                                                                    {isSevenDayUpcoming && (
-                                                                        <span className="text-3xs font-black text-orange-600 dark:text-orange-400 uppercase">7-Day Due {eviction.sevenDayNoticeDueDate ? new Date(eviction.sevenDayNoticeDueDate).toLocaleDateString('en-GB') : ''}</span>
-                                                                    )}
-                                                                    {eviction.sevenDayNoticeStatus === 'drafted' && (
-                                                                        <span className="text-3xs font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Drafted</span>
-                                                                    )}
-                                                                    {eviction.sevenDayNoticeStatus === 'served' && (
-                                                                        <span className="text-3xs font-black text-blue-600 dark:text-blue-400 uppercase">7-Day: Served</span>
-                                                                    )}
-                                                                    {eviction.sevenDayNoticeStatus === 'delivered' && (
-                                                                        <span className="text-3xs font-black text-emerald-600 dark:text-emerald-400 uppercase">7-Day: Delivered</span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {/* ── R101: Tenancy-ledger warning (collapsed card) ──
-                                                            Occupied on the unit but no ledger row — the one
-                                                            lifecycle state that needs a call to action without
-                                                            expanding. Full lifecycle controls live in the expanded
-                                                            card's Tenancy Ledger section. */}
-                                                        {(() => {
-                                                            const ts = tenancyStatus?.[String(unit.id)];
-                                                            if (ts?.active) return null;
-                                                            const informal = String(uStatus).toLowerCase() === 'occupied' || !!d.tenantName;
-                                                            if (!informal) return null;
-                                                            return (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="bare"
-                                                                    icon={ClipboardCheck}
-                                                                    fullWidth
-                                                                    className="mt-1 justify-start rounded-lg bg-amber-50 dark:bg-amber-900/15 border border-amber-200 dark:border-amber-800/30 text-amber-700 dark:text-amber-400 font-bold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setSelectedUnit(isSelected ? null : unit);
-                                                                        setShowAddUnitForm(false);
-                                                                        setShowFullUnitDetail(false);
-                                                                    }}
-                                                                    title="This unit is occupied but has no tenancy ledger row — record the sitting resident to enable renewals, transfers and history."
-                                                                >
-                                                                    Tenancy not recorded — record the current resident
-                                                                </Button>
-                                                            );
-                                                        })()}
-
-                                                        {/* ── Card Footer: contextual badge + actions ── */}
-                                                        <div className="mt-2.5 flex items-center justify-between border-t border-slate-100/80 dark:border-zinc-700/50 pt-2 min-w-0 gap-1">
-                                                            {statusBadge ? (
-                                                                <Tooltip text={statusBadge.tooltip} allowWrap>
-                                                                    <span className={`text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide cursor-help ${statusBadge.cls}`}>
-                                                                        {statusBadge.label}
-                                                                    </span>
-                                                                </Tooltip>
-                                                            ) : (
-                                                                // DEDUP FIX: when uStatus is 'Vacant', the top-right badge
-                                                                // already shows 'VACANT'. Don't show a duplicate here.
-                                                                // Only show the fallback badge for non-vacant units that
-                                                                // don't have a statusBadge (e.g. occupied but missing data).
-                                                                uStatus !== 'Vacant' ? (
-                                                                    <span className="text-3xs font-black px-2 py-0.5 rounded-full uppercase tracking-wide text-slate-400 bg-slate-50 dark:bg-zinc-700/40">
-                                                                        {uStatus}
-                                                                    </span>
-                                                                ) : null
-                                                            )}
-                                                            {/* THREE-DOT MENU REMOVED — all actions available in expanded view. Status badge is directly clickable. */}
-                                                        </div>
-
-                                                        {/* ── Inline Expanded View: Two-tier design ── 
-                                                            Tier 1 (always shown when selected): Compact quick-action bar
-                                                            Tier 2 (shown on "More"): Full detail card with metadata + all actions
-                                                        */}
-                                                        {isSelected && (
-                                                            <div className="mt-3 pt-3 border-t border-primary-200/60 dark:border-primary-700/50 animate-fade-in">
-                                                                {/* ── Tier 1: Compact Quick-Action Bar ── */}
-                                                                <div className="flex flex-wrap items-center gap-2">
-                                                                    {/* Close (X) button removed per user request.
-                                                                        Toggling/clicking the unit card itself handles
-                                                                        collapse and accordion state switching. */}
-
-                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id }); }} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm" aria-label="Record Payment & Issue Receipt" title="Record Payment & Issue Receipt">
-                                                                            <Receipt className="w-3 h-3" /> Receipt
-                                                                        </button>
-                                                                    )}
-                                                                    {unit.status === 'Occupied' && property.rentCollectionMode !== 'Management Only (No Rent)' && (
-                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftAction('Rent Demand Notice', 'Demand', unit); }} className="px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-700 dark:text-amber-400 text-2xs font-bold rounded-lg flex items-center gap-1.5 transition-colors border border-amber-200 dark:border-amber-800" aria-label="Rent Demand Notice" title="Rent Demand Notice">
-                                                                            <Megaphone className="w-3 h-3" /> Demand
-                                                                        </button>
-                                                                    )}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            // MESSAGES OVERHAUL: opens the ONE unified composer
-                                                                            // (same modal as Messages → New Message) with this
-                                                                            // resident pre-selected — templates, auto-filled
-                                                                            // financials, delivery results, retry all included.
-                                                                            setComposePrefill({
-                                                                                unitId: unit.id,
-                                                                                unitName: d.name,
-                                                                                tenantName: d.tenantName || 'Resident',
-                                                                                tenantPhone: tenantPhone || undefined,
-                                                                                tenantEmail: tenantEmail || undefined,
-                                                                                rentAmount: d.rentAmount || undefined,
-                                                                                propertyAddress: property.address,
-                                                                            });
-                                                                            setShowFullUnitDetail(false);
-                                                                        }}
-                                                                        onTouchEnd={(e) => {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            setComposePrefill({
-                                                                                unitId: unit.id,
-                                                                                unitName: d.name,
-                                                                                tenantName: d.tenantName || 'Resident',
-                                                                                tenantPhone: tenantPhone || undefined,
-                                                                                tenantEmail: tenantEmail || undefined,
-                                                                                rentAmount: d.rentAmount || undefined,
-                                                                                propertyAddress: property.address,
-                                                                            });
-                                                                            setShowFullUnitDetail(false);
-                                                                        }}
-                                                                        className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-slate-50 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-600 border border-slate-200 dark:border-zinc-600`} aria-label="Message Resident" title="Message Resident">
-                                                                        <MessageSquare className="w-3 h-3" /> Message
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => { e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }}
-                                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); openModal('editProperty', isEmbeddedUnit(unit) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true }); }}
-                                                                        className="h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-slate-50 dark:bg-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-600 text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-600" aria-label="Edit Unit" title="Edit Unit"
-                                                                    >
-                                                                        <EditIcon className="w-3 h-3" /> Edit
-                                                                    </button>
-                                                                    {/* ── Share Application Link (Vacant/Listed units) ──
-                                                                        SIMPLIFY FIX: this is the REAL share surface. The Vacancy
-                                                                        Pipeline's old "Share Application Link" button copied a bare
-                                                                        /apply URL that 404s and told users to come here — but this
-                                                                        chip didn't exist. Copies a working /apply/:propertyId link
-                                                                        (with ?unit= hint) that renders the public application form. */}
-                                                                    {(unit.status === 'Vacant' || unit.status === 'Listed') && (
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                const sharePropertyId = isEmbeddedUnit(unit) ? property.id : unit.id;
-                                                                                const url = `${window.location.origin}/apply/${sharePropertyId}?unit=${encodeURIComponent(d.name)}`;
-                                                                                if (navigator.clipboard?.writeText) {
-                                                                                    navigator.clipboard.writeText(url)
-                                                                                        .then(() => addToast(`Application link for ${d.name} copied — share it with prospective tenants.`, { type: 'success' }))
-                                                                                        .catch(() => addToast(`Copy failed. Link: ${url}`, { type: 'info', duration: 8000 }));
-                                                                                } else {
-                                                                                    addToast(`Link: ${url}`, { type: 'info', duration: 8000 });
-                                                                                }
-                                                                            }}
-                                                                            className="h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800"
-                                                                            aria-label="Copy application link" title="Copy public application link for this unit"
-                                                                        >
-                                                                            <Share2 className="w-3 h-3" /> Share
-                                                                        </button>
-                                                                    )}
-                                                                    {/* More button — reveals full detail card.
-                                                                        Gear icon removed per user request — just text now. */}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => { e.stopPropagation(); setShowFullUnitDetail(v => !v); }}
-                                                                        onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); setShowFullUnitDetail(v => !v); }}
-                                                                        className={`h-9 min-h-[40px] min-w-[44px] touch-manipulation cursor-pointer px-3 text-2xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors ml-auto ${showFullUnitDetail ? 'bg-primary-600 text-white shadow-sm' : 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 border border-primary-200 dark:border-primary-800'}`} aria-label="Full unit details and more actions" title="Full unit details and more actions">
-                                                                        {showFullUnitDetail ? 'Less' : 'More'}
-                                                                    </button>
-                                                                </div>
-
-                                                                {/* ── R101: TENANCY LEDGER — the lifecycle console subsumed INTO the unit card ──
-                                                                    Previously a separate Tenancy Lifecycle panel below the
-                                                                    grid re-listed every unit; owner direction 2026-11-11:
-                                                                    the tenancy cycle belongs to the unit block. Same
-                                                                    actions, same forms, one shared status feed. */}
-                                                                <div className="mt-3 pt-3 border-t border-slate-200/80 dark:border-zinc-700/60">
-                                                                    <UnitTenancySection
-                                                                        variant="card"
-                                                                        unit={tUnit}
-                                                                        units={tenancyUnits}
-                                                                        statusMap={tenancyStatus}
-                                                                        firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
-                                                                        propertyAddress={property.address || ''}
-                                                                        propertyId={property.id}
-                                                                        contacts={matterState.contacts || []}
-                                                                    />
-                                                                </div>
-
-                                                                {/* ── Tier 2: Full Detail Card (shown on "More") ── */}
-                                                                {showFullUnitDetail && (
-                                                                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-zinc-700 animate-fade-in">
-                                                                        {/* Detail header */}
-                                                                        <div className="flex items-start justify-between mb-3">
-                                                                            <div>
-                                                                                <p className="text-3xs font-bold text-primary-500 uppercase tracking-widest mb-0.5">Unit Detail</p>
-                                                                                <h4 className="text-sm font-bold text-slate-900 dark:text-white">{d.name}</h4>
-                                                                                {d.floor && <p className="text-2xs text-slate-400">Floor {d.floor}</p>}
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1.5">
-                                                                                {d.remindersPaused && (
-                                                                                    <span className="px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused after max consecutive attempts. Manual intervention required.">
-                                                                                        Paused
-                                                                                    </span>
-                                                                                )}
-                                                                                {/* INTERACTIVE STATUS BADGE — clicking opens a quick
-                                                                                    status dropdown for direct occupancy editing.
-                                                                                    No need to open the full Edit Property modal. */}
-                                                                                <div className="relative">
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            // Toggle a simple status dropdown
-                                                                                            const el = e.currentTarget.nextElementSibling as HTMLElement;
-                                                                                            if (el) el.classList.toggle('hidden');
-                                                                                        }}
-                                                                                        className={`px-1.5 py-0.5 rounded-full text-3xs font-black uppercase tracking-wide cursor-pointer hover:ring-2 hover:ring-primary-500/30 transition-all ${statusColors[String(unit.status || 'Vacant')] || 'bg-slate-100 dark:bg-zinc-800 text-slate-600'}`}
-                                                                                        title="Click to change status"
-                                                                                    >
-                                                                                        {String(unit.status || 'Vacant')} ▾
-                                                                                    </button>
-                                                                                    <div className="hidden absolute right-0 top-full mt-1 z-50 w-40 bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-lg">
-                                                                                        {(['Occupied', 'Vacant', 'Maintenance', 'Listed'] as const).map(s => (
-                                                                                            <button
-                                                                                                key={s}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    const full = allUnits.find((u: Property) => u.id === unit.id) || unit;
-                                                                                                    // FIX: pass _id (Convex internal ID) as well as id (client UUID).
-                                                                                                    // The updateItem mutation tries ctx.db.get(id) first, then falls
-                                                                                                    // back to by_custom_id index. If the unit only has a _id and no
-                                                                                                    // custom 'id' field, the update fails with 'Record not found'.
-                                                                                                    // Including _id ensures the mutation can always find the record.
-                                                                                                    const updatePayload: any = { ...full, status: s };
-                                                                                                    if ((full as any)._id) {
-                                                                                                        updatePayload._id = (full as any)._id;
-                                                                                                    }
-                                                                                                    updateItem('properties', updatePayload, 'Property');
-                                                                                                    addToast(`${d.name} marked as ${s}`, { type: 'success' });
-                                                                                                    // Hide dropdown
-                                                                                                    const el = e.currentTarget.parentElement as HTMLElement;
-                                                                                                    if (el) el.classList.add('hidden');
-                                                                                                }}
-                                                                                                className={`block w-full text-left px-3 py-1.5 text-xs font-medium hover:bg-slate-100 dark:hover:bg-zinc-700 ${String(unit.status || 'Vacant') === s ? 'text-primary-600 dark:text-primary-400 font-bold' : 'text-slate-600 dark:text-zinc-300'}`}
-                                                                                            >
-                                                                                                {s}
-                                                                                            </button>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        {/* Details grid — compact 3-col metadata */}
-                                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 mb-3">
-                                                                            {d.tenantName && <DetailItem label="Resident" value={d.tenantName} />}
-                                                                            {property.rentCollectionMode !== 'Management Only (No Rent)' && d.rentAmount > 0 && (
-                                                                                <DetailItem label="Rent" value={<>₦{d.rentAmount.toLocaleString()} <span className="text-2xs text-slate-400 font-normal">/{d.rentFrequency === 'Monthly' ? 'mo' : 'yr'}</span></>} />
-                                                                            )}
-                                                                            {d.leaseEnd && <DetailItem label="Lease End" value={(() => { try { return new Date(d.leaseEnd).toLocaleDateString('en-GB'); } catch { return d.leaseEnd; } })()} />}
-                                                                            {tenantPhone && <DetailItem label="Phone" value={tenantPhone} />}
-                                                                            {tenantEmail && <DetailItem label="Email" value={<span className="truncate block">{tenantEmail}</span>} />}
-                                                                            {(() => {
-                                                                                // Unified resolution — same chain as the units grid / SC table.
-                                                                                const scRes = resolveServiceCharge({ unit, rental: (unit as any).rentalDetails, defaultProperty: property });
-                                                                                return scRes.amount > 0 ? (
-                                                                                <DetailItem label="Service Charge" value={
-                                                                                    <span data-sc-source={import.meta.env.DEV ? scRes.source : undefined} title={serviceChargeDebugTitle(scRes.source)}>
-                                                                                        ₦{scRes.amount.toLocaleString()}
-                                                                                        {/* LIVE badge — derived from the billing timeline
-                                                                                            (time + recorded payments), not the stored snapshot.
-                                                                                            Stored aggregate is the fallback when no lease
-                                                                                            dates exist to compute a timeline. */}
-                                                                                        {(() => {
-                                                                                            if (d.remindersPaused) return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" title="Reminders auto-paused — max effort reached. Manual intervention required.">Reminders Paused</span>;
-                                                                                            if (scLive === 'clear') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" title={`All cycles settled through ${scTimeline.summary.settledThrough || 'the latest period'}${scTimeline.summary.nextDueDate ? ` · next charge ${scTimeline.summary.nextDueDate}` : ''}`}>Clear</span>;
-                                                                                            if (scLive === 'due') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" title={`Current cycle due — ₦${scOutstandingLive.toLocaleString()} outstanding for ${scTimeline.summary.currentPeriod ? monthLabelLite(scTimeline.summary.currentPeriod.dueDate) : 'this cycle'}.`}>Due</span>;
-                                                                                            if (scLive === 'overdue') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" title={`${scTimeline.summary.overdueCount + scTimeline.summary.dueCount} cycle(s) unsettled — ₦${scOutstandingLive.toLocaleString()} outstanding. Oldest: ${scTimeline.summary.currentPeriod ? monthLabelLite(scTimeline.summary.currentPeriod.dueDate) : '—'}.`}>{scTimeline.summary.overdueCount > 1 ? `${scTimeline.summary.overdueCount + scTimeline.summary.dueCount} Cycles Due` : 'Outstanding'}</span>;
-                                                                                            // scLive === 'none' — fall back to the stored aggregate
-                                                                                            const scSt = d.serviceChargeStatus || (unit as any).rentalDetails?.serviceChargeStatus || (unit as any).serviceChargeStatus;
-                                                                                            if (scSt === 'PAID_FULLY' || scSt === 'PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">Clear</span>;
-                                                                                            if (scSt === 'PARTIALLY_PAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">Partial</span>;
-                                                                                            if (scSt === 'UNPAID') return <span className="ml-1 inline-flex items-center gap-0.5 text-3xs font-black px-1 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Outstanding</span>;
-                                                                                            return null;
-                                                                                        })()}
-                                                                                    </span>
-                                                                                } />
-                                                                                ) : null;
-                                                                            })()}
-                                                                            {(() => {
-                                                                                const outstanding = scLive !== 'none' && scLive !== 'clear'
-                                                                                    ? scOutstandingLive
-                                                                                    : Number(d.outstandingServiceChargeBalance || (unit as any).rentalDetails?.outstandingServiceChargeBalance || 0);
-                                                                                return outstanding > 0 ? <DetailItem label="Outstanding" value={<span className="text-red-600 dark:text-red-400 font-bold">₦{outstanding.toLocaleString()}</span>} /> : null;
-                                                                            })()}
-                                                                            {((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0) > 0 && <DetailItem label="Legal Fee" value={<>₦{Number((unit as any).legalFee || (unit as any).rentalDetails?.legalFee || 0).toLocaleString()}</>} />}
-                                                                            {((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0) > 0 && <DetailItem label="Agency Fee" value={<>₦{Number((unit as any).agencyFee || (unit as any).rentalDetails?.agencyFee || 0).toLocaleString()}</>} />}
-                                                                            {((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0) > 0 && <DetailItem label="Caution Deposit" value={<>₦{Number((unit as any).cautionDeposit || (unit as any).rentalDetails?.cautionDeposit || 0).toLocaleString()}</>} />}
-                                                                            {d.termProgress !== null && (
-                                                                                <DetailItem label="Term Progress" value={
-                                                                                    <div className="flex items-center gap-1.5">
-                                                                                        <div className="flex-1 h-1.5 bg-slate-200 dark:bg-zinc-700 rounded-full overflow-hidden max-w-[80px]">
-                                                                                            <div className={`h-full rounded-full transition-all ${d.isPastHalfway ? 'bg-orange-500' : 'bg-emerald-500'}`} style={{ width: `${Math.round(d.termProgress * 100)}%` }} />
-                                                                                        </div>
-                                                                                        <span className="text-3xs font-bold text-slate-600 dark:text-zinc-300">{Math.round(d.termProgress * 100)}%</span>
-                                                                                    </div>
-                                                                                } />
-                                                                            )}
-                                                                        </div>
-
-                                                                        {/* ── Billing & Payment History (expanded) ─────────────────
-                                                                            Month-labeled pill strips per stream — RENT, SC, MV —
-                                                                            auto-advancing from lease dates, colored by recorded
-                                                                            payments + due dates (legend above the strips). Clicking
-                                                                            a pill opens the Quick Payment drawer (SC/MV); rent money
-                                                                            is recorded via the Receipt button / Collect Rent. */}
-                                                                        <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3 space-y-2">
-                                                                            <div className="flex items-baseline justify-between gap-2">
-                                                                                <p className="text-3xs font-black text-slate-400 uppercase tracking-widest mb-1">
-                                                                                    Billing & Payment History
-                                                                                </p>
-                                                                                <p className="text-3xs text-slate-400 dark:text-zinc-500 mb-1">
-                                                                                    auto-tracked from lease dates &amp; recorded payments
-                                                                                </p>
-                                                                            </div>
-                                                                            <ServiceChargeBars
-                                                                                unit={unit}
-                                                                                expanded={true}
-                                                                                includeRent={property.rentCollectionMode !== 'Management Only (No Rent)'}
-                                                                                onCollectRent={d.tenantName ? () => {
-                                                                                    openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id });
-                                                                                } : undefined}
-                                                                                onUpdate={(updatedRental) => {
-                                                                                    const full = units.find((u: Property) => u.id === unit.id) || unit;
-                                                                                    updateItem('properties', { ...full, rentalDetails: updatedRental }, 'Property');
-                                                                                }}
-                                                                            />
-                                                                        </div>
-
-                                                                        {/* Secondary actions — single-row uniform chips.
-                                                                            CRO AUDIT FIX — all buttons share identical height (h-8),
-                                                                            padding (px-3 py-1.5), font size (text-xs font-medium),
-                                                                            rounded corners (rounded-md), icon sizes (w-3.5 h-3.5).
-                                                                            Styled as subtle outline chips with gentle hover fills.
-                                                                            Single horizontal flex row with flex-wrap for small screens. */}
-                                                                        <div className="flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 mt-3">
-                                                                            {/* SIMPLIFY FIX: "Ledger-only" rent entry removed — recording a rent
-                                                                                payment now has ONE flow (Collect Rent: receipt + ledger +
-                                                                                history + fee invoice) from the unit card / Financials. */}
-                                                                            {/* STATE GATING — when a notice is served, the "Quit Notice"
-                                                                                button transitions to a muted/secondary state (opacity-60).
-                                                                                Clicking it triggers the supersede confirmation modal
-                                                                                (handled in handleQuitNoticeDrafted). */}
-                                                                            <button
-                                                                                onClick={(e) => { e.stopPropagation(); if (canUseEviction) { handleQuitNoticeDrafted(unit); } else { handleDraftAction('Notice to Quit', 'Quit', unit); } }}
-                                                                                className={`h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border whitespace-nowrap ${
-                                                                                    eviction.quitNoticeStatus === 'served'
-                                                                                        ? 'opacity-60 border-slate-300 dark:border-zinc-600 bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:opacity-100'
-                                                                                        : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400'
-                                                                                }`}
-                                                                                aria-label={eviction.quitNoticeStatus === 'served' ? "Active notice exists — click to supersede with fresh notice" : "Draft Notice to Quit"}
-                                                                                title={eviction.quitNoticeStatus === 'served' ? "Active notice exists — click to supersede with fresh notice" : "Draft Notice to Quit"}
-                                                                            >
-                                                                                <LogOut className="w-3.5 h-3.5" /> {eviction.quitNoticeStatus === 'served' ? 'Supersede' : 'Quit Notice'}
-                                                                            </button>
-
-                                                                            {/* ── Eviction Workflow Actions (Growth+/KOMPLETE only) ──
-                                                                                STATUTORY EVICTION STATE MACHINE:
-                                                                                  drafted → served (activates countdown)
-                                                                                  served → 7-Day Notice (when countdown expires)
-                                                                                "Mark as Delivered" removed — "Served" is the sole statutory
-                                                                                milestone under Nigerian tenancy law.
-                                                                                State gating: when a notice is served, the "Draft Notice"
-                                                                                button transitions to a muted/secondary state. Clicking it
-                                                                                triggers the supersede confirmation modal. */}
-                                                                            {canUseEviction && isEvictionActive && (
-                                                                                <>
-                                                                                    {eviction.quitNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleMarkQuitNoticeServed(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" aria-label="Mark Quit Notice as Served — activates statutory countdown" title="Mark Quit Notice as Served — activates statutory countdown">
-                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> Mark Served
-                                                                                        </button>
-                                                                                    )}
-                                                                                    {/* "Mark Delivered" button REMOVED — "Served" is the sole
-                        statutory milestone. Countdown activates on serve. */}
-                                                                                    {(isSevenDayDue || eviction.sevenDayNoticeStatus === 'due') && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); handleDraftSevenDayNotice(unit); }} className={`h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border whitespace-nowrap ${isSevenDayDue ? 'bg-rose-600 text-white hover:bg-rose-700 animate-pulse shadow-md border-rose-600' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-rose-600 dark:text-rose-400'}`} aria-label={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"} title={isSevenDayDue ? "7-Day Notice is now due — draft it now" : "Draft 7-Day Notice of Owner's Intention to Recover Premises"}>
-                                                                                            <Scale className="w-3.5 h-3.5" /> {isSevenDayDue ? '7-Day Due!' : '7-Day'}
-                                                                                        </button>
-                                                                                    )}
-                                                                                    {eviction.sevenDayNoticeStatus === 'drafted' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'served' }); addToast('7-Day Notice marked as served.', { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" aria-label="Mark 7-Day Notice as Served" title="Mark 7-Day Notice as Served">
-                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> 7-Day Served
-                                                                                        </button>
-                                                                                    )}
-                                                                                    {eviction.sevenDayNoticeStatus === 'served' && (
-                                                                                        <button onClick={(e) => { e.stopPropagation(); updateEvictionTracker(unit, { sevenDayNoticeStatus: 'delivered' }); addToast('7-Day Notice delivery confirmed. Ready for court filing.', { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-400 whitespace-nowrap" aria-label="Confirm delivery of 7-Day Notice" title="Confirm delivery of 7-Day Notice">
-                                                                                            <CheckCircleIcon className="w-3.5 h-3.5" /> 7-Day Delivered
-                                                                                        </button>
-                                                                                    )}
-                                                                                </>
-                                                                            )}
-                                                                            {canUseEviction && !isEvictionActive && uStatus === 'Occupied' && (
-                                                                                <span className="text-3xs text-slate-400 italic">Eviction workflow available via Quit Notice</span>
-                                                                            )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleInitializeMatter(unit); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-700 dark:text-indigo-400 whitespace-nowrap" aria-label="Initialize Legal/Management File" title="Initialize Legal/Management File">
-                                                                                <Scale className="w-3.5 h-3.5" /> Legal File
-                                                                            </button>
-                                                                            <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Maintenance' }, 'Property'); addToast('Unit marked for maintenance: ' + d.name, { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-700 dark:text-amber-400 whitespace-nowrap" aria-label="Log Maintenance" title="Log Maintenance">
-                                                                                <Wrench className="w-3.5 h-3.5" /> Maintenance
-                                                                            </button>
-                                                                            {uStatus !== 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Vacant', rentalDetails: { ...(full as any).rentalDetails } }, 'Property'); addToast(`${d.name} marked as Vacant`, { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-400 whitespace-nowrap" aria-label="Mark as Vacant" title="Mark as Vacant">
-                                                                                    <Eye className="w-3.5 h-3.5" /> Vacant
-                                                                                </button>
-                                                                            )}
-                                                                            {uStatus === 'Vacant' && (
-                                                                                <button onClick={(e) => { e.stopPropagation(); const full = units.find((u: Property) => u.id === unit.id) || unit; updateItem('properties', { ...full, status: 'Occupied' }, 'Property'); addToast(`${d.name} marked as Occupied`, { type: 'success' }); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-green-700 dark:text-green-400 whitespace-nowrap" aria-label="Mark as Occupied" title="Mark as Occupied">
-                                                                                    <CheckCircleIcon className="w-3.5 h-3.5" /> Occupied
-                                                                                </button>
-                                                                            )}
-                                                                            <button onClick={(e) => { e.stopPropagation(); handleRemoveUnit(unit, d); }} className="h-8 px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-colors border border-rose-300 dark:border-rose-800 bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 whitespace-nowrap" aria-label="Remove Unit" title="Remove Unit">
-                                                                                <Trash2 className="w-3.5 h-3.5" /> Remove
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                    </div>
-                                );
-                            })()}
-
-                            {/* ── ARCHIVED UNITS (restorable) ────────────────────
-                                ARCHIVED UNITS FIX (2026-09-14): "Remove Unit"
-                                soft-archives (status='Deleted') and the modal
-                                promises "ledger entries, receipts, and
-                                historical records will be preserved" — but
-                                archived units had NO listing and NO restore
-                                anywhere (they just vanished). They are now
-                                listed here with Restore (back to the Units
-                                grid as Vacant) and a permanent delete. */}
-                            {archivedUnits.length > 0 && (
-                                <details className="group">
-                                    <summary className="list-none cursor-pointer select-none">
-                                        <div className="flex items-center gap-2 px-1 py-1">
-                                            <svg className="w-3 h-3 text-slate-400 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                                            </svg>
-                                            <span className="text-2xs font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
-                                                Archived Units ({archivedUnits.length})
-                                            </span>
-                                            <span className="text-2xs text-slate-400 dark:text-zinc-600">
-                                                hidden from the grid — restore to bring them back
-                                            </span>
-                                        </div>
-                                    </summary>
-                                    <div className="mt-2 space-y-2">
-                                        {archivedUnits.map((unit: Property) => {
-                                            const d = getUnitDisplay(unit);
-                                            return (
-                                                <div key={unit.id} className="flex items-center justify-between gap-3 p-3 bg-slate-100/60 dark:bg-zinc-800/50 rounded-xl border border-slate-200/60 dark:border-zinc-800 opacity-75">
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-semibold text-slate-600 dark:text-zinc-300 truncate">
-                                                            {d.name}
-                                                        </p>
-                                                        <p className="text-2xs text-slate-400 dark:text-zinc-500 truncate">
-                                                            {(unit as any).deletedAt ? `Archived ${new Date((unit as any).deletedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : 'Archived'}
-                                                                                            {(unit as any).rentalDetails?.tenantName ? ` · ${((unit as any).rentalDetails as any).tenantName}` : ''}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center gap-1 flex-shrink-0">
-                                                        <button
-                                                            onClick={() => {
-                                                                const full = archivedUnits.find((u: Property) => u.id === unit.id) || unit;
-                                                                const updatePayload: any = { ...full, status: 'Vacant', deletedAt: null };
-                                                                if ((full as any)._id) updatePayload._id = (full as any)._id;
-                                                                updateItem('properties', updatePayload, 'Property').then(() => {
-                                                                    addToast(`Unit "${d.name}" restored to the Units tab.`, { type: 'success' });
-                                                                }).catch(() => {
-                                                                    addToast('Failed to restore unit.', { type: 'error' });
-                                                                });
-                                                            }}
-                                                            className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/10 rounded-lg transition-colors"
-                                                            title="Restore this unit to the Units grid"
-                                                        >
-                                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l-4-4 4-4M5 10h11a4 4 0 014 4v1a4 4 0 01-4 4H9" />
-                                                            </svg>
-                                                            Restore
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </details>
-                            )}
-
-                            {/* ── ROUND R101: the separate Tenancy Lifecycle console is GONE ──
-                                The tenancy lifecycle now lives INSIDE every unit card above
-                                (expand a card → the Tenancy Ledger section: allocate / record /
-                                renew / transfer / end / document / history). Kept here only:
-                                the no-units guidance the old panel provided. */}
-                            {units.length === 0 && (
-                                <Card padding="md">
-                                    <EmptyState
-                                        icon={<Home className="w-6 h-6" />}
-                                        title="No units yet"
-                                        description={`Add units to ${property.address || 'this property'} from the property form to start recording tenancies.`}
-                                    />
-                                </Card>
-                            )}
-                        </div>
-                    );
-                })()}
+                {activeTab === 'units' && (
+                    <UnitsConsole
+                        property={property}
+                        owner={owner}
+                        allUnits={allUnits}
+                        archivedUnits={archivedUnits}
+                        tenancyUnits={tenancyUnits}
+                        tenancyStatus={tenancyStatus}
+                        ticketsByUnit={ticketsByUnit}
+                        contacts={matterState.contacts || []}
+                        firmId={coreState.firmDetails?.id || currentUser?.firmId || property.firmId || ''}
+                        highlightTarget={highlightTarget}
+                        selectedUnit={selectedUnit}
+                        onSelectUnit={setSelectedUnit}
+                        onCollectRent={(unit, d) => openModal('collectRent', property.id, { unitName: d.name, tenantName: d.tenantName, rentAmount: d.rentAmount, unitId: unit.id })}
+                        onCompose={(unit, d) => {
+                            const tenantPhone = (unit as any).rentalDetails?.tenantPhone || (unit as any).tenantPhone || '';
+                            const tenantEmail = (unit as any).rentalDetails?.tenantEmail || (unit as any).tenantEmail || '';
+                            setComposePrefill({
+                                unitId: unit.id,
+                                unitName: d.name,
+                                tenantName: d.tenantName || 'Resident',
+                                tenantPhone: tenantPhone || undefined,
+                                tenantEmail: tenantEmail || undefined,
+                                rentAmount: d.rentAmount || undefined,
+                                propertyAddress: property.address,
+                            });
+                        }}
+                        onEditUnit={(unit) => openModal('editProperty', ((property as any)?.units || []).some((lu: any) => lu.id === unit.id) ? property.id : unit.id, { contactId: owner?.id, activeUnitId: unit.id, autoExpandRental: true })}
+                        onDraftAction={handleDraftAction}
+                        onQuitNoticeDrafted={handleQuitNoticeDrafted}
+                        onMarkQuitNoticeServed={handleMarkQuitNoticeServed}
+                        onDraftSevenDayNotice={handleDraftSevenDayNotice}
+                        onInitializeMatter={handleInitializeMatter}
+                        onUpdateEvictionTracker={updateEvictionTracker}
+                        canUseEviction={isGrowthOrAbove || isKompleteFirm}
+                    />
+                )}
 
                 {/* ═══ NOTICE BOARD TAB ═══ */}
                 {activeTab === 'notices' && (

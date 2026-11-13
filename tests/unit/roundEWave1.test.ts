@@ -795,13 +795,17 @@ describe('E1 — source contracts', () => {
 
   it('PropertyDetailView wires the lifecycle console (R101: subsumed into the unit cards + Summary fallback)', () => {
     const view = read('src/components/details/PropertyDetailView.tsx');
-    expect(view).toContain("import { TenancyLifecyclePanel, UnitTenancySection, useUnitsTenancyStatus } from './TenancyLifecyclePanel'");
+    // UNITS CONSOLE REFACTOR: the per-card mount moved into the UnitsConsole
+    // family (UnitDetailBand) — PropertyDetailView keeps the Summary-tab
+    // fallback panel and the ONE shared status feed, and passes both down.
+    expect(view).toContain("import { TenancyLifecyclePanel, useUnitsTenancyStatus } from './TenancyLifecyclePanel'");
     // R101 (owner direction, 2026-11-11): the tenancy cycle is part of the
     // unit block. The separate Units-tab console is GONE — the panel remains
-    // ONLY as the single-unit Summary fallback, and every unit card embeds
-    // the same UnitTenancySection fed by ONE shared status query.
+    // ONLY as the single-unit Summary fallback, and every unit's detail band
+    // embeds the same UnitTenancySection fed by ONE shared status query.
     expect(view.match(/<TenancyLifecyclePanel/g)?.length).toBe(1);
-    expect(view.match(/<UnitTenancySection/g)?.length).toBe(1);
+    const band = read('src/components/details/units/UnitDetailBand.tsx');
+    expect(band.match(/<UnitTenancySection/g)?.length).toBe(1);
     expect(view).toContain('useUnitsTenancyStatus(');
     expect(view).toContain('ROUND R101');
     expect(view).toContain('ROUND E (Wave E1)'); // the module-lineage comment survives

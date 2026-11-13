@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-13T00:03:24.199Z",
+  "generatedAt": "2026-11-13T02:17:52.440Z",
   "totals": {
-    "button": 1642,
-    "input": 404,
-    "select": 140,
+    "button": 1618,
+    "input": 403,
+    "select": 139,
     "textarea": 58
   },
-  "total": 2244,
+  "total": 2218,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -385,9 +385,8 @@
       "button": 2
     },
     "src/components/details/PropertyDetailView.tsx": {
-      "button": 44,
-      "input": 3,
-      "select": 1,
+      "button": 20,
+      "input": 2,
       "textarea": 1
     },
     "src/components/details/PropertyRelationshipsTab.tsx": {

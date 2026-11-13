@@ -49,6 +49,17 @@ const KeyboardShortcutsModal: React.FC = () => {
     { keys: ["c"], description: "Create new item (Global)" }, // Future implementation
     { keys: ["Cmd", "Enter"], description: "Submit form / Send message" },
    ]
+  },
+  {
+   title: "Units Console (Property → Units)",
+   shortcuts: [
+    { keys: ["↑", "↓"], description: "Move the row cursor" },
+    { keys: ["Enter"], description: "Expand / collapse the cursor unit's details" },
+    { keys: ["Esc"], description: "Collapse the open unit · second press clears search" },
+    { keys: ["/"], description: "Focus unit search" },
+    { keys: ["g", "c"], description: "Switch to Console view" },
+    { keys: ["g", "v"], description: "Switch to Cards view" },
+   ]
   }
  ];
 

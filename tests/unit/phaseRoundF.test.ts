@@ -25,15 +25,19 @@ const repoRoot = existsSync(resolvePath(here, '../../convex/myFunctions.ts'))
 const src = (p: string) => readFileSync(resolvePath(repoRoot, p), 'utf8');
 
 describe('UX-32 — the scoped Add-unit action is restored', () => {
-    const pd = src('src/components/details/PropertyDetailView.tsx');
-    it('the Units tab header carries a live Add Unit button', () => {
-        expect(pd).toContain('onClick={() => setShowAddUnitForm(true)}');
-        expect(pd).toContain('Add Unit');
+    // UNITS CONSOLE REFACTOR: the Add-unit surface moved from the inline
+    // IIFE to the UnitsConsole family — same live button, same inline form,
+    // same submit/cancel wiring, re-homed verbatim.
+    const uc = src('src/components/details/units/UnitsConsole.tsx');
+    const toolbar = src('src/components/details/units/UnitsToolbar.tsx');
+    it('the Units tab toolbar carries a live Add Unit button', () => {
+        expect(toolbar).toContain('Add Unit');
+        expect(uc).toContain('onAddUnit={() => setShowAddUnitForm(v => !v)}');
     });
     it('the inline form still has its submit/cancel handlers wired', () => {
-        expect(pd).toContain('{showAddUnitForm && (');
-        expect(pd).toContain('onClick={handleAddUnitSubmit}');
-        expect(pd).toContain("setShowAddUnitForm(false); setNewUnitName('')");
+        expect(uc).toContain('{showAddUnitForm && (');
+        expect(uc).toContain('handleAddUnitSubmit');
+        expect(uc).toContain("setShowAddUnitForm(false); setNewUnitName('')");
     });
 });
 
@@ -57,11 +61,13 @@ describe('UX-33 — guards reply where they triage', () => {
         expect(mq).toContain('conversationId?: string;');
     });
     it('the property maintenance badge deep-links to the ticket conversation', () => {
-        const pd = src('src/components/details/PropertyDetailView.tsx');
-        expect(pd).toContain("openTickets.map((t: any) => t.conversationId).find(Boolean)");
-        expect(pd).toContain("navigateTo('messaging', null, { initialTab: 'inbox', selectedInboxId: String(targetConv) })");
+        // UNITS CONSOLE REFACTOR: the ticket deep-link lives in UnitsConsole's
+        // onOpenTickets (re-homed from the old unit card).
+        const uc = src('src/components/details/units/UnitsConsole.tsx');
+        expect(uc).toContain("open.map((t: any) => t.conversationId).find(Boolean)");
+        expect(uc).toContain("navigateTo('messaging', null, { initialTab: 'inbox', selectedInboxId: String(targetConv) })");
         // honest fallback for legacy tickets with no conversation link
-        expect(pd).toContain("navigateTo('messaging' as any)");
+        expect(uc).toContain("navigateTo('messaging' as any)");
     });
 });
 
