@@ -1129,11 +1129,12 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     const form = read("src", "components", "forms", "NewDirectMessageForm.tsx");
     expect(form).toContain("initialContext?.initialMode === 'group'");
     expect(form).toContain("new Set(initialContext?.initialMemberIds ?? [])");
-    // BOTH modal renderers pass the context through (ModalManager and
-    // DockedModal each render this form).
-    const modalManager = read("src", "components", "modals", "ModalManager.tsx");
+    // BOTH modal renderers pass the context through (ModalLayer — UX-01:
+    // THE pipeline, the legacy ModalManager is deleted — and DockedModal
+    // each render this form).
+    const modalLayer = read("src", "overlays", "layers", "ModalLayer.tsx");
     const dockedModal = read("src", "components", "modals", "DockedModal.tsx");
-    expect(modalManager).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
+    expect(modalLayer).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
     expect(dockedModal).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
   });
 

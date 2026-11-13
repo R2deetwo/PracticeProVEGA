@@ -11,7 +11,8 @@ import { useMatterState } from '../contexts/MatterContext';
 import { useDocumentState } from '../contexts/DocumentContext';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
-import { Modal } from './modals/Modal';
+// UX-01: the legacy Modal is deleted — ModalShell is the one chrome.
+import { ModalShell } from '../overlays/primitives/ModalShell';
 import { v4 as uuidv4 } from 'uuid';
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -349,7 +350,7 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
     return (
         <div className="flex flex-col h-full bg-white dark:bg-zinc-900">
             {/* Matter Selection Modal */}
-            <Modal
+            <ModalShell
                 isOpen={isMatterModalOpen}
                 onClose={() => {
                     setIsMatterModalOpen(false);
@@ -405,7 +406,7 @@ export const LocalDocumentManager: React.FC<LocalDocumentManagerProps> = ({ onPr
                         </button>
                     </div>
                 </div>
-            </Modal>
+            </ModalShell>
 
             <div className="sticky top-0 z-10 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">

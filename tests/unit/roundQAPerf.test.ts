@@ -89,13 +89,16 @@ describe('QA §2 — PostHog SDK is lazy and key-gated', () => {
 describe('QA §2 — the three heaviest form modals are lazy in ModalLayer', () => {
     const src = read('src/overlays/layers/ModalLayer.tsx');
 
-    it('PropertyForm / MatterForm / SmartMatterModal are React.lazy', () => {
+    it('PropertyForm / MatterForm / SmartMatterModal are lazy', () => {
         for (const [name, path] of [
             ['PropertyForm', '../../components/forms/PropertyForm'],
             ['MatterForm', '../../components/forms/MatterForm'],
             ['SmartMatterModal', '../../components/forms/SmartMatterModal'],
         ] as Array<[string, string]>) {
-            expect(src).toContain(`React.lazy(() => import('${path}')`);
+            // UX-01: ModalLayer loads every form through lazyWithReload
+            // (the lazyWithReload wrapper adds chunk-retry on failed
+            // imports — same on-demand contract).
+            expect(src).toContain(`lazyWithReload(() => import('${path}')`);
             expect(src.includes(`import ${name} from '${path}'`)).toBe(false);
             expect(src.includes(`import { ${name} } from '${path}'`)).toBe(false);
         }

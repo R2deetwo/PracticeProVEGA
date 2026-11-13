@@ -105,7 +105,6 @@ const BulkEditPropertyModal = lazy(() => import('../../components/modals/BulkEdi
 const CollectRentModal = lazy(() => import('../../components/modals/CollectRentModal').then(m => ({ default: m.default })));
 const MergeContactModal = lazy(() => import('../../components/modals/MergeContactModal').then(m => ({ default: m.default })));
 const AIConsentModal = lazy(() => import('../../components/modals/AIConsentModal').then(m => ({ default: m.default })));
-const RecordRentPaymentModalWrapper = lazy(() => import('../../components/modals/ModalManager').then(() => ({ default: (null as any) }))); // NOTE: needs special wrapping
 
 // ─── Registry types ──────────────────────────────────────────────────────
 export type ModalPresentation = 'center' | 'docked' | 'fullscreen';
@@ -140,10 +139,10 @@ export interface ModalMeta {
 // types.ts, add its entry here too — otherwise ModalLayer shows a
 // "not found" fallback.
 //
-// Entries marked with `needsSpecialWrapping: true` still go through the
-// legacy ModalManager.tsx switch (their hooks/wiring are too tangled to
-// lift cleanly into the registry yet). They're listed here for documentation
-// and so ModalLayer knows NOT to render them — it delegates to ModalManager.
+// Entries marked with `needsSpecialWrapping: true` are NOT rendered by
+// ModalLayer ('onboarding' — App.tsx renders it through its own branch).
+// Everything else renders through ModalLayer + ModalShell — the legacy
+// ModalManager.tsx is deleted (UX-01).
 export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
   // ─── Auth ────────────────────────────────────────────────────────────
   login: {
@@ -567,8 +566,9 @@ export const MODAL_REGISTRY: Partial<Record<ModalType, ModalMeta>> = {
     hideHeader: true,
   },
   aiConsent: {
-    // Special wrapping — needs recordConsent mutation
-    needsSpecialWrapping: true,
+    // UX-01: the recordConsent mutation wrapper now lives in ModalLayer's
+    // AIConsentModalWrapper builder — no more needsSpecialWrapping.
+    component: AIConsentModal as any,
     title: 'AI Consent',
     size: 'sm',
   },

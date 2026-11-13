@@ -38,6 +38,12 @@ interface ModalShellProps {
   children: React.ReactNode;
   /** Optional element to render in the header's right side (next to the close button). */
   headerActions?: React.ReactNode;
+  /** UX-01: chrome overrides ported from the legacy Modal so the themed
+   *  auth surfaces (AUTH_THEMES) keep their product skins through the
+   *  unified render path. Defaults match the previous Modal defaults. */
+  overlayClass?: string;
+  cardClass?: string;
+  accentBarClass?: string;
 }
 
 const SIZE_CLASSES: Record<ModalSize, string> = {
@@ -59,6 +65,9 @@ export const ModalShell: React.FC<ModalShellProps> = ({
   hideAccentBar = false,
   children,
   headerActions,
+  overlayClass,
+  cardClass,
+  accentBarClass,
 }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [isAnimatingIn, setIsAnimatingIn] = useState(false);
@@ -151,7 +160,14 @@ export const ModalShell: React.FC<ModalShellProps> = ({
         ? 'fixed inset-0 flex items-stretch justify-end'
         : 'fixed inset-0 flex items-stretch justify-start';
 
-  const cardClasses = fullscreen
+  // UX-01: cardClass overrides the surface colour/border chunk (mirrors
+  // the legacy Modal's override semantics — themed auth skins supply
+  // their own card look; everything else keeps the default card).
+  const cardClasses = cardClass
+    ? (fullscreen
+        ? `w-full h-full flex flex-col overflow-hidden ${cardClass}`
+        : `relative rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col overflow-hidden w-full ${cardClass} ${SIZE_CLASSES[size]} h-full sm:h-auto sm:max-h-[90vh]`)
+    : fullscreen
     ? 'w-full h-full bg-white dark:bg-zinc-900 flex flex-col overflow-hidden'
     : position === 'center'
       ? `relative bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-2xl shadow-xl flex flex-col overflow-hidden border border-slate-200 dark:border-zinc-700 w-full ${SIZE_CLASSES[size]} h-full sm:h-auto sm:max-h-[90vh]`
@@ -181,14 +197,18 @@ export const ModalShell: React.FC<ModalShellProps> = ({
     <div
       className={wrapperClasses}
       style={{ zIndex: Z_TIERS.modal }}
-      aria-labelledby={title ? 'modal-title' : undefined}
+      // V7 (E: accessible naming): hideHeader modals (confirmations, themed
+      // auth) never render the #modal-title element, so aria-labelledby
+      // would dangle. Fall back to an aria-label built from the same title
+      // prop — ported from the legacy Modal (UX-01).
+      {...(hideHeader ? { 'aria-label': title } : { 'aria-labelledby': 'modal-title' })}
       role="dialog"
       aria-modal="true"
     >
       {/* Backdrop — hidden for fullscreen modals (they ARE the viewport) */}
       {!fullscreen && (
         <div
-          className={`fixed inset-0 bg-slate-900/60 sm:backdrop-blur-sm transition-opacity duration-150 ease-out ${
+          className={`fixed inset-0 transition-opacity duration-150 ease-out ${overlayClass ?? 'bg-slate-900/60 sm:backdrop-blur-sm'} ${
             isAnimatingIn ? 'opacity-100' : 'opacity-0'
           }`}
           aria-hidden="true"
@@ -212,7 +232,7 @@ export const ModalShell: React.FC<ModalShellProps> = ({
       >
         {/* Brand Accent Bar */}
         {!hideAccentBar && (
-          <div className="h-1 sm:h-1.5 w-full bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600 flex-shrink-0" />
+          <div className={`h-1 sm:h-1.5 w-full ${accentBarClass ?? 'bg-gradient-to-r from-primary-600 via-primary-500 to-indigo-600'} flex-shrink-0`} />
         )}
 
         {!hideHeader && (

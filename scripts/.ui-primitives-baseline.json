@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-11-12T23:42:28.141Z",
+  "generatedAt": "2026-11-13T00:03:24.199Z",
   "totals": {
-    "button": 1643,
+    "button": 1642,
     "input": 404,
     "select": 140,
     "textarea": 58
   },
-  "total": 2245,
+  "total": 2244,
   "files": {
     "src/components/Accordion.tsx": {
       "button": 1
@@ -736,9 +736,6 @@
     "src/components/modals/MergeContactModal.tsx": {
       "button": 3,
       "input": 1
-    },
-    "src/components/modals/Modal.tsx": {
-      "button": 1
     },
     "src/components/modals/NoTeamMembersModal.tsx": {
       "button": 2

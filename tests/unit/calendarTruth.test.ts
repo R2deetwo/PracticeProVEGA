@@ -13,7 +13,7 @@
  *  3. computeAtriumVirtualEvents never emitted RENT DUE events (promised by
  *     CalendarView's comment since the Komplete product-aware round) and
  *     ignored embedded units — multi-unit buildings produced no lease events.
- *  4. ModalManager/DockedModal parsed the month-view instance date with
+ *  4. The modal pipelines (ModalLayer/DockedModal) parsed the month-view instance date with
  *     `new Date('YYYY-MM-DD')` (UTC midnight) — east of UTC the window began
  *     at 01:00 local and the recurring-instance modal opened blank.
  *  5. Virtual events were un-clickable: they are not in executionState.events
@@ -273,7 +273,8 @@ describe('computeAtriumVirtualEvents (calendar round: rent due + unit coverage)'
 // ── Defects 4/5/6: source contracts (wiring pins) ───────────────────────────
 
 describe('calendar wiring — source contracts', () => {
-    const modalManager = read('src/components/modals/ModalManager.tsx');
+    // UX-01: ModalLayer absorbed ModalManager's switch verbatim.
+    const modalManager = read('src/overlays/layers/ModalLayer.tsx');
     const dockedModal = read('src/components/modals/DockedModal.tsx');
     const calendarView = read('src/components/CalendarView.tsx');
     const eventDetailModal = read('src/components/details/EventDetailModal.tsx');

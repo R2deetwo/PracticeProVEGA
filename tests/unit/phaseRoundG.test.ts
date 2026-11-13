@@ -69,7 +69,9 @@ describe('UX-28 — the dead legacy stack is deleted', () => {
     });
     it('the dead viewInvoice modal type is gone from every registration site', () => {
         for (const f of [
-            'src/components/modals/ModalManager.tsx',
+            // UX-01: ModalLayer is THE modal pipeline — the legacy
+            // ModalManager.tsx is deleted.
+            'src/overlays/layers/ModalLayer.tsx',
             'src/components/modals/DockedModal.tsx',
             'src/overlays/registry/modalRegistry.tsx',
             'src/contexts/UIContext.tsx',

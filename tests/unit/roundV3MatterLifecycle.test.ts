@@ -887,7 +887,9 @@ describe('V3 — source contracts: the dead wiring is alive', () => {
     });
 
     it('the bulk-assign modal consumes the matterIds context it was always given', () => {
-        for (const file of ['src/components/modals/ModalManager.tsx', 'src/components/modals/DockedModal.tsx']) {
+        // UX-01: ModalLayer absorbed ModalManager's switch — the legacy
+        // file is deleted.
+        for (const file of ['src/overlays/layers/ModalLayer.tsx', 'src/components/modals/DockedModal.tsx']) {
             const src = read(file);
             const start = src.indexOf("case 'assignUsers'");
             expect(start).toBeGreaterThan(-1);

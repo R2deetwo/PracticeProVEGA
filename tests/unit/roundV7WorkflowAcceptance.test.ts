@@ -311,13 +311,13 @@ describe('V7 §H-13 — destructive actions: client-side confirmation coverage',
 
 // ═══════════════════════════════════════════════════════════════════════════
 describe('V7 §A — lazy-loading + initial payload contracts', () => {
-    it('ModalManager lazily loads EVERY form/modal — no static form imports remain', () => {
-        const src = read('src/components/modals/ModalManager.tsx');
-        expect(src).not.toMatch(/^import\s+\w+\s+from\s+'\.\.\/forms\//m);
-        expect(src).not.toMatch(/^import\s+\{[^}]+\}\s+from\s+'\.\.\/forms\//m);
-        expect(src).not.toMatch(/^import\s+\w+\s+from\s+'\.\/\w+Modal'/m);
+    it('ModalLayer (UX-01: THE modal pipeline) lazily loads EVERY form/modal — no static form imports remain', () => {
+        const src = read('src/overlays/layers/ModalLayer.tsx');
+        expect(src).not.toMatch(/^import\s+\w+\s+from\s+'\.\.\/\.\.\/components\/forms\//m);
+        expect(src).not.toMatch(/^import\s+\{[^}]+\}\s+from\s+'\.\.\/\.\.\/components\/forms\//m);
+        expect(src).not.toMatch(/^import\s+\w+\s+from\s+'\.\.\/\.\.\/components\/modals\/\w+Modal'/m);
         expect((src.match(/lazyWithReload\(/g) || []).length).toBeGreaterThanOrEqual(40);
-        // The single render point suspends with an in-frame loading skeleton.
+        // The render point suspends with an in-frame loading skeleton.
         expect(src).toContain('<Suspense fallback={<ModalSkeleton />}>');
     });
 
@@ -387,13 +387,19 @@ describe('V7 §G — honest gating and demo-mode integrity', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 describe('V7 §E/F — accessible modals and wayfinding', () => {
     it('hideHeader modals are still NAMED for screen readers (aria-label fallback)', () => {
-        const modal = read('src/components/modals/Modal.tsx');
+        // UX-01: the aria fallback moved to ModalShell (the one chrome) —
+        // the legacy Modal.tsx is deleted.
+        const modal = read('src/overlays/primitives/ModalShell.tsx');
         expect(modal).toContain("...(hideHeader ? { 'aria-label': title } : { 'aria-labelledby': 'modal-title' })");
     });
 
     it('the Modal focus trap recaptures focus that escapes the dialog', () => {
-        const modal = read('src/components/modals/Modal.tsx');
-        expect(modal).toContain('!modalRef.current.contains(document.activeElement)');
+        // UX-01: ModalShell delegates the trap to the shared useFocusTrap
+        // hook, which owns the recapture logic.
+        const modal = read('src/overlays/primitives/ModalShell.tsx');
+        expect(modal).toContain('useFocusTrap(modalRef,');
+        const hook = read('src/hooks/useFocusTrap.ts');
+        expect(hook).toContain('!element.contains(document.activeElement)');
     });
 
     it('Sidebar nav items announce the current location (aria-current) and group operations logically', () => {

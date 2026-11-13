@@ -127,7 +127,6 @@ import {
     GenericSkeleton
 } from './ui/Skeleton';
 import { usePushNotifications } from '../hooks/usePushNotifications';
-import ModalManager from './modals/ModalManager';
 import { ModalLayer } from '../overlays/layers/ModalLayer';
 import LockScreen from './LockScreen';
 import SplashScreen from './SplashScreen';
@@ -920,7 +919,7 @@ export const App: React.FC = () => {
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get('recoveryCode') && params.get('email') && !isAuthenticated) {
-            // Small delay so ModalManager is mounted first
+            // Small delay so the modal pipeline is mounted first
             setTimeout(() => openModal('login'), 300);
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1896,20 +1895,11 @@ export const App: React.FC = () => {
             )}
             {((!currentUser) || (currentUser && flowState !== 'splash')) && (
                 <>
-                    {/* Wrap ModalManager and ToastContainer in their own ErrorBoundary
-                        so a malformed toast/modal payload can't take down the entire app.
-                        Previously these were rendered OUTSIDE the inner ErrorBoundary,
-                        which meant any render error in them propagated all the way up
-                        to ConvexErrorBoundary and crashed the whole app. */}
-                    <ErrorBoundary fallback={null}>
-                        <ModalManager />
-                    </ErrorBoundary>
-                    {/* NEW OVERLAY SYSTEM (Aug 2026) — renders modals from the
-                        modalRegistry in parallel with the legacy ModalManager.
-                        ModalLayer handles modals marked in MODAL_LAYER_HANDLED;
-                        ModalManager handles the rest (backward compat).
-                        Once all modals are migrated, ModalManager can be removed
-                        and only ModalLayer remains. */}
+                    {/* THE modal pipeline (UX-01): every modal renders through
+                        ModalLayer + ModalShell from the modalRegistry — the
+                        legacy modal pipeline is deleted. Kept in its
+                        own ErrorBoundary so a malformed modal payload can't
+                        take down the entire app. */}
                     <ErrorBoundary fallback={null}>
                         <ModalLayer />
                     </ErrorBoundary>
