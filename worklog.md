@@ -19402,3 +19402,79 @@ decisions the register was waiting on.
   2244. Design tokens: no gray-*, z-[NNNN], text-[NNpx], animate-pulse
   or rounded-xl introduced by this round.
 - The register: 60 of 60. The phase-0 roadmap is complete.
+
+## ALOA LEGAL ENGINE, PHASE 1 — DETERMINISTIC CONTROL PLANE (2026-11-16)
+
+**Context:** the owner delivered the Aloa master engineering prompt (five
+pillars: procedural compliance & jurisdiction routing, citation
+verification & anti-hallucination, pleading architecture, tenant-isolated
+precedent memory, guardrails & auditability). Phase 1 lands the
+deterministic control plane — "deciding before drafting" — plus the
+citation-hallucination machinery, wired into ALOA/ARIA chat and the
+DraftPro export path.
+
+### Pillar 1 — DMN rule matrices (src/legal/)
+- jurisdictionMatrix.ts — s. 251(1) FHC / s. 254C NICN / residual State
+  High Court routing, each row carrying its constitutional citation;
+  free-text keyword classification with enumerated heads checked BEFORE
+  the residual default; unclassifiable matters return NEEDS_REVIEW —
+  never a silent answer.
+- limitationEngine.ts — Lagos table (6y simple contract/tort, 12y
+  specialty/land recovery; POPA 3 months federal) with exact deadline
+  computation, a 90-day EXPIRING_SOON window, and SAFE_STOP on a time
+  bar carrying the equitable/statutory exceptions for the lawyer.
+  Unknown causes return NEEDS_REVIEW ("the engine never guesses");
+  non-Lagos states carry a state-verification note.
+- frontloadingGate.ts — the five mandatory frontloading items (statement
+  of claim/defence, witness statements on oath, list of witnesses, list
+  of documents, conditional pre-action counselling certificate).
+- signatureCompliance.ts — full name / Call-to-Bar / NBA Seal & Stamp
+  detection; the citation is carried generically with a verify note —
+  no fabricated RPC pinpoints (V5 discipline).
+- complianceGate.ts — the orchestrator: safeStop fires ONLY on a time
+  bar; frontloading/signature/forum gaps are advisory for professional
+  judgment.
+
+### Pillar 2 — citation anti-hallucination (src/legal/citations/)
+- lePhantomCite.ts — the 5-point taxonomy (NON_EXISTENT,
+  CASE_NAME_MISMATCH, INCORRECT_PINCITE, VERBATIM_MISQUOTE,
+  CONTENT_MISREPRESENTATION) with star-pagination pincite checks and a
+  claimed-vs-applicable distinction: an absent quote/proposition is not
+  applicable; a claimed-but-uncheckable one defers to NEEDS_REVIEW.
+  With no corpus the honest verdict is UNVERIFIABLE — never "verified".
+- verificationHarness.ts — sequential BOED-style stages
+  (PRIMARY_CITATION_LOOKUP → OPEN_CASE_SEARCH → FETCH_FULL_OPINION →
+  PINCITE_STAR_PAGINATION) over a pluggable CorpusBackend;
+  InMemoryCorpus for tests/seeding. A licensed corpus plugs in the day
+  one exists — the seam citationVerification.ts reserved for exactly
+  this.
+
+### Wiring (make it work where it matters)
+- geminiService tools — run_legal_compliance_check + verify_citation
+  with strict descriptions: NEVER estimate a limitation period, notice
+  period or forum yourself; safeStop ⇒ present the exceptions, do not
+  draft the filing.
+- AloaChat handlers — deterministic, client-side, citation-carrying
+  (the query_financials money-truth pattern applied to legal positions).
+- DraftProEditor — advisory pre-flight (src/legal/preflight.ts) on both
+  the print and DOCX export paths: signature block, citation
+  completeness via the existing classifier, and the standing
+  evidential-closure disclosure. Advisory only — unfilled placeholders
+  remain the sole hard gate (V5 philosophy).
+
+### Tests + gates
+- 4 new suites / 44 tests: jurisdictionMatrix, limitationEngine,
+  lePhantomCite, complianceGate — including the honesty contract (no
+  corpus ⇒ UNVERIFIABLE, never "verified") and SAFE_STOP semantics.
+- Full run: 2754 tests green; root tsc 87 ≤ baseline 94 (zero new
+  errors); convex typecheck 0; identity / design-token / ui-primitives
+  ratchets all held.
+
+### Deferred to the next phases (by design)
+- Pillar 3 pointwise section editing (Revision Agent) — needs the
+  structured block model first.
+- Pillar 4 FGAC metadata mirroring + Burn-After-Use ephemeral sessions.
+- SUSPENDED_WAITING_FOR_APPROVAL review cards + cryptographic sign-off.
+- Convex decision_tables/rule_evaluations (rules are typed TS constants
+  this phase; the versioned-table + audit migration is the next slice).
+- A licensed citation corpus backend (LawPavilion / NWLR / LPELR).

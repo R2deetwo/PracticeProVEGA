@@ -61,6 +61,7 @@ import { CitationRegistry } from '../../../utils/citationRegistry';
 import { FontSize } from './extensions/FontSize';
 import { LineHeight } from './extensions/LineHeight';
 import { exportHtmlToDocxBlob } from '../../../utils/docxExport';
+import { runCourtProcessPreflight } from '../../../legal/preflight';
 import { PAGE_CSS_PRINT } from '../../../utils/pageFormat';
 import { letterheadToStaticHtml } from '../../../utils/letterhead';
 import { uploadBlobToConvex } from '../../../utils/convexUpload';
@@ -1777,6 +1778,20 @@ ${allCites.map((c: any) => {
         // reliable PDF generator available.
         try {
             const html = editor.getHTML();
+
+            // ─── PRE-FLIGHT COMPLIANCE (advisory) ─────────────────────────
+            // Deterministic court-process checks (signature block, citation
+            // completeness, evidential-closure disclosure) surface before
+            // print. Advisory only — the lawyer decides (V5 philosophy:
+            // advisory, cause-aware, never silently blocking).
+            try {
+                const pre = runCourtProcessPreflight(html, { title });
+                if (pre.outcome === 'WARN') {
+                    addToast(`Pre-flight advisory (${pre.findings.length}): ${pre.findings[0].message}`, { type: 'warning' });
+                    console.info('[DraftPro][preflight]', pre.findings);
+                }
+            } catch { /* best-effort — print proceeds regardless */ }
+
             // V4 (V-DOC-12): print the firm's REAL letterhead (logo/name/
             // address) instead of the pre-V4 empty placeholder div.
             const letterheadHtml = letterheadToStaticHtml(appState.firmDetails?.settings?.headerConfig);
@@ -1873,6 +1888,18 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
         try {
             setIsSavingFile(true);
             const html = editor.getHTML();
+
+            // ─── PRE-FLIGHT COMPLIANCE (advisory) ─────────────────────────
+            // Same deterministic checks as the print path — signature block,
+            // citation completeness, evidential closure. Advisory only.
+            try {
+                const pre = runCourtProcessPreflight(html, { title });
+                if (pre.outcome === 'WARN') {
+                    addToast(`Pre-flight advisory (${pre.findings.length}): ${pre.findings[0].message}`, { type: 'warning' });
+                    console.info('[DraftPro][preflight]', pre.findings);
+                }
+            } catch { /* best-effort — export proceeds regardless */ }
+
             const safeTitle = (title || 'document').replace(/[^a-zA-Z0-9-_]/g, '_');
             const filename = `${safeTitle}.docx`;
             const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';

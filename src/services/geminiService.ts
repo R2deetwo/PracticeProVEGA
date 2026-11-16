@@ -338,6 +338,44 @@ export const tools: FunctionDeclaration[] = [
             },
             required: ["url"]
         }
+    },
+    // ─── ALOA LEGAL ENGINE — deterministic control plane tools ────────
+    // These tools are the ONLY legitimate source of jurisdiction routing,
+    // limitation periods and citation verdicts. The model must call them
+    // and quote their output (with citations) — never compute or guess a
+    // statutory position itself.
+    {
+        name: "run_legal_compliance_check",
+        description: "Runs the DETERMINISTIC Nigerian legal compliance gate BEFORE any drafting or filing advice: (1) court jurisdiction routing — Federal High Court (s. 251(1) CFRN), NICN (s. 254C CFRN) or State High Court (residual), with the constitutional citation; (2) statutory limitation analysis — exact deadline computed from the accrual date, with a SAFE_STOP when the claim appears time-barred; (3) mandatory frontloading bundle check for originating processes; (4) signature-block compliance (full name, Call-to-Bar number, NBA Seal & Stamp). ALWAYS call this when the user contemplates filing or initiating an action, asks 'which court should this go to', 'are we out of time', or before drafting any originating process. NEVER estimate a limitation period, notice period or forum yourself — call this tool and quote its output including the citations. If the result carries safeStop=true, do NOT proceed to draft the filing: present the safe-stop reasons and the statutory exceptions to the lawyer.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                subjectMatter: { type: Type.STRING, description: "The subject of the dispute in plain words, e.g. 'recovery of land', 'employee unfairly dismissed', 'bank loan recovery', 'trademark infringement', 'landlord recovering possession from a tenant'." },
+                state: { type: Type.STRING, description: "Nigerian state where the action will be filed, e.g. 'Lagos', 'FCT'." },
+                causeOfAction: { type: Type.STRING, enum: ["simple_contract", "tort", "specialty_contract", "land_recovery", "public_officer_action"], description: "The cause of action category for limitation analysis. Use 'public_officer_action' when the defendant is a public officer (3-month window)." },
+                accrualDate: { type: Type.STRING, description: "ISO date (YYYY-MM-DD) the cause of action accrued — when the breach/injury/act complained of happened." },
+                proposedFilingDate: { type: Type.STRING, description: "ISO date (YYYY-MM-DD) of intended filing. Defaults to today if omitted." },
+                originatingProcess: { type: Type.STRING, enum: ["Writ of Summons", "Originating Summons", "Motion on Notice", "Motion Ex Parte"], description: "The originating process being contemplated, for the frontloading bundle check." },
+                documentTitles: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Titles of the documents already in the filing bundle, for the frontloading check." },
+                documentText: { type: Type.STRING, description: "The draft text to scan for signature-block compliance (full name, Call-to-Bar, NBA Seal & Stamp)." }
+            },
+            required: ["subjectMatter"]
+        }
+    },
+    {
+        name: "verify_citation",
+        description: "Audits a legal citation against the citation-hallucination taxonomy (non-existent citation, case-name mismatch, incorrect pincite, verbatim misquote, content misrepresentation) using a sequential verification harness. ALWAYS call this BEFORE quoting any case law in a draft or advice, and whenever the user asks whether a case is real or supports a proposition. If the result is anything other than VERIFIED, do NOT present the citation as reliable — say exactly what the verification found and recommend manual confirmation against a law report (NWLR, All FWLR, LPELR or an approved equivalent).",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                citation: { type: Type.STRING, description: "The full citation string, e.g. 'Uba v. Eze (2024) 12 NWLR (Pt. 1934) 1 at 15'." },
+                caseName: { type: Type.STRING, description: "The case name as you believe it to be, if different from what the citation implies." },
+                pincite: { type: Type.STRING, description: "The specific page ('at' page) being relied on, e.g. '15'." },
+                quote: { type: Type.STRING, description: "The exact text you intend to present as a direct quotation from the case, if any." },
+                proposition: { type: Type.STRING, description: "The legal proposition this case is being cited to support, in one sentence." }
+            },
+            required: ["citation"]
+        }
     }
 ];
 

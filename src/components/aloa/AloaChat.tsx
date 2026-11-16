@@ -48,6 +48,8 @@ import { finalizeDraftHtml, draftHasSubstance } from '../../utils/draftHtml';
 import { savePlaybook, findRelevantPlaybooks, renderPlaybookContext } from '../../utils/legalPlaybookStore';
 import { DocumentPacketCard, DocStatus } from './DocumentPacketCard';
 import { buildJurisdictionalReasoning } from '../../utils/jurisdictionConfig';
+import { runComplianceGate } from '../../legal/complianceGate';
+import { verifyCitation } from '../../legal/citations/verificationHarness';
 import { searchPortfolio, toPropertyToolResult } from '../../utils/portfolioContext';
 import { JurisdictionCard } from './JurisdictionCard';
 import { 
@@ -1068,6 +1070,55 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                     }
 
+                } else if (name === 'run_legal_compliance_check') {
+                    // ── ALOA LEGAL ENGINE — deterministic control plane ──
+                    // The compliance gate is the ONLY legitimate source of
+                    // jurisdiction routing, limitation positions, frontloading
+                    // status and signature compliance. Pure, synchronous,
+                    // citation-carrying. A time-barred claim sets safeStop —
+                    // the assistant presents the statutory exceptions to the
+                    // lawyer instead of drafting the filing.
+                    const gate = runComplianceGate({
+                        subjectMatter: typeof args.subjectMatter === 'string' ? args.subjectMatter : undefined,
+                        state: typeof args.state === 'string' ? args.state : undefined,
+                        causeOfAction: typeof args.causeOfAction === 'string' ? args.causeOfAction : undefined,
+                        accrualDate: typeof args.accrualDate === 'string' ? args.accrualDate : undefined,
+                        proposedFilingDate: typeof args.proposedFilingDate === 'string' ? args.proposedFilingDate : undefined,
+                        originatingProcess: typeof args.originatingProcess === 'string' ? args.originatingProcess : undefined,
+                        documentTitles: Array.isArray(args.documentTitles) ? args.documentTitles.map(String) : undefined,
+                        documentText: typeof args.documentText === 'string' ? args.documentText : undefined,
+                    });
+                    toolOutput = { gate };
+                    feedbackMessage = gate.safeStop
+                        ? 'SAFE STOP — the limitation gate flagged a potential time bar. Presenting the statutory exceptions to the lawyer instead of drafting.'
+                        : 'Compliance gate complete — deterministic checks with citations.';
+                } else if (name === 'verify_citation') {
+                    // ── ALOA LEGAL ENGINE — Pillar 2 anti-hallucination ──
+                    // Sequential verification harness. No licensed corpus is
+                    // connected today, so the honest result is UNVERIFIABLE —
+                    // the model must say so rather than imply verification
+                    // (citationVerification.ts standing rule).
+                    const citation = typeof args.citation === 'string' ? args.citation : '';
+                    if (!citation) {
+                        toolOutput = { error: 'No citation provided to verify.' };
+                        feedbackMessage = 'I need the citation string to run the verification harness.';
+                    } else {
+                        const belief = await verifyCitation(
+                            {
+                                citation,
+                                caseName: typeof args.caseName === 'string' ? args.caseName : undefined,
+                                pincite: typeof args.pincite === 'string' ? args.pincite : undefined,
+                                quote: typeof args.quote === 'string' ? args.quote : undefined,
+                                proposition: typeof args.proposition === 'string' ? args.proposition : undefined,
+                            },
+                            null, // no licensed law-report corpus connected — see LAW_REPORTS_DISCLOSURE
+                        );
+                        toolOutput = { verification: belief };
+                        feedbackMessage =
+                            belief.status === 'VERIFIED'
+                                ? 'Citation verified against the corpus.'
+                                : 'Citation could NOT be verified — I will say so plainly rather than rely on it.';
+                    }
                 } else {
                     const mappedAction = mapToolToModal(name, args);
                     if (mappedAction) {
