@@ -52,7 +52,7 @@ const vegaTourSteps: TourStep[] = [
   {
     target: '[data-tour-id="nav-research"]',
     title: 'Research Studio',
-    content: 'Your digital war room. Upload case files to generate chronologies, find Nigerian case law, and analyze legal risks using AI.',
+    content: 'Your digital war room. Upload case files to generate chronologies, analyze legal risks, and search your research notebooks with AI — case-law search is always honest about which sources it has.',
     placement: 'right',
     mobilePlacement: 'top',
     navigateTo: 'research',

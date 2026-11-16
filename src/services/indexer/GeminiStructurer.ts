@@ -7,6 +7,7 @@
 //   Phase 4: reconstructAndRevise — Gemini cleans the final merged data
 
 import { LegalDocType } from './indexerTypes';
+import { directGemini } from '../aiTransport';
 
 // R32: the 2.0 era and 2.5-pro are retired by Google (404 for new
 // keys) — the chain now runs 2.5-flash → flash-latest → 3.8-flash.
@@ -638,22 +639,14 @@ Output ONLY the cleaned JSON. Ensure all "children" arrays are populated.`;
       const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${this.apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts }],
-              generationConfig: {
-                maxOutputTokens,
-                temperature: 0.05,
-                responseMimeType: 'application/json',
-              },
-            }),
-          }
-        );
+        const response = await directGemini(this.apiKey, `models/${modelName}`, 'generateContent', {
+          contents: [{ role: 'user', parts }],
+          generationConfig: {
+            maxOutputTokens,
+            temperature: 0.05,
+            responseMimeType: 'application/json',
+          },
+        }, controller.signal);
 
         clearTimeout(timeoutId);
 

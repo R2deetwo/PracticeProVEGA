@@ -1,5 +1,6 @@
 import { AppState, User, HistoryEntry } from '../types';
 import { ALOA_PRECISION_PROTOCOL } from '../constants/aloaPrompts';
+import { directGemini, directGeminiKeyProbe } from '../services/aiTransport';
 
 
 /**
@@ -126,10 +127,7 @@ export const checkGeminiKeyHealth = async (
     try {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 12_000);
-        const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${encodeURIComponent(material)}`,
-            { signal: controller.signal }
-        );
+        const res = await directGeminiKeyProbe(material, controller.signal);
         clearTimeout(timer);
         if (res.ok) {
             const health: ApiKeyHealth = { status: 'valid', checkedAt: now, note: 'Key is active and accepted by Google.' };
@@ -270,13 +268,8 @@ export const streamGemini = async (
         const timeoutId = setTimeout(() => controller.abort(), 90_000);
         try {
             const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
-            const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
+            const response = await directGemini(apiKey, modelTag, 'generateContent', {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }],
                     systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
                     generationConfig: { temperature: 0.4, maxOutputTokens: 8192 },
@@ -286,8 +279,7 @@ export const streamGemini = async (
                         { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
                         { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
                     ]
-                })
-            });
+                }, controller.signal);
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
@@ -345,17 +337,11 @@ export const streamGeminiMultipart = async (
         const timeoutId = setTimeout(() => controller.abort(), 90_000);
         try {
             const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
-            const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                signal: controller.signal,
-                body: JSON.stringify({
+            const response = await directGemini(apiKey, modelTag, 'generateContent', {
                     contents: [{ role: 'user', parts }],
                     generationConfig: { temperature: 0.4, maxOutputTokens: 8192 }
-                })
-            });
+                }, controller.signal);
 
             if (!response.ok) {
                 const errData = await response.json().catch(() => ({}));
@@ -537,12 +523,19 @@ export const toPersistablePiiReport = (report: {
 
 /**
  * Generates an embedding for a given text using the Gemini Embedding API.
+ *
+ * S2/R1: key routing — the user's OWN key (in-memory, BYO) makes a direct
+ * header-based call; with NO local key (e.g. a founder relying on the
+ * firm's server-stored key), the call routes through the authenticated
+ * `ai.embedContent` platform action, which resolves the firm/env key
+ * server-side. Either way no API key ever appears in a URL, and the
+ * Legal Index builder works with zero client-side key material.
  */
 export const generateEmbedding = async (text: string): Promise<number[]> => {
     const apiKey = getGeminiApiKey();
-    if (!apiKey) throw new Error("API Key missing. Get a free key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration");
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${AI_CONFIG.embeddingModel}:embedContent?key=${apiKey}`;
+    // No local key → server-side embedding (firm key → env key, resolved
+    // after session auth). No API key ever touches this client.
+    if (!apiKey) return generateEmbeddingViaServer(text);
 
     // 30s timeout. Embedding requests are tiny (single text → vector) and
     // should return in well under a second; if we hit 30s the backend is
@@ -551,32 +544,43 @@ export const generateEmbedding = async (text: string): Promise<number[]> => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
-    let response: Response;
     try {
-        response = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            signal: controller.signal,
-            body: JSON.stringify({
-                model: AI_CONFIG.embeddingModel,
-                content: { parts: [{ text }] },
-            }),
-        });
+        const response: Response = await directGemini(apiKey, `models/${AI_CONFIG.embeddingModel}`, 'embedContent', {
+            model: AI_CONFIG.embeddingModel,
+            content: { parts: [{ text }] },
+        }, controller.signal);
+
+        if (!response.ok) {
+            const errorArr = await response.json();
+            throw new Error(`Embedding failed: ${errorArr.error?.message || response.statusText}`);
+        }
+
+        const json = await response.json();
+        return json.embedding.values;
     } catch (e: any) {
-        clearTimeout(timeoutId);
         if (e?.name === 'AbortError') {
             throw new Error('Embedding request timed out (30s).');
         }
         throw e;
+    } finally {
+        clearTimeout(timeoutId);
     }
+};
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-        const errorArr = await response.json();
-        throw new Error(`Embedding failed: ${errorArr.error?.message || response.statusText}`);
+/** Server-side embedding via the authenticated `ai.embedContent` action (S2/R1). */
+const generateEmbeddingViaServer = async (text: string): Promise<number[]> => {
+    const { ConvexHttpClient } = await import('convex/browser');
+    const { api } = await import('../../convex/_generated/api');
+    const { readSessionBearer } = await import('../services/aiTransport');
+    const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || 'https://gregarious-malamute-537.convex.cloud';
+    const client = new ConvexHttpClient(CONVEX_URL);
+    const result: any = await client.action(api.ai.embedContent, {
+        text,
+        model: AI_CONFIG.embeddingModel,
+        sessionToken: readSessionBearer(),
+    });
+    if (!result?.embedding?.length) {
+        throw new Error('Embedding returned no vector.');
     }
-
-    const json = await response.json();
-    return json.embedding.values;
+    return result.embedding as number[];
 };

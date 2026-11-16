@@ -128,8 +128,9 @@ const BuildLegalIndexButton: React.FC<{
     const [status, setStatus] = React.useState<'idle' | 'running' | 'done' | 'error'>('idle');
     const [progress, setProgress] = React.useState<{ done: number; total: number } | null>(null);
 
-    const indexStatus = useQuery(api.legalKnowledge.getIndexStatus, {}) as { pendingProvisions: number; pendingForms: number; ready: boolean } | undefined;
+    const indexStatus = useQuery(api.legalKnowledge.getIndexStatus, {}) as { pendingProvisions: number; pendingForms: number; totalProvisions: number; totalForms: number; hasCorpus: boolean; ready: boolean } | undefined;
     const pending = (indexStatus?.pendingProvisions ?? 0) + (indexStatus?.pendingForms ?? 0);
+    const corpusRows = (indexStatus?.totalProvisions ?? 0) + (indexStatus?.totalForms ?? 0);
 
     const handleBuild = async () => {
         setStatus('running');
@@ -179,9 +180,11 @@ const BuildLegalIndexButton: React.FC<{
         <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-zinc-400">
                 <ScalesIcon className="w-3.5 h-3.5" />
-                {indexStatus === undefined ? 'Checking index…' : indexStatus.ready
-                    ? 'Index current — all provisions & forms embedded.'
-                    : `${pending} entr${pending === 1 ? 'y' : 'ies'} awaiting indexing.`}
+                {indexStatus === undefined ? 'Checking index…' : !indexStatus.hasCorpus
+                    ? 'No legal corpus published yet — a founder must publish the corpus first (Publish Legal Corpus above).'
+                    : indexStatus.ready
+                        ? `Index current — all ${corpusRows} provisions & forms embedded.`
+                        : `${pending} of ${corpusRows} corpus entr${pending === 1 ? 'y' : 'ies'} awaiting indexing.`}
             </div>
             <button
                 onClick={handleBuild}
@@ -192,7 +195,7 @@ const BuildLegalIndexButton: React.FC<{
                 {status === 'running'
                     ? `Indexing… ${progress ? `${progress.done}/${progress.total}` : ''}`
                     : status === 'done' ? 'Legal Index Built ✓'
-                        : pending === 0 ? 'Legal Index Current'
+                        : pending === 0 ? (indexStatus && !indexStatus.hasCorpus ? 'Awaiting Corpus Publish' : 'Legal Index Current')
                             : 'Build Legal Index (Rules & Forms)'}
             </button>
         </div>
@@ -689,13 +692,42 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                             <label className="block text-2xs font-bold text-slate-500 uppercase mb-1">
                                 {firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? 'Firm Provider Key' : 'Firm Gemini Key (Google)'}
                             </label>
-                            <input autoComplete="off" data-lpignore="true"
-                                type="password"
-                                placeholder={firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? 'sk-or-... / gsk_... (Firm Fallback)' : 'AIzaSy... (Firm Fallback)'}
-                                defaultValue={firmDetails.aiSettings?.firmGeminiApiKey || ''}
-                                onBlur={(e) => {
-                                    const val = e.target.value;
-                                    if (val !== firmDetails.aiSettings?.firmGeminiApiKey) {
+                            {/* S2 (security spine): WRITE-ONLY input. Firm Gemini keys
+                                are stored server-side and REDACTED from reads — the
+                                value never renders back into the browser. Empty means
+                                "leave the stored key untouched" (the server-side merge
+                                in updateFirmSettings preserves it); typing a new key
+                                replaces it; the Clear button removes it explicitly. */}
+                            <div className="flex items-center gap-2">
+                                <input autoComplete="off" data-lpignore="true"
+                                    type="password"
+                                    placeholder={firmDetails.aiSettings?.aiProvider === 'openai-compatible'
+                                        ? 'sk-or-... / gsk_... (Firm Fallback)'
+                                        : (firmDetails.aiSettings?.firmGeminiKeySet
+                                            ? 'A firm key is configured (stored server-side) — enter a new key to replace it'
+                                            : 'AIzaSy... (stored server-side, never shown again)')}
+                                    defaultValue={firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? (firmDetails.aiSettings?.firmGeminiApiKey || '') : ''}
+                                    onBlur={(e) => {
+                                        const val = e.target.value.trim();
+                                        if (firmDetails.aiSettings?.aiProvider === 'openai-compatible') {
+                                            // OpenAI-compatible keys are needed client-side by design
+                                            // (direct calls to the firm's chosen endpoint) — write through.
+                                            if (val !== (firmDetails.aiSettings?.firmGeminiApiKey || '')) {
+                                                onUpdateFirmDetails({
+                                                    ...firmDetails,
+                                                    aiSettings: {
+                                                        ...firmDetails.aiSettings,
+                                                        enableAllAiFeatures: firmDetails.aiSettings?.enableAllAiFeatures ?? true,
+                                                        enableJurisdictionalAnalysis: firmDetails.aiSettings?.enableJurisdictionalAnalysis ?? false,
+                                                        firmGeminiApiKey: val,
+                                                    }
+                                                });
+                                                addToast('Firm provider key updated.');
+                                            }
+                                            return;
+                                        }
+                                        // Gemini: empty = preserve the server-stored key.
+                                        if (!val) return;
                                         onUpdateFirmDetails({
                                             ...firmDetails,
                                             aiSettings: {
@@ -703,13 +735,41 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ firmDetails, onUpdateFirm
                                                 enableAllAiFeatures: firmDetails.aiSettings?.enableAllAiFeatures ?? true,
                                                 enableJurisdictionalAnalysis: firmDetails.aiSettings?.enableJurisdictionalAnalysis ?? false,
                                                 firmGeminiApiKey: val,
+                                                firmGeminiKeySet: true,
                                             }
                                         });
-                                        addToast(firmDetails.aiSettings?.aiProvider === 'openai-compatible' ? "Firm provider key updated." : "Firm Gemini Key updated.", { type: 'success' });
-                                    }
-                                }}
-                                className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
-                            />
+                                        addToast('Firm Gemini Key updated — stored server-side. AI calls now route through the platform proxy.');
+                                        e.target.value = '';
+                                    }}
+                                    className="w-full p-2.5 bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-600 rounded-lg text-sm focus:ring-primary-500 focus:border-primary-500"
+                                />
+                                {firmDetails.aiSettings?.aiProvider !== 'openai-compatible' && (firmDetails.aiSettings?.firmGeminiKeySet || firmDetails.aiSettings?.firmGeminiApiKey) && (
+                                    <Button
+                                        variant="danger"
+                                        size="sm"
+                                        onClick={() => {
+                                            onUpdateFirmDetails({
+                                                ...firmDetails,
+                                                aiSettings: {
+                                                    ...firmDetails.aiSettings,
+                                                    enableAllAiFeatures: firmDetails.aiSettings?.enableAllAiFeatures ?? true,
+                                                    enableJurisdictionalAnalysis: firmDetails.aiSettings?.enableJurisdictionalAnalysis ?? false,
+                                                    firmGeminiApiKey: '',
+                                                    firmGeminiKeySet: false,
+                                                }
+                                            });
+                                            addToast('Firm Gemini key removed. Users will need their own key (Settings → AI Settings).');
+                                        }}
+                                    >
+                                        Remove
+                                    </Button>
+                                )}
+                            </div>
+                            {firmDetails.aiSettings?.aiProvider !== 'openai-compatible' && (
+                                <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">
+                                    The firm key is stored server-side and never displayed again. Members' AI requests use it through the platform proxy — no key on their devices.
+                                </p>
+                            )}
                         </div>
                     </SettingsCard>
 

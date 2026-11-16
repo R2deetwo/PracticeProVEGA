@@ -595,7 +595,7 @@ export const getFirmData = query({
     });
 
     return {
-      firmDetails,
+      firmDetails: redactFirmAiKey(firmDetails),
       matters: matters || [],
       contacts: contacts || [],
       tasks: tasks || [],
@@ -3485,6 +3485,59 @@ async function performFirmUserRemoval(
  * removeFirmUserAndCleanup removed: dead twin of the same removal family (superseded by the R77 session-gated paths). Zero product callers.
  */
 
+/**
+ * S2 (security spine): FIRM GEMINI KEYS NEVER ROUND-TRIP TO CLIENTS.
+ *
+ * The firm's Gemini key previously shipped inside firmDetails to EVERY
+ * member's browser (and from there into ?key= URLs). Reads are now
+ * redacted: clients get a `firmGeminiKeySet` flag instead of the material,
+ * and AI traffic routes through the platform proxy, which resolves the
+ * key server-side (convex/ai.ts). OpenAI-compatible firms are exempt by
+ * design — their key points at THEIR chosen endpoint, their calls go
+ * direct, and the admin opted into that arrangement (header-based
+ * transport, never a URL query param).
+ *
+ * Exported for the S2 custody tests (roundR2SecuritySpine.test.ts).
+ */
+export function redactFirmAiKey(firm: any): any {
+  if (!firm?.aiSettings) return firm;
+  const provider = firm.aiSettings.aiProvider || "gemini";
+  if (provider !== "gemini") return firm;
+  const { firmGeminiApiKey, ...restAi } = firm.aiSettings;
+  if (!firmGeminiApiKey) return firm;
+  return {
+    ...firm,
+    aiSettings: { ...restAi, firmGeminiKeySet: true },
+  };
+}
+
+/**
+ * S2: merge-aware aiSettings writes. Firm reads are redacted
+ * (firmGeminiApiKey removed, firmGeminiKeySet flag added). A client that
+ * round-trips a redacted aiSettings back through updateFirmSettings would
+ * otherwise WIPE the stored firm key. When the incoming aiSettings OMITS
+ * firmGeminiApiKey, the stored value is preserved server-side; an explicit
+ * string (including "", an intentional clear from the settings UI) is
+ * written as-is.
+ *
+ * Exported for the S2 custody tests.
+ */
+export function withPreservedFirmAiKey(incomingSettings: any, storedFirm: any): any {
+  if (
+    incomingSettings &&
+    typeof incomingSettings === "object" &&
+    incomingSettings.aiSettings &&
+    typeof incomingSettings.aiSettings === "object" &&
+    incomingSettings.aiSettings.firmGeminiApiKey === undefined
+  ) {
+    const storedKey = storedFirm?.aiSettings?.firmGeminiApiKey;
+    if (typeof storedKey === "string" && storedKey.length > 0) {
+      return { ...incomingSettings, aiSettings: { ...incomingSettings.aiSettings, firmGeminiApiKey: storedKey } };
+    }
+  }
+  return incomingSettings;
+}
+
 export const updateFirmSettings = mutation({
   args: { sessionToken: v.optional(v.string()), firmId: v.string(), settings: v.any(), userEmail: v.optional(v.string()) },
   handler: async (ctx, args) => {
@@ -3494,7 +3547,11 @@ export const updateFirmSettings = mutation({
     if (auth.firmId !== args.firmId) {
       throw new Error("Not authorized: cannot update settings for a different firm.");
     }
-    await ctx.db.patch(args.firmId as any, args.settings);
+    // ── S2 (security spine): merge-aware aiSettings writes — see
+    //    withPreservedFirmAiKey (module scope) for the contract.
+    const storedFirm: any = await ctx.db.get(args.firmId as any);
+    const mergedSettings = withPreservedFirmAiKey(args.settings, storedFirm);
+    await ctx.db.patch(args.firmId as any, mergedSettings);
   }
 });
 

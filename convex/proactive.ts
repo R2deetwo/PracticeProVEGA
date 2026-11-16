@@ -564,10 +564,10 @@ export const generateMorningBriefing = internalAction({
 
       try {
         const aiResponse = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${BACKGROUND_MODEL}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${BACKGROUND_MODEL}:generateContent`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
             body: JSON.stringify({
               contents: [{ parts: [{ text: briefingPrompt }] }],
               generationConfig: {

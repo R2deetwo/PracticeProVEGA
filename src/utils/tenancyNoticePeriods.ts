@@ -93,3 +93,61 @@ export function noticeFrameworkTable(): string {
         'No stipulated period — the law fixes a notice appropriate to the payment interval; establish the interval before drafting',
     ].join('\n');
 }
+
+
+// ─── R3.2 (truth alignment): ONE framework for drafting AND countdowns ──────
+//
+// The eviction countdown (evictionTracker.ts) previously kept its own
+// divergent table (no weekly case, quarterly = 1 month) while the site
+// footnote and THIS util advertise weekly 1 week / quarterly 3 months.
+// The countdown now delegates here — single source of truth, matching the
+// advertised framework exactly.
+
+/** Normalize a free-text rent frequency to a tenancy period.
+ *  'Annually'/'yearly' → yearly · 'Bi-Annually'/'6-month' → quarterly
+ *  (a half-year tenancy takes a quarter's notice — the classic rule the
+ *  old countdown encoded as "3 months", preserved) · 'Quarterly' →
+ *  quarterly · 'Monthly' → monthly · 'Weekly'/'week' → weekly · anything
+ *  else → yearly (the default the old code applied, most common in Nigeria). */
+export function resolveTenancyPeriod(frequency?: string): TenancyPeriod {
+    const f = (frequency || '').toLowerCase().trim();
+    if (f.includes('week')) return 'weekly';
+    // Half-year cycles (Bi-Annually / 6-month) take a quarter's notice —
+    // the classic rule the old countdown encoded as "3 months".
+    if (f.includes('bi-annu') || f.includes('biannu') || f.includes('6-month') || f.includes('six month') || f.includes('half')) return 'quarterly';
+    if (f.includes('quarter')) return 'quarterly';
+    if (f.includes('month')) return 'monthly';
+    return 'yearly';
+}
+
+/** The 36 states + FCT, for pulling the property's state out of a free-text
+ *  address ("No. 20 Westsyde Drive, Ogombo, Ajah, Lagos State" → "Lagos"). */
+const NIGERIAN_STATES: string[] = [
+    'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
+    'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT', 'Federal Capital Territory',
+    'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi', 'Kwara',
+    'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo', 'Plateau', 'Rivers',
+    'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
+];
+
+/** Extract the Nigerian state from a free-text property address (or '').
+ *  Word-boundary matched: 'London' must NOT match Ondo (the substring trap
+ *  the R3.2 test caught); 'Ondo State', 'FCT' and full state names do. */
+export function extractNigerianState(address?: string): string {
+    const a = (address || '');
+    if (!a) return '';
+    for (const s of NIGERIAN_STATES) {
+        const escaped = s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (new RegExp(`\\b${escaped}\\b`, 'i').test(a)) {
+            return s === 'Federal Capital Territory' ? 'FCT' : s;
+        }
+    }
+    return '';
+}
+
+/** The notice period for a unit, from its raw rent frequency + the property
+ *  address (state-aware: Lagos cites its encoded statute). This is the ONE
+ *  entry point the eviction countdown uses — no divergent second table. */
+export function noticePeriodForUnit(state: string, frequency?: string): NoticePeriodResult {
+    return noticeToQuitPeriod(state, resolveTenancyPeriod(frequency));
+}

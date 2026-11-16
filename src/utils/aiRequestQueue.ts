@@ -215,7 +215,14 @@ import { getGeminiApiKey } from './aiUtils';
  * will return a 403 if the key is actually invalid, and that error is
  * already handled gracefully by the onError handler.
  */
-export const validateAPIKey = (firmKey?: string): { valid: boolean; error?: string } => {
+export const validateAPIKey = (firmKey?: string, opts?: { firmKeySet?: boolean }): { valid: boolean; error?: string } => {
+    // S2 (security spine): a firm key stored SERVER-SIDE (redacted from
+    // client reads — the `firmGeminiKeySet` flag) means AI calls route
+    // through the authenticated platform proxy. No local key material is
+    // required, so the pre-flight passes.
+    if (opts?.firmKeySet) {
+        return { valid: true };
+    }
     const personalKey = getGeminiApiKey();
     const key = firmKey || personalKey;
 

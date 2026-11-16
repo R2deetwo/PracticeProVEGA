@@ -406,7 +406,11 @@ export const sendMessage = async (
 ): Promise<{ text?: string; toolCalls?: any[]; modelUsed?: string }> => {
 
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;
-    const firmKey = appState.firmDetails?.aiSettings?.firmGeminiApiKey || getGeminiApiKey();
+    // S2: firm Gemini keys are redacted from client reads — when the firm
+    // key is active, resolveProvider returns a viaServerProxy config and
+    // every call routes through the authenticated platform proxy. The
+    // material below is only the LEGACY direct-key path (own key).
+    const ownKey = getGeminiApiKey();
     // A2 provider seam: firms may run ALOA/ARIA on any OpenAI-compatible
     // endpoint (OpenRouter/Groq/vLLM) instead of Google. Gemini remains the
     // default and sends the exact bytes it always has.
@@ -615,8 +619,10 @@ IMPORTANT:
     // frontend may be pointed at a different Convex deployment than expected.
     // A2: the seam speaks the Gemini wire format on BOTH providers — the
     // request body below is unchanged, the transport is the provider's.
-    const clientKey = firmKey || getGeminiApiKey();
-    if (clientKey && providerCfg) {
+    // S2: viaServerProxy configs carry no key material — the direct loop is
+    // skipped and the Convex proxy loop below is the primary path.
+    const clientKey = ownKey;
+    if (!providerCfg?.viaServerProxy && clientKey && providerCfg) {
         for (const modelName of modelsToTry) {
             try {
                 const directResponse = await providerGenerateContent(providerCfg, modelName, {
@@ -667,7 +673,9 @@ IMPORTANT:
 
     // ─── FALLBACK: Convex Proxy (Gemini-only — the server proxy speaks
     //     Google's API; OpenAI-compatible firms rely on the direct path,
-    //     which is the primary for them) ──────────────────────────────────
+    //     which is the primary for them). S2: in firm-key (viaServerProxy)
+    //     mode this loop is the PRIMARY path — the action resolves the
+    //     firm's key server-side. ────────────────────────────────────────
     for (const modelName of isGeminiProvider(providerCfg) ? modelsToTry : []) {
         try {
             const response = await convex.action(api.ai.generateContent, {
@@ -676,7 +684,9 @@ IMPORTANT:
                 systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
                 tools: [{ functionDeclarations: tools }],
                 generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
-                firmGeminiApiKey: clientKey,
+                // S2: only the user's OWN key is passed (BYO). Firm keys
+                // resolve server-side — never through this arg again.
+                firmGeminiApiKey: providerCfg?.viaServerProxy ? undefined : clientKey,
                 sessionToken: readSessionBearer()
             });
 
@@ -736,7 +746,9 @@ export const streamMessage = async (
     signal?: AbortSignal
 ): Promise<{ text: string; modelUsed?: string; toolCalls?: any[]; thoughtSignature?: string }> => {
     const { appState, currentUser, currentHistoryEntry, localFiles, aloaXLibrary, isFirmSearchEnabled } = context;
-    const firmKey = appState.firmDetails?.aiSettings?.firmGeminiApiKey || getGeminiApiKey();
+    // S2: firm keys are server-side — see sendMessage. The material here is
+    // the user's OWN key only (legacy direct path).
+    const ownKey = getGeminiApiKey();
     // A2 provider seam — see sendMessage.
     const providerCfg = resolveProvider(appState.firmDetails?.aiSettings);
 
@@ -875,8 +887,11 @@ You are operating in RESEARCH MODE. Apply these rules:
         contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts });
     }
 
-    const clientKey = firmKey || getGeminiApiKey();
-    if (!providerCfg || (!clientKey && providerCfg.provider === 'gemini')) {
+    // S2: a viaServerProxy config needs no client key — the platform proxy
+    // resolves the firm key server-side. Own-key configs still require the
+    // key, and openai-compatible firms require their (material) firm key.
+    const clientKey = ownKey;
+    if (!providerCfg || (!clientKey && providerCfg.provider === 'gemini' && !providerCfg.viaServerProxy)) {
         throw new Error('No AI provider key configured. Get a free Gemini key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration — or ask your admin to connect the firm’s own provider.');
     }
 
@@ -1067,9 +1082,11 @@ The user is ALWAYS the Lawyer/Solicitor. Sign documents accordingly.`;
     // aiSettings.firmGeminiApiKey. This caused drafting to fail with
     // "No Gemini API key found" when the user had set their key in
     // Settings → AI Settings (which stores it on the firm record).
+    // S2: the firm key is now redacted from reads — viaServerProxy configs
+    // route through the platform proxy instead of needing local material.
     const firmKey = context.appState?.firmDetails?.aiSettings?.firmGeminiApiKey;
     const clientKey = firmKey || getGeminiApiKey();
-    if (!providerCfg || (!clientKey && providerCfg.provider === 'gemini')) {
+    if (!providerCfg || (!clientKey && providerCfg.provider === 'gemini' && !providerCfg.viaServerProxy)) {
         throw new Error("No AI provider key found. Get a free Gemini key at https://aistudio.google.com/app/apikey and paste it in Settings → AI Settings → API Key Configuration — or ask your admin to connect the firm’s own provider.");
     }
 
@@ -1539,6 +1556,8 @@ export const transcribeAudio = async (
 ): Promise<string> => {
 
     const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
+    // S2: firm keys are redacted from client reads — when absent, the
+    // server action resolves the caller's firm key (or env key) itself.
     const cleanBase64 = audioBase64.includes(',') ? audioBase64.split(',')[1] : audioBase64;
 
     const domain: 'legal' | 'property' = options?.domain
@@ -1642,6 +1661,8 @@ export const generateResearchQuery = async (
     firmDetails?: any
 ): Promise<string> => {
     const firmKey = firmDetails?.aiSettings?.firmGeminiApiKey;
+    // S2: firm keys are redacted from client reads — when absent, the
+    // server action resolves the caller's firm key (or env key) itself.
     const hint = opts?.hint || 'verify and find authoritative legal sources';
     const jurisdiction = opts?.jurisdiction || 'Nigeria';
     const docTitle = opts?.documentTitle || '';

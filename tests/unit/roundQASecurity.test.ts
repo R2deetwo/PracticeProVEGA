@@ -214,7 +214,7 @@ describe('QA §3 — ai.generateContent: auth + throttle + payload bound', () =>
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('serves a valid session and forwards the model call', async () => {
+    it('serves a valid session and forwards the model call — key in the HEADER, never the URL (S2)', async () => {
         const { ctx } = makeCtx(baseTables());
         const res = await call(generateContent, ctx, {
             modelName: 'gemini-2.5-flash',
@@ -226,7 +226,42 @@ describe('QA §3 — ai.generateContent: auth + throttle + payload bound', () =>
         const calledUrl = fetchMock.mock.calls[0][0] as string;
         expect(calledUrl).toContain('generativelanguage.googleapis.com');
         expect(calledUrl).toContain('gemini-2.5-flash');
-        expect(calledUrl).toContain('test-firm-key');
+        // S2 (security spine): the caller's key rides in the x-goog-api-key
+        // request header — URLs must NEVER carry key material (they land in
+        // access logs, proxies and error trackers).
+        expect(calledUrl).not.toContain('key=');
+        expect(calledUrl).not.toContain('test-firm-key');
+        const calledHeaders = (fetchMock.mock.calls[0][1] as any).headers as Record<string, string>;
+        expect(calledHeaders['x-goog-api-key']).toBe('test-firm-key');
+    });
+
+    it('S2: resolves the caller’s FIRM key server-side when no caller key is passed', async () => {
+        const { ctx } = makeCtx(baseTables());
+        // The session user (users_qa_1) belongs to firm-1; the internal
+        // firm-AI lookup is mocked at the runQuery seam.
+        (ctx.runQuery as any).mockResolvedValue({ firmGeminiApiKey: 'firm-stored-key', aiProvider: 'gemini' });
+        const res = await call(generateContent, ctx, {
+            modelName: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+            sessionToken: SESSION_PLAIN,
+            // NO firmGeminiApiKey — the firm key must come from the server.
+        });
+        expect(res.candidates[0].content.parts[0].text).toBe('cleaned text');
+        const calledHeaders = (fetchMock.mock.calls[0][1] as any).headers as Record<string, string>;
+        expect(calledHeaders['x-goog-api-key']).toBe('firm-stored-key');
+        const calledUrl = fetchMock.mock.calls[0][0] as string;
+        expect(calledUrl).not.toContain('key=');
+    });
+
+    it('S2: does NOT spend an openai-compatible firm’s key through the Gemini proxy', async () => {
+        const { ctx } = makeCtx(baseTables());
+        (ctx.runQuery as any).mockResolvedValue({ firmGeminiApiKey: 'sk-or-firm-key', aiProvider: 'openai-compatible' });
+        await expect(call(generateContent, ctx, {
+            modelName: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+            sessionToken: SESSION_PLAIN,
+        })).rejects.toThrow(/No API key available/i);
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('throttles at 30 generations/minute per user (31st call rejected)', async () => {

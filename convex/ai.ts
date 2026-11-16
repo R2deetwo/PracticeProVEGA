@@ -1,4 +1,4 @@
-import { action } from "./_generated/server";
+import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { resolveUserBySessionToken } from "./sessions";
@@ -9,13 +9,77 @@ import { resolveUserBySessionToken } from "./sessions";
  * on the backend and preventing client-side scraping.
  *
  * ── ROUND QA (§3 API access): this action was PUBLIC — while it always kept
- * the demo key server-side, ANY anonymous caller could spend that key's
- * quota at unlimited rate through this endpoint. It now mirrors the
- * /ai/stream httpAction gate (Round A H18): a valid bearer session is
- * required, and each user is rate-limited (the model-ladder fallback path
- * makes several calls per feature interaction, so the limit is generous
- * but bounded).
+ *    the demo key server-side, ANY anonymous caller could spend that key's
+ *    quota at unlimited rate through this endpoint. It now mirrors the
+ *    /ai/stream httpAction gate (Round A H18): a valid bearer session is
+ *    required, and each user is rate-limited (the model-ladder fallback path
+ *    makes several calls per feature interaction, so the limit is generous
+ *    but bounded).
+ *
+ * ── S2 (security spine, R2): FIRM KEYS NEVER ROUND-TRIP TO CLIENTS.
+ *    Firm reads are redacted server-side (see myFunctions.getFirmData —
+ *    clients see `aiSettings.firmGeminiKeySet`, never the material), so
+ *    this action resolves the caller's FIRM key from the firms table
+ *    ITSELF, after session auth. Priority: the caller's OWN key (the
+ *    `firmGeminiApiKey` arg, kept for BYO-key clients — historically the
+ *    field carried the firm key; clients no longer have it) → the caller's
+ *    firm key (server-side) → the platform env key. And the Google call
+ *    puts the key in the `x-goog-api-key` HEADER — never in a URL query
+ *    string, where it would land in access logs and error trackers.
  */
+
+/** INTERNAL: the caller's firm AI settings (server-side key custody, S2). */
+export const getFirmAiSettingsInternal = internalQuery({
+  args: { firmId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    if (!args.firmId) return null;
+    try {
+      const firm: any = await ctx.db.get(args.firmId as any);
+      if (!firm) return null;
+      return {
+        firmGeminiApiKey: (firm.aiSettings?.firmGeminiApiKey as string) || null,
+        aiProvider: (firm.aiSettings?.aiProvider as string) || "gemini",
+      };
+    } catch {
+      return null;
+    }
+  },
+});
+
+/**
+ * Shared key resolution for every server-side AI surface (S2):
+ * caller's own key → the caller's firm key (server-side) → platform env key.
+ */
+async function resolveEffectiveApiKey(
+  ctx: any,
+  user: { firmId?: string | null },
+  callerSuppliedKey?: string | null
+): Promise<{ apiKey: string | null; source: "caller" | "firm" | "env" }> {
+  const own = (callerSuppliedKey || "").trim();
+  if (own) return { apiKey: own, source: "caller" };
+
+  if (user.firmId) {
+    const firmAi: any = await ctx.runQuery(internal.ai.getFirmAiSettingsInternal, {
+      firmId: String(user.firmId),
+    });
+    // Only the DEFAULT (Gemini) provider's firm key is proxied server-side.
+    // OpenAI-compatible firms make direct calls to their own endpoint by
+    // design (admin opt-in, header-based transport) — their key is not
+    // spent through the platform proxy.
+    const firmKey = firmAi?.aiProvider === "gemini" ? (firmAi.firmGeminiApiKey || "").trim() : "";
+    if (firmKey) return { apiKey: firmKey, source: "firm" };
+  }
+
+  const envKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
+  return { apiKey: envKey || null, source: "env" };
+}
+
+/** Google request headers — the key rides in the header, never the URL (S2). */
+const googleHeaders = (apiKey: string): Record<string, string> => ({
+  "Content-Type": "application/json",
+  "x-goog-api-key": apiKey,
+});
+
 export const generateContent = action({
   args: {
     contents: v.any(),
@@ -23,6 +87,8 @@ export const generateContent = action({
     tools: v.optional(v.any()),
     generationConfig: v.optional(v.any()),
     modelName: v.string(),
+    /** DEPRECATED AS A FIRM-KEY CHANNEL (S2): now carries only the caller's
+     *  OWN BYO key when present. Firm keys resolve server-side above. */
     firmGeminiApiKey: v.optional(v.string()),
     sessionToken: v.optional(v.string()),
   },
@@ -56,32 +122,28 @@ export const generateContent = action({
       throw new Error("Payload too large for the AI proxy.");
     }
 
-    // The demo key must be set as an environment variable (GEMINI_API_KEY or GEMINI_DEMO_KEY)
-    // in the Convex dashboard. Hardcoded fallbacks are removed for security.
-    
-    // Check for environment variable first (Convex Dashboard) -> Firm Key -> Demo Key
-    const envKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
-    const apiKey = args.firmGeminiApiKey || envKey;
-
+    // S2: caller's own key → firm key (server-side) → env key.
+    const { apiKey } = await resolveEffectiveApiKey(ctx, user, args.firmGeminiApiKey);
     if (!apiKey) {
       throw new Error("No API key available. Please configure the firm's AI key in Settings.");
     }
 
     const modelName = args.modelName;
     const modelTag = modelName.includes('models/') ? modelName : `models/${modelName}`;
-    const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent?key=${apiKey}`;
+    // S2: NO key in the URL — x-goog-api-key header.
+    const url = `https://generativelanguage.googleapis.com/v1beta/${modelTag}:generateContent`;
 
     const body: any = {
         contents: args.contents,
     };
-    
+
     if (args.systemInstruction) body.systemInstruction = args.systemInstruction;
     if (args.tools) body.tools = args.tools;
     if (args.generationConfig) body.generationConfig = args.generationConfig;
 
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: googleHeaders(apiKey),
       body: JSON.stringify(body)
     });
 
@@ -89,10 +151,71 @@ export const generateContent = action({
        const errorData = await response.json().catch(() => ({}));
        throw new Error(`AI Request Failed: ${errorData.error?.message || response.statusText}`);
     }
-    
+
     // Process and return exactly what the client expects from the raw API
     const data = await response.json();
     return data;
+  }
+});
+
+/**
+ * S2/R1: server-side EMBEDDINGS — the Legal Index builder ("Build Legal
+ * Index") and the Brain previously required the OPERATOR's personal Gemini
+ * key client-side (the firm key was never wired into embeddings, and after
+ * redaction it cannot be). This action embeds text with the same key
+ * resolution as generateContent (firm key → env key), so indexing works
+ * with NO client-side key material at all. Model is pinned to the
+ * platform embedding model so vectors stay dimension-compatible
+ * (text-embedding-004, 768-dim — see AI_CONFIG.embeddingModel).
+ */
+export const embedContent = action({
+  args: {
+    text: v.string(),
+    sessionToken: v.optional(v.string()),
+    firmGeminiApiKey: v.optional(v.string()),
+    model: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = args.sessionToken
+      ? await resolveUserBySessionToken(ctx, args.sessionToken)
+      : null;
+    if (!user) {
+      throw new Error("Unauthorized: a valid session is required to embed content.");
+    }
+    if (args.text.length > 100_000) {
+      throw new Error("Text too large for embedding (100 KB limit).");
+    }
+
+    const allowed = await ctx.runMutation(
+      internal.securityHelpers.consumeRateLimit,
+      { key: `ai_embed:${user._id}`, maxRequests: 120 }
+    );
+    if (!allowed) {
+      throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    }
+
+    const { apiKey } = await resolveEffectiveApiKey(ctx, user, args.firmGeminiApiKey);
+    if (!apiKey) {
+      throw new Error("No API key available for embeddings. Configure the firm's AI key in Settings.");
+    }
+
+    const model = args.model || "text-embedding-004";
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`,
+      {
+        method: "POST",
+        headers: googleHeaders(apiKey),
+        body: JSON.stringify({ model, content: { parts: [{ text: args.text }] } }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Embedding failed: ${errorData.error?.message || response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    return { embedding: data?.embedding?.values ?? [] };
   }
 });
 

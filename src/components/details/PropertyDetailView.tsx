@@ -49,7 +49,7 @@ import { Table, TableHeader, TableBody, TableHead, TableCell } from '../ui/Table
 // state machine moved verbatim to ./units/evictionTracker.ts (shared,
 // import-cycle-free).
 import UnitsConsole from './units/UnitsConsole';
-import { getEvictionTracker, getNoticePeriodMonths, type EvictionTracker, type EvictionEvent } from './units/evictionTracker';
+import { getEvictionTracker, getNoticePeriodEndDate, type EvictionTracker, type EvictionEvent } from './units/evictionTracker';
 const DetailItem: React.FC<{ label: string; value: React.ReactNode; subText?: string }> = ({ label, value, subText }) => (
     <div className="w-full min-w-0 overflow-x-hidden break-words whitespace-normal text-left max-w-full" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
         <p className="text-3xs sm:text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-0.5 whitespace-normal">{label}</p>
@@ -869,15 +869,23 @@ const PropertyDetailViewContent: React.FC = () => {
         const servedDate = Date.now();
         const rental = (unit as any).rentalDetails || {};
         const rentFrequency = rental.rentFrequency || 'yearly';
-        const noticeMonths = getNoticePeriodMonths(rentFrequency);
-        const countdownEnd = new Date(servedDate);
-        countdownEnd.setMonth(countdownEnd.getMonth() + noticeMonths);
+        // R3.2: the countdown uses the ENCODED notice framework (weekly 1
+        // week · monthly 1 month · quarterly 3 · yearly 6), state-aware via
+        // the property address — the same table the UI footnote advertises
+        // and tenancyNoticePeriods.ts is tested against.
+        const { endDate: countdownEndMs, period } = getNoticePeriodEndDate(servedDate, rentFrequency, property.address);
+        const countdownEnd = new Date(countdownEndMs);
+        const basisNote = period.state
+            ? (period.basis === 'lagos_tenancy_law_2011'
+                ? `Tenancy Law of Lagos State 2011 (${period.label})`
+                : `general framework (${period.label})${period.state ? ` — ${period.state} statute should be verified before service` : ''}`)
+            : `general framework (${period.label})`;
 
         // Log the served event immutably
         const updatedTracker = logEvictionEvent(tracker, {
             type: 'served',
             timestamp: servedDate,
-            notes: `Service method: ${serviceMethod}. Statutory period: ${noticeMonths} months. Countdown expires ${countdownEnd.toLocaleDateString('en-GB')}.`,
+            notes: `Service method: ${serviceMethod}. Statutory period: ${basisNote}. Countdown expires ${countdownEnd.toLocaleDateString('en-GB')}.`,
         });
 
         updateEvictionTracker(unit, {

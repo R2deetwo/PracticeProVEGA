@@ -1872,8 +1872,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // request fail with an unhandled exception mid-stream.
         const isDemo = currentUser?.email === 'demo@practicepro.ng';
         if (!isDemo) {
-            const firmKey = coreState.firmDetails?.aiSettings?.firmGeminiApiKey;
-            const keyCheck = validateAPIKey(firmKey);
+            const aiSettings = coreState.firmDetails?.aiSettings;
+            // S2: the firm key material is redacted from reads — when the
+            // firm key is stored server-side (`firmGeminiKeySet`), chat
+            // routes through the platform proxy and no local key is needed.
+            const keyCheck = validateAPIKey(aiSettings?.firmGeminiApiKey, { firmKeySet: !!aiSettings?.firmGeminiKeySet });
             if (!keyCheck.valid) {
                 setMessages(prev => [...prev, {
                     id: uuidv4(),

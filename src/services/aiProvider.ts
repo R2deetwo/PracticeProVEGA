@@ -31,6 +31,7 @@
  * not the firm's, and is documented as such in the settings copy.
  */
 import { AI_CONFIG, getGeminiApiKey } from '../utils/aiUtils';
+import { directGemini, directGeminiKeyProbe, serverProxyGenerate, serverProxyStream } from './aiTransport';
 import type { AiSettings } from '../types';
 
 export type ProviderId = 'gemini' | 'openai-compatible';
@@ -42,6 +43,11 @@ export interface ProviderConfig {
     baseUrl?: string;
     /** The firm's model ladder, flash-first (fast → strong). */
     models?: string[];
+    /** S2 (security spine): true when the firm's Gemini key is stored
+     * SERVER-SIDE (redacted from client reads). Gemini traffic then routes
+     * through the authenticated platform proxy — this client carries NO
+     * key material at all. */
+    viaServerProxy?: boolean;
 }
 
 // ── Resolution ─────────────────────────────────────────────────────────────
@@ -52,12 +58,19 @@ const normalizeBaseUrl = (u: string): string => u.trim().replace(/\/+$/, '');
  * Resolve the active provider from the firm's AI settings (admin-set),
  * falling back to the user's own key on Gemini. Returns null when no key
  * exists at all — callers keep their existing "no key configured" UX.
+ *
+ * S2: when the firm's Gemini key is stored server-side (the redacted
+ * `firmGeminiKeySet` flag — firm reads never carry the material), the
+ * config is marked viaServerProxy and Gemini calls route through the
+ * authenticated platform proxy. Precedence is unchanged: the firm's
+ * configuration wins over the user's own key.
  */
 export const resolveProvider = (
     aiSettings?: AiSettings | null,
     clientKey?: string | null
 ): ProviderConfig | null => {
     const firmKey = aiSettings?.firmGeminiApiKey?.trim() || '';
+    const firmKeySet = !!aiSettings?.firmGeminiKeySet;
     const ownKey = (clientKey ?? getGeminiApiKey())?.trim() || '';
     const provider: ProviderId =
         aiSettings?.aiProvider === 'openai-compatible' ? 'openai-compatible' : 'gemini';
@@ -72,9 +85,13 @@ export const resolveProvider = (
             .filter(Boolean);
         return { provider, apiKey: firmKey, baseUrl, models: models.length ? models : undefined };
     }
-    const key = firmKey || ownKey;
-    if (!key) return null;
-    return { provider: 'gemini', apiKey: key };
+    // Legacy/direct path: a material key present in settings (dev builds,
+    // tests) still wins — header-based now, never a URL query param.
+    if (firmKey) return { provider: 'gemini', apiKey: firmKey };
+    // S2: firm key stored server-side → proxy mode, no client key material.
+    if (firmKeySet) return { provider: 'gemini', apiKey: '', viaServerProxy: true };
+    if (!ownKey) return null;
+    return { provider: 'gemini', apiKey: ownKey };
 };
 
 /**
@@ -357,9 +374,6 @@ const openAIError = async (res: Response, what: string): Promise<never> => {
     throw new Error(`${what} failed (${res.status}): ${message}`);
 };
 
-const geminiUrl = (modelTag: string, method: 'generateContent' | 'streamGenerateContent', key: string): string =>
-    `https://generativelanguage.googleapis.com/v1beta/${modelTag}:${method}${method === 'streamGenerateContent' ? '?alt=sse' : ''}&key=${key}`;
-
 const openAIBase = (cfg: ProviderConfig): string => {
     const base = cfg.baseUrl || 'https://api.openai.com/v1';
     return base.endsWith('/v1') || /\/v\d+$/.test(base) ? base : `${base}/v1`;
@@ -378,12 +392,12 @@ export const providerGenerateContent = async (
 ): Promise<Response> => {
     if (cfg.provider === 'gemini') {
         const modelTag = model.includes('models/') ? model : `models/${model}`;
-        return fetch(geminiUrl(modelTag, 'generateContent', cfg.apiKey), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal,
-            body: JSON.stringify(geminiBody),
-        });
+        // S2: firm-key mode — no client key material; the authenticated
+        // platform proxy resolves the key server-side.
+        if (cfg.viaServerProxy) {
+            return serverProxyGenerate(modelTag, geminiBody, signal);
+        }
+        return directGemini(cfg.apiKey, modelTag, 'generateContent', geminiBody, signal);
     }
     const body = { ...geminiBodyToOpenAI(geminiBody), stream: false };
     delete (body as any).__stream;
@@ -417,12 +431,12 @@ export const providerStreamGenerateContent = async (
 ): Promise<Response> => {
     if (cfg.provider === 'gemini') {
         const modelTag = model.includes('models/') ? model : `models/${model}`;
-        return fetch(geminiUrl(modelTag, 'streamGenerateContent', cfg.apiKey), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal,
-            body: JSON.stringify(geminiBody),
-        });
+        // S2: firm-key mode — the authenticated /ai/stream route on the
+        // Convex deployment (SSE pass-through, key resolved server-side).
+        if (cfg.viaServerProxy) {
+            return serverProxyStream(modelTag, geminiBody, signal);
+        }
+        return directGemini(cfg.apiKey, modelTag, 'streamGenerateContent', geminiBody, signal);
     }
     const body = { ...geminiBodyToOpenAI({ ...geminiBody, __stream: true }), stream: true };
     const res = await fetch(`${openAIBase(cfg)}/chat/completions`, {
@@ -453,14 +467,19 @@ export interface ProviderKeyHealth {
  * way the R32 chip does.
  */
 export const checkProviderKeyHealth = async (cfg: ProviderConfig): Promise<ProviderKeyHealth> => {
+    // S2: firm-key configs carry no material client-side — nothing to probe.
+    // Report the managed state honestly instead of probing an empty key.
+    if (cfg.provider === 'gemini' && cfg.viaServerProxy) {
+        return {
+            status: 'unknown',
+            note: 'Firm key is stored server-side — AI calls route through the platform proxy and are verified on first use.',
+        };
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12_000);
     try {
         const res = cfg.provider === 'gemini'
-            ? await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${encodeURIComponent(cfg.apiKey)}`,
-                { signal: controller.signal }
-            )
+            ? await directGeminiKeyProbe(cfg.apiKey, controller.signal)
             : await fetch(`${openAIBase(cfg)}/models`, {
                 headers: { Authorization: `Bearer ${cfg.apiKey}` },
                 signal: controller.signal,

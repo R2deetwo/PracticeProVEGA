@@ -81,6 +81,10 @@ export type SelectedId = string | null;
 export interface BankAccount { id: string; bankName: string; accountNumber: string; accountName?: string; isDefault?: boolean; firmId?: string; }
 export interface TaxSettings { vatRate: number; whtRate?: number; }
 export interface AiSettings { enableAllAiFeatures?: boolean; enableJurisdictionalAnalysis?: boolean; firmGeminiApiKey?: string; firmDeepSeekApiKey?: string;
+    /** S2 (security spine): true when the firm's Gemini key is stored
+     * SERVER-SIDE (client reads are redacted — the material never
+     * round-trips). AI traffic then routes through the platform proxy. */
+    firmGeminiKeySet?: boolean;
     /** A2 provider abstraction: which AI provider the firm runs on. Default (absent) = Gemini. */
     aiProvider?: 'gemini' | 'openai-compatible';
     /** OpenAI-compatible base URL (OpenRouter, Groq, vLLM, Ollama…). No trailing slash. */

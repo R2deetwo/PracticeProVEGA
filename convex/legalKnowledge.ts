@@ -178,22 +178,40 @@ export const fetchInstrumentsByKeys = internalQuery({
  * Four orphans removed (this record covers getCoverageManifest, getRecentChanges, getProvisionsForInstrument, getFormsForInstitution): the first two were staff-gated orphans with zero callers; the latter two were UNGATED instrument/institution reference reads with zero callers. The live legal surfaces read through the wired functions.
  */
 
-/** Index status for the "Build Legal Index" flow + manifest badges. */
+/** Index status for the "Build Legal Index" flow + manifest badges.
+ *
+ * S8 TRUTH FIX (R3): the old shape counted ONLY rows with embedded=false,
+ * so an EMPTY corpus (nothing ever seeded) reported ready: true — "nothing
+ * left to embed" was being surfaced as "knowledge retrieval is live".
+ * Now `ready` requires a SEEDED corpus AND zero pending rows, and the
+ * totals are returned so surfaces can say which state they are in:
+ *   - hasCorpus: false → nothing published yet (founder must run the seeder)
+ *   - pending > 0      → seeded, awaiting the embedding pass
+ *   - ready: true      → seeded AND fully indexed (retrieval is live)
+ */
 export const getIndexStatus = query({
   args: {},
   handler: async (ctx) => {
-    const pendingProvisions = await ctx.db
+    const allProvisions = await ctx.db
       .query("instrument_provisions")
-      .withIndex("by_embedded", (q) => q.eq("embedded", false))
-      .take(1000);
-    const pendingForms = await ctx.db
+      .withIndex("by_embedded")
+      .take(1001);
+    const allForms = await ctx.db
       .query("court_forms")
-      .withIndex("by_embedded", (q) => q.eq("embedded", false))
-      .take(1000);
+      .withIndex("by_embedded")
+      .take(1001);
+    const pendingProvisions = allProvisions.filter((p) => p.embedded === false).length;
+    const pendingForms = allForms.filter((f) => f.embedded === false).length;
+    const totalProvisions = allProvisions.length;
+    const totalForms = allForms.length;
+    const hasCorpus = totalProvisions + totalForms > 0;
     return {
-      pendingProvisions: pendingProvisions.length,
-      pendingForms: pendingForms.length,
-      ready: pendingProvisions.length === 0 && pendingForms.length === 0,
+      pendingProvisions,
+      pendingForms,
+      totalProvisions,
+      totalForms,
+      hasCorpus,
+      ready: hasCorpus && pendingProvisions === 0 && pendingForms === 0,
     };
   },
 });

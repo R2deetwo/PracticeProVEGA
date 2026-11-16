@@ -33,10 +33,10 @@ const PILLARS = [
     {
         id: 'regulatory',
         title: 'Stop manual statutory checks. Cross-reference every draft.',
-        body: 'The Regulatory Compliance Cross-Referencing engine audits every draft against the statutes it touches, with exact section citations — included with Enterprise, available as an add-on.',
+        body: 'The compliance engine runs deterministic checks on every draft — jurisdiction routing, limitation periods, frontloading and signature requirements — and verifies citations against the legal corpus, returning “unverifiable” rather than a guess when a source is not yet in it. Included with Enterprise, available as an add-on.',
         points: [
-            'CAMA 2020 · Labour Act · FCCPA 2018 · Lagos Tenancy Law',
-            'Statutory audits with exact section citations',
+            'Jurisdiction routing · limitation periods · frontloading · signature compliance',
+            'Citation checks against the legal corpus — no invented sections',
             'Included with Enterprise. Available as an add-on.',
         ],
     },

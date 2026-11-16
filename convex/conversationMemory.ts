@@ -193,10 +193,10 @@ Be specific — include names, matter titles, amounts, or deadlines that were di
     if (!apiKey) throw new Error("No API key for summarization");
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${BACKGROUND_MODEL}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${BACKGROUND_MODEL}:generateContent`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {

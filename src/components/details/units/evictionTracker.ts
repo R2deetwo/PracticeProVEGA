@@ -11,7 +11,14 @@
  *   active, the old notice transitions to 'superseded' and the countdown
  *   resets. "Served" is the sole statutory milestone — "Mark as Delivered"
  *   was removed by design.
+ *
+ * R3.2: notice periods come from src/utils/tenancyNoticePeriods.ts — the
+ * encoded framework (weekly 1 week · monthly 1 month · quarterly 3 ·
+ * yearly 6), state-aware via the property address. The divergent local
+ * table is gone; what the UI footnote advertises is what this computes.
  */
+
+import { noticePeriodForUnit, resolveTenancyPeriod, extractNigerianState } from '../../../utils/tenancyNoticePeriods';
 
 export interface EvictionTracker {
     // STATUTORY EVICTION STATE MACHINE (Nigerian Tenancy Law compliant)
@@ -45,14 +52,60 @@ export interface EvictionEvent {
     actorId?: string;
 }
 
-/** Calculate statutory notice period in months based on tenancy frequency */
+/** Calculate statutory notice period in months based on tenancy frequency.
+ *
+ * DEPRECATED (R3.2): this table had no weekly case (weekly fell through to
+ * the 6-month default) and computed quarterly as 1 month — both diverging
+ * from the advertised framework (weekly 1 week · monthly 1 month ·
+ * quarterly 3 · yearly 6) and from src/utils/tenancyNoticePeriods.ts, the
+ * encoded framework the site footnote cites. Kept ONLY as a compatibility
+ * shim for callers that still want months; use getNoticePeriod (below)
+ * for anything user-facing — especially countdowns, where the weekly case
+ * must compute in DAYS.
+ */
 export const getNoticePeriodMonths = (frequency?: string): number => {
-    const f = (frequency || '').toLowerCase();
-    if (f.includes('year')) return 6;
-    if (f.includes('6-month')) return 3;
-    if (f.includes('quarter')) return 1;
-    if (f.includes('month')) return 1;
-    return 6; // Default to 6 months for yearly tenancy (most common in Nigeria)
+    const period = resolveTenancyPeriod(frequency);
+    if (period === 'weekly') return 0; // weekly periods are expressed in days — use getNoticePeriod
+    if (period === 'monthly') return 1;
+    if (period === 'quarterly') return 3;
+    return 6; // yearly (the default) and at-will
+};
+
+/** The statutory notice period for a unit — ONE framework, state-aware.
+ *
+ * R3.2 (truth alignment): delegates to tenancyNoticePeriods.noticeToQuitPeriod
+ * (weekly 1 week · monthly 1 month · quarterly 3 months · yearly 6 months;
+ * Lagos cites the encoded Tenancy Law 2011; other states carry the
+ * verifyStateStatute flag). The eviction countdown and the served-notice
+ * audit notes both use this so the app computes exactly what the UI
+ * footnote advertises.
+ */
+export const getNoticePeriod = (
+    frequency: string | undefined,
+    propertyAddress?: string
+): { days: number | null; label: string; basis: string; verifyStateStatute: boolean; state: string } => {
+    const state = extractNigerianState(propertyAddress);
+    const result = noticePeriodForUnit(state, frequency);
+    return {
+        days: result.days,
+        label: result.label,
+        basis: result.basis,
+        verifyStateStatute: result.verifyStateStatute,
+        state,
+    };
+};
+
+/** Countdown end date from the serve date, in the framework's own units
+ *  (7 days for weekly; 30/91/182 days for monthly/quarterly/yearly — the
+ *  same day counts the encoded framework util is tested against). */
+export const getNoticePeriodEndDate = (
+    servedDate: number,
+    frequency: string | undefined,
+    propertyAddress?: string
+): { endDate: number; period: ReturnType<typeof getNoticePeriod> } => {
+    const period = getNoticePeriod(frequency, propertyAddress);
+    const days = period.days ?? 182; // at-will: fall back to the yearly maximum until the interval is established
+    return { endDate: servedDate + days * 24 * 60 * 60 * 1000, period };
 };
 
 /** Get eviction tracker from a unit's rentalDetails */

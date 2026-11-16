@@ -60,7 +60,21 @@ export const cleanTranscript = action({
     }
 
     const envKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
-    const apiKey = args.firmGeminiApiKey || envKey;
+    // S2: the caller's OWN BYO key (arg) → the caller's FIRM key, resolved
+    // SERVER-SIDE (firm keys are redacted from client reads and never
+    // round-trip) → the platform env key.
+    let apiKey: string | null = (args.firmGeminiApiKey || "").trim() || null;
+    if (!apiKey && user.firmId) {
+      try {
+        const firmAi: any = await ctx.runQuery(internal.ai.getFirmAiSettingsInternal, {
+          firmId: String(user.firmId),
+        });
+        if (firmAi?.aiProvider === "gemini" && firmAi.firmGeminiApiKey) {
+          apiKey = String(firmAi.firmGeminiApiKey);
+        }
+      } catch { /* best-effort; env key below is the fallback */ }
+    }
+    if (!apiKey) apiKey = envKey || null;
     if (!apiKey) {
       throw new Error("No API key available. Please configure the firm's AI key in Settings → AI.");
     }
@@ -82,7 +96,8 @@ ${args.contextHint ? `CONTEXT: This is a ${args.contextHint}.` : ""}`;
     // QUALITY_MODEL (gemini-2.5-flash): reasoning-capable tier — handles
     // Nigerian names, legal terminology and structured cleanup noticeably
     // better than the retired 1.5-flash that used to sit here.
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${QUALITY_MODEL}:generateContent?key=${apiKey}`;
+    // S2: the key rides in the x-goog-api-key HEADER — never the URL.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${QUALITY_MODEL}:generateContent`;
     const body = {
       contents: [{
         role: 'user',
@@ -97,7 +112,7 @@ ${args.contextHint ? `CONTEXT: This is a ${args.contextHint}.` : ""}`;
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify(body),
     });
 

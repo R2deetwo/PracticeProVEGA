@@ -106,15 +106,29 @@ http.route({
     const { model, contents, systemInstruction, apiKey: providedApiKey } = await request.json();
     // CRO AUDIT FIX (Track D — D5): removed hard-coded fallback Gemini API key.
     // Hard-coding API keys in source is a security issue — anyone with repo
-    // access can extract and abuse the key. Now requires either:
-    //   1. The client to pass `apiKey` in the request body (per-user key), OR
-    //   2. The GEMINI_API_KEY / GEMINI_DEMO_KEY env var to be set in Convex.
-    // If neither is present, returns a clear 503 error instead of silently
+    // access can extract and abuse the key. Now requires one of:
+    //   1. The client to pass `apiKey` in the request body (the caller's OWN
+    //      BYO key), OR
+    //   2. The caller's FIRM key — resolved SERVER-SIDE from the session
+    //      user's firm (S2: firm keys are redacted from all client reads and
+    //      never round-trip), OR
+    //   3. The GEMINI_API_KEY / GEMINI_DEMO_KEY env var to be set in Convex.
+    // If none is present, returns a clear 503 error instead of silently
     // using a compromised demo key.
-    const envKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY;
-
-    // Priority: Request Key -> Environment Key
-    const apiKey = providedApiKey || envKey;
+    let apiKey: string | null = (providedApiKey || "").trim() || null;
+    if (!apiKey && (sessionUser as any)?.firmId) {
+      try {
+        const firmAi: any = await ctx.runQuery(internal.ai.getFirmAiSettingsInternal, {
+          firmId: String((sessionUser as any).firmId),
+        });
+        if (firmAi?.aiProvider === "gemini" && firmAi.firmGeminiApiKey) {
+          apiKey = String(firmAi.firmGeminiApiKey);
+        }
+      } catch { /* firm lookup is best-effort; env key below is the fallback */ }
+    }
+    if (!apiKey) {
+      apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY || null;
+    }
 
     if (!apiKey) {
       return new Response(
@@ -125,14 +139,16 @@ http.route({
       );
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`;
+    // S2: the key rides in the x-goog-api-key HEADER — never in the URL
+    // query string, where it would land in access logs and error trackers.
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 
     const body: any = { contents };
     if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] };
 
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify(body)
     });
 
