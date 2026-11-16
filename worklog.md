@@ -19478,3 +19478,30 @@ DraftPro export path.
 - Convex decision_tables/rule_evaluations (rules are typed TS constants
   this phase; the versioned-table + audit migration is the next slice).
 - A licensed citation corpus backend (LawPavilion / NWLR / LPELR).
+
+
+---
+
+## Round R2+R3 — 80211641: the security spine closes (S2) + truth alignment (2026-11-16)
+
+**Directive:** the owner's R0–R3 roadmap (Gate 1 approved via ALOA_DISCOVERY_REPORT.md). This round: R2 (S1+S2) and R3 (S8 truth bug, notice-period mismatch, copy alignment) — engineered, tested, pushed, CI-green. R0/R1 (secret rotation + promote + seeding) are prepared but blocked on the owner's deploy key, which transited chat last session and was deliberately never persisted (see the execution report for the one-shot unblock path).
+
+### R2 — S1 verified, S2 closed: keys out of URLs; firm keys never round-trip
+- **S1 correction for the record:** `/ai/stream` has required a bearer session since R75 (3992a360, in live prod) and enforced blockedIps since R80 (5aeba21f). The discovery report's "open proxy" register row was stale (reproduced from an earlier audit). What remained open was the URL-borne key — closed now.
+- **No `?key=` anywhere:** all 5 server sites (ai.ts generateContent + NEW embedContent, http.ts /ai/stream, noteDictation.cleanTranscript, proactive briefings, conversationMemory summarisation) and all client sites (aiProvider, aiUtils streamGemini/multipart/embedding/probe, ComposeModal, GeminiStructurer) send the key in the `x-goog-api-key` header. New `src/services/aiTransport.ts` is the single transport chokepoint (directGemini / directGeminiKeyProbe / serverProxyGenerate / serverProxyStream).
+- **Firm-key custody:** `getFirmData` redacts `aiSettings.firmGeminiApiKey` (clients receive `firmGeminiKeySet`); `resolveProvider` returns a `viaServerProxy` config with NO key material (firm decision still beats the user's own key); chat + drafting route through the authenticated proxy, which resolves caller-key → firm-key(server) → env-key. `updateFirmSettings` is merge-aware (absent key = preserve; explicit string incl. "" = intentional write) so redacted round-trips cannot wipe the stored key. AgentSettings firm-key input is write-only + explicit Remove (ui/ Button — ratchet held). OpenAI-compatible firms exempt by design (their key → their endpoint, header transport, admin opt-in).
+- **Server-side embeddings (R1 enabler):** new `ai.embedContent` action — the Legal Index builder and Brain can embed with ZERO client-side key material (firm key or env key resolved after session auth).
+
+### R3 — truth alignment
+- **S8:** `getIndexStatus` returns `{pendingProvisions, pendingForms, totalProvisions, totalForms, hasCorpus, ready}` — ready now requires a SEEDED corpus AND zero pending. The empty-corpus "ready:true" lie is gone; Build Legal Index states the three real states (no corpus / awaiting index / current).
+- **Notice-period mismatch:** the eviction countdown now delegates to the encoded framework (`tenancyNoticePeriods`) — weekly **1 week** (was: 6-month fall-through), quarterly **3 months** (was: 1), monthly 1, yearly 6; state-aware via `extractNigerianState(property.address)` (word-boundary matched — 'London' must not match Ondo); Lagos cites its encoded statute, other states carry a verify-before-service flag in the served-notice audit notes. `resolveTenancyPeriod` normalises the app's free-text frequencies ('Bi-Annually' → quarter's notice, preserving the old 3-month intent).
+- **Copy aligned with the honest contract:** AtriumAI body + footnote, AtriumWhyRunOn, AtriumFAQ (no more "ARIA verifies the current statute before drafting" — now "applies the framework and flags for verification"); VegaWhyNigeria's regulatory block describes the deterministic gate + UNVERIFIABLE citation contract; the onboarding tour no longer promises "find Nigerian case law".
+
+### Tests + gates
+- +36: `roundR2SecuritySpine` (no-key-in-URL chokepoint, redaction, merge-aware writes, proxy mode, pre-flight) and `roundR3TruthAlignment` (framework alignment, state extraction, 4× index-status truth, 5 copy pins); roundQASecurity's URL pin flipped to the header contract + 2 server-side-resolution cases.
+- Full run: **2790 green** (was 2754); convex tsc 0; root tsc 87 < baseline 94 (unmodified tree: 100); identity audit PASS; ui-primitives ratchet held (2218); eslint 0 new; build 26.0s; admin build 6.3s. CI green on 80211641 (staging + tests workflows).
+
+### Standing user-side items (unchanged)
+- `CONVEX_DEPLOY_KEY` rotation + promote of build-1173 (c509bbae) — one-shot script prepared; needs the owner's deploy key value.
+- Corpus seeding (R1) — Founder App UI path needs no CLI at all: Settings → AI Settings → Publish Legal Corpus, then Build Legal Index.
+- Cloudflare `CLOUDFLARE_API_TOKEN` still expired (mirror step skips); rotate the Convex key, GitHub PAT and Cloudflare token after this engagement.
