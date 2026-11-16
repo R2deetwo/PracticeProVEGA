@@ -9,26 +9,34 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  * AloaAssistantFab — the non-lawyer-first website assistant (bank-style).
  *
  * WHAT THIS IS (owner direction, 2026-11-16):
- *   "I thought there was going to be a lawyer [button] on the main landing
- *    page… I wanted it like how the banks have it: it's there, but it
- *    doesn't do anything until you start scrolling or doing something,
- *    and then it asks you whether you need assistance — and you can go
- *    in there and ask your question." — replaces the three per-site
- *    "chat bubble" FABs that only opened the Contact Sales drawer.
+ *   "I wanted it like how the banks have it: it's there, but it doesn't
+ *    do anything until you start scrolling or doing something, and then
+ *    it asks you whether you need assistance — and you can go in there
+ *    and ask your question."
  *
- * BEHAVIOUR:
- *   - Quiet on arrival: just the branded bubble (+ an "Ask ALOA" pill on
- *     desktop so the affordance is discoverable without hovering).
- *   - Proactive nudge, bank-style: after the visitor scrolls ~a fifth of
- *     the page OR dwells 15s (whichever first), a dismissible speech
- *     bubble asks whether they need help. Once per page view; "Maybe
- *     later" silences it for the whole session; anyone who has already
- *     opened the panel is never nudged again.
- *   - Click → the assistant panel (bottom sheet on mobile, anchored card
- *     on desktop): quick topics in plain language, an honest scripted
- *     reply for each, a free-text box that hands the question to the
- *     Contact Sales drawer ALREADY TYPED IN, plus product CTAs for the
- *     lawyer (Vega) and property-manager (Atrium) segments.
+ * OWNER REFINEMENTS (same day, post-launch review):
+ *   1. PRODUCT PAGES ONLY. The assistant is a VEGA thing (ALOA) and an
+ *      ATRIUM thing (ARIA) — "it should not be on the PracticePro page.
+ *      It's a Vega thing." The hub no longer mounts this component; the
+ *      LandingProduct type is narrowed to 'vega' | 'atrium' so an
+ *      accidental re-mount fails to compile.
+ *   2. OWNERSHIP COPY. ALOA introduces itself as VEGA'S legal guide (not
+ *      "PracticePro's"); ARIA as ATRIUM'S property guide.
+ *   3. TOPICS COLLAPSE. Once the visitor picks a topic or asks a
+ *      question, the chip cloud collapses to a toggle so the ANSWER gets
+ *      the space (owner: "you would expect it to sort of drop down…
+ *      it's being blocked up").
+ *   4. USEFUL REPLIES. Each topic answer is a structured mini-guide
+ *      (intro + numbered steps + caution note). Statutory specifics are
+ *      stated ONLY where the deterministic framework is encoded
+ *      (tenancyNoticePeriods.ts / legal corpus: lagos_tenancy_law_2011)
+ *      — everything else stays process-level guidance.
+ *   5. NO PREMATURE FUNNEL. Per-reply "send this to our team" CTAs are
+ *      gone — "funneling… it's a bit too early" for the lawyer
+ *      marketplace. One subtle "Ask our team" link rides the footer;
+ *      the free-text composer still hands off to the drawer pre-typed
+ *      (the owner-approved flow). Product chips keep the trial CTA —
+ *      those visitors ARE the customers.
  *
  * WHY IT IS NOT A LIVE AI CHAT (deliberate):
  *   /ai/stream requires an authenticated session (Round A, H18 — the
@@ -41,10 +49,10 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *   its reply engine without touching the shells.
  *
  * NAMING (assistantIdentity.ts is the single source of truth):
- *   hub/vega → ALOA (legal guide), atrium → ARIA (property guide).
+ *   vega → ALOA (legal guide), atrium → ARIA (property guide).
  */
 
-export type LandingProduct = 'hub' | 'vega' | 'atrium';
+export type LandingProduct = 'vega' | 'atrium';
 
 /** OpenContactOptions — the extended drawer-open signature. Every
  *  pre-existing caller passes a plain source string, so the second
@@ -57,11 +65,12 @@ export interface OpenContactOptions {
 interface AssistantTopic {
     id: string;
     chip: string;
+    /** Intro sentence of the reply. */
     reply: string;
-    /** Handoff label for the primary CTA inside the reply. */
-    handoffLabel?: string;
-    /** Text pre-typed into the drawer's message field. */
-    handoffPrefill?: string;
+    /** Numbered plain-language steps — the substance of the guide. */
+    steps?: string[];
+    /** Caution line, rendered as a tinted callout. */
+    note?: string;
     /** Show the "start free trial" CTA (product-pitch topics). */
     signupCta?: boolean;
 }
@@ -74,12 +83,6 @@ const NUDGE_SCROLL_PX = 220;
 
 /** Per-surface brand tokens for the FAB / pill / panel accents. */
 const BRAND: Record<LandingProduct, { fab: string; pill: string; chipAccent: string; avatar: string }> = {
-    hub: {
-        fab: 'bg-primary-600 hover:bg-primary-700 hover:shadow-primary-600/30',
-        pill: 'text-primary-700',
-        chipAccent: 'text-primary-700 border-primary-200 hover:border-primary-400 hover:bg-primary-50',
-        avatar: 'bg-primary-600',
-    },
     vega: {
         fab: 'bg-[#1E3A8A] hover:bg-[#1E40AF] hover:shadow-[rgb(30_58_138/0.35)]',
         pill: 'text-[#1E3A8A]',
@@ -97,47 +100,69 @@ const BRAND: Record<LandingProduct, { fab: string; pill: string; chipAccent: str
 interface Bubble {
     role: 'aloa' | 'you';
     text: string;
+    steps?: string[];
+    note?: string;
 }
 
 /**
- * Topic catalogue — plain-language, non-lawyer-first. Deliberately NO
- * invented legal specifics (no section numbers, no figures): every
- * reply points at process, records and deadlines, then offers the
- * human handoff. Atrium skews property; hub/vega skew general legal.
+ * Topic catalogue — plain-language, non-lawyer-first. Each answer is a
+ * structured mini-guide: intro + numbered steps + a caution note. NO
+ * invented legal specifics: the only statutory figures quoted (Lagos
+ * notice-to-quit periods, court-order-only recovery) come from the
+ * deterministic framework encoded in src/utils/tenancyNoticePeriods.ts
+ * and the legal corpus (lagos_tenancy_law_2011) — everything else is
+ * process-level guidance. Atrium skews property; vega skews general
+ * legal. Per-reply sales CTAs are deliberately absent (owner: the
+ * lawyer funnel comes later, in its own round).
  */
 function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
     const legal: AssistantTopic[] = [
         {
             id: 'court_letter',
             chip: 'I received a court letter',
-            reply:
-                'Do not ignore it — deadlines printed on court documents are strictly enforced, and acting early matters more than anything else. Note the court name, the suit number and any response date on the face of the paper, keep the original safe, and get someone qualified to look at it quickly.',
-            handoffLabel: 'Send this to our team',
-            handoffPrefill: 'I received a court letter/summons and I am not sure what to do next. Here is what it says: ',
+            reply: 'Do not ignore it — and do not panic. Most court letters open a process rather than end one, but the dates printed on them are enforced strictly.',
+            steps: [
+                'Read it carefully and note three things: the court\u2019s name, the suit number, and any date you are asked to respond by.',
+                'Keep the original somewhere safe and make copies. Never write on it, and never hand the original over to anyone who just asks.',
+                'Work out what it is: an originating process (someone has started a case against you), a hearing notice (a date is fixed), or a document you are being asked to respond to.',
+                'Act early. If a response date is printed on it, treat it as real even if you plan to challenge the case — ignoring it can lead to judgment being entered against you in your absence.',
+            ],
+            note: 'Before you reply in writing, have someone qualified review it — what you write back becomes part of the case.',
         },
         {
             id: 'landlord_tenant',
             chip: 'Landlord or tenant problem',
-            reply:
-                'These usually move in steps: put your position in writing first, keep every receipt, message and agreement, and only then escalate. In Nigeria, possession and rent disputes commonly go through formal demand letters and court processes — never resort to self-help (changing locks, removing belongings); the courts take that seriously.',
-            handoffLabel: 'Send this to our team',
-            handoffPrefill: 'I have a landlord/tenant problem. Here is my situation: ',
+            reply: 'These disputes move in steps — and the steps matter as much as who is \u201Cright\u201D.',
+            steps: [
+                'Put your position in writing. A dated letter or message creates a record; phone calls do not.',
+                'Keep everything: rent receipts, bank transfers, the agreement, messages, photos of the property.',
+                'Know the notice rules. In Lagos (Tenancy Law 2011), a notice to quit must match the tenancy period: 1 week for a weekly tenancy, 1 month for monthly, 3 months for quarterly, 6 months for yearly. A notice that understates the period is invalid.',
+                'In Lagos a landlord cannot recover possession without a court order — even after the notice expires, self-help eviction is unlawful. Other states follow a similar pattern; confirm the rule where the property is.',
+            ],
+            note: 'Never resort to self-help — changing locks, removing belongings, cutting power. Courts treat that seriously even when the rent is genuinely owed.',
         },
         {
             id: 'document',
             chip: 'I need a document or agreement',
-            reply:
-                'A well-drafted document is cheaper than a dispute. Whether it is a tenancy agreement, contract, MOU or a letter, have it prepared or reviewed properly before you sign — vague clauses are exactly what disagreements grow from later.',
-            handoffLabel: 'Send this to our team',
-            handoffPrefill: 'I need help with a legal document/agreement. What I need is: ',
+            reply: 'A well-drafted document is cheaper than the dispute it prevents.',
+            steps: [
+                'Put it in writing. Verbal agreements are hard to prove even when they are valid.',
+                'Cover the essentials: full names and addresses of everyone bound by it, what each side is giving or doing, the money involved, how long it lasts, and how it can end.',
+                'Get it stamped where the law requires — unstamped documents can face penalties and evidential problems when you need them in court.',
+                'Never sign under pressure. Take it away, read all of it, and have it reviewed before you commit.',
+            ],
+            note: 'If the other side drafted the document, assume it favours them — that is exactly what review is for.',
         },
         {
             id: 'business',
             chip: 'Registering a business (CAC)',
-            reply:
-                'Good move — the first decision is business name vs a limited company (LTD), because they differ in liability, tax and what investors/partners expect. Registration is done through the CAC portal, and there are post-registration duties like annual returns that people often miss.',
-            handoffLabel: 'Send this to our team',
-            handoffPrefill: 'I want to register a business with the CAC. What I plan to do is: ',
+            reply: 'Good move — registering properly protects the name, shields the owners, and unlocks what a Nigerian business actually needs: bank accounts, contracts, tenders.',
+            steps: [
+                'Choose the vehicle first. A business name (sole proprietor or partnership) is simpler, but you remain personally liable for its debts. A limited company (LTD) keeps liability with the company and is what partners and investors expect.',
+                'Do a name search on the CAC portal and have backup names ready — the first choice is often taken.',
+                'File the registration with complete owner details, and collect your certificate when issued.',
+                'After registration come continuing duties: companies file annual returns and keep proper records. Missing them attracts penalties and can get the name struck off the register.',
+            ],
         },
     ];
 
@@ -145,18 +170,37 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         {
             id: 'service_charge',
             chip: 'Service charge dispute',
-            reply:
-                'Ask for the breakdown in writing — what the charge covers, how it was computed, and what was actually delivered. Service charges should be accountable, not a blank number; keep your receipts and previous payments, and put your questions in writing to the estate manager.',
-            handoffLabel: 'Send this to our team',
-            handoffPrefill: 'I have a service charge question/dispute. The situation is: ',
+            reply: 'A service charge should be accountable — you are entitled to know what you are paying for.',
+            steps: [
+                'Ask for the breakdown in writing: what the charge covers, how it was computed, and what was actually delivered.',
+                'Compare it with your tenancy agreement — a charge can only lawfully demand what the agreement provides for.',
+                'Keep your receipts and previous statements so you can spot jumps year on year.',
+                'Address your questions in writing to the estate manager and keep the trail — a specific, dated question is far harder to ignore than a verbal complaint.',
+            ],
+            note: 'Withholding the entire charge while disputing part of it can backfire — the undisputed part remains owed. Disputing properly, in writing, is the leverage that works.',
         },
         {
             id: 'maintenance',
             chip: 'Maintenance not being done',
-            reply:
-                'Report it in writing (or in the residents portal if your estate has one) and keep the ticket/reference — a dated trail is what turns a complaint into an enforceable one. If it drags on, a written follow-up addressed to the estate manager, copied to the landlord where relevant, is the next rung.',
-            handoffLabel: 'Send this to our team',
-            handoffPrefill: 'Maintenance in my residence/estate is not being attended to. The issue is: ',
+            reply: 'A maintenance issue becomes enforceable when it becomes a documented one.',
+            steps: [
+                'Report it in writing — or through the residents portal if your estate has one — and keep the ticket or reference number.',
+                'Add photos and dates. \u201CThey never fix anything\u201D is a feeling; a dated photo trail is a complaint.',
+                'Give a reasonable time, then follow up in writing, addressed to the estate manager and copied to the landlord where relevant.',
+                'If it still drags on, a clear written statement of the impact — and what you will ask for if it continues — is the next rung before any formal demand.',
+            ],
+        },
+        {
+            id: 'tenancy_agreement',
+            chip: 'Tenancy agreement review',
+            reply: 'A tenancy agreement is the document you will lean on when things go wrong — make sure it can hold you up.',
+            steps: [
+                'Cover the essentials: the parties\u2019 full names, the premises, the rent and when it is payable, the duration, and how it renews or ends.',
+                'Check the notice provisions against the law — in Lagos, notice-to-quit periods are fixed by the Tenancy Law 2011 (1 week for weekly, 1 month for monthly, 3 months for quarterly, 6 months for yearly tenancies), and a notice that understates the period is invalid.',
+                'Inventory the condition of the premises at handover — photos protect both sides when the deposit is disputed later.',
+                'Get the agreement stamped and keep a signed copy — an unstamped document can face evidential problems exactly when you need it most.',
+            ],
+            note: 'Read the service charge and utility clauses carefully — that is where most estate disputes actually start.',
         },
     ];
 
@@ -165,7 +209,6 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         chip: "I'm a lawyer / I run a firm",
         reply:
             `Then you are in the right place — Vega is the practice side of PracticePro: matters and cause list, court-rule-aware document drafting, billing and trust accounting, client portals, and ${name} as an in-app legal assistant. The trial is free and you can be running in minutes.`,
-        handoffLabel: 'Talk to sales',
         signupCta: true,
     };
 
@@ -174,23 +217,20 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         chip: 'I manage property / an estate',
         reply:
             `Atrium is the property side of PracticePro — rent rolls and tenancy ledgers, service-charge monitoring, maintenance queues, resident portals and WhatsApp automation, with ${name} keeping an eye on the numbers. The trial is free.`,
-        handoffLabel: 'Talk to sales',
         signupCta: true,
     };
 
     if (product === 'atrium') {
         return [
-            { ...legal[1] }, // landlord/tenant
+            legal[1], // landlord/tenant
             propertyTopics[0], // service charge
             propertyTopics[1], // maintenance
-            { ...legal[2], chip: 'Tenancy agreement review' }, // document, property-skewed label
+            propertyTopics[2], // tenancy agreement review
             estateManager,
             lawyerFirm,
         ];
     }
-    if (product === 'vega') return [...legal, lawyerFirm];
-    // hub — the non-lawyer-general surface, plus both product pitches
-    return [...legal, lawyerFirm, estateManager];
+    return [...legal, lawyerFirm];
 }
 
 const AloaAssistantFab: React.FC<{
@@ -210,6 +250,9 @@ const AloaAssistantFab: React.FC<{
     const [question, setQuestion] = useState('');
     const [questionError, setQuestionError] = useState<string | null>(null);
     const [usedTopics, setUsedTopics] = useState<Set<string>>(new Set());
+    // Owner review: once the visitor picks a topic or asks a question, the
+    // chip cloud collapses to a toggle so the ANSWER gets the space.
+    const [topicsOpen, setTopicsOpen] = useState(true);
 
     const panelRef = useRef<HTMLDivElement>(null);
     const transcriptRef = useRef<HTMLDivElement>(null);
@@ -221,9 +264,11 @@ const AloaAssistantFab: React.FC<{
     const introBubble = useMemo<Bubble>(
         () => ({
             role: 'aloa',
+            // Owner review: ALOA is VEGA'S tool, ARIA is ATRIUM'S — never
+            // "PracticePro's guide".
             text: isProperty
-                ? `Hi, I'm ${name} — PracticePro's property guide. You don't need to be a property professional to ask here. Tell me what's on your mind, or pick a topic below.`
-                : `Hi, I'm ${name} — PracticePro's legal guide. You don't need to be a lawyer to ask here. Tell me what's on your mind, or pick a topic below.`,
+                ? `Hi, I'm ${name} — Atrium's property guide. You don't need to be a property professional to ask here. Tell me what's on your mind, or pick a topic below.`
+                : `Hi, I'm ${name} — Vega's legal guide. You don't need to be a lawyer to ask here. Tell me what's on your mind, or pick a topic below.`,
         }),
         [name, isProperty],
     );
@@ -307,10 +352,25 @@ const AloaAssistantFab: React.FC<{
         return () => window.removeEventListener('keydown', onKey);
     }, [isPanelOpen, closePanel]);
 
-    // Keep the transcript pinned to the latest bubble.
+    // Keep the transcript pinned to the latest bubble. For LONG structured
+    // guides (steps) the pin moves to the TOP of the answer instead — landing
+    // mid-steps hides the intro the way the owner's "blocked up" screenshot
+    // did; the guide should read top-down.
     useEffect(() => {
         const el = transcriptRef.current;
-        if (el) el.scrollTop = el.scrollHeight;
+        if (!el) return;
+        const last = bubbles[bubbles.length - 1];
+        if (last?.role === 'aloa' && last.steps?.length) {
+            const node = el.querySelector<HTMLElement>(`[data-bubble="${bubbles.length - 1}"]`);
+            if (node) {
+                el.scrollTop = Math.max(
+                    0,
+                    node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12,
+                );
+                return;
+            }
+        }
+        el.scrollTop = el.scrollHeight;
     }, [bubbles, isThinking, isPanelOpen]);
 
     // Pending timers must never fire into an unmounted tree, and the
@@ -330,13 +390,13 @@ const AloaAssistantFab: React.FC<{
         }
     }, []);
 
-    const pushAloaReply = useCallback((text: string) => {
+    const pushAloaReply = useCallback((content: { text: string; steps?: string[]; note?: string }) => {
         // A short "typing" beat makes the exchange feel attended without
         // faking AI — the reply is honest scripted guidance.
         setIsThinking(true);
         thinkTimer.current = window.setTimeout(() => {
             setIsThinking(false);
-            setBubbles((prev) => [...prev, { role: 'aloa', text }]);
+            setBubbles((prev) => [...prev, { role: 'aloa', ...content }]);
         }, 450);
     }, []);
 
@@ -344,7 +404,9 @@ const AloaAssistantFab: React.FC<{
         (topic: AssistantTopic) => {
             setUsedTopics((prev) => new Set(prev).add(topic.id));
             setBubbles((prev) => [...prev, { role: 'you', text: topic.chip }]);
-            pushAloaReply(topic.reply);
+            // The answer needs the room — collapse the chip cloud.
+            setTopicsOpen(false);
+            pushAloaReply({ text: topic.reply, steps: topic.steps, note: topic.note });
         },
         [pushAloaReply],
     );
@@ -372,6 +434,8 @@ const AloaAssistantFab: React.FC<{
         setQuestionError(null);
         setBubbles((prev) => [...prev, { role: 'you', text: q }]);
         setQuestion('');
+        // The exchange is now the main event — collapse the topics.
+        setTopicsOpen(false);
         setIsThinking(true);
         thinkTimer.current = window.setTimeout(() => {
             setIsThinking(false);
@@ -490,7 +554,7 @@ const AloaAssistantFab: React.FC<{
                             ref={panelRef}
                             role="dialog"
                             aria-label={`${name} website assistant`}
-                            className={`fixed ${Z_CLASS.alaoPanel} inset-x-0 bottom-0 md:inset-x-auto md:right-6 md:bottom-24 md:w-[400px] md:max-w-[calc(100vw-3rem)] flex flex-col bg-white md:rounded-2xl rounded-t-2xl border border-slate-200 shadow-2xl shadow-slate-900/20 max-h-[85dvh] md:max-h-[min(72vh,640px)] animate-slide-up overflow-hidden`}
+                            className={`fixed ${Z_CLASS.alaoPanel} inset-x-0 bottom-0 md:inset-x-auto md:right-6 md:bottom-24 md:w-[400px] md:max-w-[calc(100vw-3rem)] flex flex-col bg-white md:rounded-2xl rounded-t-2xl border border-slate-200 shadow-2xl shadow-slate-900/20 max-h-[85dvh] md:max-h-[min(80vh,720px)] animate-slide-up overflow-hidden`}
                         >
                             {/* Header */}
                             <div className={`flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 bg-gradient-to-r ${isProperty ? 'from-emerald-50 to-white' : 'from-primary-50 to-white'}`}>
@@ -501,7 +565,7 @@ const AloaAssistantFab: React.FC<{
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm font-bold text-slate-900 leading-tight">
                                         {name} <span className="text-slate-400 font-medium">·</span>{' '}
-                                        <span className="font-semibold text-slate-600">{isProperty ? 'Property guide' : 'Legal guide'}</span>
+                                        <span className="font-semibold text-slate-600">{isProperty ? 'Atrium\u2019s property guide' : 'Vega\u2019s legal guide'}</span>
                                     </p>
                                     <p className="text-2xs text-slate-500 mt-0.5">Online — our team replies within 24 hours</p>
                                 </div>
@@ -535,51 +599,54 @@ const AloaAssistantFab: React.FC<{
 
                                 {bubbles.map((b, i) =>
                                     b.role === 'you' ? (
-                                        <div key={i} className="flex justify-end">
+                                        <div key={i} data-bubble={i} className="flex justify-end">
                                             <div className={` rounded-lg rounded-tr-sm px-3.5 py-2.5 max-w-[85%] ${isProperty ? 'bg-emerald-600' : 'bg-primary-600'} text-white`}>
                                                 <p className="text-sm leading-relaxed">{b.text}</p>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div key={i} className="flex items-start gap-2.5">
+                                        <div key={i} data-bubble={i} className="flex items-start gap-2.5">
                                             <div className={`w-7 h-7 rounded-lg ${brand.avatar} text-white flex items-center justify-center shrink-0`}>
                                                 <AloaIcon className="w-4 h-4" />
                                             </div>
                                             <div className="bg-slate-100 rounded-lg rounded-tl-sm px-3.5 py-2.5 max-w-[85%]">
                                                 <p className="text-sm text-slate-700 leading-relaxed">{b.text}</p>
-                                                {/* Topic CTAs ride the reply they belong to */}
+                                                {/* Numbered steps — the substance of the guide. */}
+                                                {b.steps && b.steps.length > 0 && (
+                                                    <ol className="mt-2 space-y-1">
+                                                        {b.steps.map((s, si) => (
+                                                            <li key={si} className="flex gap-2 items-start">
+                                                                <span className={`mt-px w-4 h-4 rounded-full text-2xs font-bold text-white flex items-center justify-center shrink-0 ${isProperty ? 'bg-atrium-emerald' : 'bg-primary-600'}`}>
+                                                                    {si + 1}
+                                                                </span>
+                                                                <span className="text-xs text-slate-700 leading-relaxed">{s}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ol>
+                                                )}
+                                                {/* Caution callout — visually distinct from the steps. */}
+                                                {b.note && (
+                                                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 border-l-2 border-amber-300 bg-amber-50 rounded-r-lg px-2.5 py-1">
+                                                        {b.note}
+                                                    </p>
+                                                )}
+                                                {/* Product topics keep their trial CTA; informational
+                                                    replies deliberately carry NO sales CTA (owner:
+                                                    the lawyer funnel comes later, in its own round). */}
                                                 {i === bubbles.length - 1 &&
                                                     (() => {
                                                         const t = topics.find(
                                                             (tp) => tp.chip === bubbles[i - 1]?.text,
                                                         );
-                                                        if (!t) return null;
+                                                        if (!t?.signupCta || !onSignup) return null;
                                                         return (
                                                             <div className="flex flex-wrap items-center gap-2 mt-2.5">
-                                                                {t.handoffPrefill && (
-                                                                    <button
-                                                                        onClick={() => handoff('Aloa Landing Assistant', { prefill: t.handoffPrefill, variant: 'assist' })}
-                                                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                                                                    >
-                                                                        {t.handoffLabel ?? 'Send this to our team'}
-                                                                    </button>
-                                                                )}
-                                                                {t.signupCta && onSignup && (
-                                                                    <button
-                                                                        onClick={() => { setPanelOpen(false); onSignup(); }}
-                                                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
-                                                                    >
-                                                                        Start free trial
-                                                                    </button>
-                                                                )}
-                                                                {t.handoffPrefill === undefined && !t.signupCta && (
-                                                                    <button
-                                                                        onClick={() => handoff('Aloa Landing Assistant', { variant: 'assist' })}
-                                                                        className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors"
-                                                                    >
-                                                                        Talk to a human
-                                                                    </button>
-                                                                )}
+                                                                <button
+                                                                    onClick={() => { setPanelOpen(false); onSignup(); }}
+                                                                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                                                                >
+                                                                    Start free trial
+                                                                </button>
                                                             </div>
                                                         );
                                                     })()}
@@ -602,20 +669,38 @@ const AloaAssistantFab: React.FC<{
                                 )}
                             </div>
 
-                            {/* Quick topics */}
-                            <div className="px-4 pb-1">
-                                <p className="text-2xs font-bold uppercase tracking-wider text-slate-500 mb-2">Common questions</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {topics.map((t) => (
-                                        <button
-                                            key={t.id}
-                                            onClick={() => handleTopic(t)}
-                                            className={`px-3 py-1.5 rounded-full border text-xs font-semibold bg-white transition-all active:scale-[0.97] hover:shadow-sm ${brand.chipAccent} ${usedTopics.has(t.id) ? 'opacity-60' : ''}`}
-                                        >
-                                            {t.chip}
-                                        </button>
-                                    ))}
-                                </div>
+                            {/* Quick topics — collapse to a toggle once the
+                                conversation starts, so the answer gets the
+                                space (owner review: "it's being blocked up"). */}
+                            <div className="px-4 pb-1 pt-1 border-t border-slate-100">
+                                <button
+                                    onClick={() => setTopicsOpen((v) => !v)}
+                                    aria-expanded={topicsOpen}
+                                    className="w-full flex items-center justify-between py-1.5 group"
+                                >
+                                    <span className="text-2xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-700">
+                                        Common questions
+                                    </span>
+                                    <svg
+                                        className={`w-3.5 h-3.5 text-slate-400 transition-transform ${topicsOpen ? 'rotate-180' : ''}`}
+                                        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                    >
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+                                {topicsOpen && (
+                                    <div className="flex flex-wrap gap-2 pb-1.5">
+                                        {topics.map((t) => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => handleTopic(t)}
+                                                className={`px-3 py-1.5 rounded-full border text-xs font-semibold bg-white transition-all active:scale-[0.97] hover:shadow-sm ${brand.chipAccent} ${usedTopics.has(t.id) ? 'opacity-60' : ''}`}
+                                            >
+                                                {t.chip}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Composer */}
@@ -641,7 +726,23 @@ const AloaAssistantFab: React.FC<{
                                     </button>
                                 </div>
                                 <p className={`text-2xs mt-1.5 leading-relaxed ${questionError ? 'text-red-500' : 'text-slate-500'}`}>
-                                    {questionError ?? `${name} gives general guidance, not legal advice. For your specific situation, our team can help.`}
+                                    {questionError
+                                        ?? (
+                                            <>
+                                                {name} gives general guidance, not legal advice.{' '}
+                                                <button
+                                                    onClick={() => handoff('Aloa Landing Assistant', {
+                                                        prefill: isProperty
+                                                            ? 'I have a property question. Here is my situation: '
+                                                            : 'I have a legal question. Here is my situation: ',
+                                                        variant: 'assist',
+                                                    })}
+                                                    className="font-semibold underline underline-offset-2 decoration-slate-300 hover:decoration-slate-500 hover:text-slate-700 transition-colors"
+                                                >
+                                                    Ask our team
+                                                </button>
+                                            </>
+                                        )}
                                 </p>
                             </div>
                         </div>

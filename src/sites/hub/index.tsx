@@ -4,7 +4,6 @@ import { useSiteChrome } from '../shared/useSiteChrome';
 import { useSiteScroll } from '../shared/useSiteScroll';
 import { useContactSales, useSignupOpener } from '../shared/useSignupOpener';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
-import AloaAssistantFab from '../shared/AloaAssistantFab';
 import { HubNavBar, HubFooter } from './HubShell';
 import { HubHero } from './sections/HeroSection';
 import { FluidSeam, MarqueeStrip } from './sections/MarqueeSection';
@@ -116,10 +115,10 @@ export const HubSite: React.FC = () => {
                 />
             </main>
 
-            {/* Website assistant FAB — the non-lawyer-first "ask ALOA" bubble
-                (proactive nudge + quick topics + question handoff). No mobile
-                sticky CTA on the hub — the FAB carries the low end. */}
-            <AloaAssistantFab product="hub" onContactSales={openContactSales} onSignup={() => openSignup()} />
+            {/* Owner review (2026-11-16): NO website assistant FAB on the
+                hub — "Ask ALOA should not be on the PracticePro page. It's a
+                Vega thing." The assistant lives on the product pages
+                (/vega → ALOA, /atrium → ARIA) via their own index.tsx. */}
 
             <ContactSalesDrawer
                 isOpen={isContactDrawerOpen}

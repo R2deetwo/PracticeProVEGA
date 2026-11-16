@@ -11,11 +11,11 @@ import { Z_CLASS } from '../../overlays/constants';
  *      sections, the Products dropdown (opens each product's own page in a
  *      new tab — R21 routing keep) and a quiet "Talk to us" on the right.
  * Footer: the dark slate-950 colophon, hub columns.
- * FAB: the website assistant bubble (shared/AloaAssistantFab — the
- *      non-lawyer-first "ask ALOA" surface with proactive nudge) mounted
- *      by index.tsx, not here.
+ * FAB: NONE. Owner review (2026-11-16): the website assistant is a
+ *      product thing — /vega (ALOA) and /atrium (ARIA) mount it; the
+ *      corporate hub does not.
  *
- * No MobileStickyCTA on the hub (as in the era — the hero CTAs + FAB carry
+ * No MobileStickyCTA on the hub (as in the era — the hero CTAs carry
  * mobile conversion). Auth lives with the products, not the company page.
  */
 
