@@ -34,3 +34,10 @@ dist/
 tsconfig.tsbuildinfo
 docs/brand/p0-after/
 docs/brand/p0-selftest/
+
+# Legal KB ingester — secrets, venv, local artifact cache (LEGAL_KB.md)
+tools/legal_ingester/.env
+tools/legal_ingester/.venv/
+tools/legal_ingester/artifacts/
+__pycache__/
+*.pyc

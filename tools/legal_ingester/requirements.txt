@@ -1,0 +1,6 @@
+requests>=2.31
+beautifulsoup4>=4.12
+pypdf>=4.0
+# Optional extras:
+# boto3>=1.34        # enable only when using Cloudflare R2 artifact storage
+# python-dotenv>=1.0 # .env loading (a built-in fallback loader exists)
