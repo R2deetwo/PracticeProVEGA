@@ -19505,3 +19505,25 @@ DraftPro export path.
 - `CONVEX_DEPLOY_KEY` rotation + promote of build-1173 (c509bbae) — one-shot script prepared; needs the owner's deploy key value.
 - Corpus seeding (R1) — Founder App UI path needs no CLI at all: Settings → AI Settings → Publish Legal Corpus, then Build Legal Index.
 - Cloudflare `CLOUDFLARE_API_TOKEN` still expired (mirror step skips); rotate the Convex key, GitHub PAT and Cloudflare token after this engagement.
+
+---
+
+## Round R0 EXECUTED — pipeline restored: build-1173 + R2/R3 live in production (2026-11-16)
+
+**Directive:** the owner supplied a Convex deploy key in chat (used transiently; never persisted). Executed the prepared one-shot unblock (`scripts/r0-r1-unblock.sh`).
+
+### What ran (UTC, all evidence-backed)
+- Key validated against `api.convex.dev/api/deployment/url_for_key` → resolves to `gregarious-malamute-537.convex.cloud`. GitHub secret `CONVEX_DEPLOY_KEY` rotated: updated_at 2026-08-18T03:52:48Z → 2026-11-16T11:31:34Z. Postmortem nuance: the old value was still valid on the Nov-13 promote (whose Convex step was green) and died between then and the Nov-16 09:24 401 — so the audit's "dead since Aug 18" was conservative, the rotation date is just when the value was last written.
+- Promote run 43858528350 (build-1173 / c509bbae, dispatched 11:32): gates job green; deploy job green — "Deploy Convex production backend" SUCCESS on the rotated key; Vercel deployed; live verify + backend probes green. Live `/version.json`: sha `c509bbae`, APK 1.0.778 (10778), build-1173 release URL, healthy 11:35:36Z. Cloudflare mirror job failed on the known-expired token (non-blocking by design; mirror skipped).
+- Promote run 43859875658 (R2+R3 / 80211641, dispatched 11:38): identical shape, all critical jobs green. Live `/version.json`: sha `80211641`, APK 1.0.778 (10778), healthy 11:44:42Z.
+- Bundle proof (193 chunks crawled from the live site): R3.1 honest index-status strings in `SettingsView-*.js`; R2 `x-goog-api-key` transport in `index-*.js` + `vendor-ai-*.js`; R3.2 tenancy framework ("Tenancy Law") in `index`/`geminiService`/`tiers`; R3.3 "unverifiable" in `LandingPage-*.js`.
+
+### Script hardening — bugs found in the field, all fixed in `r0-r1-unblock.sh`
+- `url_for_key` answers a bare JSON string (`"https://…"`), not `{"url": …}` — the old parser read every VALID key as "invalid" (the guard had never been exercised with a valid key). Parser now handles both shapes.
+- Post-deploy verification expected the wrong sha: the promote workflow passes `COMMIT_SHA=<pinned sha>` into the Vercel build (PROMOTE FIX 2026-09-12), so live `version.json` carries the PROMOTED sha — expected values corrected to c509bbae then 80211641, both verified against the live file.
+- Run conclusion "failure" can come solely from the Cloudflare mirror job; the script now fails only on a red NON-mirror job (this is what marked every promote run "failure" since Nov 11 while deploys were green).
+- `set -e`/`pipefail` killed the watch loop on one transient API error during slot-1 (the promote itself was green); loop reads are now fault-tolerant.
+
+### Remaining (owner actions)
+- R1 seeding + indexing: Founder App → Settings → AI Settings → "Publish Legal Corpus", then "Build Legal Index (Rules & Forms)". Server-side embeddings (`ai.embedContent`) are live as of 80211641 — no personal API key needed.
+- Rotate after the engagement: the Convex deploy key (transited chat today), the GitHub PAT, and `CLOUDFLARE_API_TOKEN` (mirror still skipped).
