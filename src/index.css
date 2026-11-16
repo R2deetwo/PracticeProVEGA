@@ -2596,8 +2596,8 @@ body.on-vega-page .cookie-copy {
    would cover the assistant FAB on mobile and overlay the assistant
    panel's composer. Two body-class hooks coordinate without polling:
    - CookieConsent sets body.cookie-bar-visible while the bar is up: the
-     FAB dock (.aloa-fab-dock) and the nudge (.aloa-nudge-anchor) lift
-     themselves clear of the bar via the rules below.
+     FAB dock (.aloa-fab-dock — pill and button together) lifts itself
+     clear of the bar via the rules below.
    - AloaAssistantFab sets body.practicepro-aloa-open while its panel is
      open, which hides the bar for the life of the panel. The bar RETURNS
      when the panel closes — consent is never implied by asking a question. */
@@ -2611,16 +2611,68 @@ body.cookie-bar-visible .aloa-fab-dock {
     bottom: 5.75rem;
   }
 }
-body.cookie-bar-visible .aloa-nudge-anchor {
-  bottom: 13.5rem;
-}
-@media (min-width: 768px) {
-  body.cookie-bar-visible .aloa-nudge-anchor {
-    bottom: 7.75rem;
-  }
-}
+/* The nudge pill now lives INSIDE .aloa-fab-dock (owner review round 2),
+   so the old standalone .aloa-nudge-anchor lift rules are retired — the
+   dock lifts as one unit and the pill rides with its button. */
 body.practicepro-aloa-open .cookie-consent-bar {
   display: none;
+}
+
+/* ── ALOA nudge pill: emerges FROM the ask button (owner review
+   round 2, 2026-11-16) ──────────────────────────────────────────────
+   "The pill should animate out of the button so that you know that
+   it's the button you're supposed to click." The pill is docked to the
+   LEFT of the icon button; both animations run on transform-origin:
+   right center so the pill visibly grows out of / folds back into the
+   button edge. The retract beat fires whenever the pill is answered,
+   dismissed or auto-hidden — the association the owner wants taught. */
+@keyframes aloa-nudge-emerge {
+  0% {
+    opacity: 0;
+    transform: translateX(26px) scale(0.55);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-3px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes aloa-nudge-retract {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(22px) scale(0.55);
+  }
+}
+.aloa-nudge-emerge {
+  transform-origin: right center;
+  animation: aloa-nudge-emerge 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.aloa-nudge-retract {
+  transform-origin: right center;
+  animation: aloa-nudge-retract 200ms cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+/* Quiet attention ring on the icon button while the pill is out — the
+   eye should land on the BUTTON (the clickable thing), not the pill. */
+@keyframes aloa-fab-attention {
+  0% {
+    box-shadow: 0 0 0 0 var(--aloa-ring, rgba(30, 58, 138, 0.5));
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(0, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+.aloa-fab-attention {
+  animation: aloa-fab-attention 2.2s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2636,6 +2688,11 @@ body.practicepro-aloa-open .cookie-consent-bar {
   .vg-caret {
     animation: none;
     opacity: 1;
+  }
+  .aloa-nudge-emerge,
+  .aloa-nudge-retract,
+  .aloa-fab-attention {
+    animation: none;
   }
   .vg-scan::after {
     animation: none;

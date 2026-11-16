@@ -33,20 +33,35 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *      — everything else stays process-level guidance.
  *   5. NO PREMATURE FUNNEL. Per-reply "send this to our team" CTAs are
  *      gone — "funneling… it's a bit too early" for the lawyer
- *      marketplace. One subtle "Ask our team" link rides the footer;
- *      the free-text composer still hands off to the drawer pre-typed
- *      (the owner-approved flow). Product chips keep the trial CTA —
- *      those visitors ARE the customers.
+ *      marketplace. One subtle "Ask our team" link rides the footer.
+ *      Product chips keep the trial CTA — those visitors ARE the customers.
+ *   6. PILL EMERGES FROM THE BUTTON (owner review round 2): the nudge
+ *      pill is docked INSIDE the FAB row — not a floating card — and
+ *      animates OUT of the icon button on a transform-origin:right
+ *      timeline, then folds BACK INTO it when answered. "The pill should
+ *      animate out of the button so that you know that it's the button
+ *      you're supposed to click. We want to get you associated with
+ *      clicking that button."
+ *   7. QUESTIONS GET ANSWERED, NOT FUNNELLED (owner review round 2):
+ *      a free-text question is matched against the topic catalogue and
+ *      ANSWERED in the panel; out-of-scope questions get an honest
+ *      boundary reply ("this is the amount of information we can give
+ *      you — reach out to a lawyer for more in-depth information") plus
+ *      the professional-conduct-safe lawyer note. The message drawer
+ *      opens ONLY when the visitor clicks a link themselves — never an
+ *      auto-jump, and never a purchase funnel (buying Vega is a
+ *      separate thing from reaching a lawyer).
  *
  * WHY IT IS NOT A LIVE AI CHAT (deliberate):
  *   /ai/stream requires an authenticated session (Round A, H18 — the
  *   platform Gemini key must never fund anonymous traffic), and the
  *   legal corpus is still awaiting Founder seeding (R1). The website
- *   assistant therefore routes questions to the human team — the exact
- *   flow the owner described: "you ask a question there and then it can
- *   open up the modal for talk to sales". When the corpus is seeded and
- *   a public rate-limited Q&A action is approved, this panel can swap
- *   its reply engine without touching the shells.
+ *   assistant therefore answers from its deterministic topic catalogue
+ *   (with an honest scope boundary for everything else) and offers the
+ *   human team as a link the visitor chooses to click — no auto-jump.
+ *   When the corpus is seeded and a public rate-limited Q&A action is
+ *   approved, this panel can swap its reply engine without touching
+ *   the shells.
  *
  * NAMING (assistantIdentity.ts is the single source of truth):
  *   vega → ALOA (legal guide), atrium → ARIA (property guide).
@@ -73,11 +88,17 @@ interface AssistantTopic {
     note?: string;
     /** Show the "start free trial" CTA (product-pitch topics). */
     signupCta?: boolean;
+    /** Lowercased match terms for the free-text question router.
+     *  Multi-word phrases score 2, single words 1 (see matchTopic). */
+    keywords?: string[];
 }
 
 const NUDGE_SESSION_KEY = 'practicepro_landing_nudge_dismissed_v1';
 const OPENED_ONCE_KEY = 'practicepro_landing_aloa_opened_v1';
 const NUDGE_AUTO_HIDE_MS = 12000;
+/** How long the fold-back-into-the-button animation runs before the
+ *  pill unmounts (owner review round 2 — see aloa-nudge-retract). */
+const NUDGE_RETRACT_MS = 210;
 const NUDGE_DWELL_MS = 15000;
 const NUDGE_SCROLL_PX = 220;
 
@@ -102,6 +123,15 @@ interface Bubble {
     text: string;
     steps?: string[];
     note?: string;
+    /** Professional-conduct-safe boundary line ("general information,
+     *  not legal advice — speak with a qualified lawyer"). */
+    lawyerNote?: string;
+    /** Topic chips to offer as follow-ups (matched by chip label). */
+    suggestions?: string[];
+    /** When set, renders the opt-in "send this to our team" link with
+     *  this text pre-typed — the visitor clicks it themselves; nothing
+     *  auto-opens. */
+    teamPrefill?: string;
 }
 
 /**
@@ -128,6 +158,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'Act early. If a response date is printed on it, treat it as real even if you plan to challenge the case — ignoring it can lead to judgment being entered against you in your absence.',
             ],
             note: 'Before you reply in writing, have someone qualified review it — what you write back becomes part of the case.',
+            keywords: ['court letter', 'court', 'summons', 'writ', 'subpoena', 'hearing', 'lawsuit', 'sue', 'sued', 'case against me', 'served', 'bailiff', 'sheriff', 'judgment', 'judgement', 'petition'],
         },
         {
             id: 'landlord_tenant',
@@ -140,6 +171,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'In Lagos a landlord cannot recover possession without a court order — even after the notice expires, self-help eviction is unlawful. Other states follow a similar pattern; confirm the rule where the property is.',
             ],
             note: 'Never resort to self-help — changing locks, removing belongings, cutting power. Courts treat that seriously even when the rent is genuinely owed.',
+            keywords: ['landlord', 'tenant', 'rent', 'eviction', 'evict', 'quit notice', 'notice to quit', 'tenancy', 'lease', 'deposit', 'premises', 'occupancy'],
         },
         {
             id: 'document',
@@ -152,6 +184,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'Never sign under pressure. Take it away, read all of it, and have it reviewed before you commit.',
             ],
             note: 'If the other side drafted the document, assume it favours them — that is exactly what review is for.',
+            keywords: ['agreement', 'contract', 'document', 'draft', 'stamp', 'deed', 'mou', 'nda', 'memorandum', 'will', 'paperwork'],
         },
         {
             id: 'business',
@@ -163,6 +196,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'File the registration with complete owner details, and collect your certificate when issued.',
                 'After registration come continuing duties: companies file annual returns and keep proper records. Missing them attracts penalties and can get the name struck off the register.',
             ],
+            keywords: ['cac', 'registering', 'register a business', 'register my business', 'registration', 'business name', 'incorporate', 'incorporation', 'ltd', 'limited liability', 'rc number', 'corporate affairs'],
         },
     ];
 
@@ -178,6 +212,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'Address your questions in writing to the estate manager and keep the trail — a specific, dated question is far harder to ignore than a verbal complaint.',
             ],
             note: 'Withholding the entire charge while disputing part of it can backfire — the undisputed part remains owed. Disputing properly, in writing, is the leverage that works.',
+            keywords: ['service charge', 'service fee', 'levy', 'dues', 'estate bill', 'facility fee'],
         },
         {
             id: 'maintenance',
@@ -189,6 +224,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'Give a reasonable time, then follow up in writing, addressed to the estate manager and copied to the landlord where relevant.',
                 'If it still drags on, a clear written statement of the impact — and what you will ask for if it continues — is the next rung before any formal demand.',
             ],
+            keywords: ['maintenance', 'not being done', 'not being fixed', 'not working', 'repair', 'fix', 'broken', 'leaking', 'leak', 'plumbing', 'generator', 'water supply', 'electricity', 'cleaning', 'waste'],
         },
         {
             id: 'tenancy_agreement',
@@ -201,6 +237,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
                 'Get the agreement stamped and keep a signed copy — an unstamped document can face evidential problems exactly when you need it most.',
             ],
             note: 'Read the service charge and utility clauses carefully — that is where most estate disputes actually start.',
+            keywords: ['tenancy agreement', 'agreement review', 'review my agreement', 'renew', 'renewal'],
         },
     ];
 
@@ -210,6 +247,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         reply:
             `Then you are in the right place — Vega is the practice side of PracticePro: matters and cause list, court-rule-aware document drafting, billing and trust accounting, client portals, and ${name} as an in-app legal assistant. The trial is free and you can be running in minutes.`,
         signupCta: true,
+        keywords: ['lawyer', 'law firm', 'solicitor', 'barrister', 'advocate', 'attorney', 'legal practice', 'i run a firm', 'practice'],
     };
 
     const estateManager: AssistantTopic = {
@@ -218,6 +256,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         reply:
             `Atrium is the property side of PracticePro — rent rolls and tenancy ledgers, service-charge monitoring, maintenance queues, resident portals and WhatsApp automation, with ${name} keeping an eye on the numbers. The trial is free.`,
         signupCta: true,
+        keywords: ['estate manager', 'manage property', 'property manager', 'caretaker', 'facility manager', 'estate agent', 'agent'],
     };
 
     if (product === 'atrium') {
@@ -244,7 +283,12 @@ const AloaAssistantFab: React.FC<{
     const isProperty = product === 'atrium';
 
     const [isPanelOpen, setPanelOpen] = useState(false);
-    const [isNudgeVisible, setNudgeVisible] = useState(false);
+    // Owner review round 2: the pill no longer floats on its own — it is
+    // docked INSIDE the FAB row and animates out of / back into the icon
+    // button. 'out' plays aloa-nudge-emerge, 'retract' plays
+    // aloa-nudge-retract (the fold-back-into-the-button beat) before
+    // unmounting. See index.css.
+    const [nudgePhase, setNudgePhase] = useState<'hidden' | 'out' | 'retract'>('hidden');
     const [bubbles, setBubbles] = useState<Bubble[]>([]);
     const [isThinking, setIsThinking] = useState(false);
     const [question, setQuestion] = useState('');
@@ -273,9 +317,40 @@ const AloaAssistantFab: React.FC<{
         [name, isProperty],
     );
 
+    // ── Panel lifecycle (declared before the nudge callbacks that use
+    //    them — useCallback consts are not hoisted) ────────────────────
+    const openPanel = useCallback(() => {
+        setPanelOpen(true);
+        try { localStorage.setItem(OPENED_ONCE_KEY, '1'); } catch { /* best-effort */ }
+    }, []);
+
+    const closePanel = useCallback(() => setPanelOpen(false), []);
+
+    /** Fold the pill back INTO the button, then unmount it. The retract
+     *  beat is the association the owner asked for: the pill visibly
+     *  returns to the icon it emerged from. */
+    const retractNudge = useCallback((silenceSession: boolean) => {
+        setNudgePhase((phase) => (phase === 'out' ? 'retract' : phase));
+        nudgeTimers.current.forEach((t) => window.clearTimeout(t));
+        nudgeTimers.current = [];
+        if (silenceSession) {
+            try { sessionStorage.setItem(NUDGE_SESSION_KEY, '1'); } catch { /* best-effort */ }
+        }
+        // Let the retract animation land before unmounting.
+        nudgeTimers.current.push(window.setTimeout(() => setNudgePhase('hidden'), NUDGE_RETRACT_MS));
+    }, []);
+
+    /** Ask-from-the-pill: retract first, THEN open — the visitor sees the
+     *  pill fold into the button and the panel take its place, which is
+     *  how they learn the button is the thing to click. */
+    const askFromNudge = useCallback(() => {
+        retractNudge(false);
+        nudgeTimers.current.push(window.setTimeout(() => openPanel(), NUDGE_RETRACT_MS - 30));
+    }, [retractNudge, openPanel]);
+
     // ── Proactive nudge (bank-style): scroll intent OR dwell, once ──────
     useEffect(() => {
-        if (isPanelOpen || isNudgeVisible) return;
+        if (isPanelOpen || nudgePhase !== 'hidden') return;
         // Respect explicit "Maybe later" for the session, and anyone who
         // has already opened the panel (they know the bubble is there).
         try {
@@ -287,9 +362,9 @@ const AloaAssistantFab: React.FC<{
         const fire = () => {
             if (fired) return;
             fired = true;
-            setNudgeVisible(true);
+            setNudgePhase('out');
             nudgeTimers.current.push(
-                window.setTimeout(() => setNudgeVisible(false), NUDGE_AUTO_HIDE_MS),
+                window.setTimeout(() => retractNudge(false), NUDGE_AUTO_HIDE_MS),
             );
         };
         // Scroll events do not bubble, but they ARE visible to a capture
@@ -313,20 +388,12 @@ const AloaAssistantFab: React.FC<{
             nudgeTimers.current.forEach((t) => window.clearTimeout(t));
             nudgeTimers.current = [];
         };
-    }, [isPanelOpen, isNudgeVisible]);
+    }, [isPanelOpen, nudgePhase, retractNudge]);
 
     // Clear the nudge the moment the panel opens.
     useEffect(() => {
-        if (isPanelOpen) setNudgeVisible(false);
+        if (isPanelOpen) setNudgePhase('hidden');
     }, [isPanelOpen]);
-
-    // ── Panel lifecycle ─────────────────────────────────────────────────
-    const openPanel = useCallback(() => {
-        setPanelOpen(true);
-        try { localStorage.setItem(OPENED_ONCE_KEY, '1'); } catch { /* best-effort */ }
-    }, []);
-
-    const closePanel = useCallback(() => setPanelOpen(false), []);
 
     // While the panel is open, hide the first-visit cookie bar (scoped CSS
     // via body.practicepro-aloa-open — see index.css). The bar returns when
@@ -381,16 +448,14 @@ const AloaAssistantFab: React.FC<{
         document.body.classList.remove('practicepro-aloa-open');
     }, []);
 
-    const dismissNudge = useCallback((silenceSession: boolean) => {
-        setNudgeVisible(false);
-        nudgeTimers.current.forEach((t) => window.clearTimeout(t));
-        nudgeTimers.current = [];
-        if (silenceSession) {
-            try { sessionStorage.setItem(NUDGE_SESSION_KEY, '1'); } catch { /* best-effort */ }
-        }
-    }, []);
-
-    const pushAloaReply = useCallback((content: { text: string; steps?: string[]; note?: string }) => {
+    const pushAloaReply = useCallback((content: {
+        text: string;
+        steps?: string[];
+        note?: string;
+        lawyerNote?: string;
+        suggestions?: string[];
+        teamPrefill?: string;
+    }) => {
         // A short "typing" beat makes the exchange feel attended without
         // faking AI — the reply is honest scripted guidance.
         setIsThinking(true);
@@ -400,15 +465,24 @@ const AloaAssistantFab: React.FC<{
         }, 450);
     }, []);
 
+    /** Professional-conduct-safe boundary line, attached to every guide
+     *  answer (owner review round 2: "this is the amount of information we
+     *  can give you — reach out to a lawyer for more in-depth
+     *  information"). Neutral wording only: no referral-for-gain, no
+     * purchase conditioning. */
+    const lawyerNoteCopy = isProperty
+        ? 'General property guidance only — for advice on your specific situation, speak with a qualified professional.'
+        : 'General legal information, not legal advice — for anything specific to your situation, the right next step is a qualified lawyer.';
+
     const handleTopic = useCallback(
         (topic: AssistantTopic) => {
             setUsedTopics((prev) => new Set(prev).add(topic.id));
             setBubbles((prev) => [...prev, { role: 'you', text: topic.chip }]);
             // The answer needs the room — collapse the chip cloud.
             setTopicsOpen(false);
-            pushAloaReply({ text: topic.reply, steps: topic.steps, note: topic.note });
+            pushAloaReply({ text: topic.reply, steps: topic.steps, note: topic.note, lawyerNote: lawyerNoteCopy });
         },
-        [pushAloaReply],
+        [pushAloaReply, lawyerNoteCopy],
     );
 
     /** Chip CTAs that hand off to the drawer, pre-typed. */
@@ -425,6 +499,28 @@ const AloaAssistantFab: React.FC<{
         [onContactSales],
     );
 
+    /** Free-text question router (owner review round 2): score every
+     *  topic by keyword overlap against the normalised question. Multi-
+     *  word phrases count double — they signal intent, not vocabulary
+     *  collision. Score >= 2 is a confident match; 1 is a suggestion. */
+    const matchTopic = useCallback(
+        (q: string): { topic: AssistantTopic; score: number } | null => {
+            const hay = ` ${q.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()} `;
+            let best: { topic: AssistantTopic; score: number } | null = null;
+            for (const t of topics) {
+                let score = 0;
+                for (const kw of t.keywords ?? []) {
+                    if (hay.includes(` ${kw} `) || hay.endsWith(` ${kw}`) || hay.startsWith(`${kw} `)) {
+                        score += kw.includes(' ') ? 2 : 1;
+                    }
+                }
+                if (score > 0 && (!best || score > best.score)) best = { topic: t, score };
+            }
+            return best;
+        },
+        [topics],
+    );
+
     const submitQuestion = useCallback(() => {
         const q = question.trim();
         if (q.length < 10) {
@@ -436,22 +532,49 @@ const AloaAssistantFab: React.FC<{
         setQuestion('');
         // The exchange is now the main event — collapse the topics.
         setTopicsOpen(false);
-        setIsThinking(true);
-        thinkTimer.current = window.setTimeout(() => {
-            setIsThinking(false);
-            setBubbles((prev) => [
-                ...prev,
-                {
-                    role: 'aloa',
-                    text: "Got it. I'm opening a short form where our team can reply properly — usually within 24 hours. Your question is already typed in; just add your name and email.",
-                },
-            ]);
-            handoffTimer.current = window.setTimeout(
-                () => handoff('Aloa Landing Assistant', { prefill: q, variant: 'assist' }),
-                900,
-            );
-        }, 600);
-    }, [question, handoff]);
+
+        const match = matchTopic(q);
+
+        // Owner review round 2 — QUESTIONS GET ANSWERED, NOT FUNNELLED:
+        // the old flow auto-jumped into the message drawer (which reads
+        // as a purchase funnel). A question now gets a real answer in the
+        // panel; the drawer opens only if the visitor clicks the opt-in
+        // link themselves. Professional-conduct safety: the boundary is
+        // stated plainly ("this is the amount of information we can give
+        // you"), with a neutral pointer to qualified lawyers — no
+        // referral-for-gain, no conditioning help on buying anything.
+        if (match && match.score >= 2) {
+            const t = match.topic;
+            setUsedTopics((prev) => new Set(prev).add(t.id));
+            pushAloaReply({
+                text: t.reply,
+                steps: t.steps,
+                note: t.note,
+                lawyerNote: lawyerNoteCopy,
+            });
+            return;
+        }
+
+        // Out of scope ("Tell me about maritime law"): honest boundary
+        // reply — the guide's scope, then the qualified-lawyer next step.
+        pushAloaReply({
+            text: isProperty
+                ? 'Straight answer: that looks outside what I can walk through reliably here. I cover everyday property situations — service charges, maintenance, tenancy agreements, landlord and tenant basics — in plain language. For your specific situation the details are where it matters, and that is exactly what a qualified professional is for.'
+                : 'Straight answer: that looks outside what I can cover reliably here. I give general, plain-language guidance on everyday legal matters — court letters, landlord and tenant issues, agreements, business registration. Specialist areas and anything specific to your situation need a qualified lawyer, and I would rather say that plainly than sound confident and mislead you.',
+            steps: [
+                isProperty
+                    ? 'For your specific situation, the right next step is a qualified professional — a directory of vetted practitioners is coming to Vega to make that step easy.'
+                    : 'For your specific situation, the right next step is a qualified lawyer — a lawyer directory is coming to Vega to make finding one easy.',
+                isProperty
+                    ? 'For tenancy and property disputes, your local Nigerian Bar Association (NBA) branch can point you to a property-law practitioner today.'
+                    : 'Your local Nigerian Bar Association (NBA) branch can point you to practitioners in that field today.',
+                'If it is an everyday matter, try the common questions below — those I can walk through properly.',
+            ],
+            lawyerNote: lawyerNoteCopy,
+            suggestions: match ? [match.topic.chip] : undefined,
+            teamPrefill: q,
+        });
+    }, [question, matchTopic, pushAloaReply, isProperty, lawyerNoteCopy]);
 
     const onQuestionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -459,66 +582,66 @@ const AloaAssistantFab: React.FC<{
             submitQuestion();
         }
     };
-
     const nudgeCopy = isProperty
         ? { title: 'Property question?', sub: `Ask ${name} — free, no sign-up needed.` }
         : { title: 'Need help with a legal matter?', sub: `Ask ${name} — free, and you don't need to be a lawyer.` };
-
     // ── Render ──────────────────────────────────────────────────────────
     return (
         <>
-            {/* ── Proactive nudge bubble (bank-style) ── */}
-            {isNudgeVisible && !isPanelOpen &&
-                createPortal(
+            {/* ── The FAB row (+ the nudge pill that grows OUT of the button).
+                Hidden while the panel is open (same rule as the in-app
+                AloaFAB): the open panel IS the affordance.
+
+                OWNER REVIEW ROUND 2: the pill is NOT a separate floating
+                card anymore. It is docked to the LEFT of the icon button,
+                emerges from the button's edge (aloa-nudge-emerge —
+                transform-origin: right) and folds back INTO it
+                (aloa-nudge-retract) when answered, dismissed or
+                auto-hidden — "the pill should animate out of the button
+                so that you know that it's the button you're supposed to
+                click. We want to get you associated with clicking that
+                button." While the pill is out, the icon carries a quiet
+                attention ring (aloa-fab-attention) so the eye lands on
+                the BUTTON, and the static desktop label yields its slot
+                to the pill. */}
+            {!isPanelOpen && (
+            <div className={`aloa-fab-dock fixed bottom-24 md:bottom-6 right-4 md:right-6 ${Z_CLASS.shellFab} flex items-center gap-3 transition-[bottom] duration-300`}>
+                {nudgePhase !== 'hidden' && (
                     <div
-                        className={`aloa-nudge-anchor fixed bottom-40 md:bottom-[5.5rem] right-4 md:right-6 ${Z_CLASS.alaoNudge} w-[290px] max-w-[calc(100vw-2rem)] animate-slide-up`}
+                        className={`relative shrink-0 w-[300px] max-w-[calc(100vw-6rem)] ${nudgePhase === 'out' ? 'aloa-nudge-emerge' : 'aloa-nudge-retract'}`}
                         role="status"
                         aria-live="polite"
                     >
-                        <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/10 p-4 pr-8">
-                            <button
-                                onClick={() => dismissNudge(false)}
-                                className="absolute top-2.5 right-2.5 w-6 h-6 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                                aria-label="Dismiss"
-                            >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                            <div className="flex items-start gap-3">
-                                <div className={`w-9 h-9 rounded-lg ${brand.avatar} text-white flex items-center justify-center shrink-0 shadow-md`}>
-                                    <AloaIcon className="w-5 h-5" />
+                        <div className="relative bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-900/10 p-3.5">
+                            <div className="flex items-start gap-2.5">
+                                <div className={`w-8 h-8 rounded-lg ${brand.avatar} text-white flex items-center justify-center shrink-0 shadow-md`}>
+                                    <AloaIcon className="w-4 h-4" />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-sm font-bold text-slate-900 leading-snug">{nudgeCopy.title}</p>
-                                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{nudgeCopy.sub}</p>
+                                    <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{nudgeCopy.sub}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 mt-3">
                                 <button
-                                    onClick={() => { dismissNudge(false); openPanel(); }}
+                                    onClick={askFromNudge}
                                     className="flex-1 py-2 rounded-lg text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors active:scale-[0.98]"
                                 >
                                     Ask {name}
                                 </button>
                                 <button
-                                    onClick={() => dismissNudge(true)}
+                                    onClick={() => retractNudge(true)}
                                     className="px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                                 >
                                     Maybe later
                                 </button>
                             </div>
+                            {/* caret tying the pill to the button it grew from */}
+                            <div className="absolute -right-[5px] top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white border-r border-t border-slate-200 rotate-45" aria-hidden="true" />
                         </div>
-                        {/* speech tail pointing at the FAB */}
-                        <div className="absolute -bottom-1.5 right-8 w-3.5 h-3.5 bg-white border-b border-r border-slate-200 rotate-45" />
-                    </div>,
-                    document.body,
+                    </div>
                 )}
-
-            {/* ── The FAB (+ discoverable pill on desktop) ──
-                Hidden while the panel is open (same rule as the in-app
-                AloaFAB): the open panel IS the affordance — a second
-                sparkle icon under it reads as a stacked duplicate. */}
-            {!isPanelOpen && (
-            <div className={`aloa-fab-dock fixed bottom-24 md:bottom-6 right-4 md:right-6 ${Z_CLASS.shellFab} flex items-center gap-3 transition-[bottom] duration-300`}>
+                {nudgePhase === 'hidden' && (
                 <button
                     onClick={openPanel}
                     aria-label={`Ask ${name} — ${isProperty ? 'property help' : 'legal help'}, free`}
@@ -527,11 +650,15 @@ const AloaAssistantFab: React.FC<{
                     <span className={`text-sm font-bold leading-tight ${brand.pill}`}>Ask {name}</span>
                     <span className="text-2xs text-slate-500 leading-tight">{isProperty ? 'Property help · Free' : 'Legal help · Free'}</span>
                 </button>
+                )}
                 <button
                     onClick={openPanel}
                     aria-label={`Ask ${name} — ${isProperty ? 'property help' : 'legal help'}, free`}
                     title={`Ask ${name}`}
-                    className={`w-12 h-12 md:w-14 md:h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all duration-150 active:scale-95 hover:shadow-lg ${brand.fab}`}
+                    style={nudgePhase === 'out'
+                        ? ({ '--aloa-ring': isProperty ? 'rgba(5, 150, 105, 0.5)' : 'rgba(30, 58, 138, 0.5)' } as React.CSSProperties)
+                        : undefined}
+                    className={`w-12 h-12 md:w-14 md:h-14 rounded-full text-white shadow-lg flex items-center justify-center transition-all duration-150 active:scale-95 hover:shadow-lg ${brand.fab} ${nudgePhase === 'out' ? 'aloa-fab-attention' : ''}`}
                 >
                     <AloaIcon className="w-7 h-7 md:w-8 md:h-8" />
                 </button>
@@ -567,7 +694,7 @@ const AloaAssistantFab: React.FC<{
                                         {name} <span className="text-slate-400 font-medium">·</span>{' '}
                                         <span className="font-semibold text-slate-600">{isProperty ? 'Atrium\u2019s property guide' : 'Vega\u2019s legal guide'}</span>
                                     </p>
-                                    <p className="text-2xs text-slate-500 mt-0.5">Online — our team replies within 24 hours</p>
+                                    <p className="text-2xs text-slate-500 mt-0.5">{isProperty ? 'General property guidance, not professional advice' : 'General legal guidance, not legal advice'}</p>
                                 </div>
                                 <button
                                     onClick={closePanel}
@@ -629,6 +756,45 @@ const AloaAssistantFab: React.FC<{
                                                     <p className="mt-1.5 text-xs leading-relaxed text-slate-600 border-l-2 border-amber-300 bg-amber-50 rounded-r-lg px-2.5 py-1">
                                                         {b.note}
                                                     </p>
+                                                )}
+                                                {/* Lawyer boundary line (owner review round 2): the
+                                                    professional-conduct-safe "this is the amount of
+                                                    information we can give you" note — quiet, neutral,
+                                                    never a sales or referral pitch. */}
+                                                {b.lawyerNote && (
+                                                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 border-l-2 border-slate-300 bg-slate-50 rounded-r-lg px-2.5 py-1">
+                                                        {b.lawyerNote}
+                                                    </p>
+                                                )}
+                                                {/* Follow-up topic suggestions (weak match). */}
+                                                {b.suggestions && b.suggestions.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                        {b.suggestions.map((chip) => {
+                                                            const st = topics.find((tp) => tp.chip === chip);
+                                                            if (!st) return null;
+                                                            return (
+                                                                <button
+                                                                    key={chip}
+                                                                    onClick={() => handleTopic(st)}
+                                                                    className={`px-2.5 py-1 rounded-full border text-2xs font-semibold bg-white transition-all active:scale-[0.97] hover:shadow-sm ${brand.chipAccent}`}
+                                                                >
+                                                                    {chip}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                {/* Opt-in human handoff (owner review round 2): a
+                                                    link the visitor clicks THEMSELVES — nothing
+                                                    auto-opens. Wording stays team-neutral, never a
+                                                    purchase pitch. */}
+                                                {i === bubbles.length - 1 && b.teamPrefill && (
+                                                    <button
+                                                        onClick={() => handoff('Aloa Landing Assistant', { prefill: b.teamPrefill, variant: 'assist' })}
+                                                        className="mt-2 block text-2xs font-semibold text-slate-500 underline underline-offset-2 decoration-slate-300 hover:decoration-slate-500 hover:text-slate-700 transition-colors text-left"
+                                                    >
+                                                        Prefer a human? Send this to our team — a real person replies within 24 hours.
+                                                    </button>
                                                 )}
                                                 {/* Product topics keep their trial CTA; informational
                                                     replies deliberately carry NO sales CTA (owner:
