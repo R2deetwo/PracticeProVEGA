@@ -186,7 +186,7 @@ export const WhatWeDoSection: React.FC<{ scrollTo: (id: string) => void }> = ({ 
                         <SystemCoreScene className="w13-canvas" />
                     </div>
                     {/* W14: the owner's own words replace "Seven modules. One
-                        system." — a promise a layman can feel, not jargon. */}
+                        system." — a promise a non-lawyer can feel, not jargon. */}
                     <p className="w13-caption">Making your systems work as one.</p>
                     {/* W14: the descent continues — a cue under the scene walks
                         the visitor down to the parts of the business, the way

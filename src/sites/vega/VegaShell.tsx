@@ -360,16 +360,3 @@ export const VegaMobileStickyCTA: React.FC<{ onSignup: () => void; onContactSale
     </div>
 );
 
-/** Chat FAB — R56: the navy roundel on the white page. */
-export const VegaChatFab: React.FC<{ onContactSales: () => void }> = ({ onContactSales }) => (
-    <button
-        onClick={onContactSales}
-        className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 ${Z_CLASS.shellFab} w-12 h-12 md:w-14 md:h-14 rounded-full border flex items-center justify-center transition-all duration-150 active:scale-95 bg-[#1E3A8A] border-[#1E3A8A] hover:bg-[#1E40AF] hover:shadow-lg hover:shadow-[rgb(30_58_138/0.35)]`}
-        aria-label="Chat with us — Contact Sales"
-        title="Chat with us"
-    >
-        <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-        </svg>
-    </button>
-);

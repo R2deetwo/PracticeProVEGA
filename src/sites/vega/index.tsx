@@ -6,7 +6,8 @@ import { useSiteScroll } from '../shared/useSiteScroll';
 import { useSignupOpener, useContactSales } from '../shared/useSignupOpener';
 import { PrimaryButton, GhostButton } from '../shared/ctas';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
-import { VegaNavBar, VegaFooter, VegaMobileStickyCTA, VegaChatFab } from './VegaShell';
+import AloaAssistantFab from '../shared/AloaAssistantFab';
+import { VegaNavBar, VegaFooter, VegaMobileStickyCTA } from './VegaShell';
 import { vegaSiteConfig } from './siteConfig';
 import { VegaHero } from './sections/VegaHero';
 import { VegaSuite } from './sections/VegaSuite';
@@ -54,6 +55,8 @@ export const VegaSite: React.FC = () => {
     const {
         isContactDrawerOpen,
         contactDrawerSource,
+        contactDrawerPrefill,
+        contactDrawerVariant,
         openContactSales,
         closeContactSales,
     } = useContactSales();
@@ -171,10 +174,17 @@ export const VegaSite: React.FC = () => {
             {/* Mobile sticky bottom CTA bar */}
             <VegaMobileStickyCTA onSignup={openSignup} onContactSales={() => openContactSales('Mobile Sticky CTA')} />
 
-            {/* Chat floating action button */}
-            <VegaChatFab onContactSales={() => openContactSales('WhatsApp FAB')} />
+            {/* Website assistant FAB — the non-lawyer-first "ask ALOA" bubble
+                (proactive nudge + quick topics + question handoff). */}
+            <AloaAssistantFab product="vega" onContactSales={openContactSales} onSignup={() => openSignup()} />
 
-            <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={closeContactSales} source={contactDrawerSource} />
+            <ContactSalesDrawer
+                isOpen={isContactDrawerOpen}
+                onClose={closeContactSales}
+                source={contactDrawerSource}
+                initialMessage={contactDrawerPrefill}
+                variant={contactDrawerVariant}
+            />
             <VegaFooter
                 onPrivacyClick={() => navigate(vegaSiteConfig.legal.privacy)}
                 onTermsClick={() => navigate(vegaSiteConfig.legal.terms)}

@@ -4,7 +4,8 @@ import { useSiteChrome } from '../shared/useSiteChrome';
 import { useSiteScroll } from '../shared/useSiteScroll';
 import { useContactSales, useSignupOpener } from '../shared/useSignupOpener';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
-import { HubNavBar, HubFooter, WhatsAppFAB } from './HubShell';
+import AloaAssistantFab from '../shared/AloaAssistantFab';
+import { HubNavBar, HubFooter } from './HubShell';
 import { HubHero } from './sections/HeroSection';
 import { FluidSeam, MarqueeStrip } from './sections/MarqueeSection';
 import { WhatWeDoSection } from './sections/WhatWeDoSection';
@@ -44,6 +45,8 @@ export const HubSite: React.FC = () => {
     const {
         isContactDrawerOpen,
         contactDrawerSource,
+        contactDrawerPrefill,
+        contactDrawerVariant,
         openContactSales,
         closeContactSales,
     } = useContactSales();
@@ -113,10 +116,18 @@ export const HubSite: React.FC = () => {
                 />
             </main>
 
-            {/* Chat FAB (no mobile sticky CTA on the hub — as in the era). */}
-            <WhatsAppFAB onContactSales={() => openContactSales('WhatsApp FAB')} />
+            {/* Website assistant FAB — the non-lawyer-first "ask ALOA" bubble
+                (proactive nudge + quick topics + question handoff). No mobile
+                sticky CTA on the hub — the FAB carries the low end. */}
+            <AloaAssistantFab product="hub" onContactSales={openContactSales} onSignup={() => openSignup()} />
 
-            <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={closeContactSales} source={contactDrawerSource} />
+            <ContactSalesDrawer
+                isOpen={isContactDrawerOpen}
+                onClose={closeContactSales}
+                source={contactDrawerSource}
+                initialMessage={contactDrawerPrefill}
+                variant={contactDrawerVariant}
+            />
             <HubFooter
                 onPrivacyClick={() => navigate('/privacy-policy')}
                 onTermsClick={() => navigate('/terms-of-service')}

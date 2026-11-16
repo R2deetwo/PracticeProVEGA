@@ -2590,6 +2590,39 @@ body.on-vega-page .cookie-copy {
   color: rgb(224 213 192);
 }
 
+/* ── Website assistant vs the first-visit cookie bar (2026-11-16) ────────
+   The cookie bar is bottom-docked on the z-9999 systemAlert rung (above
+   the assistant's alaoNudge/alaoPanel rungs), so on a first visit it
+   would cover the assistant FAB on mobile and overlay the assistant
+   panel's composer. Two body-class hooks coordinate without polling:
+   - CookieConsent sets body.cookie-bar-visible while the bar is up: the
+     FAB dock (.aloa-fab-dock) and the nudge (.aloa-nudge-anchor) lift
+     themselves clear of the bar via the rules below.
+   - AloaAssistantFab sets body.practicepro-aloa-open while its panel is
+     open, which hides the bar for the life of the panel. The bar RETURNS
+     when the panel closes — consent is never implied by asking a question. */
+body.cookie-bar-visible .aloa-fab-dock {
+  /* clears the stacked mobile bar (docked at 4.5rem, ~86px tall) */
+  bottom: 11.5rem;
+}
+@media (min-width: 768px) {
+  body.cookie-bar-visible .aloa-fab-dock {
+    /* clears the single-row desktop bar (~64px) + breathing room */
+    bottom: 5.75rem;
+  }
+}
+body.cookie-bar-visible .aloa-nudge-anchor {
+  bottom: 13.5rem;
+}
+@media (min-width: 768px) {
+  body.cookie-bar-visible .aloa-nudge-anchor {
+    bottom: 7.75rem;
+  }
+}
+body.practicepro-aloa-open .cookie-consent-bar {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .theme-vega .landing-card,
   .theme-vega .pricing-card {

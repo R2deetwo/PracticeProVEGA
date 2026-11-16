@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -13,12 +13,21 @@ import { Z_CLASS } from '../../overlays/constants';
  * - Submits to `salesInquiries.submitSalesInquiry` Convex mutation (no auth token)
  * - On success: inline confirmation replaces the form, no page redirect
  * - On mobile: renders as a bottom sheet; desktop: right-side slide panel
+ *
+ * Landing-assistant extension (2026-11-16):
+ * - `initialMessage` seeds the message field (the website's ALOA/ARIA
+ *   assistant hands the visitor's question in already typed).
+ * - `variant="assist"` switches the header/labels to the non-lawyer register
+ *   ("Ask a Question", "Your question", plain-words placeholder). The
+ *   default 'sales' variant is byte-identical to the previous behaviour.
  */
 const ContactSalesDrawer: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     source?: string; // e.g. "Enterprise Pricing CTA", "Komplete Callout", "Footer"
-}> = ({ isOpen, onClose, source = 'landing_page' }) => {
+    initialMessage?: string; // pre-seeded question text (landing assistant handoff)
+    variant?: 'sales' | 'assist'; // 'assist' = non-lawyer question copy
+}> = ({ isOpen, onClose, source = 'landing_page', initialMessage, variant = 'sales' }) => {
     const [formData, setFormData] = useState({
         email: '',
         name: '',
@@ -41,6 +50,18 @@ const ContactSalesDrawer: React.FC<{
             setIsVisible(false);
         }
     }, [isOpen]);
+
+    // Seed the message field when a prefill arrives (landing assistant
+    // handoff). Applied once per open so the visitor's own edits always
+    // win; reset when the drawer closes so a later prefill can re-seed.
+    const appliedPrefill = useRef<string | null>(null);
+    useEffect(() => {
+        if (isOpen && initialMessage && appliedPrefill.current !== initialMessage) {
+            appliedPrefill.current = initialMessage;
+            setFormData((prev) => ({ ...prev, message: initialMessage }));
+        }
+        if (!isOpen) appliedPrefill.current = null;
+    }, [isOpen, initialMessage]);
 
     // Close on Escape
     useEffect(() => {
@@ -154,8 +175,12 @@ const ContactSalesDrawer: React.FC<{
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-zinc-700/60">
                     <div>
-                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Contact Sales</h2>
-                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">No account needed — we will reach out directly.</p>
+                        <h2 className="text-lg font-bold text-slate-900 dark:text-white">{variant === 'assist' ? 'Ask a Question' : 'Contact Sales'}</h2>
+                        <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                            {variant === 'assist'
+                                ? "No account needed — describe your situation and we'll reply within 24 hours."
+                                : 'No account needed — we will reach out directly.'}
+                        </p>
                     </div>
                     <button
                         onClick={handleClose}
@@ -264,7 +289,7 @@ const ContactSalesDrawer: React.FC<{
                             {/* Message */}
                             <div>
                                 <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1.5">
-                                    Message <span className="text-red-500">*</span>
+                                    {variant === 'assist' ? 'Your question' : 'Message'} <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <svg className="absolute left-3 top-3 w-4 h-4 text-slate-400 dark:text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
@@ -273,7 +298,9 @@ const ContactSalesDrawer: React.FC<{
                                         rows={4}
                                         value={formData.message}
                                         onChange={e => updateField('message', e.target.value)}
-                                        placeholder="Tell us about your firm's legal or property management operations..."
+                                        placeholder={variant === 'assist'
+                                            ? "Describe your situation in your own words — e.g. 'My landlord wants to raise the rent mid-tenancy. What are my options?'"
+                                            : "Tell us about your firm's legal or property management operations..."}
                                         className={`w-full pl-10 pr-3 py-2.5 rounded-lg text-sm bg-white dark:bg-zinc-800 text-slate-900 dark:text-white border ${errors.message ? 'border-red-400 dark:border-red-500' : 'border-slate-200 dark:border-zinc-700'} focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all resize-none placeholder:text-slate-500 dark:placeholder:text-zinc-500`}
                                     />
                                 </div>
@@ -309,7 +336,7 @@ const ContactSalesDrawer: React.FC<{
                                 ) : (
                                     <>
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
-                                        Send Message
+                                        {variant === 'assist' ? 'Send My Question' : 'Send Message'}
                                     </>
                                 )}
                             </button>

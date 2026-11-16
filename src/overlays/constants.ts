@@ -114,6 +114,10 @@ const SYSTEM = {
   printVeil: 9000,
   /** Print preview drawer — panel. */
   print: 9001,
+  /** Landing assistant (marketing) — proactive nudge bubble. */
+  alaoNudge: 9300,
+  /** Landing assistant (marketing) — panel + click-away veil. */
+  alaoPanel: 9400,
   /** Contact-sales drawer (marketing) — backdrop / panel. */
   contactVeil: 9500,
   /** Contact-sales drawer (marketing) — panel. */
@@ -191,6 +195,8 @@ export const Z_CLASS = {
   // SYSTEM
   printVeil: 'z-[9000]',
   print: 'z-[9001]',
+  alaoNudge: 'z-[9300]',
+  alaoPanel: 'z-[9400]',
   contactVeil: 'z-[9500]',
   contact: 'z-[9600]',
   checklist: 'z-[9990]',

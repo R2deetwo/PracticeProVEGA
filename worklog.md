@@ -19527,3 +19527,29 @@ DraftPro export path.
 ### Remaining (owner actions)
 - R1 seeding + indexing: Founder App → Settings → AI Settings → "Publish Legal Corpus", then "Build Legal Index (Rules & Forms)". Server-side embeddings (`ai.embedContent`) are live as of 80211641 — no personal API key needed.
 - Rotate after the engagement: the Convex deploy key (transited chat today), the GitHub PAT, and `CLOUDFLARE_API_TOKEN` (mirror still skipped).
+
+---
+
+## Landing website assistant — the layman-first ALOA/ARIA bubble (2026-11-16)
+
+**Directive (owner, verbatim intent):** the landing-page FAB was still a plain "contact me" bubble. The owner expected the bank-style assistant instead: quiet on arrival, asks "need assistance?" once the visitor scrolls or dwells, then accepts the visitor's question — "you could ask a question there and then it can open up the modal for talk to sales."
+
+### What shipped
+- **`src/sites/shared/AloaAssistantFab.tsx` (new):** replaces the three per-site chat FABs (WhatsAppFAB / VegaChatFab / AtriumChatFab, deleted). One shared component, per-surface branding (emerald hub, navy Vega, atrium-emerald Atrium) and per-surface naming via the assistantIdentity authority (ALOA on hub/vega, ARIA on atrium).
+  - Desktop: the bubble now carries a persistent **"Ask ALOA · Legal help · Free"** pill so the affordance is discoverable without hovering (the old bubble's discoverability was the complaint).
+  - **Proactive nudge, bank-style:** after ~220px of scroll OR 15s dwell (whichever first) a dismissible speech bubble asks "Need help with a legal matter?" with [Ask ALOA] / [Maybe later]. Auto-hides after 12s. "Maybe later" silences it for the session (sessionStorage); anyone who has opened the panel is never nudged again (localStorage).
+  - **Assistant panel** (bottom sheet mobile / anchored card desktop): trust chips (Free · No sign-up · "you don't need to be a lawyer"), plain-language quick topics (court letter, landlord/tenant, documents, CAC registration + product chips for the lawyer/estate-manager segments; Atrium swaps in service charge + maintenance), honest scripted replies with NO invented legal specifics, and a free-text composer.
+  - **Question handoff:** submitting a question opens the Contact Sales drawer with the question ALREADY TYPED IN (source `Aloa Landing Assistant`, assist variant). Topic replies carry "Send this to our team" CTAs with prefilled context. Product topics get "Start free trial".
+  - **Deliberately NOT a live AI chat:** /ai/stream requires an authenticated session (Round A / H18 — the platform Gemini key must never fund anonymous traffic) and the corpus awaits Founder seeding (R1). The panel is architected so its reply engine can swap to a public rate-limited Q&A action later without touching the shells.
+- **First-visit cookie-bar coordination (the z-9999 bar covered the FAB on mobile and overlays the panel composer):** CookieConsent now flags `body.cookie-bar-visible` while up; scoped CSS lifts the FAB dock + nudge anchor clear of the bar (11.5rem/5.75rem etc.); AloaAssistantFab sets `body.practicepro-aloa-open` while its panel is open, which hides the bar for the panel's life (it returns — consent is never implied by asking).
+- **`ContactSalesDrawer`:** new optional `initialMessage` (pre-seeds the message field once per open; visitor edits win) and `variant="assist"` (header "Ask a Question", "Your question" label, plain-words placeholder, "Send My Question" button). Default sales variant byte-identical for every existing caller.
+- **`useContactSales`:** `openContactSales(source, { prefill?, variant? })` — backward-compatible; all existing string-only callers unchanged.
+- **z-ladder:** new named rungs `alaoNudge: 9300`, `alaoPanel: 9400` (under contactVeil 9500 so drawer handoffs stack correctly); both maps updated so the zTiers equivalence test holds.
+- UX-21 alignment: the new file uses slate-500 placeholders/labels (no slate-400 on light), matching the ContactSalesDrawer ratchet's spirit.
+
+### Verification
+- tsc: 0 errors in all touched files (root baseline 87 unchanged); vitest **2790/2790 green** (zTiers equivalence included); vite build 25.3s; `bg-atrium-emerald`/AloaIcon/token reuse — no new deps.
+- Playwright DOM-geometry suite (16/16 PASS): mobile first-visit — FAB + nudge lift clear of the cookie bar, bar hidden while panel open, panel full-width bottom sheet; desktop — pill visible, FAB settles at bottom-6 once consented, topic CTA opens the assist drawer with the prefilled topic text, free-text question prefills verbatim into the drawer, no nudge after first open. VLM visual pass: panel clean, FAB hidden while open (same rule as the in-app AloaFAB).
+
+### Known pre-existing (not regressed)
+- On /vega mobile the FAB sits over the hero's "NO CREDIT CARD…" badge row — the old bubble occupied the identical position; bank-widget-over-content by design.

@@ -6,7 +6,8 @@ import { useSiteScroll } from '../shared/useSiteScroll';
 import { useSignupOpener, useContactSales } from '../shared/useSignupOpener';
 import { PrimaryButton, GhostButton } from '../shared/ctas';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
-import { AtriumNavBar, AtriumFooter, AtriumMobileStickyCTA, AtriumChatFab } from './AtriumShell';
+import AloaAssistantFab from '../shared/AloaAssistantFab';
+import { AtriumNavBar, AtriumFooter, AtriumMobileStickyCTA } from './AtriumShell';
 import { AtriumHero } from './sections/AtriumHero';
 import { AtriumStats } from './sections/AtriumStats';
 import { AtriumFeatures } from './sections/AtriumFeatures';
@@ -40,6 +41,8 @@ export const AtriumSite: React.FC = () => {
     const {
         isContactDrawerOpen,
         contactDrawerSource,
+        contactDrawerPrefill,
+        contactDrawerVariant,
         openContactSales,
         closeContactSales,
     } = useContactSales();
@@ -115,10 +118,17 @@ export const AtriumSite: React.FC = () => {
             {/* Mobile sticky bottom CTA bar */}
             <AtriumMobileStickyCTA onSignup={openSignup} onContactSales={() => openContactSales('Mobile Sticky CTA')} />
 
-            {/* Chat floating action button */}
-            <AtriumChatFab onContactSales={() => openContactSales('WhatsApp FAB')} />
+            {/* Website assistant FAB — the non-lawyer-first "ask ARIA" bubble
+                (proactive nudge + property topics + question handoff). */}
+            <AloaAssistantFab product="atrium" onContactSales={openContactSales} onSignup={() => openSignup()} />
 
-            <ContactSalesDrawer isOpen={isContactDrawerOpen} onClose={closeContactSales} source={contactDrawerSource} />
+            <ContactSalesDrawer
+                isOpen={isContactDrawerOpen}
+                onClose={closeContactSales}
+                source={contactDrawerSource}
+                initialMessage={contactDrawerPrefill}
+                variant={contactDrawerVariant}
+            />
             <AtriumFooter
                 onPrivacyClick={() => navigate('/privacy-policy')}
                 onTermsClick={() => navigate('/terms-of-service')}
