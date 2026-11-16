@@ -406,4 +406,17 @@ crons.daily(
   {}
 );
 
+// ─── LEGAL KNOWLEDGE BASE: WEEKLY FRESHNESS SWEEP (owner spec §5) ─────────
+// Mondays 06:10 UTC (07:10 WAT). Requeues every enabled legal_seed_sources
+// index page at FRESHNESS_RECHECK priority; the Python worker then uses
+// conditional GETs (etag / last-modified) so unchanged documents cost a
+// 304, and hash diffs on the index pages surface new rulings/amendments
+// for autonomous ingestion. See convex/legal/queue.ts + LEGAL_KB.md.
+crons.weekly(
+  "legalKbFreshnessSweep",
+  { dayOfWeek: "monday", hourUTC: 6, minuteUTC: 10 },
+  internal.legal.queue.requeueSeedsForSweep,
+  {}
+);
+
 export default crons;

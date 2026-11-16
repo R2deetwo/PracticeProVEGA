@@ -1,6 +1,16 @@
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  legalScrapeQueue,
+  legalRawArtifacts,
+  legalJudgments,
+  legalInstruments,
+  legalChunks,
+  legalQueryCache,
+  systemAuditLogs,
+  legalSeedSources,
+} from "./legal/schema";
 
 /**
  * Procedural OS / Atrium Property OS - Core Schema
@@ -3253,6 +3263,21 @@ export default defineSchema({
     createdAt: v.string(),
     updatedAt: v.string(),
   }).index("by_firm", ["firmId", "createdAt"]).index("by_matter", ["matterId"]),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // LEGAL KNOWLEDGE BASE & RETRIEVAL ENGINE (owner spec, 2026-11-16) — the
+  // autonomous acquisition layer: scrape queue → raw artifacts → judgments /
+  // instruments → hierarchical chunks → hybrid search + query cache, with a
+  // full system_audit_logs trail. See convex/legal/schema.ts for the contract.
+  // ─────────────────────────────────────────────────────────────────────────────
+  legal_scrape_queue: legalScrapeQueue,
+  legal_raw_artifacts: legalRawArtifacts,
+  legal_judgments: legalJudgments,
+  legal_instruments: legalInstruments,
+  legal_chunks: legalChunks,
+  legal_query_cache: legalQueryCache,
+  system_audit_logs: systemAuditLogs,
+  legal_seed_sources: legalSeedSources,
 
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert
