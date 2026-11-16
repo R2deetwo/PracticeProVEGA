@@ -19573,3 +19573,20 @@ DraftPro export path.
   - Scroll triggers the proactive nudge: "Need help with a legal matter?" + [Ask ALOA] / [Maybe later].
   - Panel: ALOA · Legal guide header, online status, trust chips (Free / No sign-up / "you don't need to be a lawyer"), COMMON QUESTIONS topics, composer, honest general-guidance disclaimer; `practicepro-aloa-open` body class coordinates with the cookie bar.
   - Question handoff verified verbatim: "How do I respond to a court letter about a land dispute in Lagos?" lands typed-in in the "Ask a Question" drawer (assist variant), "Send My Question" fully visible at 900px (782–826px box) — VLM's "clipped button" flag was an artifact of the 577px-tall headless window, not a defect. Zero page console errors across the whole flow.
+
+---
+
+## Landing assistant — owner review executed + agent-workspace directive materialized (2026-11-16)
+
+**Directive (owner, two parts):** (a) the assistant's post-launch review — ALOA belongs on /vega (not the hub), the intro misattributed it to PracticePro, the common-questions wall blocked the answers, and the "speak with a lawyer" funneling was premature; (b) the forwarded engineering directive (filesystem-first agent architecture + ALOA/ARIA co-counsel engine) — "make it work and make it happen."
+
+### Part A — the assistant, refined (3ac79a41, live as of 176bee59)
+- **Hub de-mount:** `product="hub"` is gone; `LandingProduct` narrows to `'vega' | 'atrium'` so an accidental hub re-mount fails to compile. ALOA = Vega's legal guide, ARIA = Atrium's property guide — intro + header, never "PracticePro's".
+- **Topics collapse:** picking a topic (or asking a question) collapses the chip cloud to a toggle; long guides scroll to their TOP (intro-first, not landing mid-steps); desktop panel cap 72vh/640px → 80vh/720px so a full 4-step guide + amber caution note fits (measured: intro top AND note bottom in-bounds).
+- **Useful replies:** every topic is a structured mini-guide (intro + numbered steps + caution callout). Statutory figures appear only from the encoded framework — Lagos Tenancy Law 2011 notice periods + court-order-only recovery (tenancyNoticePeriods.ts / legal corpus). The public panel now TEACHES the encoded law rather than deflecting to sales.
+- **De-funneled:** per-reply "Send this to our team" CTAs removed; one subtle "Ask our team" footer link; the composer still hands off pre-typed (owner-approved); product chips keep the trial CTA.
+- Verified: tsc 87 = baseline, vitest 2790/2790, token gates green, Playwright pass (hub clean, both product panels, collapse + re-expand, mobile bottom sheet fits 844px, cookie-bar coordination intact), VLM 5/5 on the live panel. CI green ×3; promote 43884975136 green (Cloudflare mirror still on the expired token). Live bundle: "Vega's legal guide" PRESENT, "PracticePro's legal guide" / "Send this to our team" ABSENT, "Tenancy Law 2011" PRESENT.
+
+### Part B — the directive, materialized (176bee59, markdown-only)
+- **PROMPT 1 → the workspace:** AGENTS.md (L0: five hard rules, 60/30/10) · CONTEXT.md (L1 routing + update tiers) · stages/01_intake_and_rules, 02_synthesis_and_draft, 03_validation_and_export (≤80-line L2 contracts over the REAL engines) · .agent/rules/ (api-boundary, security-policy, model-tiering, rate-limits) · .agent/skills/citation-verification (3-step rule) · _config/ (system_rules, brand_voice incl. the non-lawyer register + ALOA/ARIA ownership + funnel restraint).
+- **PROMPT 2 → the work plan:** docs/proposals/AGENTIC_ENGINE_GAP_ANALYSIS.md — pillar-by-pillar status against real files. Headline: jurisdiction matrix, limitation SAFE_STOP, notice matrices, compliance gates, BOED verification harness, LePhantomCite, model tiering, audit — ALREADY BUILT. Ranked gaps: licensed corpus backend (biggest unlock) → ingestion bridge + 429 normalization + reflexion helper → tombstone enforcement + temporal retrieval filtering → pointwise revision agent → generalized HITL wrapper. Blockchain title + judicial analytics DEFERRED with reasons.
