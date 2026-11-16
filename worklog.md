@@ -19553,3 +19553,23 @@ DraftPro export path.
 
 ### Known pre-existing (not regressed)
 - On /vega mobile the FAB sits over the hero's "NO CREDIT CARD…" badge row — the old bubble occupied the identical position; bank-widget-over-content by design.
+
+---
+
+## Landing website assistant — DEPLOYED to production (2026-11-16)
+
+**Directive:** the owner supplied a fresh GitHub PAT in chat (used transiently for push + dispatch; recommend rotation after the engagement). The b4ec4d1f work from the previous session had never reached origin — the prior PAT died before push, which is why production still showed the old "Contact me" bubble.
+
+### What shipped
+- Rebased/amended the assistant commit with terminology the owner asked for: **"non-lawyer"** wording throughout (comments + commit message; zero "layman" left in `src/`). Pushed as `2a2e0421`.
+- CI on `2a2e0421` caught **one real regression**: AloaAssistantFab introduced 9 `rounded-xl` usages (ratchet 74 → 80, ADR forbids growth). All nine are tight contexts (avatars, chat bubbles, composer buttons) → `rounded-lg`. Post-change **71/74 — ratchet held, may only shrink**. Convex tsc, root tsc (87 < 94), identity audit all green on both commits. Pushed as `adfbc721` (rebased over the build-1177/1178 chore commits).
+- CI green on `adfbc721`: tests + staging-deploy + build-apk (build-1178, APK 1.0.782).
+- Production promote dispatched with pinned `COMMIT_SHA=adfbc721…` → run 43875454161: typecheck+tests on the promoted commit green, **Vercel + Convex deploy green**, live-verify green. Cloudflare mirror failed on the known-expired `CLOUDFLARE_API_TOKEN` (non-blocking, unchanged).
+
+### Live verification (production, 2026-11-16 ~13:30Z)
+- `/version.json`: sha `adfbc721e45af0b275c8e079f12d76545b6f470d`, healthy; CSS chunk carries the `adfbc721` suffix; old "Contact me" string: **0 hits** in the live landing bundle.
+- Browser pass on practice-pro-vega.vercel.app (desktop 1440x900 + short-window 1280x577):
+  - FAB pill "Ask ALOA — Legal help · Free" present on load (hub + /vega); "Ask ARIA — property help · free" on /atrium.
+  - Scroll triggers the proactive nudge: "Need help with a legal matter?" + [Ask ALOA] / [Maybe later].
+  - Panel: ALOA · Legal guide header, online status, trust chips (Free / No sign-up / "you don't need to be a lawyer"), COMMON QUESTIONS topics, composer, honest general-guidance disclaimer; `practicepro-aloa-open` body class coordinates with the cookie bar.
+  - Question handoff verified verbatim: "How do I respond to a court letter about a land dispute in Lagos?" lands typed-in in the "Ask a Question" drawer (assist variant), "Send My Question" fully visible at 900px (782–826px box) — VLM's "clipped button" flag was an artifact of the 577px-tall headless window, not a defect. Zero page console errors across the whole flow.
