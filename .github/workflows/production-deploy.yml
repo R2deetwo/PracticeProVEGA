@@ -54,8 +54,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-
 jobs:
   quality-gate:
     name: Typecheck + unit tests (on the promoted commit)
