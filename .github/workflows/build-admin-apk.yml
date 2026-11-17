@@ -97,35 +97,25 @@ jobs:
             echo "✓ debug.keystore already exists"
           fi
 
-      - name: Generate release.keystore if missing
+      - name: Decode release keystore from secret
+        # Brand Clarity A5 (same fix as build-apk.yml): the old step
+        # generated a NEW random keystore per ephemeral CI run — unstable
+        # signatures. The keystore now comes from RELEASE_KEYSTORE_BASE64.
+        # It carries BOTH aliases (practicepro-app + practicepro-admin) —
+        # one-time creation in docs/brand/BRAND_CLARITY_RUNBOOK.md.
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
-          if [ ! -f android/app/release.keystore ]; then
-            if [ -n "${{ secrets.RELEASE_STORE_PASSWORD }}" ]; then
-              echo "release.keystore not found — generating..."
-              keytool -genkeypair \
-                -keystore android/app/release.keystore \
-                -alias practicepro-app \
-                -keyalg RSA -keysize 4096 \
-                -validity 10950 \
-                -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" \
-                -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
-                -dname "CN=PracticePro Systems Limited, OU=Engineering, O=PracticePro Systems Limited, L=Lagos, ST=Lagos, C=NG" \
-                -storetype PKCS12
-              keytool -genkeypair \
-                -keystore android/app/release.keystore \
-                -alias practicepro-admin \
-                -keyalg RSA -keysize 4096 \
-                -validity 10950 \
-                -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" \
-                -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
-                -dname "CN=PracticePro Systems Limited, OU=Founder App, O=PracticePro Systems Limited, L=Lagos, ST=Lagos, C=NG" \
-                -storetype PKCS12
-              echo "✓ release.keystore generated with both aliases"
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+            if [ -s android/app/release.keystore ]; then
+              echo "✓ release.keystore decoded from secret (alias: practicepro-admin)"
             else
-              echo "⚠ RELEASE_STORE_PASSWORD secret not set — release builds will fall back to debug signing"
+              echo "⚠ decoded keystore is empty — release build will fall back to debug signing"
             fi
           else
-            echo "✓ release.keystore already exists"
+            echo "⚠ RELEASE_KEYSTORE_BASE64 not set — release build will fall back to debug signing."
+            echo "⚠ Setup: docs/brand/BRAND_CLARITY_RUNBOOK.md"
           fi
 
       - name: Build admin frontend
@@ -177,22 +167,28 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Upload Release APK
+      - name: Upload Release APK (brand-named artifact)
+        # Brand Clarity A3: the founder APK keeps the company name — it is a
+        # company tool. Named practicepro-founder-<version>-<channel>.apk.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          VERSION="$(grep '^MAJOR=' android/app/version.properties | cut -d= -f2).$(grep '^MINOR=' android/app/version.properties | cut -d= -f2).$(grep '^PATCH=' android/app/version.properties | cut -d= -f2)"
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            mkdir -p dist-founder
+            cp android/app/build/outputs/apk/release/app-release.apk "dist-founder/practicepro-founder-$VERSION-release.apk"
+            echo "✓ dist-founder/practicepro-founder-$VERSION-release.apk"
+          fi
+      - name: Upload Release APK artifact
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
-          name: practicepro-admin-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: practicepro-founder-release
+          path: dist-founder/practicepro-founder-*.apk
           retention-days: 90
+          if-no-files-found: ignore
 
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: admin-build-${{ github.run_number }}
-          name: PracticePro Admin APK (Build ${{ github.run_number }})
-          files: |
-            android/app/build/outputs/apk/release/app-release.apk
-          prerelease: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Brand Clarity guardrail #8: the founder APK is NEVER published as a
+      # public GitHub Release on this public repository — the old
+      # softprops/action-gh-release step (tag admin-build-<run>) made the
+      # founder build downloadable by anyone. Login-gated Actions artifacts
+      # (above) are the only distribution channel for the founder APK.

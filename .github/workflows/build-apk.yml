@@ -134,35 +134,34 @@ jobs:
             echo "✓ debug.keystore already exists"
           fi
 
-      - name: Generate release.keystore if missing
+      - name: Decode release keystore from secret (Brand Clarity A5)
+        # ─── STABLE RELEASE SIGNING ────────────────────────────────────
+        # The old step generated a NEW random release.keystore on every
+        # ephemeral CI run — every build would have carried a different
+        # signature, so Android would reject in-app updates (INSTALL_FAILED_
+        # UPDATE_INCOMPATIBLE). The keystore now lives ONLY as the base64
+        # GitHub secret RELEASE_KEYSTORE_BASE64 (plus RELEASE_STORE_PASSWORD
+        # and RELEASE_KEY_PASSWORD, which already exist).
+        #
+        # One-time setup is documented in docs/brand/BRAND_CLARITY_RUNBOOK.md.
+        # Until the secret exists, the workflow keeps distributing the DEBUG
+        # build (its signature is stable — debug.keystore is deliberately
+        # committed) so the update channel never breaks, and warns loudly.
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
-          if [ ! -f android/app/release.keystore ]; then
-            if [ -n "${{ secrets.RELEASE_STORE_PASSWORD }}" ]; then
-              echo "release.keystore not found — generating..."
-              keytool -genkeypair \
-                -keystore android/app/release.keystore \
-                -alias practicepro-app \
-                -keyalg RSA -keysize 4096 \
-                -validity 10950 \
-                -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" \
-                -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
-                -dname "CN=PracticePro Systems Limited, OU=Engineering, O=PracticePro Systems Limited, L=Lagos, ST=Lagos, C=NG" \
-                -storetype PKCS12
-              keytool -genkeypair \
-                -keystore android/app/release.keystore \
-                -alias practicepro-admin \
-                -keyalg RSA -keysize 4096 \
-                -validity 10950 \
-                -storepass "${{ secrets.RELEASE_STORE_PASSWORD }}" \
-                -keypass "${{ secrets.RELEASE_KEY_PASSWORD }}" \
-                -dname "CN=PracticePro Systems Limited, OU=Founder App, O=PracticePro Systems Limited, L=Lagos, ST=Lagos, C=NG" \
-                -storetype PKCS12
-              echo "✓ release.keystore generated with both aliases"
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+            if [ -s android/app/release.keystore ]; then
+              echo "RELEASE_SIGNING=available" >> $GITHUB_ENV
+              echo "✓ release.keystore decoded from secret — release builds will be release-signed"
             else
-              echo "⚠ RELEASE_STORE_PASSWORD secret not set — release builds will fall back to debug signing"
+              echo "⚠ RELEASE_KEYSTORE_BASE64 decoded to an empty file — check the secret. Falling back to debug distribution."
             fi
           else
-            echo "✓ release.keystore already exists"
+            echo "⚠ RELEASE_KEYSTORE_BASE64 secret not set."
+            echo "⚠ The distribution APK will be the DEBUG build (stable signature, but debuggable)."
+            echo "⚠ Set up the secret per docs/brand/BRAND_CLARITY_RUNBOOK.md to ship release-signed builds."
           fi
 
       - name: Increment patch version (race-safe)
@@ -247,36 +246,43 @@ jobs:
             echo "  - capacitor.build.gradle: not found (may be normal)"
           fi
 
-      - name: Build APK (with retry + increased memory)
+      - name: Build APK (debug smoke + release distribution, with retry)
         working-directory: android
         run: |
-          # ─── RETRY LOGIC ──────────────────────────────────────────────
-          # Gradle builds can fail transiently due to:
-          #   - Network timeouts downloading dependencies
-          #   - Daemon crashes
-          #   - OOM kills
-          # Retry up to 2 times (3 total attempts) before giving up.
-          # The `clean` is only run on the first attempt to save time on
-          # retries — incremental builds are usually fine after a transient
-          # failure.
+          # ─── WHAT GETS BUILT ──────────────────────────────────────────
+          # assembleDebug — the fast smoke build; also the FALLBACK
+          #   distribution artifact while RELEASE_KEYSTORE_BASE64 is unset
+          #   (its signature is stable because debug.keystore is committed).
+          # assembleRelease — the DISTRIBUTION build, only when the release
+          #   keystore secret was decoded (Brand Clarity audit A4: the
+          #   published APK must not be a debuggable debug build).
+          build_targets="assembleDebug"
+          if [ "${RELEASE_SIGNING:-}" = "available" ]; then
+            build_targets="assembleDebug assembleRelease"
+          fi
+          echo "Building: $build_targets"
+
+          # ─── RETRY LOGIC (unchanged behaviour) ───────────────────────
+          # Gradle builds can fail transiently (network, daemon crashes,
+          # OOM). Retry up to 2 times (3 total attempts). The `clean` only
+          # runs on the first attempt to save time on retries.
           ATTEMPT=0
           MAX_ATTEMPTS=3
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             ATTEMPT=$((ATTEMPT + 1))
             echo "=== APK Build attempt $ATTEMPT/$MAX_ATTEMPTS ==="
             if [ $ATTEMPT -eq 1 ]; then
-              # First attempt: clean build for maximum reliability
-              ./gradlew clean assembleDebug --no-daemon --stacktrace 2>&1 | tee build-log.txt
+              ./gradlew clean $build_targets --no-daemon --stacktrace 2>&1 | tee build-log.txt
             else
-              # Retry: skip clean (faster), just re-run assembleDebug
-              echo "[retry] Skipping clean — running assembleDebug incrementally..."
-              ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build-log-retry-$ATTEMPT.txt
-              # Copy retry log to build-log.txt so the failure handler can find it
+              echo "[retry] Skipping clean — building incrementally..."
+              ./gradlew $build_targets --no-daemon --stacktrace 2>&1 | tee build-log-retry-$ATTEMPT.txt
               cp build-log-retry-$ATTEMPT.txt build-log.txt
             fi
             if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
-              echo "✓ APK built successfully on attempt $ATTEMPT"
-              break
+              if [ "${RELEASE_SIGNING:-}" != "available" ] || [ -f app/build/outputs/apk/release/app-release.apk ]; then
+                echo "✓ APK targets built on attempt $ATTEMPT"
+                break
+              fi
             fi
             if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
               echo "⚠️ Build attempt $ATTEMPT failed. Retrying in 10s..."
@@ -284,7 +290,11 @@ jobs:
             fi
           done
           if [ ! -f app/build/outputs/apk/debug/app-debug.apk ]; then
-            echo "::error::APK build failed after $MAX_ATTEMPTS attempts — see build-log.txt above for details"
+            echo "::error::Debug APK build failed after $MAX_ATTEMPTS attempts — see build-log.txt above for details"
+            exit 1
+          fi
+          if [ "${RELEASE_SIGNING:-}" = "available" ] && [ ! -f app/build/outputs/apk/release/app-release.apk ]; then
+            echo "::error::Release APK build failed after $MAX_ATTEMPTS attempts — see build-log.txt above for details"
             exit 1
           fi
 
@@ -301,24 +311,46 @@ jobs:
           echo "=== AAPT ERRORS (resource issues) ==="
           grep -i "aapt\|resource\|not found" build-log.txt 2>/dev/null || true
 
-      - name: Rename APK with version number
+      - name: Select distribution APK + brand the artifact name
+        # ─── ARTIFACT NAMING (Brand Clarity A3) ────────────────────────
+        # <product>-<version>-<channel>.apk, lowercase. The universal user
+        # build carries the company name; per-product variants (vega /
+        # atrium / komplete) are built by build-product-apks.yml. The
+        # channel suffix makes debug-fallback builds unmistakable.
         run: |
           MAJOR=$(grep '^MAJOR=' android/app/version.properties | cut -d= -f2)
           MINOR=$(grep '^MINOR=' android/app/version.properties | cut -d= -f2)
           PATCH=$(grep '^PATCH=' android/app/version.properties | cut -d= -f2)
           VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "Version: $VERSION"
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
-             "android/app/build/outputs/apk/debug/PracticePro-v${VERSION}.apk"
+
+          if [ "${RELEASE_SIGNING:-}" = "available" ] && [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            DIST_SRC="android/app/build/outputs/apk/release/app-release.apk"
+            CHANNEL="release"
+          else
+            DIST_SRC="android/app/build/outputs/apk/debug/app-debug.apk"
+            CHANNEL="debug"
+            echo "⚠ Distributing the DEBUG build (release signing unavailable) — filename carries the -debug suffix."
+          fi
+
+          APK_BASENAME="practicepro-${VERSION}-${CHANNEL}.apk"
+          DIST_APK="android/app/build/outputs/apk/${APK_BASENAME}"
+          cp "$DIST_SRC" "$DIST_APK"
+
           echo "APK_VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Final APK:"
-          ls -la android/app/build/outputs/apk/debug/PracticePro-v*.apk
+          echo "APK_CHANNEL=$CHANNEL" >> $GITHUB_ENV
+          echo "APK_BASENAME=$APK_BASENAME" >> $GITHUB_ENV
+          echo "DIST_APK=$DIST_APK" >> $GITHUB_ENV
+          echo "Distribution APK ($CHANNEL): $APK_BASENAME"
+          ls -la android/app/build/outputs/apk/*/*.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: PracticePro-v${{ env.APK_VERSION }}
-          path: android/app/build/outputs/apk/debug/PracticePro-v*.apk
+          name: practicepro-v${{ env.APK_VERSION }}
+          path: |
+            ${{ env.DIST_APK }}
+            android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
           if-no-files-found: error
 
@@ -326,7 +358,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
-          files: android/app/build/outputs/apk/debug/PracticePro-v*.apk
+          files: ${{ env.DIST_APK }}
           prerelease: true
           name: PracticePro v${{ env.APK_VERSION }}
         env:
@@ -334,7 +366,7 @@ jobs:
 
       - name: Update version.json with APK release info
         run: |
-          APK_URL="https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/PracticePro-v${{ env.APK_VERSION }}.apk"
+          APK_URL="https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/${{ env.APK_BASENAME }}"
           echo "APK download URL: $APK_URL"
           node -e "
             const fs = require('fs');
@@ -342,15 +374,16 @@ jobs:
             const v = JSON.parse(fs.readFileSync(path, 'utf8'));
             v.apkUrl = process.env.APK_URL;
             v.apkVersion = process.env.APK_VERSION;
+            v.apkChannel = process.env.APK_CHANNEL;
             const [maj, min, pat] = process.env.APK_VERSION.split('.').map(Number);
             v.apkVersionCode = maj * 10000 + min * 100 + pat;
             v.apkBuildStatus = 'healthy';
             v.apkBuiltAt = new Date().toISOString();
             fs.writeFileSync(path, JSON.stringify(v, null, 2) + '\n');
-            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkVersion: v.apkVersion, apkVersionCode: v.apkVersionCode, apkBuildStatus: v.apkBuildStatus }));
+            console.log('Updated version.json with APK release info:', JSON.stringify({ apkUrl: v.apkUrl, apkVersion: v.apkVersion, apkChannel: v.apkChannel, apkVersionCode: v.apkVersionCode, apkBuildStatus: v.apkBuildStatus }));
           "
         env:
-          APK_URL: https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/PracticePro-v${{ env.APK_VERSION }}.apk
+          APK_URL: https://github.com/R2deetwo/PracticeProVEGA/releases/download/build-${{ github.run_number }}/${{ env.APK_BASENAME }}
 
       - name: Commit version.json with APK info (race-safe)
         run: |
