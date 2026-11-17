@@ -37,7 +37,6 @@ permissions:
   contents: read
 
 env:
-  ERROR_BASELINE: "94"
 
 jobs:
   quality-gate:
@@ -46,10 +45,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -66,18 +65,18 @@ jobs:
             exit 1
           fi
 
-      - name: Typecheck app (baseline-guarded)
+      - name: Typecheck app (must be 0 errors)
         run: |
           set +e
-          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -5
           ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
           set -e
-          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
-          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
-            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+          echo "Root tsc errors: $ERRORS (required: 0)"
+          if [ "$ERRORS" -ne 0 ]; then
+            echo "::error::Root tsc reported $ERRORS error(s). The baseline exception was removed on 2026-11-18 (debt burned 87 to 0) - fix all errors before deploy."
             exit 1
           fi
-
+          echo "Root tsc clean (0 errors)"
       - name: Run unit test suite
         run: npx vitest run
 
@@ -123,11 +122,11 @@ jobs:
 
       - name: Checkout code
         if: steps.staging_cfg.outputs.configured == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js
         if: steps.staging_cfg.outputs.configured == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'

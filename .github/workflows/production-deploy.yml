@@ -55,7 +55,6 @@ permissions:
   contents: read
 
 env:
-  ERROR_BASELINE: "94"
 
 jobs:
   quality-gate:
@@ -79,7 +78,7 @@ jobs:
           echo "sha=$RESOLVED" >> "$GITHUB_OUTPUT"
 
       - name: Checkout the commit to promote
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.resolve.outputs.sha }}
           fetch-depth: 0
@@ -96,7 +95,7 @@ jobs:
           echo "✓ $RESOLVED_SHA is an ancestor of origin/main"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -113,19 +112,18 @@ jobs:
             exit 1
           fi
 
-      - name: Typecheck app (baseline-guarded)
+      - name: Typecheck app (must be 0 errors)
         run: |
           set +e
-          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -5
           ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
           set -e
-          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
-          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
-            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+          echo "Root tsc errors: $ERRORS (required: 0)"
+          if [ "$ERRORS" -ne 0 ]; then
+            echo "::error::Root tsc reported $ERRORS error(s). The baseline exception was removed on 2026-11-18 (debt burned 87 to 0) - fix all errors before deploy."
             exit 1
           fi
-
-
+          echo "Root tsc clean (0 errors)"
       - name: Identity audit (R16 — no public function may trust caller-supplied identity)
         run: |
           echo "Running: python3 scripts/audit-identity.py"
@@ -161,14 +159,58 @@ jobs:
           if [ "$MISSING" -eq 1 ]; then exit 1; fi
           echo "✓ All deployment secrets are set"
 
+      # Round 20 (2026-11-18) — the staging gate: production may no longer
+      # be promoted while staging is unconfigured. Previously the staging
+      # workflow silently skipped its deploy (green, but nothing was
+      # deployed), so "staging verified before production" was unenforceable.
+      # The gate checks (1) the staging Convex secrets exist and (2) the
+      # staging alias is serving a healthy build. Staging may be AHEAD of
+      # the promoted sha (it auto-deploys every push to main) — the gate
+      # requires health, not sha equality.
+      - name: Staging gate — staging must be configured and healthy
+        env:
+          CONVEX_STAGING_DEPLOY_KEY: ${{ secrets.CONVEX_STAGING_DEPLOY_KEY }}
+          CONVEX_STAGING_URL: ${{ secrets.CONVEX_STAGING_URL }}
+        run: |
+          if [ -z "$CONVEX_STAGING_DEPLOY_KEY" ] || [ -z "$CONVEX_STAGING_URL" ]; then
+            {
+              echo "::error::REFUSING TO PROMOTE — staging is not configured."
+              echo "Production promotion requires a staging environment that actually exists."
+              echo "One-time setup (~2 minutes):"
+              echo "1. Create a second Convex project (e.g. practice-pro-vega-staging) in the Convex dashboard."
+              echo "2. Add GitHub secret CONVEX_STAGING_DEPLOY_KEY (its Production Deploy Key)."
+              echo "3. Add GitHub secret CONVEX_STAGING_URL (its deployment URL)."
+              echo "The next push to main deploys staging automatically; then re-run this promote."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "✓ Staging backend is configured ($CONVEX_STAGING_URL)"
+          STAGING_ALIAS="https://staging-practice-pro-vega.vercel.app"
+          MAX_WAIT=60
+          WAITED=0
+          STATUS="unknown"
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            RESPONSE=$(curl -s "$STAGING_ALIAS/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
+            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            echo "  [${WAITED}s] staging: status=$STATUS"
+            if [ "$STATUS" = "healthy" ]; then
+              echo "✓ Staging ($STAGING_ALIAS) is healthy — promotion may proceed."
+              exit 0
+            fi
+            sleep 10
+            WAITED=$((WAITED + 10))
+          done
+          echo "::error::Staging ($STAGING_ALIAS) is not healthy after ${MAX_WAIT}s (status=$STATUS). Promote blocked — check the latest 'Deploy to Staging' run before retrying."
+          exit 1
+
       - name: Checkout the exact gated commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.quality-gate.outputs.resolved_sha }}
           fetch-depth: 1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -338,7 +380,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   deploy-cloudflare:
-    name: Deploy to production (Cloudflare mirror) and verify live
+    name: Deploy to production (Cloudflare mirror, best-effort) and verify live
     needs: [quality-gate, deploy-production]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -347,37 +389,59 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       PROMOTED_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
     steps:
+      # Round 20 (2026-11-18): the mirror is BEST-EFFORT. The API token
+      # expired and every promote red-X'd on a redundant target while
+      # Vercel + Convex (the real production) were green — alert fatigue
+      # is worse than a skipped mirror. Missing secrets or an unusable
+      # token SKIP this job with a loud warning + exact restore steps;
+      # deploy/verify failures with a WORKING token still fail the run.
+      # Restore: rotate CLOUDFLARE_API_TOKEN (dash.cloudflare.com → My
+      # Profile → API Tokens → Create Token, template "Edit Cloudflare
+      # Workers", scoped to CLOUDFLARE_ACCOUNT_ID), then re-run.
       - name: Check required secrets
+        id: cf_cfg
         run: |
           MISSING=0
           for VAR in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
             if [ -z "${!VAR}" ]; then
-              echo "❌ $VAR secret is not set"
+              echo "$VAR secret is not set"
               MISSING=1
             fi
           done
           if [ "$MISSING" -eq 1 ]; then
-            echo "::error::Cloudflare secrets missing. Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository secrets (Settings → Secrets and variables → Actions), then re-run this workflow with the same sha."
-            exit 1
+            {
+              echo "## Cloudflare mirror skipped — not configured"
+              echo ""
+              echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID secrets are absent."
+              echo "Production truth remains **Vercel + Convex** (deployed and verified above);"
+              echo "the workers.dev mirror is a best-effort fallback. To restore it:"
+              echo "Settings → Secrets and variables → Actions → add both secrets, then"
+              echo "re-run this workflow with the same sha."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Cloudflare mirror skipped — secrets not configured (restore steps in the run summary)."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "✓ Cloudflare secrets are set"
+          echo "Cloudflare secrets are set"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
-      # Round 11 retired this target because the token EXPIRED and red-X'd
-      # every push. Fail fast with the exact fix instead of letting a 401
-      # surface from deep inside wrangler after a full build.
       # Round 15 (2026-09-08): account-scoped tokens (the "Edit Cloudflare
       # Workers" template WITHOUT user API-token read permission) return
       # "Invalid API Token" from /user/tokens/verify even though they can
       # deploy. Fall back to probing the target account directly — if the
       # token can list the account, it is active and usable for wrangler.
-      - name: Verify the Cloudflare API token is active (fail fast)
+      # Round 20: an unusable token SKIPS the mirror (loud warning) instead
+      # of failing the promote — production above is already verified.
+      - name: Verify the Cloudflare API token is active
+        id: cf_token
+        if: steps.cf_cfg.outputs.configured == 'true'
         run: |
           VERIFY=$(curl -s --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
             https://api.cloudflare.com/client/v4/user/tokens/verify)
           TOKEN_STATUS=$(echo "$VERIFY" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('result',{}).get('status',''))" 2>/dev/null || echo "parse-error")
           echo "Token verify response (truncated): $(echo "$VERIFY" | head -c 300)"
           if [ "$TOKEN_STATUS" = "active" ]; then
-            echo "✓ Cloudflare API token is active (user-scope verify)"
+            echo "Cloudflare API token is active (user-scope verify)"
             exit 0
           fi
           echo "::warning::user/tokens/verify did not report active (status='$TOKEN_STATUS') — probing account access for an account-scoped token..."
@@ -386,25 +450,38 @@ jobs:
           ACCOUNT_OK=$(echo "$ACCOUNT_PROBE" | python3 -c "import json,sys; print(str(json.load(sys.stdin).get('success','')).lower())" 2>/dev/null || echo "parse-error")
           echo "Account probe (truncated): $(echo "$ACCOUNT_PROBE" | head -c 300)"
           if [ "$ACCOUNT_OK" = "true" ]; then
-            echo "✓ Cloudflare API token is active (account-scoped; account $CLOUDFLARE_ACCOUNT_ID accessible)"
+            echo "Cloudflare API token is active (account-scoped; account $CLOUDFLARE_ACCOUNT_ID accessible)"
             exit 0
           fi
-          echo "::error::CLOUDFLARE_API_TOKEN is not usable (user verify='$TOKEN_STATUS', account probe failed). Fix: dash.cloudflare.com → My Profile → API Tokens → Create Token (template: Edit Cloudflare Workers, scoped to account $CLOUDFLARE_ACCOUNT_ID) → GitHub repo Settings → Secrets and variables → Actions → update CLOUDFLARE_API_TOKEN → re-run this workflow with the same sha."
-          exit 1
+          {
+            echo "## Cloudflare mirror skipped — API token not usable"
+            echo ""
+            echo "user/tokens/verify status: '$TOKEN_STATUS'; account probe failed."
+            echo "Production (Vercel + Convex) is unaffected. Rotate the token to re-arm"
+            echo "the mirror: dash.cloudflare.com → My Profile → API Tokens → Create Token"
+            echo "(template: Edit Cloudflare Workers, scoped to account"
+            echo "$CLOUDFLARE_ACCOUNT_ID) → update the CLOUDFLARE_API_TOKEN secret →"
+            echo "re-run this workflow with the same sha."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::Cloudflare mirror skipped — token not usable (restore steps in the run summary)."
+          echo "usable=false" >> "$GITHUB_OUTPUT"
 
       - name: Checkout the exact gated commit
-        uses: actions/checkout@v4
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.quality-gate.outputs.resolved_sha }}
           fetch-depth: 1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
         run: npm ci --no-audit --no-fund
 
       # prebuild (generate-version-manifest.cjs) bakes the pinned commit's
@@ -416,14 +493,17 @@ jobs:
       # commit this job checked out — without this, the mirror serves a
       # version.json whose sha fails the verify step below.
       - name: Build web app
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
         env:
           COMMIT_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
         run: npm run build
 
       - name: Deploy to Cloudflare Workers
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
         run: npx wrangler deploy --config wrangler.jsonc
 
       - name: Verify Cloudflare mirror is healthy and serves the promoted commit
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
         run: |
           echo "Waiting for Cloudflare to propagate..."
           MIRROR_URL="https://practice-pro-vega.prototypechigo.workers.dev"
@@ -435,19 +515,20 @@ jobs:
             SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
             echo "  [${WAITED}s] status=$STATUS sha=$SHA (expecting ${PROMOTED_SHA:0:8})"
             if [ "$STATUS" = "healthy" ] && [ "$SHA" = "${PROMOTED_SHA:0:8}" ]; then
-              echo "✅ Cloudflare mirror is healthy and serving the promoted commit (${PROMOTED_SHA:0:8})"
+              echo "Cloudflare mirror is healthy and serving the promoted commit (${PROMOTED_SHA:0:8})"
               exit 0
             fi
             sleep 10
             WAITED=$((WAITED + 10))
           done
-          echo "::error::Cloudflare mirror not verified after ${MAX_WAIT}s (sha=$SHA status=$STATUS, expected ${PROMOTED_SHA:0:8}). Note: workers.dev edge caches can lag — the SPA-fallback cache poisoning mitigation is per-deploy CSS rotation (see wrangler.jsonc). If sha mismatches persist, check the deploy logs above."
+          echo "::error::Cloudflare mirror not verified after ${MAX_WAIT}s (sha=$SHA status=$STATUS, expected ${PROMOTED_SHA:0:8}). The token WORKED but the deploy/verify failed — this is a real regression, not a config gap. Note: workers.dev edge caches can lag — the SPA-fallback cache poisoning mitigation is per-deploy CSS rotation (see wrangler.jsonc)."
           exit 1
 
       - name: Job summary
+        if: steps.cf_cfg.outputs.configured == 'true' && steps.cf_token.outputs.usable != 'false'
         run: |
           {
-            echo "## ☁️ Cloudflare mirror promoted"
+            echo "## Cloudflare mirror promoted"
             echo ""
             echo "- Same promoted commit as Vercel: \`${PROMOTED_SHA}\`"
             echo "- URL: https://practice-pro-vega.prototypechigo.workers.dev (verified healthy, sha match)"

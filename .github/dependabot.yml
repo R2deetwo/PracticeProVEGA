@@ -1,0 +1,34 @@
+# Dependabot — dependency + supply-chain updates.
+# Pairs with the immutable-SHA pinning of every action in .github/workflows/
+# (2026-11-18): Dependabot opens PRs that bump the SHAs; the pinned-SHA
+# comments keep the human-readable version next to each ref.
+version: 2
+updates:
+  # GitHub Actions referenced in workflows (pinned to commit SHAs).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(actions)"
+
+  # npm runtime + dev dependencies (package.json / package-lock.json).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    # Minor + patch only: major bumps (React 19, Vite 6, Convex major)
+    # need deliberate migration work, not drive-by PRs.
+    allow:
+      - dependency-type: direct
+        update-type: "version-update:semver-minor"
+      - dependency-type: direct
+        update-type: "version-update:semver-patch"
+      - dependency-type: indirect
+        update-type: security
+    commit-message:
+      prefix: "chore(deps)"

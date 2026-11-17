@@ -35,13 +35,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      ERROR_BASELINE: "94"
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'
@@ -58,18 +57,18 @@ jobs:
             exit 1
           fi
 
-      - name: Typecheck app (baseline-guarded)
+      - name: Typecheck app (must be 0 errors)
         run: |
           set +e
-          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -3
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -5
           ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
           set -e
-          echo "Root tsc errors: $ERRORS (baseline: $ERROR_BASELINE)"
-          if [ "$ERRORS" -gt "$ERROR_BASELINE" ]; then
-            echo "::error::Root tsc error count ($ERRORS) exceeds baseline ($ERROR_BASELINE) — new type errors introduced."
+          echo "Root tsc errors: $ERRORS (required: 0)"
+          if [ "$ERRORS" -ne 0 ]; then
+            echo "::error::Root tsc reported $ERRORS error(s). The baseline exception was removed on 2026-11-18 (debt burned 87 to 0) - fix all errors before deploy."
             exit 1
           fi
-
+          echo "Root tsc clean (0 errors)"
       - name: Run unit test suite
         run: npx vitest run
 
@@ -85,7 +84,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # Fetch full history so git pull --rebase works in the bump step
           fetch-depth: 0
@@ -94,13 +93,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -345,7 +344,7 @@ jobs:
           ls -la android/app/build/outputs/apk/*/*.apk
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: practicepro-v${{ env.APK_VERSION }}
           path: |
@@ -355,7 +354,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish APK as release asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: build-${{ github.run_number }}
           files: ${{ env.DIST_APK }}
