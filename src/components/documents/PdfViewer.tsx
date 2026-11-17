@@ -193,6 +193,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
                 const renderTask = page.render({
+                    canvas: ctx.canvas,
                     canvasContext: ctx,
                     viewport,
                 });
@@ -682,7 +683,7 @@ const PdfViewer: React.FC<PdfViewerProps> = ({
                         <div className="flex flex-col items-center gap-4 py-4 px-4">
                             {Array.from({ length: numPages }, (_, i) => i + 1).map(pageNum => (
                                 <PdfPageCanvas
-                                    key={`${pdfDoc?.docId || 'doc'}-${pageNum}`}
+                                    key={`${(pdfDoc as any)?.docId || 'doc'}-${pageNum}`}
                                     pdfDoc={pdfDoc}
                                     pageNum={pageNum}
                                     zoom={zoom}
@@ -822,7 +823,7 @@ const PdfPageCanvas: React.FC<{
                 if (!ctx) return;
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-                const task = page.render({ canvasContext: ctx, viewport });
+                const task = page.render({ canvas: ctx.canvas, canvasContext: ctx, viewport });
                 renderTaskRef.current = task;
                 await task.promise;
             } catch (e: any) {
@@ -894,7 +895,7 @@ const PdfThumbnail: React.FC<{
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
     const [loaded, setLoaded] = useState(false);
-    const wrapRef = useRef<HTMLDivElement | null>(null);
+    const wrapRef = useRef<HTMLButtonElement | null>(null);
 
     useEffect(() => {
         const wrap = wrapRef.current;
@@ -937,7 +938,7 @@ const PdfThumbnail: React.FC<{
                         /* noop */
                     }
                 }
-                const task = page.render({ canvasContext: ctx, viewport });
+                const task = page.render({ canvas: ctx.canvas, canvasContext: ctx, viewport });
                 renderTaskRef.current = task;
                 await task.promise;
                 if (!cancelled) setLoaded(true);

@@ -150,6 +150,7 @@ export const WordProcessor: React.FC = () => {
             matterId: resolvedMatterId,  // FIX 5a: now always available
             citations: resolvedCitations, // FIX 5b: now persisted
             updatedAt: new Date().toISOString(),
+            savedAt: Date.now(),
         });
     };
 
@@ -346,7 +347,7 @@ export const WordProcessor: React.FC = () => {
                     onClose={handleClose}
                     onSaveAndClose={handleSaveForClose}
                     linkedMatterId={resolvedMatterId}
-                    citations={resolvedCitations}
+                    citations={resolvedCitations ? { citations: resolvedCitations } : undefined}
                 />
             </div>
         </div>

@@ -47,7 +47,7 @@ export interface AuthContextType {
     markOnboardingComplete: (firmId: string) => void;
     isLoadingSession: boolean;
     refreshUser: () => Promise<void>;
-    loginAsDemoUser: (email?: string) => void;
+    loginAsDemoUser: (email?: string) => Promise<{ success: boolean; message?: string }>;
     deleteAccount: () => Promise<{ success: boolean, message?: string }>;
     leaveFirm: (firmId: string) => Promise<{ success: boolean, message?: string }>;
     deleteFirm: (firmId: string) => Promise<{ success: boolean, message?: string }>;

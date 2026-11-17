@@ -1947,7 +1947,7 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
             try {
                 const uploadTimeout = 120000; // 2 minutes for upload
                 const storageId = await Promise.race([
-                    uploadBlobToConvex(blob, generateUploadUrl),
+                    uploadBlobToConvex(blob, () => generateUploadUrl({})),
                     new Promise<never>((_, reject) => {
                         setTimeout(() => reject(new Error('upload-timeout')), uploadTimeout);
                     }),

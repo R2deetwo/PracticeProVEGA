@@ -134,7 +134,7 @@ export const useMessaging = (appState: AppState, actions: any) => {
                     timestamp: new Date().toISOString(),
                 }, 'Client Message');
             } else {
-                await handleSendMessage(original.conversationId, original.content, original.authorId);
+                await handleSendMessage(original.conversationId!, original.content, original.authorId);
             }
             // Remove the old failed message
             await actions.deleteItem(isClientMessage ? 'clientMessages' : 'chatMessages', messageId, 'Message');

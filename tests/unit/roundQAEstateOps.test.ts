@@ -258,6 +258,7 @@ describe('QA §4 estate ops — work-order lifecycle through real handlers', () 
         });
 
         const ticket = tables.maintenance_tickets.find((t) => t._id === ticketId);
+        if (!ticket) throw new Error(`maintenance ticket ${ticketId} not found`);
         expect(ticket.assignedTo).toBe(STAFF_ID);
         expect(ticket.status).toBe('in_progress'); // assignment starts the work order
     });
@@ -274,6 +275,7 @@ describe('QA §4 estate ops — work-order lifecycle through real handlers', () 
             resolution: 'Replaced the U-bend; leak verified dry.',
         });
         let ticket = tables.maintenance_tickets.find((t) => t._id === ticketId);
+        if (!ticket) throw new Error(`maintenance ticket ${ticketId} not found`);
         expect(ticket.status).toBe('resolved');
         expect(ticket.resolution).toContain('U-bend');
 
@@ -284,6 +286,7 @@ describe('QA §4 estate ops — work-order lifecycle through real handlers', () 
             ticketId, status: 'closed',
         });
         ticket = tables.maintenance_tickets.find((t) => t._id === ticketId);
+        if (!ticket) throw new Error(`maintenance ticket ${ticketId} not found`);
         expect(ticket.status).toBe('closed');
     });
 
@@ -294,7 +297,7 @@ describe('QA §4 estate ops — work-order lifecycle through real handlers', () 
         await expect(call(updateMaintenanceTicketStatus, ctx, {
             ticketId, status: 'closed',
         })).rejects.toThrow(/Unauthenticated|session/i);
-        expect(tables.maintenance_tickets.find((t) => t._id === ticketId).status).toBe('open');
+        expect(tables.maintenance_tickets.find((t) => t._id === ticketId)!.status).toBe('open');
     });
 
     it('a rival firm admin cannot update another firm\'s ticket (recorded as a security event)', async () => {
@@ -324,6 +327,7 @@ describe('QA §4 estate ops — resident cancellation', () => {
             sessionToken: TENANT_SESSION,
         });
         const ticket = tables.maintenance_tickets.find((t) => t._id === ticketId);
+        if (!ticket) throw new Error(`maintenance ticket ${ticketId} not found`);
         expect(ticket.status).toBe('cancelled');
         expect(ticket.cancellationNote).toContain('washer');
         expect(ticket.cancelledAt).toBeGreaterThan(0);
@@ -339,7 +343,7 @@ describe('QA §4 estate ops — resident cancellation', () => {
             cancelledBy: ADMIN_ID, // not an alias of the Tenant session caller
             sessionToken: TENANT_SESSION,
         })).rejects.toThrow(/Not authorized/i);
-        expect(tables.maintenance_tickets.find((t) => t._id === ticketId).status).toBe('open');
+        expect(tables.maintenance_tickets.find((t) => t._id === ticketId)!.status).toBe('open');
     });
 });
 
@@ -365,6 +369,7 @@ describe('QA §4 estate ops — the end-to-end walk', () => {
         });
 
         const ticket = tables.maintenance_tickets.find((t) => t._id === ticketId);
+        if (!ticket) throw new Error(`maintenance ticket ${ticketId} not found`);
         expect([ticket.status, ticket.assignedTo, ticket.resolution])
             .toEqual(['closed', STAFF_ID, 'Done.']);
         // Exactly one ticket existed all along — no duplicates anywhere.

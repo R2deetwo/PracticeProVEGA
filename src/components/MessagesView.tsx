@@ -863,7 +863,7 @@ const MessagesView: React.FC = () => {
             const cardEl = document.querySelector(`[data-ticket-id="${ticketInfo.id}"]`);
             if (cardEl) {
                 cardEl.classList.remove('state-changed');
-                void cardEl.offsetWidth; // force reflow to restart animation
+                void (cardEl as HTMLElement).offsetWidth; // force reflow to restart animation
                 cardEl.classList.add('state-changed');
                 setTimeout(() => cardEl.classList.remove('state-changed'), 1000);
             }
@@ -899,9 +899,9 @@ const MessagesView: React.FC = () => {
     const renderSidebarPreview = (msg: ChatMessage | undefined) => {
         if (!msg) return 'No messages yet';
         if (msg.content?.startsWith('[FILE:')) {
-            return <span className="flex items-center text-slate-600 dark:text-zinc-400">{msg.authorId === currentUser.id ? 'You: ' : ''}<DocumentIcon className="w-3 h-3 inline mr-1 text-slate-400" /> File</span>;
+            return <span className="flex items-center text-slate-600 dark:text-zinc-400">{msg.authorId === currentUser?.id ? 'You: ' : ''}<DocumentIcon className="w-3 h-3 inline mr-1 text-slate-400" /> File</span>;
         }
-        return <span className={(msg as any).status === 'failed' ? 'text-red-500 italic' : ''}>{msg.authorId === currentUser.id ? 'You: ' : ''}{msg.content}</span>;
+        return <span className={(msg as any).status === 'failed' ? 'text-red-500 italic' : ''}>{msg.authorId === currentUser?.id ? 'You: ' : ''}{msg.content}</span>;
     }
 
     // ── TASK 15: Bulk conversation deletion + Mark all as read ──
@@ -954,8 +954,8 @@ const MessagesView: React.FC = () => {
                             try {
                                 await adminDeletePortalMsg({
                                     messageId: String(msg._id),
-                                    adminId: currentUser.id,
-                                    firmId: currentUser.firmId || '',
+                                    adminId: currentUser?.id || '',
+                                    firmId: currentUser?.firmId || '',
                                     // ROUND A2: server verifies the staff session.
                                     sessionToken: bearerToken ?? undefined,
                                 });
@@ -1993,7 +1993,7 @@ const MessagesView: React.FC = () => {
                                                     const file = e.target.files?.[0];
                                                     if (!file) return;
                                                     try {
-                                                        const postUrl = await generateUploadUrl();
+                                                        const postUrl = await generateUploadUrl({});
                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
                                                         if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
                                                         const { storageId } = await res.json();
@@ -2030,7 +2030,7 @@ const MessagesView: React.FC = () => {
                                                     showVoiceButton={true}
                                                     onVoiceRecorded={async (blob, duration) => {
                                                         try {
-                                                            const postUrl = await generateUploadUrl();
+                                                            const postUrl = await generateUploadUrl({});
                                                             const res = await fetch(postUrl, { method: 'POST', body: blob });
                                                             if (res.ok) {
                                                                 const { storageId } = await res.json();
@@ -2209,8 +2209,8 @@ const MessagesView: React.FC = () => {
                                                                 try {
                                                                     await adminDeletePortalMsg({
                                                                         messageId: String(m.id),
-                                                                        adminId: currentUser.id,
-                                                                        firmId: currentUser.firmId || '',
+                                                                        adminId: currentUser?.id || '',
+                                                                        firmId: currentUser?.firmId || '',
                                                                         // ROUND A2: server verifies the staff session.
                                                                         sessionToken: bearerToken ?? undefined,
                                                                     });
@@ -2462,7 +2462,7 @@ const MessagesView: React.FC = () => {
                                                                         continue;
                                                                     }
                                                                     try {
-                                                                        const postUrl = await generateUploadUrl();
+                                                                        const postUrl = await generateUploadUrl({});
                                                                         const res = await fetch(postUrl, { method: 'POST', body: file });
                                                                         if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
                                                                         const { storageId } = await res.json();
@@ -2723,7 +2723,7 @@ const MessagesView: React.FC = () => {
                                                         // Send on Enter (use the most recent feedback thread)
                                                         const latestFeedback = myFeedback[0];
                                                         if (latestFeedback) {
-                                                            handleSendFeedbackReply(String(latestFeedback._id || latestFeedback.id));
+                                                            handleSendFeedbackReply(String(latestFeedback._id || (latestFeedback as { id?: string }).id));
                                                         }
                                                     }
                                                     // Shift+Enter inserts a newline (default behavior, no preventDefault needed)
@@ -2737,7 +2737,7 @@ const MessagesView: React.FC = () => {
                                                 onClick={() => {
                                                     const latestFeedback = myFeedback[0];
                                                     if (latestFeedback) {
-                                                        handleSendFeedbackReply(String(latestFeedback._id || latestFeedback.id));
+                                                        handleSendFeedbackReply(String(latestFeedback._id || (latestFeedback as { id?: string }).id));
                                                     }
                                                 }}
                                                 disabled={!feedbackReplyText.trim() || isSendingFeedbackReply}

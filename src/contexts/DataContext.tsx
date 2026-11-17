@@ -77,6 +77,10 @@ export interface ExtendedDataActions extends DataActionsContextType {
     handleSendClientMessage: (matterId: string, content: string) => void;
     handleSaveEmailAsDocument: (email: any) => void;
     handleUpdateTaskPriority: (id: string, priority: any) => void;
+    /** Dedicated task update path (avoids duplicate-card side effects of
+     *  generic updateItem). Optional: providers that lack it fall back to
+     *  updateItem('tasks', …) in ExecutionContext. */
+    handleUpdateTask?: (item: any) => Promise<void>;
     handleInviteExternalCounsel: (invite: any) => void;
     handleSyncGoogleContacts: () => Promise<void>;
     handleDetermineJurisdiction: (matterId: string) => Promise<void>;

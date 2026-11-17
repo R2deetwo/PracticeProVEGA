@@ -98,7 +98,7 @@ describe('AIRequestQueue — Task 63 cancelAll contracts', () => {
         expect(q.isProcessing).toBe(true);
 
         // Let the hung task settle; the queue must return to idle cleanly.
-        releaseExec?.();
+        (releaseExec as (() => void) | null)?.();
         await first.catch(() => {});
         await tick();
         expect(executions).toBe(1);

@@ -21,6 +21,8 @@
 // first paint, even though analytics is DISABLED unless VITE_POSTHOG_KEY is
 // configured (it currently is not). The SDK is now loaded lazily, and only
 // when a key actually exists. All exported functions keep their signatures.
+import type { PostHogConfig } from 'posthog-js';
+
 let posthogModule: typeof import('posthog-js')['default'] | null = null;
 
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || '';
@@ -40,7 +42,7 @@ export function initPostHog() {
     import('posthog-js')
         .then((mod) => {
             const posthog = mod.default;
-            posthog.init(POSTHOG_KEY, {
+            posthog.init(POSTHOG_KEY, ({
                 api_host: POSTHOG_HOST,
                 enabled: isProduction,
                 // Respect Do Not Track
@@ -64,7 +66,7 @@ export function initPostHog() {
                     initialized = true;
                     console.info('[PostHog] Analytics initialized.');
                 },
-            });
+            } as Partial<PostHogConfig>));
             // Fallback in case `loaded` never fires (older SDK versions).
             posthogModule = posthog;
             initialized = true;

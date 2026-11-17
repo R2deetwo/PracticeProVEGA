@@ -78,7 +78,7 @@ const TrialNudgeBanner: React.FC = () => {
         title: 'Day 7 — Try automated reminders',
         body: 'Send your first rent reminder or court date notification — automated by email and the portal, with one-tap WhatsApp share. Included in your trial.',
         cta: 'Send Message',
-        ctaAction: () => navigateTo('messages'),
+        ctaAction: () => navigateTo('messaging'),
         urgency: 'info' as const,
       };
     }

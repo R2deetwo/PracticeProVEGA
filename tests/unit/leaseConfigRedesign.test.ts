@@ -35,6 +35,7 @@ import {
     scCycleMonths,
     type UnitRentalInput,
 } from '../../src/utils/propertyPayload';
+import { PropertyStatus } from '../../src/types';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = existsSync(resolve(here, '../../convex/schema.ts'))
@@ -54,7 +55,7 @@ const baseUnit = (over: Partial<UnitRentalInput> = {}): UnitRentalInput => ({
     tenantPhone: '+2348012345678',
     nextRentReview: '',
     isPeriodicReviewEnabled: false,
-    status: 'Occupied',
+    status: PropertyStatus.Occupied,
     ...over,
 });
 

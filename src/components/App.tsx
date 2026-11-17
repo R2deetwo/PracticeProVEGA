@@ -801,7 +801,7 @@ export const App: React.FC = () => {
     // Requires google-services.json in android/app/ and
     // FIREBASE_SERVICE_ACCOUNT_JSON on the Convex deployment (the legacy
     // FCM_SERVER_KEY mechanism was shut down by Google in June 2024).
-    usePushNotifications(currentUser?.id, currentUser?.firmId, bearerToken);
+    usePushNotifications(currentUser?.id, currentUser?.firmId ?? undefined, bearerToken);
 
     // ─── Push tap deep-linking ──────────────────────────────────────────────
     // usePushNotifications has no router access, so it broadcasts a

@@ -377,7 +377,7 @@ const ResearchView: React.FC = () => {
                             sources={sourcesForNotebook}
                             selectedSourceIds={selectedSourceIds}
                             onSendMessage={(notebookId, content, sIds) =>
-                                dataHandlers.handleSendResearchMessage(notebookId, content, sIds, sourcesForNotebook)}
+                                dataHandlers.handleSendResearchMessage(notebookId, content, sIds)}
                             prefillQuery={prefillState?.query}
                             prefillContext={prefillState?.context}
                             prefillDocumentTitle={prefillState?.documentTitle}
@@ -433,7 +433,15 @@ const ResearchView: React.FC = () => {
                                         <ResearchStudio
                                             notebook={selectedNotebook}
                                             sources={sourcesForNotebook.filter(s => selectedSourceIds.includes(s.id))}
-                                            analysisResults={analysisResultsForNotebook}
+                                            analysisResults={(analysisResultsForNotebook || []).map((d: any) => ({
+                                                id: String(d._id),
+                                                firmId: d.firmId ?? '',
+                                                notebookId: d.notebookId ?? '',
+                                                type: d.type ?? '',
+                                                title: d.title ?? '',
+                                                content: d.content ?? '',
+                                                timestamp: d.timestamp ?? d.createdAt ?? d.updatedAt ?? '',
+                                            }))}
                                             openModal={openModal}
                                             navigate={navigateTo}
                                             onSwitchToChat={() => setMobileWorkspaceView('chat')}

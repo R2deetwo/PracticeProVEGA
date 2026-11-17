@@ -174,9 +174,9 @@ function makeCtx(fix: Fixtures = {}, overrides: Record<string, any> = {}) {
 }
 
 // Standard callers used across the suite.
-const TENANT = { _id: 'u-tenant-1', email: 'tenant@example.com', tokenIdentifier: 'tenant@example.com', name: 'Tayo Tenant', role: 'Tenant', firmId: 'firm-1' };
+const TENANT = { _id: 'u-tenant-1', email: 'tenant@example.com', tokenIdentifier: 'tenant@example.com', name: 'Tayo Tenant', role: 'Tenant', firmId: 'firm-1', portalAccessToken: undefined };
 const TENANT_SESSION = { token: 'tok-tenant-abc', userId: 'u-tenant-1' };
-const OTHER_TENANT = { _id: 'u-tenant-2', email: 'other@example.com', tokenIdentifier: 'other@example.com', name: 'Ope Other', role: 'Tenant', firmId: 'firm-1' };
+const OTHER_TENANT = { _id: 'u-tenant-2', email: 'other@example.com', tokenIdentifier: 'other@example.com', name: 'Ope Other', role: 'Tenant', firmId: 'firm-1', portalAccessToken: undefined };
 const ADMIN = { _id: 'u-admin-1', email: 'admin@example.com', tokenIdentifier: 'admin@example.com', name: 'Ada Admin', role: 'Admin', firmId: 'firm-1' };
 const ADMIN_SESSION = { token: 'tok-admin-xyz', userId: 'u-admin-1' };
 const FOUNDER = { _id: 'u-founder-1', email: 'founder@example.com', tokenIdentifier: 'founder@example.com', name: 'Fola Founder', role: 'Founder', firmId: 'firm-1' };
@@ -466,7 +466,7 @@ describe('C3 — forged tickets, impersonated messages, forged cancels', () => {
   });
 
   it('ensurePortalAccessToken mints only for the CALLER (a foreign email is rebound)', async () => {
-    const victim = { _id: 'u-victim-9', email: 'victim@example.com', tokenIdentifier: 'victim@example.com', name: 'Vic', role: 'Tenant', firmId: 'firm-1' };
+    const victim = { _id: 'u-victim-9', email: 'victim@example.com', tokenIdentifier: 'victim@example.com', name: 'Vic', role: 'Tenant', firmId: 'firm-1', portalAccessToken: undefined };
     const { ctx, writes } = makeCtx({ session: TENANT_SESSION, user: TENANT, users: [victim] });
     const res: any = await (ensurePortalAccessToken as any)._handler(ctx, {
       email: 'victim@example.com', sessionToken: 'tok-tenant-abc',

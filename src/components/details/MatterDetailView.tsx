@@ -619,7 +619,7 @@ const MatterDetailViewContent: React.FC = () => {
                                     notes={notePages}
                                     users={users}
                                     currentUser={currentUser || {} as User}
-                                    onAddNote={(matterId, title, content, type) => documentActions.handleAddMatterNote(matterId, title, content, type)}
+                                    onAddNote={(matterId, title, content, type) => documentActions.handleAddMatterNote(matterId, title, content)}
                                     onUpdateNote={(note) => documentActions.handleUpdatePageContent(note.id, note.title, note.content)}
                                     onDeleteNote={(id, title) => documentActions.onDeletePage(id)}
                                     openModal={openModal}

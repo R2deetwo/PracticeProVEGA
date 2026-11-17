@@ -295,7 +295,6 @@ export const DockedModal: React.FC = () => {
             activeUnitId={modalContext?.activeUnitId}
             onSave={dataHandlers.onUpdateContactProperties}
             onClose={closeModal}
-            isCompact={true}
           />;
         } else {
           // Show shared contact selector first — property requires an owner.
@@ -344,7 +343,6 @@ export const DockedModal: React.FC = () => {
           onAddInvoice={(inv) => dataHandlers.addItem('invoices', inv, inv.invoiceNumber)} 
           onUpdateInvoice={(inv) => dataHandlers.updateItem('invoices', inv, inv.invoiceNumber)} 
           onClose={closeModal}
-          isCompact={true}
         />;
         break;
       }
@@ -535,7 +533,7 @@ export const DockedModal: React.FC = () => {
                 navigateTo('matterDetail', mId, { initialTab: 'schedule_tasks' });
               }, 50);
             }}
-            onNavigateToCalendar={(date: Date, eventId: string) => {
+            onNavigateToCalendar={(date: string, eventId: string) => {
               setHighlightTarget({ view: 'calendar', filter: { id: eventId }, color: 'red' });
               closeModal();
               navigateTo('calendar', null, { date });

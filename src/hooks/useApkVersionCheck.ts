@@ -71,8 +71,10 @@ export function useApkVersionCheck(): ApkVersionCheckState {
         // Dynamic import to avoid bundling Capacitor in web builds
         const { App } = await import('@capacitor/app');
         const info = await App.getInfo();
-        // version.build is the versionCode on Android
-        const build = parseInt(info.version.build || '0');
+        // info.build is the versionCode on Android (info.version is the
+        // versionName string — the old `info.version.build` read parsed to 0
+        // on every device, so Gate 4 below compared against 0 and nagged).
+        const build = parseInt(info.build || '0');
         localBuildRef.current = build;
         setLocalVersionCode(build);
       } catch (e) {

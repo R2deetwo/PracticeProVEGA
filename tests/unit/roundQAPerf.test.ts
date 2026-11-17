@@ -111,7 +111,7 @@ describe('QA §2 — the three heaviest form modals are lazy in ModalLayer', () 
         expect(idxs.length).toBeGreaterThanOrEqual(3);
         for (const i of idxs) {
             // The Suspense wrapper opens on this line or the one above it.
-            const ctx = all[i] + all[i - 1] ?? '';
+            const ctx = all[i] + all[i - 1];
             expect(
                 ctx.includes('Suspense'),
                 `render at line ${i + 1} lost its Suspense wrapper`

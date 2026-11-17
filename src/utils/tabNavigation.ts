@@ -89,7 +89,7 @@ export function buildRouteUrlWithHashContext(route: string, context?: Record<str
             } catch (storageErr) {
                 console.error('[buildRouteUrlWithHashContext] sessionStorage write failed:', storageErr);
                 // Last resort: truncate sources array to fit
-                const truncated = { ...ctxWithId, sources: (ctxWithId.sources || []).slice(0, 3), _truncated: true };
+                const truncated = { ...ctxWithId, sources: ((ctxWithId as { sources?: unknown[] }).sources || []).slice(0, 3), _truncated: true };
                 const truncJson = JSON.stringify(truncated);
                 const truncBytes = new TextEncoder().encode(truncJson);
                 let truncBin = '';

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { ArchivedItem } from '../types';
+import { ArchivedItem, ModalType } from '../types';
 import { ArchiveIcon } from '../constants';
 import { useCoreState } from '../contexts/CoreContext';
 import { useDataActions } from '../contexts/DataContext';
@@ -234,7 +234,7 @@ interface ArchiveRowProps {
     item: ArchivedItem;
     onRestore: (item: ArchivedItem) => void;
     onPermanentDelete: (target: ArchivedItem | string) => void;
-    openModal: (type: string, id: string | null, context?: any) => void;
+    openModal: (type: ModalType, id?: string | null, context?: any) => void;
 }
 
 const ArchiveRow: React.FC<ArchiveRowProps> = ({ item, onRestore, onPermanentDelete, openModal }) => (

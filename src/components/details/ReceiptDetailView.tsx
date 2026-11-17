@@ -73,7 +73,7 @@ const ReceiptDetailViewContent: React.FC = () => {
       await generateReceiptPdf(invoice, firmDetails, client as any);
     } else {
       // Generate PDF with invoice's embedded client data as fallback
-      await generateReceiptPdf(invoice, firmDetails, invoice.client || { name: 'Tenant' } as any);
+      await generateReceiptPdf(invoice, firmDetails, (invoice.client || { name: 'Tenant' }) as any);
     }
   };
 

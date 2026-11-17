@@ -15,6 +15,7 @@ export interface FounderUser {
     email: string;
     name: string;
     role: string;
+    firmId?: string;
     tokenIdentifier: string;
     /** R16b: the server-issued bearer session token. Empty for sessions
      * logged in before the strict cutover — those users must re-login. */
@@ -49,7 +50,7 @@ export interface Toast {
     type: 'success' | 'error' | 'info';
 }
 
-export const ToastContext = createContext<{ addToast: (msg: string, opts?: { type?: Toast['type'] }) => void }>({
+export const ToastContext = createContext<{ addToast: (msg: string, opts?: { type?: Toast['type']; duration?: number }) => void }>({
     addToast: () => {},
 });
 

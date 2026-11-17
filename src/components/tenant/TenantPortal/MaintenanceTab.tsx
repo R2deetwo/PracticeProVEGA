@@ -173,7 +173,7 @@ export const MaintenanceTab: React.FC<{ tenantInfo: any; effectiveFirmId?: strin
       if (pendingFiles.length > 0) {
         for (const file of pendingFiles) {
           try {
-            const postUrl = await generateUploadUrl();
+            const postUrl = await generateUploadUrl({});
             const res = await fetch(postUrl, {
               method: 'POST',
               body: file,

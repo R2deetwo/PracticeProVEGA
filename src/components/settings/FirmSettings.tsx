@@ -271,7 +271,7 @@ const FirmSettings: React.FC<FirmSettingsProps> = ({ firmDetails, onUpdateFirmDe
             onConfirm: async () => {
                 setIsRotating(true);
                 try {
-                    await regenerateInviteCode(firmDetails._id || firmDetails.id || currentUser.firmId);
+                    await regenerateInviteCode(firmDetails._id || firmDetails.id || currentUser.firmId || '');
                     addToast("Invite Code Rotated!", { type: 'success' });
                 } catch (e) {
                     console.error(e);

@@ -214,7 +214,7 @@ export const MessagesTab: React.FC<{ tenantInfo: any; effectiveFirmId?: string; 
       const fileNames: string[] = [];
       for (const { file, name } of pendingFiles) {
         try {
-          const postUrl = await generateUploadUrl();
+          const postUrl = await generateUploadUrl({});
           const res = await fetch(postUrl, { method: 'POST', body: file });
           if (!res.ok) throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
           const { storageId } = await res.json();

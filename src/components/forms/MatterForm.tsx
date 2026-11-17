@@ -1100,7 +1100,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                 <div className="mt-2 p-2.5 bg-slate-50 dark:bg-zinc-900/50 rounded-lg border border-slate-100 dark:border-zinc-700/50">
                                     {effectiveStages.length > 0 ? (
                                         <div className="flex flex-wrap gap-1.5">
-                                            {effectiveStages.map((stage, i) => (
+                                            {effectiveStages.map((stage: string, i: number) => (
                                                 <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-zinc-800 rounded-md text-2xs font-bold text-slate-600 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700">
                                                     <span className="text-primary-500">{i + 1}.</span> {stage}
                                                 </span>
@@ -1111,7 +1111,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                     )}
                                     <button
                                         type="button"
-                                        onClick={() => openModal('editWorkflow', activeWorkflow?.id, {
+                                        onClick={() => openModal?.('editWorkflow', activeWorkflow?.id, {
                                             isNewSub: !activeWorkflow,
                                             matterType: matterType,
                                             subCategoryName: subCategory || undefined,
@@ -1415,7 +1415,7 @@ export const MatterForm: React.FC<MatterFormProps> = (props) => {
                                             type="button"
                                             onClick={() => {
                                                 if (!features.canUseRetainerAutoBilling) {
-                                                    openModal('upgradePlan');
+                                                    openModal?.('upgradePlan');
                                                     return;
                                                 }
                                                 setRetainerAutoBillingEnabled(prev => !prev);

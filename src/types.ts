@@ -189,6 +189,7 @@ export interface RealEstateUnit {
 }
 
 export interface RealEstateSpecialtyData {
+    unitId?: string;
     titleDocument?: TitleDocumentType;     // Highest form of title
     surveyPlanNo?: string;                 // Survey plan file number
     plotSize?: string;                     // e.g., "1,200 sqm"
@@ -231,7 +232,7 @@ export interface LegalFormTemplate {
     content: string;                // Template body (HTML/markdown with {{placeholders}})
     autoFillMapping?: Record<string, string>; // Maps {{placeholder}} -> Matter field path
 }
-export interface FirmDetails { id: string; name: string; address: string; logoUrl: string; letterheadUrl?: string; digitalStampUrl?: string; headerTextColor?: string; inviteCode?: string; areWorkflowsEnabled: boolean; aloaFirmPersonality?: string; bankAccounts: BankAccount[]; aiSettings?: AiSettings; integrations: Integrations; monthlyRevenueTarget?: number; subscriptionPlan: SubscriptionPlan; subscriptionAddons?: SubscriptionAddons; practiceJurisdictions?: PracticeJurisdictions; customHolidays?: string[]; taxSettings?: TaxSettings; created_by?: string; settings?: any; localFolderPath?: string; legalEntityType?: string; legalEntityCustom?: string;
+export interface FirmDetails { id: string; _id?: string; name: string; address: string; logoUrl: string; letterheadUrl?: string; digitalStampUrl?: string; headerTextColor?: string; inviteCode?: string; areWorkflowsEnabled: boolean; aloaFirmPersonality?: string; bankAccounts: BankAccount[]; aiSettings?: AiSettings; integrations: Integrations; monthlyRevenueTarget?: number; subscriptionPlan: SubscriptionPlan; subscriptionAddons?: SubscriptionAddons; practiceJurisdictions?: PracticeJurisdictions; customHolidays?: string[]; taxSettings?: TaxSettings; created_by?: string; settings?: any; localFolderPath?: string; legalEntityType?: string; legalEntityCustom?: string;
     // Enterprise Specialization
     firmSpecialties?: FirmSpecialty[];      // Selected practice areas for this Enterprise firm
     legalFormLibrary?: LegalFormTemplate[]; // Versioned statutory form templates
@@ -263,7 +264,7 @@ export interface PracticeProfile {
 export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
 export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; }
 export type Product = 'legal' | 'property' | 'unified' | 'atrium' | 'vega';
-export interface User { id: string; firmId?: string | null; joinedFirmIds?: string[]; name: string; email: string; role: UserRole; avatarUrl?: string; barNumber?: string; showProTips: boolean; professionalStandards?: ProfessionalStandards; notificationSettings?: NotificationSettings; defaultViewModes?: { matters?: 'list' | 'board'; tasks?: 'list' | 'board'; calendar?: 'month' | 'week' | 'diary'; units?: 'console' | 'cards'; }; accessibleMatterIds?: string[]; namePronunciation?: string; lastViewedPortalAt?: string; enableLiveFlashes?: boolean; defaultMatterType?: string; onboardingCompleted?: boolean; _id?: any; isMfaEnabled?: boolean; product?: Product; portalPresenceHidden?: boolean; portalAccessToken?: string; professionalTitle?: string; titleCustom?: string; }
+export interface User { id: string; firmId?: string | null; joinedFirmIds?: string[]; name: string; email: string; role: UserRole; avatarUrl?: string; barNumber?: string; showProTips: boolean; professionalStandards?: ProfessionalStandards; notificationSettings?: NotificationSettings; defaultViewModes?: { matters?: 'list' | 'board'; tasks?: 'list' | 'board'; calendar?: 'month' | 'week' | 'diary'; units?: 'console' | 'cards'; }; accessibleMatterIds?: string[]; namePronunciation?: string; lastViewedPortalAt?: string; enableLiveFlashes?: boolean; defaultMatterType?: string; onboardingCompleted?: boolean; tokenIdentifier?: string; _id?: any; isMfaEnabled?: boolean; product?: Product; portalPresenceHidden?: boolean; portalAccessToken?: string; professionalTitle?: string; titleCustom?: string; }
 export interface ContactCategory { id: string; firmId: string; name: string; product?: Product; }
 export interface PropertyEvent { id: string; type: 'rent_collected' | 'lease_signed' | 'maintenance' | 'inspection' | 'renewal' | 'tenant_change' | 'offer'; date: string; description: string; amount?: number; relatedTaskId?: string; }
 export interface MaintenanceRecord { id: string; date: string; issue: string; status: 'reported' | 'in_progress' | 'escalated' | 'fulfilled' | 'cancelled'; cost?: number; resolvedDate?: string; notes?: string; priority?: 'low' | 'medium' | 'high' | 'emergency'; vendorId?: string; vendorName?: string; vendorPhone?: string; taskId?: string; }
@@ -306,6 +307,10 @@ export enum PropertyCategory { Tenanted = 'Tenanted Property', ForSale = 'Proper
 export interface Property {
     id: string;
     firmId: string;
+    /** Free-form display name; falls back to address where unset (CommandPalette, unit sorting). */
+    name?: string;
+    /** Coarse category tag used in palette subtitles; distinct from propertyType. */
+    type?: string;
     contactId?: string;
     matterId?: string;
     address: string;
@@ -319,6 +324,7 @@ export interface Property {
     rentalDetails?: {
         id?: string;
         unitName?: string;
+        unitDescription?: string;
         rentAmount: number;
         rentFrequency: 'Annually' | 'Bi-Annually' | 'Quarterly' | 'Monthly';
         leaseStart?: string;
@@ -416,17 +422,17 @@ export interface Expense { id: string; firmId: string; matterId: string; date: s
 export interface NoteNotebook { id: string; firmId?: string; userId?: string; name: string; color: string; scope: NoteScope; isCore?: boolean; matterId?: string; }
 export interface NotePage { id: string; firmId: string; title: string; content: string; notebookId: string; parentId: string | null; matterId?: string; propertyId?: string; contextType?: string; archivedAt?: number; authorId: string; createdAt: string; updatedAt: string; order: number; type: 'user' | 'system' | 'endorsement'; systemNoteIcon?: string; rawTranscript?: string | null; cleanedTranscript?: string | null; dictationMode?: 'vega_dual' | 'atrium_single' | null; }
 export interface ChatConversation { id: string; firmId: string; type: 'direct' | 'channel'; name?: string; memberIds: string[]; creatorId?: string; hiddenForUserIds?: string[]; matterId?: string; createdAt?: string; }
-export interface ChatMessage { id: string; firmId: string; conversationId: string; authorId: string; content: string; timestamp: string; deletedForUserIds?: string[]; isDeleted?: boolean; status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'; }
-export interface ClientMessage { id: string; firmId: string; matterId: string; authorId: string; content: string; timestamp: string; isRead: boolean; status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'; }
+export interface ChatMessage { id: string; firmId: string; matterId?: string; conversationId: string; authorId: string; content: string; timestamp: string; deletedForUserIds?: string[]; isDeleted?: boolean; status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'; }
+export interface ClientMessage { id: string; firmId: string; matterId: string; conversationId?: string; authorId: string; content: string; timestamp: string; isRead: boolean; status?: 'pending' | 'sent' | 'delivered' | 'read' | 'failed'; }
 export interface Notification { id: string; firmId: string; userId: string; message: string; link: { view: View; id: string | null; context?: any; }; timestamp: number | string; isRead: boolean; }
 export interface FirmActivity { id: string; firmId: string; userId: string; userName: string; action: string; timestamp: string; targetType: 'Matter' | 'Client' | 'Document' | 'Task' | 'Event' | 'Invoice' | 'User' | 'Contact'; targetId?: string; targetName?: string; matterId?: string; metadata?: any; }
 export interface ArchivedItem { id: string; firmId: string; itemType: string; itemId: string; itemName: string; archivedAt: string; archiverId: string; archiverName: string; originalData: any; }
 export interface ExternalCounselInvite { id: string; firmId: string; matterId: string; email: string; name: string; firmName: string; roleInMatter: string; accessLevel: AccessLevel; expiresAt: string; status: 'pending' | 'accepted' | 'revoked' | 'expired'; invitedBy: string; }
 export interface ResearchNotebook { id: string; firmId: string; userId: string; name: string; matterId?: string; }
-export interface ResearchSource { id: string; firmId: string; notebookId: string; name: string; type: 'pdf' | 'text' | 'web'; content: string; file?: FileDetails; /** V5: for 'web' sources, the URL the content was actually fetched from (attribution + re-fetch). */ url?: string; }
+export interface ResearchSource { id: string; _id?: string; firmId: string; notebookId: string; name: string; type: 'pdf' | 'text' | 'web'; content: string; file?: FileDetails; /** V5: for 'web' sources, the URL the content was actually fetched from (attribution + re-fetch). */ url?: string; }
 export interface ResearchCitation { sourceId: string; snippet: string; }
-export interface ResearchMessage { id: string; firmId: string; notebookId: string; role: 'user' | 'model'; content: string; timestamp: string; citations?: ResearchCitation[]; }
-export interface StudioAnalysisResult { id: string; firmId: string; notebookId: string; type: string; title: string; content: string; timestamp: string; }
+export interface ResearchMessage { id: string; _id?: string; firmId: string; notebookId: string; role: 'user' | 'model'; content: string; timestamp: string; citations?: ResearchCitation[]; }
+export interface StudioAnalysisResult { id: string; _id?: string; firmId: string; notebookId: string; type: string; title: string; content: string; timestamp: string; }
 export interface CaseResult { id: string; citation: string; equivalentCitations?: string[]; parties: string; court: string; year: number; subjectMatter?: string; ratioDecidendi?: string; summary: string; fullText?: string; tags?: string[]; status?: CaseStatus; referencedStatutes?: string[]; coram?: string[]; history?: { stage: string; verdict: string; }[]; counsel?: string[]; facts?: string; issues?: string[]; }
 export type CaseStatus = 'Locus Classicus' | 'Good Law' | 'Overruled' | 'Distinguished';
 export type CourtHierarchy = 'Supreme Court' | 'Court of Appeal' | 'National Industrial Court' | 'Federal High Court' | 'Investments & Securities Tribunal' | 'Election Petition Tribunal' | 'Magistrate Court' | 'Customary Court';

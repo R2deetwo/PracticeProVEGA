@@ -1817,7 +1817,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     addToast(`${file.name} is too large (max 20MB).`, { type: 'error' });
                     continue;
                 }
-                const postUrl = await generateUploadUrl();
+                const postUrl = await generateUploadUrl({});
                 const res = await fetch(postUrl, { method: 'POST', body: file });
                 if (!res.ok) {
                     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);

@@ -334,11 +334,11 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [toasts, setToasts] = useState<Toast[]>([]);
 
-    const addToast = useCallback((message: string, opts?: { type?: Toast['type'] }) => {
+    const addToast = useCallback((message: string, opts?: { type?: Toast['type']; duration?: number }) => {
         const id = Date.now() + Math.random();
         const type = opts?.type || 'info';
         setToasts(prev => [...prev, { id, message, type }]);
-        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 5000);
+        setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), opts?.duration ?? 5000);
     }, []);
 
     return (

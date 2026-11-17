@@ -1,3 +1,11 @@
+interface NotificationTypeMeta {
+    key: string;
+    label: string;
+    description: string;
+    defaultEnabled: boolean;
+    alwaysOn?: boolean;
+}
+
 /**
  * NotificationSettings — Per-firm email notification toggle preferences
  *
@@ -107,7 +115,7 @@ export const NotificationSettings: React.FC = () => {
     : {};
 
   // Use local category mirror (must match NOTIFICATION_TYPE_DEFAULTS in portals.ts)
-  const NOTIFICATION_TYPES = useMemo(() => ({
+  const NOTIFICATION_TYPES = useMemo<Record<string, NotificationTypeMeta[]>>(() => ({
     property: [
       { key: 'notice_board_post', label: 'Notice Board Post', description: 'A new notice is published on the notice board', defaultEnabled: true },
       { key: 'portal_message', label: 'New Portal Message', description: 'Admin sends a message to a resident', defaultEnabled: true },
@@ -191,6 +199,7 @@ export const NotificationSettings: React.FC = () => {
                 </div>
                 <button
                   onClick={() => {
+                    if (!currentUser) return;
                     const current = currentUser?.notificationSettings || {};
                     handleUpdateUser(currentUser.id, { notificationSettings: { ...current, [key]: !isChecked } });
                   }}

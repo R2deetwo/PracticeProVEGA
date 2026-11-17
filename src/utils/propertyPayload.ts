@@ -110,9 +110,9 @@ export function buildPropertyRecord(
 
   pd.rentalDetails = {
     ...normalized,
-    leaseStart: cleanDate(normalized.leaseStart),
-    leaseEnd: cleanDate(normalized.leaseEnd),
-    nextRentReview: cleanDate(normalized.nextRentReview),
+    leaseStart: cleanDate(normalized.leaseStart) ?? undefined,
+    leaseEnd: cleanDate(normalized.leaseEnd) ?? undefined,
+    nextRentReview: cleanDate(normalized.nextRentReview) ?? undefined,
   };
 
   return pd;
