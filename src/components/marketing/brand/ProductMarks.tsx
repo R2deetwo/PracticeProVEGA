@@ -162,7 +162,73 @@ export const AtriumMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }
     );
 };
 
+/** Komplete — the Twin Coins (R28, owner direction: "there should be a
+ *  favicon for complete"). Komplete is Vega and Atrium on one workspace, so
+ *  its mark IS the two product coins together — the burnt-orange Vega disc
+ *  and the emerald Atrium disc, overlapping — and where they overlap, a
+ *  fused lens (the shared workspace). The pair read at 16px by mass alone;
+ *  no voids (they would clog at coin-overlap scale). Deep-ink ground with
+ *  an indigo hairline — Komplete's own accent — tying the mark to the
+ *  PracticePro company register.
+ *
+ *  CARRYING RESOLVED HEX, NOT TOKENS — deliberately. The Komplete register
+ *  references the RETIRED burnt-orange Vega coin (R60 retired orange from
+ *  the *Vega* register, and the R60 pin rightly bans that value from
+ *  index.css); the committed brand asset public/brand/komplete/favicon.svg
+ *  carries the same colours as raw hex. This mark mirrors that asset
+ *  exactly — the static-asset precedent — so the orange never re-enters
+ *  the shared token file. (Brand Clarity Pass, Phase 1: the splash
+ *  end-card and any future in-app Komplete surface need the component.) */
+export const KompleteMark: React.FC<MarkProps> = ({ className = 'h-7 w-7', title }) => {
+    const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+    return (
+        <svg
+            viewBox="0 0 48 48"
+            className={className}
+            role={title ? 'img' : undefined}
+            aria-hidden={title ? undefined : true}
+            focusable="false"
+        >
+            {title && <title>{title}</title>}
+            <defs>
+                <linearGradient id={`kcbg${uid}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#101A30" />
+                    <stop offset="1" stopColor="#070D18" />
+                </linearGradient>
+                <linearGradient id={`kcv${uid}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#E07A3F" />
+                    <stop offset="1" stopColor="#F3A66A" />
+                </linearGradient>
+                <linearGradient id={`kca${uid}`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0" stopColor="#0C7A57" />
+                    <stop offset="1" stopColor="#053D2C" />
+                </linearGradient>
+            </defs>
+            {/* The deep-ink tile with the indigo hairline — Komplete's own
+                accent register, tying the fused mark to the company mark. */}
+            <rect x="1" y="1" width="46" height="46" rx="11.5" fill={`url(#kcbg${uid})`} />
+            <rect
+                x="1" y="1" width="46" height="46" rx="11.5"
+                fill="none"
+                stroke="#818CF8"
+                strokeOpacity="0.5"
+                strokeWidth="1.5"
+            />
+            {/* The Vega coin (left) */}
+            <circle cx="18.5" cy="24.5" r="10.5" fill={`url(#kcv${uid})`} />
+            {/* The Atrium coin (right) */}
+            <circle cx="29.5" cy="24.5" r="10.5" fill={`url(#kca${uid})`} />
+            {/* The fused lens where the two coins overlap — the one workspace */}
+            <path
+                d="M24 15.56 A10.5 10.5 0 0 1 24 33.44 A10.5 10.5 0 0 1 24 15.56 Z"
+                fill="#3D5A3A"
+            />
+        </svg>
+    );
+};
+
 /** The product mark for a given product id (used where the page already
- *  knows which product it is rendering — nav, footer, dropdowns). */
-export const ProductMark: React.FC<{ product: 'vega' | 'atrium' } & MarkProps> = ({ product, ...rest }) =>
-    product === 'vega' ? <VegaMark {...rest} /> : <AtriumMark {...rest} />;
+ *  knows which product it is rendering — nav, footer, dropdowns, the
+ *  splash end-card). 'komplete' lands on the Twin Coins. */
+export const ProductMark: React.FC<{ product: 'vega' | 'atrium' | 'komplete' } & MarkProps> = ({ product, ...rest }) =>
+    product === 'vega' ? <VegaMark {...rest} /> : product === 'atrium' ? <AtriumMark {...rest} /> : <KompleteMark {...rest} />;

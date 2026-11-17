@@ -44,9 +44,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Logo } from '../constants';
+import { VegaMark, AtriumMark, KompleteMark } from './marketing/brand/ProductMarks';
+import { resolveSplashEndCard, type SplashProduct } from './splashEndCard';
 import './SplashScreen.css';
 
-export type SplashProduct = 'practicepro' | 'vega' | 'atrium';
+export type { SplashProduct };
 
 interface SplashScreenProps {
     isVisible: boolean;
@@ -73,6 +75,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     statusMessage = "Initializing System...",
     onReset,
     onForceEnter,
+    product,
     onComplete
 }) => {
     const [phase, setPhase] = useState<'emergence' | 'amber' | 'green'>('emergence');
@@ -80,6 +83,15 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     const [isExiting, setIsExiting] = useState(false);
     const hasStarted = useRef(false);
     const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    // ── BRAND CLARITY PASS, PHASE 1 — the end-card ────────────────────
+    // The sequence keeps its choreography; only the final settle frame
+    // resolves to the product being opened (owner direction 2026-11-18:
+    // "it should end with the actual logo of the thing that we are doing
+    // or working on"). Pure resolver — see splashEndCard.ts.
+    const endCard = resolveSplashEndCard(product);
+    const isProductCard = endCard.mark !== 'practicepro';
+    const isSettleFrame = phase === 'green' && !isExiting;
 
     const clearAllTimers = () => {
         timersRef.current.forEach(t => clearTimeout(t));
@@ -140,14 +152,28 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     // showing. Hide the bottom status text so "Ready" doesn't appear twice.
     const showBottomStatus = isVisible && phase !== 'green' && !isExiting;
 
-    // Color for the logo based on phase
+    // Color for the logo based on phase. The product end-card re-hues the
+    // final phase to the product accent (splashEndCard.readyColor); the
+    // company card keeps the historic green.
     const logoColor = phase === 'emergence' ? '#000000'
         : phase === 'amber' ? '#EAB308'
-        : 'rgb(22, 163, 74)'; // emerald-600 — brand green
+        : endCard.readyColor;
 
     const logoGlow = phase === 'emergence' ? 'drop-shadow(0 0 15px rgba(255,255,255,0.05))'
         : phase === 'amber' ? 'drop-shadow(0 0 25px rgba(234,179,8,0.25))'
-        : 'drop-shadow(0 0 35px rgba(22,163,74,0.4))';
+        : isProductCard
+            ? 'drop-shadow(0 0 35px rgba(255,255,255,0.18))'
+            : 'drop-shadow(0 0 35px rgba(22,163,74,0.4))';
+
+    // On the product end-card the company logo recedes (scale + lift) so
+    // the product mark can hero the settle frame — the company stays
+    // credited via the "by PracticePro Systems" attribution line.
+    const companyLogoTransform = isProductCard && isSettleFrame
+        ? 'scale(0.42) translateY(-10px)'
+        : 'scale(1) translateY(0)';
+
+    const endCardOpacity = isSettleFrame ? 1 : 0;
+    const endCardTransform = isSettleFrame ? 'translateY(0)' : 'translateY(12px)';
 
     return (
         <div
@@ -161,28 +187,88 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
             {/* Branding Core */}
             <div className="relative z-10 flex flex-col items-center">
                 {/* Logo — entry animation handled by CSS .splash-logo class.
-                    Color and glow change via inline style transitions. */}
+                    Color and glow change via inline style transitions. On the
+                    product end-card the company logo recedes so the product
+                    mark can take the settle frame. */}
                 <div
                     className="splash-logo"
                     style={{
                         color: logoColor,
                         filter: logoGlow,
-                        transition: `color 0.8s ${EASE_CINEMATIC}, filter 0.8s ${EASE_CINEMATIC}`,
+                        transform: companyLogoTransform,
+                        transition: `color 0.8s ${EASE_CINEMATIC}, filter 0.8s ${EASE_CINEMATIC}, transform 0.8s ${EASE_CINEMATIC}`,
                     }}
                 >
                     <Logo className="w-32 h-32" />
                 </div>
 
+                {/* PHASE 1 (Brand Clarity) — THE PRODUCT END-CARD. When the
+                    splash knows which app it is settling into, the product
+                    mark + name + "by PracticePro Systems" attribution fade
+                    in beneath the receded company logo. */}
+                {isProductCard && (
+                    <div
+                        className="splash-endcard flex flex-col items-center"
+                        style={{
+                            opacity: endCardOpacity,
+                            transform: endCardTransform,
+                            transition: `opacity 0.6s ${EASE_CINEMATIC} 0.15s, transform 0.6s ${EASE_CINEMATIC} 0.15s`,
+                        }}
+                    >
+                        {endCard.mark === 'vega' ? (
+                            <VegaMark className="w-24 h-24" title="PracticePro Vega" />
+                        ) : endCard.mark === 'atrium' ? (
+                            <AtriumMark className="w-24 h-24" title="PracticePro Atrium" />
+                        ) : (
+                            <KompleteMark className="w-24 h-24" title="PracticePro Komplete" />
+                        )}
+                        <span
+                            className="mt-3 text-2xl font-bold tracking-tight"
+                            style={{ color: endCard.readyColor }}
+                        >
+                            {endCard.name}
+                        </span>
+                        <span className="mt-1 text-xs font-medium uppercase tracking-[0.3em] text-slate-500">
+                            {endCard.attribution}
+                        </span>
+                    </div>
+                )}
+
+                {/* PHASE 1 (Brand Clarity) — THE COMPANY LOCKUP. Logged-out /
+                   product-unknown: the company card stays the hero and the
+                   lockup row teaches the two-products-plus-bundle model
+                   (Gate A, option b). */}
+                {endCard.lockup && (
+                    <div
+                        className="splash-lockup flex items-center gap-2.5 mt-2"
+                        style={{
+                            opacity: endCardOpacity,
+                            transform: endCardTransform,
+                            transition: `opacity 0.6s ${EASE_CINEMATIC} 0.15s, transform 0.6s ${EASE_CINEMATIC} 0.15s`,
+                        }}
+                    >
+                        <VegaMark className="w-4 h-4" title="" />
+                        <span className="text-sm font-semibold text-slate-300">Vega</span>
+                        <span className="text-slate-600">·</span>
+                        <AtriumMark className="w-4 h-4" title="" />
+                        <span className="text-sm font-semibold text-slate-300">Atrium</span>
+                        <span className="text-slate-600">·</span>
+                        <KompleteMark className="w-4 h-4" title="" />
+                        <span className="text-sm font-semibold text-slate-300">Komplete</span>
+                    </div>
+                )}
+
                 {/* Text — entry animation handled by CSS .splash-text-container.
-                    Visibility controlled by phase (appears in green phase). */}
+                    Visibility controlled by phase (appears in green phase).
+                    Re-hued to the product accent on product cards. */}
                 <div className="splash-text-container">
                     <span
                         className="splash-text"
                         style={{
-                            color: 'rgb(22, 163, 74)',
+                            color: endCard.readyColor,
                             opacity: phase === 'green' ? 1 : 0,
                             transform: phase === 'green' ? 'translateY(0)' : 'translateY(8px)',
-                            transition: `opacity 0.5s ${EASE_CINEMATIC}, transform 0.5s ${EASE_CINEMATIC}`,
+                            transition: `opacity 0.5s ${EASE_CINEMATIC}, transform 0.5s ${EASE_CINEMATIC}, color 0.5s ${EASE_CINEMATIC}`,
                         }}
                     >
                         Ready

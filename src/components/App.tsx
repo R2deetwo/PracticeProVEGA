@@ -133,6 +133,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { ModalLayer } from '../overlays/layers/ModalLayer';
 import LockScreen from './LockScreen';
 import SplashScreen from './SplashScreen';
+import { normalizeSplashProduct } from './splashEndCard';
 import ToastContainer from './ToastContainer';
 import VersionRefreshBanner from './VersionRefreshBanner';
 import ToastRefreshNotification from './ToastRefreshNotification';
@@ -1930,7 +1931,7 @@ export const App: React.FC = () => {
                 onReset={handleReset} 
                 onForceEnter={() => { setForceEntry(true); setHasInitialSplashFinished(true); }} 
                 onComplete={() => setSplashAnimationComplete(true)}
-                product={(!isDataLoaded || !currentUser?.firmId) ? 'practicepro' : (product === 'property' ? 'atrium' : 'vega')} 
+                product={(!isDataLoaded || !currentUser?.firmId) ? 'practicepro' : normalizeSplashProduct(product)} 
             />
             {isSessionLocked ? (
                 <LockScreen onUnlock={() => setIsSessionLocked(false)} />
