@@ -15,7 +15,7 @@ npm run lint               # eslint (max-warnings 0)
 npx tsc --noEmit           # typecheck
 ```
 
-> **TypeScript baseline:** the codebase carries a known-error baseline of **153** (`tsc --noEmit | grep -c "error TS"`). Never let it increase; fixing pre-existing errors is welcome, adding new ones is not.
+> **TypeScript baseline: ZERO (2026-11-18).** The historic error debt (94 in CI, 87 at fix time, 153 in older docs) was burned down to 0 and the baseline exception was removed — `npx tsc --noEmit` must report **0 errors**; any new error fails CI. Do not reintroduce a baseline.
 
 > **Lint guard:** the ESLint config includes `no-restricted-syntax` rules from past audits (e.g. flagging new `rounded-xl` string literals — the radius scale is `md/lg/2xl`; see STYLE_GUIDE.md).
 
@@ -52,9 +52,11 @@ Reports land in `./audit-results/` (`landing-report.json`, `product-*-report.jso
 
 | Workflow | What it deploys |
 |----------|-----------------|
-| `vercel-deploy.yml` | Frontend → Vercel |
-| `cloudflare-deploy.yml` | Frontend → Cloudflare Workers (wrangler) |
-| `build-apk.yml` | Android APK + **Convex backend** (`npx convex deploy`) |
+| `staging-deploy.yml` | Frontend → Vercel preview (staging alias) + **staging Convex backend** (every push to `main`) |
+| `production-deploy.yml` | Frontend → Vercel prod + **Convex prod** + best-effort Cloudflare mirror (manual promote; requires healthy staging) |
+| `build-apk.yml` | Android APK (user app) → GitHub Releases + **Convex backend** (every push to `main`) |
+| `build-product-apks.yml` | Per-product APKs (Vega / Atrium / Komplete) — manual trigger |
+| `build-admin-apk.yml` | Founder/admin APK — login-gated Actions artifact, never a public Release |
 
 Manual: `npx convex deploy` / `npx vercel --prod` / `CLOUDFLARE_API_TOKEN=… npx wrangler deploy`.
 

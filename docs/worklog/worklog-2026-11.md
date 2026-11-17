@@ -475,3 +475,51 @@ as identity); check-design-tokens gray=0, rounded-xl 72 held.
 gated per the audit (Phase 3 identity work behind Phase 2
 consolidation); ADR-0005 unchanged; no styling/token work was touched
 beyond the interaction-truth fixes above.
+
+---
+
+## 2026-11-18 (b) — CI hardening round: brand clarity landed, type debt to zero, protected main
+
+Follows the external review (Copilot) and lands the Brand Clarity Pass.
+
+**Landed on main:** the six-commit Brand Clarity Pass branch
+(`chore/brand-clarity`, audit + Phases 1–5: splash product end-card,
+per-product APK variants, release-signed CI distribution, brand rules,
+regression pins) — fast-forward merge, 2848/2848 tests green.
+
+**Type debt burned to zero (87 → 0):** ~40 files fixed. Real bugs found
+under the debt: `useApkVersionCheck` parsed the local versionCode from a
+string property (always 0 → update prompt nagged every check); the
+TrialNudge Day-7 CTA navigated to a nonexistent view; DraftPro citations
+never hydrated (bare array vs `{citations}` contract); `loginAsDemoUser`
+mis-typed as void. The rest: type completions, guards, casts, dead-arg
+removal. Baseline exception deleted from all four gated workflows —
+any new tsc error now fails CI. See ADR-0006 §3.
+
+**Supply chain:** all 50 `uses:` across 16 workflows pinned to immutable
+commit SHAs (verified against the API); Dependabot enabled (github-actions
++ npm minor/patch + security).
+
+**Staging gate:** production promotion now refuses to run unless the
+staging Convex secrets exist AND the staging alias is healthy. Per-push
+staging keeps its loud-skip behavior until the one-time setup is done.
+
+**Cloudflare mirror:** best-effort (Round 20). Missing/unusable token →
+the job skips with a loud warning + restore steps instead of red-X-ing
+the promote; a failing deploy with a working token still fails. README /
+RUNBOOK / watchdog language aligned with reality (the mirror is currently
+frozen pending a token rotation — a human, 5-minute task).
+
+**Protected main (gate-lite):** required status check "Typecheck + unit
+tests" on PRs, force-push and deletion blocked. Direct pushes stay open
+until the APK bot's `version.json` write-back is reworked (two-step plan
+in ADR-0006 §1 — full PR-gating would break the in-app update feed today).
+
+**Gates (all green):** vitest 2848/2848; root tsc 0 errors; convex tsc
+0 errors; all 16 workflow YAMLs parse; action SHAs verified against the
+GitHub API.
+
+**Not done here (deliberate):** `myFunctions.ts` / `portals.ts` /
+`schema.ts` domain extraction (needs its own round — 463KB/351KB/170KB);
+browser E2E for signup/onboarding (Playwright is already a devDep; smoke
+gates added instead in the promote path); Google Play internal testing.

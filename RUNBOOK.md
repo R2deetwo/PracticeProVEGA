@@ -79,8 +79,9 @@ untouched.
    - Convex production deploy + SITE_URL point.
    - Vercel production build + deploy.
    - Live probes (never trust the deploy step's own claim).
-   - Cloudflare mirror deploy — currently FAILS FAST on the expired
-     token (§9). This failure does NOT affect the Vercel/Convex deploy.
+   - Cloudflare mirror deploy — best-effort (Round 20): SKIPS with a
+     loud warning while the token is expired (§9). It never blocks the
+     promote; Vercel + Convex are the production truth.
 4. Verify manually: `curl https://practice-pro-vega.vercel.app/version.json`
    → `status: "healthy"` and the sha you promoted.
 
@@ -264,9 +265,13 @@ production promotion remains the only deploy path.
 
 The mirror at `practice-pro-vega.prototypechigo.workers.dev` froze on
 2026-09-02T18:04Z because `CLOUDFLARE_API_TOKEN` (set 2026-08-12,
-30-day expiry) expired. The promotion pipeline fails fast at the
-token-verify step with the exact remediation; Vercel + Convex deploys
-are unaffected. The watchdog reports mirror staleness as a warning.
+30-day expiry) expired, and the token lapsed AGAIN in 2026-11. As of
+Round 20 (2026-11-18) the promotion pipeline treats the mirror as
+BEST-EFFORT: a missing/unusable token SKIPS the mirror job with a loud
+warning and exact restore steps instead of failing the promote (Vercel +
+Convex are the production truth; the watchdog reports mirror staleness
+as a warning). A deploy/verify failure with a WORKING token still fails
+the run — that is a real regression.
 
 **Fix (5 minutes):** Cloudflare dashboard → My Profile → API Tokens →
 Create Token ("Edit Cloudflare Workers", scoped to the account) → paste
