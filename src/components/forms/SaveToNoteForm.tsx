@@ -11,7 +11,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { MATTERS_NOTEBOOK_ID, PROPERTIES_NOTEBOOK_ID, MicrophoneIcon, PauseIcon, SparklesIcon, DismissIcon, PlusIcon, FolderIcon, ChevronDownIcon, XMarkIcon, WarningIcon } from '../../constants';
 import { inputModern } from '../../utils/formStyles';
 import { requestMicrophonePermission, getMicrophoneErrorMessage } from '../../utils/microphonePermission';
-import * as geminiService from '../../services/geminiService';
+// Voice Capture Engine retrofit (2026-11-18): batches now route through the
+// dedicated backend transcription service (Whisper → Gemini chain) instead
+// of the direct geminiService path.
+import { transcribeBatch } from '../../services/voice/voiceCaptureService';
 import { convertBlobToWav } from '../../utils/webmToWav';
 
 import { Z_CLASS } from '../../overlays/constants';
@@ -147,13 +150,11 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     reader.readAsDataURL(wavBlob);
                 });
 
-                const transcription = await geminiService.transcribeAudio(
-                    base64Audio,
-                    'audio/wav',
-                    coreState.firmDetails,
+                const { text: transcription } = await transcribeBatch({
+                    audioBase64: base64Audio,
                     // A1: continuation tail heals the 10s chunk seams
-                    { continuationTail: lastTranscriptTailRef.current }
-                );
+                    continuationTail: lastTranscriptTailRef.current || undefined,
+                });
 
                 if (transcription && transcription.trim()) {
                     // APPEND to existing content (don't overwrite).

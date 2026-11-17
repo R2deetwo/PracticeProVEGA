@@ -19619,3 +19619,29 @@ DraftPro export path.
 - agent-browser desktop 1280×900 on /vega: scroll fires the nudge → **pill INSIDE the dock** (`aloa-nudge-emerge`), 12px gap to the icon button, vertically aligned, caret present, attention ring + `--aloa-ring` on the button, static label correctly hidden; Ask-from-pill → retract → panel opens, dock unmounts.
 - Funnel test (the owner's exact scenario): "Tell me about maritime law in Nigeria" → boundary reply + lawyer note + NBA pointer + "lawyer directory is coming to Vega" + the opt-in link, **drawer NOT auto-opened**. Matched question "My landlord is trying to evict me…" → full landlord/tenant guide (Lagos Tenancy Law 2011 notice periods, self-help caution) + lawyer note. Opt-in: "What does the law say about shipping and admiralty jurisdiction?" → fallback → click "Prefer a human?" → "Ask a Question" drawer opens with the question pre-typed. Zero page console errors.
 - Mobile 390×740: pill fully visible (294px wide, 12px gap, emerge animation running).
+
+---
+Task ID: 66
+Agent: Main agent (Super Z)
+Task: Voice Capture Engine — dependable 3-step transcription pipeline + mobile-first Quick Capture Mode (owner spec, 2026-11-18)
+
+Work Log:
+- PART 1 (transcription upgrade):
+  - New segmented recorder (src/services/voice/audioRecorder.ts): 60s slices, pause/resume, energy metering, codec negotiation, silent-failure watchdog (Android WebView quirk), per-cause mic errors. Audio → IndexedDB queue (audioQueue.ts) BEFORE any network call; VoiceSyncManager drains on online/30s/foreground with backoff 5s→30s→2m→5m; auth/payload rejections dead-letter one segment, never the capture.
+  - Backend service (convex/voiceCapture.ts + voiceCaptureInternal.ts): uploadSegment (audio archived in Convex storage + transcribed, idempotent on clientLocalId+segmentIndex, continuation tails heal seams), finalizeCapture (verbatim assembly → Smart Clean → triage / Legal Pad merge), quickAsk (grounded firm-data answers), repolish, getters. Provider chain: Whisper (OPENAI_API_KEY, TRANSCRIPTION_MODEL) → Gemini fallback; provider recorded per segment.
+  - Smart Clean prompt: filler removal, SELF-CORRECTION resolution ("Tuesday… actually make that Thursday" → Thursday), punctuation; preserves Nigerian legal terms, Latin, case citations, ₦, Pidgin. Verbatim tier never edited (evidentiary).
+  - Retrofit: NoteEditor's Web Speech API DELETED (retired — the fragile path); its engine + SaveToNoteForm now call api.voiceCapture.transcribeBatch (Whisper chain). Support check = recorderSupported().
+  - GOTCHA documented in-code: an action calling internal.<own module> creates circular type inference that silently collapses unrelated modules' types (legal/search.ts → {}). Fix: two-file split (voiceCaptureInternal) + explicit return-type annotations on every action handler.
+- PART 2 (Quick Capture Mode):
+  - Phones boot into Quick Capture (once per session; deep links respected); desktop keeps the office. Setting: Settings → Display → Startup View (auto/capture/office, per-account localStorage). BottomNav More sheet gains the way back; ALOA floater hidden on the capture surface.
+  - Walkie-talkie launcher (QuickCaptureView): ask bar + one big record button, no forms before speaking; TriageCard suggests the single best action with one-tap pills (Case Note w/ matter pre-selection, Diary w/ extracted Lagos dates, Quick Ask, Copy/Share); recent-captures strip; offline pending strip.
+  - Hybrid Legal Pad (LegalPadView + useLegalPadSession): shorthand typing while background recording runs continuously (pause/resume, auto-pause on backgrounding, 60s segment autosave), two-tier storage (timestamped audio + verbatim), merged summary weaving shorthand + verbatim with Discrepancies section.
+- Data model: voiceCaptures table (clientLocalId idempotency, kind, outputMode, status, verbatim/smartClean tiers, segments[]+segmentTexts[] order-safe, triage, links, shorthand/mergedSummary) + 3 indexes.
+- Tests: +26 (tests/unit/voiceCapture.test.ts) — verbatim assembly ordering, backoff schedule, retryable-vs-permanent errors, prompt contracts (self-correction rule, citations, Pidgin), matter matching, Lagos UTC+1 dates, base64, model-JSON parsing. Full suite 2830/2830.
+- Gates: convex tsc 0 (the circular-type trap was caught by it), root tsc 87 ≤ 94 baseline, identity audit PASS (session-bearer + firm-scoped + rate-limited), ui-primitives ratchet 2218 held (all new UI on ui/Button/Input/Textarea/Select), design tokens PASS (rounded-xl → rounded-lg, no text-[Npx], animate-pulse 80/80), vite build clean.
+- Operator docs: VOICE_CAPTURE.md (repo root, beside LEGAL_KB.md) — how to enable Whisper, limits, monitoring, deferred items.
+
+Stage Summary:
+- Deliverable: the full Voice Capture Engine + Quick Capture Mode + Legal Pad, backend and frontend, retrofitted legacy dictation, 26 new tests, runbook.
+- Operator action (optional): npx convex env set OPENAI_API_KEY=... to switch transcription from Gemini-fallback to Whisper. Everything works today on existing keys.
+- Deferred: voice commands, transcript diffing, per-firm OpenAI BYO, archived-audio playback UI (getSegmentUrl API ready).

@@ -11,6 +11,7 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useDataActions } from '../../contexts/DataContext';
 import { haptics } from '../../utils/haptics';
 import { notificationManager } from '../../utils/notifications';
+import { getStartupViewPreference, setStartupViewPreference, type StartupViewPreference } from '../../utils/startupViewPreference';
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; id?: string, className?: string }> = ({ title, children, id, className }) => (
     <div id={id} className={`relative overflow-hidden bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg shadow-md p-6 ${className || ''}`}>
@@ -259,6 +260,53 @@ const AccentPicker: React.FC = () => {
     );
 };
 
+/* ── StartupViewPicker ────────────────────────────────────────────────────
+   Quick Capture Mode landing preference (owner spec, 2026-11-18). Uses the
+   ui/Button primitive (ADR-0004 — no new raw form elements). */
+const STARTUP_VIEW_OPTIONS: { value: StartupViewPreference; label: string; hint: string }[] = [
+    { value: 'auto', label: 'Auto', hint: 'Quick Capture on phones · Full Office on desktop' },
+    { value: 'capture', label: 'Quick Capture', hint: 'Always open on the capture screen' },
+    { value: 'office', label: 'Full Office', hint: 'Always open the full workspace' },
+];
+
+const StartupViewPicker: React.FC = () => {
+    const { currentUser } = useAuth();
+    const [preference, setPreference] = useState<StartupViewPreference>(() =>
+        getStartupViewPreference(currentUser?.id)
+    );
+
+    React.useEffect(() => {
+        setPreference(getStartupViewPreference(currentUser?.id));
+    }, [currentUser?.id]);
+
+    return (
+        <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {STARTUP_VIEW_OPTIONS.map((opt) => (
+                    <Button
+                        key={opt.value}
+                        variant={preference === opt.value ? 'primary' : 'outline'}
+                        size="md"
+                        minTouchTarget
+                        onClick={() => {
+                            setPreference(opt.value);
+                            setStartupViewPreference(currentUser?.id, opt.value);
+                        }}
+                        className="!flex-col !gap-0.5 !h-auto !py-3"
+                    >
+                        <span className="text-sm font-semibold">{opt.label}</span>
+                        <span className="text-2xs font-normal opacity-70 leading-tight text-center">{opt.hint}</span>
+                    </Button>
+                ))}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-zinc-400">
+                Applies the next time you open the app. Desktop screens keep the full workspace
+                unless you explicitly choose Quick Capture.
+            </p>
+        </div>
+    );
+};
+
 const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, className }) => {
     const { fontSize, setFontSize } = useUI();
     const { currentUser, updateCurrentUser } = useAuth();
@@ -338,6 +386,19 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                         </div>
                     </div>
                 </div>
+            </SettingsCard>
+
+            {/* ─── Startup View ────────────────────────────────────────────
+                Quick Capture Mode (owner spec, 2026-11-18): phones can land
+                on the lightweight capture screen instead of the full office
+                dashboard. 'Auto' = Quick Capture on phones, full office on
+                desktop. Per-account, localStorage (instant boot read). */}
+            <SettingsCard title="Startup View" className={className}>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
+                    Choose where the app opens. On phones, Quick Capture Mode gives you the
+                    record button and ask bar immediately — no heavy dashboard first.
+                </p>
+                <StartupViewPicker />
             </SettingsCard>
 
             {/* ─── Haptics & Sounds ────────────────────────────────────────

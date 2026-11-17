@@ -56,6 +56,9 @@ const ContractAnalyzer = lazyWithReload(() => import('./draftpro/ContractAnalyze
 const ResearchView = lazyWithReload(() => import('./ResearchView'));
 const AloaXView = lazyWithReload(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
 const TimelineView = lazyWithReload(() => import('./TimelineView'));
+// Quick Capture Mode (owner spec 2026-11-18): the lightweight mobile-first
+// landing — speak first, route later + Hybrid Legal Pad. Lazy like the rest.
+const QuickCaptureView = lazyWithReload(() => import('./quickcapture/QuickCaptureView').then(m => ({ default: m.QuickCaptureView })));
 
 // ── R73 (the silk pass): the app-only views move to lazy chunks ────────────
 // A logged-OUT visitor to /, /vega or /atrium previously downloaded the
@@ -191,6 +194,8 @@ import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 
 import { Z_CLASS } from '../overlays/constants';
+// Startup-view preference (Settings → Display): where phones land on boot.
+import { getStartupViewPreference } from '../utils/startupViewPreference';
 const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes
 const IDLE_TIMEOUT_REMEMBER = 7 * 24 * 60 * 60 * 1000; // 7 days when Remember Me is on
 
@@ -234,6 +239,32 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     const isClient = currentUser?.role === UserRole.Client;
     const isTenant = currentUser?.role === UserRole.Tenant;
     const isPortalUser = isClient || isTenant;
+    // Quick Capture Mode takes over the full surface (no Sidebar/Header/
+    // BottomNav/ALOA floater) — clean, thumb-friendly, one-handed use.
+    const isQuickCapture = view === 'quickCapture';
+
+    // ── QUICK CAPTURE LANDING (mobile-first boot, owner spec 2026-11-18) ──
+    // Phones launch into the lightweight Quick Capture Mode instead of the
+    // heavy multi-column office; desktop keeps the full workspace as usual.
+    // The user's choice in Settings → Display overrides the device default.
+    // Runs ONCE per session — after this, navigation belongs to the user.
+    const bootRedirectDone = React.useRef(false);
+    React.useEffect(() => {
+        if (bootRedirectDone.current) return;
+        if (!currentUser || isPortalUser) return;
+        if (flowState !== 'app') return;
+        bootRedirectDone.current = true;
+        const preference = getStartupViewPreference(currentUser.id);
+        if (preference === 'office') return;
+        const isPhone =
+            window.innerWidth < 768 ||
+            /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const wantsQuickCapture = preference === 'capture' || (preference === 'auto' && isPhone);
+        // Deep links are respected — only a plain dashboard landing redirects.
+        if (wantsQuickCapture && (location.pathname === '/' || location.pathname === '/dashboard')) {
+            navigateTo('quickCapture');
+        }
+    }, [currentUser, isPortalUser, flowState, location.pathname, navigateTo]);
 
     // R28 — IN-APP PRODUCT IDENTITY: while the user is inside the
     // workspace, the tab carries their product's favicon + title
@@ -317,6 +348,16 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         if (isTenant) {
             document.title = "Atrium — Residents' Portal";
             return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><TenantPortal /></React.Suspense></ViewWrapper>;
+        }
+
+        // ── QUICK CAPTURE MODE ────────────────────────────────────────────
+        // The lightweight mobile-first landing. Renders immediately and is
+        // NEVER gated on the core-data skeleton — a lawyer walking into
+        // court must be able to hit record within a second of opening the
+        // app. Its own lazy chunk keeps it out of the dashboard bundle.
+        if (view === 'quickCapture') {
+            document.title = "Quick Capture — PracticePro";
+            return <React.Suspense fallback={<GenericSkeleton />}><QuickCaptureView /></React.Suspense>;
         }
 
         // For admin/internal users, show skeleton while core data is loading
@@ -629,9 +670,9 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     <span>Content protected</span>
                 </div>
             )}
-            {currentUser && !isPortalUser && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
-            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full overflow-hidden`}>
-                {currentUser && !isPortalUser && <Header />}
+            {currentUser && !isPortalUser && !isQuickCapture && <Sidebar currentView={view} setView={navigateTo} currentUser={currentUser} />}
+            <div className={`flex-1 flex flex-col transition-all duration-300 relative ${currentUser && !isPortalUser && !isQuickCapture ? (isSidebarRetracted ? 'md:ml-20' : 'md:ml-64') : ''} min-w-0 h-full overflow-hidden`}>
+                {currentUser && !isPortalUser && !isQuickCapture && <Header />}
                 {/* UNIFIED BANNER SYSTEM (2026-08-31): the standalone
                     CriticalLeaseBanner that was pinned here (between Header
                     and content) has been retired. Critical lease/rent alerts
@@ -648,7 +689,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                     screens < 768px (md breakpoint) and 0 on desktop. */}
                 <main id="main-content" className="flex-1 relative overflow-hidden min-h-0">
                     {currentUser ? (
-                        <div key={product} className="flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 min-h-0">
+                        <div key={product} className={`flex-1 h-full w-full relative animate-fade-in flex flex-col isolate overflow-y-auto ${isQuickCapture ? '' : 'pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0'} min-h-0`}>
                             <ErrorBoundary fallback={<div className="h-full flex items-center justify-center text-rose-500 bg-slate-50 dark:bg-zinc-900 p-8"><div className="text-center"><h3 className="font-bold text-lg mb-2">View Error</h3><p className="text-sm opacity-80">Failed to render this view. Please refresh or navigate away.</p></div></div>}>
                                 {renderView()}
                             </ErrorBoundary>
@@ -660,14 +701,17 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
                         </div>
                     ) : <DashboardSkeleton />}
                 </main>
-                {currentUser && !isPortalUser && <BottomNav currentView={view} setView={navigateTo} />}
+                {currentUser && !isPortalUser && !isQuickCapture && <BottomNav currentView={view} setView={navigateTo} />}
             </div>
             {currentUser && flowState === 'app' && !isPortalUser && (
                 <>
                     <ContextMenu />
                     <DockedModal />
-                    <AloaFAB />
-                    <React.Suspense fallback={null}><AloaPanel /></React.Suspense>
+                    {/* Quick Capture stays uncluttered: the ALOA floater is
+                        hidden there (the ask bar already covers questions);
+                        search + palette + modals remain available. */}
+                    {!isQuickCapture && <AloaFAB />}
+                    {!isQuickCapture && <React.Suspense fallback={null}><AloaPanel /></React.Suspense>}
                     <CommandPalette />
                     <FullScreenSearch />
                 </>

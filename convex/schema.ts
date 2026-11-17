@@ -3279,6 +3279,92 @@ export default defineSchema({
   system_audit_logs: systemAuditLogs,
   legal_seed_sources: legalSeedSources,
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // VOICE CAPTURE ENGINE (owner spec, 2026-11-18) — the dependable 3-step
+  // pipeline behind Quick Capture Mode and the Hybrid Legal Pad:
+  //   1. on-device recording (segmented WAV, queued in IndexedDB, uploaded
+  //      when connectivity returns — a courtroom/basement recording is never
+  //      lost),
+  //   2. backend transcription (dedicated Whisper service with a Gemini
+  //      fallback — never browser speech recognition),
+  //   3. smart polishing (Smart Clean vs Verbatim) + post-capture triage.
+  //
+  // Two-tier storage for evidentiary integrity: the original timestamped
+  // audio (per-segment storageIds below) is preserved ALONGSIDE the
+  // word-for-word verbatim transcript; the Smart Clean pass never
+  // overwrites it. See convex/voiceCapture.ts for the service contract.
+  // ─────────────────────────────────────────────────────────────────────────────
+  voiceCaptures: defineTable({
+    // Idempotency key generated on-device (uuid). Offline replays and retry
+    // storms dedupe on this — a reconnect can never double-book a capture.
+    clientLocalId: nullableString,
+    firmId: nullableString,
+    userId: nullableString, // users table id of the recording lawyer
+    // 'quick' = walkie-talkie launcher capture; 'legalpad' = consultation /
+    // evidence session (typed shorthand + continuous background recording).
+    kind: nullableString,
+    // 'smart-clean' (default) | 'verbatim' — chosen at capture time.
+    outputMode: nullableString,
+    // 'recording' | 'transcribing' | 'ready' | 'failed'
+    status: nullableString,
+    // Tier 1 (source of truth): word-for-word transcript, never edited.
+    verbatimText: nullableString,
+    // Tier 2: polished version — filler removal, self-correction
+    // resolution, punctuation. Regenerable at any time from verbatimText.
+    smartCleanText: nullableString,
+    polishedAt: nullableNumber,
+    polishModel: nullableString,
+    // Which backend produced the verbatim text: 'openai-whisper' | 'gemini'.
+    provider: nullableString,
+    language: nullableString,
+    durationMs: nullableNumber,
+    // Epoch ms when the session started on-device.
+    startedAt: nullableNumber,
+    // Original timestamped audio — per-segment 16 kHz mono WAV artifacts in
+    // Convex file storage with their wall-clock offsets from session start.
+    segments: v.optional(
+      v.array(
+        v.object({
+          storageId: v.string(),
+          mimeType: v.string(),
+          startMs: v.number(),
+          endMs: v.number(),
+          bytes: v.number(),
+        })
+      )
+    ),
+    // Verbatim text per segment (kept parallel to `segments` ordering by
+    // explicit index so out-of-order offline replays still assemble right).
+    segmentTexts: v.optional(
+      v.array(
+        v.object({
+          index: v.number(),
+          text: v.string(),
+          provider: v.string(),
+          at: v.number(),
+        })
+      )
+    ),
+    segmentCount: v.optional(v.number()),
+    // Post-capture triage (quick captures): the single best next action.
+    triageIntent: nullableString, // 'case_note' | 'schedule' | 'question' | 'share'
+    triageMeta: v.optional(v.any()),
+    // Linked destinations after the user acts on the triage card.
+    matterId: nullableString,
+    notePageId: nullableString,
+    eventId: nullableString,
+    // Hybrid Legal Pad: the lawyer's typed shorthand + the merged summary.
+    shorthandText: nullableString,
+    mergedSummary: nullableString,
+    mergedAt: nullableNumber,
+    error: nullableString,
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_client_local_id", ["clientLocalId"])
+    .index("by_firm_user", ["firmId", "userId"])
+    .index("by_firm_created", ["firmId", "createdAt"]),
+
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert
 // data that doesn't conform to the strict schema validators (missing

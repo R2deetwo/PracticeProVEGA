@@ -11,7 +11,6 @@ import { useCoreState } from '../../contexts/CoreContext';
 import { useProduct } from '../../contexts/ProductContext';
 import { searchEntities, EntitySearchResult } from '../../utils/linkParser';
 import { convertBlobToWav } from '../../utils/webmToWav';
-import * as geminiService from '../../services/geminiService';
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -20,46 +19,15 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 
 import { Z_CLASS } from '../../overlays/constants';
-// ─── Web Speech API types ─────────────────────────────────────────────
-// The Web Speech API (SpeechRecognition) is available in Chrome/Edge and
-// Android WebView. Not available in Safari/Firefox — the dictation button
-// is hidden when unsupported.
-interface SpeechRecognitionEvent extends Event {
-    results: SpeechRecognitionResultList;
-    resultIndex: number;
-}
-interface SpeechRecognitionResultList {
-    length: number;
-    item(index: number): SpeechRecognitionResult;
-    [index: number]: SpeechRecognitionResult;
-}
-interface SpeechRecognitionResult {
-    length: number;
-    item(index: number): SpeechRecognitionAlternative;
-    [index: number]: SpeechRecognitionAlternative;
-    isFinal: boolean;
-}
-interface SpeechRecognitionAlternative {
-    transcript: string;
-    confidence: number;
-}
-interface SpeechRecognition extends EventTarget {
-    lang: string;
-    continuous: boolean;
-    interimResults: boolean;
-    start(): void;
-    stop(): void;
-    abort(): void;
-    onresult: ((event: SpeechRecognitionEvent) => void) | null;
-    onerror: ((event: Event) => void) | null;
-    onend: (() => void) | null;
-}
-declare global {
-    interface Window {
-        SpeechRecognition?: new () => SpeechRecognition;
-        webkitSpeechRecognition?: new () => SpeechRecognition;
-    }
-}
+// ─── Dictation engine (Voice Capture Engine retrofit, 2026-11-18) ──────
+// The browser-level Web Speech API is RETIRED here — it was the fragile
+// path the owner called out (silent failures on mobile, network-dependent,
+// WebView quirks). Dictation now records with MediaRecorder and routes every
+// batch through the DEDICATED backend transcription service (Whisper, with
+// the Gemini fallback) via api.voiceCapture.transcribeBatch — same engine
+// family as Quick Capture Mode.
+import { transcribeBatch } from '../../services/voice/voiceCaptureService';
+import { recorderSupported } from '../../services/voice/audioRecorder';
 
 const BackIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -141,27 +109,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     };
 
     // ─── Dictation (Voice-to-Text Transcription) ─────────────────────
-    // Uses the Web Speech API (available in Chrome/Edge + Android WebView).
-    // The user taps the mic button, speaks, and their words are transcribed
-    // in real-time — interim results show as greyed text, final results are
-    // inserted into the note. Works continuously until stopped.
-    // Supports punctuation commands ("period", "comma", "new line").
+    // Voice Capture Engine retrofit (2026-11-18): the browser-level Web
+    // Speech API is RETIRED — dictation records with MediaRecorder and every
+    // ~10s batch is transcribed by the DEDICATED backend service (Whisper
+    // first, Gemini fallback). Text lands at the saved cursor, the verbatim
+    // transcript accumulates in rawTranscriptRef, and the Vega dual-output
+    // ceremony (clean + save both tiers) runs on stop.
     const [isDictating, setIsDictating] = useState(false);
     const [dictationSupported, setDictationSupported] = useState(false);
     const [interimText, setInterimText] = useState('');
-    const recognitionRef = useRef<SpeechRecognition | null>(null);
-    // ─── DICTATION REPAIR REFS ──────────────────────────────────────────
-    // userStoppedRef: user explicitly tapped stop → don't auto-restart
+    // ─── DICTATION REPAIR REFS ──────────────────────────────────────
+    // userStoppedRef: user explicitly tapped stop
     // insertPosRef: saved editor position so transcript always lands at the
-    //   cursor the user had when dictation started, even if they tap elsewhere
-    //   mid-dictation. Without this, transcripts went to wherever the cursor
-    //   happened to be (often the wrong place after the user scrolled).
-    // restartCountRef: caps auto-restart attempts to prevent infinite loops
-    //   if the engine keeps crashing.
+    //   cursor the user had when dictation started, even if they tap
+    //   elsewhere mid-dictation.
     const userStoppedRef = useRef(false);
     const insertPosRef = useRef<number | null>(null);
-    const restartCountRef = useRef(0);
-    const MAX_RESTARTS = 5;
 
     // ─── VEGA DUAL-OUTPUT STATE (Aug 2026) ───────────────────────────────
     // rawTranscriptRef: accumulates the verbatim transcript during dictation.
@@ -179,15 +142,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const cleanTranscriptAction = useAction(api.noteDictation.cleanTranscript) as any;
     const saveTranscripts = useMutation(api.noteDictation.saveTranscripts);
 
-    // ─── A1: AI-AUDIO DICTATION FALLBACK (2026-10-07) ────────────────
-    // Browsers without the Web Speech API (Safari, Firefox) previously got
-    // a permanently-disabled mic button. A1 gives them real dictation:
+    // ─── THE DICTATION ENGINE (A1, promoted to primary 2026-11-18) ────
     // MediaRecorder captures the mic; every ~10 seconds the buffered audio
-    // is converted to 16 kHz WAV and transcribed by Gemini 2.5 Flash with
-    // the domain-specialised Nigerian-English prompt (legal vs property).
-    // Text lands at the saved cursor exactly like the Web Speech path, the
-    // verbatim transcript accumulates in rawTranscriptRef, and the SAME Vega
-    // dual-output ceremony runs on stop (cleanTranscript + saveTranscripts).
+    // is converted to 16 kHz WAV and transcribed by the backend provider
+    // chain (Whisper → Gemini) with the Nigerian-English verbatim prompt.
+    // Text lands at the saved cursor, the verbatim transcript accumulates
+    // in rawTranscriptRef, and the Vega dual-output ceremony runs on stop
+    // (cleanTranscript + saveTranscripts).
     const aiRecorderRef = useRef<MediaRecorder | null>(null);
     const aiStreamRef = useRef<MediaStream | null>(null);
     const aiChunksRef = useRef<Blob[]>([]);
@@ -203,8 +164,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     }, [page.rawTranscript, page.cleanedTranscript, page.id]);
 
     useEffect(() => {
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        setDictationSupported(!!SR);
+        // Voice Capture Engine: support = secure context + getUserMedia +
+        // MediaRecorder (NOT the Web Speech API — retired).
+        setDictationSupported(recorderSupported());
     }, []);
 
     // A1 (2026-10-07): release the mic if the editor unmounts mid-dictation.
@@ -279,15 +241,14 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                 reader.readAsDataURL(wavBlob);
             });
 
-            const text = await geminiService.transcribeAudio(
-                base64Audio,
-                'audio/wav',
-                coreState.firmDetails,
-                {
-                    domain: isDualMode ? 'legal' : 'property',
-                    continuationTail: aiTailRef.current,
-                }
-            );
+            // Voice Capture Engine (2026-11-18): the batch goes through the
+            // DEDICATED backend transcription service — Whisper when the
+            // platform key is configured, Gemini otherwise. Same verbatim
+            // Nigerian-English prompt, same continuity tail.
+            const { text } = await transcribeBatch({
+                audioBase64: base64Audio,
+                continuationTail: aiTailRef.current || undefined,
+            });
 
             if (text && text.trim()) {
                 aiGotAnyTextRef.current = true;
@@ -384,14 +345,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const toggleDictation = async () => {
         if (isDictating) {
             userStoppedRef.current = true;
-            if (dictationSupported) {
-                try { recognitionRef.current?.stop(); } catch (e) { /* already stopped */ }
-            } else {
-                // A1: drain the final audio segment BEFORE the ceremony reads
-                // rawTranscriptRef — otherwise the last ~10s of speech would
-                // miss the cleanup + save.
-                try { await stopAiAudioDictation(); } catch { /* keep whatever raw we have */ }
-            }
+            // Drain the final audio segment BEFORE the ceremony reads
+            // rawTranscriptRef — otherwise the last ~10s of speech would
+            // miss the cleanup + save.
+            try { await stopAiAudioDictation(); } catch { /* keep whatever raw we have */ }
             setIsDictating(false);
             setInterimText('');
 
@@ -491,7 +448,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
 
         // Reset state for a fresh session
         userStoppedRef.current = false;
-        restartCountRef.current = 0;
         // Reset raw transcript accumulator (Vega mode)
         rawTranscriptRef.current = '';
         // Save the current cursor position so transcripts land here regardless
@@ -502,117 +458,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             insertPosRef.current = null;
         }
 
-        // A1: browsers without the Web Speech API (Safari/Firefox) run the
-        // AI-audio engine instead — same dual-output ceremony on stop.
-        if (!dictationSupported) {
-            startAiAudioDictation();
-            return;
-        }
-
-        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SR) return;
-
-        const recognition = new SR();
-        // Use en-NG for Nigerian English when available (better accent match),
-        // fall back to en-US. Some Android WebView builds only support en-US
-        // and will throw on unsupported locales — wrapped in try/catch below.
-        recognition.lang = 'en-US';
-        recognition.continuous = true;
-        recognition.interimResults = true;
-
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-            let finalTranscript = '';
-            let interim = '';
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const result = event.results[i];
-                if (result.isFinal) {
-                    finalTranscript += result[0].transcript;
-                } else {
-                    interim += result[0].transcript;
-                }
-            }
-
-            if (finalTranscript) {
-                // ─── ACCUMULATE RAW TRANSCRIPT (Vega dual-output) ────────
-                // Store the verbatim transcript BEFORE punctuation-command
-                // processing. This is the source of truth for any later
-                // dispute about what was actually said — never edited.
-                // Atrium mode skips this (no liability weight on property notes).
-                if (isDualMode) {
-                    rawTranscriptRef.current += finalTranscript + ' ';
-                }
-
-                // Process punctuation commands and insert at saved cursor
-                const processed = processTranscript(finalTranscript);
-                insertTranscript(processed + ' ');
-                setInterimText('');
-            } else if (interim) {
-                // Show interim text as a live preview
-                setInterimText(processTranscript(interim));
-            }
-        };
-
-        recognition.onerror = (event: Event) => {
-            const errType = (event as any).error;
-            console.warn('[Dictation] Error:', errType);
-            // 'no-speech' and 'network' are transient — don't kill the session,
-            // the onend handler will auto-restart up to MAX_RESTARTS times.
-            // 'not-allowed' / 'service-not-allowed' are permanent — stop now.
-            if (errType === 'not-allowed' || errType === 'service-not-allowed') {
-                userStoppedRef.current = true;
-                setIsDictating(false);
-                setInterimText('');
-            } else if (errType === 'aborted') {
-                // User-initiated or our own stop() — don't show error
-            }
-            // For 'no-speech', 'network', 'audio-capture' — leave isDictating true
-            // and let onend handle the restart.
-        };
-
-        recognition.onend = () => {
-            // ─── AUTO-RESTART on transient end ──────────────────────────
-            // Web Speech API ends the session after ~30-60s of silence or on
-            // network blips. If the user didn't explicitly stop, restart so
-            // long-form dictation isn't interrupted.
-            if (userStoppedRef.current) {
-                setIsDictating(false);
-                setInterimText('');
-                return;
-            }
-            if (restartCountRef.current >= MAX_RESTARTS) {
-                console.warn('[Dictation] Max restarts reached, stopping.');
-                setIsDictating(false);
-                setInterimText('');
-                return;
-            }
-            restartCountRef.current += 1;
-            try {
-                recognition.start();
-                // Keep isDictating true — UI stays in recording state
-            } catch (restartErr: any) {
-                // InvalidStateError: recognition already started (rare race)
-                // Just absorb and let the next onend retry.
-                console.warn('[Dictation] restart failed:', restartErr?.error || restartErr);
-            }
-        };
-
-        recognitionRef.current = recognition;
-        try {
-            recognition.start();
-            setIsDictating(true);
-            // Focus the editor ONCE at start so the cursor has a valid position,
-            // but do NOT re-focus during dictation (would scroll / steal focus).
-            editor.commands.focus();
-        } catch (startErr: any) {
-            if (startErr?.error === 'already-started' || startErr?.name === 'InvalidStateError') {
-                // Recognition already running — flip UI to dictating
-                setIsDictating(true);
-            } else {
-                console.warn('[Dictation] start failed:', startErr);
-                setIsDictating(false);
-            }
-        }
+        // ─── THE ENGINE (2026-11-18): the backend-audio dictation engine is
+        // the ONLY path — MediaRecorder capture, Whisper-class backend
+        // transcription, dual-output ceremony on stop. The browser-level Web
+        // Speech API is retired (silent failures on mobile, WebView quirks).
+        await startAiAudioDictation();
     };
+
 
     const savePendingChanges = useCallback((html?: string) => {
         if (currentPageId.current) {
@@ -874,13 +726,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             title={
                                 isDictating ? 'Stop dictation'
                                 : isCleaning ? 'AI cleaning transcript…'
-                                : dictationSupported
-                                    ? (isDualMode
-                                        ? 'Start voice dictation (Vega mode — preserves raw + cleaned transcript)'
-                                        : 'Start voice dictation (Atrium mode — single-pass)')
-                                    : (isDualMode
-                                        ? 'Start voice dictation (AI audio mode — Vega, preserves raw + cleaned transcript; text appears every ~10 seconds)'
-                                        : 'Start voice dictation (AI audio mode — single-pass; text appears every ~10 seconds)')
+                                : (isDualMode
+                                    ? 'Start voice dictation (Vega mode — preserves raw + cleaned transcript; text appears every ~10 seconds)'
+                                    : 'Start voice dictation (single-pass; text appears every ~10 seconds)')
                             }
                         >
                             {isCleaning ? (
@@ -1016,15 +864,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                         <span className="text-xs font-bold text-red-600 dark:text-red-400">Listening…</span>
-                        {dictationSupported ? (
-                            <span className="text-2xs text-slate-400">Say "period", "comma", "new line" for punctuation</span>
-                        ) : (
-                            // A1: AI-audio mode — Gemini transcribes in ~10s
-                            // batches, so there is no word-by-word interim.
-                            <span className="text-2xs text-slate-400">
-                                {aiTranscribing ? 'Transcribing last segment…' : 'AI audio mode — your words appear every ~10 seconds'}
-                            </span>
-                        )}
+                        {/* The backend engine transcribes in ~10s batches, so
+                            there is no word-by-word interim. */}
+                        <span className="text-2xs text-slate-400">
+                            {aiTranscribing ? 'Transcribing last segment…' : 'Your words appear every ~10 seconds'}
+                        </span>
                     </div>
                     <button
                         onClick={toggleDictation}

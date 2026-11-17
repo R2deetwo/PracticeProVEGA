@@ -689,6 +689,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
 
         let mappedView = currentView;
         if (location.pathname === '/') mappedView = 'dashboard';
+        if (location.pathname === '/quick-capture') mappedView = 'quickCapture';
         if (location.pathname === '/cookie-policy') mappedView = 'cookiePolicy' as any;
         if (location.pathname === '/privacy-policy') mappedView = 'privacyPolicy' as any;
         if (location.pathname === '/terms-of-service') mappedView = 'termsOfService' as any;
@@ -797,6 +798,7 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         
         // Map legacy view names to routes
         if (newView === 'dashboard') path = '/';
+        else if (newView === 'quickCapture') path = '/quick-capture';
         else if (newView === 'cookiePolicy') path = '/cookie-policy';
         else if (newView === 'privacyPolicy') path = '/privacy-policy';
         else if (newView === 'termsOfService') path = '/terms-of-service';

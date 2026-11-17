@@ -12,7 +12,7 @@ import { useMessagesBadge } from '../hooks/useMessagesBadge';
 import { Z_CLASS } from '../overlays/constants';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
-    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, ScalesIcon
+    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, ScalesIcon, MicrophoneIcon
 } from '../constants';
 
 interface NavItemDef {
@@ -34,6 +34,10 @@ const navItemsList: NavItemDef[] = [
     { view: 'dashboard', text: 'Home', icon: <DashboardIcon />, permission: () => true },
     { view: 'matters', text: 'Matters', icon: <MattersIcon />, permission: () => true },
     { view: 'tasks', text: 'Tasks', icon: <TasksIcon />, permission: () => true },
+    // Quick Capture Mode (owner spec 2026-11-18): phones boot here; this
+    // More-sheet entry is the way BACK from the full office (the boot
+    // redirect runs once per session).
+    { view: 'quickCapture', text: 'Quick Capture', icon: <MicrophoneIcon />, permission: () => true },
     { view: 'research', text: 'Research', icon: <ResearchIcon />, permission: () => true },
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },
     { view: 'contacts', text: 'Contacts', icon: <ContactsIcon />, permission: () => true },
