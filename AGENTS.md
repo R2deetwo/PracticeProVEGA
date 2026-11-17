@@ -33,6 +33,28 @@ Android APK build from the same tree.
 5. **Ratchets only move down.** `scripts/check-design-tokens.mjs` and
    `scripts/check-ui-primitives.mjs` hard-gate in CI; baselines never grow.
 
+## Brand rules — PracticePro is the company; Vega and Atrium are the apps
+
+The single source of truth is **`docs/brand-architecture.md`** — read it
+before writing ANY user-visible name. The model, in one breath:
+
+- **PracticePro Systems Limited** ("PracticePro") is the COMPANY — the
+  builder. It is never the name of a product, and a product is never an
+  alias of it.
+- **PracticePro Vega** ("Vega", legal OS) and **PracticePro Atrium**
+  ("Atrium", property OS) are the PRODUCTS. **Komplete** is the bundle.
+  ALOA is Vega's assistant only; ARIA is Atrium's only.
+- Product surfaces name the PRODUCT ("Why firms run on Vega"); the company
+  answers "who builds it" ("Built by PracticePro"). Never invert this.
+- APK artifacts follow `<product>-<version>-<channel>.apk` (universal build:
+  `practicepro-…`; founder: `practicepro-founder-…`). Per-product wrapper
+  builds share `applicationId` `com.practicepro.app` — never change it.
+- The founder APK is NEVER a public release asset (public repo, public
+  Releases page). Login-gated Actions artifacts only.
+- Enforcement lives in `tests/unit/corporateIdentity.test.ts`,
+  `tests/unit/websiteRepositioning.test.ts` and
+  `tests/unit/brandClarity.test.ts` — add pins, never weaken them.
+
 ## Operating discipline (60/30/10)
 
 - **60% mechanical plumbing** — move files, parse paths, shell out.

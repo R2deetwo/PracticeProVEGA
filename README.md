@@ -1,14 +1,14 @@
 # PracticePro
 
-**The AI-Powered Operating System for Nigerian Legal Practice & Property Management.**
+**The company that builds Vega and Atrium — the AI-powered operating systems for Nigerian legal practice and property management.**
 
-PracticePro is a dual-product SaaS platform serving two professional verticals from a single unified codebase:
+PracticePro Systems Limited is the **company**; the products are the apps it builds. One monorepo, one codebase, three product surfaces:
 
-- **Vega OS** — Legal Practice Management for Nigerian law firms
-- **Atrium OS** — Property & Estate Management for property managers and gated estates
-- **Komplete** — Unified firms running both legal and property operations
+- **PracticePro Vega** ("Vega") — Legal Practice OS for Nigerian law firms. AI assistant: ALOA.
+- **PracticePro Atrium** ("Atrium") — Property & Estate Management OS for property managers and gated estates. AI assistant: ARIA.
+- **Komplete** — the Vega + Atrium bundle for real-estate attorneys running both sides.
 
-Built for the Nigerian jurisdiction, PracticePro combines practice management, financial operations, document intelligence, AI automation, estate community tooling, and visitor management into one cohesive platform.
+Naming standard: `docs/brand-architecture.md` (PracticePro is the company; product surfaces name the product; the company answers "who builds it"). Built for the Nigerian jurisdiction, the platform combines practice management, financial operations, document intelligence, AI automation, estate community tooling, and visitor management.
 
 ---
 
@@ -25,15 +25,15 @@ Built for the Nigerian jurisdiction, PracticePro combines practice management, f
 
 ### Product Architecture
 ```
-PracticePro (Parent Company)
-├── Vega OS (Legal)
+PracticePro Systems Limited (Parent Company)
+├── PracticePro Vega (Legal)
 │   ├── Matter Management & Workflow Automation
 │   ├── ALDIA Document Intelligence (risk analysis, PII scanning)
 │   ├── DraftPro AI Document Editor (A4 pagination, Nigerian legal fonts)
 │   ├── Research Studio (chronology, legal matrix, gap analysis)
 │   ├── Scale of Charges Compliance Engine
 │   └── ALOA AI Assistant (Legal)
-├── Atrium OS (Property)
+├── PracticePro Atrium (Property)
 │   ├── Property & Unit Management
 │   ├── Visitor Management System (VMS) with gatehouse verification — “Sentry Pass”
 │   ├── Service Charge & Minimum Vend Tracking
@@ -42,7 +42,7 @@ PracticePro (Parent Company)
 │   ├── Revenue Monitor (defaulter dashboard) & Vacancy Pipeline
 │   ├── ARIA AI Assistant (Property)
 │   └── Resident Portal (ledger, payments, maintenance, visitors, amenities)
-└── Komplete (Unified)
+└── Komplete (Vega + Atrium bundle)
     └── All features from both Vega + Atrium
 ```
 

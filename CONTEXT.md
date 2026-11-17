@@ -14,6 +14,7 @@
 | Styling / UI primitives | `src/components/ui/`, `src/index.css` | Ratchets: `scripts/check-*.mjs`. |
 | Tests | `tests/unit/` | One file per round; keep 100% green. |
 | Build/deploy plumbing | `.github/workflows/`, `scripts/` | Promote is pinned-SHA, human-dispatched. |
+| Naming/branding of any user-visible surface | `docs/brand-architecture.md` | PracticePro = the company; Vega/Atrium = the products. Enforced by `tests/unit/brandClarity.test.ts`. |
 
 ## Stage flow
 
