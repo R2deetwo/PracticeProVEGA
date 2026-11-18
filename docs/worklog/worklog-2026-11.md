@@ -584,3 +584,47 @@ build-1189 release.
 
 **Gates:** tsc 0; vitest 2861/2861 (+5); lint clean; build-apk.yml
 parses; dist-admin rebuilt and verified.
+
+---
+
+## 2026-11-18 (e) — Gemini key leaked + mic permissions, the native layer
+
+**ALOA 403 "Your API key was reported as leaked" (founder report: raw
+"[Request ID] Server Error Uncaught Error: Gemini 403" dialog in Quick
+Capture).** Root cause was NOT app code: the platform Gemini key was
+committed to the PUBLIC repo in three places (scripts/list-models.js,
+scripts/verify-config.js, docs/archive/fix-logs/ALOA_COMPLETE_FIX.md);
+Google's leaked-credential scanner found it and disabled it, so every
+server-side AI call (transcription, polish, triage, Quick Ask, ALOA
+proxy) failed 403. Fixes: key purged from the tree (scripts read
+GEMINI_API_KEY from env, fail with instructions when unset; doc
+redacted); voiceCapture/ai now classify Gemini failures
+(classifyGeminiFailure: key-rejected / rate-limited / provider-down /
+bad-request / unknown) and throw ConvexError with client-safe, honest
+messages — plain Error crossing the action boundary is what produced the
+"Uncaught Error [Request ID]" text. 5 pins. OPERATOR ACTION REQUIRED:
+mint a new key (aistudio.google.com/apikey) and set GEMINI_API_KEY (+
+GEMINI_DEMO_KEY if present) in the Convex dashboard; also update the
+GitHub Actions secret GEMINI_DEMO_KEY (production-deploy.yml re-pushes
+it onto Convex — a stale secret would overwrite the rotation on the next
+deploy); enable secret scanning + push protection on the repo.
+
+**Vega mic "did not open on this device" persisting across
+grant/revoke/re-grant (founder report, second report after installing a
+post-micStream build).** The OS permission was never the issue. Two
+native defects: (1) MainActivity replaced Capacitor's WebChromeClient
+with a bare one requesting ONLY RECORD_AUDIO — Capacitor 8's stock
+client requests RECORD_AUDIO + MODIFY_AUDIO_SETTINGS for AUDIO_CAPTURE,
+and the manifest didn't declare MODIFY_AUDIO_SETTINGS either; on several
+OEM ROMs (Transsion/Infinix/Tecno, some Samsung) Chromium cannot open
+the native AudioRecord without it → NotReadableError even with the OS
+permission granted. (2) The bare client also dropped onShowFileChooser
+(file uploads silently dead in the APK) and JS dialogs. Fix: stop
+replacing the client — the stock BridgeWebChromeClient owns
+onPermissionRequest again; manifest declares both permissions. micStream
+gains a 4th retry (2.5s backoff) for the stale-AudioRecord case. Gates:
+tsc 0; vitest 2866/2866 (+5 classifier pins, ladder pin updated to 4
+attempts); lint clean. APKs built and verified from this commit: vega
+1.0.794 (10794), founder 1.99.2 (19902) — aapt2 permissions show both
+mic permissions; dex free of the old client; founder bundle re-verified
+headlessly (fresh + stale-session → login screen).
