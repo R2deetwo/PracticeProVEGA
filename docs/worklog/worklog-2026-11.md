@@ -719,3 +719,53 @@ Gates: convex tsc 0; root tsc 0; eslint clean on changed files; vitest
 +22 pins (tests/unit/landingChat.test.ts — CORS allow-list, history
 sanitisation, reference serialisation bounds, JSON/fenced/garbage answer
 parsing, prompt contract). Full suite: see commit.
+
+## 2026-11-18 — Incremental dictation ("Add More") + Verbatim-badge overlap fix (PR #17)
+
+**Founder reports:** (1) the Smart Clean/Verbatim toggle on the Voice-note-ready
+card floated absolutely (top-2 right-2) OVER the transcript and covered the
+first line of the transcription; (2) addendum — completed transcriptions must
+stay in an editable draft with an "Add More" mic that appends further clips to
+the same note, smart re-evaluation on appended text, and "Append by Voice" on
+already-saved notes.
+
+- **Overlap fix (TriageCard):** the toggle now lives in a header row ABOVE the
+  (now editable) draft textarea — no absolute positioning remains in the card,
+  so text can never be covered.
+- **Draft/staging state:** transcript is an editable Textarea; draft state is
+  owned by QuickCaptureView so it survives Add More rounds (the card unmounts
+  while recording). Every action (save/diary/ask/copy/share) uses the draft —
+  manual tweaks are respected; Re-sync resets to the backend tier.
+- **Add More plumbing:** useQuickCapture.appendRecording() re-opens the SAME
+  capture (same clientLocalId); recorder segment indexes offset past existing
+  ones via the new `nextSegmentIndex` projection field (max index + 1 —
+  gap-safe against dead-lettered segments), so backend (clientLocalId,
+  segmentIndex) idempotency + index-ordered assembly append cleanly. Unlimited
+  rounds; cancel discards ONLY the new clip (VoiceSyncManager.cancelAppendRound
+  — the original capture is never purged); mid-session mic failure keeps the
+  addition (close + finalize).
+- **Smart re-evaluation:** each round's finalize re-runs Smart Clean + triage
+  across the COMBINED verbatim — clip 2's "adjourned to Friday at 9 AM"
+  surfaces as a Diary event on the refreshed card. Pristine Smart-Clean drafts
+  adopt the re-polished combined text; edited drafts get the new clip appended
+  via joinDraftText (never overwrites user words); Verbatim mode keeps every
+  word of every clip chronological (extractNewClipText rides the immutable-
+  prefix invariant of the verbatim tier). Save-after-append UPDATEs the same
+  note page instead of duplicating.
+- **Append by Voice (NoteEditor):** compact toolbar button (ui/Button
+  primitive — the first cut used a raw <button> and tripped the ADR-0004
+  ratchet gate in CI, fixed in 614e2c03) parks the cursor at the note's end,
+  drops a timestamp separator (— Appended Wed 18 Nov 2026, 14:32 —), and
+  dictates after it through the same backend engine; the stop ceremony
+  re-cleans the COMBINED raw transcript (both tiers update).
+- **Drive-by:** dead-lettered segments no longer block finalize forever
+  (remaining.length check) and are swept post-finalize.
+
+Gates: tsc 0; eslint clean; ui-primitives ratchet held (2218 = baseline);
+vitest +15 pins (45 in tests/unit/voiceCapture.test.ts — extractNewClipText,
+joinDraftText, appendSeparatorLabel, cross-round assembly). Full suite 2903
+passing. PR #17 all checks green (Tests, E2E smoke, CodeQL, Playwright).
+Merged b6fb0a15 → APK release build-1199 (practicepro-1.0.801-release.apk) +
+staging deployed. Known pre-existing: "Workers Builds: practiceprovega" check
+has been failing on every non-[skip ci] main commit since before this PR
+(stale Cloudflare git integration, fails in 0s, unrelated to app code).
