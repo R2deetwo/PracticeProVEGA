@@ -553,3 +553,34 @@ ADR-0005.
 
 **Gates:** tsc 0 / convex 0; vitest 2856/2856 (+8); vite build green
 with the overlay verified in dist/index.html.
+
+---
+
+## 2026-11-18 (d) — Founder app black screen + release hygiene
+
+**Founder app black screen (founder report: "I see the splash and then it
+doesn't actually load — black screen after granting the permission").**
+Reproduced headlessly: with a stored session whose getUser resolves to
+null, the boot gate treated the RESOLVED-empty query as still loading
+(`sessionToken && !userData` conflates undefined-pending with
+null-resolved), so showSplash stayed true forever and the app parked on
+the splash's final near-black (#0e0e11) frame. Fix:
+`src/admin/founderBoot.ts` — isSessionQueryPending (pending-only
+semantics) + SESSION_WATCHDOG_MS (4s post-cinematic backstop for a
+never-resolving query). 5 pins in tests/unit/founderBoot.test.ts.
+Verified headlessly before/after; fresh-install behavior unchanged.
+
+**Duplicate v1.0.792 releases (founder report: "not sure which one I'm
+supposed to download because I see two things").** build-1189 and
+build-1190 were both named 'PracticePro v1.0.792' from two different
+commits: a lost patch-bump push made the next run rebuild the same
+version, and the version.json write-back (no [skip ci]) re-triggered
+builds. The founder installed the stale one — the reported Vega mic bug
+('in use by another app') was already fixed in current code; the exact
+old error text only exists in pre-fix builds. Fix in build-apk.yml:
+exit 1 on a lost bump (no release rather than an ambiguous duplicate) +
+[skip ci] on the write-back. One-time manual cleanup: delete the
+build-1189 release.
+
+**Gates:** tsc 0; vitest 2861/2861 (+5); lint clean; build-apk.yml
+parses; dist-admin rebuilt and verified.
