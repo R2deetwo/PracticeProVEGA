@@ -29,6 +29,11 @@ import {
 } from '../../convex/voiceCapture';
 import { backoffDelayMs, segmentKey } from '../../src/services/voice/audioQueue';
 import { isRetryableError } from '../../src/services/voice/voiceCaptureService';
+import {
+  extractNewClipText,
+  joinDraftText,
+  appendSeparatorLabel,
+} from '../../src/services/voice/draftUtils';
 
 // ─── Verbatim assembly ──────────────────────────────────────────────────────
 
@@ -296,5 +301,93 @@ describe('classifyGeminiFailure', () => {
       expect(msg.length).toBeGreaterThan(10);
       expect(msg).not.toMatch(/AIza|Request ID|Uncaught|PERMISSION_DENIED|Gemini \d/);
     }
+  });
+});
+
+// ─── Incremental dictation ("Add More" / append to voice note) ───────────────
+
+describe('extractNewClipText', () => {
+  it('isolates the new clip when the previous verbatim is a prefix (the normal append case)', () => {
+    const prev = 'First clip words about the matter.';
+    const full = 'First clip words about the matter. Also, the matter was adjourned to Friday at 9 AM';
+    expect(extractNewClipText(full, prev)).toBe(
+      'Also, the matter was adjourned to Friday at 9 AM'
+    );
+  });
+
+  it('ignores whitespace differences at the seam (assembleVerbatim collapses them)', () => {
+    expect(extractNewClipText('hello world   again', 'hello world')).toBe('again');
+    expect(extractNewClipText('  hello world again  ', '  hello world  ')).toBe('again');
+  });
+
+  it('returns the full text when there was no previous clip', () => {
+    expect(extractNewClipText('brand new note', '')).toBe('brand new note');
+  });
+
+  it('returns empty when nothing new was spoken (identical transcripts)', () => {
+    expect(extractNewClipText('same words', 'same words')).toBe('');
+  });
+
+  it('falls back to the FULL text when the previous is not a prefix — words are never silently dropped', () => {
+    const full = 'completely different words';
+    expect(extractNewClipText(full, 'unrelated prefix that is not there')).toBe(full);
+  });
+
+  it('handles empty inputs gracefully', () => {
+    expect(extractNewClipText('', 'previous')).toBe('');
+    expect(extractNewClipText('', '')).toBe('');
+  });
+});
+
+describe('joinDraftText', () => {
+  it('appends a new clip after the existing draft with a paragraph break', () => {
+    expect(joinDraftText('First part.', 'Second part.')).toBe('First part.\n\nSecond part.');
+  });
+
+  it('NEVER overwrites or deletes the earlier text — original words are preserved verbatim', () => {
+    const draft = 'Client instructed us to file the motion.';
+    const out = joinDraftText(draft, 'Adjourned to Friday.');
+    expect(out.startsWith(draft)).toBe(true);
+    expect(out).toContain('Adjourned to Friday.');
+  });
+
+  it('treats an empty draft as just the addition', () => {
+    expect(joinDraftText('', 'first words')).toBe('first words');
+  });
+
+  it('ignores empty additions (no stray separators)', () => {
+    expect(joinDraftText('existing', '')).toBe('existing');
+    expect(joinDraftText('existing', '   ')).toBe('existing');
+  });
+
+  it('trims the join point: draft keeps its leading whitespace, addition is fully trimmed', () => {
+    // The draft is the user's own text — leading indentation is preserved;
+    // only the trailing edge (where the join happens) and the machine-added
+    // clip are trimmed.
+    expect(joinDraftText('  base  ', '  added  ')).toBe('  base\n\nadded');
+  });
+});
+
+describe('assembleVerbatim across append rounds (index continuation)', () => {
+  it('assembles original + appended segments in chronological order even with index gaps', () => {
+    // Round 1: segments 0 and 1. Round 2 (Add More) continues at index 2.
+    // A dead-lettered segment 1 leaves a gap — order must still hold.
+    const out = assembleVerbatim([
+      { index: 2, text: 'And the adjourned date is Friday.' },
+      { index: 0, text: 'Notes from the hearing today.' },
+    ]);
+    expect(out).toBe('Notes from the hearing today. And the adjourned date is Friday.');
+  });
+});
+
+describe('appendSeparatorLabel', () => {
+  it('formats a compact human-readable separator with date and time', () => {
+    const d = new Date(2026, 10, 18, 14, 32); // Wed 18 Nov 2026, 14:32 local
+    expect(appendSeparatorLabel(d)).toBe('— Appended Wed 18 Nov 2026, 14:32 —');
+  });
+
+  it('zero-pads minutes and hours', () => {
+    const d = new Date(2026, 0, 5, 9, 5); // Mon 5 Jan 2026
+    expect(appendSeparatorLabel(d)).toBe('— Appended Mon 5 Jan 2026, 09:05 —');
   });
 });

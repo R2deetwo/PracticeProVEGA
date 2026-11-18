@@ -17,7 +17,7 @@
  * tap afterwards.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import {
@@ -37,6 +37,7 @@ import { useMatterState } from "../../contexts/MatterContext";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { useQuickCapture } from "../../hooks/useQuickCapture";
 import { quickAsk, listRecentCaptures, type CaptureProjection, type QuickAskResult } from "../../services/voice/voiceCaptureService";
+import { extractNewClipText, joinDraftText } from "../../services/voice/draftUtils";
 import { TriageCard } from "./TriageCard";
 import { LegalPadView } from "./LegalPadView";
 
@@ -56,6 +57,9 @@ const INTENT_ICON: Record<string, React.ComponentType<{ className?: string }>> =
 
 type CaptureMode = "speak" | "pad";
 
+/** Which transcript tier the editable draft follows. */
+type DraftSource = "clean" | "verbatim";
+
 export const QuickCaptureView: React.FC = () => {
   const { navigateTo, addToast, setMobileSearchOpen } = useUI();
   const { currentUser } = useAuth();
@@ -70,6 +74,22 @@ export const QuickCaptureView: React.FC = () => {
   const [recent, setRecent] = useState<CaptureProjection[]>([]);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
 
+  // ─── INCREMENTAL DICTATION — the draft lives HERE (the parent) so it ─────
+  //    survives the Add More recording round, during which the TriageCard
+  //    unmounts and the phase machine passes through recording/processing.
+  const [draftText, setDraftText] = useState("");
+  const [draftSource, setDraftSource] = useState<DraftSource>("clean");
+  const [clipCount, setClipCount] = useState(1);
+  /** Verbatim as of the last backend sync — the prefix used to isolate the
+   *  newest clip's words when an Add More round finalizes. */
+  const lastSyncedVerbatimRef = useRef<string>("");
+  /** Set while the user has hand-edited the draft (append keeps their edits). */
+  const draftEditedRef = useRef(false);
+  const toastRef = useRef(addToast);
+  useEffect(() => {
+    toastRef.current = addToast;
+  }, [addToast]);
+
   const eventTypeNames = useMemo(
     () => (coreState.eventTypes || []).map((t) => t.name).filter(Boolean) as string[],
     [coreState.eventTypes]
@@ -82,12 +102,130 @@ export const QuickCaptureView: React.FC = () => {
     },
   });
 
+  // ─── Draft syncing: seed on first arrival, append on Add More rounds ──────
+  // The verbatim tier is append-only and immutable, so `lastSyncedVerbatim`
+  // is always a prefix of the new verbatim — extractNewClipText isolates the
+  // newest clip's words. Manual edits are NEVER overwritten: an append onto
+  // an edited draft concatenates the new clip after the user's text. A
+  // pristine draft in Smart Clean mode adopts the re-polished COMBINED text
+  // (the formatting/extraction pass re-ran across everything — diary events
+  // and matter matches refresh with it); in Verbatim mode every word from
+  // every clip lands in exact chronological sequence.
+  const lastCaptureIdRef = useRef<string>("");
+
+  useEffect(() => {
+    if (qc.phase !== "triage" || !qc.capture) return;
+    const capture = qc.capture;
+    const verbatim = capture.verbatimText || "";
+    if (capture.clientLocalId !== lastCaptureIdRef.current) {
+      // A different capture (first arrival, or a brand-new note after Done):
+      // seed a fresh draft from the preferred tier.
+      const source: DraftSource =
+        capture.smartCleanText && draftSource === "clean" ? "clean" : "verbatim";
+      setDraftText(
+        source === "clean" ? capture.smartCleanText || verbatim : verbatim
+      );
+      setDraftSource(source);
+      setClipCount(1);
+      draftEditedRef.current = false;
+      lastCaptureIdRef.current = capture.clientLocalId;
+      lastSyncedVerbatimRef.current = verbatim;
+      return;
+    }
+    if (verbatim !== lastSyncedVerbatimRef.current) {
+      // An Add More round finalized — merge the new clip into the draft.
+      const previous = lastSyncedVerbatimRef.current;
+      const newClip = extractNewClipText(verbatim, previous);
+      if (draftEditedRef.current) {
+        // Manual edits are sacred: append the new words after them.
+        setDraftText((d) => joinDraftText(d, newClip));
+      } else if (draftSource === "clean" && capture.smartCleanText) {
+        // Pristine Smart Clean draft: adopt the re-polished combined text.
+        setDraftText(capture.smartCleanText);
+      } else {
+        setDraftText((d) => joinDraftText(d, newClip));
+      }
+      setClipCount((c) => c + 1);
+      lastSyncedVerbatimRef.current = verbatim;
+      if (newClip) {
+        toastRef.current("Added to your draft — keep adding, edit, or save when ready.", {
+          type: "success",
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qc.phase, qc.capture]);
+
+  const handleDraftChange = useCallback((text: string) => {
+    draftEditedRef.current = true;
+    setDraftText(text);
+  }, []);
+
+  const handleResyncDraft = useCallback(() => {
+    if (!qc.capture) return;
+    const capture = qc.capture;
+    const verbatim = capture.verbatimText || "";
+    const text =
+      draftSource === "clean" ? capture.smartCleanText || verbatim : verbatim;
+    setDraftText(text);
+    draftEditedRef.current = false;
+    toastRef.current("Draft re-synced from the transcript.", { type: "info" });
+  }, [qc.capture, draftSource]);
+
+  const handleToggleSource = useCallback(() => {
+    if (!qc.capture) return;
+    const capture = qc.capture;
+    const next: DraftSource = draftSource === "clean" ? "verbatim" : "clean";
+    if (next === "verbatim" || !capture.smartCleanText) {
+      setDraftSource("verbatim");
+      if (!draftEditedRef.current) setDraftText(capture.verbatimText || "");
+      else
+        toastRef.current(
+          "Showing the Verbatim tier needs a re-sync — tap Re-sync to replace your edits.",
+          { type: "info" }
+        );
+      return;
+    }
+    setDraftSource("clean");
+    if (!draftEditedRef.current) setDraftText(capture.smartCleanText || "");
+    else
+      toastRef.current(
+        "Showing the Smart Clean tier needs a re-sync — tap Re-sync to replace your edits.",
+        { type: "info" }
+      );
+  }, [qc.capture, draftSource]);
+
+  const handleAddMore = useCallback(() => {
+    const capture = qc.capture;
+    if (!capture) return;
+    medium();
+    void qc.appendRecording({
+      clientLocalId: capture.clientLocalId,
+      // max existing index + 1 — robust even when dead segments left gaps.
+      existingSegmentCount: capture.nextSegmentIndex ?? capture.segmentCount,
+      existingDurationMs: capture.durationMs,
+      kind: capture.kind,
+      outputMode: capture.outputMode,
+    });
+  }, [qc.capture, qc.appendRecording, medium]);
+
   // Refresh the recent-captures strip.
   const refreshRecent = useCallback(() => {
     listRecentCaptures(10)
       .then((rows) => setRecent(rows))
       .catch(() => undefined);
   }, []);
+
+  const handleDone = useCallback(() => {
+    // Done: clear the draft staging area so the next note seeds fresh.
+    lastCaptureIdRef.current = "";
+    lastSyncedVerbatimRef.current = "";
+    draftEditedRef.current = false;
+    setDraftText("");
+    setClipCount(1);
+    qc.reset();
+    refreshRecent();
+  }, [qc.reset, refreshRecent]);
 
   useEffect(() => {
     refreshRecent();
@@ -234,16 +372,25 @@ export const QuickCaptureView: React.FC = () => {
           <div className="flex flex-col items-center gap-4 px-4 pt-8 pb-4">
             {qc.phase === "triage" && qc.capture ? (
               <div className="w-full max-w-md">
+                {qc.error ? (
+                  <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    {qc.error}
+                  </p>
+                ) : null}
                 <TriageCard
                   capture={qc.capture}
                   matters={matterState.matters}
                   eventTypeNames={eventTypeNames.length ? eventTypeNames : ["Meeting", "Hearing", "Mention", "Deadline", "Consultation"]}
-                  onDone={() => {
-                    qc.reset();
-                    refreshRecent();
-                  }}
+                  onDone={handleDone}
                   onOpenMatter={(matterId) => navigateTo("matterDetail", matterId)}
                   onOpenCalendar={() => navigateTo("calendar")}
+                  draftText={draftText}
+                  onDraftChange={handleDraftChange}
+                  onAddMore={handleAddMore}
+                  onResyncDraft={handleResyncDraft}
+                  clipCount={clipCount}
+                  draftSource={draftSource}
+                  onToggleSource={handleToggleSource}
                 />
               </div>
             ) : qc.phase === "recording" ? (
@@ -266,13 +413,15 @@ export const QuickCaptureView: React.FC = () => {
                   {formatMs(qc.elapsedMs)}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {qc.segmentCount > 0
-                    ? `${qc.segmentCount} segment${qc.segmentCount > 1 ? "s" : ""} saved on device — nothing is lost if the signal drops`
-                    : "Audio saves to this device first, then uploads"}
+                  {qc.appending
+                    ? `Adding to your note (${clipCount} clip${clipCount > 1 ? "s" : ""} so far) — speak, then tap Stop`
+                    : qc.segmentCount > 0
+                      ? `${qc.segmentCount} segment${qc.segmentCount > 1 ? "s" : ""} saved on device — nothing is lost if the signal drops`
+                      : "Audio saves to this device first, then uploads"}
                 </p>
                 <div className="flex gap-3 w-full max-w-xs">
                   <Button variant="outline" size="lg" minTouchTarget fullWidth onClick={() => void qc.cancelRecording()}>
-                    Cancel
+                    {qc.appending ? "Discard addition" : "Cancel"}
                   </Button>
                   <Button
                     variant="primary"
@@ -292,10 +441,13 @@ export const QuickCaptureView: React.FC = () => {
             ) : qc.phase === "processing" ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
                 <span className="inline-block w-8 h-8 rounded-full border-[3px] border-slate-200 border-t-emerald-600 animate-spin" />
-                <p className="font-semibold text-slate-900">Transcribing…</p>
+                <p className="font-semibold text-slate-900">
+                  {qc.appending ? "Transcribing your addition…" : "Transcribing…"}
+                </p>
                 <p className="text-xs text-slate-500 max-w-xs">
-                  Whisper is turning your recording into text, polishing it and picking the best
-                  next step. This usually takes a few seconds.
+                  {qc.appending
+                    ? "Whisper is turning the new clip into text and re-checking dates, matters and the best next step across the whole note."
+                    : "Whisper is turning your recording into text, polishing it and picking the best next step. This usually takes a few seconds."}
                 </p>
               </div>
             ) : qc.phase === "queued" ? (

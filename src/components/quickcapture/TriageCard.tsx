@@ -15,16 +15,28 @@
  *   3. Quick Ask / Search — for questions: a concise, grounded answer from
  *      the firm's own matters, notes and schedule.
  *   4. Copy / Share Text — the polished dictation, immediately.
+ *
+ * INCREMENTAL DICTATION (owner addendum, 2026-11-18): the transcript is a
+ * live, EDITABLE DRAFT — the note is never locked into a save-or-discard
+ * choice. An "Add More" mic button (props: onAddMore) records another clip
+ * through the same Whisper pipeline; the parent appends the new words onto
+ * this draft and the re-finalized triage metadata (diary events, matter
+ * matches) refreshes with them. The Smart Clean / Verbatim toggle lives in
+ * a header row ABOVE the draft box — it used to float absolutely over the
+ * text and covered the first line of the transcript (founder screenshot,
+ * 2026-11-18); nothing overlaps anymore.
  */
 
 import React, { useMemo, useState } from "react";
 import { Button } from "../ui/Button";
 import { Select, type SelectOption } from "../ui/Select";
+import { Textarea } from "../ui/Textarea";
 import {
   CalendarIcon,
   CheckIcon,
   ClipboardIcon,
   DocumentTextIcon,
+  MicrophoneIcon,
   ShareIcon,
   SparklesIcon,
 } from "../../constants";
@@ -49,6 +61,22 @@ interface TriageCardProps {
   onDone: () => void;
   onOpenMatter?: (matterId: string) => void;
   onOpenCalendar?: () => void;
+  /** INCREMENTAL DICTATION — the working draft text (owned by the parent so
+ * it survives the Add More recording round, during which this card
+ * unmounts). */
+  draftText: string;
+  onDraftChange: (text: string) => void;
+  /** Start another recording round appended to this capture. */
+  onAddMore: () => void;
+  /** Reset the draft to the backend's current tier text (drops manual edits). */
+  onResyncDraft: () => void;
+  /** How many dictation clips the draft holds so far (≥1 after first pass). */
+  clipCount: number;
+  /** Which transcript tier the draft follows — drives the toggle label. */
+  draftSource: "clean" | "verbatim";
+  onToggleSource: () => void;
+  /** Disable Add More while the parent is mid-append (guard). */
+  addMoreDisabled?: boolean;
 }
 
 type Destination = "case_note" | "schedule" | "question" | "share";
@@ -78,6 +106,14 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   onDone,
   onOpenMatter,
   onOpenCalendar,
+  draftText,
+  onDraftChange,
+  onAddMore,
+  onResyncDraft,
+  clipCount,
+  draftSource,
+  onToggleSource,
+  addMoreDisabled,
 }) => {
   const { addToast } = useUI();
   const actions = useDataActions();
@@ -87,15 +123,17 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const [destination, setDestination] = useState<Destination>(
     (capture.triageIntent as Destination) || "share"
   );
-  const [showVerbatim, setShowVerbatim] = useState(false);
   const [savedNote, setSavedNote] = useState(false);
+  const [savedNotePageId, setSavedNotePageId] = useState<string | null>(null);
   const [savedEvents, setSavedEvents] = useState<string[]>([]);
   const [askResult, setAskResult] = useState<QuickAskResult | null>(null);
   const [asking, setAsking] = useState(false);
 
   const polishedText = capture.smartCleanText || capture.verbatimText || "";
   const verbatimText = capture.verbatimText || "";
-  const displayText = showVerbatim ? verbatimText : polishedText || verbatimText;
+  // The working draft (editable, owned by the parent) is what every action
+  // uses — manual tweaks are respected, appended clips accumulate in it.
+  const displayText = draftText || polishedText || verbatimText;
 
   // ── Matter pre-selection: deterministic server matches first, then any
   //    matter whose client name matches a matched contact's matters.
@@ -122,23 +160,40 @@ export const TriageCard: React.FC<TriageCardProps> = ({
 
   const events: TriageEventDraft[] = (triage.events || []).slice(0, 3);
 
-  // ─── Destination actions ─────────────────────────────────────────────────
+  // ─── Destination actions ─────────────────────────────────────────────────────────
 
   const handleSaveNote = async () => {
-    if (savedNote) return;
     const matter = matters.find((m) => m.id === selectedMatterId);
     const notebookId = matter
       ? MATTERS_NOTEBOOK_ID
       : coreState.noteNotebooks?.find((nb) => nb.id !== MATTERS_NOTEBOOK_ID)?.id ||
         MATTERS_NOTEBOOK_ID;
     try {
+      if (savedNote && savedNotePageId) {
+        // The note was already saved and more dictation was appended since —
+        // UPDATE the same page instead of duplicating it.
+        await actions.updateItem(
+          "notePages",
+          {
+            id: savedNotePageId,
+            content: displayText,
+            rawTranscript: verbatimText,
+            cleanedTranscript: capture.smartCleanText || null,
+            updatedAt: new Date().toISOString(),
+          },
+          "Case Note"
+        );
+        addToast("Saved note updated with your additions.", { type: "success" });
+        return;
+      }
+      if (savedNote) return;
       const created: any = await actions.addItem(
         "notePages",
         {
           matterId: matter?.id,
           notebookId,
-          title: (triage.summary || polishedText.slice(0, 60) || "Voice note").slice(0, 120),
-          content: polishedText || verbatimText,
+          title: (triage.summary || displayText.slice(0, 60) || "Voice note").slice(0, 120),
+          content: displayText,
           type: "user",
           // Two-tier record rides along with the note (Vega dual dictation).
           rawTranscript: verbatimText,
@@ -155,6 +210,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         notePageId: created?.id,
       }).catch(() => undefined);
       setSavedNote(true);
+      setSavedNotePageId(created?.id ?? null);
       addToast("Saved as case note" + (matter ? ` — ${matter.title}` : "") + ".", { type: "success" });
     } catch (err: any) {
       addToast(err?.message || "Could not save the note. Please try again.", { type: "error" });
@@ -174,7 +230,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         "events",
         {
           title: draft.title || "Court event",
-          description: `From voice note: ${polishedText.slice(0, 400)}`,
+          description: `From voice note: ${displayText.slice(0, 400)}`,
           type: coerceEventType(draft.type, eventTypeNames),
           date: date.toISOString(),
           endDate: new Date(date.getTime() + 60 * 60 * 1000).toISOString(),
@@ -201,7 +257,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     if (asking || askResult) return;
     setAsking(true);
     try {
-      const question = triage.questionText || polishedText || verbatimText;
+      const question = triage.questionText || displayText;
       const result = await quickAsk(question.slice(0, 500));
       setAskResult(result);
     } catch (err: any) {
@@ -250,6 +306,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             {capture.provider === "openai-whisper" ? "Whisper" : capture.provider || "Transcribed"}
             {" · "}
             {Math.round((capture.durationMs || 0) / 1000)}s
+            {clipCount > 1 ? ` · ${clipCount} clips` : ""}
             {capture.polishError ? " · Smart Clean unavailable (verbatim shown)" : ""}
           </p>
         </div>
@@ -258,22 +315,54 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         </Button>
       </div>
 
-      {/* Transcript preview with Smart Clean / Verbatim toggle */}
-      <div className="relative">
-        <div className="max-h-44 overflow-y-auto rounded-lg bg-slate-50 border border-slate-200 p-3 text-base leading-relaxed text-slate-800 whitespace-pre-wrap">
-          {displayText || "(no transcript)"}
-        </div>
-        {capture.smartCleanText ? (
-          <div className="absolute top-2 right-2">
-            <Button
-              variant={showVerbatim ? "outline" : "dark"}
-              size="sm"
-              onClick={() => setShowVerbatim((v) => !v)}
-            >
-              {showVerbatim ? "Smart Clean" : "Verbatim"}
+      {/* Editable transcript draft with Smart Clean / Verbatim toggle.
+          The toggle sits in this header row — NOT absolutely positioned over
+          the text — so the first line of the transcript can never be covered
+          (founder-reported overlap, 2026-11-18). */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-slate-500">
+            Transcript — editable draft{clipCount > 1 ? ` (${clipCount} clips)` : ""}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {capture.smartCleanText ? (
+              <Button
+                variant={draftSource === "verbatim" ? "outline" : "dark"}
+                size="sm"
+                onClick={onToggleSource}
+              >
+                {draftSource === "verbatim" ? "Smart Clean" : "Verbatim"}
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={onResyncDraft}>
+              Re-sync
             </Button>
           </div>
-        ) : null}
+        </div>
+        <Textarea
+          aria-label="Voice note draft — edit or add more by voice"
+          value={draftText}
+          onChange={(e) => onDraftChange((e.target as HTMLTextAreaElement).value)}
+          rows={6}
+          maxLength={100000}
+          className="!text-base !leading-relaxed !max-h-56 overflow-y-auto"
+          style={{ minHeight: "7rem" }}
+        />
+        {/* Add More — the incremental dictation launcher. The primary
+            "Save / Route" pills sit directly below, as the owner addendum
+            specifies ("a clear mic button labeled 'Add More' alongside the
+            primary 'Save / Route' action button"). */}
+        <Button
+          variant="outline"
+          size="lg"
+          fullWidth
+          minTouchTarget
+          icon={MicrophoneIcon}
+          onClick={onAddMore}
+          disabled={addMoreDisabled}
+        >
+          Add More — continue dictating
+        </Button>
       </div>
 
       {/* One-tap destination pills */}
@@ -312,15 +401,19 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             <p className="text-sm text-slate-500">No matters yet — the note will be saved standalone.</p>
           )}
           <Button
-            variant={savedNote ? "success" : "primary"}
+            variant={savedNote ? (savedNotePageId ? "primary" : "success") : "primary"}
             size="lg"
             fullWidth
             minTouchTarget
-            icon={savedNote ? CheckIcon : DocumentTextIcon}
+            icon={savedNote && !savedNotePageId ? CheckIcon : DocumentTextIcon}
             onClick={handleSaveNote}
-            disabled={savedNote}
+            disabled={savedNote && !savedNotePageId}
           >
-            {savedNote ? "Saved to case notes" : "Save as Case Note"}
+            {savedNote && savedNotePageId
+              ? "Update saved note with additions"
+              : savedNote
+                ? "Saved to case notes"
+                : "Save as Case Note"}
           </Button>
           {savedNote && onOpenMatter && selectedMatterId ? (
             <Button variant="ghost" size="sm" onClick={() => onOpenMatter(selectedMatterId)}>
@@ -334,7 +427,9 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         <div className="flex flex-col gap-3">
           {events.length === 0 ? (
             <p className="text-sm text-slate-500">
-              No dates or deadlines were detected in this note. Add one manually from the Calendar.
+              No dates or deadlines were detected in this note. Add one manually from the
+              Calendar — or tap "Add More" and dictate the date (e.g. "the matter was adjourned
+              to Friday at 9 AM") and it will appear here automatically.
             </p>
           ) : (
             events.map((ev, i) => {

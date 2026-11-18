@@ -7,6 +7,15 @@
  * card (case note / diary / quick ask / share), with one-tap pills to
  * switch destinations.
  *
+ * INCREMENTAL DICTATION (owner addendum, same day): a completed capture is
+ * NOT a dead end. `appendRecording` re-opens the SAME capture (same
+ * clientLocalId) and records another clip whose segments carry indexes
+ * that continue after the existing ones — the backend's (clientLocalId,
+ * segmentIndex) idempotency and index-ordered verbatim assembly mean the
+ * new words append cleanly onto the transcript, and the next finalize
+ * re-runs Smart Clean + triage across the COMBINED text. Cancel during an
+ * append round discards only the new clip, never the original capture.
+ *
  * Offline-first: the moment recording stops, audio already sits in the
  * IndexedDB queue; the VoiceSyncManager uploads + finalizes when a
  * connection returns, and this hook surfaces the triage card whenever the
@@ -25,6 +34,7 @@ import {
 import { voiceSync, type VoiceQueueStats } from "../services/voice/audioQueue";
 import {
   getCaptureByLocalId,
+  type CaptureKind,
   type CaptureProjection,
   type OutputMode,
 } from "../services/voice/voiceCaptureService";
@@ -48,6 +58,8 @@ export interface QuickCaptureState {
   queueStats: VoiceQueueStats | null;
   clientLocalId: string | null;
   segmentCount: number;
+  /** True while this recording is an "Add More" round on an existing capture. */
+  appending: boolean;
 }
 
 export interface UseQuickCaptureOptions {
@@ -66,6 +78,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     queueStats: null,
     clientLocalId: null,
     segmentCount: 0,
+    appending: false,
   });
 
   const recorderRef = useRef<VoiceRecorder | null>(null);
@@ -75,6 +88,17 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   // the mic (permission dialog up) used to start a SECOND recorder — the
   // collision that locks the Android mic with "in use by another app".
   const startingRef = useRef(false);
+  // Incremental dictation: when appending to an existing capture, every
+  // recorder segment index is offset by the number of segments the capture
+  // ALREADY holds, so (clientLocalId, segmentIndex) idempotency on the
+  // backend is preserved and the new text assembles after the old.
+  const appendOffsetRef = useRef(0);
+  // Duration the capture already had before this append round (added to
+  // this round's recorded time so the card shows the TOTAL).
+  const appendBaseDurationMsRef = useRef(0);
+  // The capture as it was when the user tapped "Add More" — restored on
+  // cancel so the card returns exactly where it was.
+  const preAppendCaptureRef = useRef<CaptureProjection | null>(null);
   const outputModeRef = useRef<OutputMode>(opts.outputMode ?? "smart-clean");
   const eventTypeNamesRef = useRef<string[] | undefined>(opts.eventTypeNames);
   const onReadyToastRef = useRef(opts.onReadyToast);
@@ -105,8 +129,14 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
           getCaptureByLocalId(e.clientLocalId)
             .then((capture) => {
               if (!capture) return;
-              setState((s) => ({ ...s, phase: "triage", capture, error: null }));
-              onReadyToastRef.current?.(capture);
+              const wasAppend = appendOffsetRef.current > 0;
+              appendOffsetRef.current = 0;
+              appendBaseDurationMsRef.current = 0;
+              preAppendCaptureRef.current = null;
+              setState((s) => ({ ...s, phase: "triage", capture, error: null, appending: false }));
+              // Add More rounds get their own "Added to your draft" toast
+              // from the view — don't stack a second "ready" toast on it.
+              if (!wasAppend) onReadyToastRef.current?.(capture);
             })
             .catch(() => undefined);
         }
@@ -130,10 +160,13 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   const handleSegment = useCallback((seg: RecorderSegment) => {
     const id = activeIdRef.current;
     if (!id) return;
+    // Append rounds continue the index sequence after the existing
+    // segments so the backend never sees a replayed (idempotent-skip) index.
+    const uploadIndex = seg.index + appendOffsetRef.current;
     const p = voiceSync
       .enqueueSegment({
         clientLocalId: id,
-        segmentIndex: seg.index,
+        segmentIndex: uploadIndex,
         blob: seg.blob,
         startMs: seg.startMs,
         endMs: seg.endMs,
@@ -141,7 +174,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
       .catch(() => undefined);
     pendingEnqueues.current.add(p);
     p.finally(() => pendingEnqueues.current.delete(p));
-    setState((s) => ({ ...s, segmentCount: seg.index + 1 }));
+    setState((s) => ({ ...s, segmentCount: uploadIndex + 1 }));
   }, []);
 
   const makeRecorder = useCallback((): VoiceRecorder => {
@@ -153,6 +186,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
       onError: (err: VoiceRecorderError) => {
         const hadSegments = recorderRef.current?.getSegmentCount() ?? 0;
         const cid = activeIdRef.current;
+        const appending = appendOffsetRef.current > 0;
         setState((s) => ({ ...s, error: err.userMessage }));
         if (hadSegments > 0 && cid) {
           // Mid-session mic failure: the recorder already flushed its
@@ -163,12 +197,35 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
             await voiceSync
               .closeCapture({
                 clientLocalId: cid,
-                segmentCount: Math.max(hadSegments, 1),
-                totalDurationMs: 1000,
+                segmentCount: Math.max(appendOffsetRef.current + hadSegments, 1),
+                totalDurationMs: Math.max(appendBaseDurationMsRef.current + 1000, 1000),
               })
               .catch(() => undefined);
             setState((s) => ({ ...s, phase: navigator.onLine ? "processing" : "queued" }));
           })();
+        } else if (appending && cid) {
+          // Append round died before capturing anything: drop only this
+          // round's queue records and put the card back where it was.
+          void voiceSync
+            .cancelAppendRound(cid, appendOffsetRef.current)
+            .catch(() => undefined)
+            .finally(() => {
+              activeIdRef.current = null;
+              appendOffsetRef.current = 0;
+              appendBaseDurationMsRef.current = 0;
+              const restore = preAppendCaptureRef.current;
+              preAppendCaptureRef.current = null;
+              setState((s) => ({
+                ...s,
+                phase: restore ? "triage" : "idle",
+                capture: restore ?? s.capture,
+                appending: false,
+                clientLocalId: null,
+                segmentCount: restore?.segmentCount ?? 0,
+                elapsedMs: 0,
+                energy: 0,
+              }));
+            });
         } else {
           if (cid) void voiceSync.purgeCapture(cid).catch(() => undefined);
           activeIdRef.current = null;
@@ -187,17 +244,20 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   const stop = useCallback(async () => {
     const rec = recorderRef.current;
     if (!rec) return;
+    const offset = appendOffsetRef.current;
+    const baseDuration = appendBaseDurationMsRef.current;
     setState((s) => ({ ...s, phase: "processing" }));
     await rec.stop();
     // Wait for every segment persist (incl. the final flush) before closing.
     await Promise.all(Array.from(pendingEnqueues.current));
     const id = activeIdRef.current;
     if (!id) return;
-    const segmentCount = Math.max(rec.getSegmentCount(), 1);
+    const segmentCount = Math.max(offset + rec.getSegmentCount(), 1);
+    const totalDurationMs = Math.max(baseDuration + rec.getRecordedMs(), 500);
     await voiceSync.closeCapture({
       clientLocalId: id,
       segmentCount,
-      totalDurationMs: Math.max(rec.getRecordedMs(), 500),
+      totalDurationMs,
     });
     // Offline? The queue holds everything; the card appears on reconnect.
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -214,8 +274,12 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
               if (pollRef.current) window.clearInterval(pollRef.current);
               pollRef.current = null;
               activeIdRef.current = null;
-              setState((s) => ({ ...s, phase: "triage", capture }));
-              onReadyToastRef.current?.(capture);
+              const wasAppend = appendOffsetRef.current > 0;
+              appendOffsetRef.current = 0;
+              appendBaseDurationMsRef.current = 0;
+              preAppendCaptureRef.current = null;
+              setState((s) => ({ ...s, phase: "triage", capture, appending: false }));
+              if (!wasAppend) onReadyToastRef.current?.(capture);
             }
           })
           .catch(() => undefined);
@@ -235,7 +299,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     };
   }, []);
 
-  // ─── Public API ─────────────────────────────────────────────────────────
+  // ─── Public API ─────────────────────────────────────────────────────────────────
 
   const startRecording = useCallback(async () => {
     if (startingRef.current) return; // double-tap guard — see startingRef above
@@ -250,6 +314,9 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     }
     startingRef.current = true;
     const clientLocalId = uuidv4();
+    appendOffsetRef.current = 0;
+    appendBaseDurationMsRef.current = 0;
+    preAppendCaptureRef.current = null;
     try {
     activeIdRef.current = clientLocalId;
     pendingEnqueues.current.clear();
@@ -273,6 +340,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
         queueStats: state.queueStats,
         clientLocalId,
         segmentCount: 0,
+        appending: false,
       });
     } catch (err: any) {
       recorderRef.current = null;
@@ -290,26 +358,144 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [makeRecorder]);
 
+  /**
+   * appendRecording — INCREMENTAL DICTATION ("Add More").
+   *
+   * Re-opens an ALREADY-FINALIZED capture (same clientLocalId) and records
+   * another clip. The recorder's segment indexes are offset past the
+   * capture's existing segments, so the new audio transcribes through the
+   * same Whisper pipeline and the next finalize re-runs Smart Clean +
+   * triage across the COMBINED verbatim. Unlimited rounds until the user
+   * saves or resets.
+   */
+  const appendRecording = useCallback(
+    async (args: {
+      clientLocalId: string;
+      /** How many segments the capture already holds (index offset). */
+      existingSegmentCount: number;
+      /** The capture's duration so far, so the card shows a running total. */
+      existingDurationMs?: number | null;
+      kind?: CaptureKind;
+      outputMode?: OutputMode;
+    }) => {
+      if (startingRef.current) return; // double-tap guard
+      if (recorderRef.current?.isActive()) return; // already recording
+      if (!recorderSupported()) {
+        setState((s) => ({
+          ...s,
+          phase: "error",
+          error:
+            "This browser cannot record audio. Use the PracticePro app or a modern browser over HTTPS.",
+        }));
+        return;
+      }
+      startingRef.current = true;
+      try {
+        activeIdRef.current = args.clientLocalId;
+        pendingEnqueues.current.clear();
+        appendOffsetRef.current = Math.max(0, args.existingSegmentCount);
+        appendBaseDurationMsRef.current = Math.max(0, args.existingDurationMs ?? 0);
+        preAppendCaptureRef.current = state.capture;
+        // Recreates the local queue row (the previous round's row was
+        // deleted after it finalized); closed stays false until stop.
+        await voiceSync.ensureCapture({
+          clientLocalId: args.clientLocalId,
+          kind: args.kind ?? "quick",
+          outputMode: args.outputMode ?? "smart-clean",
+          startedAt: Date.now(),
+          eventTypeNames: eventTypeNamesRef.current,
+        });
+        const rec = makeRecorder();
+        recorderRef.current = rec;
+        try {
+          await rec.start();
+          setState((s) => ({
+            ...s,
+            phase: "recording",
+            elapsedMs: 0,
+            energy: 0,
+            error: null,
+            clientLocalId: args.clientLocalId,
+            segmentCount: appendOffsetRef.current,
+            appending: true,
+          }));
+        } catch (err: any) {
+          recorderRef.current = null;
+          activeIdRef.current = null;
+          appendOffsetRef.current = 0;
+          appendBaseDurationMsRef.current = 0;
+          const restore = preAppendCaptureRef.current;
+          preAppendCaptureRef.current = null;
+          await voiceSync
+            .cancelAppendRound(args.clientLocalId, Math.max(0, args.existingSegmentCount))
+            .catch(() => undefined);
+          setState((s) => ({
+            ...s,
+            phase: restore ? "triage" : s.phase,
+            capture: restore ?? s.capture,
+            appending: false,
+            error: err?.userMessage || "Could not start recording. Please try again.",
+          }));
+        }
+      } finally {
+        startingRef.current = false;
+      }
+    },
+    [makeRecorder, state.capture, state.queueStats]
+  );
+
   const cancelRecording = useCallback(async () => {
     const rec = recorderRef.current;
     const id = activeIdRef.current;
+    const appending = appendOffsetRef.current > 0;
+    const offset = appendOffsetRef.current;
+    const restore = preAppendCaptureRef.current;
     if (rec) rec.cancel();
     recorderRef.current = null;
     activeIdRef.current = null;
-    if (id) await voiceSync.purgeCapture(id).catch(() => undefined);
     if (pollRef.current) window.clearInterval(pollRef.current);
-    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, clientLocalId: null, segmentCount: 0 }));
+    if (appending && id) {
+      // "Add More" cancel: discard ONLY this round — the original capture
+      // and its transcript stay exactly as they were.
+      appendOffsetRef.current = 0;
+      appendBaseDurationMsRef.current = 0;
+      preAppendCaptureRef.current = null;
+      await voiceSync.cancelAppendRound(id, offset).catch(() => undefined);
+      setState((s) => ({
+        ...s,
+        phase: restore ? "triage" : "idle",
+        capture: restore ?? s.capture,
+        appending: false,
+        elapsedMs: 0,
+        energy: 0,
+        error: null,
+        clientLocalId: null,
+        segmentCount: restore?.segmentCount ?? 0,
+      }));
+      return;
+    }
+    appendOffsetRef.current = 0;
+    appendBaseDurationMsRef.current = 0;
+    preAppendCaptureRef.current = null;
+    if (id) await voiceSync.purgeCapture(id).catch(() => undefined);
+    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, clientLocalId: null, segmentCount: 0, appending: false }));
   }, []);
 
   const reset = useCallback(() => {
     if (pollRef.current) window.clearInterval(pollRef.current);
     activeIdRef.current = null;
-    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, capture: null, clientLocalId: null, segmentCount: 0 }));
+    appendOffsetRef.current = 0;
+    appendBaseDurationMsRef.current = 0;
+    preAppendCaptureRef.current = null;
+    setState((s) => ({ ...s, phase: "idle", elapsedMs: 0, energy: 0, error: null, capture: null, clientLocalId: null, segmentCount: 0, appending: false }));
   }, []);
 
   /** Re-open the triage card for a capture in the recent list. */
   const openCapture = useCallback(async (clientLocalId: string) => {
-    setState((s) => ({ ...s, phase: "processing", capture: null, clientLocalId }));
+    appendOffsetRef.current = 0;
+    appendBaseDurationMsRef.current = 0;
+    preAppendCaptureRef.current = null;
+    setState((s) => ({ ...s, phase: "processing", capture: null, clientLocalId, appending: false }));
     activeIdRef.current = clientLocalId;
     try {
       const capture = await getCaptureByLocalId(clientLocalId);
@@ -333,6 +519,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     ...state,
     supported: recorderSupported(),
     startRecording,
+    appendRecording,
     stopRecording: stop,
     cancelRecording,
     reset,

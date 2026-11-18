@@ -72,6 +72,10 @@ export interface CaptureProjection {
   createdAt: string | null;
   updatedAt: string | null;
   segmentCount: number;
+  /** INCREMENTAL DICTATION: the segment index an "Add More" round must
+ *  start from (max existing index + 1 — gaps from dead segments make this
+ *  differ from segmentCount). */
+  nextSegmentIndex?: number;
   triageIntent: TriageIntent | null;
   triageMeta: TriageMeta | null;
   matterId: string | null;
