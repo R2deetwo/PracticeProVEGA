@@ -1,6 +1,15 @@
+// SECURITY (2026-11-18): this file used to carry a hardcoded API key. That
+// key was committed to a PUBLIC repo, so Google's leaked-credential scanner
+// found it and disabled it — breaking every AI feature with 403
+// PERMISSION_DENIED "API key was reported as leaked". NEVER commit API keys.
 import { GoogleGenAI } from "@google/genai";
 
-const API_KEY = "AIzaSyAHRNaN-z9DPm4wyNdvt2TQlBpTHHDyBkw";
+const API_KEY = process.env.GEMINI_API_KEY;
+if (!API_KEY) {
+    console.error("Set GEMINI_API_KEY in your environment first:");
+    console.error("  GEMINI_API_KEY=your_key node scripts/verify-config.js");
+    process.exit(1);
+}
 
 async function verifyConfig() {
     const ai = new GoogleGenAI({ apiKey: API_KEY });

@@ -51,11 +51,17 @@ Added intelligent error messages with actionable solutions:
 - **Auth Errors (403)**: Guidance to check API settings
 - **Network Errors**: Connection troubleshooting
 
+> **SECURITY RETRO (2026-11-18):** the real key that was printed here was
+> committed to a public repo, found by Google's leaked-credential scanner,
+> and disabled — every AI feature went down with 403 "API key was reported
+> as leaked". Keys live ONLY in Convex env vars / GitHub secrets, never in
+> docs, scripts, or git history.
+
 ### 3. **Added API Key to Environment**
 **File: `.env`**
 ```bash
-API_KEY=AIzaSyAHRNaN-z9DPm4wyNdvt2TQlBpTHHDyBkw
-GEMINI_API_KEY=AIzaSyAHRNaN-z9DPm4wyNdvt2TQlBpTHHDyBkw
+API_KEY=AIza***REDACTED-NEVER-COMMIT-KEYS***
+GEMINI_API_KEY=AIza***REDACTED-NEVER-COMMIT-KEYS***
 ```
 
 ### 4. **Updated Voice Chat**

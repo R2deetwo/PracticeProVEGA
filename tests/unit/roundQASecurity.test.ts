@@ -260,7 +260,7 @@ describe('QA §3 — ai.generateContent: auth + throttle + payload bound', () =>
             modelName: 'gemini-2.5-flash',
             contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
             sessionToken: SESSION_PLAIN,
-        })).rejects.toThrow(/No API key available/i);
+        })).rejects.toThrow(/AI is not configured yet/i);
         expect(fetchMock).not.toHaveBeenCalled();
     });
 

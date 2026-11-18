@@ -1,6 +1,6 @@
 import { action, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { resolveUserBySessionToken } from "./sessions";
 
 /**
@@ -125,7 +125,7 @@ export const generateContent = action({
     // S2: caller's own key → firm key (server-side) → env key.
     const { apiKey } = await resolveEffectiveApiKey(ctx, user, args.firmGeminiApiKey);
     if (!apiKey) {
-      throw new Error("No API key available. Please configure the firm's AI key in Settings.");
+      throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
     }
 
     const modelName = args.modelName;
@@ -149,7 +149,23 @@ export const generateContent = action({
 
     if (!response.ok) {
        const errorData = await response.json().catch(() => ({}));
-       throw new Error(`AI Request Failed: ${errorData.error?.message || response.statusText}`);
+       const status = response.status;
+       const msg = String(errorData.error?.message || response.statusText || "");
+       const t = msg.toLowerCase();
+       // 2026-11-18: Google disables keys committed to public repos
+       // ("reported as leaked"). Surface a clean, actionable message via
+       // ConvexError — plain Error crosses the boundary as
+       // "[Request ID …] Uncaught Error …", which users saw and feared.
+       if (status === 401 || status === 403 || t.includes("leaked") || t.includes("permission_denied") || t.includes("api key")) {
+         throw new ConvexError("AI is temporarily unavailable — the platform's AI key needs to be rotated. Please try again once it's updated.");
+       }
+       if (status === 429) {
+         throw new ConvexError("The AI service is rate-limited right now. Please wait a moment and try again.");
+       }
+       if (status >= 500) {
+         throw new ConvexError("The AI service had a temporary problem. Please try again in a moment.");
+       }
+       throw new ConvexError(`AI request failed: ${msg.slice(0, 160)}`);
     }
 
     // Process and return exactly what the client expects from the raw API
@@ -196,7 +212,7 @@ export const embedContent = action({
 
     const { apiKey } = await resolveEffectiveApiKey(ctx, user, args.firmGeminiApiKey);
     if (!apiKey) {
-      throw new Error("No API key available for embeddings. Configure the firm's AI key in Settings.");
+      throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
     }
 
     const model = args.model || "text-embedding-004";
@@ -211,7 +227,12 @@ export const embedContent = action({
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(`Embedding failed: ${errorData.error?.message || response.statusText}`);
+      const msg = String(errorData.error?.message || response.statusText || "");
+      const t = msg.toLowerCase();
+      if (response.status === 401 || response.status === 403 || t.includes("leaked") || t.includes("permission_denied") || t.includes("api key")) {
+        throw new ConvexError("AI is temporarily unavailable — the platform's AI key needs to be rotated. Please try again once it's updated.");
+      }
+      throw new ConvexError(`Embedding failed: ${msg.slice(0, 160)}`);
     }
 
     const data: any = await response.json();

@@ -58,18 +58,22 @@ function cancelIdleRelease(): void {
 
 /**
  * Open the mic with the retry ladder. Attempt 1 uses the quality
- * constraints (AEC/NS/AGC); attempts 2-3 fall back to plain audio, which
- * survives WebViews whose audio-effects chain fails to build. Only
- * transient open failures (NotReadableError / AbortError / unknown) are
- * retried — permission and "no device" errors must surface at once.
+ * constraints (AEC/NS/AGC); attempts 2-4 fall back to plain audio, which
+ * survives WebViews whose audio-effects chain fails to build. Attempt 4's
+ * long backoff (2.5 s) covers the Android WebView holding a stale
+ * AudioRecord after a failed open — the OS can take a couple of seconds
+ * to actually release the native device. Only transient open failures
+ * (NotReadableError / AbortError / unknown) are retried — permission and
+ * "no device" errors must surface at once.
  */
 async function openWithRetry(): Promise<MediaStream> {
   const attempts: MediaStreamConstraints[] = [
     { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } },
     { audio: true },
     { audio: true },
+    { audio: true },
   ];
-  const delays = [0, 400, 1000];
+  const delays = [0, 400, 1000, 2500];
   let lastErr: unknown;
   for (let i = 0; i < attempts.length; i++) {
     if (delays[i] > 0) await sleep(delays[i]);

@@ -24,6 +24,8 @@ import {
   SMART_CLEAN_SYSTEM_PROMPT,
   buildTriagePrompt,
   buildMergePrompt,
+  classifyGeminiFailure,
+  GEMINI_FAILURE_MESSAGES,
 } from '../../convex/voiceCapture';
 import { backoffDelayMs, segmentKey } from '../../src/services/voice/audioQueue';
 import { isRetryableError } from '../../src/services/voice/voiceCaptureService';
@@ -253,5 +255,46 @@ describe('isRetryableError', () => {
     expect(isRetryableError(new Error('Unauthorized: the session token is invalid'))).toBe(false);
     expect(isRetryableError(new Error('Audio segment too large (4 MB limit)'))).toBe(false);
     expect(isRetryableError(new Error('Segment too long (5 min limit)'))).toBe(false);
+  });
+});
+
+// ─── Gemini failure classification (2026-11-18 key-leak incident) ───────────
+
+describe('classifyGeminiFailure', () => {
+  it('classifies the leaked-key 403 the founder actually hit', () => {
+    // Verbatim shape Google returns when its secret scanner disables a key
+    // committed to a public repo (founder screenshot 2026-11-18).
+    expect(
+      classifyGeminiFailure(
+        403,
+        'PERMISSION_DENIED: Your API key was reported as leaked. Please use another API key.'
+      )
+    ).toBe('key-rejected');
+  });
+
+  it('classifies 401/403 and key-shaped messages as key-rejected', () => {
+    expect(classifyGeminiFailure(401, '')).toBe('key-rejected');
+    expect(classifyGeminiFailure(403, 'PERMISSION_DENIED')).toBe('key-rejected');
+    expect(classifyGeminiFailure(500, 'API key not valid. Please pass a valid API key.')).toBe('key-rejected');
+    expect(classifyGeminiFailure(200, 'something about an api_key issue')).toBe('key-rejected');
+  });
+
+  it('classifies rate limits, outages, and bad requests', () => {
+    expect(classifyGeminiFailure(429, 'RESOURCE_EXHAUSTED')).toBe('rate-limited');
+    expect(classifyGeminiFailure(503, 'backend error')).toBe('provider-down');
+    expect(classifyGeminiFailure(400, 'invalid payload')).toBe('bad-request');
+    expect(classifyGeminiFailure(404, 'model not found')).toBe('bad-request');
+  });
+
+  it('falls through to unknown for anything else', () => {
+    expect(classifyGeminiFailure(418, "I'm a teapot")).toBe('unknown');
+  });
+
+  it('maps every class to a client-safe message (no raw provider jargon, no request IDs)', () => {
+    for (const cls of ['key-rejected', 'rate-limited', 'provider-down', 'bad-request', 'unknown'] as const) {
+      const msg = GEMINI_FAILURE_MESSAGES[cls];
+      expect(msg.length).toBeGreaterThan(10);
+      expect(msg).not.toMatch(/AIza|Request ID|Uncaught|PERMISSION_DENIED|Gemini \d/);
+    }
   });
 });

@@ -93,8 +93,15 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- POST_NOTIFICATIONS — required for Android 13+ (API 33+) push notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- RECORD_AUDIO — required for voice notes, ALOA voice chat, and client intake recording -->
+    <!-- RECORD_AUDIO + MODIFY_AUDIO_SETTINGS — both are required for
+         WebView getUserMedia on Android. Capacitor's BridgeWebChromeClient
+         requests BOTH for AUDIO_CAPTURE; on several OEM ROMs (Transsion/
+         Infinix/Tecno, some Samsung) the native AudioRecord open fails
+         with NotReadableError ("mic did not open") when MODIFY_AUDIO_SETTINGS
+         is missing, even with RECORD_AUDIO granted (founder device report
+         2026-11-18: grant → revoke → re-grant never fixed it). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- CAMERA — required for document scanning and photo capture (future use) -->
     <uses-permission android:name="android.permission.CAMERA" />
 </manifest>
