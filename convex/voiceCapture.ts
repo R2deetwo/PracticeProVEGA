@@ -284,6 +284,211 @@ Respond with STRICT JSON only — no prose, no markdown fences:
 {"intent":"case_note|schedule|question|share","matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","location":""}],"isQuestion":false,"questionText":"","summary":"..."}`;
 }
 
+// ─── INTELLIGENCE UPGRADE (owner spec, 2026-11-18) ─────────────────────────
+//
+// The old triage (buildTriagePrompt, kept above for reference/compat) picked
+// ONE action per note and matched matters by exact-string containment. The
+// upgraded ANALYSIS pass below behaves like a context-aware legal assistant:
+//
+//   1. LIVE CONTEXT — the exact current date/time (Africa/Lagos, WAT) and a
+//      rich matters directory (client names + parties) go into every call,
+//      so relative terms ("tomorrow", "next week", "Friday morning") and
+//      informal references ("the Chukwu file") resolve against real data.
+//   2. SEMANTIC MATCHING — the LLM SCORES and RANKS matter matches with
+//      confidence + reason; rankAndValidateMatterMatches() validates the
+//      ids against the firm's actual matters and merges a deterministic
+//      containment backstop underneath.
+//   3. RELATIVE DATES + IMPLIED TASKS — "I need to do a check tomorrow",
+//      "follow up with registry" become diary events; unspoken clock times
+//      default to 09:00 (marked timeEstimated so the UI flags them as
+//      easily editable).
+//   4. MULTI-INTENT — one note can be BOTH a case note AND a diary task:
+//      the analysis returns every applicable item at once, and the triage
+//      card offers a unified "Save Case Note & Add to Diary" CTA.
+//   5. ENDORSEMENTS — dictated courtroom proceedings extract structured
+//      endorsement fields.
+
+/** A matters-directory row as the analysis prompt renders it. */
+export interface AnalysisMatterRow {
+  id: string;
+  title?: string | null;
+  suitNumber?: string | null;
+  clientName?: string | null;
+  parties?: string[];
+  status?: string | null;
+  court?: string | null;
+}
+
+/** The multi-intent analysis prompt (owner spec §1–§4). Exported for tests. */
+export function buildAnalysisPrompt(opts: {
+  lagos: { dateISO: string; weekday: string; time: string };
+  matters: AnalysisMatterRow[];
+  contacts: { id: string; name?: string | null }[];
+  eventTypeNames: string[];
+}): string {
+  const dirLine = (m: AnalysisMatterRow) => {
+    const bits: string[] = [m.title || "(untitled)"];
+    if (m.suitNumber) bits.push(`suit ${m.suitNumber}`);
+    if (m.clientName) bits.push(`client ${m.clientName}`);
+    if (m.parties && m.parties.length) bits.push(`parties ${m.parties.join(" / ")}`);
+    if (m.court) bits.push(`court ${m.court}`);
+    return `- ${bits.join(" · ")} (id: ${m.id})`;
+  };
+  const matterDir = (opts.matters || [])
+    .slice(0, 120)
+    .map(dirLine)
+    .join("\n");
+  const contactList = (opts.contacts || [])
+    .slice(0, 60)
+    .map((c) => `- ${c.name || "(unnamed)"} (id: ${c.id})`)
+    .join("\n");
+  const types = eventTypesLine(opts.eventTypeNames);
+  return `You analyse a quick voice note dictated by a Nigerian lawyer and extract EVERYTHING actionable from it — one note can be several things at once.
+
+TODAY (Lagos, Nigeria — Africa/Lagos, WAT UTC+01:00): ${opts.lagos.weekday}, ${opts.lagos.dateISO}, ${opts.lagos.time}.
+Resolve every relative date against that TODAY: "tomorrow" = ${addDaysISO(opts.lagos.dateISO, 1)}, "in 3 days" = ${addDaysISO(opts.lagos.dateISO, 3)}, "next week" = ${addDaysISO(opts.lagos.dateISO, 7)}.
+
+THE FIRM'S MATTERS DIRECTORY (active matters first):
+${matterDir || "(no matters on record)"}
+
+THE FIRM'S CONTACTS (clients etc.):
+${contactList || "(none on record)"}
+
+THE FIRM'S EVENT TYPES: ${types}
+
+EXTRACT — all that apply:
+1. "summary": one line (≤15 words) describing the note.
+2. "intent": the PRIMARY purpose — "case_note", "schedule", "question", or "share". A note about a matter that ALSO contains dates is still "case_note" (the events ride along).
+3. "matterMatches": rank the firm's matters this note is about — SEMANTIC fuzzy matching, not exact strings. Match client names, party names, suit numbers, and INFORMAL references ("the Chukwu file" → the matter with party Chukwu; "the Lekki land case" → the land matter in Lekki). Return the top 3 max, each {"matterId": <exact id from the directory>, "confidence": 0.0-1.0, "reason": "<why, ≤12 words>"}. Only include matches with confidence ≥ 0.3. If no matter is being discussed, return [].
+4. "matterCandidates": the EXACT word(s) the speaker used to refer to the matter/client (verbatim from the note; may be informal).
+5. "events": EVERY date, deadline, court event, or implied follow-up task — including ones without an explicit date word ("follow up with registry" is a task). Each: {"title": "<short calendar title>", "type": "<one of: ${types}>", "dateISO": "YYYY-MM-DD resolved from TODAY (empty string if truly no date was spoken)", "time": "HH:MM 24h", "timeEstimated": true|false, "location": "<court/place if mentioned, else empty>"}. TIME RULES: if a specific clock time was spoken use it (timeEstimated false); if only a part of day was spoken use 09:00 for morning, 14:00 for afternoon, 17:00 for evening; if NO time was spoken use 09:00 — in all default cases set timeEstimated true.
+6. "isDiaryTask": true if the note contains any task, follow-up, check, or deadline the lawyer must act on (with or without a date).
+7. "endorsement": if courtroom proceedings were dictated (court session, orders, adjournment), extract {"court": "", "suitNumber": "", "parties": "", "judge": "", "orders": ["<each order/holding, one line>"], "nextAdjournedDate": "YYYY-MM-DD or empty", "nextAdjournedTime": "HH:MM or empty"}; otherwise null.
+8. "isQuestion": true only if the lawyer is ASKING for information; "questionText": the question in their words.
+
+RULES: never invent matters, dates, or details absent from the note; matterId must be copied EXACTLY from the directory; never split one continuous note into more events than were actually dictated.
+
+Respond with STRICT JSON only — no prose, no markdown fences:
+{"summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":""}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":""}`;
+}
+
+/** Date arithmetic on YYYY-MM-DD strings (UTC-safe, exported for tests). */
+export function addDaysISO(dateISO: string, days: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateISO || "");
+  if (!m) return dateISO;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface MatterMatch {
+  matterId: string;
+  confidence: number;
+  reason?: string;
+}
+
+/**
+ * rankAndValidateMatterMatches — merge the LLM's semantic matches with the
+ * deterministic containment backstop (matchMatterCandidates), validated
+ * against the firm's real matters. Exported pure for tests.
+ *
+ *   - LLM matches with an id NOT in the firm's matters are dropped (the
+ *     model must never conjure ids).
+ *   - Deterministic hits not already in the LLM's list are appended with a
+ *     modest backstop confidence (0.5) — the LLM ranking always wins when
+ *     both agree.
+ *   - Result: ranked (confidence desc), de-duplicated, capped at 3 —
+ *     exactly the disambiguation pills the triage card shows.
+ */
+export function rankAndValidateMatterMatches(
+  llmMatches: any[],
+  matters: AnalysisMatterRow[],
+  candidates: string[],
+  contacts: { id: string; name?: string | null }[]
+): MatterMatch[] {
+  const validIds = new Set((matters || []).map((m) => m.id));
+  const out: MatterMatch[] = [];
+  const seen = new Set<string>();
+  for (const raw of Array.isArray(llmMatches) ? llmMatches : []) {
+    const id = String(raw?.matterId ?? raw?.id ?? "");
+    const conf = Number(raw?.confidence);
+    if (!id || !validIds.has(id) || seen.has(id)) continue;
+    if (!isFinite(conf) || conf < 0.05) continue;
+    seen.add(id);
+    out.push({ matterId: id, confidence: Math.min(1, Math.max(0, conf)), reason: raw?.reason || undefined });
+  }
+  const backstop = matchMatterCandidates(candidates || [], matters as any, contacts);
+  for (const id of backstop.matchedMatterIds) {
+    if (seen.has(id) || !validIds.has(id)) continue;
+    seen.add(id);
+    out.push({ matterId: id, confidence: 0.5, reason: "name mentioned in the note" });
+  }
+  return out.sort((a, b) => b.confidence - a.confidence).slice(0, 3);
+}
+
+/** A validated Quick Ask action ready to execute (owner spec §5). */
+export interface QuickAskAction {
+  type: "create_event" | "save_note";
+  title: string;
+  content?: string;
+  type2?: string; // event type (Deadline, Hearing…) — named type2 to avoid
+  //                  colliding with the discriminating `type` field.
+  dateISO?: string; // YYYY-MM-DD
+  time?: string; // HH:MM
+  matterId?: string;
+  location?: string;
+}
+
+/**
+ * validateQuickAskActions — sanitise the LLM's proposed tool actions against
+ * the firm's data before executing anything. Exported pure for tests.
+ *
+ *   - unknown action types are dropped (never executed)
+ *   - create_event requires a title + a valid YYYY-MM-DD date (relative
+ *     words are already resolved by the prompt, but a non-date string still
+ *     cannot pass)
+ *   - save_note requires a title + content
+ *   - matterId must exist in the firm's matters (when supplied)
+ *   - capped at 3 actions per call
+ */
+export function validateQuickAskActions(
+  rawActions: any[],
+  matters: AnalysisMatterRow[],
+  maxActions = 3
+): QuickAskAction[] {
+  const validIds = new Set((matters || []).map((m) => m.id));
+  const out: QuickAskAction[] = [];
+  for (const raw of Array.isArray(rawActions) ? rawActions : []) {
+    if (!raw || typeof raw !== "object") continue;
+    const type = String(raw.type || "");
+    if (type !== "create_event" && type !== "save_note") continue;
+    const title = String(raw.title || "").trim().slice(0, 160);
+    if (!title) continue;
+    const matterId = raw.matterId ? String(raw.matterId) : undefined;
+    if (matterId && !validIds.has(matterId)) continue;
+    if (type === "create_event") {
+      const dateISO = String(raw.dateISO || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) continue;
+      const time = /^\d{2}:\d{2}$/.test(String(raw.time || "")) ? String(raw.time) : "09:00";
+      out.push({
+        type,
+        title,
+        type2: String(raw.eventType || raw.type2 || "").trim() || undefined,
+        dateISO,
+        time,
+        matterId,
+        location: String(raw.location || "").trim() || undefined,
+      });
+    } else {
+      const content = String(raw.content || "").trim();
+      if (!content) continue;
+      out.push({ type, title, content, matterId });
+    }
+    if (out.length >= maxActions) break;
+  }
+  return out;
+}
+
 export function buildMergePrompt(): string {
   return `You merge two records of the same client consultation / interview session for a Nigerian legal practice:
 
@@ -528,9 +733,27 @@ export interface QuickAskSource {
   detail: string;
 }
 
+/** A successfully executed Quick Ask action (owner spec §5 — read + write).
+ *  Rendered by the client as a confirmation card with View / Undo. */
+export interface QuickAskActionResult {
+  /** The created item's kind. */
+  type: "event" | "note";
+  status: "created";
+  /** The created item's id (for View navigation and Undo). */
+  itemId: string;
+  title: string;
+  dateISO?: string;
+  time?: string;
+  matterId?: string;
+  matterTitle?: string;
+}
+
 export interface QuickAskResult {
   answer: string;
   sources: { matters: QuickAskSource[]; notes: QuickAskSource[]; events: QuickAskSource[] };
+  /** Items Quick Ask created on the lawyer's instruction (diary entries,
+   *  saved notes). Empty for pure questions. */
+  actions: QuickAskActionResult[];
 }
 
 /**
@@ -739,7 +962,14 @@ export const finalizeCapture = action({
       }
     }
 
-    // ── Triage (quick captures): the single best next action.
+    // ── Analysis (quick captures): multi-intent structured extraction.
+    //    Owner spec (2026-11-18, "Upgrade Quick Capture Intelligence"): the
+    //    LLM receives LIVE CONTEXT (exact WAT date/time + a rich matters
+    //    directory with client names and parties) and returns EVERYTHING
+    //    actionable at once — ranked semantic matter matches, relative-date
+    //    resolved diary events with 09:00 defaults, implied follow-up
+    //    tasks, endorsement fields, and the question text. The card then
+    //    offers combined actions ("Save Case Note & Add to Diary").
     if (row.kind === "quick" && gemini) {
       try {
         const matters: any[] = await ctx.runQuery(
@@ -751,11 +981,12 @@ export const finalizeCapture = action({
           { firmId: auth.firmId }
         );
 
-        const triageRaw = await geminiText({
+        const analysisRaw = await geminiText({
           apiKey: gemini.key,
-          system: "You are a precise triage assistant. Respond with strict JSON only.",
+          system:
+            "You are a precise legal-assistant extraction engine. Respond with strict JSON only.",
           user:
-            buildTriagePrompt({
+            buildAnalysisPrompt({
               lagos: lagosNow(Date.now()),
               matters,
               contacts,
@@ -763,27 +994,79 @@ export const finalizeCapture = action({
             }) + `\n\nTHE VOICE NOTE TRANSCRIPT:\n"""${verbatim.slice(0, MAX_TRANSCRIPT_CHARS)}"""`,
           maxTokens: 2048,
         });
-        const parsed = parseModelJson<any>(triageRaw);
+        const parsed = parseModelJson<any>(analysisRaw);
         if (parsed) {
-          const matched = matchMatterCandidates(
+          // Semantic matches: validate LLM ids against the firm's real
+          // matters, then merge the deterministic containment backstop.
+          const matterMatches = rankAndValidateMatterMatches(
+            parsed.matterMatches,
+            matters,
+            parsed.matterCandidates || [],
+            contacts
+          );
+          const deterministic = matchMatterCandidates(
             parsed.matterCandidates || [],
             matters,
             contacts
           );
+          const events = (Array.isArray(parsed.events) ? parsed.events : [])
+            .slice(0, 6)
+            .map((e: any) => ({
+              title: String(e?.title || "").slice(0, 160),
+              type: String(e?.type || ""),
+              dateISO: /^\d{4}-\d{2}-\d{2}$/.test(String(e?.dateISO || ""))
+                ? String(e.dateISO)
+                : "",
+              time: /^\d{2}:\d{2}$/.test(String(e?.time || "")) ? String(e.time) : "09:00",
+              timeEstimated: e?.timeEstimated !== false,
+              location: String(e?.location || "").slice(0, 160),
+            }))
+            .filter((e: any) => e.title);
+          const endorsement =
+            parsed.endorsement && typeof parsed.endorsement === "object"
+              ? {
+                  court: String(parsed.endorsement.court || "").slice(0, 160),
+                  suitNumber: String(parsed.endorsement.suitNumber || "").slice(0, 80),
+                  parties: String(parsed.endorsement.parties || "").slice(0, 240),
+                  judge: String(parsed.endorsement.judge || "").slice(0, 120),
+                  orders: (Array.isArray(parsed.endorsement.orders)
+                    ? parsed.endorsement.orders
+                    : []
+                  )
+                    .map((o: any) => String(o || "").slice(0, 400))
+                    .filter(Boolean)
+                    .slice(0, 12),
+                  nextAdjournedDate: /^\d{4}-\d{2}-\d{2}$/.test(
+                    String(parsed.endorsement.nextAdjournedDate || "")
+                  )
+                    ? String(parsed.endorsement.nextAdjournedDate)
+                    : "",
+                  nextAdjournedTime: /^\d{2}:\d{2}$/.test(
+                    String(parsed.endorsement.nextAdjournedTime || "")
+                  )
+                    ? String(parsed.endorsement.nextAdjournedTime)
+                    : "",
+                }
+              : null;
           const triageMeta = {
             ...parsed,
-            matchedMatterIds: matched.matchedMatterIds,
-            matchedContactIds: matched.matchedContactIds,
+            matterMatches,
+            events,
+            isDiaryTask: parsed.isDiaryTask === true || events.length > 0,
+            endorsement,
+            // Legacy fields kept for older clients / recent-notes strip.
+            matchedMatterIds: matterMatches.map((m) => m.matterId),
+            matchedContactIds: deterministic.matchedContactIds,
           };
           patch.triageIntent = parsed.intent || "share";
           patch.triageMeta = triageMeta;
           result.triageIntent = patch.triageIntent;
           result.triageMeta = triageMeta;
         } else {
-          result.triageError = "Triage returned unparseable output.";
+          result.triageError = "Analysis returned unparseable output.";
         }
       } catch (err: any) {
-        result.triageError = err?.message || "Triage failed.";
+        result.triageError = err?.message || "Analysis failed.";
       }
     }
 
@@ -1069,10 +1352,13 @@ export const transcribeBatch = action({
  * report 2026-11-18: "how many matters do I have?" → "you have no matters").
  */
 export const QUICK_ASK_SYSTEM_PROMPT =
-  "You answer a Nigerian lawyer's questions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.";
+  "You answer a Nigerian lawyer's questions and carry out their instructions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.\n\nACTION TOOLS — the lawyer may ask you to DO something, not just answer:\n- create_event: create a Court Diary / calendar entry (e.g. 'add a check on the Chukwu matter for tomorrow at 10 AM', 'remind me to file the brief on Friday'). Resolve relative dates ('tomorrow', 'next week', 'in 3 days') using TODAY; if no clock time is given use 09:00. matterId must be copied EXACTLY from the data when a matter is named; omit it when no matter is named.\n- save_note: save a case note to a matter (e.g. 'note that the client confirmed the settlement terms on the Chukwu matter'). Use the lawyer's own words as the content; matterId as above.\n\nAction rules: only act on a CLEAR instruction to create or save; if the request is ambiguous or merely asks a question, return actions: []. At most 3 actions. Prefer event types 'Deadline', 'Meeting', 'Hearing', 'Mention' or 'Task' when unsure.\n\nRespond with STRICT JSON only — no prose, no markdown fences:\n{\"answer\":\"<your answer, ≤120 words>\",\"actions\":[{\"type\":\"create_event\",\"title\":\"...\",\"eventType\":\"Deadline\",\"dateISO\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"matterId\":\"...\",\"location\":\"\"},{\"type\":\"save_note\",\"title\":\"...\",\"content\":\"...\",\"matterId\":\"...\"}]}";
 
 /** A slim matter row as buildQuickAskContext consumes. */
 export interface QuickAskMatterRow {
+  /** Present when the caller can reference matters by id (Quick Ask
+   *  actions must copy matterId EXACTLY — the inventory line carries it). */
+  id?: string;
   title?: string | null;
   suitNumber?: string | null;
   status?: string | null;
@@ -1108,7 +1394,7 @@ export function buildQuickAskContext(args: {
       (m) =>
         `- ${m.title || "(untitled matter)"}${m.suitNumber ? ` [${m.suitNumber}]` : ""}${
           m.status ? ` (${m.status})` : ""
-        }`
+        }${m.id ? ` — id: ${m.id}` : ""}`
     );
   const summaryBlock = [
     "FIRM DATA SUMMARY (authoritative — use these numbers for counting questions):",
@@ -1139,6 +1425,8 @@ export function buildQuickAskContext(args: {
 export const quickAsk = action({
   args: {
     question: v.string(),
+    /** Fallback notebook for standalone (matter-less) saved notes. */
+    notebookId: v.optional(v.string()),
     callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
@@ -1234,13 +1522,122 @@ export const quickAsk = action({
     });
 
     const lagos = lagosNow(Date.now());
-    const answer = await geminiText({
+    const answerRaw = await geminiText({
       apiKey: gemini.key,
       system: QUICK_ASK_SYSTEM_PROMPT,
-      user: `TODAY (Lagos): ${lagos.weekday}, ${lagos.dateISO}\n\nFIRM DATA:\n${contextBlock}\n\nTHE LAWYER'S QUESTION:\n"""${q}"""`,
+      user: `TODAY (Lagos): ${lagos.weekday}, ${lagos.dateISO}, ${lagos.time}\n\nFIRM DATA:\n${contextBlock}\n\nTHE LAWYER'S QUESTION / INSTRUCTION:\n"""${q}"""`,
       maxTokens: 1024,
     });
 
-    return { answer, sources: { matters: matchedMatters, notes: matchedNotes, events: upcoming } };
+    // Parse the JSON envelope; a plain-text answer (older model behaviour,
+    // refusal formatting) degrades gracefully to answer-only.
+    const envelope = parseModelJson<{ answer?: string; actions?: any[] }>(answerRaw);
+    const answer = (envelope?.answer || answerRaw || "").trim();
+
+    // ── EXECUTE validated tool actions (owner spec §5 — read + write). The
+    //    LLM never touches the database directly: validateQuickAskActions
+    //    sanitises its proposals against the firm's real matters, then the
+    //    internal mutations do the writes with ownership stamps so the
+    //    one-tap Undo can verify provenance.
+    const executed: QuickAskActionResult[] = [];
+    const validated = validateQuickAskActions(envelope?.actions || [], matters);
+    for (const act of validated) {
+      try {
+        const matter = act.matterId ? matters.find((m: any) => m.id === act.matterId) : null;
+        if (act.type === "create_event") {
+          // WAT is UTC+01:00 — build the instant from the Lagos wall clock.
+          const startISO = new Date(
+            `${act.dateISO}T${act.time || "09:00"}:00+01:00`
+          ).toISOString();
+          const created: any = await ctx.runMutation(
+            internal.voiceCaptureInternal.createDiaryEventInternal,
+            {
+              firmId: auth.firmId,
+              userId: String(auth.user._id),
+              title: act.title,
+              description: `Added by Quick Ask: "${q.slice(0, 200)}"`,
+              type: act.type2,
+              dateISO: startISO,
+              matterId: act.matterId,
+              matterTitle: matter?.title || undefined,
+            }
+          );
+          executed.push({
+            type: "event",
+            status: "created",
+            itemId: created.eventId,
+            title: created.title,
+            dateISO: act.dateISO,
+            time: act.time || "09:00",
+            matterId: act.matterId,
+            matterTitle: matter?.title || undefined,
+          });
+        } else if (act.type === "save_note") {
+          const created: any = await ctx.runMutation(
+            internal.voiceCaptureInternal.createCaseNoteInternal,
+            {
+              firmId: auth.firmId,
+              userId: String(auth.user._id),
+              title: act.title,
+              content: act.content || "",
+              matterId: act.matterId,
+              // Matter-linked notes live in the matters notebook; standalone
+              // ones use the caller's preferred (general) notebook.
+              notebookId: act.matterId ? "notebook_matters" : args.notebookId,
+            }
+          );
+          executed.push({
+            type: "note",
+            status: "created",
+            itemId: created.notePageId,
+            title: created.title,
+            matterId: act.matterId,
+            matterTitle: matter?.title || undefined,
+          });
+        }
+      } catch {
+        // One failed action must never sink the whole answer.
+      }
+    }
+
+    return {
+      answer,
+      sources: { matters: matchedMatters, notes: matchedNotes, events: upcoming },
+      actions: executed,
+    };
+  },
+});
+
+/**
+ * undoQuickAskAction — the one-tap Undo behind every Quick Ask confirmation
+ * card (owner spec §5: "display a clean confirmation card with a 1-tap link
+ * to view or undo it"). Guards live in undoQuickAskItemInternal: firm scope,
+ * creator ownership (created_by / authorId) and a 15-minute recency window.
+ */
+export const undoQuickAskAction = mutation({
+  args: {
+    kind: v.string(), // "event" | "note"
+    itemId: v.string(),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  // NOTE: the explicit return annotation is REQUIRED — returning a
+  // ctx.runMutation(internal.…) result directly makes TS infer this
+  // mutation's type from the generated api, which itself includes this
+  // module's types — a circular reference that degrades ApiFromModules
+  // inference for the WHOLE app (TS7022; the same class of failure the
+  // voiceCaptureInternal.ts header documents). Annotating breaks the cycle.
+  handler: async (ctx, args): Promise<{ undone: boolean }> => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const result: { undone: boolean } = await ctx.runMutation(
+      internal.voiceCaptureInternal.undoQuickAskItemInternal,
+      {
+        firmId: auth.firmId,
+        userId: String(auth.user._id),
+        kind: args.kind,
+        itemId: args.itemId,
+      }
+    );
+    return result;
   },
 });

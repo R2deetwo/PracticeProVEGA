@@ -856,3 +856,51 @@ secrets, then the full promote (with Vercel + Cloudflare frontends) can run —
 and the targeted workflow can be retired. Frontend production promotion
 remains blocked on that staging setup (production WEB is still served by
 Vercel's own git integration from main pushes).
+
+### 2026-11-18 (iv) — PR #19: Quick Capture intelligence upgrade
+
+Owner spec "Upgrade Quick Capture Intelligence" — the analysis layer behind
+the voice pipeline is now context-aware (semantic matching, relative dates,
+multi-intent, action-capable Quick Ask):
+
+- **§1 Live context:** every analysis call (initial + each Add More round)
+  gets the exact WAT date/time with PRE-RESOLVED anchors ("tomorrow" /
+  "in 3 days" / "next week" = real dates) and a rich matters DIRECTORY —
+  clientName (contacts join) + parties + court, ACTIVE matters first
+  (listFirmMattersInternal extended).
+- **§2 Semantic matching:** the LLM ranks matters with confidence + reason
+  ("the Chukwu file" → party match); rankAndValidateMatterMatches() drops
+  conjured ids, merges the containment backstop at 0.5, caps at 3. The card
+  AUTO-SELECTS the top match and shows 1-tap disambiguation pills (% +
+  reason tooltip) beside the full dropdown.
+- **§3 Relative dates + tasks:** implied follow-ups ("follow up with
+  registry") become diary events; unspoken times default 09:00/14:00/17:00
+  flagged timeEstimated; every event row inline-editable (ui/Input date +
+  time pickers). ZERO DEAD-END: no dates → inline quick-schedule form
+  prefilled (summary, matched matter, tomorrow 09:00) replaces the old
+  "add manually" message.
+- **§4 Multi-intent:** one JSON extracts summary/intent/matterMatches/
+  events/isDiaryTask/endorsement/questionText. Card shows Case Note + Diary
+  TOGGLES (both on simultaneously) with unified CTA "Save Case Note & Add
+  to Diary"; courtroom endorsement panel (court/suit/parties/judge/orders)
+  with 1-tap "Add adjourned date to Diary".
+- **§5 Action-capable Quick Ask:** tool protocol (create_event / save_note)
+  in a strict-JSON envelope; validateQuickAskActions() sanitises (unknown
+  types dropped, real YYYY-MM-DD required, matterId must exist in-firm,
+  ≤3 actions); writes via ownership-stamped internal mutations
+  (created_by/authorId). New QuickAskActions component renders a
+  confirmation card per created item with View + one-tap Undo;
+  undoQuickAskAction re-verifies firm scope + creator + 15-min window.
+  quickAsk FIRM DATA SUMMARY inventory now carries matter ids for action
+  referencing.
+
+Convex gotchas (both fixed + documented inline): events/notePages have NO
+legacy `id` column (schema is stricter than matters); a public mutation
+returning ctx.runMutation(internal.…) directly triggers the TS7022
+ApiFromModules circular degradation (legal/search.ts collapsed to {}) —
+explicit handler return annotation breaks the cycle.
+
+Gates: convex tsc 0; root tsc 0; eslint 0 errors; ratchet held 2218; vitest
+2929 (+19: addDaysISO, buildAnalysisPrompt anchors/directory/time-rules,
+backstop merge incl. the Chukwu-ambiguity disambiguation case, action
+sanitisation, prompt tool contract); vite build green. PR #19.

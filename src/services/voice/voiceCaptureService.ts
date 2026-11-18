@@ -16,9 +16,10 @@ import type {
   FinalizeCaptureResult,
   QuickAskResult,
   QuickAskSource,
+  QuickAskActionResult,
 } from "../../../convex/voiceCapture";
 
-export type { FinalizeCaptureResult, QuickAskResult, QuickAskSource };
+export type { FinalizeCaptureResult, QuickAskResult, QuickAskSource, QuickAskActionResult };
 
 const CONVEX_URL =
   (import.meta.env.VITE_CONVEX_URL as string) ||
@@ -47,12 +48,41 @@ export interface TriageEventDraft {
   dateISO: string;
   time: string;
   location?: string;
+  /** True when the time was NOT spoken (LLM defaulted 09:00/14:00/17:00) —
+   *  the card flags it as easily editable inline. */
+  timeEstimated?: boolean;
+}
+
+/** Semantic matter match from the analysis pass (owner spec §2): ranked
+ *  by confidence, validated server-side against the firm's real matters. */
+export interface MatterMatchView {
+  matterId: string;
+  confidence: number;
+  reason?: string;
+}
+
+/** Structured courtroom endorsement fields (owner spec §4) — populated
+ *  when dictated courtroom proceedings were detected. */
+export interface EndorsementDataView {
+  court?: string;
+  suitNumber?: string;
+  parties?: string;
+  judge?: string;
+  orders?: string[];
+  nextAdjournedDate?: string;
+  nextAdjournedTime?: string;
 }
 
 export interface TriageMeta {
   intent?: TriageIntent;
   matterCandidates?: string[];
+  /** Ranked semantic matches (top 3) — drives auto-select + the
+   *  disambiguation pills on the triage card. */
+  matterMatches?: MatterMatchView[];
   events?: TriageEventDraft[];
+  /** True when the note contains any task/follow-up/deadline to act on. */
+  isDiaryTask?: boolean;
+  endorsement?: EndorsementDataView | null;
   isQuestion?: boolean;
   questionText?: string;
   summary?: string;
@@ -246,10 +276,24 @@ export async function listRecentCaptures(limit = 15): Promise<CaptureProjection[
   });
 }
 
-export async function quickAsk(question: string): Promise<QuickAskResult> {
+export async function quickAsk(
+  question: string,
+  opts?: { notebookId?: string }
+): Promise<QuickAskResult> {
   return convex.action(api.voiceCapture.quickAsk, {
     question,
+    notebookId: opts?.notebookId,
     callerApiKey: getGeminiApiKey() || undefined,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+/** One-tap Undo for an item Quick Ask created (diary entry / saved note).
+ *  Server-side guards: firm scope + creator ownership + 15-min window. */
+export async function undoQuickAskAction(kind: "event" | "note", itemId: string): Promise<void> {
+  await convex.mutation(api.voiceCapture.undoQuickAskAction, {
+    kind,
+    itemId,
     sessionToken: readSessionBearer(),
   });
 }
