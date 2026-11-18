@@ -523,3 +523,33 @@ GitHub API.
 `schema.ts` domain extraction (needs its own round — 463KB/351KB/170KB);
 browser E2E for signup/onboarding (Playwright is already a devDep; smoke
 gates added instead in the promote path); Google Play internal testing.
+
+---
+
+## 2026-11-18 (c) — Quick Capture mic lock + boot experience
+
+**The mic bug (founder report: "allowed the microphone, it still says
+in use by another app").** Five features each called getUserMedia with
+their own lifecycle; on the Android WebView the permission-grant race
+rejects the very request the user just allowed AND leaves the
+AudioRecord held — every retry fails until app restart. Fix:
+`src/services/voice/micStream.ts` — ONE shared stream per session
+(refcounted), retry ladder across the grant/release races, single
+in-flight open (double-tap safe), 15s warm-idle for stop→record-again,
+force-release on background (privacy). All consumers migrated
+(VoiceRecorder, useQuickCapture, SaveToNoteForm, NoteEditor,
+AutoExpandingChatInput, requestMicrophonePermission). 8 new pins in
+`tests/unit/micStream.test.ts`.
+
+**The boot experience (founder report: "white flat screen, looked like
+it wasn't loading").** The boot cycled white→green→white→black across
+five mismatched surfaces. Now one continuous brand-green phase:
+regenerated all 11 native splash drawables (solid #16A34A + white P —
+`scripts/generate-splash-assets.py`), native splash spinner ON in all
+five capacitor configs, and a zero-JS HTML boot overlay (green + P +
+spinner) covering the bundle-parse window, removed on React's first
+commit. Founder config aligned to the company-green native splash per
+ADR-0005.
+
+**Gates:** tsc 0 / convex 0; vitest 2856/2856 (+8); vite build green
+with the overlay verified in dist/index.html.
