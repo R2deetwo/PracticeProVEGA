@@ -27,6 +27,7 @@ import { Z_CLASS } from '../../overlays/constants';
 // the Gemini fallback) via api.voiceCapture.transcribeBatch — same engine
 // family as Quick Capture Mode.
 import { transcribeBatch } from '../../services/voice/voiceCaptureService';
+import { acquireMicStream, releaseMicStream } from '../../services/voice/micStream';
 import { recorderSupported } from '../../services/voice/audioRecorder';
 
 const BackIcon: React.FC = () => (
@@ -173,7 +174,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     useEffect(() => () => {
         if (aiTimerRef.current) clearInterval(aiTimerRef.current);
         try { if (aiRecorderRef.current && aiRecorderRef.current.state !== 'inactive') aiRecorderRef.current.stop(); } catch {}
-        aiStreamRef.current?.getTracks().forEach(t => t.stop());
+        // Release our claim on the SHARED mic stream (micStream.ts owns the
+        // tracks — stopping them here would race the next recording).
+        if (aiStreamRef.current) {
+            releaseMicStream();
+            aiStreamRef.current = null;
+        }
     }, []);
 
     // Process transcript — convert spoken punctuation commands to actual punctuation
@@ -277,8 +283,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     };
 
     const startAiAudioDictation = async () => {
+        let claimedMic = false;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Shared mic manager — see micStream.ts (ONE stream per session).
+        const stream = await acquireMicStream();
+        claimedMic = true;
             // Pick the best supported codec — same preference order as the
             // Unified Dictation Engine in SaveToNoteForm.
             let mimeType = 'audio/webm';
@@ -315,7 +324,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                 }
             }, 10_000);
         } catch (err: any) {
-            console.error('[AI Dictation] mic/stream failed:', err);
+       
+            if (claimedMic) releaseMicStream();     console.error('[AI Dictation] mic/stream failed:', err);
             addToast('Microphone unavailable. Grant microphone permission and try again.', { type: 'error' });
             setIsDictating(false);
         }
@@ -327,7 +337,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const stopAiAudioDictation = (): Promise<void> => new Promise((resolve) => {
         if (aiTimerRef.current) { clearInterval(aiTimerRef.current); aiTimerRef.current = null; }
         const finish = async () => {
-            aiStreamRef.current?.getTracks().forEach(t => t.stop());
+            if (aiStreamRef.current) {
+                releaseMicStream();
+                aiStreamRef.current = null;
+            }
             const finalChunks = aiChunksRef.current;
             aiChunksRef.current = [];
             try { await processAiAudioChunks(finalChunks); } catch { /* keep whatever raw we have */ }

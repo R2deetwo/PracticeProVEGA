@@ -12,6 +12,7 @@
  */
 
 import React, { useRef, useEffect, useCallback, useState } from 'react';
+import { acquireMicStream, releaseMicStream } from '../../services/voice/micStream';
 
 export interface PendingAttachment {
     storageId: string;
@@ -119,8 +120,13 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
 
     // ─── Voice Recording ──────────────────────────────────────────────
     const startRecording = async () => {
+        let claimed = false;
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Shared mic manager (micStream.ts) — ONE stream per session,
+            // retried across the Android permission/release races. Never
+            // call getUserMedia directly.
+            const stream = await acquireMicStream();
+            claimed = true;
             const recorder = new MediaRecorder(stream);
             audioChunksRef.current = [];
 
@@ -134,7 +140,9 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 if (onVoiceRecorded && blob.size > 0) {
                     onVoiceRecorded(blob, duration);
                 }
-                stream.getTracks().forEach(t => t.stop());
+                // Drop our claim on the shared stream (the manager keeps it
+                // warm briefly for the next recording, then idles it out).
+                releaseMicStream();
             };
 
             recorder.start();
@@ -147,6 +155,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 setRecordTime(Math.floor((Date.now() - recordStartRef.current) / 1000));
             }, 1000);
         } catch (err) {
+            if (claimed) releaseMicStream();
             console.error('Failed to start recording:', err);
         }
     };
@@ -160,7 +169,8 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
             if (!send) {
                 // Cancel — stop without calling onstop handler
                 mediaRecorderRef.current.onstop = null;
-                mediaRecorderRef.current.stream.getTracks().forEach(t => t.stop());
+                // The onstop release will not run (handler nulled) — drop the claim here.
+                releaseMicStream();
             }
             mediaRecorderRef.current.stop();
         }

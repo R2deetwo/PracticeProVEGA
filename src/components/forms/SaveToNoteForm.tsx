@@ -11,6 +11,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { MATTERS_NOTEBOOK_ID, PROPERTIES_NOTEBOOK_ID, MicrophoneIcon, PauseIcon, SparklesIcon, DismissIcon, PlusIcon, FolderIcon, ChevronDownIcon, XMarkIcon, WarningIcon } from '../../constants';
 import { inputModern } from '../../utils/formStyles';
 import { requestMicrophonePermission, getMicrophoneErrorMessage } from '../../utils/microphonePermission';
+import { acquireMicStream, releaseMicStream } from '../../services/voice/micStream';
 // Voice Capture Engine retrofit (2026-11-18): batches now route through the
 // dedicated backend transcription service (Whisper → Gemini chain) instead
 // of the direct geminiService path.
@@ -187,10 +188,13 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
         };
 
         const startRecordingEngine = async () => {
+            let claimed = false;
             try {
                 // Permission was already requested in handleToggleRecording
-                // (within the user gesture). Here we just open the stream.
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // (within the user gesture). The shared manager returns the
+                // warm stream instantly (no second open, no release race).
+                const stream = await acquireMicStream();
+                claimed = true;
 
                 // 1. Visualizer
                 const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -244,7 +248,10 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                     // the final audio, even if a periodic transcription is in flight.
                     const finalChunks = audioChunksRef.current;
                     audioChunksRef.current = []; // drain
-                    stream.getTracks().forEach(track => track.stop());
+                    // Drop our claim on the shared mic stream (micStream.ts
+                    // owns the lifecycle; stopping tracks here races the
+                    // Android AudioRecord release and locks the next take).
+                    releaseMicStream();
 
                     const totalSize = finalChunks.reduce((s, b) => s + b.size, 0);
                     if (totalSize < 500) {
@@ -284,6 +291,7 @@ export const SaveToNoteForm: React.FC<SaveToNoteFormProps> = ({ initialContent, 
                 }, 10000);
 
             } catch (err: any) {
+                if (claimed) releaseMicStream();
                 console.error("Recording Engine failed:", err);
                 addToast(getMicrophoneErrorMessage(err), { type: 'error' });
                 setIsRecording(false);

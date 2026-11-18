@@ -19,6 +19,8 @@
  * archived audio tiers accurately.
  */
 
+import { acquireMicStream, releaseMicStream } from './micStream';
+
 export type RecorderStatus = 'idle' | 'starting' | 'recording' | 'paused' | 'stopped' | 'error';
 
 export type RecorderErrorCode =
@@ -27,6 +29,7 @@ export type RecorderErrorCode =
   | 'denied'
   | 'no-microphone'
   | 'in-use'
+  | 'interrupted'
   | 'silent-failure'
   | 'encode-failed'
   | 'unknown';
@@ -131,7 +134,11 @@ export class VoiceRecorder {
   }
 
   async start(): Promise<void> {
-    if (this.isActive()) return;
+    // Single-flight: a double-tap on the record button (or a parent
+    // re-invoking while the permission dialog is up) must never open a
+    // second mic request alongside the first — on the Android WebView
+    // that collision is exactly what locks the mic with "in use".
+    if (this.isActive() || this.status === 'starting') return;
     if (!recorderSupported()) {
       if (typeof window !== 'undefined' && !window.isSecureContext) {
         throw new VoiceRecorderError(
@@ -153,14 +160,12 @@ export class VoiceRecorder {
 
     let stream: MediaStream;
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
+      // The shared manager owns the mic: one stream per session, automatic
+      // retry across the Android permission-grant / AudioRecord-release
+      // races, warm reuse for stop → record-again cycles.
+      stream = await acquireMicStream();
     } catch (err: any) {
+      this.status = 'idle';
       throw this.mapGumError(err);
     }
     this.stream = stream;
@@ -408,7 +413,11 @@ export class VoiceRecorder {
   }
 
   private cleanupStream() {
-    try { this.stream?.getTracks().forEach((t) => t.stop()); } catch { /* ignore */ }
+    // The stream is owned by micStream (session-level reuse) — we only
+    // drop our claim. Never stop the tracks here: stopping races the
+    // native AudioRecord release and breaks the next recording on
+    // Android WebViews.
+    releaseMicStream();
     this.stream = null;
   }
 
@@ -428,10 +437,17 @@ export class VoiceRecorder {
         String(err?.message || name)
       );
     }
-    if (name === 'NotReadableError' || name === 'AbortError') {
+    if (name === 'AbortError') {
+      return new VoiceRecorderError(
+        'interrupted',
+        'The recording request was interrupted before it started. Try again in a moment.',
+        String(err?.message || name)
+      );
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
       return new VoiceRecorderError(
         'in-use',
-        'The microphone is in use by another app. Close other recording apps (calls, voice notes) and try again.',
+        'The microphone did not open on this device. If you just granted permission, fully close and reopen the app once (Android occasionally locks the mic right after the permission prompt), then try again. Also check there is no active call or voice recorder.',
         String(err?.message || name)
       );
     }

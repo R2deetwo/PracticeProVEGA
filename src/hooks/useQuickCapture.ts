@@ -71,6 +71,10 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   const recorderRef = useRef<VoiceRecorder | null>(null);
   const pendingEnqueues = useRef<Set<Promise<void>>>(new Set());
   const activeIdRef = useRef<string | null>(null);
+  // Double-tap guard: a second Speak tap while the first is still opening
+  // the mic (permission dialog up) used to start a SECOND recorder — the
+  // collision that locks the Android mic with "in use by another app".
+  const startingRef = useRef(false);
   const outputModeRef = useRef<OutputMode>(opts.outputMode ?? "smart-clean");
   const eventTypeNamesRef = useRef<string[] | undefined>(opts.eventTypeNames);
   const onReadyToastRef = useRef(opts.onReadyToast);
@@ -234,6 +238,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   // ─── Public API ─────────────────────────────────────────────────────────
 
   const startRecording = useCallback(async () => {
+    if (startingRef.current) return; // double-tap guard — see startingRef above
     if (!recorderSupported()) {
       setState((s) => ({
         ...s,
@@ -243,7 +248,9 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
       }));
       return;
     }
+    startingRef.current = true;
     const clientLocalId = uuidv4();
+    try {
     activeIdRef.current = clientLocalId;
     pendingEnqueues.current.clear();
     await voiceSync.ensureCapture({
@@ -276,6 +283,9 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
         phase: "error",
         error: err?.userMessage || "Could not start recording. Please try again.",
       }));
+    }
+    } finally {
+      startingRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [makeRecorder]);

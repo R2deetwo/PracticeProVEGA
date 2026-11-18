@@ -19,22 +19,28 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { acquireMicStream, releaseMicStream } from '../services/voice/micStream';
 
 export type MicPermissionResult = 'granted' | 'denied' | 'prompt' | 'unavailable';
 
 /**
- * Request microphone permission by calling getUserMedia.
- * On native (APK), this triggers the WebView permission flow which
- * in turn requests the Android RECORD_AUDIO permission.
+ * Request microphone permission by acquiring the SHARED mic stream
+ * (micStream.ts). On native (APK), this triggers the WebView permission
+ * flow which in turn requests the Android RECORD_AUDIO permission.
  * On web, this triggers the browser's permission prompt.
+ *
+ * The stream is returned to the manager's warm pool on success (not
+ * stopped) — the caller's subsequent engine start reuses it instantly
+ * instead of racing a second getUserMedia against the first one's
+ * release, which is what produced "microphone is in use by another app"
+ * right after the user tapped Allow (Android WebView, 2026-11-18).
  *
  * Returns true if permission was granted, false otherwise.
  */
 export async function requestMicrophonePermission(): Promise<boolean> {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Immediately stop the tracks — we just wanted to trigger the permission
-        stream.getTracks().forEach(t => t.stop());
+        await acquireMicStream();
+        releaseMicStream(); // drop the claim; the stream stays warm briefly
         return true;
     } catch (err: any) {
         // If denied, return false — the caller will show an appropriate error
@@ -76,7 +82,7 @@ export function getMicrophoneErrorMessage(err: any): string {
         return "No microphone found. Please connect a microphone and try again.";
     }
     if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
-        return "Microphone is in use by another app. Please close it and try again.";
+        return "The microphone did not open. If you just granted permission, fully close and reopen the app once (Android occasionally locks the mic right after the permission prompt), then try again. Also check there is no active call or voice recorder.";
     }
     if (err?.name === 'OverconstrainedError') {
         return "Microphone doesn't meet the required constraints. Try a different device.";
