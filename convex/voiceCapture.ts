@@ -309,7 +309,26 @@ RULES:
 
 type GeminiKey = { key: string } | null;
 
-async function resolveGeminiKey(ctx: any, user: any): Promise<GeminiKey> {
+async function resolveGeminiKey(
+  ctx: any,
+  user: any,
+  callerKey?: string | null
+): Promise<GeminiKey> {
+  // 2026-11-18: ONE key policy for every voice surface, mirroring the CLIENT
+  // resolver (src/services/aiProvider.ts resolveProvider) so Quick Capture
+  // spends the SAME key text ALOA already uses:
+  //   1. the caller's OWN key (BYO — the client passes the user's key),
+  //   2. the caller's FIRM key — applied whenever the firm hasn't FULLY
+  //      configured a direct openai-compatible endpoint (key + baseUrl).
+  //      The old `aiProvider === "gemini"` gate skipped firms that had a
+  //      stored key but no explicit provider selection, silently dropping
+  //      them onto the platform env key — the exact "the firm's key doesn't
+  //      apply to Quick Capture" asymmetry the founder reported.
+  //   3. the platform env key (operator rotates it; see
+  //      GEMINI_KEY_ROTATION_RUNBOOK).
+  const own = (callerKey || "").trim();
+  if (own) return { key: own };
+
   let apiKey: string | null = null;
   if (user?.firmId) {
     try {
@@ -317,7 +336,10 @@ async function resolveGeminiKey(ctx: any, user: any): Promise<GeminiKey> {
         internal.ai.getFirmAiSettingsInternal,
         { firmId: String(user.firmId) }
       );
-      if (firmAi?.aiProvider === "gemini" && firmAi.firmGeminiApiKey) {
+      const openaiFullyConfigured =
+        firmAi?.aiProvider === "openai-compatible" &&
+        !!(firmAi?.openaiBaseUrl || "").trim();
+      if (!openaiFullyConfigured && firmAi?.firmGeminiApiKey) {
         apiKey = String(firmAi.firmGeminiApiKey);
       }
     } catch { /* best-effort; env fallback below */ }
@@ -402,6 +424,7 @@ export async function transcribeSegment(_ctx: any, opts: {
   wavBytes: Uint8Array;
   wavBase64: string;
   user: any;
+  callerKey?: string | null;
   continuationTail?: string;
 }): Promise<{ text: string; provider: string }> {
   const openAiKey = (process.env.OPENAI_API_KEY || "").trim();
@@ -419,7 +442,7 @@ export async function transcribeSegment(_ctx: any, opts: {
       // fall through to Gemini
     }
   }
-  const gemini = await resolveGeminiKey(_ctx, opts.user);
+  const gemini = await resolveGeminiKey(_ctx, opts.user, opts.callerKey);
   if (!gemini) {
     throw new ConvexError(
       "No transcription provider available yet — the platform AI key is being configured. Your recording is saved on device and will process automatically once it's set."
@@ -525,6 +548,7 @@ export const uploadSegment = action({
     startMs: v.number(),
     endMs: v.number(),
     startedAt: v.optional(v.number()),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()), // ignored — session is the proof
   },
@@ -588,6 +612,7 @@ export const uploadSegment = action({
       wavBytes,
       wavBase64: args.audioBase64,
       user: auth.user,
+      callerKey: args.callerApiKey,
       continuationTail,
     });
 
@@ -633,6 +658,7 @@ export const finalizeCapture = action({
     shorthandText: v.optional(v.string()), // legal pad: latest typed notes
     eventTypeNames: v.optional(v.array(v.string())), // firm's calendar types
     totalDurationMs: v.optional(v.number()),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -682,7 +708,7 @@ export const finalizeCapture = action({
       status: "ready",
     };
 
-    const gemini = await resolveGeminiKey(ctx, auth.user);
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     const patch: any = {
       verbatimText: verbatim,
       provider: lastProvider,
@@ -949,6 +975,7 @@ export const deleteCapture = mutation({
 export const repolish = action({
   args: {
     clientLocalId: v.string(),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -965,7 +992,7 @@ export const repolish = action({
     });
     if (!row) throw new Error("Capture not found.");
     if (!row.verbatimText) throw new Error("Nothing to polish yet.");
-    const gemini = await resolveGeminiKey(ctx, auth.user);
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     if (!gemini) throw new Error("No AI key available for Smart Clean.");
     const cleaned = await geminiText({
       apiKey: gemini.key,
@@ -1001,6 +1028,7 @@ export const transcribeBatch = action({
   args: {
     audioBase64: v.string(), // 16 kHz mono WAV, base64
     continuationTail: v.optional(v.string()),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -1019,6 +1047,7 @@ export const transcribeBatch = action({
       wavBytes,
       wavBase64: args.audioBase64,
       user: auth.user,
+      callerKey: args.callerApiKey,
       continuationTail: args.continuationTail || undefined,
     });
     return { text, provider };
@@ -1033,6 +1062,7 @@ export const transcribeBatch = action({
 export const quickAsk = action({
   args: {
     question: v.string(),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -1104,7 +1134,7 @@ export const quickAsk = action({
         detail: `${(e.date || "").slice(0, 16).replace("T", " ")}${e.type ? ` · ${e.type}` : ""}${e.matterTitle ? ` · ${e.matterTitle}` : ""}`,
       }));
 
-    const gemini = await resolveGeminiKey(ctx, auth.user);
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     if (!gemini) throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
 
     const contextBlock = [

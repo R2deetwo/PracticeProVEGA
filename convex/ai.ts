@@ -39,6 +39,7 @@ export const getFirmAiSettingsInternal = internalQuery({
       return {
         firmGeminiApiKey: (firm.aiSettings?.firmGeminiApiKey as string) || null,
         aiProvider: (firm.aiSettings?.aiProvider as string) || "gemini",
+        openaiBaseUrl: (firm.aiSettings?.openaiBaseUrl as string) || null,
       };
     } catch {
       return null;
@@ -62,11 +63,20 @@ async function resolveEffectiveApiKey(
     const firmAi: any = await ctx.runQuery(internal.ai.getFirmAiSettingsInternal, {
       firmId: String(user.firmId),
     });
-    // Only the DEFAULT (Gemini) provider's firm key is proxied server-side.
-    // OpenAI-compatible firms make direct calls to their own endpoint by
-    // design (admin opt-in, header-based transport) — their key is not
-    // spent through the platform proxy.
-    const firmKey = firmAi?.aiProvider === "gemini" ? (firmAi.firmGeminiApiKey || "").trim() : "";
+    // 2026-11-18: mirror of the CLIENT resolver (aiProvider.ts
+    // resolveProvider). The firm's stored key applies to GEMINI calls unless
+    // the firm is FULLY configured for a direct openai-compatible endpoint
+    // (key + baseUrl) — in that case the key belongs to their own endpoint,
+    // not Google, and is not spent through this proxy. The old
+    // `aiProvider === "gemini"` gate skipped firms that had a stored key but
+    // no explicit provider selection, silently dropping them onto the
+    // platform env key — the Quick Capture 403 asymmetry (2026-11-18).
+    const openaiFullyConfigured =
+      firmAi?.aiProvider === "openai-compatible" &&
+      !!(firmAi?.openaiBaseUrl || "").trim();
+    const firmKey = openaiFullyConfigured
+      ? ""
+      : (firmAi?.firmGeminiApiKey || "").trim();
     if (firmKey) return { apiKey: firmKey, source: "firm" };
   }
 

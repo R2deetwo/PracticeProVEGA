@@ -628,3 +628,48 @@ attempts); lint clean. APKs built and verified from this commit: vega
 1.0.794 (10794), founder 1.99.2 (19902) — aapt2 permissions show both
 mic permissions; dex free of the old client; founder bundle re-verified
 headlessly (fresh + stale-session → login screen).
+
+---
+
+## 2026-11-18 (f) — ALOA double-send + ONE key policy across every AI surface
+
+**ALOA duplicated the question AND the answer (founder report).** Root
+cause: `AutoExpandingChatInput`'s send button had no `type` attribute, and
+the input lives inside AloaChat's `<form onSubmit={… handleSend()}>` — a
+button in a form defaults to `type="submit"`, so one tap fired BOTH the
+button's `onClick` and the form's `onSubmit`: every message was sent twice
+(two queued AI calls → two streamed answers). The Enter key path never
+duplicated because its keydown handler `preventDefault()`s and a textarea
+Enter never submits a form. Fix: `type="button"` on all five buttons in
+`AutoExpandingChatInput` (send, attach, voice, recording cancel,
+recording stop — the attach/voice ones were accidental empty-text
+submitters too), plus a 1.2s double-fire guard in `handleSend`
+(`lastSendGuardRef`) that absorbs double-taps and any other path that
+re-delivers identical content; the intentional multi-message queue is
+untouched (a human cannot type a second, different message in under 1.2s).
+
+**"Why doesn't the key the firm uses apply to Quick Capture?" — it now
+does.** The asymmetry was real and structural: text ALOA resolves keys on
+the CLIENT (`aiProvider.ts resolveProvider`: firm key whenever present,
+defaulting provider to gemini), while every server surface
+(`voiceCapture`, `ai`, `noteDictation`, `http`) required
+`aiProvider === "gemini"` EXPLICITLY — a firm with a stored key but no
+provider selection (or a half-configured openai-compatible selection: no
+baseUrl) was silently skipped down to the platform env key, which Google
+had disabled after the leak → 403 in Quick Capture while text ALOA kept
+working. Fix: all four server resolvers now mirror the client (firm key
+applies unless the firm is FULLY configured for a direct openai-compatible
+endpoint: key + baseUrl; `getFirmAiSettingsInternal` now also returns
+`openaiBaseUrl`), and `voiceCapture` gains a caller-BYO channel: the
+client (`voiceCaptureService`) sends the user's own key — the same key
+text ALOA chat already uses — as `callerApiKey` on every voice action
+(uploadSegment, finalizeCapture, quickAsk, repolish, transcribeBatch);
+resolution order everywhere: caller's own key → firm key → platform env.
+Convex code changes go live at the next production promote; the instant
+unblock remains rotating GEMINI_API_KEY in the Convex dashboard (env
+changes need no deploy).
+
+Gates: tsc 0; vitest 2867/2867 (+1 new pin: half-configured
+openai-compatible firm now spends its stored key through the proxy,
+mirroring the client; the existing full-openai-compatible pin updated to
+carry a baseUrl). lint clean, UI ratchet held.

@@ -121,7 +121,13 @@ http.route({
         const firmAi: any = await ctx.runQuery(internal.ai.getFirmAiSettingsInternal, {
           firmId: String((sessionUser as any).firmId),
         });
-        if (firmAi?.aiProvider === "gemini" && firmAi.firmGeminiApiKey) {
+        // 2026-11-18: mirror of the client resolver — the firm's stored key
+        // applies unless the firm is fully configured for a direct
+        // openai-compatible endpoint (see convex/ai.ts).
+        const openaiFullyConfigured =
+          firmAi?.aiProvider === "openai-compatible" &&
+          !!(firmAi?.openaiBaseUrl || "").trim();
+        if (!openaiFullyConfigured && firmAi?.firmGeminiApiKey) {
           apiKey = String(firmAi.firmGeminiApiKey);
         }
       } catch { /* firm lookup is best-effort; env key below is the fallback */ }

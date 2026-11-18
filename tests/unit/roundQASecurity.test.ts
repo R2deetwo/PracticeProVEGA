@@ -255,13 +255,32 @@ describe('QA §3 — ai.generateContent: auth + throttle + payload bound', () =>
 
     it('S2: does NOT spend an openai-compatible firm’s key through the Gemini proxy', async () => {
         const { ctx } = makeCtx(baseTables());
-        (ctx.runQuery as any).mockResolvedValue({ firmGeminiApiKey: 'sk-or-firm-key', aiProvider: 'openai-compatible' });
+        // 2026-11-18: a fully-configured openai-compatible firm (key +
+        // baseUrl) — its key belongs to its own endpoint, not Google.
+        (ctx.runQuery as any).mockResolvedValue({ firmGeminiApiKey: 'sk-or-firm-key', aiProvider: 'openai-compatible', openaiBaseUrl: 'https://openrouter.ai/api/v1' });
         await expect(call(generateContent, ctx, {
             modelName: 'gemini-2.5-flash',
             contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
             sessionToken: SESSION_PLAIN,
         })).rejects.toThrow(/AI is not configured yet/i);
         expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('2026-11-18 client-mirror: an openai-compatible firm WITHOUT a baseUrl still spends its stored key through the Gemini proxy', async () => {
+        // Half-configured openai-compatible selection: no baseUrl, so the
+        // client resolver (aiProvider.ts) treats the stored key as a GEMINI
+        // key (legacy/direct path). The server used to skip it — the Quick
+        // Capture 403 asymmetry. It must now mirror the client.
+        const { ctx } = makeCtx(baseTables());
+        (ctx.runQuery as any).mockResolvedValue({ firmGeminiApiKey: 'half-configured-firm-key', aiProvider: 'openai-compatible', openaiBaseUrl: null });
+        const res = await call(generateContent, ctx, {
+            modelName: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+            sessionToken: SESSION_PLAIN,
+        });
+        expect(res.candidates[0].content.parts[0].text).toBe('cleaned text');
+        const calledHeaders = (fetchMock.mock.calls[0][1] as any).headers as Record<string, string>;
+        expect(calledHeaders['x-goog-api-key']).toBe('half-configured-firm-key');
     });
 
     it('throttles at 30 generations/minute per user (31st call rejected)', async () => {
