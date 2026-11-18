@@ -107,16 +107,16 @@ describe('micStream — the shared microphone manager', () => {
     expect(s).toBeTruthy();
   });
 
-  it('exhausts the ladder (3 attempts) and surfaces the error after the final backoff', async () => {
+  it('exhausts the ladder (4 attempts, incl. the 2.5s stale-AudioRecord backoff) and surfaces the error after the final backoff', async () => {
     const { impl } = mockGum();
     impl.mockRejectedValue(gumError('NotReadableError'));
     const { acquireMicStream } = await loadManager();
 
     const p = acquireMicStream();
     const assertion = expect(p).rejects.toThrow();
-    await vi.advanceTimersByTimeAsync(2_000); // 400ms + 1000ms backoffs
+    await vi.advanceTimersByTimeAsync(4_000); // 400ms + 1000ms + 2500ms backoffs
     await assertion;
-    expect(impl).toHaveBeenCalledTimes(3);
+    expect(impl).toHaveBeenCalledTimes(4);
   });
 
   it('does NOT retry permission denials — they surface immediately', async () => {

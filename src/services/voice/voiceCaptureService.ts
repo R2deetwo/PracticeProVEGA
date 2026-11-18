@@ -8,6 +8,7 @@
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { convertBlobToWav } from "../../utils/webmToWav";
+import { getGeminiApiKey } from "../../utils/aiUtils";
 // Exact backend result types — importing them keeps client and server
 // contracts in lockstep (triageMeta is `any` server-side; the typed view
 // below is what the UI consumes).
@@ -181,6 +182,10 @@ export async function uploadSegment(args: UploadSegmentArgs): Promise<{
     startMs: args.startMs,
     endMs: args.endMs,
     startedAt: args.startedAt,
+    // 2026-11-18: send the caller's own BYO key (the same key text ALOA
+    // chat already uses client-side) so quick capture spends the user's
+    // account key instead of depending solely on the platform env key.
+    callerApiKey: getGeminiApiKey() || undefined,
     sessionToken: readSessionBearer(),
   });
 }
@@ -193,6 +198,7 @@ export async function finalizeCapture(args: {
 }): Promise<FinalizeCaptureResult> {
   return convex.action(api.voiceCapture.finalizeCapture, {
     ...args,
+    callerApiKey: getGeminiApiKey() || undefined,
     sessionToken: readSessionBearer(),
   });
 }
@@ -239,6 +245,7 @@ export async function listRecentCaptures(limit = 15): Promise<CaptureProjection[
 export async function quickAsk(question: string): Promise<QuickAskResult> {
   return convex.action(api.voiceCapture.quickAsk, {
     question,
+    callerApiKey: getGeminiApiKey() || undefined,
     sessionToken: readSessionBearer(),
   });
 }
@@ -246,6 +253,7 @@ export async function quickAsk(question: string): Promise<QuickAskResult> {
 export async function repolish(clientLocalId: string): Promise<{ smartCleanText: string }> {
   return convex.action(api.voiceCapture.repolish, {
     clientLocalId,
+    callerApiKey: getGeminiApiKey() || undefined,
     sessionToken: readSessionBearer(),
   });
 }

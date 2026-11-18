@@ -39,7 +39,7 @@
 
 import { action, query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
 import { QUALITY_MODEL } from "./aiModels";
 
@@ -53,6 +53,75 @@ const MAX_SEGMENT_MS = 5 * 60 * 1000;
 const MAX_TRANSCRIPT_CHARS = 200_000;
 
 // ─── Pure helpers (unit-tested in tests/unit/voiceCapture.test.ts) ─────────
+
+/**
+ * Classify a Gemini HTTP failure into an actionable bucket.
+ *
+ * WHY THIS EXISTS (2026-11-18, founder-reported): the platform's Gemini key
+ * had been committed to the public repo, so Google's leaked-credential
+ * scanner disabled it. Every AI call then failed with
+ *   403 PERMISSION_DENIED "Your API key was reported as leaked"
+ * and — because the raw Error string crossed the Convex action boundary —
+ * users saw a terrifying "[Request ID: …] Server Error Uncaught Error:
+ * Gemini 403: …" dialog instead of something human. ConvexError messages
+ * DO reach the client verbatim, so the classifier lets us surface a clean,
+ * honest, actionable message for every failure class.
+ */
+export type GeminiFailureClass =
+  | "key-rejected" // 401/403, leaked/invalid/suspended key, permission denied
+  | "rate-limited" // 429
+  | "provider-down" // 5xx
+  | "bad-request" // 400/404/422 — wrong model name, malformed body
+  | "unknown";
+
+export function classifyGeminiFailure(status: number, errText: string): GeminiFailureClass {
+  const t = (errText || "").toLowerCase();
+  if (
+    status === 401 ||
+    status === 403 ||
+    t.includes("leaked") ||
+    t.includes("permission_denied") ||
+    t.includes("api key") ||
+    t.includes("api_key")
+  ) {
+    return "key-rejected";
+  }
+  if (status === 429 || t.includes("resource_exhausted")) return "rate-limited";
+  if (status >= 500) return "provider-down";
+  if (status === 400 || status === 404 || status === 422) return "bad-request";
+  return "unknown";
+}
+
+/** Human messages for each failure class (client-safe, no provider jargon). */
+export const GEMINI_FAILURE_MESSAGES: Record<GeminiFailureClass, string> = {
+  "key-rejected":
+    "AI is temporarily unavailable — the platform's AI key needs to be rotated. Nothing you recorded was lost; please try again once it's updated.",
+  "rate-limited":
+    "The AI service is rate-limited right now. Please wait a moment and try again — nothing you recorded was lost.",
+  "provider-down":
+    "The AI service had a temporary problem. Please try again in a moment — nothing you recorded was lost.",
+  "bad-request":
+    "The AI service rejected the request. Please try again, and report it if it keeps happening.",
+  unknown: "The AI service could not be reached. Please try again in a moment.",
+};
+
+/**
+ * Throw the RIGHT kind of error for a Gemini HTTP failure. ConvexError
+ * messages reach the client verbatim (plain Error becomes
+ * "Uncaught Error … [Request ID]"), so every user-visible path must throw
+ * ConvexError.
+ */
+function throwGeminiFailure(status: number, errText: string, what: string): never {
+  const cls = classifyGeminiFailure(status, errText);
+  if (cls !== "unknown" && cls !== "bad-request") {
+    throw new ConvexError(GEMINI_FAILURE_MESSAGES[cls]);
+  }
+  // Bad request / unknown: still a server-side concern — keep the detail
+  // for the logs but wrap in ConvexError so the client sees clean text.
+  throw new ConvexError(
+    `AI ${what} failed (${status}). ${errText.slice(0, 160)}`
+  );
+}
 
 /** Decode a base64 string (optionally a data: URL) into bytes. */
 export function decodeBase64ToBytes(b64: string): Uint8Array {
@@ -240,7 +309,26 @@ RULES:
 
 type GeminiKey = { key: string } | null;
 
-async function resolveGeminiKey(ctx: any, user: any): Promise<GeminiKey> {
+async function resolveGeminiKey(
+  ctx: any,
+  user: any,
+  callerKey?: string | null
+): Promise<GeminiKey> {
+  // 2026-11-18: ONE key policy for every voice surface, mirroring the CLIENT
+  // resolver (src/services/aiProvider.ts resolveProvider) so Quick Capture
+  // spends the SAME key text ALOA already uses:
+  //   1. the caller's OWN key (BYO — the client passes the user's key),
+  //   2. the caller's FIRM key — applied whenever the firm hasn't FULLY
+  //      configured a direct openai-compatible endpoint (key + baseUrl).
+  //      The old `aiProvider === "gemini"` gate skipped firms that had a
+  //      stored key but no explicit provider selection, silently dropping
+  //      them onto the platform env key — the exact "the firm's key doesn't
+  //      apply to Quick Capture" asymmetry the founder reported.
+  //   3. the platform env key (operator rotates it; see
+  //      GEMINI_KEY_ROTATION_RUNBOOK).
+  const own = (callerKey || "").trim();
+  if (own) return { key: own };
+
   let apiKey: string | null = null;
   if (user?.firmId) {
     try {
@@ -248,7 +336,10 @@ async function resolveGeminiKey(ctx: any, user: any): Promise<GeminiKey> {
         internal.ai.getFirmAiSettingsInternal,
         { firmId: String(user.firmId) }
       );
-      if (firmAi?.aiProvider === "gemini" && firmAi.firmGeminiApiKey) {
+      const openaiFullyConfigured =
+        firmAi?.aiProvider === "openai-compatible" &&
+        !!(firmAi?.openaiBaseUrl || "").trim();
+      if (!openaiFullyConfigured && firmAi?.firmGeminiApiKey) {
         apiKey = String(firmAi.firmGeminiApiKey);
       }
     } catch { /* best-effort; env fallback below */ }
@@ -316,11 +407,11 @@ async function transcribeWithGemini(opts: {
   });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Gemini transcription ${res.status}: ${errText.slice(0, 300)}`);
+    throwGeminiFailure(res.status, errText, "transcription");
   }
   const data: any = await res.json();
   const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-  if (!text) throw new Error("Gemini returned no text for this segment.");
+  if (!text) throw new ConvexError("The AI transcription returned no text for this segment — it will retry automatically.");
   return text;
 }
 
@@ -333,6 +424,7 @@ export async function transcribeSegment(_ctx: any, opts: {
   wavBytes: Uint8Array;
   wavBase64: string;
   user: any;
+  callerKey?: string | null;
   continuationTail?: string;
 }): Promise<{ text: string; provider: string }> {
   const openAiKey = (process.env.OPENAI_API_KEY || "").trim();
@@ -350,10 +442,10 @@ export async function transcribeSegment(_ctx: any, opts: {
       // fall through to Gemini
     }
   }
-  const gemini = await resolveGeminiKey(_ctx, opts.user);
+  const gemini = await resolveGeminiKey(_ctx, opts.user, opts.callerKey);
   if (!gemini) {
-    throw new Error(
-      "No transcription provider available. Set OPENAI_API_KEY (preferred, Whisper) or a Gemini key (firm BYO or platform env)."
+    throw new ConvexError(
+      "No transcription provider available yet — the platform AI key is being configured. Your recording is saved on device and will process automatically once it's set."
     );
   }
   const text = await transcribeWithGemini({
@@ -387,11 +479,11 @@ async function geminiText(opts: {
   });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 300)}`);
+    throwGeminiFailure(res.status, errText, "completion");
   }
   const data: any = await res.json();
   const text = (data?.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-  if (!text) throw new Error("Gemini returned no text.");
+  if (!text) throw new ConvexError("The AI service returned an empty answer. Please try again.");
   return text;
 }
 
@@ -456,6 +548,7 @@ export const uploadSegment = action({
     startMs: v.number(),
     endMs: v.number(),
     startedAt: v.optional(v.number()),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()), // ignored — session is the proof
   },
@@ -519,6 +612,7 @@ export const uploadSegment = action({
       wavBytes,
       wavBase64: args.audioBase64,
       user: auth.user,
+      callerKey: args.callerApiKey,
       continuationTail,
     });
 
@@ -564,6 +658,7 @@ export const finalizeCapture = action({
     shorthandText: v.optional(v.string()), // legal pad: latest typed notes
     eventTypeNames: v.optional(v.array(v.string())), // firm's calendar types
     totalDurationMs: v.optional(v.number()),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -613,7 +708,7 @@ export const finalizeCapture = action({
       status: "ready",
     };
 
-    const gemini = await resolveGeminiKey(ctx, auth.user);
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     const patch: any = {
       verbatimText: verbatim,
       provider: lastProvider,
@@ -880,6 +975,7 @@ export const deleteCapture = mutation({
 export const repolish = action({
   args: {
     clientLocalId: v.string(),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -896,7 +992,7 @@ export const repolish = action({
     });
     if (!row) throw new Error("Capture not found.");
     if (!row.verbatimText) throw new Error("Nothing to polish yet.");
-    const gemini = await resolveGeminiKey(ctx, auth.user);
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     if (!gemini) throw new Error("No AI key available for Smart Clean.");
     const cleaned = await geminiText({
       apiKey: gemini.key,
@@ -932,6 +1028,7 @@ export const transcribeBatch = action({
   args: {
     audioBase64: v.string(), // 16 kHz mono WAV, base64
     continuationTail: v.optional(v.string()),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -950,6 +1047,7 @@ export const transcribeBatch = action({
       wavBytes,
       wavBase64: args.audioBase64,
       user: auth.user,
+      callerKey: args.callerApiKey,
       continuationTail: args.continuationTail || undefined,
     });
     return { text, provider };
@@ -964,6 +1062,7 @@ export const transcribeBatch = action({
 export const quickAsk = action({
   args: {
     question: v.string(),
+    callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
   },
@@ -1035,8 +1134,8 @@ export const quickAsk = action({
         detail: `${(e.date || "").slice(0, 16).replace("T", " ")}${e.type ? ` · ${e.type}` : ""}${e.matterTitle ? ` · ${e.matterTitle}` : ""}`,
       }));
 
-    const gemini = await resolveGeminiKey(ctx, auth.user);
-    if (!gemini) throw new Error("No AI key available for Quick Ask.");
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
+    if (!gemini) throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
 
     const contextBlock = [
       `MATCHED MATTERS (of ${matters.length} on record):\n${matchedMatters.map((m) => `- [Matter: ${m.title}] ${m.detail}`).join("\n") || "(none)"}`,

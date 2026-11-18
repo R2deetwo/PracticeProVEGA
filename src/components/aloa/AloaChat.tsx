@@ -244,6 +244,16 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const [pendingAttachments, setPendingAttachments] = useState<{ storageId: string; name: string; type: string }[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    // 2026-11-18: duplicate-submission guard. The chat input lives inside a
+    // <form onSubmit={…handleSend()}> and AutoExpandingChatInput's send
+    // button was an IMPLICIT type="submit" — one tap fired BOTH the button's
+    // onClick and the form's onSubmit, so every message was sent twice:
+    // duplicated question + duplicated answer (founder report, 2026-11-18).
+    // The button is now type="button" (component fix); this guard absorbs
+    // double-taps and any other double-fire path that re-delivers the same
+    // content within 1.2s. The intentional multi-message queue is unaffected
+    // (a human cannot type a second, different message in under 1.2s).
+    const lastSendGuardRef = useRef<{ content: string; at: number } | null>(null);
     const [aloaStatus, setAloaStatus] = useState('');
     const [showHistory, setShowHistory] = useState(false);
     const [expandedErrorIds, setExpandedErrorIds] = useState<Set<string>>(new Set());
@@ -1842,6 +1852,25 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const handleSend = async (overrideContent?: string) => {
         const content = overrideContent ?? textInput;
         if (!content.trim() && pendingAttachments.length === 0) return;
+
+        // ─── DOUBLE-FIRE GUARD (2026-11-18) ─────────────────────────────
+        // One user action must enqueue exactly ONE message. See the
+        // lastSendGuardRef declaration comment for the history.
+        const guardNow = Date.now();
+        const guardLast = lastSendGuardRef.current;
+        if (
+            guardLast &&
+            guardLast.content === content &&
+            guardNow - guardLast.at < 1200
+        ) {
+            console.warn('[ALOA] Duplicate send suppressed (double-fire guard).');
+            if (!overrideContent) {
+                setTextInput('');
+                draftByConversationRef.current[activeConversationId || '__new__'] = '';
+            }
+            return;
+        }
+        lastSendGuardRef.current = { content, at: guardNow };
 
         // ─── DRAFT TAB OPENING ───────────────────────────────────────────
         // NOTE: We NO LONGER pre-open a blank "Preparing DraftPro…" tab

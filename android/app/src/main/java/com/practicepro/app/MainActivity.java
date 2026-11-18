@@ -1,18 +1,11 @@
 package com.practicepro.app;
 
-import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.WindowManager;
-import android.webkit.PermissionRequest;
-import android.webkit.WebChromeClient;
 import android.webkit.WebView;
-import android.widget.Toast;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 import com.practicepro.app.plugins.ContentProtectionPlugin;
 
@@ -26,22 +19,36 @@ import com.practicepro.app.plugins.ContentProtectionPlugin;
  *    notifications can display. Without this, FCM push notifications
  *    are silently dropped by the OS.
  *
- * Microphone permission bridging:
- * When the web app calls navigator.mediaDevices.getUserMedia({ audio: true }),
- * the WebView fires WebChromeClient.onPermissionRequest. By default, Capacitor's
- * BridgeActivity does NOT bridge this to the native Android RECORD_AUDIO runtime
- * permission — so the user sees "permission denied" without ever being asked.
+ * MICROPHONE PERMISSIONS (rewritten 2026-11-18):
+ * The previous implementation replaced Capacitor's WebChromeClient with a
+ * bare `new WebChromeClient()` that manually bridged only RECORD_AUDIO.
+ * That caused THREE problems on real devices:
  *
- * This override intercepts onPermissionRequest, explicitly requests the Android
- * RECORD_AUDIO runtime permission, and grants the WebView request once the native
- * permission is granted. This is what makes the Notetaker / voice recorder work
- * on the APK.
+ *   1. It never requested MODIFY_AUDIO_SETTINGS — which Capacitor's own
+ *      BridgeWebChromeClient requests together with RECORD_AUDIO for
+ *      AUDIO_CAPTURE. On several OEM ROMs (Transsion/Infinix/Tecno, some
+ *      Samsung/MediaTek builds) Chromium's audio pipeline cannot open the
+ *      native AudioRecord without it, so getUserMedia fails with
+ *      NotReadableError ("the microphone did not open on this device")
+ *      EVEN WHEN the user has granted the OS microphone permission.
+ *      This was the founder's device symptom: grant → revoke → re-grant
+ *      changed nothing.
+ *   2. The bare client dropped Capacitor's onShowFileChooser — file
+ *      uploads (<input type="file">) silently did nothing in the APK.
+ *   3. It dropped onJsAlert/onJsConfirm/onJsPrompt (window.alert/confirm
+ *      dead) and onConsoleMessage (no console relay for diagnostics).
+ *
+ * THE FIX: do NOT replace the WebChromeClient at all. Capacitor 8's
+ * BridgeWebChromeClient (set by the bridge during onCreate) already
+ * implements the correct flow: onPermissionRequest(AUDIO_CAPTURE) →
+ * request RECORD_AUDIO + MODIFY_AUDIO_SETTINGS via the modern
+ * ActivityResult launcher → grant the WebView request. The manifest now
+ * declares both permissions. Everything else (file chooser, dialogs,
+ * console, geolocation) keeps working because the stock client is intact.
  */
 public class MainActivity extends BridgeActivity {
 
     private boolean flagSecureEnabled = false;
-    private static final int MIC_PERMISSION_REQUEST_CODE = 4242;
-    private PermissionRequest pendingWebPermissionRequest = null;
 
     // ─── NOTIFICATION CHANNEL (Aug 2026) ───────────────────────────────
     // Android 8+ (API 26+) requires notification channels. Without a channel,
@@ -87,62 +94,13 @@ public class MainActivity extends BridgeActivity {
         // Disable WebView debugging — security hardening.
         WebView.setWebContentsDebuggingEnabled(false);
 
-        // Set a custom WebChromeClient that intercepts microphone permission
-        // requests from the WebView and bridges them to the native Android
-        // RECORD_AUDIO runtime permission.
-        // Use the official Capacitor API (bridge.getWebView()) instead of
-        // findViewById(com.getcapacitor.R.id.webview) — the R.id reference
-        // is an internal implementation detail that may not resolve in all
-        // build environments.
-        if (this.bridge != null) {
-            WebView webView = this.bridge.getWebView();
-            if (webView != null) {
-                webView.setWebChromeClient(new WebChromeClient() {
-                    @Override
-                    public void onPermissionRequest(final PermissionRequest request) {
-                        runOnUiThread(() -> {
-                            String[] resources = request.getResources();
-                            boolean wantsAudio = false;
-                            for (String r : resources) {
-                                if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
-                                    wantsAudio = true;
-                                    break;
-                                }
-                            }
-
-                            if (wantsAudio) {
-                                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.RECORD_AUDIO)
-                                        == PackageManager.PERMISSION_GRANTED) {
-                                    request.grant(request.getResources());
-                                } else {
-                                    pendingWebPermissionRequest = request;
-                                    ActivityCompat.requestPermissions(MainActivity.this,
-                                            new String[]{Manifest.permission.RECORD_AUDIO},
-                                            MIC_PERMISSION_REQUEST_CODE);
-                                }
-                            } else {
-                                request.deny();
-                            }
-                        });
-                    }
-                });
-            }
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == MIC_PERMISSION_REQUEST_CODE && pendingWebPermissionRequest != null) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                pendingWebPermissionRequest.grant(pendingWebPermissionRequest.getResources());
-            } else {
-                pendingWebPermissionRequest.deny();
-                Toast.makeText(this, "Microphone permission denied. Enable it in Settings → Apps → PracticePro → Permissions.", Toast.LENGTH_LONG).show();
-            }
-            pendingWebPermissionRequest = null;
-        }
+        // NOTE: no setWebChromeClient() here — intentionally. The bridge has
+        // already installed Capacitor's BridgeWebChromeClient, whose
+        // onPermissionRequest implementation requests RECORD_AUDIO +
+        // MODIFY_AUDIO_SETTINGS for WebView mic access and grants the
+        // request once the OS permissions are granted. Replacing it (as an
+        // older revision of this file did) breaks mic capture on OEM ROMs
+        // and kills file-upload dialogs. See the class comment above.
     }
 
     public void setFlagSecure(boolean enabled) {

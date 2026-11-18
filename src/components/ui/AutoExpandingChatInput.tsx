@@ -223,6 +223,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 </div>
                 {/* Cancel */}
                 <button
+                    type="button"
                     onClick={() => stopRecording(false)}
                     className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center"
                     aria-label="Cancel recording"
@@ -233,6 +234,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 </button>
                 {/* Stop & Send */}
                 <button
+                    type="button"
                     onClick={() => stopRecording(true)}
                     className="flex-shrink-0 w-10 h-10 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center"
                     aria-label="Stop and send voice note"
@@ -273,6 +275,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 {/* Attachment button — styled to match Send button */}
                 {onAttachClick && (
                     <button
+                        type="button"
                         onClick={onAttachClick}
                         disabled={disabled}
                         className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-50"
@@ -302,6 +305,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                 {/* Voice note button */}
                 {showVoiceButton && !value.trim() && (
                     <button
+                        type="button"
                         onClick={startRecording}
                         disabled={disabled}
                         className="flex-shrink-0 w-10 h-10 bg-slate-100 dark:bg-zinc-700 text-slate-500 dark:text-zinc-400 rounded-lg hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors flex items-center justify-center disabled:opacity-50"
@@ -321,6 +325,7 @@ export const AutoExpandingChatInput: React.FC<AutoExpandingChatInputProps> = ({
                     the attach/voice buttons); when a caller explicitly needs a
                     label the button widens to fit instead of clipping. */}
                 <button
+                    type="button"
                     onClick={handleSendClick}
                     disabled={disabled || sendDisabled}
                     aria-label={sendAriaLabel || (sendLabel ? `${sendLabel}` : 'Send message')}
