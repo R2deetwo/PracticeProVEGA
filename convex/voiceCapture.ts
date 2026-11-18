@@ -898,6 +898,12 @@ async function loadOwnedCapture(ctx: any, auth: { firmId: string }, clientLocalI
 }
 
 function projectCapture(row: any, slim: boolean) {
+  const texts: any[] = Array.isArray(row.segmentTexts) ? row.segmentTexts : [];
+  // INCREMENTAL DICTATION: the index the NEXT segment must carry so an
+  // "Add More" round can never collide with an existing (idempotent-skip)
+  // index. Gaps from dead-lettered segments mean max-index+1 ≠ count, so
+  // derive it from the indexes themselves.
+  const maxIndex = texts.reduce((m: number, t: any) => Math.max(m, t?.index ?? 0), -1);
   const base: any = {
     captureId: row._id,
     clientLocalId: row.clientLocalId,
@@ -909,7 +915,8 @@ function projectCapture(row: any, slim: boolean) {
     startedAt: row.startedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    segmentCount: Array.isArray(row.segmentTexts) ? row.segmentTexts.length : 0,
+    segmentCount: texts.length,
+    nextSegmentIndex: maxIndex + 1,
     triageIntent: row.triageIntent,
     triageMeta: row.triageMeta,
     matterId: row.matterId,

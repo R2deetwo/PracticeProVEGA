@@ -317,6 +317,32 @@ export class VoiceSyncManager {
     this.emit({ type: "status" });
   }
 
+  /**
+   * Cancel an "Add More" (append) round: drop ONLY the segments recorded in
+   * this round (segmentIndex >= fromIndex) and the queue row it recreated,
+   * leaving the ORIGINAL capture untouched on the backend.
+   *
+   * The local queue row for an append round is recreated by ensureCapture
+   * (the previous round's row is deleted after it finalized), and its only
+   * pending segments are the new round's — so once those are dropped the
+   * row is safe to delete. Segments that already reached the backend before
+   * the cancel cannot be un-sent; they stay dormant on the capture row and
+   * surface if a later append round finalizes (audio is never destroyed).
+   */
+  async cancelAppendRound(clientLocalId: string, fromIndex: number): Promise<void> {
+    const segs = await getSegmentsForCapture(clientLocalId).catch(() => [] as QueuedSegment[]);
+    for (const s of segs) {
+      if (s.segmentIndex >= fromIndex) {
+        await deleteSegment(s.key).catch(() => undefined);
+      }
+    }
+    const remaining = await getSegmentsForCapture(clientLocalId).catch(() => [] as QueuedSegment[]);
+    if (remaining.every((s) => s.status !== "pending")) {
+      await deleteCaptureRow(clientLocalId).catch(() => undefined);
+    }
+    this.emit({ type: "status" });
+  }
+
   async getStats(): Promise<VoiceQueueStats> {
     const [segs, caps] = await Promise.all([
       getAllSegments().catch(() => [] as QueuedSegment[]),
@@ -431,10 +457,13 @@ export class VoiceSyncManager {
     }
 
     // Finalize closed captures once every segment is uploaded or dead.
+    // (2026-11-18 fix: dead-lettered segments used to keep remaining.length
+    // > 0 forever, silently blocking finalize for the whole capture — now
+    // only PENDING segments can block it, and dead ones are cleaned up.)
     const remaining = await getSegmentsForCapture(cap.clientLocalId).catch(() => [] as QueuedSegment[]);
     const stillPending = remaining.some((s) => s.status === "pending");
     const expectedCount = cap.segmentCount ?? 0;
-    const done = remaining.length === 0 && expectedCount > 0;
+    const done = !stillPending && expectedCount > 0;
     if (!stillPending && done && cap.status !== "ready") {
       await this.finalizeCapture(cap);
     }
@@ -455,8 +484,16 @@ export class VoiceSyncManager {
       this.emit({ type: "ready", clientLocalId: cap.clientLocalId });
       // Queue cleanup: the capture record has served its purpose once the
       // backend holds the full state. Keep recent rows for the pending
-      // strip only when something is still pending.
-      await deleteCaptureRow(cap.clientLocalId).catch(() => undefined);
+      // strip only when something is still pending. Dead-lettered segments
+      // (permanent failures) are swept here too — they can never upload.
+      const segs = await getSegmentsForCapture(cap.clientLocalId).catch(() => [] as QueuedSegment[]);
+      for (const s of segs) {
+        if (s.status === "dead") await deleteSegment(s.key).catch(() => undefined);
+      }
+      const rest = await getSegmentsForCapture(cap.clientLocalId).catch(() => [] as QueuedSegment[]);
+      if (rest.length === 0) {
+        await deleteCaptureRow(cap.clientLocalId).catch(() => undefined);
+      }
       void result;
     } catch (err: any) {
       const msg = String(err?.message || err || "finalize failed");

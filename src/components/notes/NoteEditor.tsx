@@ -29,10 +29,24 @@ import { Z_CLASS } from '../../overlays/constants';
 import { transcribeBatch } from '../../services/voice/voiceCaptureService';
 import { acquireMicStream, releaseMicStream } from '../../services/voice/micStream';
 import { recorderSupported } from '../../services/voice/audioRecorder';
+import { appendSeparatorLabel } from '../../services/voice/draftUtils';
+import { Button } from '../ui';
 
 const BackIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+    </svg>
+);
+
+/** Mic with a plus — the "Append by Voice" affordance (owner addendum). */
+const MicPlusIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+        <line x1="18" y1="2" x2="18" y2="8"/>
+        <line x1="15" y1="5" x2="21" y2="5"/>
     </svg>
 );
 
@@ -158,6 +172,50 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
     const aiProcessingRef = useRef(false);      // guards concurrent segment calls
     const aiGotAnyTextRef = useRef(false);      // drives the "no speech detected" toast
     const [aiTranscribing, setAiTranscribing] = useState(false); // status bar indicator
+
+    // ─── APPEND BY VOICE (owner addendum, 2026-11-18) ───────────────────
+    // "When viewing a previously saved voice note or attendance note inside
+    // a Matter, include a compact 'Append by Voice' button that opens the
+    // recorder and appends new transcribed dictation onto the bottom of
+    // that existing note (with an optional timestamp separator)."
+    // pendingAppendRef: when the user taps Append while viewing the RAW
+    // transcript tier, we first flip back to the content view (the effect
+    // below rewrites the editor), THEN run the separator + dictation start.
+    const pendingAppendRef = useRef(false);
+
+    /** Insert the timestamp separator at the very end of the note and start
+     * the dictation engine with the cursor parked after it — every spoken
+     * word lands in a new timestamped block at the bottom of the note. */
+    const beginAppendDictation = async () => {
+        if (!editor || isDictating || isCleaning) return;
+        // Seed the raw accumulator with the note's EXISTING transcript so
+        // the stop ceremony re-runs the cleanup pass across the COMBINED
+        // text (smart re-evaluation on appended text).
+        const existingRaw = (page.rawTranscript || '').trim();
+        rawTranscriptRef.current = existingRaw ? existingRaw + ' ' : '';
+        userStoppedRef.current = false;
+        try {
+            const end = editor.state.doc.content.size;
+            editor.chain().focus().setTextSelection(end).run();
+            editor.chain().insertContent(`<p><em>${appendSeparatorLabel(new Date())}</em></p>`).run();
+            insertPosRef.current = editor.state.selection.from;
+        } catch {
+            insertPosRef.current = null;
+        }
+        await startAiAudioDictation();
+    };
+
+    const startAppendVoiceDictation = async () => {
+        if (!editor || isDictating || isCleaning) return;
+        if (showRawTranscript) {
+            // The raw/cleaned toggle effect rewrites the editor content on
+            // switch — defer the separator until after that settles.
+            pendingAppendRef.current = true;
+            setShowRawTranscript(false);
+            return;
+        }
+        await beginAppendDictation();
+    };
 
     // Check if the current note already has transcripts (from a prior dictation)
     useEffect(() => {
@@ -633,6 +691,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
             editor.commands.setContent(page.content || '');
         }
         isProgrammaticChange.current = false;
+        // Append by Voice deferred start: the view just settled — drop the
+        // timestamp separator and open the mic now.
+        if (pendingAppendRef.current) {
+            pendingAppendRef.current = false;
+            void beginAppendDictation();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showRawTranscript, hasExistingTranscript]);
 
@@ -757,6 +821,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             {isDictating && <span className="text-3xs font-bold">Listening...</span>}
                             {isCleaning && <span className="text-3xs font-bold">Cleaning...</span>}
                         </button>
+                        {/* APPEND BY VOICE (owner addendum, 2026-11-18): opens
+                            the recorder and appends a timestamped dictation
+                            block onto the BOTTOM of this existing note — for
+                            attendance notes and saved voice notes inside a
+                            matter. The stop ceremony re-cleans the COMBINED
+                            transcript (raw + cleaned tiers both updated).
+                            Built on the ui/ Button primitive (ADR-0004 — no
+                            new raw form elements). */}
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            minTouchTarget
+                            icon={MicPlusIcon}
+                            onClick={startAppendVoiceDictation}
+                            disabled={isDictating || isCleaning || !dictationSupported}
+                            title="Append by Voice — adds a timestamped dictation block to the end of this note. Your words are transcribed by the same Whisper engine and the AI cleanup re-runs across the whole note."
+                        >
+                            Append by Voice
+                        </Button>
                         {/* VEGA DUAL-OUTPUT: raw/cleaned toggle + AI-disclosure marker.
                             Only shown after dictation completes (hasExistingTranscript).
                             Atrium mode doesn't get the toggle — single-pass only. */}
