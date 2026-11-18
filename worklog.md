@@ -19645,3 +19645,27 @@ Stage Summary:
 - Deliverable: the full Voice Capture Engine + Quick Capture Mode + Legal Pad, backend and frontend, retrofitted legacy dictation, 26 new tests, runbook.
 - Operator action (optional): npx convex env set OPENAI_API_KEY=... to switch transcription from Gemini-fallback to Whisper. Everything works today on existing keys.
 - Deferred: voice commands, transcript diffing, per-firm OpenAI BYO, archived-audio playback UI (getSegmentUrl API ready).
+
+---
+Task ID: 71
+Agent: Main agent (Super Z)
+Task: Owner round 2026-11-18 (afternoon) — credentials custody, real-AI landing engine live, security-review findings, free-tier model audit
+
+Work Log:
+- CREDENTIALS: owner supplied GitHub PAT (admin, verified working) + Convex deploy key (gregarious-malamute-537) + new Gemini key; all stored ONLY in the build agent's secrets vault (chmod 600, outside the repo), never echoed, never committed. New Gemini key installed as GEMINI_API_KEY on production Convex (env set, runtime-read) — the revoked-key 403s across every AI surface are over.
+- LANDING REAL ENGINE (PR #4, merged): the unpushed real-AI landing commit was completed with two live-verified fixes before anyone saw a broken version:
+  1. gemini-2.5-flash thinking tokens count against maxOutputTokens — the 700 cap truncated answers to ~20 tokens (raw `{"intro": "Based on your figures...`). Fixed with thinkingBudget 512 + cap 2048; arithmetic re-verified live (450k × 12 × 12 = ₦64,800,000 answered correctly; thinkingBudget 0 slipped it to 54M).
+  2. Convex HTTP actions live on .convex.site, NOT .convex.cloud — the landing FAB, aiTransport's serverProxyStream, the RUNBOOK Paystack webhook and the audit suite all called .convex.cloud/<http-action> which 404s silently. All corrected. Convex functions deployed to production (current main) and verified live: ALOA math + ARIA tenancy answers with steps + referral notes.
+- SECURITY-REVIEW FINDINGS (Copilot's 5):
+  1. Branch gate: probed ruleset semantics live on a throwaway branch — pull_request and required_status_checks rules both decline direct pushes, and github-actions[bot] CANNOT be bypassed on personal repos, which would break build-apk's direct version-bump push. Enforced now: main-history-integrity ruleset (non_fast_forward + deletion, owner bypass). Full-gate blueprint + tested evidence + prerequisite (bump→PR flow) documented in docs/ops/BRANCH_PROTECTION.md.
+  2. Staging: deploy key is deployment-scoped, cannot self-provision staging — founder click-path documented in docs/ops/STAGING_SETUP.md (2 secrets); e2e staging suite auto-activates on STAGING_URL.
+  3. Secret scanning + push protection + Dependabot security updates ENABLED via API (validity checks/non-provider patterns need Enterprise).
+  4. Release signing DONE end-to-end (PR #5, merged): keystore generated (practicepro-app + practicepro-admin aliases, PKCS12, valid to 2056), stored as RELEASE_KEYSTORE_BASE64/RELEASE_STORE_PASSWORD/RELEASE_KEY_PASSWORD Actions secrets + founder offline backup; wired the missing signing env vars into build-apk (they were never passed to gradle), fixed build-admin's relative-path bug (resolved to android/android/...), added apksigner verify steps that hard-fail on the debug cert. build-1194 shipped practicepro-1.0.796-release.apk — first release-signed distribution (CI-verified). Devices on old debug builds must uninstall once.
+  5. CodeQL (js-ts, SHA-pinned, push+PR+weekly) + Playwright e2e live (PR #14, merged): public smoke (hub renders, ALOA panel opens+answers — verified green against production) + staging-gated auth suite. Vitest untouched (include pattern tests/**/*.test.ts).
+- MODEL AUDIT (owner: "are we using the best free models?") — probed every candidate THROUGH the production key (temporary internal action, since removed):
+  2.5-flash 200 · 3.5-flash-lite 200 · 3.1-flash-lite 200 · 3-flash-preview 200 · 4-hydrogen 200 · 3.6-flash 503 · 3.8-flash 503 (was BACKGROUND_MODEL — background jobs were silently failing) · flash-latest 503 · 3.1-pro-preview 429 NOT FREE (was proModel — ALOA Pro/Research + DraftPro were silently degrading to flash for every free-key user). Registry migrated (PR #13, merged): pro/research/drafting → gemini-4-hydrogen (frontier, free, long-decode); BACKGROUND → 3.5-flash-lite; every ladder now contains only probe-verified models. Landing stays 2.5-flash. Live-voice model (2.0-flash-live-001) untouched — Live API surface, needs a live-session test before any bump.
+
+Stage Summary:
+- Deliverable: production AI fully live and verified smart (landing + backend registry), 4 PRs merged (#4 #5 #13 #14), GitHub security posture enabled, release-signed APK channel, CodeQL + e2e CI, ops docs for the two findings that need owner action.
+- Owner actions: (1) staging one-time setup (docs/ops/STAGING_SETUP.md) to unblock production web promotes; (2) uninstall-once before installing release-signed APKs; (3) keep the keystore backup safe.
+- Deferred: bump→PR refactor to activate the full branch gate; Live API model bump (needs live-session testing); Java/Android CodeQL; Cloudflare mirror token refresh (standing).
