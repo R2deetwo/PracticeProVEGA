@@ -128,6 +128,13 @@ const BRAND: Record<LandingProduct, { fab: string; pill: string; chipAccent: str
 
 const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || 'https://gregarious-malamute-537.convex.cloud';
 
+/** HTTP actions are served on the deployment's .convex.site URL — .convex.cloud
+ *  hosts only the client API (queries/mutations over WebSocket). Calling
+ *  /ai/landing-chat on .convex.cloud returns 404 (verified live 2026-11-18),
+ *  which would silently downgrade every visitor to the catalogue fallback.
+ *  Same pattern as geminiService.ts /ai/stream. */
+const CONVEX_HTTP_URL = CONVEX_URL.replace('.convex.cloud', '.convex.site');
+
 interface LandingAiAnswer {
     intro: string;
     steps?: string[];
@@ -158,7 +165,7 @@ async function askLandingAI(payload: {
         const timer = window.setTimeout(() => controller.abort(), LANDING_AI_TIMEOUT_MS);
         let res: Response;
         try {
-            res = await fetch(`${CONVEX_URL}/ai/landing-chat`, {
+            res = await fetch(`${CONVEX_HTTP_URL}/ai/landing-chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
