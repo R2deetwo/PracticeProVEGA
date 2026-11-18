@@ -59,6 +59,8 @@ import {
     SearchIcon, XMarkIcon 
 } from '../../constants';
 import { TrashIcon, ChevronRightIcon, ArrowPathIcon as HistoryIcon, MessagingIcon as MessageSquareIcon } from '../../constants';
+// NOTE: Button is already imported above from '../ui' — reused for the
+// Quick Capture header button (ADR-0004).
 import { api } from '../../../convex/_generated/api';
 import { decode, decodeAudioData } from '../../utils/audioUtils';
 import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceAgent';
@@ -138,7 +140,7 @@ const ModelBadge: React.FC<{ model: string; onClick: () => void }> = ({ model, o
     </button>
 );
 
-export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean }> = ({ onClose, onDraftStream, isMobile }) => {
+export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: string) => void; isMobile?: boolean; onOpenCapture?: () => void }> = ({ onClose, onDraftStream, isMobile, onOpenCapture }) => {
     // ─── Bulletproof close handler ──────────────────────────────────
     // Uses onPointerDown (NOT onClick) because pointerdown is the
     // VERY FIRST event in the browser's pointer event chain. It fires
@@ -3559,6 +3561,18 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     onTouchStart={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                 >
+                    {onOpenCapture ? (
+                        <Button
+                            variant="bare"
+                            size="md"
+                            iconOnly
+                            icon={MicrophoneIcon}
+                            title="Quick Capture — dictate a note by voice"
+                            aria-label="Open Quick Capture mode"
+                            className="touch-target p-2 rounded-lg transition-all bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                            onClick={(e) => { e.stopPropagation(); onOpenCapture(); }}
+                        />
+                    ) : null}
                     <button
                         onClick={(e) => { e.stopPropagation(); setActiveView(activeView === 'quickNote' ? 'chat' : 'quickNote'); }}
                         className={`touch-target p-2 rounded-lg transition-all ${activeView === 'quickNote' ? 'bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400' : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}

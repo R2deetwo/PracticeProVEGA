@@ -26,6 +26,8 @@ import {
   buildMergePrompt,
   classifyGeminiFailure,
   GEMINI_FAILURE_MESSAGES,
+  buildQuickAskContext,
+  QUICK_ASK_SYSTEM_PROMPT,
 } from '../../convex/voiceCapture';
 import { backoffDelayMs, segmentKey } from '../../src/services/voice/audioQueue';
 import { isRetryableError } from '../../src/services/voice/voiceCaptureService';
@@ -389,5 +391,105 @@ describe('appendSeparatorLabel', () => {
   it('zero-pads minutes and hours', () => {
     const d = new Date(2026, 0, 5, 9, 5); // Mon 5 Jan 2026
     expect(appendSeparatorLabel(d)).toBe('— Appended Mon 5 Jan 2026, 09:05 —');
+  });
+});
+
+// ── quickAsk grounding (owner bug report 2026-11-18: "how many matters do
+//    I have?" was answered "you have no matters" — the prompt led with
+//    "MATCHED MATTERS: (none)", a keyword miss the model read as an empty
+//    firm). The context now leads with authoritative counts + an inventory,
+//    and the keyword sections are labelled as subsets.
+describe('buildQuickAskContext', () => {
+  const baseArgs = {
+    noteCount: 4,
+    upcomingCount: 2,
+    matchedMatters: [] as { title: string; detail: string }[],
+    matchedNotes: [] as { title: string; detail: string }[],
+    upcoming: [
+      { title: 'Mention — Adebayo v. State', detail: '2026-11-20 09:00 · Mention' },
+    ],
+  };
+
+  it('leads with authoritative counts so counting questions have real numbers', () => {
+    const ctx = buildQuickAskContext({
+      ...baseArgs,
+      matters: [
+        { title: 'Adebayo v. State', suitNumber: 'FCT/ABJ/CR/123/2026', status: 'Active' },
+        { title: 'Chukwu v. Zenith Bank', suitNumber: null, status: 'Closed' },
+        { title: 'Estate of Musa', suitNumber: 'NICN/LA/45/2026', status: 'Active' },
+      ],
+    });
+    expect(ctx).toContain('FIRM DATA SUMMARY (authoritative');
+    expect(ctx).toContain('- Matters on record: 3');
+    expect(ctx).toContain('(2 active, 1 closed/archived)');
+    expect(ctx).toContain('- Notes on record: 4');
+    expect(ctx).toContain('- Upcoming calendar events (today onwards): 2');
+  });
+
+  it('includes the matter inventory (title, suit number, status)', () => {
+    const ctx = buildQuickAskContext({
+      ...baseArgs,
+      matters: [{ title: 'Adebayo v. State', suitNumber: 'FCT/ABJ/CR/123/2026', status: 'Active' }],
+    });
+    expect(ctx).toContain('MATTER INVENTORY (first 1 of 1)');
+    expect(ctx).toContain('- Adebayo v. State [FCT/ABJ/CR/123/2026] (Active)');
+  });
+
+  it('says plainly when the firm genuinely has no matters', () => {
+    const ctx = buildQuickAskContext({ ...baseArgs, matters: [] });
+    expect(ctx).toContain('- Matters on record: 0');
+    expect(ctx).toContain('MATTER INVENTORY: the firm has no matters on record.');
+  });
+
+  it('labels keyword misses as subset misses, never as an empty firm', () => {
+    // "how many matters do I have" matches no title — the regression case.
+    const ctx = buildQuickAskContext({
+      ...baseArgs,
+      matters: [
+        { title: 'Adebayo v. State', suitNumber: 'FCT/ABJ/CR/123/2026', status: 'Active' },
+        { title: 'Chukwu v. Zenith Bank', suitNumber: null, status: 'Active' },
+      ],
+      matchedMatters: [],
+    });
+    expect(ctx).toContain('KEYWORD-MATCHED MATTERS (subset filtered');
+    expect(ctx).toContain('of 2 on record');
+    expect(ctx).toContain('empty here means no title matched the wording, NOT that the firm has none');
+    expect(ctx).toContain('(no keyword match)');
+    // The counts still lead — the answer cannot be "no matters".
+    expect(ctx.indexOf('- Matters on record: 2')).toBeLessThan(ctx.indexOf('KEYWORD-MATCHED MATTERS'));
+  });
+
+  it('caps the inventory at 25 rows while reporting the true total', () => {
+    const matters = Array.from({ length: 30 }, (_, i) => ({
+      title: `Matter ${i + 1}`,
+      status: 'Active',
+    }));
+    const ctx = buildQuickAskContext({ ...baseArgs, matters });
+    expect(ctx).toContain('- Matters on record: 30');
+    expect(ctx).toContain('MATTER INVENTORY (first 25 of 30)');
+    expect(ctx).toContain('- Matter 25');
+    expect(ctx).not.toContain('- Matter 26');
+  });
+
+  it('counts statuses case-insensitively and buckets unknown statuses as other', () => {
+    const ctx = buildQuickAskContext({
+      ...baseArgs,
+      matters: [
+        { title: 'A', status: 'ACTIVE' },
+        { title: 'B', status: 'archived' },
+        { title: 'C', status: 'Pending' },
+      ],
+    });
+    expect(ctx).toContain('(1 active, 1 closed/archived, 1 other status)');
+  });
+});
+
+describe('QUICK_ASK_SYSTEM_PROMPT', () => {
+  it('instructs the model to answer counting questions from the summary counts', () => {
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('authoritative counts');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain("how many matters do I have");
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('never from the keyword-matched subsets');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('filtered subsets');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('Never invent matters');
   });
 });

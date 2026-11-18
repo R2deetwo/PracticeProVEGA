@@ -34,9 +34,10 @@ const navItemsList: NavItemDef[] = [
     { view: 'dashboard', text: 'Home', icon: <DashboardIcon />, permission: () => true },
     { view: 'matters', text: 'Matters', icon: <MattersIcon />, permission: () => true },
     { view: 'tasks', text: 'Tasks', icon: <TasksIcon />, permission: () => true },
-    // Quick Capture Mode (owner spec 2026-11-18): phones boot here; this
-    // More-sheet entry is the way BACK from the full office (the boot
-    // redirect runs once per session).
+    // Quick Capture Mode: full-screen voice capture. Owner addendum
+    // (2026-11-18): the app boots into the Full Office dashboard for
+    // everyone — this entry (plus the Header mic button and the ALOA
+    // panel's Quick Capture mode) is the explicit way IN.
     { view: 'quickCapture', text: 'Quick Capture', icon: <MicrophoneIcon />, permission: () => true },
     { view: 'research', text: 'Research', icon: <ResearchIcon />, permission: () => true },
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },

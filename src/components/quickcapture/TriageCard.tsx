@@ -25,6 +25,11 @@
  * a header row ABOVE the draft box — it used to float absolutely over the
  * text and covered the first line of the transcript (founder screenshot,
  * 2026-11-18); nothing overlaps anymore.
+ *
+ * DELETION (owner report, 2026-11-18: "how do we delete a quick capture? it
+ * is not obvious"): a trash button in this card's header offers "Discard
+ * this note" with a two-tap confirm. It deletes the capture row + archived
+ * audio; a note already SAVED into a matter is a separate record and stays.
  */
 
 import React, { useMemo, useState } from "react";
@@ -39,6 +44,8 @@ import {
   MicrophoneIcon,
   ShareIcon,
   SparklesIcon,
+  TrashIcon,
+  XMarkIcon,
 } from "../../constants";
 import { useUI } from "../../contexts/UIContext";
 import { useDataActions } from "../../contexts/DataContext";
@@ -59,6 +66,9 @@ interface TriageCardProps {
   /** The firm's calendar type names, used to coerce extracted event types. */
   eventTypeNames: string[];
   onDone: () => void;
+  /** Delete this capture entirely (row + archived audio). Saved case
+   * notes are separate records and are NOT touched. Two-tap confirm here. */
+  onDelete?: (capture: CaptureProjection) => void | Promise<void>;
   onOpenMatter?: (matterId: string) => void;
   onOpenCalendar?: () => void;
   /** INCREMENTAL DICTATION — the working draft text (owned by the parent so
@@ -104,6 +114,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   matters,
   eventTypeNames,
   onDone,
+  onDelete,
   onOpenMatter,
   onOpenCalendar,
   draftText,
@@ -128,6 +139,9 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const [savedEvents, setSavedEvents] = useState<string[]>([]);
   const [askResult, setAskResult] = useState<QuickAskResult | null>(null);
   const [asking, setAsking] = useState(false);
+  // Two-tap confirm for Discard (never one accidental tap away).
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
 
   const polishedText = capture.smartCleanText || capture.verbatimText || "";
   const verbatimText = capture.verbatimText || "";
@@ -288,6 +302,17 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     } catch { /* user dismissed the share sheet */ }
   };
 
+  const handleDiscard = async () => {
+    if (!onDelete) return;
+    setDiscarding(true);
+    try {
+      await onDelete(capture);
+    } finally {
+      setDiscarding(false);
+      setConfirmDiscard(false);
+    }
+  };
+
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
@@ -310,9 +335,44 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             {capture.polishError ? " · Smart Clean unavailable (verbatim shown)" : ""}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={onDone}>
-          Done
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          {onDelete ? (
+            confirmDiscard ? (
+              <>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={discarding}
+                  onClick={() => void handleDiscard()}
+                >
+                  Discard
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconOnly
+                  icon={XMarkIcon}
+                  aria-label="Keep this note"
+                  onClick={() => setConfirmDiscard(false)}
+                />
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                iconOnly
+                icon={TrashIcon}
+                aria-label="Discard and delete this voice note"
+                title="Discard this voice note (saved case notes are kept)"
+                className="!text-slate-400 hover:!text-rose-600"
+                onClick={() => setConfirmDiscard(true)}
+              />
+            )
+          ) : null}
+          <Button variant="ghost" size="sm" onClick={onDone}>
+            Done
+          </Button>
+        </div>
       </div>
 
       {/* Editable transcript draft with Smart Clean / Verbatim toggle.
