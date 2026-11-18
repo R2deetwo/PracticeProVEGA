@@ -31,6 +31,7 @@ import { RefundRequestsCenter } from './views/RefundRequestsCenter';
 import { AdminLogin } from './AdminLogin';
 import { useFounderSignals } from './useFounderSignals';
 import FounderSplashScreen from './FounderSplashScreen';
+import { isSessionQueryPending, SESSION_WATCHDOG_MS } from './founderBoot';
 import { FounderBottomNav } from './FounderBottomNav';
 import ApkUpdateBanner from '../components/ApkUpdateBanner';
 import { Settings } from './views/Settings';
@@ -102,7 +103,20 @@ export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' |
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
     const [splashDone, setSplashDone] = useState(false);
+    // Black-screen fix (2026-11-18, founder-reported): if the session query
+    // is still pending SESSION_WATCHDOG_MS after the cinematic completed,
+    // drop the splash and render the login screen. Covers a never-resolving
+    // getUser (backend unreachable / deploy mismatch) — the app previously
+    // parked on the splash's final near-black frame forever ("splash, then
+    // black screen, never loads").
+    const [forcePastSplash, setForcePastSplash] = useState(false);
     const { currentUser, isAuthenticated, isLoadingSession, bearerToken } = useFounderAuth();
+
+    useEffect(() => {
+        if (!splashDone || !isLoadingSession) return;
+        const t = setTimeout(() => setForcePastSplash(true), SESSION_WATCHDOG_MS);
+        return () => clearTimeout(t);
+    }, [splashDone, isLoadingSession]);
 
     const isFounder = currentUser?.role === 'Founder';
     useFounderSignals({ enabled: isFounder });
@@ -153,7 +167,7 @@ const FounderApp: React.FC = () => {
         return () => window.removeEventListener('pp:navigate', handler);
     }, []);
 
-    const showSplash = !splashDone || isLoadingSession;
+    const showSplash = (!splashDone || isLoadingSession) && !forcePastSplash;
 
     if (showSplash) {
         return <FounderSplashScreen isVisible={true} onComplete={() => setSplashDone(true)} />;
@@ -320,7 +334,12 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         <FounderAuthContext.Provider value={{
             currentUser,
             isAuthenticated: !!currentUser && !!bearerToken,
-            isLoadingSession: sessionToken && !userData ? true : false,
+            // Black-screen fix (2026-11-18): PENDING ONLY. A resolved-empty
+            // lookup (userData === null) is not loading — the old
+            // `sessionToken && !userData` form treated it as loading forever
+            // and parked the founder app on the splash (reported as a black
+            // screen that never loads).
+            isLoadingSession: isSessionQueryPending(sessionToken, userData),
             bearerToken,
             login,
             logout,
