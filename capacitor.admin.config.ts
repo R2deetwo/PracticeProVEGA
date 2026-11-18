@@ -25,9 +25,13 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,
-      backgroundColor: '#0f172a',
+      // Company-green native splash on every build (ADR-0005; the splash
+      // drawables are brand green + white P — see
+      // scripts/generate-splash-assets.py). The founder app does its own
+      // dark reveal in-app (FounderSplashScreen).
+      backgroundColor: '#16A34A',
       androidScaleType: 'CENTER_CROP',
-      showSpinner: false,
+      showSpinner: true,
       splashFullScreen: true,
       splashImmersive: true,
     },

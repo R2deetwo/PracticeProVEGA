@@ -724,6 +724,13 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
 export const App: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Remove the HTML boot overlay (index.html #pp-boot-overlay) the moment
+    // the app commits its first render — the splash cinematic (or the
+    // logged-out landing) takes over from the branded green loader.
+    useEffect(() => {
+        document.getElementById('pp-boot-overlay')?.remove();
+    }, []);
     const { isAuthenticated, currentUser, isLoadingSession, isAccountRevoked, loginAsDemoUser, appMode, logout, bearerToken } = useAuth();
     const convex = useConvex();
     const { theme, fontSize, openModal, modal, view, closeModal, navigateTo, showTermsBar, setShowTermsBar } = useUI();

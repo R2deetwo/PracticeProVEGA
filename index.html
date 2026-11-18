@@ -219,6 +219,52 @@
       scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
     }
 
+    /* ─── PP boot overlay (index.html) ─────────────────────────────────
+       Brand green + white P + spinner, shown from first HTML paint until
+       React commits. Mirrors the native splash so the boot is ONE
+       continuous branded phase: green native splash → green HTML loader
+       → in-app cinematic. */
+    #pp-boot-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      background: #16A34A;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+    }
+
+    #pp-boot-overlay .pp-boot-spinner {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.28);
+      border-top-color: #FFFFFF;
+      animation: pp-boot-spin 0.9s linear infinite;
+    }
+
+    #pp-boot-overlay .pp-boot-label {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.85);
+      font: 600 13px/1 system-ui, -apple-system, sans-serif;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    @keyframes pp-boot-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #pp-boot-overlay .pp-boot-spinner {
+        animation-duration: 2.4s;
+      }
+    }
+
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -392,8 +438,36 @@
 </script>
 
 <body>
+  <!-- PP BOOT OVERLAY — visible from the very first HTML paint until React
+       commits (App.tsx removes it; a 20s safety fade covers crash paths).
+       Kills the dead white screen while the JS bundle parses on slower
+       Android devices: brand green + the P mark + a live spinner says
+       "loading" for the entire pre-app phase, seamlessly continuing the
+       native splash (same green, same mark — scripts/generate-splash-assets.py).
+       Pure HTML/CSS — zero JavaScript. -->
+  <div id="pp-boot-overlay" aria-hidden="true">
+    <svg width="72" height="56" viewBox="14 8 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z" fill="rgba(255,255,255,0.16)"/>
+      <path d="M20 12V34H26V26H38C42 26 44 23 44 18C44 13 42 10 38 10H20Z" fill="#FFFFFF"/>
+      <path d="M26 16H38C39.5 16 40 17.5 40 18C40 18.5 39.5 20 38 20H26V16Z" fill="#16A34A"/>
+    </svg>
+    <div class="pp-boot-spinner" role="status" aria-label="Loading"></div>
+    <p class="pp-boot-label">Starting</p>
+  </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
+  <script>
+    // Safety: if the app never mounts (crash, ancient browser), fade the
+    // boot overlay out after 20s instead of leaving a green wall forever.
+    setTimeout(function () {
+      var el = document.getElementById('pp-boot-overlay');
+      if (el) {
+        el.style.transition = 'opacity 0.6s';
+        el.style.opacity = '0';
+        setTimeout(function () { el.remove(); }, 700);
+      }
+    }, 20000);
+  </script>
 </body>
 
 </html>
