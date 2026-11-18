@@ -1,0 +1,225 @@
+name: Deploy Convex production backend (targeted)
+
+# WHY THIS EXISTS (2026-11-18, PR #18 follow-up): the full "Deploy to
+# Production (promote)" pipeline is gated on a staging Convex environment
+# that has not been provisioned yet (CONVEX_STAGING_DEPLOY_KEY /
+# CONVEX_STAGING_URL are unset — one-time owner setup, ~2 minutes, see the
+# promote workflow's own error message). Meanwhile the production ANDROID
+# APK talks directly to the production Convex deployment
+# (gregarious-malamute-537), so backend fixes (Quick Ask grounding, the
+# voice-capture pipeline) could not reach users at all — every promote run
+# since the staging gate was introduced (ca7cb740) has failed BEFORE
+# deploying anything.
+#
+# This targeted workflow deploys ONLY the Convex production backend, on
+# demand, with the SAME quality gate the promote runs (Convex typecheck,
+# root typecheck, identity audit, ADR-0004 ratchet, unit tests) and the
+# SAME deploy + key-rotation + live-probe steps. It never touches the web
+# frontends (Vercel / Cloudflare) — those still go through the promote.
+#
+# Once staging is provisioned, prefer the full promote workflow and retire
+# this one.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit to deploy (blank = latest main; an older main SHA = rollback)'
+        required: false
+        default: ''
+
+concurrency:
+  group: convex-production-deploy
+  # Never cancel a production deploy mid-flight.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    name: Typecheck + unit tests (on the deployed commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      resolved_sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the commit to deploy
+        id: resolve
+        env:
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+        run: |
+          if [ -n "$INPUT_SHA" ]; then
+            RESOLVED="$INPUT_SHA"
+          else
+            RESOLVED="${{ github.sha }}"
+          fi
+          echo "Deploying: $RESOLVED"
+          echo "sha=$RESOLVED" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the commit to deploy
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Refuse commits that are not on main
+        env:
+          RESOLVED_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$RESOLVED_SHA" origin/main; then
+            echo "::error::Refusing to deploy: $RESOLVED_SHA is not part of main's history. Only main commits can be deployed to production."
+            exit 1
+          fi
+          echo "✓ $RESOLVED_SHA is an ancestor of origin/main"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (deploy gate — must be 0 errors)
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean (0 errors)"
+          else
+            echo "::error::convex/ typecheck FAILED — refusing to deploy the backend."
+            exit 1
+          fi
+
+      - name: Typecheck app (must be 0 errors)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -5
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (required: 0)"
+          if [ "$ERRORS" -ne 0 ]; then
+            echo "::error::Root tsc reported $ERRORS error(s). Fix all errors before deploy."
+            exit 1
+          fi
+          echo "Root tsc clean (0 errors)"
+
+      - name: Identity audit (R16 — no public function may trust caller-supplied identity)
+        run: python3 scripts/audit-identity.py
+
+      - name: UI-primitives ratchet gate (ADR-0004 — raw form elements may not grow)
+        run: node scripts/check-ui-primitives.mjs
+
+      - name: Run unit test suite
+        run: npx vitest run
+
+  deploy-convex-production:
+    name: Deploy Convex production backend and verify live
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROMOTED_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
+    steps:
+      - name: Check required secrets
+        env:
+          CONVEX_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: |
+          if [ -z "$CONVEX_KEY" ]; then
+            echo "::error::CONVEX_DEPLOY_KEY secret is not set — cannot deploy the Convex backend."
+            exit 1
+          fi
+          echo "✓ CONVEX_DEPLOY_KEY is configured"
+
+      - name: Checkout the exact gated commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.PROMOTED_SHA }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend (belt-and-braces before deploy)
+        run: npx tsc -p convex --noEmit
+
+      - name: Deploy Convex production backend
+        run: npx convex deploy --cmd "echo 'Convex production deployed'"
+
+      # Key-rotation paths copied verbatim from the promote workflow so this
+      # targeted deploy keeps the same env guarantees.
+      - name: Ensure GEMINI_DEMO_KEY is set (demo ALOA/ARIA replies)
+        continue-on-error: true
+        env:
+          DEMO_KEY: ${{ secrets.GEMINI_DEMO_KEY }}
+        run: |
+          if [ -z "$DEMO_KEY" ]; then
+            echo "::warning::GEMINI_DEMO_KEY GitHub secret is not set — demo chat will fall back to GEMINI_API_KEY (and error if that is also unset)."
+            exit 0
+          fi
+          if npx convex env set GEMINI_DEMO_KEY "$DEMO_KEY"; then
+            echo "✓ GEMINI_DEMO_KEY rotated onto production."
+          else
+            echo "::warning::Could not set GEMINI_DEMO_KEY (the deploy key may lack env permissions). Set it once in the Convex dashboard (gregarious-malamute-537 → Settings → Environment Variables)."
+          fi
+
+      - name: Ensure GEMINI_API_KEY is set (platform AI surfaces)
+        continue-on-error: true
+        env:
+          PLATFORM_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$PLATFORM_KEY" ]; then
+            echo "::notice::GEMINI_API_KEY GitHub secret is not set — leaving the Convex environment value untouched (set the secret to rotate without dashboard surgery)."
+            exit 0
+          fi
+          if npx convex env set GEMINI_API_KEY "$PLATFORM_KEY"; then
+            echo "✓ GEMINI_API_KEY rotated onto production (Quick Capture, ALOA, transcription, landing chat)."
+          else
+            echo "::warning::Could not set GEMINI_API_KEY (the deploy key may lack env permissions). Set it once in the Convex dashboard (gregarious-malamute-537 → Settings → Environment Variables)."
+          fi
+
+      - name: Point SITE_URL at production on the Convex deployment
+        continue-on-error: true
+        env:
+          SITE_URL_VALUE: "https://practice-pro-vega.vercel.app"
+        run: |
+          if npx convex env set SITE_URL "$SITE_URL_VALUE"; then
+            echo "✓ SITE_URL=$SITE_URL_VALUE set on production"
+          else
+            echo "::warning::Could not set SITE_URL (the deploy key may lack env permissions). Set it once in the Convex dashboard if needed."
+          fi
+
+      - name: Probe the Convex backend directly (never trust the deploy step)
+        run: |
+          # V1-B (SEC-16): the probe uses the public myFunctions:ping
+          # liveness query (no environment detail is exposed).
+          PROBE=$(curl -s -X POST "https://gregarious-malamute-537.convex.cloud/api/query" \
+            -H "Content-Type: application/json" \
+            -d '{"path":"myFunctions:ping","args":{}}')
+          echo "Convex probe response (truncated): $(echo "$PROBE" | head -c 400)"
+          PROBE_STATUS=$(echo "$PROBE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "parse-error")
+          if [ "$PROBE_STATUS" != "success" ]; then
+            echo "::error::Direct Convex probe failed (status=$PROBE_STATUS) — the backend may not be serving the deployed functions."
+            exit 1
+          fi
+          echo "✅ Convex production backend answered a live query"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Convex production backend deploy (targeted)"
+            echo ""
+            echo "- Commit: \`${PROMOTED_SHA}\`"
+            echo "- Backend: https://gregarious-malamute-537.convex.cloud"
+            echo "- Live probe: myFunctions:ping"
+            echo ""
+            echo "Frontends (Vercel / Cloudflare) are NOT touched by this workflow —"
+            echo "promote those via the full 'Deploy to Production (promote)' workflow."
+          } >> "$GITHUB_STEP_SUMMARY"
