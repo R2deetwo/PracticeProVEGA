@@ -120,6 +120,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      # Job-level: every `npx convex deploy` / `npx convex env set` step
+      # authenticates with the production deploy key (same pattern as the
+      # promote workflow — without this the CLI errors "No CONVEX_DEPLOYMENT
+      # set" because it cannot identify the target deployment).
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       PROMOTED_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
     steps:
       - name: Check required secrets
