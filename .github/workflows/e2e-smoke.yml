@@ -1,0 +1,73 @@
+name: E2E smoke
+
+# Security review 2026-11-18 (Copilot finding): CI lacked end-to-end
+# coverage. Two layers:
+#  - PUBLIC smoke (landing + ALOA panel) — runs against production on
+#    every push to main and on PRs. Read-only + one rate-limited public
+#    AI panel question; safe by construction.
+#  - STAGING auth smoke (signup/authentication) — runs ONLY when the
+#    STAGING_URL secret exists (one-time staging setup, see
+#    staging-deploy.yml). Account-creating tests never touch production.
+#
+# Firm-isolation coverage is layered on top of the staging suite once the
+# staging seed fixtures exist (staging-seed.yml).
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Playwright smoke (public + staging-if-configured)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PUBLIC_BASE_URL: https://practice-pro-vega.vercel.app
+      STAGING_URL: ${{ secrets.STAGING_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Report staging configuration
+        run: |
+          if [ -n "$STAGING_URL" ]; then
+            echo "STAGING_URL is set — the full staging auth smoke will run."
+          else
+            echo "STAGING_URL is not set — staging auth tests are skipped (one-time staging setup pending, see staging-deploy.yml)."
+          fi
+
+      - name: Run E2E smoke suite
+        run: npx playwright test
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: playwright-failures
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
