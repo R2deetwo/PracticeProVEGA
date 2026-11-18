@@ -11,12 +11,25 @@ export type AloaState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'spea
 export type AloaModel = 'auto' | 'flash' | 'pro' | 'research';
 export type AloaView = 'chat' | 'quickNote' | 'details' | 'form';
 
+/**
+ * The panel's top-level mode (owner addendum 2026-11-18: "House Quick
+ * Capture inside the ALOA section"): 'chat' is the main ALOA assistant;
+ * 'capture' renders the Quick Capture voice interface in the same panel —
+ * one unified home for voice, dictation and AI workflows.
+ */
+export type AloaPanelMode = 'chat' | 'capture';
+
 interface AloaContextType {
     // Standardized naming for visibility
     isPanelOpen: boolean;
     togglePanel: () => void;
     closePanel: () => void;
-    openPanel: () => void;
+    /** Opens the ALOA panel, optionally straight into Quick Capture mode
+     *  (the Header mic button and the Dashboard card use this). */
+    openPanel: (mode?: AloaPanelMode) => void;
+    /** The mode the panel should start in the next time it opens.
+     *  AloaPanel consumes this on open and manages switching afterwards. */
+    panelInitialMode: AloaPanelMode;
 
     messages: AloaMessage[];
     setMessages: React.Dispatch<React.SetStateAction<AloaMessage[]>>;
@@ -78,6 +91,8 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
     const { appState } = useDataState();
     // Renamed from isAloaVisible to isPanelOpen to match component expectations
     const [isPanelOpen, setIsPanelOpen] = React.useState(false);
+    // Which top-level mode ('chat' | 'capture') the panel opens in.
+    const [panelInitialMode, setPanelInitialMode] = React.useState<AloaPanelMode>('chat');
     const [messages, setMessages] = React.useState<AloaMessage[]>([]);
     const [isLoading, setIsLoading] = React.useState(false);
     const [urgencyStatus, setUrgencyStatus] = React.useState<UrgencyStatus>('none');
@@ -189,7 +204,9 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         setIsPanelOpen(false);
     }, []);
 
-    const openPanel = React.useCallback(() => {
+    const openPanel = React.useCallback((mode?: AloaPanelMode) => {
+        if (mode) setPanelInitialMode(mode);
+        else setPanelInitialMode('chat');
         setIsPanelOpen(true);
     }, []);
 
@@ -282,6 +299,7 @@ export const AloaProvider: React.FC<{ children?: React.ReactNode }> = ({ childre
         togglePanel,
         closePanel,
         openPanel,
+        panelInitialMode,
         messages,
         setMessages,
         isLoading,

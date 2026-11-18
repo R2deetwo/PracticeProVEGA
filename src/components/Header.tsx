@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Theme, Notification, UserRole } from '../types';
-import { SearchIcon, SunIcon, MoonIcon, BellIcon, LogoutIcon, PracticeProLogoWithText, DesktopComputerIcon, Logo, RevertIcon, ChatAltIcon, PencilSquareIcon, LockClosedIcon } from '../constants';
+import { SearchIcon, SunIcon, MoonIcon, BellIcon, LogoutIcon, PracticeProLogoWithText, DesktopComputerIcon, Logo, RevertIcon, ChatAltIcon, PencilSquareIcon, LockClosedIcon, MicrophoneIcon } from '../constants';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Capacitor } from '@capacitor/core';
@@ -15,6 +15,9 @@ import { usePermissions } from '../hooks/usePermissions';
 import ConnectionStatus from './auth/ConnectionStatus';
 import { PresenceAvatars } from './ui/PresenceAvatars';
 import { useProduct } from '../contexts/ProductContext';
+import { useAloa } from '../contexts/AloaProvider';
+import { useHapticFeedback } from '../hooks/useHapticFeedback';
+import { Button } from './ui/Button';
 
 import { Z_CLASS } from '../overlays/constants';
 interface HeaderProps {
@@ -55,6 +58,12 @@ const Header: React.FC = React.memo(() => {
     const { clientMessages } = matterState;
     const permissions = usePermissions();
     const { isProperty, hasPropertyFeatures } = useProduct();
+    // QUICK CAPTURE one-tap launch (owner addendum 2026-11-18): opens the
+    // ALOA panel directly in Quick Capture mode — same unified home as the
+    // mic button inside ALOA chat and the Dashboard capture card.
+    const { openPanel: openAloaPanel } = useAloa();
+    const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
+    const { light: hapticLight } = useHapticFeedback();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
     const [notifTab, setNotifTab] = useState<'platform' | 'firm'>('platform');
@@ -420,6 +429,27 @@ const Header: React.FC = React.memo(() => {
                         <SearchIcon className="w-5 h-5" />
                     </button>
                 </div>
+
+                {/* QUICK CAPTURE (owner addendum 2026-11-18): a prominent,
+                    always-visible mic button in the top navigation bar —
+                    "jump straight into recording in 1 tap from anywhere".
+                    Opens the ALOA panel directly in Quick Capture mode
+                    (voice, dictation and AI share one unified home).
+                    Built on the ui/Button primitive (ADR-0004) with the
+                    'bare' variant for the one-off emerald look. */}
+                <Button
+                    variant="bare"
+                    size="md"
+                    iconOnly
+                    icon={MicrophoneIcon}
+                    aria-label="Quick Capture — start recording"
+                    title="Quick Capture — dictate a note, task or question"
+                    className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm"
+                    onClick={() => {
+                        hapticLight();
+                        openAloaCapture();
+                    }}
+                />
 
                 {/* R61 — the demo Vega|Atrium product switcher is RETIRED.
                     Owner direction: it made no sense in the workspace captures

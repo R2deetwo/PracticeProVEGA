@@ -261,12 +261,14 @@ const AccentPicker: React.FC = () => {
 };
 
 /* ── StartupViewPicker ────────────────────────────────────────────────────
-   Quick Capture Mode landing preference (owner spec, 2026-11-18). Uses the
-   ui/Button primitive (ADR-0004 — no new raw form elements). */
+   Where the app opens on launch (owner addendum 2026-11-18: "Default to
+   Full Office Dashboard First"). Everyone starts on the Full Office
+   dashboard; the Quick Capture opt-in applies to MOBILE launches only.
+   Uses the ui/Button primitive (ADR-0004 — no new raw form elements). */
 const STARTUP_VIEW_OPTIONS: { value: StartupViewPreference; label: string; hint: string }[] = [
-    { value: 'auto', label: 'Auto', hint: 'Quick Capture on phones · Full Office on desktop' },
-    { value: 'capture', label: 'Quick Capture', hint: 'Always open on the capture screen' },
-    { value: 'office', label: 'Full Office', hint: 'Always open the full workspace' },
+    { value: 'office', label: 'Full Office', hint: 'Default — open the full workspace' },
+    { value: 'capture', label: 'Quick Capture (mobile)', hint: 'Phone launches open the capture screen' },
+    { value: 'auto', label: 'Full Office (legacy “Auto”)', hint: 'Same as Full Office — phones are no longer forced into capture' },
 ];
 
 const StartupViewPicker: React.FC = () => {
@@ -282,26 +284,34 @@ const StartupViewPicker: React.FC = () => {
     return (
         <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {STARTUP_VIEW_OPTIONS.map((opt) => (
-                    <Button
-                        key={opt.value}
-                        variant={preference === opt.value ? 'primary' : 'outline'}
-                        size="md"
-                        minTouchTarget
-                        onClick={() => {
-                            setPreference(opt.value);
-                            setStartupViewPreference(currentUser?.id, opt.value);
-                        }}
-                        className="!flex-col !gap-0.5 !h-auto !py-3"
-                    >
-                        <span className="text-sm font-semibold">{opt.label}</span>
-                        <span className="text-2xs font-normal opacity-70 leading-tight text-center">{opt.hint}</span>
-                    </Button>
-                ))}
+                {STARTUP_VIEW_OPTIONS.map((opt) => {
+                    // Stored 'auto' now behaves exactly like 'office' —
+                    // highlight the Full Office card for it.
+                    const isActive =
+                        preference === opt.value ||
+                        (preference === 'auto' && opt.value === 'office');
+                    return (
+                        <Button
+                            key={opt.value}
+                            variant={isActive ? 'primary' : 'outline'}
+                            size="md"
+                            minTouchTarget
+                            onClick={() => {
+                                setPreference(opt.value);
+                                setStartupViewPreference(currentUser?.id, opt.value);
+                            }}
+                            className="!flex-col !gap-0.5 !h-auto !py-3"
+                        >
+                            <span className="text-sm font-semibold">{opt.label}</span>
+                            <span className="text-2xs font-normal opacity-70 leading-tight text-center">{opt.hint}</span>
+                        </Button>
+                    );
+                })}
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Applies the next time you open the app. Desktop screens keep the full workspace
-                unless you explicitly choose Quick Capture.
+                Applies the next time you open the app. Quick Capture launches apply to phones
+                only — desktop always keeps the full workspace. You can also flip this from the
+                “Start in Quick Capture on mobile” switch inside Quick Capture itself.
             </p>
         </div>
     );
@@ -389,14 +399,15 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
             </SettingsCard>
 
             {/* ─── Startup View ────────────────────────────────────────────
-                Quick Capture Mode (owner spec, 2026-11-18): phones can land
-                on the lightweight capture screen instead of the full office
-                dashboard. 'Auto' = Quick Capture on phones, full office on
-                desktop. Per-account, localStorage (instant boot read). */}
+                Owner addendum 2026-11-18: everyone opens the Full Office
+                dashboard first. Quick Capture is an explicit, per-account
+                opt-in for mobile launches (localStorage, instant boot read).
+                The same preference is toggled in Quick Capture's header. */}
             <SettingsCard title="Startup View" className={className}>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-                    Choose where the app opens. On phones, Quick Capture Mode gives you the
-                    record button and ask bar immediately — no heavy dashboard first.
+                    Choose where the app opens. By default everyone lands on the full
+                    workspace — flip on Quick Capture if you want the record button
+                    first on your phone.
                 </p>
                 <StartupViewPicker />
             </SettingsCard>

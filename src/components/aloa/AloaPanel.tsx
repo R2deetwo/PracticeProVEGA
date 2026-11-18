@@ -5,10 +5,16 @@ import { AloaChat } from './AloaChat';
 import { useUI } from '../../contexts/UIContext';
 import ErrorBoundary from '../ErrorBoundary';
 import { useHapticFeedback } from '../../hooks/useHapticFeedback';
+// Owner addendum (2026-11-18): "House Quick Capture inside the ALOA
+// section" — the panel is one unified home for voice, dictation and AI:
+// 'chat' renders the main ALOA assistant, 'capture' renders the same
+// Quick Capture surface used full-screen (embedded, with a back-to-chat
+// button and the persistent Full Office button).
+import { QuickCaptureView } from '../quickcapture/QuickCaptureView';
 
 import { Z_CLASS } from '../../overlays/constants';
 const AloaPanel: React.FC = () => {
-    const { isPanelOpen, closePanel } = useAloa();
+    const { isPanelOpen, closePanel, panelInitialMode } = useAloa();
     const { dockedModalType } = useUI();
     const { light } = useHapticFeedback();
 
@@ -19,6 +25,22 @@ const AloaPanel: React.FC = () => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // ── Top-level panel mode: Chat | Quick Capture ──────────────────────
+    // Initialized from the requested mode when the panel opens (the Header
+    // mic button / Dashboard card call openPanel('capture')), reset to chat
+    // when it closes so the next open starts fresh.
+    const [mode, setMode] = React.useState<'chat' | 'capture'>('chat');
+    const wasOpenRef = React.useRef(false);
+    React.useEffect(() => {
+        if (isPanelOpen && !wasOpenRef.current) {
+            setMode(panelInitialMode);
+        }
+        if (!isPanelOpen && wasOpenRef.current) {
+            setMode('chat');
+        }
+        wasOpenRef.current = isPanelOpen;
+    }, [isPanelOpen, panelInitialMode]);
 
     const isShifted = isPanelOpen && dockedModalType && window.innerWidth >= 1280;
 
@@ -57,15 +79,30 @@ const AloaPanel: React.FC = () => {
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Mobile drag handle — visual only. */}
-                    {isMobile && (
+                    {isMobile && mode === 'chat' && (
                         <div className="flex-shrink-0 flex justify-center pt-2 pb-1 bg-slate-50/50 dark:bg-zinc-900/50">
                             <div className="w-10 h-1 rounded-full bg-slate-300 dark:bg-zinc-700" />
                         </div>
                     )}
-                    <AloaChat
-                        onClose={handleClose}
-                        isMobile={isMobile}
-                    />
+                    {mode === 'capture' ? (
+                        // Quick Capture renders its own header inside the
+                        // panel: back-to-ALOA-chat, "Start in Quick Capture
+                        // on mobile" toggle, and the persistent Full Office
+                        // button (which exits the panel for the dashboard).
+                        <ErrorBoundary>
+                            <QuickCaptureView
+                                embedded
+                                onBackToChat={() => setMode('chat')}
+                                onExitEmbedded={closePanel}
+                            />
+                        </ErrorBoundary>
+                    ) : (
+                        <AloaChat
+                            onClose={handleClose}
+                            isMobile={isMobile}
+                            onOpenCapture={() => setMode('capture')}
+                        />
+                    )}
                 </div>
             )}
         </>

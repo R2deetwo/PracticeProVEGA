@@ -769,3 +769,55 @@ Merged b6fb0a15 → APK release build-1199 (practicepro-1.0.801-release.apk) +
 staging deployed. Known pre-existing: "Workers Builds: practiceprovega" check
 has been failing on every non-[skip ci] main commit since before this PR
 (stale Cloudflare git integration, fails in 0s, unrelated to app code).
+
+### 2026-11-18 (ii) — PR #18: obvious delete, grounded Quick Ask, Full Office default, ALOA unified home
+
+Owner addendum ("HOW DO WE DELETE A QUICK CAPTURE? IT IS NOT OBVIOUS" + the
+startup default / ALOA placement / one-tap launch preference):
+
+- **Delete is a first-class action.** Every Recent-voice-notes row carries a
+  trash button (two-tap inline confirm); the triage card gains a Discard
+  action (two-tap confirm). Delete removes the Convex capture row + archived
+  audio AND purges any segments still queued in IndexedDB; if the open card
+  was the deleted capture the staging area resets. Notes already saved into
+  a matter are separate records and are kept (stated in the confirm tooltip).
+  The backend deleteCapture mutation already existed — the gap was pure UI.
+- **Quick Ask grounding fix** ("I asked how many matters I have and it said I
+  have no matters"): retrieval was keyword-only and the prompt LED with
+  "MATCHED MATTERS: (none)" — for generic questions (how/many/matters/have)
+  nothing matches a title, and the model read the empty subset as an empty
+  firm. The context now leads with an authoritative FIRM DATA SUMMARY
+  (total/active/closed counts, notes, upcoming events) + a compact matter
+  inventory (first 25); keyword sections are labelled "subset filtered by
+  the question's words — of N on record; empty here means no title matched
+  the wording, NOT that the firm has none". Extracted to exported pure
+  buildQuickAskContext() + QUICK_ASK_SYSTEM_PROMPT; +7 vitest pins
+  (counts lead, inventory caps at 25/30, subset labelling, case-insensitive
+  status buckets, genuine-empty wording, system-prompt contract).
+- **Startup default reversed:** everyone — new users, first launches, phones
+  — opens the Full Office Dashboard. 'auto' now behaves as 'office'; the
+  boot redirect only fires for preference==='capture' AND phone-like
+  devices. New "Start in Quick Capture on mobile" toggle lives directly in
+  the Quick Capture header strip (OFF by default, per-account localStorage,
+  same key as Settings → Display; phone-like devices only). Persistent
+  "Full Office" button stays in the top corner (relabeled from "Open Full
+  Office").
+- **ALOA unified home:** AloaPanel gained a top-level mode (chat | capture).
+  A mic button in the ALOA chat header switches to the embedded
+  QuickCaptureView (new props: embedded/onBackToChat/onExitEmbedded —
+  back-to-ALOA chip, "ALOA · Quick Capture" title, Full Office exits the
+  panel for the dashboard). useAloa().openPanel('capture') +
+  panelInitialMode added (backward-compatible signature).
+- **One-tap launch:** emerald mic button in the top navigation Header (all
+  breakpoints) and a Quick Capture card at the top of the mobile Dashboard
+  (md:hidden) — both open the ALOA panel straight into capture mode.
+- **ADR-0004:** all new buttons are the ui/Button primitive ('bare' variant
+  for the one-off emerald looks — same escape hatch QuickNote-era code
+  uses); the header switch uses the app's div/role="switch" pattern
+  (DisplaySettings Toggle) with tabIndex + Enter/Space keydown. Ratchet held
+  at 2218 — a first cut used raw <button>s and tripped the gate (+5,
+  including one literal "<button>" inside a comment that the counter
+  regex-matched; all migrated in acdea6f0's follow-up edits before push).
+
+Gates: tsc 0; eslint 0 errors; ui-primitives ratchet held (2218); vitest
+2910 passing (+7); vite build green. PR #18.

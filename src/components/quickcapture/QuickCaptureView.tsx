@@ -1,16 +1,28 @@
 /**
- * QuickCaptureView — the lightweight, mobile-first landing surface.
+ * QuickCaptureView — the lightweight, mobile-first capture surface.
  *
- * "When a user opens the app on a mobile phone, do NOT force them straight
- * into the heavy multi-column office dashboard. Instead, launch into a
- * clean, high-contrast, thumb-friendly Quick Capture Mode (while keeping a
- * clear Open Full Office button at the top)." (owner spec, 2026-11-18)
+ * Owner addendum (2026-11-18, "startup default, ALOA placement & one-tap
+ * launch preference"):
+ *   - The app boots into the FULL OFFICE for everyone; Quick Capture is
+ *     never forced. A header toggle — "Start in Quick Capture on mobile",
+ *     OFF by default — lets each user opt their phone into landing here.
+ *   - A persistent "Full Office" button stays in the top corner (1 tap
+ *     back to the dashboard).
+ *   - The same surface renders EMBEDDED inside the ALOA panel (props:
+ *     `embedded`, `onBackToChat`, `onExitEmbedded`) so voice, dictation
+ *     and AI workflows share one unified home.
  *
  * Two complementary workflows:
  *   A. SPEAK FIRST, ROUTE LATER (walkie-talkie) — search/ask bar on top,
  *      one big record button, smart post-capture triage.
  *   B. HYBRID LEGAL PAD — toggle for consultations / witness interviews /
  *      field evidence.
+ *
+ * Deleting captures is a first-class action (owner report 2026-11-18: "how
+ * do we delete a quick capture? it is not obvious"): every Recent voice
+ * note row carries a trash button (two-tap confirm), and the triage card
+ * has a Discard action. Deleting removes the capture row + archived audio;
+ * notes already saved to a matter are separate records and stay.
  *
  * Design principles: light-mode, uncluttered, large tap targets, one-handed
  * use. Never force forms before capture — capture first, organize in one
@@ -22,6 +34,8 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import {
   CalendarIcon,
+  CheckIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   ClipboardIcon,
   CogIcon,
@@ -29,6 +43,8 @@ import {
   MicrophoneIcon,
   SparklesIcon,
   StopIcon,
+  TrashIcon,
+  XMarkIcon,
 } from "../../constants";
 import { useUI } from "../../contexts/UIContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -36,7 +52,18 @@ import { useCoreState } from "../../contexts/CoreContext";
 import { useMatterState } from "../../contexts/MatterContext";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { useQuickCapture } from "../../hooks/useQuickCapture";
-import { quickAsk, listRecentCaptures, type CaptureProjection, type QuickAskResult } from "../../services/voice/voiceCaptureService";
+import {
+  quickAsk,
+  listRecentCaptures,
+  deleteCapture,
+  type CaptureProjection,
+  type QuickAskResult,
+} from "../../services/voice/voiceCaptureService";
+import { voiceSync } from "../../services/voice/audioQueue";
+import {
+  getStartupViewPreference,
+  setStartupViewPreference,
+} from "../../utils/startupViewPreference";
 import { extractNewClipText, joinDraftText } from "../../services/voice/draftUtils";
 import { TriageCard } from "./TriageCard";
 import { LegalPadView } from "./LegalPadView";
@@ -60,7 +87,41 @@ type CaptureMode = "speak" | "pad";
 /** Which transcript tier the editable draft follows. */
 type DraftSource = "clean" | "verbatim";
 
-export const QuickCaptureView: React.FC = () => {
+/** Phone-like device? Same heuristic the boot redirect in App.tsx uses. */
+function useIsPhoneLike(): boolean {
+  const [isPhone, setIsPhone] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.innerWidth < 768 ||
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    );
+  });
+  useEffect(() => {
+    const onResize = () =>
+      setIsPhone(
+        window.innerWidth < 768 ||
+          /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      );
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return isPhone;
+}
+
+export interface QuickCaptureViewProps {
+  /** Render inside the ALOA side panel instead of as a full-screen view. */
+  embedded?: boolean;
+  /** Embedded only: return to the ALOA chat interface. */
+  onBackToChat?: () => void;
+  /** Embedded only: leave the panel for the full office (parent closes it). */
+  onExitEmbedded?: () => void;
+}
+
+export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
+  embedded = false,
+  onBackToChat,
+  onExitEmbedded,
+}) => {
   const { navigateTo, addToast, setMobileSearchOpen } = useUI();
   const { currentUser } = useAuth();
   const { coreState } = useCoreState();
@@ -73,6 +134,34 @@ export const QuickCaptureView: React.FC = () => {
   const [asking, setAsking] = useState(false);
   const [recent, setRecent] = useState<CaptureProjection[]>([]);
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const isPhoneLike = useIsPhoneLike();
+
+  // ── "Start in Quick Capture on mobile" (owner addendum 2026-11-18).
+  //    OFF by default — everyone lands on the Full Office dashboard first.
+  //    Flipping it ON stores 'capture' for this account (localStorage, same
+  //    key Settings → Display uses); future MOBILE launches bypass the
+  //    dashboard. Per-account, instant local read, no network round trip.
+  const [startInQuickCapture, setStartInQuickCapture] = useState(false);
+  useEffect(() => {
+    setStartInQuickCapture(
+      getStartupViewPreference(currentUser?.id) === "capture"
+    );
+  }, [currentUser?.id]);
+  const handleToggleStartup = useCallback(() => {
+    if (!currentUser?.id) {
+      addToast("Sign in to remember your launch preference.", { type: "info" });
+      return;
+    }
+    const next = !startInQuickCapture;
+    setStartInQuickCapture(next);
+    setStartupViewPreference(currentUser.id, next ? "capture" : "office");
+    addToast(
+      next
+        ? "Mobile launches will open straight into Quick Capture."
+        : "Mobile launches will open the Full Office dashboard first.",
+      { type: "success" }
+    );
+  }, [currentUser?.id, startInQuickCapture, addToast]);
 
   // ─── INCREMENTAL DICTATION — the draft lives HERE (the parent) so it ─────
   //    survives the Add More recording round, during which the TriageCard
@@ -227,6 +316,54 @@ export const QuickCaptureView: React.FC = () => {
     refreshRecent();
   }, [qc.reset, refreshRecent]);
 
+  // ── Deleting captures (owner report 2026-11-18: "how do we delete a quick
+  //    capture? it is not obvious"). Two-tap confirm per row; the triage
+  //    card has its own Discard action. Deleting removes the capture row +
+  //    archived audio; notes already saved into a matter are separate
+  //    records and are NOT touched.
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteCapture = useCallback(
+    async (row: CaptureProjection) => {
+      if (deletingId) return;
+      setDeletingId(row.clientLocalId);
+      try {
+        // 1. Server row + archived audio.
+        await deleteCapture(row.clientLocalId);
+      } catch (err: any) {
+        // A "not found" miss is fine — the row may have been purged server-
+        // side already; the local purge below clears anything still queued
+        // on this device. Anything else surfaces to the user.
+        const msg = String(err?.message || "");
+        if (!msg.toLowerCase().includes("not found")) {
+          addToast(msg || "Could not delete this voice note.", { type: "error" });
+          setDeletingId(null);
+          setConfirmDeleteId(null);
+          return;
+        }
+      }
+      try {
+        // 2. Segments still queued on this device (offline captures).
+        await voiceSync.purgeCapture(row.clientLocalId);
+      } catch { /* already gone */ }
+      // 3. If the open triage card was this capture, clear the staging area.
+      if (lastCaptureIdRef.current === row.clientLocalId) {
+        lastCaptureIdRef.current = "";
+        lastSyncedVerbatimRef.current = "";
+        draftEditedRef.current = false;
+        setDraftText("");
+        setClipCount(1);
+        qc.reset();
+      }
+      setRecent((rows) => rows.filter((r) => r.clientLocalId !== row.clientLocalId));
+      setConfirmDeleteId(null);
+      setDeletingId(null);
+      addToast("Voice note deleted.", { type: "success" });
+    },
+    [deletingId, addToast, qc, refreshRecent]
+  );
+
   useEffect(() => {
     refreshRecent();
     const onOnline = () => {
@@ -270,45 +407,122 @@ export const QuickCaptureView: React.FC = () => {
 
   const pendingSegments = qc.queueStats?.pendingSegments ?? 0;
 
-  // ─── Render ──────────────────────────────────────────────────────────────
+  // Where "Full Office" / "Settings" go when embedded inside the ALOA
+  // panel: the parent closes the panel, then the navigation happens.
+  const exitToView = useCallback(
+    (view: "dashboard" | "settings") => {
+      if (embedded && onExitEmbedded) onExitEmbedded();
+      navigateTo(view);
+    },
+    [embedded, onExitEmbedded, navigateTo]
+  );
+
+  // ─── Render ─────────────────────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-slate-50">
-      {/* Top bar: brand + Open Full Office + settings */}
-      <header className="flex items-center justify-between gap-2 px-4 py-3 bg-white border-b border-slate-200 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white shrink-0">
-            <MicrophoneIcon className="w-4 h-4" />
-          </span>
-          <div className="min-w-0">
-            <h1 className="font-bold text-slate-900 leading-tight text-base">Quick Capture</h1>
-            <p className="text-2xs text-slate-500 leading-tight truncate">
-              {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
-            </p>
+      {/* Top bar: brand + persistent Full Office button + settings.
+          Embedded (inside the ALOA panel): a back-to-chat button leads.
+          Owner addendum: "Keep a persistent 'Full Office →' button in the top
+          corner of Quick Capture so they can switch back to the main
+          dashboard anytime in 1 tap." */}
+      <header className="bg-white border-b border-slate-200 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            {embedded && onBackToChat ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={ChevronLeftIcon}
+                onClick={() => {
+                  light();
+                  onBackToChat();
+                }}
+              >
+                ALOA
+              </Button>
+            ) : null}
+            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white shrink-0">
+              <MicrophoneIcon className="w-4 h-4" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="font-bold text-slate-900 leading-tight text-base">
+                {embedded ? "ALOA · Quick Capture" : "Quick Capture"}
+              </h1>
+              <p className="text-2xs text-slate-500 leading-tight truncate">
+                {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              minTouchTarget
+              icon={ChevronRightIcon}
+              onClick={() => {
+                light();
+                exitToView("dashboard");
+              }}
+            >
+              Full Office
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              icon={CogIcon}
+              aria-label="Settings"
+              onClick={() => exitToView("settings")}
+            />
           </div>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            minTouchTarget
-            icon={ChevronRightIcon}
-            onClick={() => {
-              light();
-              navigateTo("dashboard");
-            }}
-          >
-            Open Full Office
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            iconOnly
-            icon={CogIcon}
-            aria-label="Settings"
-            onClick={() => navigateTo("settings")}
-          />
-        </div>
+        {/* "Start in Quick Capture on mobile" — the frictionless launch
+            preference toggle (owner addendum rule 3). OFF by default;
+            visible where the user already is, no Settings trip needed.
+            Phone-like devices only — the preference governs mobile boots. */}
+        {isPhoneLike ? (
+          <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-100 bg-slate-50/80">
+            <label
+              htmlFor="qc-startup-toggle"
+              className="text-xs font-medium text-slate-600 leading-tight"
+            >
+              Start in Quick Capture on mobile
+            </label>
+            {/* Switch built on the app's established div/role="switch"
+                pattern (see the Toggle in Settings → Display) — there is no
+                ui/ switch primitive yet, and growing the raw-button count is
+                banned by the ADR-0004 ratchet. tabIndex + keydown keep it
+                fully keyboard-operable. */}
+            <div
+              id="qc-startup-toggle"
+              role="switch"
+              aria-checked={startInQuickCapture}
+              aria-label="Start in Quick Capture on mobile"
+              tabIndex={0}
+              onClick={() => {
+                light();
+                handleToggleStartup();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  light();
+                  handleToggleStartup();
+                }
+              }}
+              className={`${
+                startInQuickCapture ? "bg-emerald-600" : "bg-slate-300"
+              } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2`}
+            >
+              <span
+                className={`${
+                  startInQuickCapture ? "translate-x-6" : "translate-x-1"
+                } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+              />
+            </div>
+          </div>
+        ) : null}
       </header>
 
       {mode === "speak" ? (
@@ -382,6 +596,7 @@ export const QuickCaptureView: React.FC = () => {
                   matters={matterState.matters}
                   eventTypeNames={eventTypeNames.length ? eventTypeNames : ["Meeting", "Hearing", "Mention", "Deadline", "Consultation"]}
                   onDone={handleDone}
+                  onDelete={handleDeleteCapture}
                   onOpenMatter={(matterId) => navigateTo("matterDetail", matterId)}
                   onOpenCalendar={() => navigateTo("calendar")}
                   draftText={draftText}
@@ -516,31 +731,75 @@ export const QuickCaptureView: React.FC = () => {
               <div className="flex flex-col gap-2">
                 {recent.map((r) => {
                   const Icon = INTENT_ICON[r.triageIntent || "share"] || ClipboardIcon;
+                  const confirming = confirmDeleteId === r.clientLocalId;
+                  const deleting = deletingId === r.clientLocalId;
                   return (
-                    <Button
+                    <div
                       key={r.captureId}
-                      variant="outline"
-                      size="md"
-                      fullWidth
-                      minTouchTarget
-                      onClick={() => void qc.openCapture(r.clientLocalId)}
-                      className="!justify-start text-left"
+                      className="flex items-stretch gap-1 rounded-lg border border-slate-200 bg-white overflow-hidden"
                     >
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 shrink-0">
-                        <Icon className="w-4 h-4 text-slate-500" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-slate-900 truncate">
-                          {r.triageMeta?.summary || r.snippet?.slice(0, 60) || "Voice note"}
+                      <Button
+                        variant="bare"
+                        className="flex items-center gap-3 flex-1 min-w-0 text-left px-3 py-2.5 active:bg-slate-50"
+                        onClick={() => void qc.openCapture(r.clientLocalId)}
+                        aria-label={`Open voice note: ${r.triageMeta?.summary || r.snippet?.slice(0, 60) || "Voice note"}`}
+                      >
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 shrink-0">
+                          <Icon className="w-4 h-4 text-slate-500" />
                         </span>
-                        <span className="block text-xs text-slate-400 truncate">
-                          {r.kind === "legalpad" ? "Legal Pad" : "Quick note"}
-                          {r.status === "ready" ? "" : ` · ${r.status}`}
-                          {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString()}` : ""}
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-slate-900 truncate">
+                            {r.triageMeta?.summary || r.snippet?.slice(0, 60) || "Voice note"}
+                          </span>
+                          <span className="block text-xs text-slate-400 truncate">
+                            {r.kind === "legalpad" ? "Legal Pad" : "Quick note"}
+                            {r.status === "ready" ? "" : ` · ${r.status}`}
+                            {r.createdAt ? ` · ${new Date(r.createdAt).toLocaleDateString()}` : ""}
+                          </span>
                         </span>
-                      </span>
-                      <ChevronRightIcon className="w-4 h-4 text-slate-300 shrink-0" />
-                    </Button>
+                        {!confirming ? (
+                          <ChevronRightIcon className="w-4 h-4 text-slate-300 shrink-0" />
+                        ) : null}
+                      </Button>
+                      {/* Delete — a first-class, obvious action (owner report:
+                          "how do we delete a quick capture?"). Two-tap
+                          confirm: trash → "Delete? ✓ / ✕" inline. */}
+                      {confirming ? (
+                        <div className="flex items-center gap-1 pr-2 shrink-0 bg-rose-50 border-l border-rose-200">
+                          <span className="text-xs font-semibold text-rose-700 whitespace-nowrap">Delete?</span>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            iconOnly
+                            icon={CheckIcon}
+                            aria-label="Confirm delete"
+                            loading={deleting}
+                            onClick={() => void handleDeleteCapture(r)}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            iconOnly
+                            icon={XMarkIcon}
+                            aria-label="Keep this voice note"
+                            onClick={() => setConfirmDeleteId(null)}
+                          />
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          icon={TrashIcon}
+                          aria-label={`Delete voice note: ${r.triageMeta?.summary || "Voice note"}`}
+                          className="!text-slate-400 hover:!text-rose-600 shrink-0"
+                          onClick={() => {
+                            light();
+                            setConfirmDeleteId(r.clientLocalId);
+                          }}
+                        />
+                      )}
+                    </div>
                   );
                 })}
               </div>

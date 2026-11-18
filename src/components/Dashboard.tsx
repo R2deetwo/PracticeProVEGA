@@ -17,7 +17,7 @@ import { useProduct } from '../contexts/ProductContext';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { checklistProgressPct } from './GettingStartedChecklist';
-import { LockClosedIcon, PlusIcon, CloudArrowUpIcon } from '../constants';
+import { LockClosedIcon, PlusIcon, CloudArrowUpIcon, MicrophoneIcon, ChevronRightIcon } from '../constants';
 import { Skeleton } from './ui/Skeleton';
 import { computeAtriumVirtualEvents } from '../utils/calendarUtils';
 import {
@@ -32,6 +32,9 @@ import CompleteSetupBanner from './CompleteSetupBanner';
 import ErrorBoundary from './ErrorBoundary';
 // CRO AUDIT Track B — B8: trial nudge engine (in-app milestone banners).
 import TrialNudgeBanner from './TrialNudgeBanner';
+import { useAloa } from '../contexts/AloaProvider';
+import { useHapticFeedback } from '../hooks/useHapticFeedback';
+import { Button } from './ui/Button';
 
 
 
@@ -144,6 +147,12 @@ const Dashboard: React.FC = () => {
     const { currentUser } = useAuth();
     const { navigateTo, openModal, setHighlightTarget } = useUI();
     const { isLegal, isUnified, isProperty, hasPropertyFeatures } = useProduct();
+    // QUICK CAPTURE one-tap launch (owner addendum 2026-11-18): the
+    // prominent card at the top of the mobile dashboard opens the ALOA
+    // panel directly in Quick Capture mode — record in 1 tap from home.
+    const { openPanel: openAloaPanel } = useAloa();
+    const { light: hapticLight } = useHapticFeedback();
+    const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
     const [activeUnifiedTab, setActiveUnifiedTab] = useState<'matters' | 'properties'>('matters');
     
     // De-structure state
@@ -341,6 +350,39 @@ const Dashboard: React.FC = () => {
                 <ErrorBoundary fallback={null}>
                     {hasAnyRecords && <TrialNudgeBanner />}
                 </ErrorBoundary>
+
+                {/* QUICK CAPTURE CARD (owner addendum 2026-11-18: "place a
+                    prominent, easily reachable 'Quick Capture' button on the
+                    mobile Dashboard… jump straight into recording in 1 tap").
+                    Phones only — desktop keeps the compact mic button in the
+                    top navigation bar. Opens the ALOA panel directly in
+                    Quick Capture mode (one unified voice + AI home). */}
+                <div className="md:hidden">
+                    <Button
+                        variant="bare"
+                        size="md"
+                        fullWidth
+                        aria-label="Quick Capture — start recording"
+                        className="flex items-center gap-3 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 dark:from-emerald-900/20 dark:via-zinc-800 dark:to-emerald-900/20 p-4 shadow-lg shadow-emerald-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6"
+                        onClick={() => {
+                            hapticLight();
+                            openAloaCapture();
+                        }}
+                    >
+                        <span className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-600 text-white shadow-md shrink-0">
+                            <MicrophoneIcon className="w-6 h-6" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-black text-slate-900 dark:text-white">
+                                Quick Capture
+                            </span>
+                            <span className="block text-xs text-slate-600 dark:text-zinc-300 leading-snug">
+                                Dictate a note, task or question — 1 tap to record
+                            </span>
+                        </span>
+                        <ChevronRightIcon className="w-5 h-5 text-emerald-500 shrink-0" />
+                    </Button>
+                </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:gap-8">
                     {isLoading ? (

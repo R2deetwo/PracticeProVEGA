@@ -244,11 +244,14 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
     // BottomNav/ALOA floater) — clean, thumb-friendly, one-handed use.
     const isQuickCapture = view === 'quickCapture';
 
-    // ── QUICK CAPTURE LANDING (mobile-first boot, owner spec 2026-11-18) ──
-    // Phones launch into the lightweight Quick Capture Mode instead of the
-    // heavy multi-column office; desktop keeps the full workspace as usual.
-    // The user's choice in Settings → Display overrides the device default.
-    // Runs ONCE per session — after this, navigation belongs to the user.
+    // ── STARTUP LANDING (owner addendum 2026-11-18: "Default to Full Office
+    //    Dashboard First") ──
+    // Everyone — new users, first-time launches, phones included — opens
+    // into the main Office Dashboard. Quick Capture is ONLY forced when the
+    // user themselves flipped the "Start in Quick Capture on mobile" toggle
+    // inside Quick Capture (or chose it in Settings → Display), and even
+    // then only on phone-like devices. Runs ONCE per session — after this,
+    // navigation belongs to the user.
     const bootRedirectDone = React.useRef(false);
     React.useEffect(() => {
         if (bootRedirectDone.current) return;
@@ -256,13 +259,13 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         if (flowState !== 'app') return;
         bootRedirectDone.current = true;
         const preference = getStartupViewPreference(currentUser.id);
-        if (preference === 'office') return;
+        if (preference !== 'capture') return; // 'auto' | 'office' → full office first
         const isPhone =
             window.innerWidth < 768 ||
             /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const wantsQuickCapture = preference === 'capture' || (preference === 'auto' && isPhone);
+        // The toggle is explicitly "on mobile" — desktop keeps the office.
         // Deep links are respected — only a plain dashboard landing redirects.
-        if (wantsQuickCapture && (location.pathname === '/' || location.pathname === '/dashboard')) {
+        if (isPhone && (location.pathname === '/' || location.pathname === '/dashboard')) {
             navigateTo('quickCapture');
         }
     }, [currentUser, isPortalUser, flowState, location.pathname, navigateTo]);

@@ -1062,6 +1062,76 @@ export const transcribeBatch = action({
 });
 
 /**
+ * QUICK_ASK_SYSTEM_PROMPT — exported for unit tests. The FIRM DATA SUMMARY
+ * (built by buildQuickAskContext) is authoritative for counting questions;
+ * the KEYWORD-MATCHED sections are explicitly labelled as filtered subsets
+ * so an empty subset can never be read as "the firm has none" (owner bug
+ * report 2026-11-18: "how many matters do I have?" → "you have no matters").
+ */
+export const QUICK_ASK_SYSTEM_PROMPT =
+  "You answer a Nigerian lawyer's questions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.";
+
+/** A slim matter row as buildQuickAskContext consumes. */
+export interface QuickAskMatterRow {
+  title?: string | null;
+  suitNumber?: string | null;
+  status?: string | null;
+}
+
+/**
+ * buildQuickAskContext — the quickAsk grounding context, exported pure for
+ * unit tests. Two layers:
+ *   1. FIRM DATA SUMMARY — authoritative counts plus a compact matter
+ *      inventory (first 25) so counting/inventory questions are answered
+ *      from real numbers instead of keyword-match luck.
+ *   2. KEYWORD-MATCHED subsets for topical questions, each explicitly
+ *      labelled as a subset with its "of N on record" denominator and a
+ *      "(no keyword match)" placeholder that can no longer be mistaken for
+ *      an empty firm.
+ */
+export function buildQuickAskContext(args: {
+  matters: QuickAskMatterRow[];
+  noteCount: number;
+  upcomingCount: number;
+  matchedMatters: { title: string; detail: string }[];
+  matchedNotes: { title: string; detail: string }[];
+  upcoming: { title: string; detail: string }[];
+}): string {
+  const { matters, noteCount, upcomingCount, matchedMatters, matchedNotes, upcoming } = args;
+  const statusOf = (m: QuickAskMatterRow) => (m.status || "").toLowerCase();
+  const activeCount = matters.filter((m) => statusOf(m) === "active").length;
+  const closedCount = matters.filter((m) => ["closed", "archived"].includes(statusOf(m))).length;
+  const otherCount = matters.length - activeCount - closedCount;
+  const inventoryLines = matters
+    .slice(0, 25)
+    .map(
+      (m) =>
+        `- ${m.title || "(untitled matter)"}${m.suitNumber ? ` [${m.suitNumber}]` : ""}${
+          m.status ? ` (${m.status})` : ""
+        }`
+    );
+  const summaryBlock = [
+    "FIRM DATA SUMMARY (authoritative — use these numbers for counting questions):",
+    `- Matters on record: ${matters.length}` +
+      (matters.length > 0
+        ? ` (${activeCount} active, ${closedCount} closed/archived${otherCount > 0 ? `, ${otherCount} other status` : ""})`
+        : ""),
+    `- Notes on record: ${noteCount}`,
+    `- Upcoming calendar events (today onwards): ${upcomingCount}`,
+    matters.length > 0
+      ? `MATTER INVENTORY (first ${inventoryLines.length} of ${matters.length}):\n${inventoryLines.join("\n")}`
+      : "MATTER INVENTORY: the firm has no matters on record.",
+  ].join("\n");
+
+  return [
+    summaryBlock,
+    `KEYWORD-MATCHED MATTERS (subset filtered by the question's words — of ${matters.length} on record; empty here means no title matched the wording, NOT that the firm has none):\n${matchedMatters.map((m) => `- [Matter: ${m.title}] ${m.detail}`).join("\n") || "(no keyword match)"}`,
+    `KEYWORD-MATCHED NOTES (of ${noteCount}):\n${matchedNotes.map((n) => `- [Note: ${n.title}] ${n.detail}`).join("\n") || "(no keyword match)"}`,
+    `UPCOMING SCHEDULE (next 12):\n${upcoming.map((e) => `- [Schedule: ${e.title}] ${e.detail}`).join("\n") || "(nothing scheduled)"}`,
+  ].join("\n\n");
+}
+
+/**
  * quickAsk — a concise, GROUNDED answer to the lawyer's question, built
  * only from their own firm data (matters, notes, schedule). If the data
  * doesn't contain the answer, it says exactly that — no hallucination.
@@ -1083,9 +1153,16 @@ export const quickAsk = action({
     const q = (args.question || "").trim().slice(0, 2000);
     if (q.length < 2) throw new Error("Ask a question first.");
 
-    // Firm-scoped retrieval. Simple normalised-term scoring (no embeddings
-    // needed at this scale): matters + notes matched on the question's
-    // terms; the upcoming schedule is always included for date questions.
+    // Firm-scoped retrieval, two layers (owner bug report 2026-11-18: asking
+    // "how many matters do I have?" was answered "you have no matters"):
+    //   1. A DATA SUMMARY — authoritative counts plus a compact matter
+    //      inventory — so counting/inventory questions are answered from
+    //      real numbers instead of keyword-match luck. The old prompt led
+    //      with "MATCHED MATTERS: (none)" (a keyword miss on generic words
+    //      like "how many matters do I have"), which the model read as an
+    //      empty firm.
+    //   2. Keyword-matched slices for topical questions (a case name, a
+    //      suit number, a note topic). No embeddings needed at this scale.
     const terms = Array.from(
       new Set(
         q.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length >= 3)
@@ -1141,20 +1218,25 @@ export const quickAsk = action({
         detail: `${(e.date || "").slice(0, 16).replace("T", " ")}${e.type ? ` · ${e.type}` : ""}${e.matterTitle ? ` · ${e.matterTitle}` : ""}`,
       }));
 
+    // ── Grounding context: buildQuickAskContext (exported, unit-tested).
+    //    Layer 1 = authoritative DATA SUMMARY (counts + inventory); layer 2 =
+    //    the keyword-matched subsets above, labelled as subsets.
     const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     if (!gemini) throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
 
-    const contextBlock = [
-      `MATCHED MATTERS (of ${matters.length} on record):\n${matchedMatters.map((m) => `- [Matter: ${m.title}] ${m.detail}`).join("\n") || "(none)"}`,
-      `MATCHED NOTES (of ${notePages.length}):\n${matchedNotes.map((n) => `- [Note: ${n.title}] ${n.detail}`).join("\n") || "(none)"}`,
-      `UPCOMING SCHEDULE (next 12):\n${upcoming.map((e) => `- [Schedule: ${e.title}] ${e.detail}`).join("\n") || "(nothing scheduled)"}`,
-    ].join("\n\n");
+    const contextBlock = buildQuickAskContext({
+      matters,
+      noteCount: notePages.length,
+      upcomingCount: upcoming.length,
+      matchedMatters,
+      matchedNotes,
+      upcoming,
+    });
 
     const lagos = lagosNow(Date.now());
     const answer = await geminiText({
       apiKey: gemini.key,
-      system:
-        "You answer a Nigerian lawyer's questions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.",
+      system: QUICK_ASK_SYSTEM_PROMPT,
       user: `TODAY (Lagos): ${lagos.weekday}, ${lagos.dateISO}\n\nFIRM DATA:\n${contextBlock}\n\nTHE LAWYER'S QUESTION:\n"""${q}"""`,
       maxTokens: 1024,
     });
