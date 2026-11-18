@@ -359,16 +359,17 @@ export const handleLandingChat = httpAction(async (ctx, request) => {
             contents,
             generationConfig: {
               temperature: 0.4,
-              maxOutputTokens: 1024,
+              maxOutputTokens: 2048,
               responseMimeType: "application/json",
-              // gemini-2.5-flash "thinks" by default and the thinking tokens
-              // count against maxOutputTokens — with the old 700 cap the
-              // visible answer was starved and truncated at ~20 tokens
-              // (verified live 2026-11-18: answers came back as a cut-off
-              // `{"intro": "Based on your figures...`). This is a quick
-              // website Q&A — no chain-of-thought needed, so thinking is
-              // disabled and the full budget goes to the answer.
-              thinkingConfig: { thinkingBudget: 0 },
+              // gemini-2.5-flash thinks by default and thinking tokens count
+              // against maxOutputTokens — with the old 700 cap the visible
+              // answer was starved and truncated at ~20 tokens (verified live
+              // 2026-11-18). thinkingBudget 0 fixed truncation but live
+              // testing showed arithmetic slips (computed 54M for
+              // 450k × 12 × 12 = 64.8M), so a small fixed budget is allowed:
+              // enough headroom to compute, cheap enough for website chat.
+              // Total cap raised to 2048 = thinking + answer.
+              thinkingConfig: { thinkingBudget: 512 },
             },
           }),
           signal: controller.signal,
