@@ -572,7 +572,11 @@ export const generateMorningBriefing = internalAction({
               contents: [{ parts: [{ text: briefingPrompt }] }],
               generationConfig: {
                 temperature: 0.7,
-                maxOutputTokens: 1024,
+                // 1024 can be starved by thinking tokens on thinking-capable
+                // models (they count against maxOutputTokens — see the
+                // landing-chat truncation, 2026-11-18). 2048 keeps briefings
+                // whole.
+                maxOutputTokens: 2048,
               },
             }),
           }

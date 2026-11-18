@@ -257,6 +257,29 @@ jobs:
             echo "::warning::Could not set GEMINI_DEMO_KEY (the deploy key may lack env permissions). Set it once in the Convex dashboard (gregarious-malamute-537 → Settings → Environment Variables)."
           fi
 
+      # 2026-11-18 (leaked-key incident follow-up): the PLATFORM key gets
+      # the same rotation path as the demo key. Previously GEMINI_API_KEY
+      # could only be set by hand in the Convex dashboard — and a stale
+      # dashboard value is exactly what kept Quick Capture/ALOA failing
+      # with 403 "API key was reported as leaked" after Google disabled
+      # the committed-to-GitHub key. Rotate it as a GitHub secret (same
+      # name) and re-run this workflow. If the secret is unset the step is
+      # a no-op — it never CLEARS an existing Convex value.
+      - name: Ensure GEMINI_API_KEY is set (platform AI surfaces)
+        continue-on-error: true
+        env:
+          PLATFORM_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$PLATFORM_KEY" ]; then
+            echo "::notice::GEMINI_API_KEY GitHub secret is not set — leaving the Convex environment value untouched (set the secret to rotate without dashboard surgery)."
+            exit 0
+          fi
+          if npx convex env set GEMINI_API_KEY "$PLATFORM_KEY"; then
+            echo "✓ GEMINI_API_KEY rotated onto production (Quick Capture, ALOA, transcription, landing chat)."
+          else
+            echo "::warning::Could not set GEMINI_API_KEY (the deploy key may lack env permissions). Set it once in the Convex dashboard (gregarious-malamute-537 → Settings → Environment Variables)."
+          fi
+
       - name: Point SITE_URL at production on the Convex deployment
         continue-on-error: true
         env:

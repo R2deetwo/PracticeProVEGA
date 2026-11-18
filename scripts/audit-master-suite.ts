@@ -402,7 +402,7 @@ async function auditAI(browser: any): Promise<DomainResult> {
     // Check 1: AI streaming endpoint
     const aiEndpointResponse = await page.evaluate(async () => {
       try {
-        const res = await fetch('https://gregarious-malamute-537.convex.cloud/ai/stream', {
+        const res = await fetch('https://gregarious-malamute-537.convex.site/ai/stream', {
           method: 'OPTIONS',
         });
         return { status: res.status, ok: res.ok };

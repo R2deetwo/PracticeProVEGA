@@ -21,6 +21,11 @@
 
 const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || "https://gregarious-malamute-537.convex.cloud";
 
+/** HTTP actions are served on the .convex.site URL — .convex.cloud serves
+ *  only the client API. /ai/stream on .convex.cloud 404s (verified live
+ *  2026-11-18). Same pattern as geminiService.ts. */
+const CONVEX_HTTP_URL = CONVEX_URL.replace('.convex.cloud', '.convex.site');
+
 /** Session bearer — same read helper geminiService has always used; never stored, never logged. */
 export const readSessionBearer = (): string | undefined =>
     (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('practicepro_session_bearer'))
@@ -123,7 +128,7 @@ export const serverProxyStream = async (
             headers: { 'Content-Type': 'application/json' },
         });
     }
-    return fetch(`${CONVEX_URL}/ai/stream`, {
+    return fetch(`${CONVEX_HTTP_URL}/ai/stream`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

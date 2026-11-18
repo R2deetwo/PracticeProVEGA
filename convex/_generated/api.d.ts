@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as addonCatalog from "../addonCatalog.js";
 import type * as ai from "../ai.js";
 import type * as aiAudit from "../aiAudit.js";
 import type * as aiModels from "../aiModels.js";
@@ -16,9 +17,9 @@ import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
 import type * as automationEngine from "../automationEngine.js";
 import type * as automationRules from "../automationRules.js";
-import type * as backups from "../backups.js";
 import type * as backfillDocumentFiles from "../backfillDocumentFiles.js";
 import type * as backfillDocumentFilesInternal from "../backfillDocumentFilesInternal.js";
+import type * as backups from "../backups.js";
 import type * as brainIngestion from "../brainIngestion.js";
 import type * as broadcasts from "../broadcasts.js";
 import type * as callerAuth from "../callerAuth.js";
@@ -30,6 +31,7 @@ import type * as contactIntegrity from "../contactIntegrity.js";
 import type * as conversationMemory from "../conversationMemory.js";
 import type * as crons from "../crons.js";
 import type * as debug_env from "../debug_env.js";
+import type * as documentsIntegrity from "../documentsIntegrity.js";
 import type * as drafting from "../drafting.js";
 import type * as dunning from "../dunning.js";
 import type * as emailBranding from "../emailBranding.js";
@@ -43,10 +45,15 @@ import type * as founderNotifications from "../founderNotifications.js";
 import type * as http from "../http.js";
 import type * as impersonation from "../impersonation.js";
 import type * as indexer from "../indexer.js";
+import type * as invoiceFence from "../invoiceFence.js";
+import type * as invoiceFinancials from "../invoiceFinancials.js";
+import type * as invoiceNumbering from "../invoiceNumbering.js";
+import type * as landingChat from "../landingChat.js";
 import type * as legal_audit from "../legal/audit.js";
 import type * as legal_ingest from "../legal/ingest.js";
 import type * as legal_queue from "../legal/queue.js";
 import type * as legal_search from "../legal/search.js";
+import type * as legal_shared from "../legal/shared.js";
 import type * as legalCorpus from "../legalCorpus.js";
 import type * as legalKnowledge from "../legalKnowledge.js";
 import type * as legalRepo from "../legalRepo.js";
@@ -61,12 +68,12 @@ import type * as paystack from "../paystack.js";
 import type * as portalSecurity from "../portalSecurity.js";
 import type * as portals from "../portals.js";
 import type * as proactive from "../proactive.js";
-import type * as reconciliationWorkflow from "../reconciliationWorkflow.js";
 import type * as propertyRelationships from "../propertyRelationships.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushNotificationsNode from "../pushNotificationsNode.js";
 import type * as pushReplyAuth from "../pushReplyAuth.js";
 import type * as queryMetrics from "../queryMetrics.js";
+import type * as reconciliationWorkflow from "../reconciliationWorkflow.js";
 import type * as refunds from "../refunds.js";
 import type * as retainerBilling from "../retainerBilling.js";
 import type * as salesInquiries from "../salesInquiries.js";
@@ -101,6 +108,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  addonCatalog: typeof addonCatalog;
   ai: typeof ai;
   aiAudit: typeof aiAudit;
   aiModels: typeof aiModels;
@@ -109,9 +117,9 @@ declare const fullApi: ApiFromModules<{
   authUtils: typeof authUtils;
   automationEngine: typeof automationEngine;
   automationRules: typeof automationRules;
-  backups: typeof backups;
   backfillDocumentFiles: typeof backfillDocumentFiles;
   backfillDocumentFilesInternal: typeof backfillDocumentFilesInternal;
+  backups: typeof backups;
   brainIngestion: typeof brainIngestion;
   broadcasts: typeof broadcasts;
   callerAuth: typeof callerAuth;
@@ -123,6 +131,7 @@ declare const fullApi: ApiFromModules<{
   conversationMemory: typeof conversationMemory;
   crons: typeof crons;
   debug_env: typeof debug_env;
+  documentsIntegrity: typeof documentsIntegrity;
   drafting: typeof drafting;
   dunning: typeof dunning;
   emailBranding: typeof emailBranding;
@@ -136,10 +145,15 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   impersonation: typeof impersonation;
   indexer: typeof indexer;
+  invoiceFence: typeof invoiceFence;
+  invoiceFinancials: typeof invoiceFinancials;
+  invoiceNumbering: typeof invoiceNumbering;
+  landingChat: typeof landingChat;
   "legal/audit": typeof legal_audit;
   "legal/ingest": typeof legal_ingest;
   "legal/queue": typeof legal_queue;
   "legal/search": typeof legal_search;
+  "legal/shared": typeof legal_shared;
   legalCorpus: typeof legalCorpus;
   legalKnowledge: typeof legalKnowledge;
   legalRepo: typeof legalRepo;
@@ -154,12 +168,12 @@ declare const fullApi: ApiFromModules<{
   portalSecurity: typeof portalSecurity;
   portals: typeof portals;
   proactive: typeof proactive;
-  reconciliationWorkflow: typeof reconciliationWorkflow;
   propertyRelationships: typeof propertyRelationships;
   pushNotifications: typeof pushNotifications;
   pushNotificationsNode: typeof pushNotificationsNode;
   pushReplyAuth: typeof pushReplyAuth;
   queryMetrics: typeof queryMetrics;
+  reconciliationWorkflow: typeof reconciliationWorkflow;
   refunds: typeof refunds;
   retainerBilling: typeof retainerBilling;
   salesInquiries: typeof salesInquiries;

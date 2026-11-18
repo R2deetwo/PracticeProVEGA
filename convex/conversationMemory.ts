@@ -201,7 +201,11 @@ Be specific — include names, matter titles, amounts, or deadlines that were di
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 512,
+            // 512 starved the answer on thinking-capable models (thinking
+            // tokens count against maxOutputTokens — same live failure mode
+            // as the landing chat, 2026-11-18). 2048 leaves room for thought
+            // plus the ~512-token JSON summary.
+            maxOutputTokens: 2048,
             response_mime_type: "application/json",
           },
         }),

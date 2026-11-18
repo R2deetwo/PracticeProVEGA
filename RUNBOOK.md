@@ -287,7 +287,8 @@ not registered with Paystack. To go live:
 1. Set `PAYSTACK_ENABLED=true` + LIVE keys in Convex env (swap the test
    keys first used on staging).
 2. Register the webhook in the Paystack dashboard:
-   `https://gregarious-malamute-537.convex.cloud/paystack/webhook`
-   (signature-verified, deduped, audited — see paystack.ts).
+   `https://gregarious-malamute-537.convex.site/paystack/webhook`
+   (HTTP actions live on the `.convex.site` URL — `.convex.cloud` 404s.
+   signature-verified, deduped, audited — see paystack.ts).
 3. Watch the first live `charge.success` events in the `paystackEvents`
    table; failures now land in `error_events` + Sentry.
