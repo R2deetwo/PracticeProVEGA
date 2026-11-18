@@ -1,0 +1,52 @@
+name: CodeQL
+
+# Security review 2026-11-18 (Copilot finding): the repo had no SAST
+# workflow. CodeQL is free on public repositories. This covers the whole
+# TypeScript surface — the Convex backend functions (the security-critical
+# server code) AND the web app.
+#
+# Java/Android analysis is deliberately NOT included yet: it needs a full
+# gradle + Android SDK build step to extract a database from the hybrid
+# app (mostly a WebView wrapper). Follow-up when the APK pipeline gets a
+# dedicated SAST job.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: "31 5 * * 1" # weekly sweep, Monday mornings
+  workflow_dispatch:
+
+permissions:
+  # Required by CodeQL to upload results.
+  security-events: write
+  contents: read
+  actions: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          languages: javascript-typescript
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          category: "/language:javascript-typescript"
