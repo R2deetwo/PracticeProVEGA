@@ -52,6 +52,7 @@ import { useCoreState } from "../../contexts/CoreContext";
 import { useMatterState } from "../../contexts/MatterContext";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { useQuickCapture } from "../../hooks/useQuickCapture";
+import { MATTERS_NOTEBOOK_ID } from "../../constants";
 import {
   quickAsk,
   listRecentCaptures,
@@ -66,6 +67,7 @@ import {
 } from "../../utils/startupViewPreference";
 import { extractNewClipText, joinDraftText } from "../../services/voice/draftUtils";
 import { TriageCard } from "./TriageCard";
+import { QuickAskActions } from "./QuickAskActions";
 import { LegalPadView } from "./LegalPadView";
 
 const formatMs = (ms: number) => {
@@ -396,14 +398,20 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     setAsking(true);
     setAskResult(null);
     try {
-      const result = await quickAsk(q);
+      // Action-capable Quick Ask (owner spec §5): it can now create diary
+      // entries / save notes on instruction — the notebookId is the
+      // fallback home for standalone saved notes.
+      const notebookId =
+        coreState.noteNotebooks?.find((nb) => nb.id !== MATTERS_NOTEBOOK_ID)?.id ||
+        MATTERS_NOTEBOOK_ID;
+      const result = await quickAsk(q, { notebookId });
       setAskResult(result);
     } catch (err: any) {
       addToast(err?.message || "Quick Ask failed. Please try again.", { type: "error" });
     } finally {
       setAsking(false);
     }
-  }, [askText, asking, addToast]);
+  }, [askText, asking, addToast, coreState.noteNotebooks]);
 
   const pendingSegments = qc.queueStats?.pendingSegments ?? 0;
 
@@ -562,6 +570,16 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           ) : askResult ? (
             <div className="mx-4 mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <p className="text-base leading-relaxed text-slate-800 whitespace-pre-wrap">{askResult.answer}</p>
+              {/* Action-capable Quick Ask (owner spec §5): confirmation
+                  cards for anything it created, each with View / Undo. */}
+              {askResult.actions && askResult.actions.length > 0 ? (
+                <div className="mt-3">
+                  <QuickAskActions
+                    actions={askResult.actions}
+                    onAllUndone={() => setAskResult(null)}
+                  />
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {askResult.sources.matters.slice(0, 3).map((s) => (
                   <span key={s.id} className="text-xs px-2 py-1 rounded-full bg-white border border-slate-200 text-slate-600 truncate max-w-[180px]">

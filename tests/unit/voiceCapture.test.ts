@@ -28,6 +28,10 @@ import {
   GEMINI_FAILURE_MESSAGES,
   buildQuickAskContext,
   QUICK_ASK_SYSTEM_PROMPT,
+  addDaysISO,
+  buildAnalysisPrompt,
+  rankAndValidateMatterMatches,
+  validateQuickAskActions,
 } from '../../convex/voiceCapture';
 import { backoffDelayMs, segmentKey } from '../../src/services/voice/audioQueue';
 import { isRetryableError } from '../../src/services/voice/voiceCaptureService';
@@ -491,5 +495,253 @@ describe('QUICK_ASK_SYSTEM_PROMPT', () => {
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('never from the keyword-matched subsets');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('filtered subsets');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('Never invent matters');
+  });
+
+  it('is action-capable (owner spec §5): declares the create_event / save_note tools and the strict-JSON envelope', () => {
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('ACTION TOOLS');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('create_event');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('save_note');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('add a check on the Chukwu matter for tomorrow at 10 AM');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain("use 09:00");
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('only act on a CLEAR instruction');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"answer"');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"actions"');
+  });
+});
+
+// ── INTELLIGENCE UPGRADE (owner spec 2026-11-18: semantic matching,
+//    relative dates, multi-intent triage, action-capable Quick Ask) ─────────
+
+describe('addDaysISO', () => {
+  it('adds days across month and year boundaries (UTC-safe)', () => {
+    expect(addDaysISO('2026-11-18', 1)).toBe('2026-11-19');
+    expect(addDaysISO('2026-11-30', 1)).toBe('2026-12-01');
+    expect(addDaysISO('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addDaysISO('2026-11-18', 7)).toBe('2026-11-25');
+    expect(addDaysISO('2024-02-28', 1)).toBe('2024-02-29'); // leap year
+  });
+
+  it('passes through invalid input untouched', () => {
+    expect(addDaysISO('', 1)).toBe('');
+    expect(addDaysISO('tomorrow', 1)).toBe('tomorrow');
+  });
+});
+
+describe('buildAnalysisPrompt (multi-intent analysis, owner spec §1–§4)', () => {
+  const lagos = { dateISO: '2026-11-18', weekday: 'Wednesday', time: '15:30' };
+  const matters = [
+    {
+      id: 'm1',
+      title: 'Chukwu v. Zenith Bank',
+      suitNumber: 'FHC/L/CS/45/2026',
+      clientName: 'Chukwu Okafor',
+      parties: ['Chukwu Okafor', 'Zenith Bank'],
+      status: 'Active',
+      court: 'Federal High Court, Lagos',
+    },
+    {
+      id: 'm2',
+      title: 'Lekki Land Dispute',
+      suitNumber: null,
+      clientName: null,
+      parties: ['Adeniyi'],
+      status: 'Active',
+      court: null,
+    },
+  ];
+  const contacts = [{ id: 'c1', name: 'Chukwu Okafor' }];
+
+  it('passes the exact WAT date/time so relative terms resolve', () => {
+    const p = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: ['Meeting', 'Hearing'] });
+    expect(p).toContain('Africa/Lagos, WAT UTC+01:00');
+    expect(p).toContain('Wednesday, 2026-11-18, 15:30');
+    // Resolved anchors for the common relative terms.
+    expect(p).toContain('"tomorrow" = 2026-11-19');
+    expect(p).toContain('"in 3 days" = 2026-11-21');
+    expect(p).toContain('"next week" = 2026-11-25');
+  });
+
+  it('renders the matters directory with suit, client, parties for semantic matching', () => {
+    const p = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(p).toContain('Chukwu v. Zenith Bank');
+    expect(p).toContain('suit FHC/L/CS/45/2026');
+    expect(p).toContain('client Chukwu Okafor');
+    expect(p).toContain('parties Chukwu Okafor / Zenith Bank');
+    expect(p).toContain('(id: m1)');
+  });
+
+  it('demands semantic fuzzy matching with ranked confidences (§2)', () => {
+    const p = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(p).toContain('SEMANTIC fuzzy matching');
+    expect(p).toContain('the Chukwu file');
+    expect(p).toContain('the Lekki land case');
+    expect(p).toContain('confidence');
+    expect(p).toContain('top 3 max');
+  });
+
+  it('pins the 09:00 default + timeEstimated flag and implied tasks (§3)', () => {
+    const p = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(p).toContain('use 09:00 for morning');
+    expect(p).toContain('set timeEstimated true');
+    expect(p).toContain('follow up with registry');
+    expect(p).toContain('empty string if truly no date was spoken');
+  });
+
+  it('is multi-intent: a case note can carry events (§4) and endorsements extract', () => {
+    const p = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(p).toContain('one note can be several things at once');
+    expect(p).toContain('the events ride along');
+    expect(p).toContain('"endorsement"');
+    expect(p).toContain('nextAdjournedDate');
+    expect(p).toContain('"matterMatches"');
+    expect(p).toContain('"isDiaryTask"');
+  });
+});
+
+describe('rankAndValidateMatterMatches (§2 backstop merge)', () => {
+  const matters = [
+    { id: 'm1', title: 'Chukwu v. Zenith Bank', suitNumber: 'FHC/L/CS/45/2026' },
+    { id: 'm2', title: 'Chukwu Estate Administration', suitNumber: null },
+    { id: 'm3', title: 'Adebayo v. State', suitNumber: null },
+  ];
+  const contacts = [{ id: 'c1', name: 'Chukwu' }];
+
+  it('drops LLM matches whose id is not a real matter (no conjured ids)', () => {
+    const out = rankAndValidateMatterMatches(
+      [{ matterId: 'made-up', confidence: 0.99 }],
+      matters,
+      [],
+      contacts
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('ranks by confidence and keeps the LLM ranking over the backstop', () => {
+    const out = rankAndValidateMatterMatches(
+      [
+        { matterId: 'm3', confidence: 0.4, reason: 'party name' },
+        { matterId: 'm1', confidence: 0.9, reason: 'the Chukwu file' },
+      ],
+      matters,
+      ['Zenith Bank'], // containment backstop hits only m1 — already ranked
+      contacts
+    );
+    expect(out.map((m) => m.matterId)).toEqual(['m1', 'm3']);
+    expect(out[0].reason).toBe('the Chukwu file');
+  });
+
+  it('backstop disambiguates similar names ("Chukwu" hits both Chukwu matters)', () => {
+    const out = rankAndValidateMatterMatches(
+      [{ matterId: 'm1', confidence: 0.9, reason: 'the Chukwu file' }],
+      matters,
+      ['Chukwu'],
+      contacts
+    );
+    // The ambiguous surname surfaces BOTH Chukwu matters as ranked pills —
+    // exactly the 1-tap disambiguation the card needs.
+    expect(out.map((m) => m.matterId)).toEqual(['m1', 'm2']);
+    expect(out[1].confidence).toBe(0.5);
+  });
+
+  it('appends deterministic containment hits the LLM missed (backstop 0.5)', () => {
+    const out = rankAndValidateMatterMatches(
+      [{ matterId: 'm3', confidence: 0.8 }],
+      matters,
+      ['Chukwu v. Zenith Bank'],
+      contacts
+    );
+    expect(out).toHaveLength(2);
+    const backstop = out.find((m) => m.matterId === 'm1');
+    expect(backstop?.confidence).toBe(0.5);
+  });
+
+  it('de-duplicates and caps the disambiguation pills at 3', () => {
+    const out = rankAndValidateMatterMatches(
+      [
+        { matterId: 'm1', confidence: 0.9 },
+        { matterId: 'm1', confidence: 0.7 },
+        { matterId: 'm2', confidence: 0.6 },
+        { matterId: 'm3', confidence: 0.55 },
+      ],
+      matters,
+      [],
+      contacts
+    );
+    expect(out).toHaveLength(3);
+    expect(new Set(out.map((m) => m.matterId)).size).toBe(3);
+  });
+
+  it('drops zero-confidence noise', () => {
+    const out = rankAndValidateMatterMatches(
+      [{ matterId: 'm1', confidence: 0 }],
+      matters,
+      [],
+      contacts
+    );
+    expect(out).toEqual([]);
+  });
+});
+
+describe('validateQuickAskActions (§5 action sanitisation)', () => {
+  const matters = [
+    { id: 'm1', title: 'Chukwu v. Zenith Bank' },
+    { id: 'm2', title: 'Adebayo v. State' },
+  ];
+
+  it('keeps a well-formed create_event and defaults the time to 09:00', () => {
+    const out = validateQuickAskActions(
+      [{ type: 'create_event', title: 'Check — Chukwu matter', eventType: 'Deadline', dateISO: '2026-11-19', time: '', matterId: 'm1' }],
+      matters
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      type: 'create_event',
+      title: 'Check — Chukwu matter',
+      type2: 'Deadline',
+      dateISO: '2026-11-19',
+      time: '09:00',
+      matterId: 'm1',
+    });
+  });
+
+  it('drops create_event without a real YYYY-MM-DD date (never fails on relative words)', () => {
+    const out = validateQuickAskActions(
+      [
+        { type: 'create_event', title: 'No date', dateISO: 'tomorrow' },
+        { type: 'create_event', title: 'Empty date', dateISO: '' },
+      ],
+      matters
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('drops save_note without content and events with matter ids from another firm', () => {
+    const out = validateQuickAskActions(
+      [
+        { type: 'save_note', title: 'Empty note', content: '   ', matterId: 'm1' },
+        { type: 'create_event', title: 'Foreign matter', dateISO: '2026-11-19', matterId: 'someone-else' },
+        { type: 'save_note', title: 'Good note', content: 'Client confirmed terms.', matterId: 'm2' },
+      ],
+      matters
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].matterId).toBe('m2');
+  });
+
+  it('drops unknown action types entirely (only create_event / save_note exist)', () => {
+    const out = validateQuickAskActions(
+      [{ type: 'delete_everything', title: 'Nice try' }],
+      matters
+    );
+    expect(out).toEqual([]);
+  });
+
+  it('caps at 3 actions per call', () => {
+    const raw = Array.from({ length: 5 }, (_, i) => ({
+      type: 'create_event',
+      title: `Event ${i}`,
+      dateISO: '2026-11-19',
+    }));
+    expect(validateQuickAskActions(raw, matters)).toHaveLength(3);
   });
 });
