@@ -161,11 +161,38 @@ jobs:
         if: github.ref == 'refs/heads/main'
         working-directory: android
         env:
-          RELEASE_STORE_FILE: android/app/release.keystore
+          # Absolute path (2026-11-18): gradle resolves a relative
+          # RELEASE_STORE_FILE against the android/ root — the previous
+          # "android/app/release.keystore" resolved to android/android/…
+          # and silently fell back to debug signing.
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/release.keystore
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: practicepro-admin
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify founder release APK signature
+        # Security review 2026-11-18: the release artifact must carry the real
+        # release certificate, not the well-known debug one.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK" ]; then
+            echo "⚠ No release APK produced (RELEASE_KEYSTORE_BASE64 unset?) — skipping verification."
+            exit 0
+          fi
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$(ls -1 "$SDK"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::apksigner not found under $SDK — cannot verify the founder APK signature."
+            exit 1
+          fi
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/apk-certs.txt
+          if grep -q "CN=Android Debug" /tmp/apk-certs.txt; then
+            echo "::error::The founder release APK is DEBUG-SIGNED (gradle signing fallback). Refusing to distribute."
+            exit 1
+          fi
+          echo "✓ Founder release APK verified release-signed."
 
       - name: Upload Release APK (brand-named artifact)
         # Brand Clarity A3: the founder APK keeps the company name — it is a

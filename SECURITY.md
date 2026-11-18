@@ -54,6 +54,6 @@ We aim to acknowledge reports within **72 hours** and will keep reporters update
 ## Known security properties (for reviewers)
 
 - All Convex public functions resolve caller identity server-side (`resolveCaller` / `requireFounderCaller`) — client-supplied identity fields are not trusted (see `scripts/audit-identity.py`, enforced in CI).
-- Debug keystores are intentionally committed: the distribution channel is sideloaded debug-signed APKs with a stable signature; a release keystore path exists for Play Store submission if ever pursued, and `release.keystore` is gitignored.
+- APK distribution is release-signed (2026-11-18): the release keystore exists only as GitHub Actions secrets (`RELEASE_KEYSTORE_BASE64` + `RELEASE_STORE_PASSWORD` + `RELEASE_KEY_PASSWORD`) and in the founder's offline backup — never in the repository. CI verifies the distribution APK is not debug-signed before publishing it (both the user APK and the founder APK). The committed `debug.keystore` is for local development only. Note: devices that previously installed a debug-signed build must uninstall it once before installing a release-signed build (Android rejects signature changes as in-place updates).
 - Backend secrets (Paystack, Brevo, Chakra, Gemini, FCM service account) live only as Convex environment variables.
 - Error events recorded by the backend (`error_events`) are founder-only readable.
