@@ -30,10 +30,23 @@ import { transcribeBatch } from '../../services/voice/voiceCaptureService';
 import { acquireMicStream, releaseMicStream } from '../../services/voice/micStream';
 import { recorderSupported } from '../../services/voice/audioRecorder';
 import { appendSeparatorLabel } from '../../services/voice/draftUtils';
+import { Button } from '../ui';
 
 const BackIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+    </svg>
+);
+
+/** Mic with a plus — the "Append by Voice" affordance (owner addendum). */
+const MicPlusIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+        <line x1="18" y1="2" x2="18" y2="8"/>
+        <line x1="15" y1="5" x2="21" y2="5"/>
     </svg>
 );
 
@@ -813,23 +826,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             block onto the BOTTOM of this existing note — for
                             attendance notes and saved voice notes inside a
                             matter. The stop ceremony re-cleans the COMBINED
-                            transcript (raw + cleaned tiers both updated). */}
-                        <button
+                            transcript (raw + cleaned tiers both updated).
+                            Built on the ui/ Button primitive (ADR-0004 — no
+                            new raw form elements). */}
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            minTouchTarget
+                            icon={MicPlusIcon}
                             onClick={startAppendVoiceDictation}
                             disabled={isDictating || isCleaning || !dictationSupported}
-                            className="px-2 py-1.5 rounded transition-all flex items-center gap-1 text-2xs font-bold bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 disabled:opacity-40 disabled:cursor-not-allowed"
                             title="Append by Voice — adds a timestamped dictation block to the end of this note. Your words are transcribed by the same Whisper engine and the AI cleanup re-runs across the whole note."
                         >
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                                <line x1="12" y1="19" x2="12" y2="23"/>
-                                <line x1="8" y1="23" x2="16" y2="23"/>
-                                <line x1="18" y1="2" x2="18" y2="8"/>
-                                <line x1="15" y1="5" x2="21" y2="5"/>
-                            </svg>
                             Append by Voice
-                        </button>
+                        </Button>
                         {/* VEGA DUAL-OUTPUT: raw/cleaned toggle + AI-disclosure marker.
                             Only shown after dictation completes (hasExistingTranscript).
                             Atrium mode doesn't get the toggle — single-pass only. */}
