@@ -254,6 +254,18 @@ jobs:
 
       - name: Build APK (debug smoke + release distribution, with retry)
         working-directory: android
+        env:
+          # Release signing (wired 2026-11-18): the keystore is decoded from
+          # RELEASE_KEYSTORE_BASE64 into android/app/release.keystore above.
+          # WITHOUT these env vars gradle SILENTLY falls back to debug signing
+          # for assembleRelease — the build succeeds but ships debug-signed.
+          # Absolute path matters: gradle resolves a relative RELEASE_STORE_FILE
+          # against the android/ root, so "android/app/release.keystore" would
+          # point at android/android/app/... and never be found.
+          RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/release.keystore
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: practicepro-app
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           # ─── WHAT GETS BUILT ──────────────────────────────────────────
           # assembleDebug — the fast smoke build; also the FALLBACK
@@ -349,6 +361,29 @@ jobs:
           echo "DIST_APK=$DIST_APK" >> $GITHUB_ENV
           echo "Distribution APK ($CHANNEL): $APK_BASENAME"
           ls -la android/app/build/outputs/apk/*/*.apk
+
+      - name: Verify distribution APK signature
+        # Security review 2026-11-18 (Copilot finding): verify signatures in CI.
+        # A release-channel APK that is actually debug-signed means gradle fell
+        # back silently — refuse to distribute it. Debug-channel builds (release
+        # signing unavailable) are still allowed with a loud warning.
+        run: |
+          if [ "${APK_CHANNEL:-}" != "release" ]; then
+            echo "⚠ Distribution channel is '${APK_CHANNEL:-unknown}' — release signing unavailable, distributing the debug build."
+            exit 0
+          fi
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$(ls -1 "$SDK"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::apksigner not found under $SDK — cannot verify the distribution APK signature."
+            exit 1
+          fi
+          "$APKSIGNER" verify --print-certs "${DIST_APK}" | tee /tmp/apk-certs.txt
+          if grep -q "CN=Android Debug" /tmp/apk-certs.txt; then
+            echo "::error::The RELEASE-channel distribution APK is DEBUG-SIGNED (gradle signing fallback). Refusing to publish."
+            exit 1
+          fi
+          echo "✓ Distribution APK verified release-signed."
 
       - name: Upload APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
