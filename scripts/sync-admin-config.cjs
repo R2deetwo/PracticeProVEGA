@@ -42,6 +42,8 @@ const STRINGS_XML = path.join(ROOT, 'android', 'app', 'src', 'main', 'res', 'val
 const STRINGS_XML_BACKUP = path.join(ROOT, 'android', 'app', 'strings.xml.admin-backup');
 const VERSION_PROPS = path.join(ROOT, 'android', 'app', 'version.properties');
 const VERSION_PROPS_BACKUP = path.join(ROOT, 'android', 'app', 'version.properties.admin-backup');
+const GRADLE_PROPS = path.join(ROOT, 'android', 'gradle.properties');
+const GRADLE_PROPS_BACKUP = GRADLE_PROPS + '.admin-backup';
 // ─── google-services.json patch paths ─────────────────────────────────
 // The admin APK uses applicationId 'com.practicepro.admin'. Since 2026-09-14
 // the committed google-services.json contains BOTH clients — com.practicepro.app
@@ -168,6 +170,24 @@ function restore() {
     } catch (e) {
         warn(`Failed to restore version.properties: ${e.message}`);
         warn(`Manual restore needed. Backup file (if it exists): ${VERSION_PROPS_BACKUP}`);
+    }
+    // Restore android/gradle.properties (releaseKeyAlias)
+    // 2026-11-18 fix: this restore was MISSING. The patch step appends
+    // releaseKeyAlias=practicepro-admin to gradle.properties, and without a
+    // restore, every LOCAL admin build left that line behind. The next local
+    // CONSUMER release build would then silently sign with the ADMIN alias
+    // — a signature mismatch Android reports as "App not installed" for the
+    // consumer app. That is exactly the class of silent breakage that goes
+    // unnoticed "for months".
+    try {
+        if (fs.existsSync(GRADLE_PROPS_BACKUP)) {
+            fs.copyFileSync(GRADLE_PROPS_BACKUP, GRADLE_PROPS);
+            fs.rmSync(GRADLE_PROPS_BACKUP, { force: true });
+            log('Restored original android/gradle.properties (removed releaseKeyAlias).');
+        }
+    } catch (e) {
+        warn(`Failed to restore gradle.properties: ${e.message}`);
+        warn(`Manual restore needed. Backup file (if it exists): ${GRADLE_PROPS_BACKUP}`);
     }
     // Restore google-services.json (remove the admin client entry)
     try {
@@ -349,25 +369,48 @@ if (fs.existsSync(STRINGS_XML)) {
 //
 // We push the founder APK into a separate versionCode range:
 //   - Consumer: 1.0.x → versionCode 10000 + 0*100 + x = 10000..10099
-//   - Founder:  we bump MINOR to 99 and reset PATCH to 1, giving
-//               versionCode 10000 + 99*100 + 1 = 19901, which is
-//               permanently HIGHER than the consumer's range. This
-//               means the founder APK will never be prompted to
-//               "update" to a consumer APK (consumer versionCodes
-//               are always < 19900). And the consumer app, when it
-//               sees the founder APK's versionCode in version.json,
-//               will correctly see it as older-than-local (consumer
-//               app reads its OWN version.json, not the founder's).
+//   - Founder:  MINOR is bumped to 99; PATCH is derived from the consumer
+//               PATCH as 100 + consumer PATCH (2026-11-18 "installs properly"
+//               fix — see step 2c-iii below for the exact scheme).
+//               The founder versionCode (19900 + founder PATCH) is
+//               permanently HIGHER than the consumer's range, so the
+//               founder APK is never prompted to "update" to a consumer
+//               APK (consumer versionCodes are always < 19900). And the
+//               consumer app, when it sees the founder APK's versionCode,
+//               will correctly see it as older-than-local (consumer app
+//               reads its OWN version.json, not the founder's).
 if (fs.existsSync(VERSION_PROPS)) {
     try {
         fs.copyFileSync(VERSION_PROPS, VERSION_PROPS_BACKUP);
         let vp = fs.readFileSync(VERSION_PROPS, 'utf8');
-        // Bump MINOR to 99 and reset PATCH to 1 for the founder APK.
-        // This puts it in a separate versionCode range (19901+).
         vp = vp.replace(/^MINOR=.*$/m, 'MINOR=99');
-        vp = vp.replace(/^PATCH=.*$/m, 'PATCH=1');
+        // ── Monotonic founder versionCode (2026-11-18) ──────────────────
+        // FOUNDER-REPORTED: "the admin APK does not install properly — it
+        // has not worked for months." Root cause part 2: this step used to
+        // hard-set PATCH=1, freezing EVERY founder APK at versionCode 19901.
+        // A frozen versionCode breaks installs two ways:
+        //   (a) If any device ever held a build > 19901 (e.g. a hand-patched
+        //       1.99.2 = 19902), Android rejects every later artifact as a
+        //       DOWNGRADE — "App not installed", forever.
+        //   (b) Same-versionCode reinstalls are needlessly fragile; Android
+        //       treats them as re-installs, and some launchers/OEM installers
+        //       choke on them.
+        // Fix: founder PATCH = 100 + consumer PATCH. The consumer PATCH is
+        // auto-incremented by CI on every consumer build, so every founder
+        // build now gets a STRICTLY INCREASING versionCode with zero manual
+        // bookkeeping. Today: consumer 799 → founder 899 → versionCode
+        // 20799, strictly above every founder APK ever shipped (≤ 19902).
+        // Crossing consumer PATCH 900 (founder PATCH 1000+) is harmless:
+        // versionCode just keeps counting up (19900 + 1000+).
+        const patchMatch = vp.match(/^PATCH=(\d+)/m);
+        const consumerPatch = patchMatch ? parseInt(patchMatch[1], 10) : 799;
+        if (!patchMatch) {
+            warn('Could not parse consumer PATCH from version.properties — defaulting to 799.');
+        }
+        const founderPatch = 100 + consumerPatch;
+        vp = vp.replace(/^PATCH=.*$/m, `PATCH=${founderPatch}`);
         fs.writeFileSync(VERSION_PROPS, vp);
-        log('Patched version.properties → MINOR=99, PATCH=1 (founder versionCode range 19901+)');
+        log(`Patched version.properties → MINOR=99, PATCH=${founderPatch} (founder versionCode 19900+${founderPatch}=${19900 + founderPatch}, monotonic per consumer build)`);
     } catch (e) {
         warn(`Failed to patch version.properties: ${e.message}`);
         warn('The founder APK may collide with the consumer app versionCode.');

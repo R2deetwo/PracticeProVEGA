@@ -8,6 +8,10 @@ on:
       - 'admin.html'
       - 'vite.admin.config.ts'
       - 'capacitor.admin.config.ts'
+      # The sync script defines the founder APK's applicationId, versionCode
+      # and entry assets — changes to it (e.g. the 2026-11-18 monotonic
+      # versionCode fix) MUST rebuild the founder APK.
+      - 'scripts/sync-admin-config.cjs'
       - '.github/workflows/build-admin-apk.yml'
       - 'android/app/build.gradle'
       - 'android/app/proguard-rules.pro'
