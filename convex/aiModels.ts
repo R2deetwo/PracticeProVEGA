@@ -23,4 +23,10 @@
  */
 
 export const QUALITY_MODEL = "gemini-2.5-flash";
-export const BACKGROUND_MODEL = "gemini-3.8-flash";
+// 2026-11-18 (live probe, production free-tier key): gemini-3.8-flash
+// returns 503 "high demand" consistently on the free tier — background
+// jobs (conversation summarization, proactive briefings) were silently
+// failing. gemini-3.5-flash-lite answered correctly in the same probe
+// and is the right size for background work. Nobody is waiting on the
+// reply, so a fallback to QUALITY_MODEL remains fine.
+export const BACKGROUND_MODEL = "gemini-3.5-flash-lite";

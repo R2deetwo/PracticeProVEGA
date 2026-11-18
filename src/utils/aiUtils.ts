@@ -46,13 +46,20 @@ export const AI_CONFIG = {
         defaultModel: 'gemini-2.5-flash',
         // 2026-10-19 (R31): Google retired 2.5-pro for new accounts (the API
         // returns "no longer available to new users — update to use
-        // models/gemini-3.1-pro-preview"). Pro/Research and the pro-first
-        // drafting entry migrate to 3.1-pro-preview; the flash chain is
-        // untouched (2.5-flash still serves). If 3.1-pro-preview is ever
-        // unavailable on an account, the ladders degrade to flash as before.
-        proModel: 'gemini-3.1-pro-preview',
+        // models/gemini-3.1-pro-preview"). Pro/Research migrated to
+        // 3.1-pro-preview at the time.
+        // 2026-11-18 (live probe with the production free-tier key):
+        // gemini-3.1-pro-preview is NOT available on the free tier — every
+        // call returns 429 "exceeded your current quota", so the Pro and
+        // Research tiers were silently degrading to flash for all free-key
+        // users. gemini-4-hydrogen (4th-gen frontier, free tier, long-decode
+        // generation) IS available and answered correctly in the same probe.
+        // Pro/Research and the pro-first drafting entry migrate to it; the
+        // flash chain is untouched. If 4-hydrogen is ever unavailable on an
+        // account, the ladders degrade to flash as before.
+        proModel: 'gemini-4-hydrogen',
         flashModel: 'gemini-2.5-flash',
-        researchModel: 'gemini-3.1-pro-preview', // Same tier as Pro but with different system prompt + thinking budget
+        researchModel: 'gemini-4-hydrogen', // Same tier as Pro but with different system prompt + thinking budget
         // 2026-09-23 ALOA audit: reordered — try the modern flash tier first,
         // the lite tier next, and only fall back to 2.5-pro (slowest, most
         // expensive) as the last resort. The old order tried pro BEFORE
@@ -67,11 +74,18 @@ export const AI_CONFIG = {
         // gemini-3.8-flash). Both are retired from every ladder; 3.8-flash
         // takes the wide-fallback slot. 2.5-pro / 3-pro-preview are also
         // retired and must not reappear.
+        // 2026-11-18 (live probe, production free-tier key): gemini-flash-latest
+        // and gemini-3.8-flash both return 503 "high demand" consistently on
+        // the free tier — every ladder entry pointing at them was a dead hop.
+        // Working free-tier models measured today: 2.5-flash, 3.5-flash-lite,
+        // 3.1-flash-lite, 3-flash-preview, 4-hydrogen. The ladders now only
+        // contain models the free tier can actually serve, ending at the
+        // frontier (4-hydrogen) as the last resort.
         fallbackPlan: [
             'gemini-2.5-flash',
-            'gemini-flash-latest',
-            'gemini-3.8-flash',
-            'gemini-3.1-pro-preview'
+            'gemini-3.5-flash-lite',
+            'gemini-3-flash-preview',
+            'gemini-4-hydrogen'
         ],
         // 2026-10-16 (R27, owner direction: "take another look at DraftPro in
         // the light of improved models... strengthen the product so that it
@@ -81,10 +95,10 @@ export const AI_CONFIG = {
         // captions, prayers and attestation blocks; the flash chain remains
         // as fallback so a pro outage degrades gracefully, never blocks.
         draftingPlan: [
-            'gemini-3.1-pro-preview',
+            'gemini-4-hydrogen',
             'gemini-2.5-flash',
-            'gemini-flash-latest',
-            'gemini-3.8-flash'
+            'gemini-3.5-flash-lite',
+            'gemini-3-flash-preview'
         ]
     },
     embeddingModel: 'text-embedding-004'

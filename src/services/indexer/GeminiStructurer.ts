@@ -10,11 +10,13 @@ import { LegalDocType } from './indexerTypes';
 import { directGemini } from '../aiTransport';
 
 // R32: the 2.0 era and 2.5-pro are retired by Google (404 for new
-// keys) — the chain now runs 2.5-flash → flash-latest → 3.8-flash.
+// keys). 2026-11-18 live probe (production free-tier key): gemini-flash-latest
+// and gemini-3.8-flash 503 "high demand" on the free tier — the chain now
+// runs 2.5-flash → 3.5-flash-lite → 3-flash-preview (all probe-verified).
 const GEMINI_MODEL_CHAIN = [
   'gemini-2.5-flash',
-  'gemini-flash-latest',
-  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3-flash-preview',
 ];
 const TIMEOUT_MS = 90000;
 

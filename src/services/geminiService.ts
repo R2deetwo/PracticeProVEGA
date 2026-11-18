@@ -1566,12 +1566,14 @@ export const transcribeAudio = async (
     const prompt = buildTranscriptionPrompt(domain, options?.continuationTail);
 
     // Models to try in order, sourced from the central registry.
-    // R32: the 2.0 models are retired by Google (404 for new keys) —
-    // the chain now runs 2.5-flash → flash-latest → 3.8-flash.
+    // R32: the 2.0 models are retired by Google (404 for new keys).
+    // 2026-11-18 live probe: flash-latest + 3.8-flash 503 on the free
+    // tier — the chain now runs 2.5-flash → 3.5-flash-lite →
+    // 3-flash-preview (all probe-verified working).
     const modelsToTry = [
         AI_CONFIG.gemini.defaultModel,        // 'gemini-2.5-flash'
-        'gemini-flash-latest',
-        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3-flash-preview',
     ];
     // Deduplicate
     const uniqueModels = [...new Set(modelsToTry)];
