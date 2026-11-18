@@ -821,3 +821,38 @@ startup default / ALOA placement / one-tap launch preference):
 
 Gates: tsc 0; eslint 0 errors; ui-primitives ratchet held (2218); vitest
 2910 passing (+7); vite build green. PR #18.
+
+### 2026-11-18 (iii) — production Convex finally deployed (targeted path) + Gemini key rotation
+
+The full "Deploy to Production (promote)" pipeline has NEVER succeeded (all
+runs fail), and since ca7cb740 added the staging release gate they fail even
+earlier: staging Convex was never provisioned (CONVEX_STAGING_DEPLOY_KEY /
+CONVEX_STAGING_URL are unset — one-time owner setup, ~2 min in the Convex
+dashboard). Meanwhile the production APK talks DIRECTLY to production Convex
+(gregarious-malamute-537), so backend fixes were stuck: Quick Ask grounding,
+the PR #17 voice pipeline, even the leaked-key rotation path could not ship.
+
+Unblock (PR #18 follow-up, a5f18b10 + e4ae1678):
+
+- New targeted workflow `convex-production-deploy.yml` (workflow_dispatch):
+  deploys ONLY the Convex production backend with the SAME quality gate the
+  promote runs (convex + root typecheck, identity audit, ADR-0004 ratchet,
+  unit tests) and the SAME deploy + GEMINI key rotation + SITE_URL + live
+  myFunctions:ping probe steps. Frontends (Vercel/Cloudflare) stay on the
+  promote path. First run failed with "No CONVEX_DEPLOYMENT set" — the
+  CONVEX_DEPLOY_KEY must be at JOB level (same as the promote), fixed in
+  371cd96a. Run #2 green end-to-end.
+- GEMINI_API_KEY added as a GitHub secret (owner-provided platform key) and
+  rotated onto the production Convex environment by the deploy — closes the
+  standing "set up the new Gemini key in production" task; Quick Capture /
+  ALOA / transcription / landing chat now spend the healthy key.
+- Live probe after deploy: myFunctions:ping → {"status":"success"}.
+- APK build-1202 (practicepro-1.0.804-release.apk) built green on the merged
+  main; combined with the deployed backend, Quick Ask counts + delete +
+  startup default + ALOA home are live for the APK.
+
+Still open (owner, one-time): provision the staging Convex project + the two
+secrets, then the full promote (with Vercel + Cloudflare frontends) can run —
+and the targeted workflow can be retired. Frontend production promotion
+remains blocked on that staging setup (production WEB is still served by
+Vercel's own git integration from main pushes).
