@@ -52,16 +52,19 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *      auto-jump, and never a purchase funnel (buying Vega is a
  *      separate thing from reaching a lawyer).
  *
- * WHY IT IS NOT A LIVE AI CHAT (deliberate):
- *   /ai/stream requires an authenticated session (Round A, H18 — the
- *   platform Gemini key must never fund anonymous traffic), and the
- *   legal corpus is still awaiting Founder seeding (R1). The website
- *   assistant therefore answers from its deterministic topic catalogue
- *   (with an honest scope boundary for everything else) and offers the
- *   human team as a link the visitor chooses to click — no auto-jump.
- *   When the corpus is seeded and a public rate-limited Q&A action is
- *   approved, this panel can swap its reply engine without touching
- *   the shells.
+ * LIVE AI ENGINE (owner direction, 2026-11-18: "we cannot have something
+ *   that is not smart or answers only preset answers"):
+ *   Every question — free text AND topic chips — is answered by the real
+ *   AI through the PUBLIC rate-limited /ai/landing-chat action on Convex
+ *   (CORS allow-list + per-IP hourly/daily limits + global daily cap;
+ *   see convex/landingChat.ts). The matched topic's owner-approved copy
+ *   rides along as grounding REFERENCE so answers stay consistent with
+ *   the curated guidance (and the encoded statutory specifics). The
+ *   deterministic catalogue below is now the FALLBACK: if the AI surface
+ *   is unreachable (key rotation, network, timeout) the panel answers
+ *   exactly as it did before — it never regresses to silence. Two
+ *   consecutive AI failures disable live answers for the session so a
+ *   visitor is never left waiting on a dead surface.
  *
  * NAMING (assistantIdentity.ts is the single source of truth):
  *   vega → ALOA (legal guide), atrium → ARIA (property guide).
@@ -117,6 +120,70 @@ const BRAND: Record<LandingProduct, { fab: string; pill: string; chipAccent: str
         avatar: 'bg-atrium-emerald',
     },
 };
+
+// ── Live AI engine (owner direction 2026-11-18) ──────────────────────────
+// Public, rate-limited Convex action — see convex/landingChat.ts. The
+// catalogue below becomes the grounding reference + fallback, never the
+// primary engine.
+
+const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || 'https://gregarious-malamute-537.convex.cloud';
+
+interface LandingAiAnswer {
+    intro: string;
+    steps?: string[];
+    note?: string;
+}
+
+interface LandingAiHistoryItem {
+    role: 'user' | 'assistant';
+    text: string;
+}
+
+/** Client-side budget — the server gives itself 15s, but a visitor
+ *  should never wait that long for a panel answer; the catalogue
+ *  fallback answers instantly when this fires. */
+const LANDING_AI_TIMEOUT_MS = 9000;
+
+/** Ask the live engine. Returns null on ANY failure (network, timeout,
+ *  rate limit, key unavailable, malformed payload) — callers fall back
+ *  to the deterministic catalogue, so the panel never breaks. */
+async function askLandingAI(payload: {
+    question: string;
+    product: LandingProduct;
+    history: LandingAiHistoryItem[];
+    reference?: { chip: string; reply: string; steps?: string[]; note?: string };
+}): Promise<LandingAiAnswer | null> {
+    try {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), LANDING_AI_TIMEOUT_MS);
+        let res: Response;
+        try {
+            res = await fetch(`${CONVEX_URL}/ai/landing-chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+            });
+        } finally {
+            window.clearTimeout(timer);
+        }
+        if (!res.ok) return null;
+        const data = await res.json();
+        const a = data?.answer;
+        if (a && typeof a.intro === 'string' && a.intro.trim()) {
+            return {
+                intro: a.intro.trim(),
+                steps: Array.isArray(a.steps)
+                    ? a.steps.filter((s: unknown): s is string => typeof s === 'string' && !!s.trim()).slice(0, 6)
+                    : undefined,
+                note: typeof a.note === 'string' && a.note.trim() ? a.note.trim() : undefined,
+            };
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 interface Bubble {
     role: 'aloa' | 'you';
@@ -304,6 +371,10 @@ const AloaAssistantFab: React.FC<{
     const thinkTimer = useRef<number | null>(null);
     const handoffTimer = useRef<number | null>(null);
     const nudgeTimers = useRef<number[]>([]);
+    // Live-AI session state: two consecutive failures stop trying for the
+    // session (instant catalogue answers beat waiting on a dead surface).
+    const liveAiFailuresRef = useRef(0);
+    const liveAiDisabledRef = useRef(false);
 
     const introBubble = useMemo<Bubble>(
         () => ({
@@ -474,15 +545,66 @@ const AloaAssistantFab: React.FC<{
         ? 'General property guidance only — for advice on your specific situation, speak with a qualified professional.'
         : 'General legal information, not legal advice — for anything specific to your situation, the right next step is a qualified lawyer.';
 
+    /** Live-AI answer path (owner direction 2026-11-18). Pushes the answer
+     *  bubble and returns true on success; returns false WITHOUT pushing so
+     *  the caller falls back to the deterministic catalogue. */
+    const askAi = useCallback(
+        async (
+            question: string,
+            reference?: { chip: string; reply: string; steps?: string[]; note?: string },
+            suggestions?: string[],
+        ): Promise<boolean> => {
+            if (liveAiDisabledRef.current) return false;
+            setIsThinking(true);
+            // Prior turns only — the current question is sent separately.
+            const history: LandingAiHistoryItem[] = bubbles
+                .slice(-6)
+                .map((b) => ({
+                    role: b.role === 'you' ? ('user' as const) : ('assistant' as const),
+                    text: (b.steps?.length ? `${b.text} ${b.steps.join(' ')}` : b.text).slice(0, 300),
+                }));
+            const answer = await askLandingAI({ question, product, history, reference });
+            setIsThinking(false);
+            if (answer) {
+                liveAiFailuresRef.current = 0;
+                setBubbles((prev) => [...prev, {
+                    role: 'aloa' as const,
+                    text: answer.intro,
+                    steps: answer.steps,
+                    note: answer.note,
+                    lawyerNote: lawyerNoteCopy,
+                    suggestions,
+                    teamPrefill: question,
+                }]);
+                return true;
+            }
+            liveAiFailuresRef.current += 1;
+            if (liveAiFailuresRef.current >= 2) liveAiDisabledRef.current = true;
+            return false;
+        },
+        [bubbles, product, lawyerNoteCopy],
+    );
+
     const handleTopic = useCallback(
         (topic: AssistantTopic) => {
             setUsedTopics((prev) => new Set(prev).add(topic.id));
             setBubbles((prev) => [...prev, { role: 'you', text: topic.chip }]);
             // The answer needs the room — collapse the chip cloud.
             setTopicsOpen(false);
-            pushAloaReply({ text: topic.reply, steps: topic.steps, note: topic.note, lawyerNote: lawyerNoteCopy });
+            // Live AI first (owner direction 2026-11-18), grounded on this
+            // topic's owner-approved copy; the catalogue answer is the
+            // fallback when the AI surface is unavailable.
+            void (async () => {
+                const answered = await askAi(
+                    topic.chip,
+                    { chip: topic.chip, reply: topic.reply, steps: topic.steps, note: topic.note },
+                );
+                if (!answered) {
+                    pushAloaReply({ text: topic.reply, steps: topic.steps, note: topic.note, lawyerNote: lawyerNoteCopy });
+                }
+            })();
         },
-        [pushAloaReply, lawyerNoteCopy],
+        [askAi, pushAloaReply, lawyerNoteCopy],
     );
 
     /** Chip CTAs that hand off to the drawer, pre-typed. */
@@ -527,6 +649,7 @@ const AloaAssistantFab: React.FC<{
             setQuestionError('Tell me a little more — a sentence is enough.');
             return;
         }
+        if (isThinking) return; // one exchange at a time — no double sends
         setQuestionError(null);
         setBubbles((prev) => [...prev, { role: 'you', text: q }]);
         setQuestion('');
@@ -534,47 +657,63 @@ const AloaAssistantFab: React.FC<{
         setTopicsOpen(false);
 
         const match = matchTopic(q);
+        // Live AI first (owner direction 2026-11-18): the real engine
+        // answers, grounded on the best-matched curated topic when there is
+        // one. Everything below is the fallback that keeps the panel alive
+        // when the AI surface is unavailable.
+        const reference = match
+            ? { chip: match.topic.chip, reply: match.topic.reply, steps: match.topic.steps, note: match.topic.note }
+            : undefined;
+        const suggestions = match ? [match.topic.chip] : undefined;
 
-        // Owner review round 2 — QUESTIONS GET ANSWERED, NOT FUNNELLED:
-        // the old flow auto-jumped into the message drawer (which reads
-        // as a purchase funnel). A question now gets a real answer in the
-        // panel; the drawer opens only if the visitor clicks the opt-in
-        // link themselves. Professional-conduct safety: the boundary is
-        // stated plainly ("this is the amount of information we can give
-        // you"), with a neutral pointer to qualified lawyers — no
-        // referral-for-gain, no conditioning help on buying anything.
-        if (match && match.score >= 2) {
-            const t = match.topic;
-            setUsedTopics((prev) => new Set(prev).add(t.id));
+        void (async () => {
+            const answered = await askAi(q, reference, suggestions);
+            if (answered) {
+                if (match && match.score >= 2) setUsedTopics((prev) => new Set(prev).add(match.topic.id));
+                return;
+            }
+
+            // Owner review round 2 — QUESTIONS GET ANSWERED, NOT FUNNELLED:
+            // the old flow auto-jumped into the message drawer (which reads
+            // as a purchase funnel). A question now gets a real answer in the
+            // panel; the drawer opens only if the visitor clicks the opt-in
+            // link themselves. Professional-conduct safety: the boundary is
+            // stated plainly ("this is the amount of information we can give
+            // you"), with a neutral pointer to qualified lawyers — no
+            // referral-for-gain, no conditioning help on buying anything.
+            if (match && match.score >= 2) {
+                const t = match.topic;
+                setUsedTopics((prev) => new Set(prev).add(t.id));
+                pushAloaReply({
+                    text: t.reply,
+                    steps: t.steps,
+                    note: t.note,
+                    lawyerNote: lawyerNoteCopy,
+                });
+                return;
+            }
+
+            // Out of scope ("Tell me about maritime law"): honest boundary
+            // reply — the guide's scope, then the qualified-lawyer next step.
             pushAloaReply({
-                text: t.reply,
-                steps: t.steps,
-                note: t.note,
+                text: isProperty
+                    ? 'Straight answer: that looks outside what I can walk through reliably here. I cover everyday property situations — service charges, maintenance, tenancy agreements, landlord and tenant basics — in plain language. For your specific situation the details are where it matters, and that is exactly what a qualified professional is for.'
+                    : 'Straight answer: that looks outside what I can cover reliably here. I give general, plain-language guidance on everyday legal matters — court letters, landlord and tenant issues, agreements, business registration. Specialist areas and anything specific to your situation need a qualified lawyer, and I would rather say that plainly than sound confident and mislead you.',
+                steps: [
+                    isProperty
+                        ? 'For your specific situation, the right next step is a qualified professional — a directory of vetted practitioners is coming to Vega to make that step easy.'
+                        : 'For your specific situation, the right next step is a qualified lawyer — a lawyer directory is coming to Vega to make finding one easy.',
+                    isProperty
+                        ? 'For tenancy and property disputes, your local Nigerian Bar Association (NBA) branch can point you to a property-law practitioner today.'
+                        : 'Your local Nigerian Bar Association (NBA) branch can point you to practitioners in that field today.',
+                    'If it is an everyday matter, try the common questions below — those I can walk through properly.',
+                ],
                 lawyerNote: lawyerNoteCopy,
+                suggestions: match ? [match.topic.chip] : undefined,
+                teamPrefill: q,
             });
-            return;
-        }
-
-        // Out of scope ("Tell me about maritime law"): honest boundary
-        // reply — the guide's scope, then the qualified-lawyer next step.
-        pushAloaReply({
-            text: isProperty
-                ? 'Straight answer: that looks outside what I can walk through reliably here. I cover everyday property situations — service charges, maintenance, tenancy agreements, landlord and tenant basics — in plain language. For your specific situation the details are where it matters, and that is exactly what a qualified professional is for.'
-                : 'Straight answer: that looks outside what I can cover reliably here. I give general, plain-language guidance on everyday legal matters — court letters, landlord and tenant issues, agreements, business registration. Specialist areas and anything specific to your situation need a qualified lawyer, and I would rather say that plainly than sound confident and mislead you.',
-            steps: [
-                isProperty
-                    ? 'For your specific situation, the right next step is a qualified professional — a directory of vetted practitioners is coming to Vega to make that step easy.'
-                    : 'For your specific situation, the right next step is a qualified lawyer — a lawyer directory is coming to Vega to make finding one easy.',
-                isProperty
-                    ? 'For tenancy and property disputes, your local Nigerian Bar Association (NBA) branch can point you to a property-law practitioner today.'
-                    : 'Your local Nigerian Bar Association (NBA) branch can point you to practitioners in that field today.',
-                'If it is an everyday matter, try the common questions below — those I can walk through properly.',
-            ],
-            lawyerNote: lawyerNoteCopy,
-            suggestions: match ? [match.topic.chip] : undefined,
-            teamPrefill: q,
-        });
-    }, [question, matchTopic, pushAloaReply, isProperty, lawyerNoteCopy]);
+        })();
+    }, [question, isThinking, matchTopic, pushAloaReply, askAi, isProperty, lawyerNoteCopy]);
 
     const onQuestionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {

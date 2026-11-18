@@ -6,8 +6,21 @@ import { handlePaystackWebhookImpl } from "./paystack";
 import { decodeUnsubscribeToken } from "./emailBranding";
 import { verifyReplyToken } from "./pushReplyAuth";
 import { resolveUserBySessionToken } from "./sessions";
+import { handleLandingChat } from "./landingChat";
 
 const http = httpRouter();
+
+// Landing-page AI chat (ALOA/ARIA on the marketing sites) — the PUBLIC,
+// rate-limited engine. Unlike /ai/stream below it needs no session: the
+// visitor is anonymous, fenced by CORS allow-list + per-IP hourly/daily
+// rate limits + a global daily cap (see convex/landingChat.ts). Owner
+// direction 2026-11-18: the website assistant is a real AI, with the
+// client-side topic catalogue kept as grounding reference + fallback.
+http.route({
+  path: "/ai/landing-chat",
+  method: "POST",
+  handler: handleLandingChat,
+});
 
 // Webhook endpoint to receive replies from tenants via Chakra Chat
 http.route({

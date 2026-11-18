@@ -673,3 +673,49 @@ Gates: tsc 0; vitest 2867/2867 (+1 new pin: half-configured
 openai-compatible firm now spends its stored key through the proxy,
 mirroring the client; the existing full-openai-compatible pin updated to
 carry a baseUrl). lint clean, UI ratchet held.
+
+---
+
+## 2026-11-18 (g) — Landing ALOA goes LIVE: real AI behind the website assistant
+
+**Owner direction (verbatim): "we cannot have something that is not smart
+or answers only preset answers."** The website assistant
+(AloaAssistantFab — ALOA on Vega, ARIA on Atrium) was deliberately a
+deterministic keyword catalogue (its header said so: no anonymous key
+funding, corpus unseeded). That decision is reversed: the panel is now a
+REAL AI, and the catalogue is demoted to grounding reference + fallback.
+
+- **New public endpoint `/ai/landing-chat`** (convex/landingChat.ts):
+  anonymous by design but fenced — CORS allow-list (prod/staging/CF
+  mirror/localhost), blocked-IP enforcement, per-IP 8/hour + 30/day and
+  a global 4000/day cap through the existing atomic consumeRateLimit
+  machinery; question ≤600 chars, history ≤8 turns ×300 chars; Gemini
+  2.5 flash, temperature 0.4, maxOutputTokens 700, JSON answer contract
+  {intro, steps[≤6], note}; 15s server budget, 9s client budget.
+- **Key hygiene after the leaked-key incident:** the Gemini key lives
+  ONLY in Convex env (GEMINI_API_KEY || GEMINI_DEMO_KEY), rides the
+  x-goog-api-key header (never the URL), is never echoed in errors or
+  logs; AI failures log status-only security events. Prompt injection
+  contained: visitor text + client-supplied reference are declared
+  untrusted inside the system prompt, which carries the rules (no
+  invented statutes, general information not advice, no product pitch
+  unless the visitor self-identifies, ignore persona-hijack attempts).
+- **Frontend swap (AloaAssistantFab.tsx):** every question — free text
+  AND chips — goes to the live engine first, with the best-matched
+  curated topic riding along as grounding REFERENCE (owner-approved
+  copy + the encoded Lagos Tenancy Law 2011 figures stay authoritative).
+  On ANY failure (timeout, 429, 503, network) the panel answers exactly
+  as before from the catalogue — it can never regress to silence — and
+  two consecutive failures disable live answers for the session.
+  send-button/isThinking double-submit guard added (the AloaChat
+  double-send lesson applied at the landing surface too).
+- **production-deploy.yml:** GEMINI_API_KEY gains the same
+  secret-rotation path GEMINI_DEMO_KEY already had (no-op when the
+  GitHub secret is unset — it never clears an existing Convex value).
+  Rotating the platform key is now: set the GitHub secret, re-run the
+  workflow — no dashboard surgery.
+
+Gates: convex tsc 0; root tsc 0; eslint clean on changed files; vitest
++22 pins (tests/unit/landingChat.test.ts — CORS allow-list, history
+sanitisation, reference serialisation bounds, JSON/fenced/garbage answer
+parsing, prompt contract). Full suite: see commit.
