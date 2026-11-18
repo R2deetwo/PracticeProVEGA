@@ -77,7 +77,11 @@ describe('A2 · resolveModelLadder — tuned registries stay, firms own their la
     it('draft: the pro-first drafting plan', () => {
         const cfg = resolveProvider(GEMINI_SETTINGS)!;
         const ladder = resolveModelLadder(cfg, 'draft');
-        expect(ladder[0]).toContain('pro'); // pro-first for precision drafting
+        // 2026-11-18: the pro tier is gemini-4-hydrogen (3.1-pro-preview is
+        // 429 on the free tier — see AI_CONFIG). Frontier-first for
+        // precision drafting, flash chain as fallback behind it.
+        expect(ladder[0]).toBe('gemini-4-hydrogen');
+        expect(ladder[1]).toBe('gemini-2.5-flash'); // graceful degradation
     });
 
     it('openai-compatible: chat runs the firm ladder fast-first, draft pro-first', () => {

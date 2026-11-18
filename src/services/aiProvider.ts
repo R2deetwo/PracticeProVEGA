@@ -113,7 +113,7 @@ export const resolveModelLadder = (
     }
     const g = AI_CONFIG.gemini as any;
     if (purpose === 'draft') return g.draftingPlan || g.fallbackPlan;
-    if (purpose === 'flash') return [g.flashModel || g.defaultModel, 'gemini-flash-latest', 'gemini-3.8-flash'];
+    if (purpose === 'flash') return [g.flashModel || g.defaultModel, 'gemini-3.5-flash-lite', 'gemini-3-flash-preview'];
     const plan: string[] = g.fallbackPlan || [];
     return preferredModelName
         ? [preferredModelName, ...plan.filter((m) => m !== preferredModelName)]
