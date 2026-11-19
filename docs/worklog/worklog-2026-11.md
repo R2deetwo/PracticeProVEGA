@@ -1210,3 +1210,84 @@ parity incl. the proviso/subsection boundary + Nigerian date format, and
 source-scanned autonomy/wiring contracts); vite build + admin build
 green with marker verification ("Legal Ingestion Engine" +
 getIngestionDashboard in dist-admin).
+
+## 2026-11-19 (e) — ALOA X: the platform watchdog + founder login push alerts
+
+Owner asks: "take a fresh look at the founders app and see where it might
+be deficient or not wired up properly… we can have aloa x that is in
+charge of all the other apps and ensures that there are no problems. YES
+PLEASE ADD FOUNDER LOGIN PUSH ALERT AS WELL."
+
+**The fresh look (audit findings):** (1) Settings → Change Password was
+a dead button ("coming soon" since September); (2) zero visibility into
+founder-account logins — anyone could try the founder password
+silently; (3) health was fragmented across SystemStatus (consumer-app
+error events only) with nothing covering backend errors, ingestion,
+finance, backups, capacity, or security — and nothing proactive; (4) the
+recovery search (findFounderAccounts) still had the 500-user scan cap +
+deactivated-account skip that caused the founder's own lockout incident.
+
+**ALOA X — the watchdog (convex/alox.ts + src/admin/views/AloaX.tsx):**
+- New tables: `alox_alerts` (one OPEN row per problem, dedup key =
+  checkKey; resolved rows keep history), `alox_state` (heartbeat
+  singleton), `founder_login_events` (login audit feed, 90d retention).
+- Cron `aloxWatchdog` every 15 min sweeps ELEVEN checks: backend errors
+  (error_events 24h), ingestion stall (engine ON but no run in 45m),
+  ingestion failure pileup (≥20), financial reconciliation (never-run /
+  >36h stale / RED report), backups (none / >30h / >7d), DB capacity
+  (tables at the 5000-row cap), founder count (0 or >1 = role escalation
+  tripwire — signup is closed), founder lockout/failed-attempt pressure,
+  sustained brute force (≥10 failed logins/24h), messaging backlog
+  (≥20/≥100 past-due scheduled messages), and push reachability (founder
+  has zero registered devices = the watchdog cannot bark — critical).
+- Alert lifecycle: OPEN pushes the founder's phone via notifyFounders
+  (FCM + in-app, type `alox_alert`, deep-link view 'aloax'); still-open
+  re-notifies on cadence (critical 6h / warning 24h); healthy again →
+  resolved + closing push (`alox_resolved`) once the alert was open ≥1h
+  (no flapping spam). All evaluators are PURE functions (thresholds in
+  exported ALOX_THRESHOLDS).
+- Founder-app control room: status pill (All clear / N warnings / N
+  critical), open-alert queue, 8 surface health cards (Backend, Legal KB
+  Engine, Financial Books, Backups, Security, Messaging, Alert Reach,
+  Database), founder login audit feed, Run checks now
+  (runAloxWatchdogNow), Send test alert (sendAloxTestAlert). Defensive
+  useConvex polling (30s) — pre-deploy it renders "—" placeholders, never
+  a black screen. Wired: AdminView 'aloax' + router + push deep-link +
+  FounderBottomNav More (first position).
+
+**Founder login push alerts (the explicit ask):**
+- verifyLogin now schedules `alox.recordFounderLoginEvent` on SUCCESS,
+  wrong-password FAILED (with attempts remaining), and every LOCKOUT
+  path (password + TOFU code + MFA code) — founder accounts only, via
+  the shared scheduleFounderLoginEvent helper. Fire-and-forget
+  (scheduler) so login latency is unaffected.
+- Push policy: lockouts ALWAYS push; success/failed dedup to one push
+  per 15-min window per event type (bursts collapse). Message says
+  WHERE: the founder APK passes clientHint 'founder-apk' through a new
+  optional verifyLogin arg.
+- New `practicepro-watchdog` Android channel (IMPORTANCE_HIGH, "Aloa X
+  Watchdog") routed in all THREE channel maps (server
+  channelForType, Java PracticeProMessagingService, client
+  getChannelForType) — the trio that is "kept in sync deliberately".
+
+**Wired-up Change Password (Settings):** new
+`myFunctions.changeOwnPassword` action — session-resolved caller (own
+account only), verifies the CURRENT password against the stored PBKDF2
+hash, stores the new hash, and revokes every OTHER session (new
+sessions.ts `revokeOtherSessions` keeps the current one alive). The
+Settings form gained a Current Password field and calls the real action.
+
+**Recovery search fix (regression-locked):** shared
+`searchFounderAccounts` scans 5000 users (was 500) and includes
+deactivated founder accounts (flagged in results — hiding them was the
+lockout bug). sendFounderRecoveryCode now also CLEARS deactivatedAt on
+recovery: proving control of the account's email is stronger proof of
+ownership than any dashboard action, and without it the founder would
+reset the password and still be refused at verifyLogin.
+
+Gates: vitest 3241/3241 passing (+53 in tests/unit/aloxWatchdog.test.ts:
+every evaluator's exact threshold, re-notify cadence, and source-scanned
+wiring contracts incl. the channel trio + login-alert call sites);
+design ratchet animate-pulse 81→82 (documented: the Aloa X CRITICAL dot
+is a legitimate attention state); vite build + admin build green
+(admin chunk 357.53 kB); tsc 0 errors.

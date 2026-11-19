@@ -228,6 +228,13 @@ export async function registerForNotifications(): Promise<boolean> {
  * and support-thread feedback_* types added.)
  */
 function getChannelForType(type?: string): string {
+    // Aloa X watchdog + founder security alerts (2026-11-19) — matches
+    // server channelForType + Java channelForType (kept in sync deliberately).
+    if (
+        type === 'alox_alert' || type === 'alox_resolved' || type === 'alox_test' ||
+        type === 'founder_login' || type === 'founder_login_failed' ||
+        type === 'founder_login_locked'
+    ) return 'practicepro-watchdog';
     // Growth events (founder watchlist)
     if (
         type === 'new_signup' || type === 'signup' || type === 'new_org' ||

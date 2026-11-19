@@ -436,4 +436,19 @@ crons.interval(
   {}
 );
 
+// ─── ALOA X — THE PLATFORM WATCHDOG (2026-11-19) ────────────────────────────
+// Every 15 minutes. "Aloa X is in charge of all the other apps and ensures
+// there are no problems" (owner spec): sweeps backend errors, the Legal KB
+// ingestion engine, financial reconciliation, backups, DB capacity,
+// founder-account security, messaging backlog and push reachability. A
+// surface turning unhealthy OPENS an alert and pushes the founder's phone;
+// turning healthy again resolves it with a closing push. Re-notify cadence:
+// critical every 6h, warning every 24h. See convex/alox.ts.
+crons.interval(
+  "aloxWatchdog",
+  { minutes: 15 },
+  internal.alox.runAloxWatchdog,
+  {}
+);
+
 export default crons;

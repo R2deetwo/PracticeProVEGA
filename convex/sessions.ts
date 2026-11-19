@@ -242,6 +242,36 @@ export const revokeAllUserSessions = mutation({
   },
 });
 
+/**
+ * internalMutation: revokeOtherSessions — password-change companion
+ * (changeOwnPassword, 2026-11-19). Revokes every ACTIVE session for the
+ * user EXCEPT the one matching `exceptTokenHash` (the session that just
+ * proved itself by presenting the current password). A password change
+ * means "somewhere I don't trust has my password" — all other logged-in
+ * devices are logged out immediately.
+ */
+export const revokeOtherSessions = internalMutation({
+  args: {
+    userId: v.id("users"),
+    exceptTokenHash: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
+      .collect();
+    const now = Date.now();
+    let revoked = 0;
+    for (const s of sessions) {
+      if (s.revokedAt == null && s.tokenHash !== args.exceptTokenHash) {
+        await ctx.db.patch(s._id, { revokedAt: now });
+        revoked++;
+      }
+    }
+    return { revoked };
+  },
+});
+
 /** Cron: delete session rows expired > 7 days ago (post-graveyard purge). */
 export const cleanupExpiredSessions = internalMutation({
   args: {},

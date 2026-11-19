@@ -2948,6 +2948,58 @@ export default defineSchema({
     blockedAt: v.number(),
   }).index("by_ip", ["ip"]),
 
+  // ─── ALOA X — PLATFORM WATCHDOG (2026-11-19) ────────────────────────────
+  // "Aloa X is in charge of all the other apps and ensures there are no
+  // problems" (owner spec). A 15-min cron sweeps every surface — backend
+  // errors, the Legal KB ingestion engine, financial reconciliation,
+  // backups, DB capacity, security, messaging dispatch, push reachability —
+  // and opens/resolves alerts here. STATE TRANSITIONS push to the founder's
+  // phone through the standard notifyFounders chain, so problems find the
+  // founder instead of waiting to be discovered.
+  //
+  // One row per OPEN problem (dedup key = checkKey). When the check turns
+  // healthy again the row is patched to status='resolved' — the history
+  // stays greppable for postmortems.
+  alox_alerts: defineTable({
+    checkKey: v.string(),        // 'backend.errors' | 'ingestion.stalled' | ...
+    severity: v.string(),        // 'critical' | 'warning'
+    surface: v.string(),         // human label: 'Backend', 'Legal KB Engine', ...
+    title: v.string(),           // push headline
+    detail: v.string(),          // current detail (refreshed every sweep)
+    status: v.string(),          // 'open' | 'resolved'
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+    lastNotifiedAt: v.number(),  // re-notify cadence gate
+    resolvedAt: nullableNumber,
+    notifyCount: v.number(),
+  }).index("by_checkKey", ["checkKey"])
+    .index("by_status", ["status"]),
+
+  // Watchdog heartbeat singleton (one row, patched every sweep) — proves
+  // Aloa X itself is alive and shows what the last sweep concluded.
+  alox_state: defineTable({
+    lastRunAt: v.number(),
+    lastRunMs: v.number(),       // sweep duration
+    checksRun: v.number(),
+    openCount: v.number(),
+    lastSummary: v.optional(v.any()), // [{checkKey, status, severity, title}]
+    updatedAt: v.number(),
+  }).index("by_lastRunAt", ["lastRunAt"]),
+
+  // Founder account login events — the audit feed behind the founder login
+  // push alerts (verifyLogin → recordFounderLoginEvent). Also the
+  // brute-force signal the watchdog sweeps. 90-day retention (purged by
+  // the watchdog run itself).
+  founder_login_events: defineTable({
+    email: v.string(),
+    event: v.string(),           // 'success' | 'failed' | 'locked'
+    clientHint: nullableString,  // 'founder-apk' | 'web' | ...
+    attemptsRemaining: nullableNumber,
+    createdAt: v.number(),
+    notified: v.boolean(),       // whether a push went out for this event
+  }).index("by_email", ["email"])
+    .index("by_event_created", ["event", "createdAt"]),
+
   // Suspended sessions: admin can suspend user sessions.
   suspendedUsers: defineTable({
     userId: v.string(),

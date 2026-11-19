@@ -137,6 +137,16 @@ export function stringifyData(data: any): Record<string, string> {
 // every push landed on practicepro-general, so messages buzzed like chores.
 // Mirrors getChannelForType() client-side; kept in sync deliberately.
 export function channelForType(type?: string): string {
+  // ── Aloa X watchdog + founder security (2026-11-19): platform health
+  // alerts and founder login alerts get their own HIGH-importance channel
+  // so they can be tuned separately from everything else. ──
+  if (
+    type === "alox_alert" || type === "alox_resolved" || type === "alox_test" ||
+    type === "founder_login" || type === "founder_login_failed" ||
+    type === "founder_login_locked"
+  ) {
+    return "practicepro-watchdog";
+  }
   // ── Growth events (founder watchlist): registrations, leads, revenue ──
   if (
     type === "new_signup" || type === "signup" || type === "new_org" ||

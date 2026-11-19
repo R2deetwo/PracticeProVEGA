@@ -44,8 +44,36 @@ export const Settings: React.FC = () => {
     const { theme, setTheme } = useFounderTheme();
     const [tab, setTab] = useState<Tab>('account');
     const [showPasswordForm, setShowPasswordForm] = useState(false);
+    const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
+
+    // ALOA X round (2026-11-19): the Change Password button finally does
+    // something. changeOwnPassword (convex/myFunctions.ts) verifies the
+    // CURRENT password server-side, stores the new PBKDF2 hash and logs
+    // out every OTHER device — this session survives.
+    const changePassword = async () => {
+        if (!bearerToken) { addToast('Session expired — please log in again.', { type: 'error' }); return; }
+        if (!currentPassword) { addToast('Enter your current password.', { type: 'error' }); return; }
+        if (newPassword.length < 8) { addToast('New password must be at least 8 characters.', { type: 'error' }); return; }
+        if (newPassword !== confirmPassword) { addToast('Passwords do not match.', { type: 'error' }); return; }
+        setChangingPassword(true);
+        try {
+            const result: any = await changeOwnPasswordAction({ sessionToken: bearerToken, currentPassword, newPassword });
+            if (result?.success) {
+                addToast('Password changed. All other devices have been logged out.', { type: 'success' });
+                setShowPasswordForm(false);
+            } else {
+                addToast(result?.message || 'Password change failed.', { type: 'error' });
+            }
+        } catch (e: any) {
+            addToast(e?.message || 'Password change failed.', { type: 'error' });
+        } finally {
+            setChangingPassword(false);
+            setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+        }
+    };
 
     // V1-B (SEC-16): checkEnv is internal now — this founder-gated wrapper
     // forwards the verified bearer and returns the same diagnostics.
@@ -53,6 +81,7 @@ export const Settings: React.FC = () => {
     // Sept 2026: moved to pushNotificationsNode (node runtime) so the action
     // dispatches FCM inline and returns the REAL delivery result.
     const testPush = useAction(api.pushNotificationsNode.sendTestPush);
+    const changeOwnPasswordAction = useAction(api.myFunctions.changeOwnPassword);
 
     const [screenCapture, setScreenCapture] = useState(() => safeGetBool('founder_screen_capture', true));
     const [biometric, setBiometric] = useState(() => safeGetBool('founder_biometric', false));
@@ -173,21 +202,21 @@ export const Settings: React.FC = () => {
                                 ) : (
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="text-2xs font-bold text-slate-400 uppercase tracking-widest">New Password</label>
-                                            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
+                                            <label className={LABEL}>Current Password</label>
+                                            <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
                                         </div>
                                         <div>
-                                            <label className="text-2xs font-bold text-slate-400 uppercase tracking-widest">Confirm Password</label>
-                                            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
+                                            <label className={LABEL}>New Password</label>
+                                            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" autoComplete="new-password" className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
                                         </div>
+                                        <div>
+                                            <label className={LABEL}>Confirm Password</label>
+                                            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" autoComplete="new-password" className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary-500" />
+                                        </div>
+                                        <p className="text-2xs text-slate-400 dark:text-zinc-500">Changing your password logs out every other device signed into this account.</p>
                                         <div className="flex gap-2">
-                                            <button onClick={() => {
-                                                if (newPassword.length < 8) { addToast('Password must be at least 8 characters.', { type: 'error' }); return; }
-                                                if (newPassword !== confirmPassword) { addToast('Passwords do not match.', { type: 'error' }); return; }
-                                                addToast('Password change feature coming soon.', { type: 'info' });
-                                                setShowPasswordForm(false); setNewPassword(''); setConfirmPassword('');
-                                            }} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors">Save</button>
-                                            <button onClick={() => { setShowPasswordForm(false); setNewPassword(''); setConfirmPassword(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold">Cancel</button>
+                                            <button onClick={changePassword} disabled={changingPassword} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-xs font-bold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">{changingPassword ? 'Saving…' : 'Save'}</button>
+                                            <button onClick={() => { setShowPasswordForm(false); setCurrentPassword(''); setNewPassword(''); setConfirmPassword(''); }} className="px-4 py-2 bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 rounded-lg text-xs font-bold">Cancel</button>
                                         </div>
                                     </div>
                                 )}

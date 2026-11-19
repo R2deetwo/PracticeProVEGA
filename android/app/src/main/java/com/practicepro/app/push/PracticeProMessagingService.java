@@ -265,7 +265,7 @@ public class PracticeProMessagingService extends FirebaseMessagingService {
             NotificationManager nm = ctx.getSystemService(NotificationManager.class);
             if (nm == null) return;
             if (nm.getNotificationChannel(channelId) != null) return;
-            int importance = "practicepro-messages".equals(channelId)
+            int importance = ("practicepro-messages".equals(channelId) || "practicepro-watchdog".equals(channelId))
                     ? NotificationManager.IMPORTANCE_HIGH
                     : NotificationManager.IMPORTANCE_DEFAULT;
             NotificationChannel ch = new NotificationChannel(
@@ -280,6 +280,7 @@ public class PracticeProMessagingService extends FirebaseMessagingService {
         if ("practicepro-messages".equals(channelId)) return "Messages";
         if ("practicepro-tasks".equals(channelId)) return "Tasks & Deadlines";
         if ("practicepro-signups".equals(channelId)) return "Signups & Growth";
+        if ("practicepro-watchdog".equals(channelId)) return "Aloa X Watchdog";
         return "General Notifications";
     }
 
@@ -291,6 +292,12 @@ public class PracticeProMessagingService extends FirebaseMessagingService {
     private static String channelForType(String type) {
         if (type == null) return FALLBACK_CHANNEL;
         switch (type) {
+            // Aloa X watchdog + founder login alerts (2026-11-19) — kept in
+            // sync with channelForType() in convex/pushNotificationsNode.ts.
+            case "alox_alert": case "alox_resolved": case "alox_test":
+            case "founder_login": case "founder_login_failed":
+            case "founder_login_locked":
+                return "practicepro-watchdog";
             case "new_signup": case "signup": case "new_org": case "new_firm":
             case "sales_lead": case "addon_request": case "subscription":
             case "subscription_payment": case "trial_started":

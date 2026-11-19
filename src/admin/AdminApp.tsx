@@ -45,6 +45,11 @@ import { SalesPipeline } from './views/SalesPipeline';
 // 2026-11-19: the Legal KB ingestion engine's control room (owner spec —
 // "the ingestion engine is supposed to be in the founder's app").
 import { IngestionEngine } from './views/IngestionEngine';
+// ALOA X (2026-11-19): the platform watchdog — in charge of all the other
+// apps, sweeps every surface every 15 min and pushes the founder's phone
+// when something turns unhealthy. Also the home of the founder login
+// push alerts ("founder login detected").
+import { AloaX } from './views/AloaX';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
 import { Z_CLASS } from '../overlays/constants';
@@ -101,7 +106,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales' | 'refunds' | 'ingestion';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales' | 'refunds' | 'ingestion' | 'aloax';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -161,6 +166,7 @@ const FounderApp: React.FC = () => {
                 notifications: 'notifications',
                 dashboard: 'dashboard',
                 ingestion: 'ingestion',
+                aloax: 'aloax',
             };
             const target = VIEW_MAP[view];
             if (target) {
@@ -229,6 +235,7 @@ const FounderApp: React.FC = () => {
             case 'financials': return <ViewErrorBoundary viewName="Financials"><FinancialSettings /></ViewErrorBoundary>;
             case 'sales': return <ViewErrorBoundary viewName="Sales"><SalesPipeline /></ViewErrorBoundary>;
             case 'ingestion': return <ViewErrorBoundary viewName="Ingestion"><IngestionEngine /></ViewErrorBoundary>;
+            case 'aloax': return <ViewErrorBoundary viewName="AloaX"><AloaX /></ViewErrorBoundary>;
             default: return null;
         }
     };
@@ -290,10 +297,13 @@ const FounderAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = useCallback(async (email: string, password: string) => {
         try {
             // Use the existing Convex client from the provider
+            // clientHint 'founder-apk' (ALOA X, 2026-11-19): lets the
+            // founder login push alert say WHERE the login came from.
             const result: any = await convexClient.action(api.myFunctions.verifyLogin, {
                 email: email.toLowerCase().trim(),
                 passwordHash: "",
                 rawPassword: password,
+                clientHint: 'founder-apk',
             });
 
             if (!result || !result.success) {

@@ -28,6 +28,10 @@ import { normalizeCode, isCodeExpired, codeHint, wrongCodeMessage } from "./code
 import { pickUserRecord, stripAuthFields, userLookupArgs } from "./userResolution";
 import { requireFirmUser, requireAdmin } from "./authHelpers";
 import { requireStaffCaller, requireFounderCaller, assertSameFirm, resolveCaller } from "./callerAuth";
+// ALOA X round (2026-11-19): changeOwnPassword resolves the caller from
+// their session token and hashes the current token to protect it from the
+// revoke-other-sessions sweep (convex/sessions.ts).
+import { resolveUserBySessionToken, hashSessionToken } from "./sessions";
 // Task 48: Automation Studio rule-execution engine (event-driven triggers
 // are dispatched from createItem/updateItem below; time-based triggers
 // run in the ruleEngineSweep cron — convex/automationRules.ts).
@@ -1739,6 +1743,32 @@ async function startSignupLogic(ctx: any, args: any): Promise<{
  * Enforces a 15-minute lockout after 5 consecutive failed attempts.
  * Automatically migrates legacy SHA-256 and plaintext hashes to PBKDF2 on successful login.
  */
+/**
+ * ALOA X (2026-11-19) — founder login push alerts.
+ * Schedules the audit + push mutation for FOUNDER accounts only;
+ * non-founder logins never touch the alert chain. Fire-and-forget:
+ * a scheduling failure must never fail the login itself.
+ */
+function scheduleFounderLoginEvent(
+  ctx: any,
+  user: any,
+  event: "success" | "failed" | "locked",
+  attemptsRemaining: number | undefined,
+  clientHint: string | undefined
+): void {
+  try {
+    if (!user || String(user.role || "") !== "Founder") return;
+    ctx.scheduler.runAfter(0, (internal as any).alox.recordFounderLoginEvent, {
+      email: String(user.email || user.tokenIdentifier || ""),
+      event,
+      ...(clientHint ? { clientHint } : {}),
+      ...(typeof attemptsRemaining === "number" ? { attemptsRemaining } : {}),
+    });
+  } catch (e) {
+    console.warn("[verifyLogin] founder login alert scheduling failed:", e);
+  }
+}
+
 export const verifyLogin = action({
   args: {
     email: v.string(),
@@ -1751,6 +1781,10 @@ export const verifyLogin = action({
     // the correct user record when the same email exists as BOTH an admin
     // record AND a portal record (the "residents see admin dashboard" bug).
     portalType: v.optional(v.union(v.literal("tenant"), v.literal("client"))),
+    // ALOA X founder login alerts (2026-11-19): which client initiated the
+    // login. The founder APK passes 'founder-apk' so the login push alert
+    // can say WHERE the login came from. Optional + ignored by logic.
+    clientHint: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const token = args.email.toLowerCase().trim();
@@ -1916,6 +1950,8 @@ export const verifyLogin = action({
             fields: codeUpdates,
           });
           if (codeUpdates.lockedUntil) {
+            // ALOA X: founder account just locked out (TOFU code path) — push.
+            scheduleFounderLoginEvent(ctx, user, "locked", undefined, args.clientHint);
             return { success: false, message: "Too many incorrect codes. Please try again in 15 minutes." };
           }
         }
@@ -1958,6 +1994,8 @@ export const verifyLogin = action({
                 fields: mfaUpdates,
               });
               if (mfaUpdates.lockedUntil) {
+                // ALOA X: founder account just locked out (MFA path) — push.
+                scheduleFounderLoginEvent(ctx, user, "locked", undefined, args.clientHint);
                 return { success: false, message: "Too many incorrect codes. Please try again in 15 minutes." };
               }
             }
@@ -2024,6 +2062,12 @@ export const verifyLogin = action({
         };
       }
 
+      // ALOA X FOUNDER LOGIN ALERT (2026-11-19): a successful login on a
+      // Founder account fires a push to every registered founder device
+      // ("founder login detected"). Fire-and-forget via the scheduler so
+      // login latency is unaffected; dedup lives in the mutation.
+      scheduleFounderLoginEvent(ctx, user, "success", undefined, args.clientHint);
+
       // AUTO-REPAIR: If a portal user (Client/Tenant) has no firmId, try to repair it
       // on login. This handles the case where a previous version of
       // deletePortalInviteAndCleanup cleared firmId and deleted invite records,
@@ -2062,6 +2106,15 @@ export const verifyLogin = action({
         userId: user._id,
         fields: failureUpdates,
       });
+      // ALOA X: failed password on a founder account → push (deduped);
+      // lockout → always push.
+      scheduleFounderLoginEvent(
+        ctx,
+        user,
+        failureUpdates.lockedUntil ? "locked" : "failed",
+        failureUpdates.lockedUntil ? undefined : MAX_ATTEMPTS - currentAttempts,
+        args.clientHint
+      );
       return {
         success: false,
         message: failureUpdates.lockedUntil
@@ -2070,6 +2123,94 @@ export const verifyLogin = action({
       };
     }
   }
+});
+
+/**
+ * action: changeOwnPassword — the REAL implementation behind the founder
+ * app's Settings → Change Password form (the button said "coming soon"
+ * since September 2026 — the founder app audit, 2026-11-19, wired it up).
+ *
+ * Works for ANY authenticated user (founder or firm staff):
+ *   1. Resolves the caller from the session token (strict identity —
+ *      you may only change YOUR OWN password).
+ *   2. Verifies the CURRENT password against the stored PBKDF2 hash
+ *      (an unauthenticated "change my password" would be an account
+ *      takeover primitive).
+ *   3. Hashes the new password (PBKDF2, same as every login) and stores it.
+ *   4. Revokes every OTHER active session for the user — a password
+ *      change means "somewhere I don't trust has my password", so all
+ *      other logged-in devices are logged out. The CURRENT session
+ *      survives so the user is not bounced to the login screen mid-flow.
+ */
+export const changeOwnPassword = action({
+  args: {
+    sessionToken: v.string(),
+    currentPassword: v.string(),
+    newPassword: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const caller: any = await resolveUserBySessionToken(ctx, args.sessionToken);
+    if (!caller) {
+      return { success: false, message: "Your session has expired — please log in again." };
+    }
+
+    if (!args.currentPassword) {
+      return { success: false, message: "Enter your current password." };
+    }
+    if (typeof args.newPassword !== "string" || args.newPassword.length < 8) {
+      return { success: false, message: "New password must be at least 8 characters." };
+    }
+    if (args.newPassword === "admin" || args.newPassword === args.currentPassword) {
+      return { success: false, message: "Choose a new password you have not used on this screen." };
+    }
+
+    // Fetch the RAW user record (the session resolver returns the user row,
+    // but read it fresh so the password hash is present).
+    const user: any = await ctx.runQuery(internal.myFunctions.getUserForAuth, {
+      tokenIdentifier: String(caller.email || caller.tokenIdentifier || ""),
+    });
+    if (!user) {
+      return { success: false, message: "Account not found." };
+    }
+
+    // Verify the CURRENT password (PBKDF2-aware).
+    const verify: any = await ctx.runAction(internal.authUtils.verifyPassword, {
+      password: args.currentPassword,
+      storedHash: user.password || "",
+    });
+    if (!verify?.valid) {
+      return { success: false, message: "Current password is incorrect." };
+    }
+
+    // Hash + store the new password.
+    const newHash: any = await ctx.runAction(internal.authUtils.hashPassword, {
+      password: args.newPassword,
+    });
+    await ctx.runMutation(internal.myFunctions.updateUserSecurityFields, {
+      userId: user._id,
+      fields: {
+        password: newHash,
+        // A successful password change clears any in-flight failure state.
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+
+    // Kill every OTHER session (keep the current one alive).
+    try {
+      const currentHash = hashSessionToken(args.sessionToken);
+      await ctx.runMutation(internal.sessions.revokeOtherSessions, {
+        userId: user._id,
+        exceptTokenHash: currentHash,
+      });
+    } catch (e) {
+      // Non-blocking: the password DID change; other sessions will still
+      // expire naturally within 30 days.
+      console.warn("[changeOwnPassword] revoking other sessions failed:", e);
+    }
+
+    return { success: true };
+  },
 });
 
 export const updateUserSecurity = mutation({
@@ -2768,9 +2909,35 @@ export const requestPasswordReset = mutation({
  * industry-standard j***@gmail.com shape — enough to recognise your own
  * address, useless to an attacker).
  *
- * Guards: ≥3-character query, Founder-role accounts only, max 5 results,
- * deactivated accounts hidden.
+ * Guards: ≥3-character query, Founder-role accounts only, max 5 results.
+ * Deactivated accounts ARE included (flagged) since 2026-11-19 — hiding
+ * them is what made the founder's own recovery impossible.
  */
+/**
+ * Shared founder-account search for the in-app recovery flow (the
+ * "forgot email / forgot password" helper on the founder login screen).
+ *
+ * 2026-11-19 FIX (founder-locked-out incident): the previous inline logic
+ * in findFounderAccounts + sendFounderRecoveryCode read only the FIRST 500
+ * users and SKIPPED deactivated accounts — so once the platform passed 500
+ * users (or the founder's own account was deactivated), the recovery
+ * search always returned zero matches and the founder had no self-service
+ * path back in. Now: full bounded scan (5000, same budget as
+ * getFounderAlerts) and deactivated accounts ARE included (flagged in the
+ * result) — a deactivated founder is exactly who recovery is for.
+ */
+async function searchFounderAccounts(ctx: any, q: string): Promise<any[]> {
+  const users = await ctx.db.query("users").take(5000);
+  return users
+    .filter((u: any) => {
+      if (String(u.role || "") !== "Founder") return false;
+      const name = String(u.name || "").toLowerCase();
+      const email = String(u.email || "").toLowerCase();
+      return (name.includes(q) || email.includes(q)) && !!u.email;
+    })
+    .slice(0, 5);
+}
+
 export const findFounderAccounts = query({
   args: { nameQuery: v.string() },
   handler: async (ctx, args) => {
@@ -2785,23 +2952,20 @@ export const findFounderAccounts = query({
       return `${shown}***${tail}@${domain}`;
     };
 
-    const users = await ctx.db.query("users").take(500);
-    const matches = users
-      .filter((u: any) => {
-        if (String(u.role || "") !== "Founder") return false;
-        if (u.deactivatedAt) return false;
-        const name = String(u.name || "").toLowerCase();
-        const email = String(u.email || "").toLowerCase();
-        return (name.includes(q) || email.includes(q)) && !!u.email;
-      })
-      .slice(0, 5)
-      .map((u: any) => ({
+    const matches = await searchFounderAccounts(ctx, q);
+    return {
+      matches: matches.map((u: any) => ({
         maskedEmail: maskEmail(String(u.email)),
         displayName: String(u.name || ""),
         // Human hint for "which account is mine" — signup year/month.
         memberSince: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 7) : null,
-      }));
-    return { matches };
+        // 2026-11-19: deactivated founder accounts are now findable (they
+        // were previously invisible — the exact bug that locked the founder
+        // out of recovery). The UI badges them so the founder knows why
+        // login was refusing.
+        deactivated: !!u.deactivatedAt,
+      })),
+    };
   },
 });
 
@@ -2820,14 +2984,7 @@ export const sendFounderRecoveryCode = mutation({
     const q = String(args.nameQuery || "").trim().toLowerCase();
     if (q.length < 3) return { success: false, message: "Search again first (min 3 characters)." };
 
-    const users = await ctx.db.query("users").take(500);
-    const matches = users.filter((u: any) => {
-      if (String(u.role || "") !== "Founder") return false;
-      if (u.deactivatedAt) return false;
-      const name = String(u.name || "").toLowerCase();
-      const email = String(u.email || "").toLowerCase();
-      return (name.includes(q) || email.includes(q)) && !!u.email;
-    });
+    const matches = await searchFounderAccounts(ctx, q);
     const idx = Math.trunc(args.matchIndex);
     if (idx < 0 || idx >= matches.length || idx > 4) {
       return { success: false, message: "That match is no longer available — search again." };
@@ -2837,7 +2994,14 @@ export const sendFounderRecoveryCode = mutation({
     // 2026-09-14 (reset-link round): one-click token alongside the code —
     // the founder opens the link and types ONLY the new password.
     const resetToken = randomHex(48);
+    // DEACTIVATED FOUNDER RECOVERY (2026-11-19): proving control of the
+    // account's email is stronger proof of ownership than any dashboard
+    // action — clear the deactivation flag in the same patch, otherwise
+    // the founder would reset their password and STILL be refused at
+    // verifyLogin ("account has been deactivated").
+    const wasDeactivated = !!user.deactivatedAt;
     await ctx.db.patch(user._id, {
+      ...(wasDeactivated ? { deactivatedAt: null } : {}),
       recoveryCode: code,
       recoveryCodeIssuedAt: Date.now(),
       recoveryFailedAttempts: 0,
