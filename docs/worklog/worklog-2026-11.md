@@ -1441,3 +1441,31 @@ even when live). Fixes:
 - Client timeout 9s→14s; server budget 15s→20s so the client is
   always the impatient side.
 Gates: tsc 0, vitest 3241/3241 (landingChat 28/28), build green.
+
+**Resolution + full verification (same session):** two more defects
+found and fixed while closing the loop:
+- **Staging landing AI was 503** — the deployment's INHERITED dead
+  GEMINI_API_KEY (the rotated-away AIzaSy… key) shadowed the healthy
+  GEMINI_DEMO_KEY because the env resolution picked the first key and
+  stopped. Fixed both ways: the dead key removed from the staging
+  deployment env (staging landing chat verified answering real
+  questions), and resolveLandingApiKeys is now variadic — every key
+  (GEMINI_API_KEY, GEMINI_DEMO_KEY, founder stored key) rides along as
+  an ordered candidate and the handler falls through on provider
+  rejections. REGRESSION test pinned.
+- **Production promoted (x3, all green):** the ALOA X backend
+  (alox_alerts / alox_state / founder_login_events + the 15-min
+  watchdog cron + founder login alerts + changeOwnPassword + the
+  recovery search fix) is now DEPLOYED on production — verified by
+  probe (alox:getAloxStatus exists). Frontend at 86ff1595+ healthy;
+  landing chat answering in ~4.4s. Staging healthy at f91cb244.
+  groovy-mandrill-732 confirmed empty-by-design (reserved).
+- **Founder APK with the Aloa X view**: latest Build Admin APK run
+  44570549401 (commit 01d32de7) — artifact `practicepro-founder-release`
+  (login-gated, 90-day retention). The owner's installed APK predates
+  the Aloa X view and must be updated to see it.
+- **Cloudflare mirror is FROZEN at 2026-09-18** (version.json probe) —
+  it serves the September pre-AI canned ALOA. Anyone opening the
+  workers.dev URL sees the old canned panel. Cannot be fixed without a
+  fresh CLOUDFLARE_API_TOKEN (owner action, RUNBOOK §9); until then
+  the canonical landing URL is practice-pro-vega.vercel.app.
