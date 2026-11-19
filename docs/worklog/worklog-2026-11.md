@@ -1038,3 +1038,74 @@ on the same sha). Live: version.json → sha 03522df5 (built 2026-11-19
 gregarious-malamute-537 with the live probe green. The new voiceTools
 dictionary/snippets endpoints, editSelection action and the two new
 tables are live in production.
+
+## 2026-11-19 (c) — Voice → DraftPro Litigation Drafting Pipeline (deterministic AST assembly)
+
+Commit 79933e79 on main (feat(draftpro)). Spec: the owner's
+`vega-voice-to-draftpro-spec.md` — "Spoken instruction in Quick Capture
+produces a court-ready Nigerian legal document in DraftPro." The root-cause
+hypothesis was CONFIRMED in the Phase-0 diagnostic (docs/proposals/
+voice-to-draftpro-phase0.md): DraftPro's streamDraft asked the LLM to write
+whole documents as streamed HTML prose, so structure was probabilistic, and
+the voice draftKickoff dumped the LLM's free-text brief straight into
+documents.content. The fix is architectural: **structure is deterministic
+code; the LLM only fills bounded prose slots.**
+
+Pipeline: Voice → DraftBlueprint (LLM, schema-constrained) →
+HydratedDraftContext (DB merge, no LLM) → DocumentAST (deterministic
+templates + LLM fills ONLY typed prose slots) → one AST→HTML renderer →
+TipTap editor / DOCX (OOXML, now with w:jc alignment) / browser-print PDF.
+
+- **Phase 1** — `src/legal/drafting/`: the SINGLE document-type registry
+  (documentTypes.ts — 52 values replacing seven disjoint vocabularies), the
+  deterministic alias map ("7 day notice", NTQ, SOC, SOD, brief, fifa,
+  "ex parte" resolve WITHOUT the LLM), and the bundle dependency-order table
+  (processes → affidavit → written address; NTQ before the Seven Days'
+  Notice).
+- **Phase 2** — draftKickoff replaced by `draftBlueprint` in the analysis
+  contract (convex/voiceCapture.ts): validateDraftBlueprint (reject → ONE
+  focused retry → minimal fallback that never loses the dictation), the
+  deterministic self-correction resolver ("ten days, no, fourteen days" →
+  "fourteen days"), the 0.85 matter gate (never auto-linked below it; top-3
+  alternatives ride along), missing fields computed in CODE. The triage
+  card's old "Draft kickoff" is now the **Drafting Blueprint** card: types in
+  order, linked matter / Link pills, first-3 reliefs expandable, missing-
+  field count, Edit blueprint (add/remove documents, edit reliefs), and
+  "Generate & Open in DraftPro →".
+- **Phase 3** — hydrate() (pure DB merge; party capacities per process kind
+  with ordinals: CLAIMANT/DEFENDANT, APPLICANT/RESPONDENT, APPELLANT/
+  RESPONDENT, JUDGMENT CREDITOR/DEBTOR); jurisdiction profiles (Lagos HC,
+  Court of Appeal, Supreme Court populated — every rule reference carries
+  verifyBy: counsel + empty lastReviewed; FCT/FHC/NICN stubbed, DEFERRED);
+  one template per type with mandatory structure (TAKE NOTICE with the
+  current-year rule, numbered reliefs ending with the omnibus prayer,
+  affidavit preamble/Oaths Act conclusion/jurat, WHEREOF blocks, 1.0–5.0
+  address sections, appellate brief headings + AST-generated LIST OF
+  AUTHORITIES, letterhead letter forms, dotted-leader party blocks);
+  notice periods computed in code from the tenancy type (conflicting
+  dictated periods warn, never override); exhibits auto-lettered across
+  bundles; affidavit paragraphs seed sibling written addresses.
+- **Phase 4** — DraftPro bundle mode: document tabs, Alt+N/P placeholder
+  navigation, the fill modal now syncs the AST and offers Save-to-matter
+  (suit number), the NON-PRINTING counsel-review banner (rendered outside
+  the TipTap content tree so exports can never contain it), AST-first
+  DOCX/PDF exports (page-break-joined bundles), and **Edit Selection by
+  Voice**: toolbar mic → recorder → transcribeBatch → draftVoiceEdit action
+  (add/delete/rewrite intents) → inline diff Accept/Reject/Retry, with the
+  structural + suit-number refusal guards in voiceEditGuards.ts (AC4.4) and
+  native undo.
+- **Guardrails** — the AuthorityLibrary (new convex/authorityLibrary.ts +
+  table, ships EMPTY): Add-authority + CSV import; unverified citations are
+  scrubbed to [CITATION TO BE VERIFIED: …] pills and never reach the AST as
+  literal text.
+
+Gates: root tsc 0; convex tsc 0; identity audit PASS; design tokens held
+(gray 0, roundedXl 73 ≤ 74, animate-pulse 80); ui-primitives held (2218 =
+baseline — all new UI on ui/ primitives); vitest 3107/3107 with the new
+drafting suite (144 tests: AC2.1–AC2.5, AC3.1–AC3.7, AC4.3–AC4.4, AC6.1–
+AC6.2, the six §8 integration fixtures with mocked LLM, and the opt-in
+live-call suite excluded from CI); vite build green.
+
+Deploy: targeted Convex + Vercel production workflows dispatched on 79933e79
+(runs 44513167075 backend, 44513171489 frontend); Tests / E2E smoke / CodeQL /
+Staging / Build Android APK all running on the same sha.
