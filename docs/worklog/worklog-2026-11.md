@@ -956,3 +956,18 @@ audit PASSED; ratchet held 2218; vitest 2929/2929; eslint 0 errors on
 changed files; vite build green with marker verification (landing-chat in
 LandingPage chunk, sidebar Quick Capture in index chunk, gemini-live
 string absent).
+
+**DEPLOYED AND VERIFIED LIVE (2026-11-19, commit 65a1ac25):** both targeted
+workflows dispatched on main and completed green (runs 44492693236 Vercel
+frontend + 44492689193 Convex backend; Tests / E2E smoke / CodeQL / Staging
+/ Build Android APK all green on the same sha). Live evidence:
+- https://practice-pro-vega.vercel.app/version.json → sha 65a1ac25,
+  status healthy (was f61c756b, Nov 17).
+- Live LandingPage chunk contains landing-chat + .convex.site — the
+  real-AI engine is finally deployed to the website.
+- /ai/landing-chat live probe → source=ai, real Gemini answer (5 steps) on
+  the quit-notice question; CORS allow-list OK.
+- Desktop Quick Capture (Sidebar) + old-voice removal confirmed in the
+  live index bundle (gemini-2.0-flash-live-001 absent).
+- APK bot released build-1204 (practicepro-1.0.806-release.apk) from the
+  same commit.
