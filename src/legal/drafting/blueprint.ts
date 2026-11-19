@@ -273,42 +273,62 @@ function strArray(v: unknown, cap: number, maxChars: number): string[] {
 }
 
 function parseDictated(raw: RawDraftBlueprint): DictatedContent {
+  // Narrow untyped LLM payload items safely (AC1.3: no `any` in legal/).
+  const rec = (v: unknown): Record<string, unknown> =>
+    v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {};
+  const str = (v: unknown, cap: number): string => String(v ?? "").trim().slice(0, cap);
+  const num = (v: unknown): number => Number(v);
+
   const amounts = (Array.isArray(raw.amounts) ? raw.amounts : [])
     .slice(0, MAX_ITEMS.amounts)
-    .map((a: any) => ({
-      label: String(a?.label || "").trim().slice(0, MAX_CHARS.label),
-      amount: Number(a?.amount),
-      currency: (CURRENCIES as readonly string[]).includes(String(a?.currency || "").toUpperCase())
-        ? (String(a.currency).toUpperCase() as "NGN" | "USD" | "GBP" | "EUR")
-        : "NGN",
-    }))
+    .map((a) => {
+      const r = rec(a);
+      return {
+        label: str(r.label, MAX_CHARS.label),
+        amount: num(r.amount),
+        currency: (CURRENCIES as readonly string[]).includes(
+          String(r.currency || "").toUpperCase()
+        )
+          ? (String(r.currency).toUpperCase() as "NGN" | "USD" | "GBP" | "EUR")
+          : "NGN",
+      };
+    })
     .filter((a) => a.label && isFinite(a.amount) && a.amount > 0 && a.amount <= 1e15);
 
   const periods = (Array.isArray(raw.periods) ? raw.periods : [])
     .slice(0, MAX_ITEMS.periods)
-    .map((p: any) => ({
-      label: String(p?.label || "").trim().slice(0, MAX_CHARS.label),
-      value: Number(p?.value),
-      unit: (UNITS as readonly string[]).includes(String(p?.unit || "").toLowerCase())
-        ? (String(p.unit).toLowerCase() as "days" | "weeks" | "months" | "years")
-        : "days",
-    }))
+    .map((p) => {
+      const r = rec(p);
+      return {
+        label: str(r.label, MAX_CHARS.label),
+        value: num(r.value),
+        unit: (UNITS as readonly string[]).includes(String(r.unit || "").toLowerCase())
+          ? (String(r.unit).toLowerCase() as "days" | "weeks" | "months" | "years")
+          : "days",
+      };
+    })
     .filter((p) => p.label && isFinite(p.value) && p.value > 0 && p.value <= 1000);
 
   const dates = (Array.isArray(raw.dates) ? raw.dates : [])
     .slice(0, MAX_ITEMS.dates)
-    .map((d: any) => ({
-      label: String(d?.label || "").trim().slice(0, MAX_CHARS.label),
-      iso: /^\d{4}-\d{2}-\d{2}$/.test(String(d?.iso || "")) ? String(d.iso) : "",
-    }))
+    .map((d) => {
+      const r = rec(d);
+      return {
+        label: str(r.label, MAX_CHARS.label),
+        iso: /^\d{4}-\d{2}-\d{2}$/.test(String(r.iso || "")) ? String(r.iso) : "",
+      };
+    })
     .filter((d) => d.label && d.iso);
 
   const namedPeople = (Array.isArray(raw.namedPeople) ? raw.namedPeople : [])
     .slice(0, MAX_ITEMS.namedPeople)
-    .map((p: any) => ({
-      name: String(p?.name || "").trim().slice(0, MAX_CHARS.name),
-      role: String(p?.role || "").trim().slice(0, MAX_CHARS.role),
-    }))
+    .map((p) => {
+      const r = rec(p);
+      return {
+        name: str(r.name, MAX_CHARS.name),
+        role: str(r.role, MAX_CHARS.role),
+      };
+    })
     .filter((p) => p.name);
 
   return {

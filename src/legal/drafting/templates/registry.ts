@@ -40,6 +40,7 @@
 
 import type {
   Block,
+  DocumentAST,
   DocumentTemplate,
   HydratedDraftContext,
   ProseSlotSpec,
@@ -148,7 +149,7 @@ function motionFamily(
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: COURT_FIELDS,
     proseSlots: [reliefsSlot, groundsSlot],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         courtHeadingBlock(ctx),
         caseNumberBlock(ctx, "suit"),
@@ -190,7 +191,7 @@ function affidavitFamily(
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: AFFIDAVIT_FIELDS,
     proseSlots: [factsSlot],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         courtHeadingBlock(ctx),
         caseNumberBlock(ctx, "suit"),
@@ -252,7 +253,7 @@ function pleadingFamily(
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: COURT_FIELDS,
     proseSlots,
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         courtHeadingBlock(ctx),
         caseNumberBlock(ctx, "suit"),
@@ -339,7 +340,7 @@ function addressFamily(documentType: DocumentType): DocumentTemplate {
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: COURT_FIELDS,
     proseSlots: slots,
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const h = ctx.jurisdiction.addressHeadings;
       const blocks: Block[] = [
         courtHeadingBlock(ctx),
@@ -381,7 +382,7 @@ function briefFamily(documentType: DocumentType, title: string): DocumentTemplat
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: COURT_FIELDS,
     proseSlots: slots,
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         courtHeadingBlock(ctx, { appellate: true }),
         caseNumberBlock(ctx, "appeal"),
@@ -427,7 +428,7 @@ function noticeFamily(documentType: DocumentType, title: string, operative: (ctx
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: NOTICE_FIELDS,
     proseSlots: [groundsSlot],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         { t: "letterhead", firm: { kind: "literal", text: ctx.firm.firmName.value || "[[FIRM NAME]]" } },
         {
@@ -485,7 +486,7 @@ function letterFamily(
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: LETTER_FIELDS,
     proseSlots: slots,
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         { t: "letterhead", firm: { kind: "literal", text: ctx.firm.firmName.value || "[[FIRM NAME]]" } },
         { t: "clause", text: lit(`OUR REF: [[OUR REF]]                                                                                              DATE: ${todayLong()}`) },
@@ -517,7 +518,7 @@ function instrumentFamily(
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: INSTRUMENT_FIELDS,
     proseSlots: clauseSlots,
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const blocks: Block[] = [
         { t: "processTitle", text: title },
         { t: "clause", text: lit(operative) },
@@ -542,7 +543,7 @@ function formFamily(documentType: DocumentType, title: string, clauses: string[]
     category: DOCUMENT_TYPE_CATEGORIES[documentType],
     requiredFields: COURT_FIELDS,
     proseSlots: [],
-    build: (ctx, _fills): any => {
+    build: (ctx, _fills): DocumentAST => {
       const blocks: Block[] = [];
       if (opts?.courtCaption !== false) {
         blocks.push(courtHeadingBlock(ctx), caseNumberBlock(ctx, "suit"), partiesBlockFromCtx(ctx, "claim"));
@@ -571,7 +572,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "litigation_process",
     requiredFields: COURT_FIELDS,
     proseSlots: [writIndorsementSlot],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "writ_of_summons-0",
       documentType: "writ_of_summons",
       blocks: [
@@ -598,7 +599,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "litigation_process",
     requiredFields: COURT_FIELDS,
     proseSlots: [writIndorsementSlot],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "indorsement_of_claim-0",
       documentType: "indorsement_of_claim",
       blocks: [
@@ -620,7 +621,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     proseSlots: [
       prose("originating_summons.questions", "Questions for determination", "Each question the applicant seeks to have determined, one per line.", 4000, "numbered"),
     ],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "originating_summons-0",
       documentType: "originating_summons",
       blocks: [
@@ -654,7 +655,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
       prose("petition.facts", "Petition paragraphs", "Numbered paragraphs of the petition's factual and legal grounds.", 8000, "numbered"),
       prose("petition.prayer", "Prayer", "The prayer(s) sought, each a discrete request.", 3000, "numbered"),
     ],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "petition-0",
       documentType: "petition",
       blocks: [
@@ -685,7 +686,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
       prose("originating_motion.facts", "Statement of facts", "Numbered paragraphs of facts (facts only).", 8000, "numbered"),
       prose("originating_motion.grounds", "Grounds", "The grounds relied upon, one per line.", 4000, "numbered"),
     ],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const frep = ctx.jurisdiction.frepRules?.text || "[FREP RULES TO BE VERIFIED]";
       return {
         id: "originating_motion-0",
@@ -743,7 +744,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "litigation_process",
     requiredFields: COURT_FIELDS,
     proseSlots: [prose("list_of_witnesses.witnesses", "Witnesses", "Each witness's full name and role (e.g. 'John Okafor — Claimant's manager'), one per line.", 3000, "numbered")],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const people = ctx.dictated.namedPeople.filter((p) => /witness|deponent/i.test(p.role) || true).slice(0, 12);
       const items = people.length
         ? people.map((p) => ({ kind: "prose" as const, key: "dictated.namedPeople", text: `${p.name}${p.role ? ` — ${p.role}` : ""}`, status: "dictated" as const }))
@@ -768,7 +769,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "litigation_process",
     requiredFields: COURT_FIELDS,
     proseSlots: [prose("list_of_documents.documents", "Documents", "Each document the party will rely on, one per line, with its exhibit letter where known.", 4000, "numbered")],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const docs = ctx.exhibits.length
         ? ctx.exhibits.map((e) => ({ kind: "literal" as const, text: `EXHIBIT ${e} — [[DESCRIPTION OF EXHIBIT ${e}]]` }))
         : null;
@@ -794,7 +795,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "litigation_process",
     requiredFields: COURT_FIELDS,
     proseSlots: [prose("pre_trial_information_sheet.details", "Pre-trial information", "Names of counsel, estimated length of trial, number of witnesses, agreed/contested issues and any other pre-trial information.", 5000, "numbered")],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "pre_trial_information_sheet-0",
       documentType: "pre_trial_information_sheet",
       blocks: [
@@ -852,7 +853,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "execution_and_enforcement",
     requiredFields: COURT_FIELDS,
     proseSlots: [prose("terms_of_settlement.terms", "Settlement terms", "Each agreed term, numbered, in the order agreed.", 6000, "numbered")],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "terms_of_settlement-0",
       documentType: "terms_of_settlement",
       blocks: [
@@ -874,7 +875,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
     category: "appellate_process",
     requiredFields: COURT_FIELDS,
     proseSlots: [prose("notice_of_appeal.part appealed", "Part appealed", "Whether the appeal is against the whole or part of the decision (and which part).", 800)],
-    build: (ctx, fills): any => ({
+    build: (ctx, fills): DocumentAST => ({
       id: "notice_of_appeal-0",
       documentType: "notice_of_appeal",
       blocks: [
@@ -912,7 +913,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         "numbered"
       ),
     ],
-    build: (ctx, fills): any => {
+    build: (ctx, fills): DocumentAST => {
       const fill = (fills["grounds_of_appeal.grounds"] || "").trim();
       const grounds = linesOf(fill);
       const items = grounds.length
