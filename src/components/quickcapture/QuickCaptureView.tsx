@@ -2,15 +2,24 @@
  * QuickCaptureView — the lightweight, mobile-first capture surface.
  *
  * Owner addendum (2026-11-18, "startup default, ALOA placement & one-tap
- * launch preference"):
+ *   launch preference"):
  *   - The app boots into the FULL OFFICE for everyone; Quick Capture is
- *     never forced. A header toggle — "Start in Quick Capture on mobile",
- *     OFF by default — lets each user opt their phone into landing here.
+ *     never forced. A preference — "Start in Quick Capture on mobile",
+ *     OFF by default — lets each user opt their phone into landing here
+ *     (folded into the ⚙ menu on phones so the screen stays clean).
  *   - A persistent "Full Office" button stays in the top corner (1 tap
  *     back to the dashboard).
  *   - The same surface renders EMBEDDED inside the ALOA panel (props:
  *     `embedded`, `onBackToChat`, `onExitEmbedded`) so voice, dictation
  *     and AI workflows share one unified home.
+ *
+ * Mobile header (owner directive 2026-11-19): a strict three-slot bar —
+ *   `< ALOA` back | one-line compact title ("QC" on phones) | Full
+ *   Office + ⚙. Quiet Mode, the startup preference and the voice-tips
+ *   guide live in the gear popover; the giant mic button is the single
+ *   voice focal point. Vega/Komplete workspaces wear the Vega deep-blue
+ *   register (#1D4ED8 / #1E3A8A) on the mic circle, Ask button and active
+ *   Speak tab; green is reserved for Atrium and the admin console.
  *
  * Two complementary workflows:
  *   A. SPEAK FIRST, ROUTE LATER (walkie-talkie) — search/ask bar on top,
@@ -50,9 +59,11 @@ import { useUI } from "../../contexts/UIContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCoreState } from "../../contexts/CoreContext";
 import { useMatterState } from "../../contexts/MatterContext";
+import { useProduct } from "../../contexts/ProductContext";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { useQuickCapture } from "../../hooks/useQuickCapture";
 import { MATTERS_NOTEBOOK_ID } from "../../constants";
+import { Z_CLASS } from "../../overlays/constants";
 import {
   quickAsk,
   listRecentCaptures,
@@ -105,7 +116,10 @@ function formattedTierText(capture: CaptureProjection | null): string {
   );
 }
 
-/** Whisper Mode persistence (owner spec 2026-11-19 §5) — local preference. */
+/** Quiet Mode persistence (owner spec 2026-11-19 §5) — local preference.
+ *  User-facing name is "Quiet Mode" (brand hygiene, 2026-11-19: no
+ *  third-party names in the UI); the storage key keeps its legacy
+ *  "whisper" spelling so existing on-device preferences survive. */
 const WHISPER_PREF_KEY = "practicepro_whisper_mode";
 function readWhisperPref(): boolean {
   try {
@@ -169,6 +183,14 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const isPhoneLike = useIsPhoneLike();
 
+  // ── Workspace accent (owner directive, 2026-11-19): in Vega and
+  //    Komplete workspaces Quick Capture's hero elements — the mic circle,
+  //    the Ask button and the active Speak tab — wear the Vega deep-blue
+  //    register (#1D4ED8 / #1E3A8A) with crisp white icons and text.
+  //    Green stays exclusive to Atrium firms and the admin console.
+  const { isAtrium } = useProduct();
+  const vegaAccent = !isAtrium; // Vega + Komplete (unified)
+
   // ── "Start in Quick Capture on mobile" (owner addendum 2026-11-18).
   //    OFF by default — everyone lands on the Full Office dashboard first.
   //    Flipping it ON stores 'capture' for this account (localStorage, same
@@ -213,11 +235,35 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
    *  editSelection action instead of appended. */
   const pendingSelectionEditRef = useRef<{ start: number; end: number } | null>(null);
   const [selectionEditBusy, setSelectionEditBusy] = useState(false);
-  /** WHISPER MODE (§5): persisted local preference, threaded into the
-   *  capture hook so the next recording uses quiet-speech constraints. */
+  /** QUIET MODE (§5; user-facing "Quiet Mode", internally the quiet-speech
+   *  profile): persisted local preference, threaded into the capture hook
+   *  so the next recording uses quiet-speech constraints. */
   const [whisperMode, setWhisperMode] = useState(readWhisperPref);
   /** Voice Tips panel (Part 3). */
   const [showTips, setShowTips] = useState(false);
+  /** Compact-header settings popover (owner directive 2026-11-19): the
+   *  phone header carries only Full Office + ⚙ — Quiet Mode, the startup
+   *  preference and the tips guide fold into this menu so the capture
+   *  screen stays distraction-free. */
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showSettingsMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
+        setShowSettingsMenu(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowSettingsMenu(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showSettingsMenu]);
   const toastRef = useRef(addToast);
   useEffect(() => {
     toastRef.current = addToast;
@@ -242,8 +288,8 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       writeWhisperPref(next);
       addToast(
         next
-          ? "Whisper Mode on — quiet speech is captured cleanly."
-          : "Whisper Mode off — standard noise filtering.",
+          ? "Quiet Mode on — quiet speech is captured cleanly."
+          : "Quiet Mode off — standard noise filtering.",
         { type: "success" }
       );
       return next;
@@ -548,23 +594,39 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     [embedded, onExitEmbedded, navigateTo]
   );
 
+  // ── Compact header (owner directive, 2026-11-19): phone viewports and
+  //    the narrow ALOA panel column get a strict three-slot bar — back |
+  //    one-line title | Full Office + ⚙ — while the wide standalone view
+  //    keeps the informative title + subtitle. On phones the embedded
+  //    title shrinks to "QC" so it can never wrap or collide with the
+  //    buttons; "ALOA" is rendered exactly once (the back button).
+  const compactHeader = embedded || isPhoneLike;
+  const headerTitle = embedded && isPhoneLike ? "QC" : "Quick Capture";
+
   // ─── Render ─────────────────────────────────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-full min-h-0 bg-slate-50">
-      {/* Top bar: brand + persistent Full Office button + settings.
-          Embedded (inside the ALOA panel): a back-to-chat button leads.
-          Owner addendum: "Keep a persistent 'Full Office →' button in the top
-          corner of Quick Capture so they can switch back to the main
-          dashboard anytime in 1 tap." */}
+      {/* Top bar — THREE CLEAN SLOTS (owner directive 2026-11-19): back on
+          the left, ONE compact title in the centre, Full Office + ⚙ on the
+          right. The old header stacked a mic badge, a two-line "ALOA ·
+          Quick Capture" title, a tips button and a quiet-mode toggle into
+          the same row — on a phone every element collided. The giant mic
+          button below is the only voice affordance the eye needs; the gear
+          folds Quiet Mode, the startup preference and the tips guide away.
+          Safe-area padded so nothing crowds the Android status bar. */}
       <header className="bg-white border-b border-slate-200 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            {embedded && onBackToChat ? (
+          {/* LEFT SLOT — the single back affordance (embedded). "ALOA"
+              lives ONLY here, one line, never truncated. Standalone keeps
+              the informative title + subtitle on wide screens. */}
+          {compactHeader ? (
+            embedded && onBackToChat ? (
               <Button
                 variant="ghost"
                 size="sm"
                 icon={ChevronLeftIcon}
+                className="!px-2 whitespace-nowrap shrink-0"
                 onClick={() => {
                   light();
                   onBackToChat();
@@ -572,50 +634,75 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               >
                 ALOA
               </Button>
-            ) : null}
-            <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-600 text-white shrink-0">
-              <MicrophoneIcon className="w-4 h-4" />
-            </span>
+            ) : (
+              <span className="w-1 shrink-0" aria-hidden />
+            )
+          ) : (
             <div className="min-w-0">
-              <h1 className="font-bold text-slate-900 leading-tight text-base">
-                {embedded ? "ALOA · Quick Capture" : "Quick Capture"}
+              <h1 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap">
+                Quick Capture
               </h1>
               <p className="text-2xs text-slate-500 leading-tight truncate">
                 {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Voice Tips (owner spec 2026-11-19, Part 3): subtle "?" that
-                opens the in-place tricks + snippets guide. */}
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              icon={SparklesIcon}
-              aria-label="Voice tips"
-              title="Voice tips — tricks, snippets & dictionary"
-              onClick={() => setShowTips((v) => !v)}
-            />
-            {/* Whisper Mode (Part 2 §5): quiet-speech capture profile for
-                whispered notes in court galleries / shared spaces. */}
-            <Button
-              variant={whisperMode ? "primary" : "ghost"}
-              size="sm"
-              aria-pressed={whisperMode}
-              title="Whisper Mode — capture quiet speech cleanly"
-              onClick={() => {
-                light();
-                toggleWhisperMode();
-              }}
-            >
-              Whisper
-            </Button>
+          )}
+
+          {/* CENTER SLOT — the one compact title: never two lines, never
+              colliding (whitespace-nowrap + truncate + flex-1 min-w-0). */}
+          {compactHeader ? (
+            <div className="flex-1 min-w-0 flex justify-center">
+              <h1
+                className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap truncate"
+                aria-label="Quick Capture"
+              >
+                {headerTitle}
+              </h1>
+            </div>
+          ) : null}
+          {/* RIGHT SLOT — Full Office pill + settings gear (compact) or
+              the full action set (wide standalone). shrink-0 + gap-2: never
+              wraps, never crowds the title. */}
+          <div className="flex items-center gap-2 shrink-0">
+            {!compactHeader ? (
+              <>
+                {/* Voice Tips (owner spec 2026-11-19, Part 3): subtle "?"
+                    that opens the in-place tricks + snippets guide. */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconOnly
+                  icon={SparklesIcon}
+                  aria-label="Voice tips"
+                  title="Voice tips — tricks, snippets & dictionary"
+                  onClick={() => setShowTips((v) => !v)}
+                />
+                {/* QUIET MODE (quiet-speech profile): court galleries /
+                    shared spaces — noise suppression off so faint speech
+                    survives. */}
+                <Button
+                  variant={whisperMode ? "primary" : "ghost"}
+                  size="sm"
+                  aria-pressed={whisperMode}
+                  title="Quiet Mode — capture quiet speech cleanly"
+                  className={
+                    whisperMode && vegaAccent ? "!bg-[#1D4ED8] hover:!bg-[#1E3A8A]" : ""
+                  }
+                  onClick={() => {
+                    light();
+                    toggleWhisperMode();
+                  }}
+                >
+                  Quiet Mode
+                </Button>
+              </>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
               minTouchTarget
               icon={ChevronRightIcon}
+              className="whitespace-nowrap"
               onClick={() => {
                 light();
                 exitToView("dashboard");
@@ -623,62 +710,169 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             >
               Full Office
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              iconOnly
-              icon={CogIcon}
-              aria-label="Settings"
-              onClick={() => exitToView("settings")}
-            />
+            {compactHeader ? (
+              <div className="relative shrink-0" ref={settingsMenuRef}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  iconOnly
+                  icon={CogIcon}
+                  aria-label="Quick Capture settings"
+                  title="Quick Capture settings"
+                  aria-expanded={showSettingsMenu}
+                  aria-haspopup="menu"
+                  onClick={() => {
+                    light();
+                    setShowSettingsMenu((v) => !v);
+                  }}
+                />
+                {showSettingsMenu ? (
+                  <div
+                    role="menu"
+                    aria-label="Quick Capture settings"
+                    className={`absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg p-2 ${Z_CLASS.panelMenu}`}
+                  >
+                    {/* Quiet Mode — quiet-speech capture profile. */}
+                    <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50">
+                      <label
+                        htmlFor="qc-quiet-mode-toggle"
+                        className="text-sm font-semibold text-slate-800 leading-tight"
+                      >
+                        Quiet Mode
+                        <span className="block text-2xs font-normal text-slate-400 mt-0.5">
+                          Court galleries & quiet rooms — faint speech captured cleanly
+                        </span>
+                      </label>
+                      {/* Switch built on the app's established div/role="switch"
+                          pattern (see Settings → Display) — no new raw buttons
+                          (ADR-0004 ratchet). tabIndex + keydown keep it fully
+                          keyboard-operable. */}
+                      <div
+                        id="qc-quiet-mode-toggle"
+                        role="switch"
+                        aria-checked={whisperMode}
+                        aria-label="Quiet Mode"
+                        tabIndex={0}
+                        onClick={() => {
+                          light();
+                          toggleWhisperMode();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            light();
+                            toggleWhisperMode();
+                          }
+                        }}
+                        className={`${
+                          whisperMode
+                            ? vegaAccent
+                              ? "bg-[#1D4ED8]"
+                              : "bg-emerald-600"
+                            : "bg-slate-300"
+                        } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 ${
+                          vegaAccent ? "focus-visible:ring-blue-600" : "focus-visible:ring-emerald-500"
+                        } focus-visible:ring-offset-2`}
+                      >
+                        <span
+                          className={`${
+                            whisperMode ? "translate-x-6" : "translate-x-1"
+                          } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                        />
+                      </div>
+                    </div>
+                    {/* "Start in Quick Capture on mobile" (owner addendum
+                        rule 3) — folded into the gear menu so the capture
+                        screen stays distraction-free. Phone-like devices
+                        only — the preference governs mobile boots. */}
+                    {isPhoneLike ? (
+                      <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50">
+                        <label
+                          htmlFor="qc-startup-toggle"
+                          className="text-sm font-semibold text-slate-800 leading-tight"
+                        >
+                          Start in Quick Capture on mobile
+                          <span className="block text-2xs font-normal text-slate-400 mt-0.5">
+                            Launch straight here instead of the dashboard
+                          </span>
+                        </label>
+                        <div
+                          id="qc-startup-toggle"
+                          role="switch"
+                          aria-checked={startInQuickCapture}
+                          aria-label="Start in Quick Capture on mobile"
+                          tabIndex={0}
+                          onClick={() => {
+                            light();
+                            handleToggleStartup();
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              light();
+                              handleToggleStartup();
+                            }
+                          }}
+                          className={`${
+                            startInQuickCapture
+                              ? vegaAccent
+                                ? "bg-[#1D4ED8]"
+                                : "bg-emerald-600"
+                              : "bg-slate-300"
+                          } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 ${
+                            vegaAccent ? "focus-visible:ring-blue-600" : "focus-visible:ring-emerald-500"
+                          } focus-visible:ring-offset-2`}
+                        >
+                          <span
+                            className={`${
+                              startInQuickCapture ? "translate-x-6" : "translate-x-1"
+                            } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="my-1 border-t border-slate-100" role="separator" />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      fullWidth
+                      className="!justify-start"
+                      icon={SparklesIcon}
+                      onClick={() => {
+                        setShowSettingsMenu(false);
+                        setShowTips(true);
+                      }}
+                    >
+                      Voice tips, snippets & dictionary
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      fullWidth
+                      className="!justify-start"
+                      icon={CogIcon}
+                      onClick={() => {
+                        setShowSettingsMenu(false);
+                        exitToView("settings");
+                      }}
+                    >
+                      All settings
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                iconOnly
+                icon={CogIcon}
+                aria-label="Settings"
+                onClick={() => exitToView("settings")}
+              />
+            )}
           </div>
         </div>
-        {/* "Start in Quick Capture on mobile" — the frictionless launch
-            preference toggle (owner addendum rule 3). OFF by default;
-            visible where the user already is, no Settings trip needed.
-            Phone-like devices only — the preference governs mobile boots. */}
-        {isPhoneLike ? (
-          <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-100 bg-slate-50/80">
-            <label
-              htmlFor="qc-startup-toggle"
-              className="text-xs font-medium text-slate-600 leading-tight"
-            >
-              Start in Quick Capture on mobile
-            </label>
-            {/* Switch built on the app's established div/role="switch"
-                pattern (see the Toggle in Settings → Display) — there is no
-                ui/ switch primitive yet, and growing the raw-button count is
-                banned by the ADR-0004 ratchet. tabIndex + keydown keep it
-                fully keyboard-operable. */}
-            <div
-              id="qc-startup-toggle"
-              role="switch"
-              aria-checked={startInQuickCapture}
-              aria-label="Start in Quick Capture on mobile"
-              tabIndex={0}
-              onClick={() => {
-                light();
-                handleToggleStartup();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  light();
-                  handleToggleStartup();
-                }
-              }}
-              className={`${
-                startInQuickCapture ? "bg-emerald-600" : "bg-slate-300"
-              } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2`}
-            >
-              <span
-                className={`${
-                  startInQuickCapture ? "translate-x-6" : "translate-x-1"
-                } inline-block w-4 h-4 transform bg-white rounded-full transition-transform`}
-              />
-            </div>
-          </div>
-        ) : null}
       </header>
 
       {/* VOICE TIPS (owner spec Part 3): the collapsible in-place guide —
@@ -704,16 +898,33 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               <div className="flex-1 min-w-0">
                 <Input
                   aria-label="Ask or search"
-                  placeholder="Ask about a case, note or your schedule…"
+                  placeholder={
+                    isPhoneLike
+                      ? "Ask about a case, note or task…"
+                      : "Ask about a case, note or your schedule…"
+                  }
                   value={askText}
                   onChange={(e) => setAskText((e.target as HTMLInputElement).value)}
                 />
               </div>
-              <Button type="submit" variant="primary" size="md" minTouchTarget icon={SparklesIcon} loading={asking}>
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                minTouchTarget
+                icon={SparklesIcon}
+                loading={asking}
+                className={vegaAccent ? "!bg-[#1D4ED8] hover:!bg-[#1E3A8A]" : ""}
+              >
                 Ask
               </Button>
             </form>
-            <Button variant="ghost" size="sm" className="!text-xs !text-slate-400" onClick={() => setMobileSearchOpen(true)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="!text-xs !text-slate-400 mt-1"
+              onClick={() => setMobileSearchOpen(true)}
+            >
               or search everything in the office
             </Button>
           </div>
@@ -757,8 +968,9 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             </div>
           ) : null}
 
-          {/* The walkie-talkie launcher */}
-          <div className="flex flex-col items-center gap-4 px-4 pt-8 pb-4">
+          {/* The walkie-talkie launcher — generous vertical breathing room
+              on phones so the mic circle owns the visual centre. */}
+          <div className="flex flex-col items-center gap-4 px-4 pt-10 pb-8">
             {qc.phase === "triage" && qc.capture ? (
               <div className="w-full max-w-md">
                 {qc.error ? (
@@ -838,8 +1050,8 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 </p>
                 <p className="text-xs text-slate-500 max-w-xs">
                   {qc.appending
-                    ? "Whisper is turning the new clip into text and re-checking dates, matters and the best next step across the whole note."
-                    : "Whisper is turning your recording into text, polishing it and picking the best next step. This usually takes a few seconds."}
+                    ? "We're turning the new clip into text and re-checking dates, matters and the best next step across the whole note."
+                    : "We're turning your recording into text, polishing it and picking the best next step. This usually takes a few seconds."}
                 </p>
               </div>
             ) : qc.phase === "queued" ? (
@@ -865,7 +1077,9 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 <Button
                   variant="primary"
                   size="lg"
-                  className="!w-28 !h-28 !rounded-full !px-0 shadow-lg"
+                  className={`!w-28 !h-28 !rounded-full !px-0 shadow-lg ${
+                    vegaAccent ? "!bg-[#1D4ED8] hover:!bg-[#1E3A8A]" : ""
+                  }`}
                   aria-label="Start recording"
                   onClick={() => {
                     medium();
@@ -988,10 +1202,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
         <LegalPadView onExit={() => setMode("speak")} />
       )}
 
-      {/* Mode toggle — thumb-reachable at the bottom */}
+      {/* Mode toggle — thumb-reachable at the bottom, lifted clear of the
+          Android gesture bar by the safe-area inset. */}
       {mode === "speak" ? (
         <nav
-          className="border-t border-slate-200 bg-white px-4 py-2 flex gap-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))]"
+          className="border-t border-slate-200 bg-white px-4 py-2.5 flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
           aria-label="Capture mode"
         >
           <Button
@@ -1000,6 +1215,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             minTouchTarget
             fullWidth
             icon={MicrophoneIcon}
+            className={vegaAccent ? "!bg-[#1D4ED8] !text-white" : ""}
             onClick={() => setMode("speak")}
           >
             Speak

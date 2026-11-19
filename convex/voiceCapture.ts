@@ -909,11 +909,11 @@ async function transcribeWithWhisper(opts: {
   });
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    throw new Error(`Whisper API ${res.status}: ${errText.slice(0, 300)}`);
+    throw new Error(`Transcription service error ${res.status}: ${errText.slice(0, 300)}`);
   }
   const data: any = await res.json();
   const text = (data?.text || "").trim();
-  if (!text) throw new Error("Whisper returned no text for this segment.");
+  if (!text) throw new Error("The transcription service returned no text for this segment.");
   return text;
 }
 

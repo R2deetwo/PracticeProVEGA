@@ -866,8 +866,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            {capture.provider === "openai-whisper" ? "Whisper" : capture.provider || "Transcribed"}
-            {" · "}
+            Transcribed{" · "}
             {Math.round((capture.durationMs || 0) / 1000)}s
             {clipCount > 1 ? ` · ${clipCount} clips` : ""}
             {capture.polishError ? " · Smart Clean unavailable (verbatim shown)" : ""}

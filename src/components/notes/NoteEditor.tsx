@@ -836,7 +836,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ page, matter, onSave, on
                             icon={MicPlusIcon}
                             onClick={startAppendVoiceDictation}
                             disabled={isDictating || isCleaning || !dictationSupported}
-                            title="Append by Voice — adds a timestamped dictation block to the end of this note. Your words are transcribed by the same Whisper engine and the AI cleanup re-runs across the whole note."
+                            title="Append by Voice — adds a timestamped dictation block to the end of this note. Your words are transcribed by the same voice engine and the AI cleanup re-runs across the whole note."
                         >
                             Append by Voice
                         </Button>

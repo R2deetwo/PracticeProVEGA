@@ -10,7 +10,7 @@
  *      Dictionary and Spoken Snippets managers.
  *
  * Content covers the four required sections: what you can capture, smart
- * voice tricks (Add More, backtracking, snippets, edit-by-voice, whisper
+ * voice tricks (Add More, backtracking, snippets, edit-by-voice, quiet
  * mode), the Personal Dictionary loop, and the startup preference.
  */
 
@@ -98,8 +98,8 @@ const TRICKS: { title: string; body: string }[] = [
     body: "Highlight any passage in the draft box, then tap “Edit Selection by Voice” and speak your instruction — “make this sound firmer and turn the demands into three numbered points.” Only the highlighted passage is rewritten; everything else stays untouched.",
   },
   {
-    title: "Whisper Mode",
-    body: "Toggle Whisper in the header before recording in a court gallery, shared library or any quiet room. It turns off noise suppression so faint, whispered speech is captured cleanly instead of being gated as noise.",
+    title: "Quiet Mode",
+    body: "Turn on Quiet Mode from the ⚙ menu before recording in a court gallery, shared library or any quiet room. It relaxes noise suppression so faint, quiet speech is captured cleanly instead of being filtered out as background noise.",
   },
   {
     title: "Nigerian English & Pidgin — no language switching",
@@ -372,8 +372,8 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
         <h3 className="text-sm font-bold text-slate-900 mb-1">Startup preference</h3>
         <p className="text-xs text-slate-500 leading-relaxed">
           By default the app opens the Full Office dashboard. On your phone you
-          can flip <strong>“Start in Quick Capture on mobile”</strong> (shown at
-          the top of Quick Capture) so launch lands straight on the mic — it is
+          can flip <strong>“Start in Quick Capture on mobile”</strong> (in
+          Quick Capture’s ⚙ menu) so launch lands straight on the mic — it is
           OFF by default and saved per device.
         </p>
       </section>
