@@ -1359,3 +1359,18 @@ persistence — the app's own localStorage layer IS the offline story.
 Founder APK: boots offline to the login screen (4s session watchdog,
 never a black screen) but serves no cached founder data by design —
 it's a control surface.
+
+**Staging deploy hardening (first live run findings):** the first real
+staging deploy (run 44570549000) deployed the shiny-echidna-432 backend
+and built the Vercel preview, then failed twice in the frontend half:
+(1) `vercel alias set <url> staging` — a bare alias name is rejected by
+the CLI and the error was swallowed by the command substitution under
+`set -e`; now pinned with the full subdomain
+`staging-practice-pro-vega.vercel.app` and fail-loud output. (2) Vercel
+Standard Protection (Vercel Authentication on previews) would 401 every
+health check (this workflow's verify step AND the promote gate's staging
+check) and demand a login just to view staging. Production is already
+public (verified 200), so the workflow now idempotently clears
+`ssoProtection`/`passwordProtection` on the project via the v9 REST API
+before verification — staging serves seeded demo data on its own backend,
+nothing new is exposed.

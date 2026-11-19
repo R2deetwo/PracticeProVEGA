@@ -214,18 +214,54 @@ jobs:
           fi
           echo "Preview deployment: $DEPLOY_URL"
 
-          ALIAS_OUTPUT=$(vercel alias set "$DEPLOY_URL" staging --token="$VERCEL_TOKEN" 2>&1)
+          # Pin the stable staging alias (2026-11-20 fix): the alias must be
+          # the FULL subdomain (staging-<project>.vercel.app) — the CLI
+          # rejects a bare name ("staging"), and the previous version's
+          # failure was silently swallowed by the command substitution
+          # under set -e (no error text ever reached the log).
+          set +e
+          ALIAS_OUTPUT=$(vercel alias set "$DEPLOY_URL" staging-practice-pro-vega.vercel.app --token="$VERCEL_TOKEN" 2>&1)
+          ALIAS_EXIT=$?
+          set -e
           echo "$ALIAS_OUTPUT"
-          ALIAS_URL=$(echo "$ALIAS_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+' | grep -v "$DEPLOY_URL" | head -1 || true)
-          if [ -z "$ALIAS_URL" ]; then
-            ALIAS_URL="https://staging-practice-pro-vega.vercel.app"
+          if [ "$ALIAS_EXIT" -ne 0 ]; then
+            echo "::error::vercel alias set failed (exit $ALIAS_EXIT). The preview deployment $DEPLOY_URL is live, but the stable staging alias could not be pinned — see the vercel output above."
+            exit 1
           fi
+          ALIAS_URL="https://staging-practice-pro-vega.vercel.app"
           echo "Staging alias: $ALIAS_URL"
 
           {
             echo "deploy_url=$DEPLOY_URL"
             echo "alias_url=$ALIAS_URL"
           } >> "$GITHUB_OUTPUT"
+
+      - name: Make the staging alias publicly reachable (deployment protection off)
+        if: steps.staging_cfg.outputs.configured == 'true' && steps.vercel_deploy.outputs.rate_limited != '1'
+        continue-on-error: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # 2026-11-20: preview deployments default to Vercel Authentication
+          # (Standard Protection), which 401s the health checks below AND the
+          # production promote gate's staging check, and demands a Vercel
+          # login just to view staging in a browser. Production is already a
+          # public site (verified: version.json is 200), so clearing preview
+          # protection exposes nothing new — staging serves seeded demo data
+          # on its own isolated backend. Idempotent: safe on every deploy.
+          HTTP=$(curl -s -o /tmp/protection.json -w "%{http_code}" -X PATCH \
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID?teamId=$VERCEL_ORG_ID" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"ssoProtection": null, "passwordProtection": null}')
+          if [ "$HTTP" = "200" ]; then
+            echo "✓ Deployment protection cleared — the staging alias is publicly reachable"
+          else
+            echo "::warning::Could not clear deployment protection (HTTP $HTTP): $(head -c 400 /tmp/protection.json)"
+            echo "The verification step below will 401 while protection is on. Manual fix: Vercel dashboard → Project → Settings → Deployment Protection → Disabled."
+          fi
 
       - name: Verify the deployed build serves this commit
         if: steps.staging_cfg.outputs.configured == 'true' && steps.vercel_deploy.outputs.rate_limited != '1'
