@@ -1,0 +1,254 @@
+name: Deploy Vercel production frontend (targeted)
+
+# WHY THIS EXISTS (2026-11-19): production WEB still serves a Nov-17 build
+# (f61c756b) while main is 18 releases ahead — the landing page kept
+# answering with the canned catalogue (the live-AI code in PR #4 was merged
+# but never deployed) and desktop Quick Capture (PR #18) never went live.
+# Root cause chain: the full "Deploy to Production (promote)" pipeline is
+# gated on a staging Convex environment that has not been provisioned
+# (CONVEX_STAGING_DEPLOY_KEY / CONVEX_STAGING_URL unset — one-time owner
+# setup), every promote run fails BEFORE deploying anything, and Vercel's
+# Git auto-deploy has not picked main up either. The Convex backend got its
+# own targeted escape hatch (convex-production-deploy.yml, run green); the
+# FRONTEND now gets the same: this workflow deploys ONLY the Vercel
+# production frontend, on demand, with the SAME quality gate the promote
+# runs (Convex typecheck, root typecheck, identity audit, ADR-0004 ratchet,
+# unit tests) and the SAME Vercel CLI steps (pinned 59.16.0 — see the
+# promote workflow's note on 60+ majors breaking `vercel pull`).
+#
+# It never touches the Convex backend (use the targeted backend workflow or
+# the promote for that) or the Cloudflare mirror (best-effort target of the
+# promote; its API token is expired).
+#
+# Once staging is provisioned, prefer the full promote workflow and retire
+# this one (together with the Convex targeted one).
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit to deploy (blank = latest main; an older main SHA = rollback)'
+        required: false
+        default: ''
+
+concurrency:
+  group: vercel-production-deploy
+  # Never cancel a production deploy mid-flight.
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    name: Typecheck + unit tests (on the deployed commit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      resolved_sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the commit to deploy
+        id: resolve
+        env:
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+        run: |
+          if [ -n "$INPUT_SHA" ]; then
+            RESOLVED="$INPUT_SHA"
+          else
+            RESOLVED="${{ github.sha }}"
+          fi
+          echo "Deploying: $RESOLVED"
+          echo "sha=$RESOLVED" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the commit to deploy
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.resolve.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Refuse commits that are not on main
+        env:
+          RESOLVED_SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$RESOLVED_SHA" origin/main; then
+            echo "::error::Refusing to deploy: $RESOLVED_SHA is not part of main's history. Only main commits can be deployed to production."
+            exit 1
+          fi
+          echo "✓ $RESOLVED_SHA is an ancestor of origin/main"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck Convex backend
+        run: |
+          if npx tsc -p convex --noEmit; then
+            echo "✅ Convex typecheck clean"
+          else
+            echo "::error::convex/ typecheck FAILED — refusing to deploy."
+            exit 1
+          fi
+
+      - name: Typecheck app (must be 0 errors)
+        run: |
+          set +e
+          npx tsc --noEmit 2>&1 | tee /tmp/root-tsc.log | tail -5
+          ERRORS=$(grep -c "error TS" /tmp/root-tsc.log)
+          set -e
+          echo "Root tsc errors: $ERRORS (required: 0)"
+          if [ "$ERRORS" -ne 0 ]; then
+            echo "::error::Root tsc reported $ERRORS error(s). Fix all errors before deploy."
+            exit 1
+          fi
+          echo "Root tsc clean (0 errors)"
+
+      - name: Identity audit (R16 — no public function may trust caller-supplied identity)
+        run: python3 scripts/audit-identity.py
+
+      - name: UI-primitives ratchet gate (ADR-0004 — raw form elements may not grow)
+        run: node scripts/check-ui-primitives.mjs
+
+      - name: Run unit test suite
+        run: npx vitest run
+
+  deploy-vercel-production:
+    name: Deploy frontend to Vercel production and verify live
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      PROMOTED_SHA: ${{ needs.quality-gate.outputs.resolved_sha }}
+    steps:
+      - name: Check required secrets
+        run: |
+          MISSING=0
+          for VAR in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!VAR}" ]; then
+              echo "❌ $VAR secret is not set"
+              MISSING=1
+            fi
+          done
+          if [ "$MISSING" -eq 1 ]; then exit 1; fi
+          echo "✓ All Vercel secrets are set"
+
+      - name: Checkout the exact gated commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.PROMOTED_SHA }}
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # PINNED to 59.16.0 for the same reason as the promote workflow:
+      # vercel@60+ changed project resolution and `vercel pull
+      # --environment=production` fails with "Could not retrieve Project
+      # Settings". Bump DELIBERATELY, never @latest.
+      - name: Install Vercel CLI
+        run: npm install -g vercel@59.16.0
+
+      # COMMIT_SHA is what generate-version-manifest.cjs (prebuild) bakes
+      # into version.json — the verify step below reads it back from the
+      # live site, so it must be the PINNED commit, not the dispatch-time
+      # main HEAD.
+      - name: Build and deploy frontend to Vercel (production)
+        env:
+          COMMIT_SHA: ${{ env.PROMOTED_SHA }}
+        run: |
+          # Same free-tier-cap tolerance as the promote: the 100/day
+          # deployment cap is a documented non-blocker (self-resets ≤24h);
+          # every OTHER failure fails this job.
+          set +e
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN" > /tmp/vercel-deploy.log 2>&1
+          PULL_EXIT=$?
+          BUILD_EXIT=0
+          DEPLOY_EXIT=0
+          if [ "$PULL_EXIT" -eq 0 ]; then
+            vercel build --prod --token="$VERCEL_TOKEN" >> /tmp/vercel-deploy.log 2>&1
+            BUILD_EXIT=$?
+          fi
+          if [ "$PULL_EXIT" -eq 0 ] && [ "$BUILD_EXIT" -eq 0 ]; then
+            vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN" >> /tmp/vercel-deploy.log 2>&1
+            DEPLOY_EXIT=$?
+          fi
+          set -e
+          cat /tmp/vercel-deploy.log
+          if [ "$PULL_EXIT" -eq 0 ] && [ "$BUILD_EXIT" -eq 0 ] && [ "$DEPLOY_EXIT" -eq 0 ]; then
+            echo "✓ Vercel production deploy succeeded"
+            exit 0
+          fi
+          if grep -q "api-deployments-free-per-day" /tmp/vercel-deploy.log; then
+            echo "::error::Vercel free-tier daily deployment cap hit (>100 deploys/24h) — the CLI deploy was SKIPPED. The cap self-resets within 24h; re-run this workflow after it resets."
+            exit 1
+          fi
+          echo "::error::Vercel deploy failed (see log above)."
+          exit 1
+
+      - name: Verify production frontend serves the deployed commit
+        run: |
+          echo "Waiting for Vercel to finish deploying..."
+          PRODUCTION_URL="https://practice-pro-vega.vercel.app"
+          MAX_WAIT=120
+          WAITED=0
+          while [ $WAITED -lt $MAX_WAIT ]; do
+            RESPONSE=$(curl -s "$PRODUCTION_URL/version.json?_=$(date +%s)" 2>/dev/null || echo "{}")
+            STATUS=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "error")
+            SHA=$(echo "$RESPONSE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('sha','unknown')[:8])" 2>/dev/null || echo "error")
+            echo "  [${WAITED}s] status=$STATUS sha=$SHA (expecting ${PROMOTED_SHA:0:8})"
+            if [ "$STATUS" = "healthy" ] && [ "$SHA" = "${PROMOTED_SHA:0:8}" ]; then
+              echo "✅ Vercel production is healthy and serving the deployed commit (${PROMOTED_SHA:0:8})"
+              exit 0
+            fi
+            sleep 10
+            WAITED=$((WAITED + 10))
+          done
+          echo "::error::Production not verified after ${MAX_WAIT}s (sha=$SHA status=$STATUS, expected ${PROMOTED_SHA:0:8}). Check https://vercel.com/practice-pro-vega/practice-pro-vega/deployments"
+          exit 1
+
+      # The reason this workflow exists: prove the landing assistant is a
+      # REAL AI on the live site, not the canned catalogue. The backend
+      # endpoint answers with "source":"ai" when the live engine is used
+      # (the catalogue fallback omits it).
+      - name: Smoke-probe the live landing AI
+        run: |
+          sleep 15
+          PROBE=$(curl -s --max-time 30 -X POST "https://gregarious-malamute-537.convex.site/ai/landing-chat" \
+            -H "Content-Type: application/json" \
+            -H "Origin: https://practice-pro-vega.vercel.app" \
+            -d '{"question":"What is a notice to quit?","product":"vega"}')
+          echo "Landing AI probe (truncated): $(echo "$PROBE" | head -c 400)"
+          SOURCE=$(echo "$PROBE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('source',''))" 2>/dev/null || echo "parse-error")
+          if [ "$SOURCE" != "ai" ]; then
+            echo "::warning::Landing AI probe did not report source=ai (got '$SOURCE') — the endpoint may be degraded; the deployed frontend will fall back to the catalogue. Investigate the Convex backend (GEMINI_API_KEY) if the landing page shows preset answers."
+            exit 0
+          fi
+          echo "✅ Landing AI is live (source=ai)"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "## Vercel production frontend deploy (targeted)"
+            echo ""
+            echo "- Commit: \`${PROMOTED_SHA}\`"
+            echo "- Frontend: https://practice-pro-vega.vercel.app (verified serving the deployed commit)"
+            echo ""
+            echo "The Convex backend and Cloudflare mirror are NOT touched by this"
+            echo "workflow — backend: 'Deploy Convex production backend (targeted)';"
+            echo "full pipeline (once staging is provisioned): 'Deploy to Production (promote)'."
+          } >> "$GITHUB_STEP_SUMMARY"

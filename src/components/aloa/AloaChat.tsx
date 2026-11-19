@@ -6,7 +6,6 @@ import { AloaMessage, ModalType, AppState, AloaHint, InteractiveFormSchema } fro
 import { AutoExpandingChatInput } from '../ui/AutoExpandingChatInput';
 import { MessageThread } from '../messaging/MessageThread';
 import { normalizeAloaMessage } from '../../messaging/model';
-import { GoogleGenAI } from '@google/genai';
 import { useMatterState } from '../../contexts/MatterContext';
 import { useExecutionState } from '../../contexts/ExecutionContext';
 import { useDocumentState } from '../../contexts/DocumentContext';
@@ -16,7 +15,6 @@ import { useDataActions } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import * as aiService from '../../services/aiService';
-import { tools } from '../../services/geminiService';
 import { useProduct } from '../../contexts/ProductContext';
 import { v4 as uuidv4 } from 'uuid';
 import { parseAloaMarkdown } from '../../utils/markdownUtils';
@@ -62,7 +60,6 @@ import { TrashIcon, ChevronRightIcon, ArrowPathIcon as HistoryIcon, MessagingIco
 // NOTE: Button is already imported above from '../ui' — reused for the
 // Quick Capture header button (ADR-0004).
 import { api } from '../../../convex/_generated/api';
-import { decode, decodeAudioData } from '../../utils/audioUtils';
 import { analyzeDocument } from '../../agents/AdvancedLegalDocumentIntelligenceAgent';
 
 // URL detection regex — matches http(s):// URLs in user messages
@@ -96,7 +93,6 @@ import { getGlobalAIQueue, validateAPIKey } from '../../utils/aiRequestQueue';
 import { draftKeyFor, shouldRestoreDraft } from './draftTransition';
 import PIIShieldBadge from './PIIShieldBadge';
 import Tooltip from '../Tooltip';
-import { getGeminiApiKey, AI_CONFIG } from '../../utils/aiUtils';
 import { SaveToNoteForm } from '../forms/SaveToNoteForm';
 import { loadAloaXLibrary } from '../indexer/AloaXView';
 import { analyzePartyName, analyzeMatterIntelligence } from '../../utils/defenseUtils';
@@ -153,7 +149,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         onClose();
     }, [onClose]);
     const {
-        messages, setMessages, isLoading, setIsLoading, resetChat, aloaState, setAloaState,
+        messages, setMessages, isLoading, setIsLoading, resetChat, aloaState,
         preferredModel, setPreferredModel, localFiles, isFirmSearchEnabled, setIsFirmSearchEnabled,
         activeConversationId, setActiveConversationId, activeView, setActiveView,
         activeNoteId, setActiveNoteId, quickNoteContent, setQuickNoteContent,
@@ -308,10 +304,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
     const [webResultsCollapsed, setWebResultsCollapsed] = useState(false);
 
     // Refs for callbacks
-    const liveSessionRef = useRef<any>(null);
-    const audioOutputContextRef = useRef<AudioContext | null>(null);
-    const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-    const nextStartTimeRef = useRef<number>(0);
+    // (Live-session refs removed 2026-11-19: the old Gemini Live voice mode
+    // is deleted — ALOA's only voice surface is the Whisper-backed Quick
+    // Capture opened from the header mic / Sidebar / Dashboard card.)
     const isGeneratingRef = useRef<boolean>(false);
     const aiQueueRef = useRef(getGlobalAIQueue());
 
@@ -649,20 +644,6 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
             draftByConversationRef.current[key] = textInput;
         }
     }, [textInput, activeConversationId]);
-
-    const disconnectLiveSession = () => {
-        if (liveSessionRef.current) {
-            try { liveSessionRef.current.close(); } catch (e) { }
-            liveSessionRef.current = null;
-        }
-        sourcesRef.current.forEach(s => s.stop());
-        sourcesRef.current.clear();
-        setAloaState('idle');
-    };
-
-    useEffect(() => {
-        return () => disconnectLiveSession();
-    }, []);
 
     const mapToolToModal = (toolName: string, args: any): { modalType: ModalType, mappedArgs: any } | null => {
         const normalizedName = toolName.toLowerCase();
@@ -1717,94 +1698,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         return { outputs, isTerminal };
     };
 
-
-    const toggleLiveSession = async () => {
-        const isDemo = currentUser?.email === 'demo@practicepro.ng';
-        const userMessagesCount = messages.filter(m => m.role === 'user').length;
-        if (isDemo && userMessagesCount >= 5) {
-            setMessages(prev => [...prev, {
-                id: uuidv4(),
-                role: 'model',
-                content: `**Demo Limit Reached.** Start your account to unlock unlimited ${getAssistantName(isProperty)} voice interactions.`,
-                toolAction: {
-                    type: 'modal',
-                    modalType: 'demoUpsell',
-                    context: { source: 'aloa_voice_limit' },
-                    label: 'Create Your Account'
-                }
-            }]);
-            return;
-        }
-
-        const apiKey = getGeminiApiKey();
-        if (!apiKey) {
-            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "**API Key Required**\n\nTo use AI features, you need a Google Gemini API key. Here's how to get one:\n\n1. **Get your free key** at [Google AI Studio](https://aistudio.google.com/app/apikey)\n2. **Paste it** in **Settings → Agents → API Key Configuration**\n\n> The key syncs to your PracticePro account — it survives app updates and follows you to new devices.", actions: [{ type: 'navigate', target: '/settings?tab=agents', label: 'Go to API Settings' }] }]);
-            return;
-        }
-
-        if (aloaState !== 'idle') {
-            disconnectLiveSession();
-            return;
-        }
-
-        try {
-            setAloaState('connecting');
-            const ai = new GoogleGenAI({ apiKey });
-
-            const sessionPromise = ai.live.connect({
-                model: 'gemini-2.0-flash-live-001',
-                callbacks: {
-                    onopen: () => setAloaState('listening'),
-                    onmessage: async (message: any) => {
-                        const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-                        if (base64Audio) {
-                            setAloaState('speaking');
-                            if (!audioOutputContextRef.current) audioOutputContextRef.current = new AudioContext({ sampleRate: 24000 });
-                            const ctx = audioOutputContextRef.current;
-                            const buffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
-                            const source = ctx.createBufferSource();
-                            source.buffer = buffer;
-                            source.connect(ctx.destination);
-                            source.addEventListener('ended', () => {
-                                sourcesRef.current.delete(source);
-                                if (sourcesRef.current.size === 0) setAloaState('listening');
-                            });
-                            const startTime = Math.max(ctx.currentTime, nextStartTimeRef.current);
-                            source.start(startTime);
-                            nextStartTimeRef.current = startTime + buffer.duration;
-                            sourcesRef.current.add(source);
-                        }
-
-                        if (message.toolCall) {
-                            handleToolExecution(message.toolCall.functionCalls || []);
-                        }
-                    },
-                    onerror: (err) => {
-                        console.error("Live Session Error:", err);
-                        if (aloaState !== 'idle') {
-                            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "Voice connection interrupted. Switching to text mode." }]);
-                            disconnectLiveSession();
-                        }
-                    },
-                    onclose: () => {
-                        if (aloaState !== 'idle') disconnectLiveSession();
-                    }
-                },
-                config: {
-                    responseModalities: ['AUDIO' as any],
-                    speechConfig: {
-                        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } }
-                    },
-                    tools: [{ functionDeclarations: tools }]
-                }
-            });
-            liveSessionRef.current = await sessionPromise;
-        } catch (e) {
-            console.error("Connection Start Error:", e);
-            setAloaState('idle');
-            setMessages(prev => [...prev, { id: uuidv4(), role: 'model', content: "Failed to establish voice connection. Please try typing instead." }]);
-        }
-    };
+    // ─────────────────────────────────────────────────────────────────────
+    // OLD VOICE MODE REMOVED (2026-11-19, owner direction: "get rid of the
+    // old one that did not work in the aloa and replace it with the whispr
+    // one"). The former toggleLiveSession() — a client-side Gemini Live
+    // session (gemini-2.0-flash-live-001, 'Zephyr' voice) that demanded the
+    // user's own API key in the browser and died with "Voice connection
+    // interrupted / Failed to establish voice connection" — is deleted in
+    // full, along with its playback refs and unmount cleanup. It had already
+    // been unwired from the UI (no button called it). ALOA's ONLY voice
+    // surface is now the Whisper-backed Quick Capture (voiceCaptureService →
+    // convex/voiceCapture.ts: Whisper → Gemini provider chain, firm key
+    // first), opened from the Header mic, the Sidebar entry, the Dashboard
+    // card, or the mic inside the ALOA chat header.
+    // ─────────────────────────────────────────────────────────────────────
 
     /** Attempts to parse an LLM response as an INTERACTIVE_FORM JSON block. */
     const tryParseInteractiveForm = (text: string): InteractiveFormSchema | null => {

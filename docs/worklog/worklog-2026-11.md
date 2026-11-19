@@ -904,3 +904,55 @@ Gates: convex tsc 0; root tsc 0; eslint 0 errors; ratchet held 2218; vitest
 2929 (+19: addDaysISO, buildAnalysisPrompt anchors/directory/time-rules,
 backstop merge incl. the Chukwu-ambiguity disambiguation case, action
 sanitisation, prompt tool contract); vite build green. PR #19.
+
+## 2026-11-19 — Landing canned answers root cause (stale frontend) + desktop Quick Capture + old ALOA voice deleted
+
+**Owner reports:** (1) "why am i still getting canned answers on the landing
+page?" (2) "bring the quick capture to the desktop version. get rid of the
+old one that did not work in the aloa and replace it with the whispr one we
+recently created that works."
+
+**Root cause (1) — the live-AI code was merged but NEVER deployed to the
+web.** The landing assistant's real-AI engine (PR #4: public rate-limited
+/ai/landing-chat + catalogue-as-fallback in AloaAssistantFab) has been on
+main since 2026-11-18, and the Convex endpoint answers live today (curl
+probe returns "source":"ai" with real Gemini answers, CORS allow-list OK,
+~4.7s). But https://practice-pro-vega.vercel.app serves build f61c756b
+(Nov 17, v1.0.790) — its LandingPage chunk contains the catalogue only,
+no landing-chat call, no .convex.site URL. So every visitor got the preset
+answers by design-fallback. Why stale: the full "Deploy to Production
+(promote)" pipeline is gated on the never-provisioned staging Convex
+project (every run fails BEFORE deploying), and Vercel's Git auto-deploy
+never caught main up. The Convex backend got a targeted deploy escape
+hatch on 2026-11-18 (iii); the FRONTEND had none — that gap is now closed
+with `vercel-production-deploy.yml` (targeted, workflow_dispatch, same
+quality gate + pinned Vercel CLI 59.16.0 + sha-verify + live landing-AI
+smoke probe). Note: PR #19's backend changes also post-date the last
+Convex targeted deploy — both targeted workflows should be run after this
+push.
+
+**(2) Desktop Quick Capture:** a first-class emerald "Quick Capture"
+button at the top of the desktop Sidebar MAIN MENU (ui/Button 'bare'
+variant, ADR-0004; retracted mode = icon-only; label uses flex-1 +
+text-left because Button BASE's justify-center wins over justify-start in
+compiled-CSS order). Opens the ALOA panel directly in capture mode — the
+same unified Whisper-backed home as the Header mic button, the mobile
+Dashboard card and the ALOA chat header mic. Desktop previously had only
+the compact header mic; the sidebar entry makes the voice surface
+first-class on large screens, matching the mobile experience.
+
+**(2b) Old ALOA voice deleted:** the dead client-side Gemini Live session
+(gemini-2.0-flash-live-001, 'Zephyr' voice, toggleLiveSession +
+disconnectLiveSession + playback refs) is removed from AloaChat in full —
+it demanded the user's own API key in the browser and failed with "Voice
+connection interrupted / Failed to establish voice connection". It had
+already been unwired from the UI (no button called it); now the ~90 LOC
+and their imports (GoogleGenAI, tools, decode/decodeAudioData,
+getGeminiApiKey/AI_CONFIG) are gone too. ALOA's ONLY voice surface is the
+Whisper-backed Quick Capture.
+
+Gates (all run locally on the branch): convex tsc 0; root tsc 0; identity
+audit PASSED; ratchet held 2218; vitest 2929/2929; eslint 0 errors on
+changed files; vite build green with marker verification (landing-chat in
+LandingPage chunk, sidebar Quick Capture in index chunk, gemini-live
+string absent).
