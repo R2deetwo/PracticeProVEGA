@@ -419,4 +419,21 @@ crons.weekly(
   {}
 );
 
+// ─── LEGAL KNOWLEDGE BASE: THE AUTONOMOUS IN-CONVEX WORKER (2026-11-19) ───
+// Every 15 minutes. THE INGESTION ENGINE INSIDE THE APP: the founder
+// toggles it from the Founder APK (legal/engine.ts) and it crawls, parses,
+// chunks and ingests Nigerian legal sources by itself — no laptop, no
+// `python -m legal_ingester worker`. Each tick processes up to
+// maxTasksPerRun queue rows (one per domain — the politeness contract),
+// claims → robots.txt → conditional GET → SHA-256 → dedup → extract →
+// classify → chunk → metadata → ingest → complete/fail. Disabled state =
+// immediate no-op. PDFs are deferred to the Python tool (honest boundary);
+// embeddings stay optional. See convex/legal/worker.ts + LEGAL_KB.md.
+crons.interval(
+  "legalKbIngestionWorker",
+  { minutes: 15 },
+  internal.legal.worker.runIngestionWorker,
+  {}
+);
+
 export default crons;

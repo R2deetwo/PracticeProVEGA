@@ -26,7 +26,7 @@
  *   This is intentional — the founder is the only person using this APK.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useFounderAuth } from './FounderContexts';
@@ -44,6 +44,33 @@ export const AdminLogin: React.FC = () => {
     const [error, setError] = useState('');
     const [notice, setNotice] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // ── Signup visibility (2026-11-19 security review) ──
+    // The server always refused post-bootstrap signups (createFounderAccount
+    // is bootstrap-only), but the tab was still SHOWN on a distributed APK —
+    // inviting confusion and probing. Hidden now once a Founder exists.
+    // DEFENSIVE: useConvex + try/catch (NOT useQuery) — an older backend
+    // without founderSignupOpen must not crash the login screen; on query
+    // failure we keep the legacy visibility (the server gate still holds).
+    const [signupOpen, setSignupOpen] = useState<boolean | null>(null);
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await convex.query(api.founderMetrics.founderSignupOpen, {});
+                if (!cancelled) setSignupOpen(res?.open !== false);
+            } catch {
+                if (!cancelled) setSignupOpen(true); // backend pre-dates the query — keep legacy UX
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [convex]);
+    const signupVisible = signupOpen !== false;
+
+    // If signup closes while the user sits on the signup tab, snap back.
+    React.useEffect(() => {
+        if (!signupVisible && mode === 'signup') setMode('login');
+    }, [signupVisible, mode]);
 
     // ── Recovery state ──
     const [recoverStep, setRecoverStep] = useState<RecoverStep>('email-or-find');
@@ -209,7 +236,7 @@ export const AdminLogin: React.FC = () => {
                     <p className="text-sm text-zinc-500 mt-1">Platform Control Center</p>
                 </div>
 
-                {/* Mode toggle */}
+                {/* Mode toggle — signup tab hidden once a Founder exists */}
                 <div className="flex gap-1 mb-4 bg-zinc-900 rounded-lg p-1">
                     <button
                         onClick={() => { setMode('login'); setError(''); setNotice(''); }}
@@ -219,14 +246,16 @@ export const AdminLogin: React.FC = () => {
                     >
                         Log In
                     </button>
-                    <button
-                        onClick={() => { setMode('signup'); setError(''); setNotice(''); }}
-                        className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${
-                            mode === 'signup' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
-                        }`}
-                    >
-                        Create Account
-                    </button>
+                    {signupVisible && (
+                        <button
+                            onClick={() => { setMode('signup'); setError(''); setNotice(''); }}
+                            className={`flex-1 py-2 rounded-md text-sm font-bold transition-colors ${
+                                mode === 'signup' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+                            }`}
+                        >
+                            Create Account
+                        </button>
+                    )}
                     {mode === 'recover' && (
                         <span className="flex-1 py-2 rounded-md text-sm font-bold bg-zinc-800 text-white">
                             Recover
@@ -478,11 +507,11 @@ export const AdminLogin: React.FC = () => {
                 )}
 
                 <p className="text-center text-2xs text-zinc-600 mt-4">
-                    {mode === 'login' ? (
+                    {signupVisible && mode === 'login' ? (
                         <>Don't have a founder account? <button onClick={() => { setMode('signup'); setError(''); }} className="text-zinc-400 underline hover:text-white">Create one</button></>
-                    ) : (
+                    ) : signupVisible ? (
                         <>Already have an account? <button onClick={() => { setMode('login'); setError(''); }} className="text-zinc-400 underline hover:text-white">Log in</button></>
-                    )}
+                    ) : null}
                 </p>
             </div>
         </div>

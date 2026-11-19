@@ -9,6 +9,18 @@ with strictly-cited legal intelligence.
 Built to the owner spec of 2026-11-16. This file is the OPERATOR MANUAL:
 read it top to bottom once, then keep the commands section open.
 
+**2026-11-19 — THE ENGINE MOVED INTO THE FOUNDER'S APP.** The owner's
+directive ("it's supposed to be in the founder's app and work by itself
+— anytime I open my phone it should be ingesting") is now implemented:
+an IN-CONVEX worker (convex/legal/worker.ts) runs every 15 minutes by
+cron, controlled from the Founder APK's **Ingestion** view (More menu):
+toggle ON/OFF, Run Now, per-source enable/disable, add-a-URL, corpus +
+queue stats, coverage gaps, and the live audit feed. First enable seeds
+the builtin authoritative sources automatically — no laptop, no Python,
+no LEGAL_INGEST_TOKEN setup needed. The Python CLI below remains a
+fully-compatible alternative operator client (and the full-fidelity PDF
+path); PDFs fetched by the in-app engine are deferred to it.
+
 ---
 
 ## 1. Architecture — what exists and where
@@ -69,9 +81,13 @@ read it top to bottom once, then keep the commands section open.
 | Search | `convex/legal/search.ts` | `hybridSearch` action + cache + synthesis cache + operator search |
 | Shared | `convex/legal/shared.ts` | Pure logic: RRF, normalization, TTLs, confidence (unit-tested) |
 | Audit | `convex/legal/audit.ts` | `system_audit_logs` writers + operator `recent` view |
-| Cron | `convex/crons.ts` | `legalKbFreshnessSweep` — Mondays 06:10 UTC |
+| Cron | `convex/crons.ts` | `legalKbFreshnessSweep` — Mondays 06:10 UTC; `legalKbIngestionWorker` — every 15 min (the in-app engine) |
 | Tests | `tests/unit/legalKbShared.test.ts` | 14 vitest cases locking the fusion/cache/confidence core |
+| Tests | `tests/unit/legalIngestionEngine.test.ts` | 57 vitest cases: port parity (robots/extract/classify/chunk/meta) + autonomy/wiring contracts |
 | Ingester | `tools/legal_ingester/legal_ingester/*.py` | Worker, polite fetcher, chunker, extractors, embedder, CLI |
+| **In-app engine** | `convex/legal/worker.ts` | The autonomous in-Convex worker (cron-driven, founder-controlled) |
+| **In-app control** | `convex/legal/engine.ts` + `src/admin/views/IngestionEngine.tsx` | Founder APK control surface: dashboard, toggle, Run Now, seeds |
+| **Shared ports** | `src/legal/ingestionEngine/*.ts` | Pure TS ports of the Python core (robots, extract, classify, chunk, meta, seeds) — zero-dependency, used by Convex AND tests |
 | Selftest | `tools/legal_ingester/legal_ingester/selftest.py` | 22 offline checks (`python -m legal_ingester selftest`) |
 
 ---

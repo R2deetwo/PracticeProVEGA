@@ -10,6 +10,7 @@ import {
   legalQueryCache,
   systemAuditLogs,
   legalSeedSources,
+  legalEngineState,
 } from "./legal/schema";
 
 /**
@@ -3284,6 +3285,7 @@ export default defineSchema({
   legal_query_cache: legalQueryCache,
   system_audit_logs: systemAuditLogs,
   legal_seed_sources: legalSeedSources,
+  legal_engine_state: legalEngineState,
 
   // ─────────────────────────────────────────────────────────────────────────────
   // VOICE CAPTURE ENGINE (owner spec, 2026-11-18) — the dependable 3-step

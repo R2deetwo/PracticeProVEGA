@@ -743,6 +743,31 @@ export const getFounderAlerts = query({
 });
 
 /**
+ * query: founderSignupOpen — a pre-auth BOOLEAN for the login screen.
+ *
+ * WHY THIS EXISTS (2026-11-19, founder security review): the Founder APK
+ * login screen still showed its "Create Account" tab long after bootstrap
+ * closed. The server always refused (createFounderAccount is
+ * bootstrap-only — countFounders gate), but SHOWING a signup tab on a
+ * distributed APK invites confusion and probing. The login screen now
+ * queries this and hides signup entirely once a Founder exists.
+ *
+ * SECURITY: returns exactly one boolean — "is this deployment still
+ * founder-less?" — and grants no privilege (identity-audit allowlisted:
+ * the pre-auth login gateway needs it, same class as checkEmailAvailability).
+ */
+export const founderSignupOpen = query({
+  args: {},
+  handler: async (ctx) => {
+    // Full scan, no index — mirrors countFounders (same bootstrap-era
+    // rarity; not worth a schema index + type regen).
+    const allUsers = await ctx.db.query("users").take(2000);
+    const founders = allUsers.filter((u: any) => u.role === "Founder").length;
+    return { open: founders === 0 };
+  },
+});
+
+/**
  * action: createFounderAccount
  *
  * Creates a new user with role='Founder'. This is the signup flow for

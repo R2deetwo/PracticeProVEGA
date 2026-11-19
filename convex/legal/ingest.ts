@@ -1,20 +1,19 @@
 import { v } from "convex/values";
-import { mutation, query } from "../_generated/server";
+import { mutation, query, internalMutation, internalQuery } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { estimateTokens, urlHash } from "./shared";
 
 /**
  * legal/ingest — document + chunk ingestion (spec §1–§4).
  *
- * The Python worker (tools/legal_ingester) does the CPU-heavy work off-
- * platform: fetch, SHA-256, raw-artifact caching, HTML/PDF parsing,
- * hierarchical chunking and (optional) embeddings. It then pushes the
- * STRUCTURED result here in one call per document:
- *
- *   ingestDocument({
- *     ingestToken, artifact: {sha256, storageBackend, storageKey, …},
- *     judgment? | instrument?,
- *     chunks: [{boundaryPath, heading, text, citations?, embedding?}],
- *   })
+ * TWO CALLERS, ONE CODE PATH:
+ *   1. The external Python ingester (tools/legal_ingester) pushes parsed
+ *      documents through the PUBLIC `ingestDocument` — gated by the
+ *      LEGAL_INGEST_TOKEN shared secret (spec §2).
+ *   2. The IN-CONVEX worker (convex/legal/worker.ts — the autonomous
+ *      engine the Founder APK controls) calls `ingestDocumentInternal`
+ *      directly; internal functions cannot be invoked by outsiders, so
+ *      no token is needed for the platform's own engine.
  *
  * IDEMPOTENCE: chunks are keyed by (documentType, documentKey) — a
  * re-ingest of the same document replaces its chunks wholesale, so the
@@ -39,77 +38,116 @@ function requireToken(presented: string | undefined): void {
   }
 }
 
+/** Shared validators — the public and internal entry points stay in
+ * lock-step by construction (one source of truth for the payload shape). */
+const artifactValidator = v.object({
+  sha256: v.string(),
+  storageBackend: v.string(), // r2 | convex | local
+  storageKey: v.string(),
+  contentType: v.string(),
+  byteSize: v.number(),
+  sourceUrl: v.string(),
+  fetchedAt: v.number(),
+  parserVersion: v.optional(v.string()),
+});
+const judgmentValidator = v.optional(
+  v.object({
+    citation: v.string(),
+    suitNumber: v.string(),
+    court: v.string(),
+    courtLevel: v.optional(v.string()),
+    dateDelivered: v.string(),
+    parties: v.array(v.object({ role: v.string(), name: v.string() })),
+    judges: v.object({
+      lead: v.array(v.string()),
+      concurring: v.array(v.string()),
+      dissenting: v.array(v.string()),
+    }),
+    counsel: v.array(v.object({ party: v.string(), names: v.string() })),
+    ratioDecidendi: v.string(),
+    obiterDicta: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    statutesConsidered: v.array(v.string()),
+    casesCited: v.array(
+      v.object({ case: v.string(), treatment: v.string() }),
+    ),
+  }),
+);
+const instrumentValidator = v.optional(
+  v.object({
+    title: v.string(),
+    key: v.string(),
+    issuingBody: v.string(),
+    instrumentType: v.string(),
+    commencementDate: v.optional(v.string()),
+    year: v.optional(v.number()),
+    status: v.string(),
+    structure: v.array(
+      v.object({ level: v.string(), number: v.string(), heading: v.string() }),
+    ),
+    amendmentTracker: v.object({
+      amended: v.boolean(),
+      amendmentRefs: v.array(v.string()),
+      repealed: v.boolean(),
+      repealRef: v.optional(v.string()),
+    }),
+    summary: v.optional(v.string()),
+  }),
+);
+const chunksValidator = v.array(
+  v.object({
+    boundaryPath: v.array(v.string()),
+    heading: v.string(),
+    text: v.string(),
+    citations: v.optional(v.array(v.string())),
+    warnings: v.optional(v.array(v.string())),
+    embedding: v.optional(v.array(v.number())),
+  }),
+);
+
+/** PUBLIC: token-gated entry for external callers (the Python ingester). */
 export const ingestDocument = mutation({
   args: {
     ingestToken: v.string(),
-    artifact: v.object({
-      sha256: v.string(),
-      storageBackend: v.string(), // r2 | convex | local
-      storageKey: v.string(),
-      contentType: v.string(),
-      byteSize: v.number(),
-      sourceUrl: v.string(),
-      fetchedAt: v.number(),
-      parserVersion: v.optional(v.string()),
-    }),
-    judgment: v.optional(
-      v.object({
-        citation: v.string(),
-        suitNumber: v.string(),
-        court: v.string(),
-        courtLevel: v.optional(v.string()),
-        dateDelivered: v.string(),
-        parties: v.array(v.object({ role: v.string(), name: v.string() })),
-        judges: v.object({
-          lead: v.array(v.string()),
-          concurring: v.array(v.string()),
-          dissenting: v.array(v.string()),
-        }),
-        counsel: v.array(v.object({ party: v.string(), names: v.string() })),
-        ratioDecidendi: v.string(),
-        obiterDicta: v.optional(v.string()),
-        summary: v.optional(v.string()),
-        statutesConsidered: v.array(v.string()),
-        casesCited: v.array(
-          v.object({ case: v.string(), treatment: v.string() }),
-        ),
-      }),
-    ),
-    instrument: v.optional(
-      v.object({
-        title: v.string(),
-        key: v.string(),
-        issuingBody: v.string(),
-        instrumentType: v.string(),
-        commencementDate: v.optional(v.string()),
-        year: v.optional(v.number()),
-        status: v.string(),
-        structure: v.array(
-          v.object({ level: v.string(), number: v.string(), heading: v.string() }),
-        ),
-        amendmentTracker: v.object({
-          amended: v.boolean(),
-          amendmentRefs: v.array(v.string()),
-          repealed: v.boolean(),
-          repealRef: v.optional(v.string()),
-        }),
-        summary: v.optional(v.string()),
-      }),
-    ),
-    chunks: v.array(
-      v.object({
-        boundaryPath: v.array(v.string()),
-        heading: v.string(),
-        text: v.string(),
-        citations: v.optional(v.array(v.string())),
-        warnings: v.optional(v.array(v.string())),
-        embedding: v.optional(v.array(v.number())),
-      }),
-    ),
+    artifact: artifactValidator,
+    judgment: judgmentValidator,
+    instrument: instrumentValidator,
+    chunks: chunksValidator,
+  },
+  handler: async (ctx, args): Promise<{
+    ok: boolean;
+    documentType: string;
+    documentKey: string;
+    chunksIngested: number;
+    chunksEmbedded: number;
+    artifactDeduped: boolean;
+  }> => {
+    requireToken(args.ingestToken);
+    // Explicit return annotation above breaks the ApiFromModules circular
+    // degradation (TS7022) — same lesson as legal/search.ts.
+    return await ctx.runMutation(internal.legal.ingest.ingestDocumentInternal, {
+      artifact: args.artifact,
+      judgment: args.judgment,
+      instrument: args.instrument,
+      chunks: args.chunks,
+      actor: "ingester:py",
+    });
+  },
+});
+
+/** INTERNAL: the core write path — also used by the in-Convex worker
+ * (convex/legal/worker.ts), which passes actor "ingester:engine". */
+export const ingestDocumentInternal = internalMutation({
+  args: {
+    artifact: artifactValidator,
+    judgment: judgmentValidator,
+    instrument: instrumentValidator,
+    chunks: chunksValidator,
+    actor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    requireToken(args.ingestToken);
     const now = Date.now();
+    const actor = args.actor || "ingester:internal";
 
     if (!args.judgment && !args.instrument) {
       throw new Error("ingestDocument requires a judgment or an instrument.");
@@ -224,7 +262,7 @@ export const ingestDocument = mutation({
     // ── 4. Audit ────────────────────────────────────────────────────────
     await ctx.db.insert("system_audit_logs", {
       eventType: "ingest.document",
-      actor: "ingester:py",
+      actor,
       status: "ok",
       payload: {
         documentType,
@@ -271,6 +309,39 @@ export const dedupProbe = query({
       const artifact = await ctx.db
         .query("legal_raw_artifacts")
         .withIndex("by_sha256", (q) => q.eq("sha256", expectedSha))
+        .first();
+      artifactCompleted = artifact?.parseStatus === "completed";
+    }
+    return {
+      known: Boolean(task),
+      etag: task?.etag,
+      lastModified: task?.lastModified,
+      lastCheckedAt: task?.lastCheckedAt,
+      artifactCompleted,
+      canSkipDownload: artifactCompleted,
+    };
+  },
+});
+
+/** INTERNAL dedup probe — same contract, callable by the in-Convex
+ * worker without the external token. internalQuery: unreachable from
+ * outside the deployment. */
+export const dedupProbeInternal = internalQuery({
+  args: {
+    sourceUrl: v.string(),
+    expectedSha256: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const hash = urlHash(args.sourceUrl);
+    const task = await ctx.db
+      .query("legal_scrape_queue")
+      .withIndex("by_urlHash", (q) => q.eq("urlHash", hash))
+      .first();
+    let artifactCompleted = false;
+    if (args.expectedSha256) {
+      const artifact = await ctx.db
+        .query("legal_raw_artifacts")
+        .withIndex("by_sha256", (q) => q.eq("sha256", args.expectedSha256!))
         .first();
       artifactCompleted = artifact?.parseStatus === "completed";
     }

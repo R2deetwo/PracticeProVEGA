@@ -1126,3 +1126,87 @@ payload parsers) — grep now returns 0. Both targeted production workflows
 re-dispatched and GREEN on 5cc91201 (Tests, E2E smoke, Staging, Build APK,
 CodeQL all green on the same sha; runs 44515161157 backend, 44515164564
 frontend). Live: version.json → sha 5cc91201, status healthy.
+
+## 2026-11-19 (d) — The ingestion engine moves INTO the Founder APK + founder signup hardening
+
+**Owner report:** "You have not added the ingestion engine, and that's what
+I came to look at… the idea now was to get that thing working by itself —
+anytime I open my phone it should be ingesting." Plus the security
+question: "anyone can just go in there and change it to founder?" (no
+2FA wanted).
+
+**Why it wasn't there (root cause):** the Legal KB engine (2026-11-16
+spec) shipped as a PYTHON CLI (tools/legal_ingester) + Convex queue — the
+worker only ran when someone typed `python -m legal_ingester worker` on a
+laptop. The queue/cron half lived in Convex; the autonomous worker and
+any founder-facing UI did not exist. Nothing was lost — it was never
+built. Now it is, as a first-class part of the Founder APK:
+
+- **The in-Convex worker (`convex/legal/worker.ts`):** an internalAction
+  (`runIngestionWorker`) registered as the `legalKbIngestionWorker` cron
+  (every 15 minutes). Per tick: read the `legal_engine_state` singleton
+  (disabled → immediate no-op — the founder's phone toggle IS the switch),
+  first-enable auto-seed of the 6 builtin authoritative sources, claim up
+  to maxTasksPerRun queued rows AT MOST ONE PER DOMAIN (per-domain
+  politeness replacing the Python jittered locks), then per task:
+  robots.txt (ported evaluator, cached per domain per run) → conditional
+  GET (If-None-Match / If-Modified-Since; 304 = free terminal outcome) →
+  SHA-256 via crypto.subtle → dedupProbeInternal → HTML extract →
+  classify → legal-boundary chunk → judgment/instrument metadata → raw
+  artifact stored ONCE in Convex file storage (ctx.storage.store,
+  storageBackend "convex") → ingestDocumentInternal → complete/fail
+  (retry ≤3). Index pages harvest ≤25 same-domain child links back into
+  the queue. HONEST BOUNDARIES: PDFs deferred (pdf_deferred outcome —
+  pypdf stays on the Python tool); embeddings not generated (keyword-only
+  corpus; the dense leg joins when embeddings run).
+- **Pure TS ports (`src/legal/ingestionEngine/`):** robots.ts (robots.txt
+  groups, longest-match Allow-vs-Disallow, crawl-delay, $ anchors),
+  extract.ts (regex HTML extractor: title/og:title, script/style/nav
+  stripped, block closings → newlines, absolute defragged links),
+  classify.ts (taxonomy + document type), chunk.ts (Part→Section→
+  Subsection+proviso; Issue→Reasoning→Ratio; sentence-boundary splits),
+  meta.ts (LPELR/suit-no/court/judges/parties/counsel/ratio; instrument
+  slugs + issuing body), seeds.ts (the 6 builtin sources). Zero
+  dependencies — imported by Convex actions AND vitest (the
+  draftUtils.ts convention). Two small improvements over the Python:
+  "(Civil Procedure) Rules" titles now classify (parens normalized) and
+  "15th day of MARCH 2024" dates now parse.
+- **One ingest code path:** `ingestDocumentInternal` extracted in
+  convex/legal/ingest.ts; the public token-gated mutation is now a thin
+  wrapper (Python contract unchanged), the engine calls the internal one.
+  dedupProbeInternal added as internalQuery (never public).
+- **Founder control surface (`convex/legal/engine.ts`):**
+  getIngestionDashboard (state, queue + corpus stats, seeds, recent docs,
+  audit feed, gap events, queued preview), setIngestionEngineState (ON/
+  OFF + tasks-per-run; first enable seeds builtins), runIngestionNow,
+  toggleSeedSource, enqueueUrlForIngestion — every function
+  session-gated via requireFounderCaller. New `legal_engine_state`
+  table (singleton) registered in both schema files.
+- **Founder APK view (`src/admin/views/IngestionEngine.tsx`):** engine
+  card (status dot, ON/PAUSED badge, house div/role="switch" toggle, Run
+  Now, last-run summary chips incl. 304-free + PDFs-deferred), corpus
+  stat tiles, queue stats + next-up preview, seed list with per-source
+  switches, add-a-URL (ui/Input + ui/Button), recent judgments/
+  instruments, coverage gaps, live audit feed, backend-not-deployed
+  hint. Defensive useConvex polling (10s) — never a black screen. Wired:
+  AdminView 'ingestion' + render case + push deep-link map;
+  FounderBottomNav More menu "Ingestion".
+- **Signup hardening (the security ask):** new public
+  `founderMetrics.founderSignupOpen` query (one boolean, no privilege);
+  AdminLogin now HIDES the "Create Account" tab + footer swap once a
+  Founder exists (verified live earlier this round: production bootstrap
+  is closed — "Founder signup is closed"). The server gate
+  (createFounderAccount countFounders bootstrap-only) was already airtight;
+  the tab was pure surface. No 2FA added per the owner's preference;
+  existing protections: PBKDF2-SHA512, 5-attempt lockout (15 min),
+  bearer sessions (R16b), strict identity mode.
+
+Gates: convex tsc 0; root tsc 0; eslint clean on changed files (1
+rounded-xl warning fixed); ui-primitives ratchet HELD (2218 = baseline —
+the view is 100% ui/ primitives); design ratchets held (animate-pulse
+81 ≤ 81 — the engine dot does NOT pulse); identity audit PASSED; vitest
+3188/3188 passing (+57 in tests/unit/legalIngestionEngine.test.ts: port
+parity incl. the proviso/subsection boundary + Nigerian date format, and
+source-scanned autonomy/wiring contracts); vite build + admin build
+green with marker verification ("Legal Ingestion Engine" +
+getIngestionDashboard in dist-admin).

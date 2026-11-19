@@ -261,3 +261,25 @@ export const legalSeedSources = defineTable({
   .index("by_urlHash", ["urlHash"])
   .index("by_enabled", ["enabled"])
   .index("by_category", ["domainCategory"]);
+
+/** Engine singleton state — the Founder APK's control surface for the
+ * IN-CONVEX ingestion engine (2026-11-19: the ingestion engine moved
+ * INTO the founder's app and runs itself; see convex/legal/worker.ts).
+ * One row, created on first toggle. The worker cron is a no-op while
+ * enabled !== true, so the founder pausing the engine from the phone
+ * stops all crawling within one 15-minute cycle. */
+export const legalEngineState = defineTable({
+  enabled: v.boolean(),
+  /** Politeness + action-runtime budget: tasks processed per 15-min
+   * cron tick (clamped 1-8; one task per domain per run). */
+  maxTasksPerRun: v.number(),
+  /** Seed the builtin authoritative sources on first enable. */
+  autoSeedBuiltins: v.boolean(),
+  seededBuiltinsAt: v.optional(v.number()),
+  lastRunAt: v.optional(v.number()),
+  lastRunSummary: v.optional(v.any()),
+  runsCount: v.number(),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+})
+  .index("by_enabled", ["enabled"]);

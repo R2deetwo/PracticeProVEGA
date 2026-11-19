@@ -42,6 +42,9 @@ import FounderNotificationsCenter from './views/FounderNotificationsCenter';
 import AloaUsageCenter from './views/AloaUsageCenter';
 import { FinancialSettings } from './views/FinancialSettings';
 import { SalesPipeline } from './views/SalesPipeline';
+// 2026-11-19: the Legal KB ingestion engine's control room (owner spec —
+// "the ingestion engine is supposed to be in the founder's app").
+import { IngestionEngine } from './views/IngestionEngine';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
 import { Z_CLASS } from '../overlays/constants';
@@ -98,7 +101,7 @@ class ViewErrorBoundary extends React.Component<
     }
 }
 
-export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales' | 'refunds';
+export type AdminView = 'dashboard' | 'signals' | 'organizations' | 'feedback' | 'broadcast' | 'audit' | 'settings' | 'system' | 'export' | 'analytics' | 'subscriptions' | 'security' | 'notifications' | 'aloaUsage' | 'financials' | 'sales' | 'refunds' | 'ingestion';
 
 const FounderApp: React.FC = () => {
     const [activeView, setActiveView] = useState<AdminView>('dashboard');
@@ -157,6 +160,7 @@ const FounderApp: React.FC = () => {
                 signals: 'signals',
                 notifications: 'notifications',
                 dashboard: 'dashboard',
+                ingestion: 'ingestion',
             };
             const target = VIEW_MAP[view];
             if (target) {
@@ -224,6 +228,7 @@ const FounderApp: React.FC = () => {
             case 'aloaUsage': return <ViewErrorBoundary viewName="AI Usage"><AloaUsageCenter /></ViewErrorBoundary>;
             case 'financials': return <ViewErrorBoundary viewName="Financials"><FinancialSettings /></ViewErrorBoundary>;
             case 'sales': return <ViewErrorBoundary viewName="Sales"><SalesPipeline /></ViewErrorBoundary>;
+            case 'ingestion': return <ViewErrorBoundary viewName="Ingestion"><IngestionEngine /></ViewErrorBoundary>;
             default: return null;
         }
     };
