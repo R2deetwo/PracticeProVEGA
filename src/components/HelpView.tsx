@@ -2,6 +2,7 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { SearchIcon, HelpCircleIcon, ZapIcon, UserCircleIcon, OfficeBuildingIcon, SparklesIcon, ShieldCheckIcon } from '../constants';
 import Accordion, { AccordionItem } from './Accordion';
+import { VoiceTipsPanel } from './quickcapture/VoiceTipsPanel';
 import { useAloa } from '../contexts/AloaProvider';
 import { useUI } from '../contexts/UIContext';
 import { useProduct } from '../contexts/ProductContext';
@@ -91,6 +92,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const SECTIONS = useMemo(() => [
         { id: 'getting-started', title: 'Getting Started: The Basics', subtitle: 'Dashboard, modules, and navigation', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics', 'navigation', 'sidebar'] },
         { id: 'aloa-tips', title: `Mastering ${assistantName} (AI Assistant)`, subtitle: 'Voice dictation, drafting, research, and daily briefings', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria'] },
+        { id: 'quick-capture-voice', title: 'Quick Capture & Voice Guide', subtitle: 'Voice notes, new matters, endorsements, snippets, dictionary, whisper mode, edit by voice', keywords: ['quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'whisper', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary'] },
         { id: 'notes-backlinks', title: 'Notes & Bidirectional Backlinks', subtitle: 'Link notes to matters, contacts, properties, and documents', keywords: ['notes', 'backlinks', 'bidirectional', 'link', 'endorsements', 'mention', 'notebook', '[['] },
         { id: 'draftpro-editor', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
         { id: 'messaging', title: 'Messaging & Compose', subtitle: 'Conversations, notices, scheduled messages, bulk compose', keywords: ['messaging', 'messages', 'compose', 'whatsapp', 'email', 'notice', 'scheduled', 'ticket', 'conversation', 'inbox', 'resident', 'client', 'team'] },
@@ -290,6 +292,22 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
 
                 <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-800 p-6 sm:p-8">
                     <Accordion>
+                        <AccordionItem
+                            id="quick-capture-voice"
+                            title="Quick Capture & Voice Guide"
+                            isOpen={isSectionOpen('quick-capture-voice')}
+                            onToggle={() => handleSectionToggle('quick-capture-voice')}
+                        >
+                            <div className="space-y-4">
+                                <p className="text-sm text-slate-600 dark:text-slate-300">
+                                    Quick Capture turns spoken dictation into structured firm
+                                    records — matters, diary entries, endorsements, property
+                                    notes, expenses, drafts and more. Everything below works
+                                    on mobile, desktop and inside the ALOA panel.
+                                </p>
+                                <VoiceTipsPanel bare />
+                            </div>
+                        </AccordionItem>
                         <AccordionItem
                             id="getting-started"
                             title="Getting Started: The Basics"

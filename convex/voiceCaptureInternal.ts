@@ -255,6 +255,129 @@ export const listFirmEventsInternal = internalQuery({
   },
 });
 
+// ─── WORKSPACE DIRECTORIES (owner spec, 2026-11-19: expanded actions) ─────
+// The analysis pass now sees PROPERTIES and OPEN TASKS alongside matters
+// and contacts, so dictated estate/tenant notes and "mark that reminder
+// done" updates match real records instead of being forced into a matter.
+
+/** Properties with their embedded units flattened for prompt rendering:
+ * one row per property with a units directory line per unit. */
+export const listFirmPropertiesInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const rows: any[] = await ctx.db
+      .query("properties")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+    return rows.slice(0, 80).map((p) => {
+      const units: any[] = Array.isArray(p.units) ? p.units : [];
+      return {
+        id: String(p.id ?? p._id),
+        address: p.address,
+        category: p.category,
+        propertyType: p.propertyType,
+        status: p.status,
+        units: units
+          .slice(0, 40)
+          .map((u) => ({
+            id: String(u?.id ?? u?._id ?? ""),
+            label: String(u?.label || u?.name || u?.unitName || ""),
+            tenantName: u?.tenantName ? String(u.tenantName) : undefined,
+          }))
+          .filter((u) => u.label || u.tenantName),
+      };
+    });
+  },
+});
+
+/** OPEN TASKS & REMINDERS — the union of the tasks table (not completed)
+ * and Active calendar events, newest first, capped. Each row carries the
+ * table kind so a status update lands on the right collection. */
+export const listFirmOpenTasksInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    const taskRows: any[] = await ctx.db
+      .query("tasks")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+    const eventRows: any[] = await ctx.db
+      .query("events")
+      .withIndex("by_firm", (q) => q.eq("firmId", args.firmId))
+      .collect();
+    const tasks = taskRows
+      .filter((t) => {
+        const s = String(t.status || "").toLowerCase();
+        return s !== "completed" && s !== "done" && s !== "cancelled";
+      })
+      .slice(0, 60)
+      .map((t) => ({
+        kind: "task" as const,
+        id: String(t.id ?? t._id),
+        title: t.title,
+        status: t.status,
+        dueDate: t.dueDate,
+        matterId: t.matterId,
+        updatedAt: t.updatedAt || t.createdAt || "",
+      }));
+    const today = new Date().toISOString().slice(0, 10);
+    const reminders = eventRows
+      .filter((e) => String(e.status || "Active").toLowerCase() === "active" && String(e.date || "") >= today)
+      .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")))
+      .slice(0, 40)
+      .map((e) => ({
+        kind: "event" as const,
+        id: String(e.id ?? e._id),
+        title: e.title,
+        status: e.status,
+        dueDate: e.date,
+        matterId: e.matterId,
+        matterTitle: e.matterTitle,
+        updatedAt: e.updatedAt || e.createdAt || "",
+      }));
+    return [...tasks, ...reminders].slice(0, 80);
+  },
+});
+
+/** Personal dictionary terms for prompt injection (voiceTools owns the
+ * writes; this read keeps the finalize action off another module's api). */
+export const listFirmUserDictionaryInternal = internalQuery({
+  args: { firmId: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    const rows: any[] = await ctx.db
+      .query("voiceDictionary")
+      .withIndex("by_firm_user", (q) =>
+        q.eq("firmId", args.firmId).eq("userId", args.userId)
+      )
+      .collect();
+    return rows
+      .sort((a, b) => (b.hits || 0) - (a.hits || 0))
+      .slice(0, 60)
+      .map((r) => ({ term: String(r.term || "") }))
+      .filter((r) => r.term);
+  },
+});
+
+/** Active snippets (firm defaults + the user's own) for prompt expansion. */
+export const listFirmUserSnippetsInternal = internalQuery({
+  args: { firmId: v.string(), userId: v.string() },
+  handler: async (ctx, args) => {
+    const read = async (userId: string | null) => {
+      const rows: any[] = await ctx.db
+        .query("voiceSnippets")
+        .withIndex("by_firm_user", (q) =>
+          q.eq("firmId", args.firmId).eq("userId", userId as any)
+        )
+        .collect();
+      return rows;
+    };
+    const [defaults, own] = await Promise.all([read(null), read(args.userId)]);
+    return [...defaults, ...own]
+      .slice(0, 24)
+      .map((r) => ({ trigger: String(r.trigger || ""), content: String(r.content || "") }))
+      .filter((r) => r.trigger && r.content);
+  },
+});
+
 // ─── QUICK ASK ACTIONS (write path, owner spec 2026-11-18 §5) ─────────────
 //
 // Quick Ask is no longer read-only: the LLM may return tool-style actions

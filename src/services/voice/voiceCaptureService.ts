@@ -51,6 +51,10 @@ export interface TriageEventDraft {
   /** True when the time was NOT spoken (LLM defaulted 09:00/14:00/17:00) —
    *  the card flags it as easily editable inline. */
   timeEstimated?: boolean;
+  /** Concise action summary for this diary entry's Notes field (owner spec
+   *  2026-11-19, Wispr-Flow style formatting) — editable inline on the
+   *  triage card before the event is saved. */
+  note?: string;
 }
 
 /** Semantic matter match from the analysis pass (owner spec §2): ranked
@@ -86,8 +90,83 @@ export interface TriageMeta {
   isQuestion?: boolean;
   questionText?: string;
   summary?: string;
+  /** Destination-formatted note body (owner spec 2026-11-19): meta-speech
+   *  stripped, paragraphs vs bullets chosen by content complexity. The
+   *  triage card's draft defaults to it; smartClean/verbatim stay available
+   * via the tier toggle. */
+  caseNoteText?: string;
+  /** Warm plain-English client update drafted by the analysis when the note
+   *  reads like one (register shifting, owner spec Part 2 §2). */
+  clientUpdateText?: string;
+  /** Workspace proposals (owner spec 2026-11-19, Part 1) — validated
+   *  server-side against the firm's real records before display. */
+  proposals?: WorkspaceProposalsView | null;
   matchedMatterIds?: string[];
   matchedContactIds?: string[];
+}
+
+/** Validated workspace proposal payloads (mirrors convex validators). */
+export interface WorkspaceProposalsView {
+  newMatter: {
+    title: string;
+    clientName: string;
+    opposingParty: string;
+    practiceArea: string;
+    summaryNote: string;
+  } | null;
+  contactUpsert: {
+    contactId: string;
+    name: string;
+    phone: string;
+    email: string;
+    company: string;
+    role: string;
+    notes: string;
+  } | null;
+  propertyNote: {
+    propertyId: string;
+    unitId: string;
+    note: string;
+    followUp: string;
+  } | null;
+  draftKickoff: {
+    documentType: string;
+    recipient: string;
+    keyFigures: string;
+    noticePeriod: string;
+    brief: string;
+  } | null;
+  financialEntry: {
+    type: "expense" | "fee";
+    amount: number;
+    currency: string;
+    description: string;
+    matterId: string;
+  } | null;
+  taskUpdates: {
+    kind: "task" | "event";
+    itemId: string;
+    status: string;
+    note: string;
+  }[];
+  clientUpdateText: string;
+}
+
+/** A Personal Dictionary entry (voiceTools). */
+export interface VoiceDictionaryEntry {
+  id: string;
+  term: string;
+  source: "auto" | "manual" | string;
+  hits: number;
+  createdAt?: string | null;
+}
+
+/** A Spoken Snippet (voiceTools). */
+export interface VoiceSnippet {
+  id: string;
+  trigger: string;
+  content: string;
+  isDefault: boolean;
 }
 
 export interface CaptureProjection {
@@ -335,6 +414,83 @@ export async function transcribeBatch(args: {
 }): Promise<{ text: string; provider: string }> {
   return convex.action(api.voiceCapture.transcribeBatch, {
     ...args,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+// ─── EDIT SELECTION BY VOICE (owner spec 2026-11-19, Part 2 §6) ─────────────
+
+/** Rewrite ONLY the highlighted passage per the spoken instruction. */
+export async function editSelection(args: {
+  selectedText: string;
+  instruction: string;
+  surroundingText?: string;
+}): Promise<{ rewritten: string }> {
+  return convex.action(api.voiceCapture.editSelection, {
+    ...args,
+    callerApiKey: getGeminiApiKey() || undefined,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+// ─── PERSONAL DICTIONARY & SPOKEN SNIPPETS (voiceTools) ─────────────────────
+
+export async function listDictionary(): Promise<VoiceDictionaryEntry[]> {
+  return convex.query(api.voiceTools.listDictionary, {
+    sessionToken: readSessionBearer(),
+  });
+}
+
+/** Silent-learning entry point — auto terms from draft edits (no toast
+ *  blocking; the caller shows "Added 'X' to your Voice Dictionary"). */
+export async function addDictionaryTerms(
+  terms: string[],
+  source: "auto" | "manual" = "auto"
+): Promise<{ added: string[]; total: number }> {
+  return convex.mutation(api.voiceTools.addDictionaryTerms, {
+    terms,
+    source,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+export async function removeDictionaryTerm(id: string): Promise<void> {
+  await convex.mutation(api.voiceTools.removeDictionaryTerm, {
+    id,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+export async function listSnippets(): Promise<VoiceSnippet[]> {
+  const rows = await convex.query(api.voiceTools.listSnippets, {
+    sessionToken: readSessionBearer(),
+  });
+  // Seed the firm defaults on first read so they persist as real rows
+  // (the backend also serves the in-code defaults before that).
+  if (rows.length > 0 && rows.every((r: any) => String(r.id).startsWith("default-"))) {
+    try {
+      await convex.mutation(api.voiceTools.seedDefaultSnippets, {
+        sessionToken: readSessionBearer(),
+      });
+    } catch { /* seeding is best-effort */ }
+  }
+  return rows;
+}
+
+export async function saveSnippet(args: {
+  id?: string;
+  trigger: string;
+  content: string;
+}): Promise<{ id: string }> {
+  return convex.mutation(api.voiceTools.saveSnippet, {
+    ...args,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+export async function deleteSnippet(id: string): Promise<void> {
+  await convex.mutation(api.voiceTools.deleteSnippet, {
+    id,
     sessionToken: readSessionBearer(),
   });
 }

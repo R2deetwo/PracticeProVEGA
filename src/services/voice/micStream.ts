@@ -37,6 +37,7 @@
 const IDLE_RELEASE_MS = 15_000;
 
 let shared: MediaStream | null = null;
+let sharedWhisper = false; // constraints mode the shared stream was opened with
 let refCount = 0;
 let inFlight: Promise<MediaStream> | null = null;
 let idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -65,10 +66,24 @@ function cancelIdleRelease(): void {
  * to actually release the native device. Only transient open failures
  * (NotReadableError / AbortError / unknown) are retried — permission and
  * "no device" errors must surface at once.
+ *
+ * WHISPER MODE (owner spec 2026-11-19, Part 2 §5): quiet speech — a
+ * whispered note from a court gallery or shared library — is treated as
+ * noise by the browser's noise suppressor and gets gated. Whisper mode
+ * turns noiseSuppression and echoCancellation OFF and keeps autoGainControl
+ * ON, so faint breathy speech is captured cleanly while steady room hum
+ * still sits under the (normalized) capture floor. The same retry ladder
+ * applies; the plain `audio: true` fallback is whisper-friendly anyway.
  */
-async function openWithRetry(): Promise<MediaStream> {
+function constraintsFor(whisper: boolean): MediaStreamConstraints {
+  return whisper
+    ? { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } }
+    : { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } };
+}
+
+async function openWithRetry(whisper: boolean): Promise<MediaStream> {
   const attempts: MediaStreamConstraints[] = [
-    { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } },
+    constraintsFor(whisper),
     { audio: true },
     { audio: true },
     { audio: true },
@@ -101,16 +116,27 @@ async function openWithRetry(): Promise<MediaStream> {
  * Acquire the shared microphone stream. Safe to call concurrently and
  * repeatedly; the mic is only opened once. Rejects (without side effects
  * on the refcount) if the open ultimately fails.
+ *
+ * `opts.whisper` switches the capture constraints to whisper-friendly
+ * (NS/AEC off, AGC on). When the shared stream was opened in the OTHER
+ * mode it is force-released first so the new mode takes effect.
  */
-export async function acquireMicStream(): Promise<MediaStream> {
+export async function acquireMicStream(opts?: { whisper?: boolean }): Promise<MediaStream> {
+  const whisper = !!opts?.whisper;
   if (shared && isLive(shared)) {
-    refCount++;
-    cancelIdleRelease();
-    return shared;
+    if (sharedWhisper !== whisper) {
+      // Mode switch (Whisper Mode toggled): drop the warm stream so the
+      // next open applies the right constraints.
+      forceRelease();
+    } else {
+      refCount++;
+      cancelIdleRelease();
+      return shared;
+    }
   }
   const pending = (inFlight ??= (async () => {
     try {
-      const stream = await openWithRetry();
+      const stream = await openWithRetry(whisper);
       // The user may have backgrounded the app while the (slow) first
       // open + permission dialog was in flight — don't resurrect a live
       // mic into a backgrounded app.
@@ -122,6 +148,7 @@ export async function acquireMicStream(): Promise<MediaStream> {
         );
       }
       shared = stream;
+      sharedWhisper = whisper;
       return stream;
     } finally {
       inFlight = null;

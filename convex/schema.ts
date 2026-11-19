@@ -3365,6 +3365,40 @@ export default defineSchema({
     .index("by_firm_user", ["firmId", "userId"])
     .index("by_firm_created", ["firmId", "createdAt"]),
 
+  // ─── VOICE INTELLIGENCE (owner spec, 2026-11-19: Wispr-Flow-grade) ──────
+  // voiceDictionary — the per-user Personal Vocabulary silently learned from
+  // Quick Capture draft edits ("Chinedoo" → "Chinedu") plus manual entries.
+  // Terms are injected into transcription/polish/analysis prompts as
+  // SPELLING HINTS so recognized names, firms and terms stabilize.
+  voiceDictionary: defineTable({
+    firmId: nullableString,
+    userId: nullableString,
+    term: v.string(),
+    // "auto" = silently learned from an edit; "manual" = added by the user.
+    source: nullableString,
+    // Denormalised hit counter — bumped when the term is seen in edits.
+    hits: v.optional(v.number()),
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm_user", ["firmId", "userId"])
+    .index("by_firm_term", ["firmId", "userId", "term"]),
+
+  // voiceSnippets — Spoken Snippets: reusable text blocks triggered by short
+  // spoken commands ("insert chambers signature"). Firm-wide defaults are
+  // seeded on first read; user snippets are private to their userId.
+  voiceSnippets: defineTable({
+    firmId: nullableString,
+    // null userId = firm-wide default snippet.
+    userId: nullableString,
+    trigger: v.string(), // spoken trigger, e.g. "insert chambers signature"
+    content: v.string(), // the text block expanded into the note
+    isDefault: v.optional(v.boolean()),
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm_user", ["firmId", "userId"]),
+
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert
 // data that doesn't conform to the strict schema validators (missing

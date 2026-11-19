@@ -42,6 +42,13 @@ import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
 import { QUALITY_MODEL } from "./aiModels";
+// Pure, dependency-free formatting helpers shared with the CLIENT bundle
+// (TriageCard / QuickCaptureView). Safe to import here: draftUtils has zero
+// imports of its own, so the Convex function bundler just inlines the text
+// logic (owner spec 2026-11-19: context- & intent-aware formatting).
+import { stripMetaSpeech } from "../src/services/voice/draftUtils";
+// Firm-wide default spoken snippets (used until the firm seeds its own).
+import { DEFAULT_SNIPPETS } from "./voiceTools";
 
 // ─── Caps & limits ─────────────────────────────────────────────────────────
 
@@ -232,14 +239,15 @@ export const SMART_CLEAN_SYSTEM_PROMPT = `You clean up dictated notes for a Nige
 
 RULES:
 1. Remove filler words (um, uh, like, you know, I mean) and stutters (repeated words like "the the").
-2. RESOLVE MID-SENTENCE SELF-CORRECTIONS: when the speaker corrects themselves — e.g. "Tuesday... actually make that Thursday", or "twenty million — sorry, twenty-five million" — keep ONLY the corrected value (Thursday; twenty-five million). Discard the abandoned version.
+2. RESOLVE MID-SENTENCE SELF-CORRECTIONS AND BACKTRACKING: when the speaker pivots — "actually", "scratch that", "no, wait", "I mean", "make that", "sorry", "rather" — DISCARD the retracted phrase entirely and keep ONLY the final corrected intent. "Tuesday at 2 PM — actually scratch that, make it Wednesday at 4 PM" becomes just the Wednesday 4 PM plan; "bring the original C of O, no, certified copy" becomes "bring the certified copy of the C of O". Never let the abandoned version survive, and never mention the correction itself.
 3. Add punctuation, capitalisation, and paragraph breaks based on natural pauses and topic shifts. Do not add headings the speaker did not say.
 4. Preserve VERBATIM and never change: names, dates, times, amounts (₦ figures), addresses, phone numbers, case citations (e.g. [2023] NWLR (Pt 1291) 1; (2023) LPELR-58880(SC); FGN v. ABC Ltd (2020) LPELR-99999(CA)), statute names (Evidence Act 2011, CFRN 1999), Latin legal phrases (habeas corpus, inter alia, res judicata, ratio decidendi, locus standi), and Nigerian legal terminology (affidavit, tenancy, deed of assignment, governor's consent).
 5. Fix ONLY obvious recognition mis-transcriptions of Nigerian legal/property terms ("affi davit" → "affidavit", "tenency" → "tenancy", "Barister" → "Barrister"). If unsure, leave the word as-is.
 6. Preserve Nigerian English spellings (judgement, colour).
-7. If the speaker uses Nigerian Pidgin, preserve the Pidgin phrasing; do not translate to English.
+7. NIGERIAN CODE-SWITCHING: the speaker may drift between English and Pidgin ("make I follow up with registrar for Ikeja before court sit"). In this CLEANED tier, normalise casual Pidgin phrasing into crisp professional English ("Follow up with the Registrar at Ikeja before court sitting") while keeping every fact identical. The verbatim tier preserves the original phrasing separately — your job here is the professional rendering.
 8. NEVER add, infer, or reorder factual content. When ambiguous, leave as-is.
-9. Return ONLY the cleaned text.`;
+9. If SPELLING HINTS are provided, spell those names/terms exactly as hinted.
+10. Return ONLY the cleaned text.`;
 
 function eventTypesLine(names: string[]): string {
   const safe = (names || []).filter(Boolean).slice(0, 12).join(", ");
@@ -319,12 +327,39 @@ export interface AnalysisMatterRow {
   court?: string | null;
 }
 
-/** The multi-intent analysis prompt (owner spec §1–§4). Exported for tests. */
+/** A properties-directory row as the analysis prompt renders it. */
+export interface AnalysisPropertyRow {
+  id: string;
+  address?: string | null;
+  category?: string | null;
+  propertyType?: string | null;
+  status?: string | null;
+  units: { id: string; label: string; tenantName?: string }[];
+}
+
+/** An open task/reminder row (tasks table ∪ Active events). */
+export interface AnalysisOpenTaskRow {
+  kind: "task" | "event";
+  id: string;
+  title?: string | null;
+  status?: string | null;
+  dueDate?: string | null;
+  matterId?: string | null;
+  matterTitle?: string | null;
+}
+
+/** The multi-intent analysis + formatting prompt (owner spec §1–§4 + the
+ * 2026-11-19 Wispr-Flow upgrade: expanded workspace actions, backtracking,
+ * register shifting, snippets, code-switching). Exported for tests. */
 export function buildAnalysisPrompt(opts: {
   lagos: { dateISO: string; weekday: string; time: string };
   matters: AnalysisMatterRow[];
   contacts: { id: string; name?: string | null }[];
   eventTypeNames: string[];
+  properties?: AnalysisPropertyRow[];
+  openTasks?: AnalysisOpenTaskRow[];
+  snippets?: { trigger: string; content: string }[];
+  dictionaryTerms?: string[];
 }): string {
   const dirLine = (m: AnalysisMatterRow) => {
     const bits: string[] = [m.title || "(untitled)"];
@@ -342,8 +377,30 @@ export function buildAnalysisPrompt(opts: {
     .slice(0, 60)
     .map((c) => `- ${c.name || "(unnamed)"} (id: ${c.id})`)
     .join("\n");
+  const propertyDir = (opts.properties || [])
+    .slice(0, 60)
+    .map((p) => {
+      const units = (p.units || [])
+        .slice(0, 20)
+        .map((u) => `${u.label || "unit"}${u.tenantName ? ` (tenant ${u.tenantName})` : ""} [unitId: ${u.id}]`)
+        .join(", ");
+      return `- ${p.address || "(no address)"}${p.propertyType ? ` (${p.propertyType})` : ""}${units ? ` — units: ${units}` : ""} (propertyId: ${p.id})`;
+    })
+    .join("\n");
+  const taskDir = (opts.openTasks || [])
+    .slice(0, 80)
+    .map(
+      (t) =>
+        `- [${t.kind}] ${t.title || "(untitled)"}${t.dueDate ? ` · due ${String(t.dueDate).slice(0, 10)}` : ""}${t.matterTitle ? ` · ${t.matterTitle}` : ""} (id: ${t.id})`
+    )
+    .join("\n");
+  const snippetLines = (opts.snippets || [])
+    .slice(0, 12)
+    .map((s) => `- "${s.trigger}" → """${s.content.slice(0, 400)}"""`)
+    .join("\n");
+  const dictLine = (opts.dictionaryTerms || []).slice(0, 60).join(", ");
   const types = eventTypesLine(opts.eventTypeNames);
-  return `You analyse a quick voice note dictated by a Nigerian lawyer and extract EVERYTHING actionable from it — one note can be several things at once.
+  return `You analyse a quick voice note dictated by a Nigerian lawyer and extract EVERYTHING actionable from it — one note can be several things at once. You ALSO format the note's text for each destination it may be saved to.
 
 TODAY (Lagos, Nigeria — Africa/Lagos, WAT UTC+01:00): ${opts.lagos.weekday}, ${opts.lagos.dateISO}, ${opts.lagos.time}.
 Resolve every relative date against that TODAY: "tomorrow" = ${addDaysISO(opts.lagos.dateISO, 1)}, "in 3 days" = ${addDaysISO(opts.lagos.dateISO, 3)}, "next week" = ${addDaysISO(opts.lagos.dateISO, 7)}.
@@ -354,22 +411,47 @@ ${matterDir || "(no matters on record)"}
 THE FIRM'S CONTACTS (clients etc.):
 ${contactList || "(none on record)"}
 
+THE FIRM'S PROPERTIES / ESTATES (for property & tenancy notes):
+${propertyDir || "(no properties on record)"}
+
+OPEN TASKS & REMINDERS (the lawyer may report one of these DONE — match, do not duplicate):
+${taskDir || "(no open tasks)"}
+
 THE FIRM'S EVENT TYPES: ${types}
+${dictLine ? `\nSPELLING HINTS — spell these names/terms exactly as written when they appear: ${dictLine}` : ""}${snippetLines ? `\nSPOKEN SNIPPETS — if the speaker says a trigger phrase, replace it with its text in formatted outputs:\n${snippetLines}` : ""}
 
 EXTRACT — all that apply:
 1. "summary": one line (≤15 words) describing the note.
-2. "intent": the PRIMARY purpose — "case_note", "schedule", "question", or "share". A note about a matter that ALSO contains dates is still "case_note" (the events ride along).
-3. "matterMatches": rank the firm's matters this note is about — SEMANTIC fuzzy matching, not exact strings. Match client names, party names, suit numbers, and INFORMAL references ("the Chukwu file" → the matter with party Chukwu; "the Lekki land case" → the land matter in Lekki). Return the top 3 max, each {"matterId": <exact id from the directory>, "confidence": 0.0-1.0, "reason": "<why, ≤12 words>"}. Only include matches with confidence ≥ 0.3. If no matter is being discussed, return [].
+2. "intent": the PRIMARY purpose — "case_note", "schedule", "question", or "share". A note about a matter that ALSO contains dates is still "case_note" (the events ride along). A NEW client instruction with no matching matter is "case_note" with a "newMatter" proposal. A note with NO matter relevance (chambers admin) is "schedule" or "share" with events and NO matter.
+3. "matterMatches": rank the firm's matters this note is about — SEMANTIC fuzzy matching, not exact strings. Match client names, party names, suit numbers, and INFORMAL references ("the Chukwu file" → the matter with party Chukwu; "the Lekki land case" → the land matter in Lekki). Return the top 3 max, each {"matterId": <exact id from the directory>, "confidence": 0.0-1.0, "reason": "<why, ≤12 words>"}. Only include matches with confidence ≥ 0.3. If no existing matter is being discussed, return [].
 4. "matterCandidates": the EXACT word(s) the speaker used to refer to the matter/client (verbatim from the note; may be informal).
-5. "events": EVERY date, deadline, court event, or implied follow-up task — including ones without an explicit date word ("follow up with registry" is a task). Each: {"title": "<short calendar title>", "type": "<one of: ${types}>", "dateISO": "YYYY-MM-DD resolved from TODAY (empty string if truly no date was spoken)", "time": "HH:MM 24h", "timeEstimated": true|false, "location": "<court/place if mentioned, else empty>"}. TIME RULES: if a specific clock time was spoken use it (timeEstimated false); if only a part of day was spoken use 09:00 for morning, 14:00 for afternoon, 17:00 for evening; if NO time was spoken use 09:00 — in all default cases set timeEstimated true.
+5. "events": EVERY date, deadline, court event, or implied follow-up task — including ones without an explicit date word ("follow up with registry" is a task) and STANDALONE chambers/admin tasks with no matter. Each: {"title": "<short calendar title>", "type": "<one of: ${types}>", "dateISO": "YYYY-MM-DD resolved from TODAY (empty string if truly no date was spoken)", "time": "HH:MM 24h", "timeEstimated": true|false, "location": "<court/place if mentioned, else empty>", "note": "<CONCISE ACTION SUMMARY for this diary entry's Notes field — what the lawyer must DO, stripped of meta-speech; 1-2 sentences; if THIS entry involves multiple distinct checks/tasks, format them as '- ' bullet lines>"}. TIME RULES: if a specific clock time was spoken use it (timeEstimated false); if only a part of day was spoken use 09:00 for morning, 14:00 for afternoon, 17:00 for evening; if NO time was spoken use 09:00 — in all default cases set timeEstimated true.
 6. "isDiaryTask": true if the note contains any task, follow-up, check, or deadline the lawyer must act on (with or without a date).
 7. "endorsement": if courtroom proceedings were dictated (court session, orders, adjournment), extract {"court": "", "suitNumber": "", "parties": "", "judge": "", "orders": ["<each order/holding, one line>"], "nextAdjournedDate": "YYYY-MM-DD or empty", "nextAdjournedTime": "HH:MM or empty"}; otherwise null.
 8. "isQuestion": true only if the lawyer is ASKING for information; "questionText": the question in their words.
+9. "caseNoteText": the note body formatted for saving as a CASE NOTE (see FORMATTING RULES below).
+10. "clientUpdateText": if the note is clearly meant to be communicated to a client ("tell the client…", "update Mrs Tunde that…") OR reads like a client update, draft a warm, clear, plain-English message a lawyer could send as-is (no legalese clutter, no meta-speech); otherwise empty string.
+11. "newMatter": propose a NEW matter ONLY when the note is a genuinely NEW instruction/client that matches NO existing matter with confidence ≥ 0.5: {"title": "<Formal matter title, e.g. 'Mrs. Tunde Adeyemi — Lekki Phase 1 Commercial Lease Renewal'>", "clientName": "", "opposingParty": "", "practiceArea": "<e.g. Commercial Lease, Debt Recovery, Land Dispute>", "summaryNote": "<clean intake bullets: parties, property/subject, key figures, instructions>"}. When an existing matter clearly matches, return null.
+12. "contactUpsert": when the note introduces or updates a CONTACT: {"contactId": "<exact id from the contacts directory when this is an UPDATE, else empty>", "name": "", "phone": "", "email": "", "company": "", "role": "", "notes": "<what they want / context>"}; otherwise null.
+13. "propertyNote": when the note is about a PROPERTY/UNIT in the directory (estate, block, flat, tenant issue) rather than a litigation matter: {"propertyId": "<exact id>", "unitId": "<exact unitId if a specific flat/block was named, else empty>", "note": "<clean formatted note for the property/unit record>", "followUp": "<optional follow-up summary, else empty>"}; otherwise null.
+14. "draftKickoff": when the lawyer asks to DRAFT/prePARE a document: {"documentType": "<e.g. Demand Letter, Client Update, Tenancy Agreement>", "recipient": "", "keyFigures": "<amounts/deadlines mentioned>", "noticePeriod": "", "brief": "<a pre-populated starter draft in clean professional legal English, structured with headings and placeholders like [Date] where facts are missing>"}; otherwise null.
+15. "financialEntry": when the note logs money spent or earned: {"type": "expense"|"fee", "amount": <plain number in NAIRA, e.g. "4.5 million naira" → 4500000, "14,500" → 14500>, "currency": "NGN", "description": "<clean description>", "matterId": "<exact id when a matter was named>"}; otherwise null.
+16. "taskUpdates": when the lawyer reports an OPEN TASK/REMINDER as done or changed: [{"kind": "task"|"event", "itemId": "<exact id from OPEN TASKS & REMINDERS>", "status": "Completed"|"In Progress"|"Blocked", "note": "<clean one-line outcome>"}]; otherwise [].
 
-RULES: never invent matters, dates, or details absent from the note; matterId must be copied EXACTLY from the directory; never split one continuous note into more events than were actually dictated.
+FORMATTING RULES — strip meta-speech and adapt the format to the destination (the raw transcript is kept separately; your output is the CLEAN saved text):
+- STRIP all conversational scaffolding and meta-instructions: "From voice note…", "I want to capture a quick note…", "I'm trying to set a reminder for…", "Note to self…", hesitations, stumbles. The saved text must read as clean, direct, professional dictation — as if the lawyer had written it themselves.
+- BACKTRACKING: when the speaker pivots ("actually", "scratch that", "no, wait", "I mean", "make that"), discard the retracted phrase COMPLETELY — keep only the final corrected intent. "Tuesday at 2 PM — actually scratch that, Wednesday at 4 PM, and tell them to bring the original C of O, no, certified copy" → event on Wednesday at 16:00 + note "Client to bring certified copy of the Certificate of Occupancy." Never surface the abandoned version.
+- CODE-SWITCHING: normalise casual Nigerian Pidgin phrasing into crisp professional English in formatted outputs ("make I follow up with registrar for Ikeja before court sit" → "Follow up with the Registrar at Ikeja High Court before court sitting") while keeping every fact identical. Names of people, places and courts must be spelled correctly (Ikeja High Court, not "Ikeja High Cot").
+- REGISTER SHIFTING by destination: COURT ENDORSEMENTS strict formal Nigerian legal register (the structured fields); CLIENT UPDATES warm, clear, plain English without legalese clutter; DIARY/CALENDAR entries ultra-concise actionable summaries (1 line or tight bullets) with zero conversational filler; CASE/ATTENDANCE NOTES clean paragraphs for narrative, switching to '- ' bullets when the dictation contains 3+ distinct action items, findings, documents or multi-part steps.
+- DIARY EVENT NOTE (each event's "note"): a CONCISE ACTION SUMMARY, never the whole transcript — e.g. "Visit the court registry to confirm the next adjourned date on the Sino Truck file." Bullets only when that one entry carries several distinct checks.
+- ENDORSEMENT: when courtroom proceedings were dictated, fill the structured "endorsement" fields faithfully (Matter/Suit No, Coram, Parties, Proceedings/Orders, Next Adjourned Date) — the app renders the formal block itself.
+- SNIPPETS: expand any spoken snippet trigger into its full text inside caseNoteText/draft briefs (never inside verbatim-style fields).
+- FINANCIAL AMOUNTS: parse spoken amounts into plain naira numbers ("18 million naira" → 18000000; "₦4.5 million" → 4500000; "14,500 naira" → 14500).
+
+RULES: never invent matters, dates, or details absent from the note; every id must be copied EXACTLY from its directory; never split one continuous note into more events than were actually dictated; newMatter and a high-confidence matterMatches must not both be returned.
 
 Respond with STRICT JSON only — no prose, no markdown fences:
-{"summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":""}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":""}`;
+{"summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":"","note":"..."}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":"","caseNoteText":"...","clientUpdateText":"","newMatter":null,"contactUpsert":null,"propertyNote":null,"draftKickoff":null,"financialEntry":null,"taskUpdates":[]}`;
 }
 
 /** Date arithmetic on YYYY-MM-DD strings (UTC-safe, exported for tests). */
@@ -437,6 +519,9 @@ export interface QuickAskAction {
   time?: string; // HH:MM
   matterId?: string;
   location?: string;
+  /** Concise action summary for the diary entry's Notes field (owner spec
+   *  2026-11-19 — never the raw instruction/meta-speech). */
+  note?: string;
 }
 
 /**
@@ -478,15 +563,229 @@ export function validateQuickAskActions(
         time,
         matterId,
         location: String(raw.location || "").trim() || undefined,
+        // Concise action summary (sanitised) for the Notes field.
+        note: String(raw.note || "").trim().slice(0, 600) || undefined,
       });
     } else {
-      const content = String(raw.content || "").trim();
+      const content = String(raw.content || "").trim().slice(0, 20_000);
       if (!content) continue;
       out.push({ type, title, content, matterId });
     }
     if (out.length >= maxActions) break;
   }
   return out;
+}
+
+/** A validated New-Matter proposal. */
+export interface NewMatterProposal {
+  title: string;
+  clientName: string;
+  opposingParty: string;
+  practiceArea: string;
+  summaryNote: string;
+}
+
+/** A validated contact create/update proposal. */
+export interface ContactUpsertProposal {
+  contactId: string; // "" → create new
+  name: string;
+  phone: string;
+  email: string;
+  company: string;
+  role: string;
+  notes: string;
+}
+
+/** A validated property/unit note proposal. */
+export interface PropertyNoteProposal {
+  propertyId: string;
+  unitId: string;
+  note: string;
+  followUp: string;
+}
+
+/** A validated document/draft kickoff proposal. */
+export interface DraftKickoffProposal {
+  documentType: string;
+  recipient: string;
+  keyFigures: string;
+  noticePeriod: string;
+  brief: string;
+}
+
+/** A validated expense/fee log proposal. */
+export interface FinancialEntryProposal {
+  type: "expense" | "fee";
+  amount: number;
+  currency: string;
+  description: string;
+  matterId: string; // "" → unlinked
+}
+
+/** A validated status update on an open task/reminder. */
+export interface TaskUpdateProposal {
+  kind: "task" | "event";
+  itemId: string;
+  status: string;
+  note: string;
+}
+
+export interface WorkspaceProposals {
+  newMatter: NewMatterProposal | null;
+  contactUpsert: ContactUpsertProposal | null;
+  propertyNote: PropertyNoteProposal | null;
+  draftKickoff: DraftKickoffProposal | null;
+  financialEntry: FinancialEntryProposal | null;
+  taskUpdates: TaskUpdateProposal[];
+  clientUpdateText: string;
+}
+
+/**
+ * validateWorkspaceProposals — sanitise the LLM's workspace proposals
+ * against the firm's real records before anything reaches the triage card
+ * (owner spec 2026-11-19, Part 1). Deterministic guards:
+ *   - newMatter is dropped when an existing matter already matched with
+ *     high confidence (≥ 0.75) — never propose a duplicate file;
+ *   - contactId / propertyId / task itemId must exist in their directory
+ *     (the model must never conjure ids);
+ *   - financial amounts must be finite, positive and sane (≤ ₦1 trillion);
+ *   - everything string-shaped is trimmed and capped;
+ *   - taskUpdates statuses are normalised to the app's vocabulary.
+ * Exported pure for tests.
+ */
+export function validateWorkspaceProposals(
+  parsed: any,
+  ctx: {
+    matters: AnalysisMatterRow[];
+    contacts: { id: string; name?: string | null }[];
+    properties: AnalysisPropertyRow[];
+    openTasks: AnalysisOpenTaskRow[];
+    bestMatterConfidence: number;
+  }
+): WorkspaceProposals {
+  const s = (x: any, cap = 400): string =>
+    String(x ?? "").trim().slice(0, cap);
+
+  // ── New matter ──────────────────────────────────────────────────────────
+  let newMatter: NewMatterProposal | null = null;
+  const rawMatter = parsed?.newMatter;
+  if (rawMatter && typeof rawMatter === "object") {
+    const title = s(rawMatter.title, 200);
+    if (title && ctx.bestMatterConfidence < 0.75) {
+      newMatter = {
+        title,
+        clientName: s(rawMatter.clientName, 160),
+        opposingParty: s(rawMatter.opposingParty, 160),
+        practiceArea: s(rawMatter.practiceArea, 120),
+        summaryNote: s(rawMatter.summaryNote, 4000),
+      };
+    }
+  }
+
+  // ── Contact upsert ──────────────────────────────────────────────────────
+  let contactUpsert: ContactUpsertProposal | null = null;
+  const rawContact = parsed?.contactUpsert;
+  if (rawContact && typeof rawContact === "object") {
+    const name = s(rawContact.name, 160);
+    const contactId = s(rawContact.contactId, 64);
+    const validContact =
+      !contactId || ctx.contacts.some((c) => c.id === contactId);
+    if (name && validContact && (contactId || s(rawContact.phone) || s(rawContact.email) || s(rawContact.company) || s(rawContact.notes))) {
+      contactUpsert = {
+        contactId,
+        name,
+        phone: s(rawContact.phone, 60),
+        email: s(rawContact.email, 160),
+        company: s(rawContact.company, 160),
+        role: s(rawContact.role, 120),
+        notes: s(rawContact.notes, 2000),
+      };
+    }
+  }
+
+  // ── Property / unit note ────────────────────────────────────────────────
+  let propertyNote: PropertyNoteProposal | null = null;
+  const rawProperty = parsed?.propertyNote;
+  if (rawProperty && typeof rawProperty === "object") {
+    const propertyId = s(rawProperty.propertyId, 64);
+    const prop = ctx.properties.find((p) => p.id === propertyId);
+    const note = s(rawProperty.note, 4000);
+    if (prop && note) {
+      const unitId = s(rawProperty.unitId, 64);
+      propertyNote = {
+        propertyId,
+        unitId:
+          unitId && (prop.units || []).some((u) => u.id === unitId) ? unitId : "",
+        note,
+        followUp: s(rawProperty.followUp, 600),
+      };
+    }
+  }
+
+  // ── Draft kickoff ───────────────────────────────────────────────────────
+  let draftKickoff: DraftKickoffProposal | null = null;
+  const rawDraft = parsed?.draftKickoff;
+  if (rawDraft && typeof rawDraft === "object") {
+    const brief = s(rawDraft.brief, 12000);
+    const documentType = s(rawDraft.documentType, 120);
+    if (brief && documentType) {
+      draftKickoff = {
+        documentType,
+        recipient: s(rawDraft.recipient, 160),
+        keyFigures: s(rawDraft.keyFigures, 400),
+        noticePeriod: s(rawDraft.noticePeriod, 80),
+        brief,
+      };
+    }
+  }
+
+  // ── Financial entry ─────────────────────────────────────────────────────
+  let financialEntry: FinancialEntryProposal | null = null;
+  const rawFin = parsed?.financialEntry;
+  if (rawFin && typeof rawFin === "object") {
+    const amount = Number(rawFin.amount);
+    if (isFinite(amount) && amount > 0 && amount <= 1e12) {
+      const matterId = s(rawFin.matterId, 64);
+      financialEntry = {
+        type: String(rawFin.type).toLowerCase() === "fee" ? "fee" : "expense",
+        amount: Math.round(amount),
+        currency: (s(rawFin.currency, 8) || "NGN").toUpperCase(),
+        description: s(rawFin.description, 1000) || "Voice-logged entry",
+        matterId:
+          matterId && ctx.matters.some((m) => m.id === matterId) ? matterId : "",
+      };
+    }
+  }
+
+  // ── Task / reminder status updates ──────────────────────────────────────
+  const taskUpdates: TaskUpdateProposal[] = [];
+  for (const raw of Array.isArray(parsed?.taskUpdates) ? parsed.taskUpdates : []) {
+    const kind = String(raw?.kind || "") === "event" ? "event" : "task";
+    const itemId = s(raw?.itemId, 64);
+    const exists = ctx.openTasks.some((t) => t.kind === kind && t.id === itemId);
+    if (!exists) continue;
+    const requested = String(raw?.status || "").toLowerCase();
+    const status =
+      ["completed", "done", "finished"].includes(requested)
+        ? "Completed"
+        : requested.includes("progress")
+          ? "In Progress"
+          : requested.includes("block")
+            ? "Blocked"
+            : "Completed";
+    taskUpdates.push({ kind, itemId, status, note: s(raw?.note, 600) });
+    if (taskUpdates.length >= 5) break;
+  }
+
+  return {
+    newMatter,
+    contactUpsert,
+    propertyNote,
+    draftKickoff,
+    financialEntry,
+    taskUpdates,
+    clientUpdateText: s(parsed?.clientUpdateText, 4000),
+  };
 }
 
 export function buildMergePrompt(): string {
@@ -942,13 +1241,26 @@ export const finalizeCapture = action({
 
     // ── Smart Clean (quick captures only — the legal pad's polish tier is
     //    the merged summary, and its transcript tier stays verbatim).
+    //    SPELLING HINTS (Personal Dictionary, owner spec 2026-11-19 §3) ride
+    //    along as a user message suffix.
+    let dictionaryTerms: string[] = [];
+    try {
+      const dictRows: { term: string }[] = await ctx.runQuery(
+        internal.voiceCaptureInternal.listFirmUserDictionaryInternal,
+        { firmId: auth.firmId, userId: String(auth.user._id) }
+      );
+      dictionaryTerms = (dictRows || []).map((d) => d.term).filter(Boolean);
+    } catch { /* dictionary is optional polish context */ }
+    const hintsSuffix = dictionaryTerms.length
+      ? `\n\nSPELLING HINTS (spell these exactly when they appear): ${dictionaryTerms.join(", ")}`
+      : "";
     if (row.kind === "quick" && row.outputMode === "smart-clean") {
       if (gemini) {
         try {
           const cleaned = await geminiText({
             apiKey: gemini.key,
             system: SMART_CLEAN_SYSTEM_PROMPT,
-            user: `Clean this transcript:\n\n${verbatim.slice(0, MAX_TRANSCRIPT_CHARS)}`,
+            user: `Clean this transcript:\n\n${verbatim.slice(0, MAX_TRANSCRIPT_CHARS)}${hintsSuffix}`,
           });
           patch.smartCleanText = cleaned;
           patch.polishedAt = Date.now();
@@ -980,6 +1292,32 @@ export const finalizeCapture = action({
           internal.voiceCaptureInternal.listFirmContactsInternal,
           { firmId: auth.firmId }
         );
+        // WORKSPACE DIRECTORIES (owner spec 2026-11-19, Part 1): properties
+        // and open tasks/ reminders join matters + contacts so estate notes
+        // and "mark that reminder done" updates match real records. Snippets
+        // + dictionary come along for expansion and spelling hints.
+        let properties: any[] = [];
+        let openTasks: any[] = [];
+        let snippets: { trigger: string; content: string }[] = [];
+        try {
+          properties = await ctx.runQuery(
+            internal.voiceCaptureInternal.listFirmPropertiesInternal,
+            { firmId: auth.firmId }
+          );
+          openTasks = await ctx.runQuery(
+            internal.voiceCaptureInternal.listFirmOpenTasksInternal,
+            { firmId: auth.firmId }
+          );
+          snippets = await ctx.runQuery(
+            internal.voiceCaptureInternal.listFirmUserSnippetsInternal,
+            { firmId: auth.firmId, userId: String(auth.user._id) }
+          );
+        } catch { /* directories are additive context — never fatal */ }
+        if (!snippets || snippets.length === 0) {
+          // First-ever use: the firm defaults from voiceTools apply before
+          // any seeding happens, so spoken snippets work out of the box.
+          snippets = DEFAULT_SNIPPETS;
+        }
 
         const analysisRaw = await geminiText({
           apiKey: gemini.key,
@@ -991,8 +1329,14 @@ export const finalizeCapture = action({
               matters,
               contacts,
               eventTypeNames: args.eventTypeNames || [],
+              properties,
+              openTasks,
+              snippets,
+              dictionaryTerms,
             }) + `\n\nTHE VOICE NOTE TRANSCRIPT:\n"""${verbatim.slice(0, MAX_TRANSCRIPT_CHARS)}"""`,
-          maxTokens: 2048,
+          // Bumped again for the Wispr-Flow upgrade (2026-11-19): the
+          // envelope now also carries workspace proposals + a draft brief.
+          maxTokens: 4096,
         });
         const parsed = parseModelJson<any>(analysisRaw);
         if (parsed) {
@@ -1020,6 +1364,10 @@ export const finalizeCapture = action({
               time: /^\d{2}:\d{2}$/.test(String(e?.time || "")) ? String(e.time) : "09:00",
               timeEstimated: e?.timeEstimated !== false,
               location: String(e?.location || "").slice(0, 160),
+              // Wispr-Flow style: the diary Notes field gets the LLM's concise
+              // action summary for THIS entry, never the raw transcript. The
+              // client falls back to stripMetaSpeech() when it is empty.
+              note: String(e?.note || "").slice(0, 600),
             }))
             .filter((e: any) => e.title);
           const endorsement =
@@ -1054,6 +1402,22 @@ export const finalizeCapture = action({
             events,
             isDiaryTask: parsed.isDiaryTask === true || events.length > 0,
             endorsement,
+            // Destination-formatted note body (paragraphs vs bullets, meta-
+            // speech stripped — owner spec 2026-11-19). Empty string when the
+            // model omitted it; the client falls back to smartClean/verbatim.
+            caseNoteText: String(parsed.caseNoteText || "")
+              .trim()
+              .slice(0, MAX_TRANSCRIPT_CHARS),
+            // WORKSPACE PROPOSALS (owner spec 2026-11-19, Part 1): validated
+            // new-matter / contact / property / draft / financial / task-done
+            // proposals the triage card renders as 1-tap action cards.
+            proposals: validateWorkspaceProposals(parsed, {
+              matters,
+              contacts,
+              properties: properties || [],
+              openTasks: openTasks || [],
+              bestMatterConfidence: matterMatches[0]?.confidence || 0,
+            }),
             // Legacy fields kept for older clients / recent-notes strip.
             matchedMatterIds: matterMatches.map((m) => m.matterId),
             matchedContactIds: deterministic.matchedContactIds,
@@ -1284,10 +1648,20 @@ export const repolish = action({
     if (!row.verbatimText) throw new Error("Nothing to polish yet.");
     const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     if (!gemini) throw new Error("No AI key available for Smart Clean.");
+    let repolishHints = "";
+    try {
+      const dict: { term: string }[] = await ctx.runQuery(
+        internal.voiceCaptureInternal.listFirmUserDictionaryInternal,
+        { firmId: auth.firmId, userId: String(auth.user._id) }
+      );
+      if (dict.length) {
+        repolishHints = `\n\nSPELLING HINTS (spell these exactly when they appear): ${dict.map((d) => d.term).join(", ")}`;
+      }
+    } catch { /* optional context */ }
     const cleaned = await geminiText({
       apiKey: gemini.key,
       system: SMART_CLEAN_SYSTEM_PROMPT,
-      user: `Clean this transcript:\n\n${row.verbatimText.slice(0, MAX_TRANSCRIPT_CHARS)}`,
+      user: `Clean this transcript:\n\n${row.verbatimText.slice(0, MAX_TRANSCRIPT_CHARS)}${repolishHints}`,
     });
     await ctx.runMutation(internal.voiceCaptureInternal.patchCaptureInternal, {
       clientLocalId: args.clientLocalId,
@@ -1352,7 +1726,7 @@ export const transcribeBatch = action({
  * report 2026-11-18: "how many matters do I have?" → "you have no matters").
  */
 export const QUICK_ASK_SYSTEM_PROMPT =
-  "You answer a Nigerian lawyer's questions and carry out their instructions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.\n\nACTION TOOLS — the lawyer may ask you to DO something, not just answer:\n- create_event: create a Court Diary / calendar entry (e.g. 'add a check on the Chukwu matter for tomorrow at 10 AM', 'remind me to file the brief on Friday'). Resolve relative dates ('tomorrow', 'next week', 'in 3 days') using TODAY; if no clock time is given use 09:00. matterId must be copied EXACTLY from the data when a matter is named; omit it when no matter is named.\n- save_note: save a case note to a matter (e.g. 'note that the client confirmed the settlement terms on the Chukwu matter'). Use the lawyer's own words as the content; matterId as above.\n\nAction rules: only act on a CLEAR instruction to create or save; if the request is ambiguous or merely asks a question, return actions: []. At most 3 actions. Prefer event types 'Deadline', 'Meeting', 'Hearing', 'Mention' or 'Task' when unsure.\n\nRespond with STRICT JSON only — no prose, no markdown fences:\n{\"answer\":\"<your answer, ≤120 words>\",\"actions\":[{\"type\":\"create_event\",\"title\":\"...\",\"eventType\":\"Deadline\",\"dateISO\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"matterId\":\"...\",\"location\":\"\"},{\"type\":\"save_note\",\"title\":\"...\",\"content\":\"...\",\"matterId\":\"...\"}]}";
+  "You answer a Nigerian lawyer's questions and carry out their instructions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.\n\nACTION TOOLS — the lawyer may ask you to DO something, not just answer:\n- create_event: create a Court Diary / calendar entry (e.g. 'add a check on the Chukwu matter for tomorrow at 10 AM', 'remind me to file the brief on Friday'). Resolve relative dates ('tomorrow', 'next week', 'in 3 days') using TODAY; if no clock time is given use 09:00. matterId must be copied EXACTLY from the data when a matter is named; omit it when no matter is named. Each create_event action carries a 'note' field — a CONCISE ACTION SUMMARY for the entry's Notes field (what the lawyer must DO, 1-2 sentences, or '- ' bullet lines if the entry involves multiple distinct checks). NEVER copy the lawyer's meta-speech ('I'm trying to set a reminder…', 'can you please…') into the note; strip it and state the task directly.\n- save_note: save a case note to a matter (e.g. 'note that the client confirmed the settlement terms on the Chukwu matter'). The 'content' is CLEAN, PROFESSIONAL TEXT, not the raw instruction: strip the lawyer's meta-speech and filler, use a concise paragraph for a continuous narrative, and switch to '- ' bullets when the instruction lists 3+ distinct items or steps. Never invent facts the lawyer did not state; preserve names, dates, amounts and citations EXACTLY. matterId as above.\n\nAction rules: only act on a CLEAR instruction to create or save; if the request is ambiguous or merely asks a question, return actions: []. At most 3 actions. Prefer event types 'Deadline', 'Meeting', 'Hearing', 'Mention' or 'Task' when unsure.\n\nRespond with STRICT JSON only — no prose, no markdown fences:\n{\"answer\":\"<your answer, ≤120 words>\",\"actions\":[{\"type\":\"create_event\",\"title\":\"...\",\"eventType\":\"Deadline\",\"dateISO\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"matterId\":\"...\",\"location\":\"\",\"note\":\"<concise action summary>\"},{\"type\":\"save_note\",\"title\":\"...\",\"content\":\"<clean formatted note text>\",\"matterId\":\"...\"}]}";
 
 /** A slim matter row as buildQuickAskContext consumes. */
 export interface QuickAskMatterRow {
@@ -1549,13 +1923,18 @@ export const quickAsk = action({
           const startISO = new Date(
             `${act.dateISO}T${act.time || "09:00"}:00+01:00`
           ).toISOString();
+          // Wispr-Flow style Notes field (owner spec 2026-11-19): the LLM's
+          // concise action summary for THIS entry; when the model omitted it,
+          // the deterministic stripMetaSpeech fallback still guarantees the
+          // raw conversational instruction never lands in the diary verbatim.
+          const eventNote = act.note || stripMetaSpeech(q).slice(0, 400);
           const created: any = await ctx.runMutation(
             internal.voiceCaptureInternal.createDiaryEventInternal,
             {
               firmId: auth.firmId,
               userId: String(auth.user._id),
               title: act.title,
-              description: `Added by Quick Ask: "${q.slice(0, 200)}"`,
+              description: eventNote,
               type: act.type2,
               dateISO: startISO,
               matterId: act.matterId,
@@ -1605,6 +1984,64 @@ export const quickAsk = action({
       sources: { matters: matchedMatters, notes: matchedNotes, events: upcoming },
       actions: executed,
     };
+  },
+});
+
+// ─── EDIT SELECTION BY VOICE (owner spec 2026-11-19, Part 2 §6) ────────────
+
+export const EDIT_SELECTION_SYSTEM_PROMPT = `You rewrite ONLY a selected passage of a Nigerian lawyer's note according to a short spoken instruction (e.g. "make this sound firmer and turn the demands into three numbered points").
+
+RULES:
+1. Return ONLY the rewritten passage — never the surrounding text, never explanations, never quotes around it.
+2. Rewrite ONLY what the instruction asks (tone, structure, brevity, bullets/numbering, clarity). Do not add new facts, dates, names, amounts or legal conclusions that are not already in the passage.
+3. Preserve every fact exactly: names, dates, amounts (₦), case citations, statute names, Latin maxims, Nigerian legal terminology.
+4. Keep the same professional register unless the instruction says otherwise; Nigerian English spellings (judgement, colour) are correct.
+5. If the instruction is not applicable or unintelligible, return the passage unchanged.
+6. Expand "- " bullet lists or numbered points when asked; collapse to a paragraph when asked.`;
+
+/**
+ * editSelection — the engine behind "Edit Selection by Voice": the user
+ * highlights a passage in the Quick Capture staging box (or an editor),
+ * speaks an instruction, and ONLY that passage is rewritten in place.
+ * The surrounding text is passed for context but is never returned.
+ */
+export const editSelection = action({
+  args: {
+    selectedText: v.string(),
+    instruction: v.string(),
+    /** Optional surrounding passage for context (never rewritten). */
+    surroundingText: v.optional(v.string()),
+    callerApiKey: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ rewritten: string }> => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const allowed = await ctx.runMutation(
+      internal.securityHelpers.consumeRateLimit,
+      { key: `voice_editselection:${auth.userId}`, maxRequests: 20 }
+    );
+    if (!allowed) throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    const selected = (args.selectedText || "").trim().slice(0, 20_000);
+    const instruction = (args.instruction || "").trim().slice(0, 2000);
+    if (!selected) throw new Error("Select the text you want to edit first.");
+    if (!instruction) throw new Error("Say what you want changed, then try again.");
+
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
+    if (!gemini) throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
+
+    const context = (args.surroundingText || "").trim().slice(0, 6000);
+    const out = await geminiText({
+      apiKey: gemini.key,
+      system: EDIT_SELECTION_SYSTEM_PROMPT,
+      user:
+        `SPOKEN INSTRUCTION: "${instruction}"\n\n` +
+        (context ? `SURROUNDING TEXT (context only — do NOT rewrite): """${context}"""\n\n` : "") +
+        `SELECTED PASSAGE (rewrite THIS only):\n"""${selected}"""`,
+      maxTokens: 2048,
+    });
+    const rewritten = out.trim();
+    return { rewritten: rewritten || selected };
   },
 });
 

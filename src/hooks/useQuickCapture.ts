@@ -66,6 +66,10 @@ export interface UseQuickCaptureOptions {
   eventTypeNames?: string[];
   outputMode?: OutputMode;
   onReadyToast?: (capture: CaptureProjection) => void;
+  /** WHISPER MODE (owner spec 2026-11-19 §5): quiet-speech capture profile
+   *  for whispered court-gallery notes. Read live via ref so toggling
+   *  mid-session applies on the next recording without remounting. */
+  whisper?: boolean;
 }
 
 export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
@@ -102,6 +106,12 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   const outputModeRef = useRef<OutputMode>(opts.outputMode ?? "smart-clean");
   const eventTypeNamesRef = useRef<string[] | undefined>(opts.eventTypeNames);
   const onReadyToastRef = useRef(opts.onReadyToast);
+  // Whisper Mode lives in a ref (read at recorder construction) so the UI
+  // can toggle it any time; the next recording round picks it up.
+  const whisperRef = useRef(!!opts.whisper);
+  useEffect(() => {
+    whisperRef.current = !!opts.whisper;
+  }, [opts.whisper]);
   const pollRef = useRef<number | null>(null);
 
   // Keep refs fresh without re-binding listeners.
@@ -180,6 +190,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   const makeRecorder = useCallback((): VoiceRecorder => {
     return new VoiceRecorder({
       segmentMs: 60_000,
+      whisper: whisperRef.current,
       onSegment: handleSegment,
       onEnergy: (level) => setState((s) => ({ ...s, energy: level })),
       onTick: (ms) => setState((s) => ({ ...s, elapsedMs: ms })),

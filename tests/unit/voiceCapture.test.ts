@@ -32,6 +32,7 @@ import {
   buildAnalysisPrompt,
   rankAndValidateMatterMatches,
   validateQuickAskActions,
+  validateWorkspaceProposals,
 } from '../../convex/voiceCapture';
 import { backoffDelayMs, segmentKey } from '../../src/services/voice/audioQueue';
 import { isRetryableError } from '../../src/services/voice/voiceCaptureService';
@@ -39,6 +40,10 @@ import {
   extractNewClipText,
   joinDraftText,
   appendSeparatorLabel,
+  stripMetaSpeech,
+  formatEndorsementText,
+  eventDescriptionFrom,
+  extractLearnedTerms,
 } from '../../src/services/voice/draftUtils';
 
 // ─── Verbatim assembly ──────────────────────────────────────────────────────
@@ -185,17 +190,20 @@ describe('prompts', () => {
     expect(buildVerbatimPrompt()).not.toContain('CONTEXT');
   });
 
-  it('Smart Clean: resolves self-corrections, preserves citations/legal terms/Pidgin', () => {
+  it('Smart Clean: resolves self-corrections, preserves citations/legal terms, normalises Pidgin', () => {
     const p = SMART_CLEAN_SYSTEM_PROMPT;
-    // The owner's exact example: "Tuesday... actually make that Thursday"
-    expect(p).toContain('RESOLVE MID-SENTENCE SELF-CORRECTIONS');
-    expect(p).toContain('actually make that Thursday');
+    // Backtracking pivots (owner spec 2026-11-19 §2.1): the exact phrases
+    // that must discard the retracted phrase entirely.
+    expect(p).toContain('RESOLVE MID-SENTENCE SELF-CORRECTIONS AND BACKTRACKING');
+    expect(p).toContain('actually scratch that, make it Wednesday at 4 PM');
     // Nigerian legal terminology + citations stay verbatim
     expect(p).toContain('NWLR');
     expect(p).toContain('LPELR');
     expect(p).toContain('habeas corpus');
     expect(p).toContain('governor\'s consent');
-    expect(p).toContain('do not translate to English');
+    // Wispr-Flow upgrade (2026-11-19 §2.7): the CLEANED tier now normalises
+    // casual Pidgin into professional English (verbatim still preserves it).
+    expect(p).toContain('normalise casual Pidgin phrasing into crisp professional English');
     expect(p).toContain('NEVER add, infer');
   });
 
@@ -743,5 +751,385 @@ describe('validateQuickAskActions (§5 action sanitisation)', () => {
       dateISO: '2026-11-19',
     }));
     expect(validateQuickAskActions(raw, matters)).toHaveLength(3);
+  });
+});
+
+// ─── Wispr-Flow formatting helpers (owner spec 2026-11-19) ──────────────────
+
+describe('stripMetaSpeech', () => {
+  it('strips "From voice note:" scaffolding', () => {
+    expect(stripMetaSpeech('From voice note: I have a matter tomorrow on the Sino Truck file.'))
+      .toBe('I have a matter tomorrow on the Sino Truck file.');
+  });
+
+  it('strips reminder meta-instructions', () => {
+    expect(stripMetaSpeech("I'm trying to set a reminder for the registry check tomorrow."))
+      .toBe('The registry check tomorrow.');
+    expect(stripMetaSpeech('Remind me to call the registrar.'))
+      .toBe('Call the registrar.');
+  });
+
+  it('peels stacked openers ("Okay, I want to capture a quick note about…")', () => {
+    expect(stripMetaSpeech('Okay, I want to capture a quick note about the tenancy inspection.'))
+      .toBe('The tenancy inspection.');
+  });
+
+  it('strips trailing closers but never content', () => {
+    expect(stripMetaSpeech('Registry check tomorrow. That is all.'))
+      .toBe('Registry check tomorrow');
+  });
+
+  it('leaves clean legal content untouched', () => {
+    const clean = 'Court adjourned the matter to December 14 for hearing.';
+    expect(stripMetaSpeech(clean)).toBe(clean);
+  });
+
+  it('returns empty for empty input', () => {
+    expect(stripMetaSpeech('')).toBe('');
+    expect(stripMetaSpeech('   ')).toBe('');
+  });
+});
+
+describe('formatEndorsementText', () => {
+  it('renders the formal endorsement block with ordered orders', () => {
+    const out = formatEndorsementText({
+      court: 'Federal High Court, Lagos',
+      suitNumber: 'FHC/L/CS/45/2026',
+      parties: 'Chukwu v. Zenith Bank',
+      judge: 'Hon. Justice A. Ogundipe',
+      orders: ['Parties to file written addresses within 14 days.', 'Hearing on the adjourned date.'],
+      nextAdjournedDate: '2026-12-14',
+      nextAdjournedTime: '09:00',
+    });
+    expect(out).toContain('COURT: Federal High Court, Lagos');
+    expect(out).toContain('SUIT NO: FHC/L/CS/45/2026');
+    expect(out).toContain('CORAM: Hon. Justice A. Ogundipe');
+    expect(out).toContain('PROCEEDINGS / ORDERS:');
+    expect(out).toContain('1. Parties to file written addresses within 14 days.');
+    expect(out).toContain('2. Hearing on the adjourned date.');
+    expect(out).toContain('NEXT ADJOURNED DATE: 2026-12-14 at 09:00');
+  });
+
+  it('returns empty string for nothing meaningful', () => {
+    expect(formatEndorsementText(null)).toBe('');
+    expect(formatEndorsementText({})).toBe('');
+  });
+});
+
+describe('eventDescriptionFrom', () => {
+  it('prefers the per-event action summary (never the transcript dump)', () => {
+    expect(
+      eventDescriptionFrom(
+        'Visit the court registry to confirm the next adjourned date.',
+        'From voice note: I am trying to set a reminder blah blah blah'
+      )
+    ).toBe('Visit the court registry to confirm the next adjourned date.');
+  });
+
+  it('falls back to the meta-stripped draft when no note exists', () => {
+    const out = eventDescriptionFrom(null, 'From voice note: registry check on the Sino Truck file.');
+    expect(out).toBe('Registry check on the Sino Truck file.');
+    expect(out).not.toContain('From voice note');
+  });
+
+  it('caps runaway fallback text', () => {
+    const long = 'A'.repeat(2000);
+    expect(eventDescriptionFrom(null, long).length).toBe(600);
+  });
+});
+
+describe('extractLearnedTerms (Personal Dictionary silent learning)', () => {
+  it('learns a corrected proper noun ("Chinedoo" → "Chinedu")', () => {
+    const before = 'Follow up with Chinedoo about the haulage invoices.';
+    const after = 'Follow up with Chinedu about the haulage invoices.';
+    expect(extractLearnedTerms(before, after)).toContain('Chinedu');
+  });
+
+  it('learns a corrected multi-word term ("Ikeja High Cot" → "Ikeja High Court")', () => {
+    const before = 'File the process at the Ikeja High Cot before Friday.';
+    const after = 'File the process at the Ikeja High Court before Friday.';
+    expect(extractLearnedTerms(before, after)).toContain('Ikeja High Court');
+  });
+
+  it('learns nothing when the text is unchanged', () => {
+    const t = 'Adjourned to December 14 for hearing at the Ikeja High Court.';
+    expect(extractLearnedTerms(t, t)).toEqual([]);
+  });
+
+  it('does not learn common lowercase edits', () => {
+    const before = 'The matter was adjourned today.';
+    const after = 'The matter is adjourned today.';
+    expect(extractLearnedTerms(before, after)).toEqual([]);
+  });
+});
+
+// ─── Analysis prompt: workspace directories + proposals (Part 1) ────────────
+
+describe('buildAnalysisPrompt (Wispr-Flow upgrade, 2026-11-19)', () => {
+  const lagos = { dateISO: '2026-11-19', weekday: 'Thursday', time: '08:30' };
+  const matters = [
+    { id: 'm1', title: 'Nigerian Sino Truck v Chinedu and Sons Ltd', suitNumber: 'FHC/L/CS/9/2026' },
+  ];
+  const contacts = [{ id: 'c1', name: 'Mrs. Tunde Adeyemi' }];
+  const properties = [
+    {
+      id: 'p1',
+      address: 'Chevron Drive Terrace',
+      propertyType: 'Terrace',
+      units: [
+        { id: 'u1', label: 'Block B, Flat 3', tenantName: 'Mr. Bassey' },
+      ],
+    },
+  ];
+  const openTasks = [
+    { kind: 'event' as const, id: 'e1', title: 'Registry check — Sino Truck', dueDate: '2026-11-19T08:00:00.000Z', matterTitle: 'Sino Truck' },
+  ];
+
+  it('renders the properties/units and open-tasks directories', () => {
+    const out = buildAnalysisPrompt({
+      lagos,
+      matters,
+      contacts,
+      eventTypeNames: [],
+      properties,
+      openTasks,
+    });
+    expect(out).toContain('Chevron Drive Terrace');
+    expect(out).toContain('Block B, Flat 3');
+    expect(out).toContain('[unitId: u1]');
+    expect(out).toContain('Registry check — Sino Truck');
+    expect(out).toContain('[event] Registry check — Sino Truck');
+  });
+
+  it('includes every workspace proposal slot in the JSON contract', () => {
+    const out = buildAnalysisPrompt({
+      lagos,
+      matters,
+      contacts,
+      eventTypeNames: [],
+      properties: [],
+      openTasks: [],
+    });
+    expect(out).toContain('"newMatter"');
+    expect(out).toContain('"contactUpsert"');
+    expect(out).toContain('"propertyNote"');
+    expect(out).toContain('"draftKickoff"');
+    expect(out).toContain('"financialEntry"');
+    expect(out).toContain('"taskUpdates"');
+    expect(out).toContain('"clientUpdateText"');
+    expect(out).toContain('"caseNoteText"');
+  });
+
+  it('teaches backtracking, code-switching and register rules', () => {
+    const out = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(out).toContain('scratch that');
+    expect(out).toContain('BACKTRACKING');
+    expect(out).toContain('CODE-SWITCHING');
+    expect(out).toContain('REGISTER SHIFTING');
+    expect(out).toContain('make I follow up with registrar for Ikeja');
+  });
+
+  it('injects spelling hints and spoken snippets when provided', () => {
+    const out = buildAnalysisPrompt({
+      lagos,
+      matters,
+      contacts,
+      eventTypeNames: [],
+      dictionaryTerms: ['Chinedu', 'Ikeja High Court'],
+      snippets: [{ trigger: 'insert chambers signature', content: 'Yours faithfully, Chambers.' }],
+    });
+    expect(out).toContain('SPELLING HINTS');
+    expect(out).toContain('Chinedu, Ikeja High Court');
+    expect(out).toContain('insert chambers signature');
+    expect(out).toContain('Yours faithfully, Chambers.');
+  });
+
+  it('instructs standalone (no-matter) events without forcing a match', () => {
+    const out = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(out).toContain('STANDALONE chambers/admin tasks with no matter');
+  });
+});
+
+describe('SMART_CLEAN_SYSTEM_PROMPT (backtracking + code-switching)', () => {
+  it('lists the backtracking pivot words', () => {
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('"actually"');
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('scratch that');
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('no, wait');
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('I mean');
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('make that');
+  });
+
+  it('normalises Pidgin into professional English in the cleaned tier', () => {
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('NIGERIAN CODE-SWITCHING');
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('normalise casual Pidgin phrasing into crisp professional English');
+  });
+
+  it('honours spelling hints when provided', () => {
+    expect(SMART_CLEAN_SYSTEM_PROMPT).toContain('SPELLING HINTS');
+  });
+});
+
+// ─── Workspace proposal validation (Part 1 determinism) ─────────────────────
+
+describe('validateWorkspaceProposals', () => {
+  const ctx = {
+    matters: [{ id: 'm1', title: 'Sino Truck' }],
+    contacts: [{ id: 'c1', name: 'Mrs. Tunde Adeyemi' }],
+    properties: [
+      { id: 'p1', address: 'Chevron Drive Terrace', units: [{ id: 'u1', label: 'Block B, Flat 3' }] },
+    ],
+    openTasks: [
+      { kind: 'event' as const, id: 'e1', title: 'Registry check' },
+      { kind: 'task' as const, id: 't1', title: 'Send engagement letter' },
+    ],
+    bestMatterConfidence: 0,
+  };
+
+  it('keeps a new-matter proposal when no existing matter matched confidently', () => {
+    const out = validateWorkspaceProposals(
+      {
+        newMatter: {
+          title: 'Mrs. Tunde Adeyemi — Lekki Phase 1 Commercial Lease Renewal',
+          clientName: 'Mrs. Tunde Adeyemi',
+          opposingParty: 'Prime Haulage Limited',
+          practiceArea: 'Commercial Lease',
+          summaryNote: '- Client: Mrs. Tunde Adeyemi\n- Rent: ₦18,000,000',
+        },
+      },
+      ctx
+    );
+    expect(out.newMatter?.title).toBe('Mrs. Tunde Adeyemi — Lekki Phase 1 Commercial Lease Renewal');
+    expect(out.newMatter?.clientName).toBe('Mrs. Tunde Adeyemi');
+  });
+
+  it('drops the new-matter proposal when an existing matter already matched ≥ 0.75 (no duplicates)', () => {
+    const out = validateWorkspaceProposals(
+      { newMatter: { title: 'Sino Truck duplicate' } },
+      { ...ctx, bestMatterConfidence: 0.9 }
+    );
+    expect(out.newMatter).toBeNull();
+  });
+
+  it('drops property notes with an unknown propertyId and unit ids that do not belong', () => {
+    const out = validateWorkspaceProposals(
+      {
+        propertyNote: { propertyId: 'not-a-property', note: 'Pump tripped' },
+      },
+      ctx
+    );
+    expect(out.propertyNote).toBeNull();
+
+    const out2 = validateWorkspaceProposals(
+      {
+        propertyNote: { propertyId: 'p1', unitId: 'u1', note: 'Borehole pump tripped; tenant to pay service charge Friday.' },
+      },
+      ctx
+    );
+    expect(out2.propertyNote?.propertyId).toBe('p1');
+    expect(out2.propertyNote?.unitId).toBe('u1');
+
+    const out3 = validateWorkspaceProposals(
+      {
+        propertyNote: { propertyId: 'p1', unitId: 'rogue-unit', note: 'x' },
+      },
+      ctx
+    );
+    expect(out3.propertyNote?.unitId).toBe('');
+  });
+
+  it('validates financial amounts and normalises the type', () => {
+    const out = validateWorkspaceProposals(
+      {
+        financialEntry: { type: 'EXPENSE', amount: 14500, currency: 'ngn', description: 'CTC fees and transport at Ikeja', matterId: 'm1' },
+      },
+      ctx
+    );
+    expect(out.financialEntry?.type).toBe('expense');
+    expect(out.financialEntry?.amount).toBe(14500);
+    expect(out.financialEntry?.currency).toBe('NGN');
+    expect(out.financialEntry?.matterId).toBe('m1');
+
+    const bad = validateWorkspaceProposals(
+      { financialEntry: { type: 'expense', amount: -5, description: 'negative' } },
+      ctx
+    );
+    expect(bad.financialEntry).toBeNull();
+
+    const foreign = validateWorkspaceProposals(
+      { financialEntry: { type: 'expense', amount: 100, matterId: 'someone-else' } },
+      ctx
+    );
+    expect(foreign.financialEntry?.matterId).toBe('');
+  });
+
+  it('validates task updates against the open-task directory and normalises statuses', () => {
+    const out = validateWorkspaceProposals(
+      {
+        taskUpdates: [
+          { kind: 'event', itemId: 'e1', status: 'done', note: 'Registry check finished; adjourned to December 14.' },
+          { kind: 'task', itemId: 'made-up', status: 'Completed' },
+        ],
+      },
+      ctx
+    );
+    expect(out.taskUpdates).toHaveLength(1);
+    expect(out.taskUpdates[0].status).toBe('Completed');
+    expect(out.taskUpdates[0].itemId).toBe('e1');
+  });
+
+  it('keeps contact upserts with a real contactId and drops foreign ones', () => {
+    const ok = validateWorkspaceProposals(
+      { contactUpsert: { contactId: 'c1', name: 'Mrs. Tunde Adeyemi', phone: '', email: '', company: '', role: '', notes: 'Called about lease renewal.' } },
+      ctx
+    );
+    expect(ok.contactUpsert?.contactId).toBe('c1');
+
+    const foreign = validateWorkspaceProposals(
+      { contactUpsert: { contactId: 'ghost', name: 'Nobody', phone: '0803', email: '', company: '', role: '', notes: '' } },
+      ctx
+    );
+    expect(foreign.contactUpsert).toBeNull();
+  });
+});
+
+// ─── Quick Ask note passthrough + Edit Selection prompt (Part 2) ────────────
+
+describe('QUICK_ASK_SYSTEM_PROMPT (Wispr-Flow formatting)', () => {
+  it('requires a concise action note on created events and clean note content', () => {
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain("'note'");
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('CONCISE ACTION SUMMARY');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('strip the lawyer\'s meta-speech');
+  });
+
+  it('keeps the matter-count grounding contract', () => {
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('authoritative counts');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('never from the keyword-matched subsets');
+  });
+});
+
+describe('validateQuickAskActions (event note passthrough)', () => {
+  const matters = [{ id: 'm1', title: 'Chukwu v. Zenith Bank' }];
+  it('passes the concise note through, capped at 600 chars', () => {
+    const [out] = validateQuickAskActions(
+      [
+        {
+          type: 'create_event',
+          title: 'Registry check',
+          dateISO: '2026-11-20',
+          note: 'Confirm the next adjourned date on the Sino Truck file at the Ikeja registry.',
+        },
+      ],
+      matters
+    );
+    expect(out?.note).toBe('Confirm the next adjourned date on the Sino Truck file at the Ikeja registry.');
+  });
+});
+
+describe('EDIT_SELECTION_SYSTEM_PROMPT', () => {
+  it('rewrites only the selected passage', async () => {
+    const { EDIT_SELECTION_SYSTEM_PROMPT } = await import('../../convex/voiceCapture');
+    expect(EDIT_SELECTION_SYSTEM_PROMPT).toContain('ONLY a selected passage');
+    expect(EDIT_SELECTION_SYSTEM_PROMPT).toContain('Return ONLY the rewritten passage');
+    expect(EDIT_SELECTION_SYSTEM_PROMPT).toContain('Do not add new facts');
   });
 });

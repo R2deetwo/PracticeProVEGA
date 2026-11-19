@@ -96,6 +96,7 @@ import type * as userResolution from "../userResolution.js";
 import type * as visitorManagement from "../visitorManagement.js";
 import type * as voiceCapture from "../voiceCapture.js";
 import type * as voiceCaptureInternal from "../voiceCaptureInternal.js";
+import type * as voiceTools from "../voiceTools.js";
 import type * as wallets from "../wallets.js";
 import type * as webFetch from "../webFetch.js";
 import type * as whatsappDiagnostics from "../whatsappDiagnostics.js";
@@ -196,6 +197,7 @@ declare const fullApi: ApiFromModules<{
   visitorManagement: typeof visitorManagement;
   voiceCapture: typeof voiceCapture;
   voiceCaptureInternal: typeof voiceCaptureInternal;
+  voiceTools: typeof voiceTools;
   wallets: typeof wallets;
   webFetch: typeof webFetch;
   whatsappDiagnostics: typeof whatsappDiagnostics;

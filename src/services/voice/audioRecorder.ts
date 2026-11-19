@@ -57,6 +57,10 @@ export interface RecorderSegment {
 export interface VoiceRecorderOptions {
   /** Slice length. 60s keeps each upload well under the backend 4MB cap. */
   segmentMs?: number;
+  /** WHISPER MODE (owner spec 2026-11-19 §5): quiet-speech capture profile
+   *  (noiseSuppression + echoCancellation off, autoGainControl on) so a
+   *  whispered court-gallery note isn't gated as noise. */
+  whisper?: boolean;
   onSegment?: (segment: RecorderSegment) => void;
   /** Voice energy 0..1 for the waveform visualizer. */
   onEnergy?: (level: number) => void;
@@ -163,7 +167,7 @@ export class VoiceRecorder {
       // The shared manager owns the mic: one stream per session, automatic
       // retry across the Android permission-grant / AudioRecord-release
       // races, warm reuse for stop → record-again cycles.
-      stream = await acquireMicStream();
+      stream = await acquireMicStream({ whisper: !!this.opts.whisper });
     } catch (err: any) {
       this.status = 'idle';
       throw this.mapGumError(err);

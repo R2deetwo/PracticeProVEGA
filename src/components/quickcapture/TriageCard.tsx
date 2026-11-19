@@ -31,6 +31,18 @@
  * obvious"): a trash button in this card's header offers "Discard this
  * note" with a two-tap confirm. It deletes the capture row + archived
  * audio; a note already SAVED into a matter is a separate record and stays.
+ *
+ * CONTEXT- & INTENT-AWARE FORMATTING (owner spec, 2026-11-19 — "Wispr Flow
+ * style"): saved records are formatted for their destination, never a raw
+ * transcript dump. The diary Notes field gets the analysis' concise action
+ * summary for THAT entry (editable inline before save); the case note body
+ * defaults to the analysis' formatted caseNoteText (paragraphs vs bullets
+ * chosen by content, meta-speech stripped — "From voice note…", "I'm
+ * trying to set a reminder…" never reach the saved record); a courtroom
+ * endorsement appends its formal structured block (Court / Suit No /
+ * Parties / Coram / Proceedings / Next Adjourned Date). The raw transcript
+ * stays one toggle away (Formatted ⇄ Verbatim) and rides along in the
+ * note's rawTranscript field.
  */
 
 import React, { useEffect, useMemo, useState } from "react";
@@ -39,14 +51,20 @@ import { Input } from "../ui/Input";
 import { Select, type SelectOption } from "../ui/Select";
 import { Textarea } from "../ui/Textarea";
 import {
+  BanknotesIcon,
   CalendarIcon,
   CheckIcon,
   ClipboardIcon,
+  DocumentPlusIcon,
   DocumentTextIcon,
+  EditIcon,
   MicrophoneIcon,
+  OfficeBuildingIcon,
+  PlusIcon,
   ShareIcon,
   SparklesIcon,
   TrashIcon,
+  UserIcon,
   XMarkIcon,
 } from "../../constants";
 import { useUI } from "../../contexts/UIContext";
@@ -55,6 +73,12 @@ import { useCoreState } from "../../contexts/CoreContext";
 import { MATTERS_NOTEBOOK_ID } from "../../constants";
 import type { Matter } from "../../types";
 import {
+  eventDescriptionFrom,
+  extractLearnedTerms,
+  formatEndorsementText,
+} from "../../services/voice/draftUtils";
+import {
+  addDictionaryTerms,
   linkCapture,
   quickAsk,
   type CaptureProjection,
@@ -90,6 +114,11 @@ interface TriageCardProps {
   onToggleSource: () => void;
   /** Disable Add More while the parent is mid-append (guard). */
   addMoreDisabled?: boolean;
+  /** EDIT SELECTION BY VOICE (owner spec 2026-11-19 §6): the user
+   *  highlighted a passage in the draft box and wants to rewrite it by
+   *  speaking. The parent records the instruction clip and splices the
+   *  rewritten passage back into [start, end). */
+  onEditSelection?: (start: number, end: number) => void;
 }
 
 /** Coerce an LLM-extracted event type to a type the firm actually has. */
@@ -126,6 +155,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   draftSource,
   onToggleSource,
   addMoreDisabled,
+  onEditSelection,
 }) => {
   const { addToast } = useUI();
   const actions = useDataActions();
@@ -172,11 +202,16 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const [selectedMatterId, setSelectedMatterId] = useState(preselectedMatterId);
 
   const matterOptions: SelectOption[] = useMemo(
-    () =>
-      matters.slice(0, 100).map((m) => ({
+    () => [
+      // Standalone tasks are first-class: a diary entry or note with NO
+      // matter (chambers admin, personal reminders) must never be forced
+      // onto a file (owner spec 2026-11-19, Part 1 §2).
+      { value: "", label: "No linked matter (standalone)" },
+      ...matters.slice(0, 100).map((m) => ({
         value: m.id,
         label: m.title || "(untitled matter)",
       })),
+    ],
     [matters]
   );
 
@@ -208,6 +243,17 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [discarding, setDiscarding] = useState(false);
 
+  // ── WORKSPACE PROPOSALS (owner spec 2026-11-19, Part 1): one-shot apply
+  //    flags + dismissals so a card never double-creates.
+  const [appliedProposal, setAppliedProposal] = useState<
+    "newMatter" | "contact" | "propertyNote" | "draft" | "financial" | null
+  >(null);
+  const [proposalBusy, setProposalBusy] = useState<string | null>(null);
+  const [dismissedProposals, setDismissedProposals] = useState<string[]>([]);
+  const [taskUpdatesDone, setTaskUpdatesDone] = useState<string[]>([]);
+  // Highlighted passage in the draft box (Edit Selection by Voice).
+  const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
+
   // Re-seed the per-capture state when the card stays mounted across a
   // capture switch (e.g. opening a different recent note).
   useEffect(() => {
@@ -223,6 +269,11 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     setAskResult(null);
     setAdjournedAdded(false);
     setConfirmDiscard(false);
+    setAppliedProposal(null);
+    setProposalBusy(null);
+    setDismissedProposals([]);
+    setTaskUpdatesDone([]);
+    setSelection(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capture.clientLocalId]);
 
@@ -230,9 +281,20 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const verbatimText = capture.verbatimText || "";
   // The working draft (editable, owned by the parent) is what every action
   // uses — manual tweaks are respected, appended clips accumulate in it.
+  // The parent seeds it from the FORMATTED tier (triageMeta.caseNoteText)
+  // when the analysis produced one, so the saved case note is clean by
+  // default; the raw transcript stays one toggle away (Formatted ⇄ Verbatim).
   const displayText = draftText || polishedText || verbatimText;
 
-  // ─── Destination actions ─────────────────────────────────────────────────────────
+  // Structured courtroom endorsement fields (rendered on the card AND
+  // appended to the saved case note as a formal block — owner spec §C).
+  const endorsement = triage.endorsement;
+  const hasEndorsement =
+    !!endorsement &&
+    !!(endorsement.court || endorsement.suitNumber || endorsement.parties || (endorsement.orders && endorsement.orders.length > 0));
+  const endorsementBlock = hasEndorsement
+    ? formatEndorsementText(endorsement)
+    : "";
 
   const handleSaveNote = async (): Promise<void> => {
     const matter = matters.find((m) => m.id === selectedMatterId);
@@ -240,6 +302,9 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       ? MATTERS_NOTEBOOK_ID
       : coreState.noteNotebooks?.find((nb) => nb.id !== MATTERS_NOTEBOOK_ID)?.id ||
         MATTERS_NOTEBOOK_ID;
+    const noteBody = endorsementBlock
+      ? `${displayText.trimEnd()}\n\n${endorsementBlock}`
+      : displayText;
     try {
       if (savedNote && savedNotePageId) {
         // The note was already saved and more dictation was appended since —
@@ -248,7 +313,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           "notePages",
           {
             id: savedNotePageId,
-            content: displayText,
+            content: noteBody,
             rawTranscript: verbatimText,
             cleanedTranscript: capture.smartCleanText || null,
             updatedAt: new Date().toISOString(),
@@ -265,7 +330,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           matterId: matter?.id,
           notebookId,
           title: (triage.summary || displayText.slice(0, 60) || "Voice note").slice(0, 120),
-          content: displayText,
+          content: noteBody,
           type: "user",
           // Two-tier record rides along with the note (Vega dual dictation).
           rawTranscript: verbatimText,
@@ -284,6 +349,9 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       setSavedNote(true);
       setSavedNotePageId(created?.id ?? null);
       addToast("Saved as case note" + (matter ? ` — ${matter.title}` : "") + ".", { type: "success" });
+      // SILENT LEARNING: any corrected names/terms enter the Personal
+      // Dictionary so the next dictation spells them right (Part 2 §3).
+      learnFromEdits(displayText);
     } catch (err: any) {
       addToast(err?.message || "Could not save the note. Please try again.", { type: "error" });
     }
@@ -295,6 +363,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     dateISO: string;
     time: string;
     location?: string;
+    note?: string;
   }): Promise<boolean> => {
     if (!draft.title?.trim() || !draft.dateISO) {
       addToast("Pick a date for the entry first.", { type: "info" });
@@ -313,7 +382,11 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         "events",
         {
           title: draft.title || "Court event",
-          description: `From voice note: ${displayText.slice(0, 400)}`,
+          // Wispr-Flow style Notes field (owner spec 2026-11-19 §A): the
+          // concise action summary for THIS entry — never a raw transcript
+          // dump. eventDescriptionFrom prefers the (inline-edited) note and
+          // falls back to the meta-stripped draft.
+          description: eventDescriptionFrom(draft.note, displayText),
           type: coerceEventType(draft.type, eventTypeNames),
           date: date.toISOString(),
           endDate: new Date(date.getTime() + 60 * 60 * 1000).toISOString(),
@@ -335,6 +408,247 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     } catch (err: any) {
       addToast(err?.message || "Could not add the diary entry.", { type: "error" });
       return false;
+    }
+  };
+
+  // ─── WORKSPACE PROPOSAL APPLIERS (owner spec 2026-11-19, Part 1) ───────────
+  // Every proposal was validated server-side against the firm's real
+  // records; these handlers execute the 1-tap action through the same
+  // optimistic DataContext CRUD the rest of the app uses.
+
+  const proposals = triage.proposals || null;
+  const firmProperties = coreState.properties || [];
+
+  /** SILENT LEARNING (Part 2 §3): every manual edit that fixes a name or
+   *  term is captured into the user's Personal Dictionary. */
+  const learnFromEdits = (finalText: string) => {
+    const seeded = triage.caseNoteText || capture.smartCleanText || capture.verbatimText || "";
+    if (!seeded) return;
+    const terms = extractLearnedTerms(seeded, finalText);
+    if (terms.length === 0) return;
+    addDictionaryTerms(terms, "auto")
+      .then((r) => {
+        if (r.added.length > 0) {
+          addToast(
+            `Added ${r.added.map((t) => `“${t}”`).join(", ")} to your Voice Dictionary.`,
+            { type: "success" }
+          );
+        }
+      })
+      .catch(() => undefined);
+  };
+
+  const applyNewMatter = async () => {
+    const p = proposals?.newMatter;
+    if (!p || proposalBusy) return;
+    setProposalBusy("newMatter");
+    try {
+      const now = new Date().toISOString();
+      const created: any = await actions.addItem(
+        "matters",
+        {
+          title: p.title,
+          type: p.practiceArea || "General Practice",
+          status: "Active",
+          stage: "Intake",
+          // The intake summary rides along as attorney notes so the file
+          // opens with the dictated brief already on it.
+          attorneyNotes: [{ text: p.summaryNote, at: now, source: "voice-capture" }],
+          parties: [
+            ...(p.clientName ? [{ name: p.clientName, role: "Client" }] : []),
+            ...(p.opposingParty ? [{ name: p.opposingParty, role: "Opposing Party" }] : []),
+          ],
+          createdAt: now,
+          updatedAt: now,
+        },
+        "Matter"
+      );
+      // Intake note into the matters notebook, linked to the new file.
+      const note: any = await actions.addItem(
+        "notePages",
+        {
+          matterId: created?.id,
+          notebookId: MATTERS_NOTEBOOK_ID,
+          title: `Intake — ${p.title}`,
+          content: p.summaryNote,
+          type: "user",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "Intake note"
+      );
+      await linkCapture({
+        clientLocalId: capture.clientLocalId,
+        matterId: created?.id,
+        notePageId: note?.id,
+      }).catch(() => undefined);
+      setAppliedProposal("newMatter");
+      setSelectedMatterId(created?.id || "");
+      addToast(`Matter created — ${p.title}. Chained tasks are in the Diary section.`, {
+        type: "success",
+      });
+    } catch (err: any) {
+      addToast(err?.message || "Could not create the matter.", { type: "error" });
+    } finally {
+      setProposalBusy(null);
+    }
+  };
+
+  const applyContactUpsert = async () => {
+    const p = proposals?.contactUpsert;
+    if (!p || proposalBusy) return;
+    setProposalBusy("contact");
+    try {
+      const now = new Date().toISOString();
+      if (p.contactId) {
+        await actions.updateItem(
+          "contacts",
+          { id: p.contactId, phone: p.phone || undefined, email: p.email || undefined, companyName: p.company || undefined, jobTitle: p.role || undefined, notes: p.notes || undefined, updatedAt: now },
+          "Contact"
+        );
+        addToast(`Contact updated — ${p.name}.`, { type: "success" });
+      } else {
+        await actions.addItem(
+          "contacts",
+          {
+            name: p.name,
+            phone: p.phone || null,
+            email: p.email || null,
+            companyName: p.company || null,
+            jobTitle: p.role || null,
+            notes: p.notes || null,
+            contactType: "Client",
+            createdAt: now,
+            updatedAt: now,
+          },
+          "Contact"
+        );
+        addToast(`Contact saved — ${p.name}.`, { type: "success" });
+      }
+      setAppliedProposal("contact");
+    } catch (err: any) {
+      addToast(err?.message || "Could not save the contact.", { type: "error" });
+    } finally {
+      setProposalBusy(null);
+    }
+  };
+
+  const applyPropertyNote = async () => {
+    const p = proposals?.propertyNote;
+    if (!p || proposalBusy) return;
+    setProposalBusy("propertyNote");
+    try {
+      const prop = firmProperties.find((x: any) => x.id === p.propertyId);
+      const unit = prop?.units?.find?.((u: any) => u.id === p.unitId);
+      const now = new Date().toISOString();
+      await actions.addItem(
+        "notePages",
+        {
+          propertyId: p.propertyId,
+          contextType: "property",
+          notebookId: MATTERS_NOTEBOOK_ID,
+          title: `Property note — ${prop?.address || "Property"}${unit ? ` (${unit.label || unit.id})` : ""}`,
+          content: p.note,
+          type: "user",
+          rawTranscript: capture.verbatimText || null,
+          createdAt: now,
+          updatedAt: now,
+        },
+        "Property note"
+      );
+      setAppliedProposal("propertyNote");
+      addToast(
+        `Note logged on ${prop?.address || "the property"}${unit ? ` — ${unit.label || unit.id}` : ""}.`,
+        { type: "success" }
+      );
+    } catch (err: any) {
+      addToast(err?.message || "Could not log the property note.", { type: "error" });
+    } finally {
+      setProposalBusy(null);
+    }
+  };
+
+  const applyDraftKickoff = async () => {
+    const p = proposals?.draftKickoff;
+    if (!p || proposalBusy) return;
+    setProposalBusy("draft");
+    try {
+      const now = new Date().toISOString();
+      await actions.addItem(
+        "documents",
+        {
+          title: `${p.documentType}${p.recipient ? ` — ${p.recipient}` : ""}`,
+          matterId: selectedMatterId || null,
+          content: p.brief,
+          summary: p.keyFigures || null,
+          source: "Voice Draft",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "Draft"
+      );
+      setAppliedProposal("draft");
+      addToast(`Draft created — open it from Documents to finish and send.`, { type: "success" });
+    } catch (err: any) {
+      addToast(err?.message || "Could not create the draft.", { type: "error" });
+    } finally {
+      setProposalBusy(null);
+    }
+  };
+
+  const applyFinancialEntry = async () => {
+    const p = proposals?.financialEntry;
+    if (!p || proposalBusy) return;
+    setProposalBusy("financial");
+    try {
+      const now = new Date().toISOString();
+      const matterId = p.matterId || selectedMatterId || null;
+      await actions.addItem(
+        "expenses",
+        {
+          matterId,
+          amount: p.amount,
+          description: p.description,
+          date: now.slice(0, 10),
+          isBillable: p.type === "fee",
+          createdAt: now,
+          updatedAt: now,
+        },
+        p.type === "fee" ? "Fee entry" : "Expense"
+      );
+      setAppliedProposal("financial");
+      addToast(
+        `${p.type === "fee" ? "Fee" : "Expense"} logged — ₦${p.amount.toLocaleString()}.`,
+        { type: "success" }
+      );
+    } catch (err: any) {
+      addToast(err?.message || "Could not log the entry.", { type: "error" });
+    } finally {
+      setProposalBusy(null);
+    }
+  };
+
+  const applyTaskUpdate = async (u: { kind: "task" | "event"; itemId: string; status: string; note: string }) => {
+    if (proposalBusy) return;
+    setProposalBusy(`task-${u.itemId}`);
+    try {
+      const now = new Date().toISOString();
+      await actions.updateItem(
+        u.kind === "task" ? "tasks" : "events",
+        { id: u.itemId, status: u.status, updatedAt: now },
+        u.kind === "task" ? "Task" : "Reminder"
+      );
+      setTaskUpdatesDone((prev) => [...prev, u.itemId]);
+      if (u.note) {
+        // The outcome note rides along as a case note so the file history
+        // records what was actually found.
+        await handleSaveNote().catch(() => undefined);
+      }
+      addToast(`Marked ${u.status === "Completed" ? "done" : u.status}.`, { type: "success" });
+    } catch (err: any) {
+      addToast(err?.message || "Could not update the task.", { type: "error" });
+    } finally {
+      setProposalBusy(null);
     }
   };
 
@@ -409,11 +723,6 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       setConfirmDiscard(false);
     }
   };
-
-  const endorsement = triage.endorsement;
-  const hasEndorsement =
-    !!endorsement &&
-    !!(endorsement.court || endorsement.suitNumber || endorsement.parties || (endorsement.orders && endorsement.orders.length > 0));
 
   const pendingEventCount = eventDrafts.filter(
     (ev) => ev.dateISO && !savedEvents.includes(ev.title + ev.dateISO)
@@ -491,7 +800,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         </div>
       </div>
 
-      {/* Editable transcript draft with Smart Clean / Verbatim toggle.
+      {/* Editable transcript draft with Formatted / Verbatim toggle.
           The toggle sits in this header row — NOT absolutely positioned over
           the text — so the first line of the transcript can never be covered. */}
       <div className="flex flex-col gap-2">
@@ -500,13 +809,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             Transcript — editable draft{clipCount > 1 ? ` (${clipCount} clips)` : ""}
           </span>
           <div className="flex items-center gap-1.5">
-            {capture.smartCleanText ? (
+            {capture.smartCleanText || triage.caseNoteText ? (
               <Button
                 variant={draftSource === "verbatim" ? "outline" : "dark"}
                 size="sm"
                 onClick={onToggleSource}
               >
-                {draftSource === "verbatim" ? "Smart Clean" : "Verbatim"}
+                {draftSource === "verbatim" ? "Formatted" : "Verbatim"}
               </Button>
             ) : null}
             <Button variant="ghost" size="sm" onClick={onResyncDraft}>
@@ -518,11 +827,36 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           aria-label="Voice note draft — edit or add more by voice"
           value={draftText}
           onChange={(e) => onDraftChange((e.target as HTMLTextAreaElement).value)}
+          onSelect={(e) => {
+            const el = e.target as HTMLTextAreaElement;
+            setSelection(
+              el.selectionStart !== null && el.selectionEnd !== null && el.selectionEnd > el.selectionStart
+                ? { start: el.selectionStart, end: el.selectionEnd }
+                : null
+            );
+          }}
           rows={6}
           maxLength={100000}
           className="!text-base !leading-relaxed !max-h-56 overflow-y-auto"
           style={{ minHeight: "7rem" }}
         />
+        {/* EDIT SELECTION BY VOICE (owner spec 2026-11-19 §6): a highlighted
+            passage becomes the target of a spoken edit command; only that
+            passage is rewritten, the rest of the draft is untouched. */}
+        {selection && onEditSelection ? (
+          <Button
+            variant="outline"
+            size="md"
+            minTouchTarget
+            icon={EditIcon}
+            onClick={() => {
+              onEditSelection(selection.start, selection.end);
+              setSelection(null);
+            }}
+          >
+            Edit Selection by Voice — speak your change
+          </Button>
+        ) : null}
         {/* Add More — the incremental dictation launcher, directly above the
             primary "Save / Route" action per the owner addendum. */}
         <Button
@@ -537,6 +871,387 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           Add More — continue dictating
         </Button>
       </div>
+
+      {/* ── WORKSPACE PROPOSALS (owner spec 2026-11-19, Part 1) ────────────
+          The analysis matched this note against the firm's live directories
+          and proposes context-driven actions: create a new matter, save a
+          contact, log a property/unit note, kick off a draft, log an
+          expense/fee, or mark an open task/reminder done. Each card is a
+          1-tap apply with a dismiss — nothing is forced. */}
+      {proposals ? (
+        <div className="flex flex-col gap-2">
+          {proposals.newMatter && !dismissedProposals.includes("newMatter") ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                    New instruction — create matter
+                  </span>
+                  <p className="font-semibold text-sm text-slate-900 mt-0.5 break-words">
+                    {proposals.newMatter.title}
+                  </p>
+                  <p className="text-2xs text-slate-500 mt-0.5">
+                    {[
+                      proposals.newMatter.practiceArea,
+                      proposals.newMatter.clientName,
+                      proposals.newMatter.opposingParty,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                {appliedProposal === "newMatter" ? (
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1 shrink-0">
+                    <CheckIcon className="w-3 h-3" /> Created
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={XMarkIcon}
+                    aria-label="Dismiss new matter proposal"
+                    className="!text-slate-400 shrink-0"
+                    onClick={() => setDismissedProposals((d) => [...d, "newMatter"])}
+                  />
+                )}
+              </div>
+              {proposals.newMatter.summaryNote ? (
+                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-6">
+                  {proposals.newMatter.summaryNote}
+                </p>
+              ) : null}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={appliedProposal === "newMatter" ? "success" : "primary"}
+                  size="sm"
+                  minTouchTarget
+                  icon={appliedProposal === "newMatter" ? CheckIcon : PlusIcon}
+                  disabled={appliedProposal === "newMatter"}
+                  loading={proposalBusy === "newMatter"}
+                  onClick={() => void applyNewMatter()}
+                >
+                  {appliedProposal === "newMatter" ? "Matter created" : "Create Matter"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  minTouchTarget
+                  onClick={() => setDismissedProposals((d) => [...d, "newMatter"])}
+                >
+                  Link to Existing Matter instead
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {proposals.contactUpsert && !dismissedProposals.includes("contact") ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                    {proposals.contactUpsert.contactId ? "Update contact" : "New contact"}
+                  </span>
+                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                    {proposals.contactUpsert.name}
+                  </p>
+                  <p className="text-2xs text-slate-500 mt-0.5">
+                    {[
+                      proposals.contactUpsert.phone,
+                      proposals.contactUpsert.email,
+                      proposals.contactUpsert.company,
+                      proposals.contactUpsert.role,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                {appliedProposal === "contact" ? (
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1 shrink-0">
+                    <CheckIcon className="w-3 h-3" /> Saved
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={XMarkIcon}
+                    aria-label="Dismiss contact proposal"
+                    className="!text-slate-400 shrink-0"
+                    onClick={() => setDismissedProposals((d) => [...d, "contact"])}
+                  />
+                )}
+              </div>
+              {proposals.contactUpsert.notes ? (
+                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-4">
+                  {proposals.contactUpsert.notes}
+                </p>
+              ) : null}
+              <Button
+                variant={appliedProposal === "contact" ? "success" : "outline"}
+                size="sm"
+                minTouchTarget
+                icon={appliedProposal === "contact" ? CheckIcon : UserIcon}
+                disabled={appliedProposal === "contact"}
+                loading={proposalBusy === "contact"}
+                onClick={() => void applyContactUpsert()}
+                className="self-start"
+              >
+                {appliedProposal === "contact"
+                  ? "Contact saved"
+                  : proposals.contactUpsert.contactId
+                    ? "Update Contact"
+                    : "Save Contact"}
+              </Button>
+            </div>
+          ) : null}
+
+          {proposals.propertyNote && !dismissedProposals.includes("propertyNote") ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-teal-200 bg-teal-50/60 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-bold uppercase tracking-wide text-teal-700">
+                    Property / unit note
+                  </span>
+                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                    {(firmProperties.find((x: any) => x.id === proposals.propertyNote!.propertyId) as any)?.address ||
+                      "Property on record"}
+                    {proposals.propertyNote.unitId
+                      ? ` — ${
+                          (firmProperties.find((x: any) => x.id === proposals.propertyNote!.propertyId) as any)?.units?.find?.(
+                            (u: any) => u.id === proposals.propertyNote!.unitId
+                          )?.label || "unit"
+                        }`
+                      : ""}
+                  </p>
+                </div>
+                {appliedProposal === "propertyNote" ? (
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1 shrink-0">
+                    <CheckIcon className="w-3 h-3" /> Logged
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={XMarkIcon}
+                    aria-label="Dismiss property note proposal"
+                    className="!text-slate-400 shrink-0"
+                    onClick={() => setDismissedProposals((d) => [...d, "propertyNote"])}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-6">
+                {proposals.propertyNote.note}
+              </p>
+              <Button
+                variant={appliedProposal === "propertyNote" ? "success" : "outline"}
+                size="sm"
+                minTouchTarget
+                icon={appliedProposal === "propertyNote" ? CheckIcon : OfficeBuildingIcon}
+                disabled={appliedProposal === "propertyNote"}
+                loading={proposalBusy === "propertyNote"}
+                onClick={() => void applyPropertyNote()}
+                className="self-start"
+              >
+                {appliedProposal === "propertyNote" ? "Note logged" : "Log Property Note"}
+              </Button>
+            </div>
+          ) : null}
+
+          {proposals.draftKickoff && !dismissedProposals.includes("draft") ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-bold uppercase tracking-wide text-indigo-700">
+                    Draft kickoff
+                  </span>
+                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                    {proposals.draftKickoff.documentType}
+                    {proposals.draftKickoff.recipient ? ` — ${proposals.draftKickoff.recipient}` : ""}
+                  </p>
+                  <p className="text-2xs text-slate-500 mt-0.5">
+                    {[proposals.draftKickoff.keyFigures, proposals.draftKickoff.noticePeriod]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                {appliedProposal === "draft" ? (
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1 shrink-0">
+                    <CheckIcon className="w-3 h-3" /> Created
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={XMarkIcon}
+                    aria-label="Dismiss draft proposal"
+                    className="!text-slate-400 shrink-0"
+                    onClick={() => setDismissedProposals((d) => [...d, "draft"])}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-6">
+                {proposals.draftKickoff.brief}
+              </p>
+              <Button
+                variant={appliedProposal === "draft" ? "success" : "outline"}
+                size="sm"
+                minTouchTarget
+                icon={appliedProposal === "draft" ? CheckIcon : DocumentPlusIcon}
+                disabled={appliedProposal === "draft"}
+                loading={proposalBusy === "draft"}
+                onClick={() => void applyDraftKickoff()}
+                className="self-start"
+              >
+                {appliedProposal === "draft" ? "Draft created" : "Create Draft"}
+              </Button>
+            </div>
+          ) : null}
+
+          {proposals.financialEntry && !dismissedProposals.includes("financial") ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                    {proposals.financialEntry.type === "fee" ? "Fee earned" : "Expense logged by voice"}
+                  </span>
+                  <p className="font-semibold text-sm text-slate-900 mt-0.5">
+                    {proposals.financialEntry.currency === "NGN"
+                      ? "₦"
+                      : `${proposals.financialEntry.currency} `}
+                    {proposals.financialEntry.amount.toLocaleString()}
+                  </p>
+                  <p className="text-2xs text-slate-500 mt-0.5">
+                    {proposals.financialEntry.description}
+                    {proposals.financialEntry.matterId
+                      ? ` · ${
+                          matters.find((m) => m.id === proposals.financialEntry!.matterId)?.title || "linked matter"
+                        }`
+                      : ""}
+                  </p>
+                </div>
+                {appliedProposal === "financial" ? (
+                  <span className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1 shrink-0">
+                    <CheckIcon className="w-3 h-3" /> Logged
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={XMarkIcon}
+                    aria-label="Dismiss financial entry proposal"
+                    className="!text-slate-400 shrink-0"
+                    onClick={() => setDismissedProposals((d) => [...d, "financial"])}
+                  />
+                )}
+              </div>
+              <Button
+                variant={appliedProposal === "financial" ? "success" : "outline"}
+                size="sm"
+                minTouchTarget
+                icon={appliedProposal === "financial" ? CheckIcon : BanknotesIcon}
+                disabled={appliedProposal === "financial"}
+                loading={proposalBusy === "financial"}
+                onClick={() => void applyFinancialEntry()}
+                className="self-start"
+              >
+                {appliedProposal === "financial" ? "Entry logged" : "Log Entry"}
+              </Button>
+            </div>
+          ) : null}
+
+          {proposals.taskUpdates.map((u, i) =>
+            taskUpdatesDone.includes(u.itemId) ? (
+              <div
+                key={u.itemId}
+                className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3"
+              >
+                <CheckIcon className="w-4 h-4 text-emerald-600 shrink-0" />
+                <p className="text-xs text-slate-700">
+                  Marked {u.status === "Completed" ? "done" : u.status}
+                  {u.note ? ` — ${u.note}` : ""}
+                </p>
+              </div>
+            ) : (
+              <div
+                key={`${u.itemId}-${i}`}
+                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {u.kind === "event" ? "Reminder reported done" : "Task reported done"}
+                    </span>
+                    <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
+                      {u.note || "Mark this open item as done instead of creating a duplicate."}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    iconOnly
+                    icon={XMarkIcon}
+                    aria-label="Dismiss task update"
+                    className="!text-slate-400 shrink-0"
+                    onClick={() => setTaskUpdatesDone((prev) => [...prev, u.itemId])}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  minTouchTarget
+                  icon={CheckIcon}
+                  loading={proposalBusy === `task-${u.itemId}`}
+                  onClick={() => void applyTaskUpdate(u)}
+                  className="self-start"
+                >
+                  Mark {u.status === "Completed" ? "Done" : u.status}
+                </Button>
+              </div>
+            )
+          )}
+
+          {/* Warm client-update draft (register shifting, Part 2 §2). */}
+          {(proposals.clientUpdateText || triage.clientUpdateText) &&
+          !dismissedProposals.includes("clientUpdate") ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-rose-700">
+                Client update drafted
+              </span>
+              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                {proposals.clientUpdateText || triage.clientUpdateText}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  minTouchTarget
+                  icon={ClipboardIcon}
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(proposals.clientUpdateText || triage.clientUpdateText || "")
+                      .then(() => addToast("Client update copied — paste it into WhatsApp or email.", { type: "success" }))
+                      .catch(() => addToast("Could not access the clipboard on this device.", { type: "error" }));
+                  }}
+                  className="self-start"
+                >
+                  Copy Client Update
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDismissedProposals((d) => [...d, "clientUpdate"])}
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* ── SEMANTIC MATTER MATCHING (owner spec §2) ───────────────────────
           Auto-selected best match + 1-tap disambiguation pills for similar
@@ -705,6 +1420,25 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     {added ? "Added" : "Add"}
                   </Button>
                 </div>
+                {/* Diary note (owner spec §A + 2026-11-19): the concise
+                    action summary that lands in the entry's Notes field —
+                    pre-filled by the analysis, editable inline before save. */}
+                {!added ? (
+                  <Textarea
+                    aria-label={`Diary note for ${ev.title}`}
+                    value={ev.note || ""}
+                    onChange={(e) => {
+                      const v = (e.target as HTMLTextAreaElement).value;
+                      setEventDrafts((drafts) =>
+                        drafts.map((d, j) => (j === i ? { ...d, note: v } : d))
+                      );
+                    }}
+                    rows={2}
+                    maxLength={600}
+                    placeholder="Diary note — the action summary saved on the calendar entry (edit freely)."
+                    className="!text-xs !leading-relaxed"
+                  />
+                ) : null}
               </div>
             );
           })}
@@ -820,6 +1554,9 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                   dateISO: endorsement.nextAdjournedDate!,
                   time: endorsement.nextAdjournedTime || "09:00",
                   location: endorsement.court,
+                  // Concise Notes field for the diary entry (§A): the formal
+                  // endorsement block, not the raw transcript.
+                  note: formatEndorsementText(endorsement).slice(0, 600) || undefined,
                 });
                 if (ok) setAdjournedAdded(true);
               }}

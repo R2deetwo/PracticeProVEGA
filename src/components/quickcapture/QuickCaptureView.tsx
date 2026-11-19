@@ -57,6 +57,7 @@ import {
   quickAsk,
   listRecentCaptures,
   deleteCapture,
+  editSelection as editSelectionService,
   type CaptureProjection,
   type QuickAskResult,
 } from "../../services/voice/voiceCaptureService";
@@ -66,6 +67,7 @@ import {
   setStartupViewPreference,
 } from "../../utils/startupViewPreference";
 import { extractNewClipText, joinDraftText } from "../../services/voice/draftUtils";
+import { VoiceTipsPanel } from "./VoiceTipsPanel";
 import { TriageCard } from "./TriageCard";
 import { QuickAskActions } from "./QuickAskActions";
 import { LegalPadView } from "./LegalPadView";
@@ -86,8 +88,37 @@ const INTENT_ICON: Record<string, React.ComponentType<{ className?: string }>> =
 
 type CaptureMode = "speak" | "pad";
 
-/** Which transcript tier the editable draft follows. */
+/** Which transcript tier the editable draft follows. "clean" now seeds
+ *  from the FORMATTED tier (triageMeta.caseNoteText — destination-formatted,
+ *  meta-speech stripped) and falls back to Smart Clean, then verbatim. */
 type DraftSource = "clean" | "verbatim";
+
+/** The preferred formatted text for a capture: the analysis' formatted case
+ *  note body when present, else Smart Clean, else verbatim (pure helper). */
+function formattedTierText(capture: CaptureProjection | null): string {
+  if (!capture) return "";
+  return (
+    capture.triageMeta?.caseNoteText ||
+    capture.smartCleanText ||
+    capture.verbatimText ||
+    ""
+  );
+}
+
+/** Whisper Mode persistence (owner spec 2026-11-19 §5) — local preference. */
+const WHISPER_PREF_KEY = "practicepro_whisper_mode";
+function readWhisperPref(): boolean {
+  try {
+    return localStorage.getItem(WHISPER_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeWhisperPref(on: boolean): void {
+  try {
+    localStorage.setItem(WHISPER_PREF_KEY, on ? "1" : "0");
+  } catch { /* private mode etc. */ }
+}
 
 /** Phone-like device? Same heuristic the boot redirect in App.tsx uses. */
 function useIsPhoneLike(): boolean {
@@ -176,6 +207,17 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   const lastSyncedVerbatimRef = useRef<string>("");
   /** Set while the user has hand-edited the draft (append keeps their edits). */
   const draftEditedRef = useRef(false);
+  /** EDIT SELECTION BY VOICE (owner spec 2026-11-19 §6): when set, the next
+   *  finalized clip is treated as a spoken EDIT COMMAND for the passage in
+   *  [start, end) of the current draft — rewritten in place via the
+   *  editSelection action instead of appended. */
+  const pendingSelectionEditRef = useRef<{ start: number; end: number } | null>(null);
+  const [selectionEditBusy, setSelectionEditBusy] = useState(false);
+  /** WHISPER MODE (§5): persisted local preference, threaded into the
+   *  capture hook so the next recording uses quiet-speech constraints. */
+  const [whisperMode, setWhisperMode] = useState(readWhisperPref);
+  /** Voice Tips panel (Part 3). */
+  const [showTips, setShowTips] = useState(false);
   const toastRef = useRef(addToast);
   useEffect(() => {
     toastRef.current = addToast;
@@ -188,10 +230,25 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
 
   const qc = useQuickCapture({
     eventTypeNames,
+    whisper: whisperMode,
     onReadyToast: () => {
       addToast("Voice note ready — tap to review it.", { type: "success" });
     },
   });
+
+  const toggleWhisperMode = useCallback(() => {
+    setWhisperMode((prev) => {
+      const next = !prev;
+      writeWhisperPref(next);
+      addToast(
+        next
+          ? "Whisper Mode on — quiet speech is captured cleanly."
+          : "Whisper Mode off — standard noise filtering.",
+        { type: "success" }
+      );
+      return next;
+    });
+  }, [addToast]);
 
   // ─── Draft syncing: seed on first arrival, append on Add More rounds ──────
   // The verbatim tier is append-only and immutable, so `lastSyncedVerbatim`
@@ -210,12 +267,12 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     const verbatim = capture.verbatimText || "";
     if (capture.clientLocalId !== lastCaptureIdRef.current) {
       // A different capture (first arrival, or a brand-new note after Done):
-      // seed a fresh draft from the preferred tier.
-      const source: DraftSource =
-        capture.smartCleanText && draftSource === "clean" ? "clean" : "verbatim";
-      setDraftText(
-        source === "clean" ? capture.smartCleanText || verbatim : verbatim
-      );
+      // seed a fresh draft from the preferred tier. The "clean" tier now
+      // prefers the FORMATTED body (caseNoteText — paragraphs/bullets chosen
+      // by content, meta-speech stripped) over plain Smart Clean.
+      const formatted = formattedTierText(capture);
+      const source: DraftSource = formatted && draftSource === "clean" ? "clean" : "verbatim";
+      setDraftText(source === "clean" ? formatted || verbatim : verbatim);
       setDraftSource(source);
       setClipCount(1);
       draftEditedRef.current = false;
@@ -227,17 +284,59 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       // An Add More round finalized — merge the new clip into the draft.
       const previous = lastSyncedVerbatimRef.current;
       const newClip = extractNewClipText(verbatim, previous);
+      lastSyncedVerbatimRef.current = verbatim;
+
+      // EDIT SELECTION BY VOICE: this round was launched from the "Edit
+      // Selection by Voice" button — the clip is a spoken EDIT COMMAND for
+      // the highlighted passage, not an addition. Rewrite that passage in
+      // place and leave the rest of the draft untouched.
+      const pendingEdit = pendingSelectionEditRef.current;
+      if (pendingEdit) {
+        pendingSelectionEditRef.current = null;
+        setSelectionEditBusy(true);
+        void (async () => {
+          try {
+            const before = draftTextRef.current;
+            const selected = before.slice(pendingEdit.start, pendingEdit.end);
+            if (!selected.trim() || !newClip.trim()) {
+              toastRef.current("The selection was empty — nothing to edit.", { type: "info" });
+              return;
+            }
+            const { rewritten } = await editSelectionService({
+              selectedText: selected,
+              instruction: newClip,
+              surroundingText: before.slice(0, 2000),
+            });
+            setDraftText(
+              before.slice(0, pendingEdit.start) + rewritten + before.slice(pendingEdit.end)
+            );
+            draftEditedRef.current = true;
+            toastRef.current("Selection rewritten — check it and save when ready.", {
+              type: "success",
+            });
+          } catch (err: any) {
+            toastRef.current(err?.message || "Could not edit the selection by voice.", {
+              type: "error",
+            });
+          } finally {
+            setSelectionEditBusy(false);
+          }
+        })();
+        return;
+      }
+
       if (draftEditedRef.current) {
         // Manual edits are sacred: append the new words after them.
         setDraftText((d) => joinDraftText(d, newClip));
-      } else if (draftSource === "clean" && capture.smartCleanText) {
-        // Pristine Smart Clean draft: adopt the re-polished combined text.
-        setDraftText(capture.smartCleanText);
+      } else if (draftSource === "clean" && formattedTierText(capture)) {
+        // Pristine formatted draft: adopt the re-formatted combined text
+        // (the formatting/extraction pass re-ran across everything — diary
+        // events and matter matches refresh with it).
+        setDraftText(formattedTierText(capture));
       } else {
         setDraftText((d) => joinDraftText(d, newClip));
       }
       setClipCount((c) => c + 1);
-      lastSyncedVerbatimRef.current = verbatim;
       if (newClip) {
         toastRef.current("Added to your draft — keep adding, edit, or save when ready.", {
           type: "success",
@@ -252,12 +351,36 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     setDraftText(text);
   }, []);
 
+  /** Mirror of draftText for async flows (edit-selection splice) that need
+   *  the CURRENT text without re-creating the effect closure. */
+  const draftTextRef = useRef("");
+  useEffect(() => {
+    draftTextRef.current = draftText;
+  }, [draftText]);
+
+  const handleEditSelection = useCallback(
+    (start: number, end: number) => {
+      const capture = qc.capture;
+      if (!capture) return;
+      medium();
+      pendingSelectionEditRef.current = { start, end };
+      void qc.appendRecording({
+        clientLocalId: capture.clientLocalId,
+        existingSegmentCount: capture.nextSegmentIndex ?? capture.segmentCount,
+        existingDurationMs: capture.durationMs,
+        kind: capture.kind,
+        outputMode: capture.outputMode,
+      });
+    },
+    [qc.capture, qc.appendRecording, medium]
+  );
+
   const handleResyncDraft = useCallback(() => {
     if (!qc.capture) return;
     const capture = qc.capture;
     const verbatim = capture.verbatimText || "";
     const text =
-      draftSource === "clean" ? capture.smartCleanText || verbatim : verbatim;
+      draftSource === "clean" ? formattedTierText(capture) || verbatim : verbatim;
     setDraftText(text);
     draftEditedRef.current = false;
     toastRef.current("Draft re-synced from the transcript.", { type: "info" });
@@ -267,7 +390,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     if (!qc.capture) return;
     const capture = qc.capture;
     const next: DraftSource = draftSource === "clean" ? "verbatim" : "clean";
-    if (next === "verbatim" || !capture.smartCleanText) {
+    if (next === "verbatim" || !formattedTierText(capture)) {
       setDraftSource("verbatim");
       if (!draftEditedRef.current) setDraftText(capture.verbatimText || "");
       else
@@ -278,10 +401,10 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       return;
     }
     setDraftSource("clean");
-    if (!draftEditedRef.current) setDraftText(capture.smartCleanText || "");
+    if (!draftEditedRef.current) setDraftText(formattedTierText(capture));
     else
       toastRef.current(
-        "Showing the Smart Clean tier needs a re-sync — tap Re-sync to replace your edits.",
+        "Showing the Formatted tier needs a re-sync — tap Re-sync to replace your edits.",
         { type: "info" }
       );
   }, [qc.capture, draftSource]);
@@ -418,7 +541,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   // Where "Full Office" / "Settings" go when embedded inside the ALOA
   // panel: the parent closes the panel, then the navigation happens.
   const exitToView = useCallback(
-    (view: "dashboard" | "settings") => {
+    (view: "dashboard" | "settings" | "help") => {
       if (embedded && onExitEmbedded) onExitEmbedded();
       navigateTo(view);
     },
@@ -463,6 +586,31 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Voice Tips (owner spec 2026-11-19, Part 3): subtle "?" that
+                opens the in-place tricks + snippets guide. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              iconOnly
+              icon={SparklesIcon}
+              aria-label="Voice tips"
+              title="Voice tips — tricks, snippets & dictionary"
+              onClick={() => setShowTips((v) => !v)}
+            />
+            {/* Whisper Mode (Part 2 §5): quiet-speech capture profile for
+                whispered notes in court galleries / shared spaces. */}
+            <Button
+              variant={whisperMode ? "primary" : "ghost"}
+              size="sm"
+              aria-pressed={whisperMode}
+              title="Whisper Mode — capture quiet speech cleanly"
+              onClick={() => {
+                light();
+                toggleWhisperMode();
+              }}
+            >
+              Whisper
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -532,6 +680,15 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           </div>
         ) : null}
       </header>
+
+      {/* VOICE TIPS (owner spec Part 3): the collapsible in-place guide —
+          what you can capture, smart tricks, dictionary + snippets. */}
+      {showTips ? (
+        <VoiceTipsPanel
+          onClose={() => setShowTips(false)}
+          onOpenFullGuide={() => exitToView("help")}
+        />
+      ) : null}
 
       {mode === "speak" ? (
         <div className="flex-1 min-h-0 overflow-y-auto">
@@ -624,6 +781,8 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   clipCount={clipCount}
                   draftSource={draftSource}
                   onToggleSource={handleToggleSource}
+                  onEditSelection={handleEditSelection}
+                  addMoreDisabled={selectionEditBusy}
                 />
               </div>
             ) : qc.phase === "recording" ? (
