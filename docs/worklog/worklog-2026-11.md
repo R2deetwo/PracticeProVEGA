@@ -1398,3 +1398,46 @@ missing piece.
 **Note for the backlog:** GitHub reports 90 Dependabot vulnerabilities
 on main (3 critical / 40 high / 36 moderate / 11 low) — surfaced on
 every push; needs a dedicated triage round.
+
+## 2026-11-20 (b) — "Still canned?!" + "Aloa X tables are empty": two roots, both fixed
+
+Owner reports: (1) the landing-page ALOA is still a canned answer
+dispenser; (2) opening Aloa X in the Convex dashboard Data > Tables
+shows NOTHING.
+
+**Root cause 2 first (the big one): the production Convex backend was
+STALE.** Probe: `alox:getAloxStatus` on production → "Could not find
+public function" — the ALOA X commit (9554e34b, watchdog + founder
+login alerts + the alox_* tables) was merged on 2026-11-19, but its CI
+went red that day (stale generated api) and the production backend
+promote NEVER RAN after it. Staging auto-deploys on every push;
+production only changes by deliberate promote — so staging was AHEAD of
+production, and production had no alox_alerts / alox_state /
+founder_login_events tables at all. That is what "nothing in Data >
+Tables" was. Fix: full production promote dispatched after this
+commit (backend + frontend together). Note: groovy-mandrill-732 (the
+reserved Aloa X deployment) being empty is BY DESIGN — the live
+watchdog must run on the deployment it monitors.
+
+**Root cause 1: the landing AI engine was LIVE and healthy all along —
+the client gave up on it.** Live evidence: POST
+gregarious-malamute-537.convex.site/ai/landing-chat answers real
+specific questions in 3.5–4.7s (verified 4x today); the production
+bundle calls exactly that URL. But the FAB's failure handling turned
+ordinary events into permanent canned mode: TWO failed calls (the
+per-IP rate limit was 8 questions/HOUR — an owner demoing the panel
+burns that in minutes; a 9s client timeout vs 3.5–5s answers on a
+slow mobile first-connection) set liveAiDisabledRef = true for the
+WHOLE VISIT, silently. Every question after that was the catalogue —
+indistinguishable from the old canned dispenser (and chip answers are
+deliberately grounded on the owner-approved copy, so they LOOK canned
+even when live). Fixes:
+- Kill switch → 60s cooldown: a failed call falls back for THAT
+  question only; the next question retries the engine. No permanent
+  session downgrade.
+- Rate limits 8/hour→20, 30/day→60 per IP (global 4000/day unchanged).
+- 429 now shows an HONEST message ("you've reached the questions
+  limit for a little while") — never a canned card masquerading as AI.
+- Client timeout 9s→14s; server budget 15s→20s so the client is
+  always the impatient side.
+Gates: tsc 0, vitest 3241/3241 (landingChat 28/28), build green.

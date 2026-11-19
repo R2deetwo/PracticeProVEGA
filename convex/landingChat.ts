@@ -53,15 +53,20 @@ const MAX_HISTORY_ITEMS = 8;
 const MAX_HISTORY_CHARS = 300;
 const MAX_REFERENCE_CHARS = 1500;
 
-/** Per-IP: 8 questions/hour, 30/day. Global: 4000/day (abuse ceiling). */
-const IP_HOURLY_LIMIT = 8;
-const IP_DAILY_LIMIT = 30;
+/** Per-IP: 20 questions/hour, 60/day. Global: 4000/day (abuse ceiling).
+ * (2026-11-20: was 8/hour — tight enough that an owner demoing the panel
+ * burned through it and the panel fell back to canned answers, which read
+ * as “the AI is still canned”.) */
+const IP_HOURLY_LIMIT = 20;
+const IP_DAILY_LIMIT = 60;
 const GLOBAL_DAILY_LIMIT = 4000;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Whole-request budget (model + network). The client times out at 9s. */
-const GEN_TIMEOUT_MS = 15_000;
+/** Whole-request budget (model + network). The client times out at 14s;
+ * the server keeps a 20s ceiling so the client is always the impatient
+ * side (2026-11-20: was 15s server / 9s client — too tight on mobile). */
+const GEN_TIMEOUT_MS = 20_000;
 
 /**
  * Browser origins allowed to call this endpoint. Convex itself is not

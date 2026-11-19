@@ -62,9 +62,13 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *   the curated guidance (and the encoded statutory specifics). The
  *   deterministic catalogue below is now the FALLBACK: if the AI surface
  *   is unreachable (key rotation, network, timeout) the panel answers
- *   exactly as it did before — it never regresses to silence. Two
- *   consecutive AI failures disable live answers for the session so a
- *   visitor is never left waiting on a dead surface.
+ *   exactly as it did before — it never regresses to silence. A failed
+ *   call falls back for THAT QUESTION ONLY and starts a 60s cooldown
+ *   (no hammering a dead surface); the next question retries the engine.
+ *   Rate-limit replies are shown HONESTLY, never impersonated by the
+ *   catalogue (owner bug report 2026-11-20: two hiccups used to silently
+ *   disable the AI for the whole visit, which read as "still a canned
+ *   dispenser").
  *
  * NAMING (assistantIdentity.ts is the single source of truth):
  *   vega → ALOA (legal guide), atrium → ARIA (property guide).
@@ -146,20 +150,28 @@ interface LandingAiHistoryItem {
     text: string;
 }
 
-/** Client-side budget — the server gives itself 15s, but a visitor
+/** Client-side budget — the server gives itself 20s, but a visitor
  *  should never wait that long for a panel answer; the catalogue
- *  fallback answers instantly when this fires. */
-const LANDING_AI_TIMEOUT_MS = 9000;
+ *  fallback answers instantly when this fires. (2026-11-20: was 9s,
+ *  which raced real answers on slow mobile networks — measured live at
+ *  3.5–5s on a good line; a mobile first-connection can double that.) */
+const LANDING_AI_TIMEOUT_MS = 14000;
 
-/** Ask the live engine. Returns null on ANY failure (network, timeout,
- *  rate limit, key unavailable, malformed payload) — callers fall back
- *  to the deterministic catalogue, so the panel never breaks. */
+/** Ask the live engine. Returns:
+ *  - an answer when the engine replied;
+ *  - 'rate_limited' when the visitor hit the per-IP fence — the caller
+ *    shows an honest “you’ve reached the limit” message, NEVER a canned
+ *    card (a canned card after real answers reads as the AI breaking —
+ *    owner bug report 2026-11-20);
+ *  - null on any other failure (network, timeout, key unavailable,
+ *    malformed payload) — callers fall back to the deterministic
+ *    catalogue for that question, so the panel never breaks. */
 async function askLandingAI(payload: {
     question: string;
     product: LandingProduct;
     history: LandingAiHistoryItem[];
     reference?: { chip: string; reply: string; steps?: string[]; note?: string };
-}): Promise<LandingAiAnswer | null> {
+}): Promise<LandingAiAnswer | 'rate_limited' | null> {
     try {
         const controller = new AbortController();
         const timer = window.setTimeout(() => controller.abort(), LANDING_AI_TIMEOUT_MS);
@@ -174,6 +186,7 @@ async function askLandingAI(payload: {
         } finally {
             window.clearTimeout(timer);
         }
+        if (res.status === 429) return 'rate_limited';
         if (!res.ok) return null;
         const data = await res.json();
         const a = data?.answer;
@@ -384,10 +397,13 @@ const AloaAssistantFab: React.FC<{
     const thinkTimer = useRef<number | null>(null);
     const handoffTimer = useRef<number | null>(null);
     const nudgeTimers = useRef<number[]>([]);
-    // Live-AI session state: two consecutive failures stop trying for the
-    // session (instant catalogue answers beat waiting on a dead surface).
-    const liveAiFailuresRef = useRef(0);
-    const liveAiDisabledRef = useRef(false);
+    // Live-AI session state: a failed call falls back for THAT question
+    // only, with a 60s cooldown so the panel never hammers a dead surface.
+    // There is deliberately NO permanent session disable — two hiccups
+    // (a rate limit, a slow mobile network) used to silently downgrade the
+    // whole visit to the catalogue, which read as “still a canned
+    // dispenser” (owner bug report 2026-11-20).
+    const liveAiCooldownUntilRef = useRef(0);
 
     const introBubble = useMemo<Bubble>(
         () => ({
@@ -559,15 +575,16 @@ const AloaAssistantFab: React.FC<{
         : 'General legal information, not legal advice — for anything specific to your situation, the right next step is a qualified lawyer.';
 
     /** Live-AI answer path (owner direction 2026-11-18). Pushes the answer
-     *  bubble and returns true on success; returns false WITHOUT pushing so
-     *  the caller falls back to the deterministic catalogue. */
+     *  bubble and returns true when handled (a real answer OR an honest
+     *  rate-limit message); returns false WITHOUT pushing so the caller
+     *  falls back to the deterministic catalogue for THIS question. */
     const askAi = useCallback(
         async (
             question: string,
             reference?: { chip: string; reply: string; steps?: string[]; note?: string },
             suggestions?: string[],
         ): Promise<boolean> => {
-            if (liveAiDisabledRef.current) return false;
+            if (Date.now() < liveAiCooldownUntilRef.current) return false;
             setIsThinking(true);
             // Prior turns only — the current question is sent separately.
             const history: LandingAiHistoryItem[] = bubbles
@@ -576,15 +593,24 @@ const AloaAssistantFab: React.FC<{
                     role: b.role === 'you' ? ('user' as const) : ('assistant' as const),
                     text: (b.steps?.length ? `${b.text} ${b.steps.join(' ')}` : b.text).slice(0, 300),
                 }));
-            const answer = await askLandingAI({ question, product, history, reference });
+            const result = await askLandingAI({ question, product, history, reference });
             setIsThinking(false);
-            if (answer) {
-                liveAiFailuresRef.current = 0;
+            if (result === 'rate_limited') {
+                // The visitor asked too much too fast — say so honestly.
+                // Never impersonate the catalogue here: after real answers,
+                // a canned card reads as the AI breaking.
+                pushAloaReply({
+                    text: 'You’ve reached the questions limit for a little while — the live assistant will be back soon. The topic cards still work anytime.',
+                });
+                return true;
+            }
+            if (result) {
+                liveAiCooldownUntilRef.current = 0; // healthy again — clear any cooldown
                 setBubbles((prev) => [...prev, {
                     role: 'aloa' as const,
-                    text: answer.intro,
-                    steps: answer.steps,
-                    note: answer.note,
+                    text: result.intro,
+                    steps: result.steps,
+                    note: result.note,
                     live: true,
                     lawyerNote: lawyerNoteCopy,
                     suggestions,
@@ -592,11 +618,14 @@ const AloaAssistantFab: React.FC<{
                 }]);
                 return true;
             }
-            liveAiFailuresRef.current += 1;
-            if (liveAiFailuresRef.current >= 2) liveAiDisabledRef.current = true;
+            // Transient failure (network/timeout/key): answer THIS question
+            // from the catalogue and cool down 60s — the next question
+            // retries the live engine. The visit is never permanently
+            // downgraded.
+            liveAiCooldownUntilRef.current = Date.now() + 60_000;
             return false;
         },
-        [bubbles, product, lawyerNoteCopy],
+        [bubbles, product, lawyerNoteCopy, pushAloaReply],
     );
 
     const handleTopic = useCallback(
