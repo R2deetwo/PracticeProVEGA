@@ -1119,3 +1119,10 @@ full CI matrix on the follow-up docs commit 87f2db48 (same code + worklog)
 completed green: Tests, E2E smoke, CodeQL, Staging, Build Android APK (the
 79933e79 copies of those three were superseded/cancelled by the newer run);
 the APK bot released build-1209 (practicepro-1.0.810).
+
+AC1.3 cleanup follow-up: commit 5cc91201 removed the last `: any` from
+src/legal/drafting (typed DocumentAST template builders + unknown-narrowed
+payload parsers) — grep now returns 0. Both targeted production workflows
+re-dispatched and GREEN on 5cc91201 (Tests, E2E smoke, Staging, Build APK,
+CodeQL all green on the same sha; runs 44515161157 backend, 44515164564
+frontend). Live: version.json → sha 5cc91201, status healthy.
