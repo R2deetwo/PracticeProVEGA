@@ -113,25 +113,23 @@ export function landingCorsHeaders(origin: string | null): Record<string, string
 
 /**
  * resolveLandingApiKeys — the pure key chain for the landing chat, exported
- * for tests. Returns an ORDERED, de-duplicated candidate list: the PLATFORM
- * env key first (operator-controlled, cheapest to rotate), then the
- * founder's STORED firm key — the fallback that makes "I gave my API key in
- * Settings" actually power the website assistant (owner bug report
- * 2026-11-19). The handler tries each candidate in order and falls through
- * to the next on a provider rejection (401/403 — e.g. a rotated-away env
- * key), so a dead platform key can no longer leave the panel canned when
- * the founder's key is perfectly good.
+ * for tests. Returns an ORDERED, de-duplicated candidate list. Variadic
+ * (2026-11-20): a dead GEMINI_API_KEY used to SHADOW a perfectly good
+ * GEMINI_DEMO_KEY on staging (env resolution picked the first env key and
+ * stopped — the landing chat 503'd while the demo key sat unused next to
+ * it). Every key is now a candidate; the handler tries each in order and
+ * falls through on a provider rejection (401/403/429), so one rotated-away
+ * key can no longer leave the panel canned when another is healthy.
  */
 export function resolveLandingApiKeys(
-  envKey: string | null | undefined,
-  operatorKey: string | null | undefined
+  ...candidates: Array<string | null | undefined>
 ): string[] {
-  const candidates: string[] = [];
-  for (const key of [envKey, operatorKey]) {
+  const out: string[] = [];
+  for (const key of candidates) {
     const k = (key || "").trim();
-    if (k && !candidates.includes(k)) candidates.push(k);
+    if (k && !out.includes(k)) out.push(k);
   }
-  return candidates;
+  return out;
 }
 
 // ─── Request shape (validated, untrusted) ──────────────────────────────────
@@ -404,7 +402,8 @@ export const handleLandingChat = httpAction(async (ctx, request) => {
     // Best-effort: the env platform key remains the primary path.
   }
   const apiKeys = resolveLandingApiKeys(
-    process.env.GEMINI_API_KEY || process.env.GEMINI_DEMO_KEY,
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_DEMO_KEY,
     operatorKey
   );
   if (apiKeys.length === 0) {

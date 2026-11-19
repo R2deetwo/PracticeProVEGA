@@ -101,6 +101,21 @@ describe('resolveLandingApiKeys', () => {
     expect(resolveLandingApiKeys(' same-key ', 'same-key')).toEqual(['same-key']);
   });
 
+  it('REGRESSION (2026-11-20): a dead GEMINI_API_KEY no longer shadows a healthy GEMINI_DEMO_KEY', () => {
+    // Staging bug: the env resolution picked GEMINI_API_KEY first and STOPPED,
+    // so a rotated-away key 503'd the landing chat while the healthy demo key
+    // sat unused beside it. Every candidate must ride along, in order.
+    expect(resolveLandingApiKeys('dead-key', 'healthy-demo-key', 'founder-stored-key')).toEqual([
+      'dead-key',
+      'healthy-demo-key',
+      'founder-stored-key',
+    ]);
+    expect(resolveLandingApiKeys('dead-key', 'healthy-demo-key')).toEqual([
+      'dead-key',
+      'healthy-demo-key',
+    ]);
+  });
+
   it('trims whitespace and returns [] when neither key is usable', () => {
     expect(resolveLandingApiKeys('   ', '   ')).toEqual([]);
     expect(resolveLandingApiKeys(undefined, null)).toEqual([]);
