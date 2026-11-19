@@ -881,7 +881,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       {proposals ? (
         <div className="flex flex-col gap-2">
           {proposals.newMatter && !dismissedProposals.includes("newMatter") ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-violet-200 bg-violet-50/60 p-3">
+            <div className="flex flex-col gap-2 rounded-2xl border border-violet-200 bg-violet-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-violet-700">
@@ -946,7 +946,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           ) : null}
 
           {proposals.contactUpsert && !dismissedProposals.includes("contact") ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50/60 p-3">
+            <div className="flex flex-col gap-2 rounded-2xl border border-sky-200 bg-sky-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-sky-700">
@@ -1007,7 +1007,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           ) : null}
 
           {proposals.propertyNote && !dismissedProposals.includes("propertyNote") ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-teal-200 bg-teal-50/60 p-3">
+            <div className="flex flex-col gap-2 rounded-2xl border border-teal-200 bg-teal-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-teal-700">
@@ -1060,7 +1060,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           ) : null}
 
           {proposals.draftKickoff && !dismissedProposals.includes("draft") ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+            <div className="flex flex-col gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-indigo-700">
@@ -1111,7 +1111,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           ) : null}
 
           {proposals.financialEntry && !dismissedProposals.includes("financial") ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+            <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-amber-700">
@@ -1167,7 +1167,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             taskUpdatesDone.includes(u.itemId) ? (
               <div
                 key={u.itemId}
-                className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3"
+                className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3"
               >
                 <CheckIcon className="w-4 h-4 text-emerald-600 shrink-0" />
                 <p className="text-xs text-slate-700">
@@ -1178,7 +1178,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             ) : (
               <div
                 key={`${u.itemId}-${i}`}
-                className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3"
+                className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -1217,7 +1217,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           {/* Warm client-update draft (register shifting, Part 2 §2). */}
           {(proposals.clientUpdateText || triage.clientUpdateText) &&
           !dismissedProposals.includes("clientUpdate") ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-3">
+            <div className="flex flex-col gap-2 rounded-2xl border border-rose-200 bg-rose-50/50 p-3">
               <span className="text-xs font-bold uppercase tracking-wide text-rose-700">
                 Client update drafted
               </span>
@@ -1517,7 +1517,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
 
       {/* ── ENDORSEMENT (owner spec §4) — structured courtroom fields. ───── */}
       {hasEndorsement && endorsement ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
           <span className="text-xs font-bold uppercase tracking-wide text-amber-700">
             Courtroom endorsement detected
           </span>
