@@ -10,6 +10,7 @@ import { api } from "../../../convex/_generated/api";
 import { convertBlobToWav } from "../../utils/webmToWav";
 import { getGeminiApiKey } from "../../utils/aiUtils";
 import type { DraftBlueprint } from "../../legal/drafting/types";
+import type { IntentMode } from "./draftUtils";
 // Exact backend result types — importing them keeps client and server
 // contracts in lockstep (triageMeta is `any` server-side; the typed view
 // below is what the UI consumes).
@@ -80,6 +81,13 @@ export interface EndorsementDataView {
 
 export interface TriageMeta {
   intent?: TriageIntent;
+  /** Read/write intent mode resolved server-side by enforceIntentGate
+   *  (owner bug report 2026-11-19): "query_only" captures are pure lookups
+   *  — events/proposals are hard-gated to empty and the card renders a
+   *  read-only hint instead of staging anything. */
+  mode?: IntentMode;
+  /** False only when mode is "query_only" — write tools are gated off. */
+  allowWriteTools?: boolean;
   matterCandidates?: string[];
   /** Ranked semantic matches (top 3) — drives auto-select + the
    *  disambiguation pills on the triage card. */

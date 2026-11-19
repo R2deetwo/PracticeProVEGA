@@ -322,3 +322,190 @@ export function extractLearnedTerms(before: string, after: string): string[] {
   }
   return kept.reverse().slice(0, 5);
 }
+
+// ─── READ vs WRITE INTENT CLASSIFICATION (owner bug report 2026-11-19) ─────
+// Asking a read-only question like "What's my schedule today?" used to detect
+// the date keyword "today" and MISTAKENLY create/stage a calendar entry for
+// today. The fix classifies every input into one of three modes BEFORE any
+// event/note extraction runs, in two layers:
+//   1. The LLM classifies ("mode" in buildAnalysisPrompt /
+//      QUICK_ASK_SYSTEM_PROMPT).
+//   2. These pure helpers are the deterministic backstop: classifyIntentMode
+//      detects question-shaped input with no write phrase, resolveIntentMode
+//      merges the two verdicts (a deterministic query_only can NEVER be
+//      upgraded to a write by the model), and eventHasActionableSubject is
+//      the per-event date-keyword guardrail (a standalone date/time token is
+//      never sufficient evidence to create an entry).
+// Shared verbatim by the CLIENT and the CONVEX backend — zero dependencies.
+
+/** The three capture/ask modes. `query_only` never creates anything. */
+export type IntentMode = "query_only" | "mutation_action" | "hybrid";
+
+/** Sentence-leading question shapes: interrogatives, aux-inversion and
+ *  imperative lookups ("Show my tasks for Friday", "Any hearings this week?"). */
+const QUESTION_STARTERS: RegExp[] = [
+  /^(what|whats|what's|which|when|where|who|whom|whose|why|how)\b/i,
+  /^(do|does|did|is|are|was|were|am|have|has|had|can|could|would|will|should|shall|may|might)\b/i,
+  /^(show|list|find|search|look\s?up|pull\s?up|tell\sme|any|are\s there|is\s there|whats\s on)\b/i,
+];
+
+/** Interrogative evidence ANYWHERE in the text (embedded second sentences,
+ *  trailing question marks, "do I have…" mid-string). */
+const QUESTION_EMBEDDED: RegExp[] = [
+  /\?\s*$/,
+  /\b(do|does|did|is|are|was|were|have|has|had|can|could|will|would|should)\s+(i|we|you|there|my|mr|mrs|ms|dr|chief)\b/i,
+  /\b(what|when|where|which|how)\b[^.!?]*\b(my|our|the|today|tomorrow|schedule|diary|calendar|hearing|task)\b/i,
+];
+
+/**
+ * Write phrases — grammatical patterns that record/schedule/create something.
+ * Deliberately VERB+OBJECT shaped: "schedule a meeting" is a write command,
+ * but "my schedule" (the noun in "What's my schedule today?") is NOT. A bare
+ * date/time word is never on this list — that is the whole bug being fixed.
+ */
+const WRITE_PHRASES: RegExp[] = [
+  /\bremind me\b/i,
+  /\bschedule\s+(a|an|the|another|us|for)\b/i,
+  /\b(add|create|put|set)\b[^.!?]{0,30}\b(task|event|reminder|entry|note|meeting|hearing|appointment|to-?do|deadline|milestone)s?\b/i,
+  /\bset\s+(a|an|the)?\s*(reminder|task|alarm)\b/i,
+  /\blog\s+(a|an|the)?\s*(expense|fee|cost|payment|disbursement|receipt|income)\b/i,
+  /\bnote\s+(that|down|to)\b/i,
+  /\bsave\s+(a|an|the|this|that)\b/i,
+  /\b(draft|prepare|write)\s+(me\s+)?(a|an|the)\b/i,
+  /\bfile\s+(the|my|a|an|our)\b/i,
+  /\bfollow[\s-]?up\b/i,
+  /\bmeeting\s+with\b/i,
+  /\bappointment\s+with\b/i,
+  /\bnew\s+(instruction|client|matter|brief)\b/i,
+  /\bmark\b[^.!?]*\b(done|completed|complete)\b/i,
+  /\b(court\s+rose|coram|suit\s+no|next\s+adjourned|matter\s+of)\b/i,
+  /\bi\s+(need\s+to|have\s+to|must|will|would\s+like\s+to|want\s+to)\b/i,
+  /\bi'?ll\b/i,
+];
+
+/**
+ * classifyIntentMode — the deterministic read/write verdict for a raw
+ * transcript or typed question.
+ *
+ *   query_only       question-shaped AND no write phrase anywhere
+ *   hybrid           question-shaped AND at least one write phrase
+ *                    (e.g. "What's my schedule tomorrow, and add a review
+ *                    task at 4 PM?" — only the write clause may be extracted)
+ *   mutation_action  everything else (Quick Capture's primary use is
+ *                    dictated notes/tasks, so command-shaped text defaults
+ *                    to a write; the LLM's own query_only verdict can still
+ *                    downgrade it in resolveIntentMode)
+ */
+export function classifyIntentMode(text: string): IntentMode {
+  const t = (text || "").trim();
+  if (!t) return "mutation_action";
+  const isQuestion =
+    QUESTION_STARTERS.some((rx) => rx.test(t)) ||
+    QUESTION_EMBEDDED.some((rx) => rx.test(t));
+  if (!isQuestion) return "mutation_action";
+  const hasWrite = WRITE_PHRASES.some((rx) => rx.test(t));
+  return hasWrite ? "hybrid" : "query_only";
+}
+
+/**
+ * resolveIntentMode — merge the deterministic verdict (above) with the LLM's
+ * own "mode" field. Precedence, conservative by design:
+ *
+ *   1. deterministic query_only ALWAYS wins — a question-shaped input with
+ *      no write phrase can never be upgraded into a write by the model
+ *      (this is the exact regression being fixed).
+ *   2. otherwise the LLM's query_only wins (it catches nuance the regexes
+ *      miss, e.g. "Should I add a task?" is advice-seeking, not a command).
+ *   3. hybrid from either side → hybrid (extract only the write clause).
+ *   4. default mutation_action.
+ */
+export function resolveIntentMode(
+  det: IntentMode,
+  llm: string | null | undefined
+): IntentMode {
+  if (det === "query_only") return "query_only";
+  const llmMode = (llm || "").trim().toLowerCase();
+  if (llmMode === "query_only") return "query_only";
+  if (llmMode === "hybrid" || det === "hybrid") return "hybrid";
+  return "mutation_action";
+}
+
+/** Date/time words, interrogatives, determiners and connectives — stripped
+ *  before an event title is judged for an actionable subject. */
+const DATE_TIME_WORDS = new Set([
+  "today", "tonight", "tomorrow", "tmrw", "yesterday", "monday",
+  "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "morning", "afternoon", "evening", "night", "noon", "midday", "midnight",
+  "week", "weeks", "weekly", "weekend", "weekday", "month", "months",
+  "monthly", "year", "years", "yearly", "fortnight", "quarter", "day",
+  "days", "daily", "date", "time", "times", "hour", "hours", "minute",
+  "minutes", "oclock", "am", "pm", "january", "february", "march", "april",
+  "may", "june", "july", "august", "september", "october", "november",
+  "december", "next", "this", "last", "every", "each", "coming", "upcoming",
+  "till", "until", "at", "on", "in", "by", "from", "to", "for", "of", "and",
+  "or", "with", "without", "the", "a", "an", "my", "our", "your", "his",
+  "her", "their", "its", "that", "these", "those", "all", "any", "some",
+  "is", "are", "was", "were", "be", "been", "being", "do", "does", "did",
+  "have", "has", "had", "will", "would", "can", "could", "should", "may",
+  "might", "must", "shall", "not", "no", "yes", "i", "we", "you", "he",
+  "she", "they", "it", "me", "us", "them", "there", "here", "what", "whats",
+  "when", "where", "who", "whom", "whose", "why", "how", "which", "show",
+  "list", "find", "search", "tell", "please", "kindly",
+]);
+
+/** Generic container nouns — they name the KIND of entry, never its subject
+ *  ("My schedule today", "Hearings this week" have no actionable subject). */
+const GENERIC_SUBJECT_WORDS = new Set([
+  "schedule", "calendar", "diary", "agenda", "itinerary", "plan", "plans",
+  "planning", "event", "events", "entry", "entries", "task", "tasks",
+  "reminder", "reminders", "item", "items", "thing", "things", "stuff",
+  "hearing", "hearings", "appearance", "appearances", "meeting",
+  "meetings", "appointment", "appointments", "matter", "matters", "case",
+  "cases", "note", "notes", "brief", "briefs", "client", "clients",
+  "update", "updates", "activity", "activities", "court", "date", "dates",
+]);
+
+/** Bare action verbs — only actionable when paired with an object or a
+ *  generic task noun ("Review task", "Check registry"); alone ("Review",
+ *  "Check") they are subjectless junk. */
+const ACTION_VERBS = new Set([
+  "review", "check", "verify", "confirm", "call", "phone", "email", "file",
+  "submit", "draft", "send", "prepare", "pay", "renew", "visit", "meet",
+  "discuss", "attend", "collect", "sign", "print", "serve", "complete",
+  "finish", "respond", "reply", "obtain", "process", "register", "follow",
+  "mark", "book", "arrange", "organise", "organize", "compile", "evaluate",
+  "assess", "analyse", "analyze", "research", "investigate", "inspect",
+  "examine", "chase", "escalate", "attend",
+]);
+
+/**
+ * eventHasActionableSubject — the per-event DATE-KEYWORD GUARDRAIL (owner
+ * spec §2): a calendar/task extraction is only valid when there is BOTH an
+ * actionable subject/task AND a clear intent to record it. A title that is
+ * nothing but date/time words plus generic containers ("My schedule today",
+ * "Hearings this week", "What's on tomorrow") carries no subject and is
+ * dropped — a standalone date token is never sufficient evidence.
+ */
+export function eventHasActionableSubject(title: string): boolean {
+  const words = (title || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  // Words that survive noise-stripping and are long enough to carry meaning.
+  const significant = words.filter(
+    (w) => w.length >= 3 && !DATE_TIME_WORDS.has(w)
+  );
+  if (significant.length === 0) return false;
+  // Any word that is neither a generic container nor a bare action verb is a
+  // real subject ("Sino Truck", "registry", "engagement letter").
+  const hasSpecific = significant.some(
+    (w) => !GENERIC_SUBJECT_WORDS.has(w) && !ACTION_VERBS.has(w)
+  );
+  if (hasSpecific) return true;
+  // "Review task" / "Prepare brief" — action verb + task noun still names a
+  // doable thing (the explicit "add a review task at 4 PM" hybrid case).
+  const hasAction = significant.some((w) => ACTION_VERBS.has(w));
+  const hasNoun = significant.some((w) => GENERIC_SUBJECT_WORDS.has(w));
+  return hasAction && hasNoun;
+}

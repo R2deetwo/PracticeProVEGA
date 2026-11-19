@@ -412,6 +412,75 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                 <StartupViewPicker />
             </SettingsCard>
 
+            {/* ─── Quick Capture & Voice ──────────────────────────────────
+                Owner request 2026-11-19: Quick Capture properly explained
+                and considered in Settings. This card is the Settings-side
+                map of every Quick Capture / Quick Ask behaviour and where
+                its controls live (the ⚙ menu in Quick Capture itself, the
+                Voice Tips panel, and the Startup View card above). */}
+            <SettingsCard title="Quick Capture & Voice" className={className}>
+                <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
+                    Quick Capture is the voice-first capture screen — dictate
+                    anything and it becomes structured firm records (matters,
+                    diary entries, endorsements, property notes, expenses,
+                    drafts). Its controls live in Quick Capture's own ⚙ menu;
+                    this card explains what each one does.
+                </p>
+                <div className="space-y-4">
+                    <div className="pt-2 border-t border-slate-200 dark:border-zinc-700">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Questions are read-only</h4>
+                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                            Asking Quick Ask or dictating a question — "What's my schedule
+                            today?", "Do I have anything tomorrow?", "Any hearings this
+                            week?" — only looks things up and answers from your records.
+                            Nothing is ever created or staged from a question: a date word
+                            like "today" is never treated as an instruction. Entries are
+                            created only from clear commands ("Remind me…", "Schedule…",
+                            "Add a task…", "Log an expense…"), and when you combine a
+                            question with a command, only the command part is acted on.
+                            No setting to change — this is a guarantee.
+                        </p>
+                    </div>
+                    <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Quiet Mode</h4>
+                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                            In Quick Capture's ⚙ menu (and the header on desktop). Relaxes
+                            noise suppression so faint, quiet speech in court galleries or
+                            shared rooms is captured cleanly instead of being filtered out.
+                            Saved per device.
+                        </p>
+                    </div>
+                    <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Smart Clean vs Verbatim</h4>
+                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                            Every capture keeps two tiers: the Verbatim transcript (your
+                            exact words, never edited) and the Smart Clean / formatted tier
+                            (meta-speech stripped, professional wording, format matched to
+                            the destination — diary entries get one-line action summaries,
+                            case notes get paragraphs or bullets). Toggle the tier on the
+                            capture card before saving.
+                        </p>
+                    </div>
+                    <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Snippets & Personal Dictionary</h4>
+                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                            Managed in Quick Capture's "?" Voice Tips panel (also in Help &
+                            Support). Snippets expand a spoken trigger into full text
+                            ("…and insert chambers signature"); the dictionary learns your
+                            spelling corrections and feeds them to every future dictation.
+                        </p>
+                    </div>
+                    <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Start in Quick Capture (mobile)</h4>
+                        <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
+                            Covered by the Startup View card above — flip it on there, or
+                            use the switch inside Quick Capture's ⚙ menu on a phone. It
+                            only affects mobile launches and is saved per device.
+                        </p>
+                    </div>
+                </div>
+            </SettingsCard>
+
             {/* ─── Haptics & Sounds ────────────────────────────────────────
                 Mobile-only settings for haptic feedback (vibration on button
                 taps) and notification sounds. These are no-ops on web. */}

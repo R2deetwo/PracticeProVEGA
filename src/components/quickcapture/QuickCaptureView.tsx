@@ -50,6 +50,7 @@ import {
   CogIcon,
   DocumentTextIcon,
   MicrophoneIcon,
+  MagnifyingGlassIcon,
   SparklesIcon,
   StopIcon,
   TrashIcon,
@@ -938,6 +939,15 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           ) : askResult ? (
             <div className="mx-4 mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <p className="text-base leading-relaxed text-slate-800 whitespace-pre-wrap">{askResult.answer}</p>
+              {/* Read-only hint (owner bug report 2026-11-19): pure lookup
+                  questions never create entries — say so explicitly so the
+                  lawyer knows the diary is untouched. */}
+              {askResult.mode === "query_only" ? (
+                <p className="mt-2 flex items-center gap-1.5 text-2xs font-semibold text-blue-700">
+                  <MagnifyingGlassIcon className="w-3.5 h-3.5 shrink-0" />
+                  Read-only question — nothing was created or scheduled.
+                </p>
+              ) : null}
               {/* Action-capable Quick Ask (owner spec §5): confirmation
                   cards for anything it created, each with View / Undo. */}
               {askResult.actions && askResult.actions.length > 0 ? (

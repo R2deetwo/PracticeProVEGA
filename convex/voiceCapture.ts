@@ -46,7 +46,13 @@ import { QUALITY_MODEL } from "./aiModels";
 // (TriageCard / QuickCaptureView). Safe to import here: draftUtils has zero
 // imports of its own, so the Convex function bundler just inlines the text
 // logic (owner spec 2026-11-19: context- & intent-aware formatting).
-import { stripMetaSpeech } from "../src/services/voice/draftUtils";
+import {
+  classifyIntentMode,
+  eventHasActionableSubject,
+  resolveIntentMode,
+  stripMetaSpeech,
+  type IntentMode,
+} from "../src/services/voice/draftUtils";
 // VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19, §4 Phase 2): the same
 // convention — pure, dependency-free modules under src/legal/drafting are
 // safe for the Convex bundler. The blueprint validator, self-correction
@@ -431,22 +437,27 @@ THE FIRM'S EVENT TYPES: ${types}
 ${dictLine ? `\nSPELLING HINTS — spell these names/terms exactly as written when they appear: ${dictLine}` : ""}${snippetLines ? `\nSPOKEN SNIPPETS — if the speaker says a trigger phrase, replace it with its text in formatted outputs:\n${snippetLines}` : ""}
 
 EXTRACT — all that apply:
-1. "summary": one line (≤15 words) describing the note.
-2. "intent": the PRIMARY purpose — "case_note", "schedule", "question", or "share". A note about a matter that ALSO contains dates is still "case_note" (the events ride along). A NEW client instruction with no matching matter is "case_note" with a "newMatter" proposal. A note with NO matter relevance (chambers admin) is "schedule" or "share" with events and NO matter.
-3. "matterMatches": rank the firm's matters this note is about — SEMANTIC fuzzy matching, not exact strings. Match client names, party names, suit numbers, and INFORMAL references ("the Chukwu file" → the matter with party Chukwu; "the Lekki land case" → the land matter in Lekki). Return the top 3 max, each {"matterId": <exact id from the directory>, "confidence": 0.0-1.0, "reason": "<why, ≤12 words>"}. Only include matches with confidence ≥ 0.3. If no existing matter is being discussed, return [].
-4. "matterCandidates": the EXACT word(s) the speaker used to refer to the matter/client (verbatim from the note; may be informal).
-5. "events": EVERY date, deadline, court event, or implied follow-up task — including ones without an explicit date word ("follow up with registry" is a task) and STANDALONE chambers/admin tasks with no matter. Each: {"title": "<short calendar title>", "type": "<one of: ${types}>", "dateISO": "YYYY-MM-DD resolved from TODAY (empty string if truly no date was spoken)", "time": "HH:MM 24h", "timeEstimated": true|false, "location": "<court/place if mentioned, else empty>", "note": "<CONCISE ACTION SUMMARY for this diary entry's Notes field — what the lawyer must DO, stripped of meta-speech; 1-2 sentences; if THIS entry involves multiple distinct checks/tasks, format them as '- ' bullet lines>"}. TIME RULES: if a specific clock time was spoken use it (timeEstimated false); if only a part of day was spoken use 09:00 for morning, 14:00 for afternoon, 17:00 for evening; if NO time was spoken use 09:00 — in all default cases set timeEstimated true.
-6. "isDiaryTask": true if the note contains any task, follow-up, check, or deadline the lawyer must act on (with or without a date).
-7. "endorsement": if courtroom proceedings were dictated (court session, orders, adjournment), extract {"court": "", "suitNumber": "", "parties": "", "judge": "", "orders": ["<each order/holding, one line>"], "nextAdjournedDate": "YYYY-MM-DD or empty", "nextAdjournedTime": "HH:MM or empty"}; otherwise null.
-8. "isQuestion": true only if the lawyer is ASKING for information; "questionText": the question in their words.
-9. "caseNoteText": the note body formatted for saving as a CASE NOTE (see FORMATTING RULES below).
-10. "clientUpdateText": if the note is clearly meant to be communicated to a client ("tell the client…", "update Mrs Tunde that…") OR reads like a client update, draft a warm, clear, plain-English message a lawyer could send as-is (no legalese clutter, no meta-speech); otherwise empty string.
-11. "newMatter": propose a NEW matter ONLY when the note is a genuinely NEW instruction/client that matches NO existing matter with confidence ≥ 0.5: {"title": "<Formal matter title, e.g. 'Mrs. Tunde Adeyemi — Lekki Phase 1 Commercial Lease Renewal'>", "clientName": "", "opposingParty": "", "practiceArea": "<e.g. Commercial Lease, Debt Recovery, Land Dispute>", "summaryNote": "<clean intake bullets: parties, property/subject, key figures, instructions>"}. When an existing matter clearly matches, return null.
-12. "contactUpsert": when the note introduces or updates a CONTACT: {"contactId": "<exact id from the contacts directory when this is an UPDATE, else empty>", "name": "", "phone": "", "email": "", "company": "", "role": "", "notes": "<what they want / context>"}; otherwise null.
-13. "propertyNote": when the note is about a PROPERTY/UNIT in the directory (estate, block, flat, tenant issue) rather than a litigation matter: {"propertyId": "<exact id>", "unitId": "<exact unitId if a specific flat/block was named, else empty>", "note": "<clean formatted note for the property/unit record>", "followUp": "<optional follow-up summary, else empty>"}; otherwise null.
-14. "draftBlueprint": when the lawyer asks to DRAFT/PREPARE a legal or property document, extract a STRUCTURED DRAFTING BLUEPRINT (the app assembles the document itself — you do NOT write the document): {"documents": ["<document type — use the snake_case registry value when known, else the spoken name: motion_on_notice, supporting_affidavit, written_address, statement_of_claim, statement_of_defence, notice_to_quit, seven_days_notice_of_intention, writ_of_summons, originating_summons, formal_demand_letter, tenancy_or_lease_agreement, deed_of_assignment, notice_of_appeal, appellants_brief, garnishee_application, writ_of_fi_fa, witness_statement_on_oath, power_of_attorney …>"], "reliefs": ["<each discrete prayer/relief the lawyer dictated, cleaned — plain professional wording, NO legalese rewriting, NO meta-speech>"], "groundsOrFacts": ["<each discrete fact or ground, in the order spoken, cleaned>"], "amounts": [{"label": "", "amount": <plain number in NAIRA>, "currency": "NGN"}], "periods": [{"label": "<what the period is for>", "value": <number>, "unit": "days|weeks|months|years"}], "dates": [{"label": "", "iso": "YYYY-MM-DD resolved from TODAY"}], "namedPeople": [{"name": "", "role": "<deponent / witness / landlord / tenant / counterparty …>"}], "specialInstructions": ["<any other drafting instruction, cleaned>"]}. CLEANING RULES: strip filler and meta-speech ("draft me a", "make it", "I want to", "um"); resolve self-corrections to the corrected value ONLY ("ten days, no, fourteen days" → fourteen days); do NOT invent facts, amounts, dates, reliefs or parties not spoken; do NOT rewrite reliefs into legalese — that happens at assembly. If the note is NOT a drafting instruction, return null.
-15. "financialEntry": when the note logs money spent or earned: {"type": "expense"|"fee", "amount": <plain number in NAIRA, e.g. "4.5 million naira" → 4500000, "14,500" → 14500>, "currency": "NGN", "description": "<clean description>", "matterId": "<exact id when a matter was named>"}; otherwise null.
-16. "taskUpdates": when the lawyer reports an OPEN TASK/REMINDER as done or changed: [{"kind": "task"|"event", "itemId": "<exact id from OPEN TASKS & REMINDERS>", "status": "Completed"|"In Progress"|"Blocked", "note": "<clean one-line outcome>"}]; otherwise [].
+1. "mode": FIRST — BEFORE extracting anything else, classify the note's READ vs WRITE intent:
+     - "query_only": any question or lookup ("What's my schedule today?", "Do I have anything tomorrow?", "Show my tasks for Friday", "When is the Sino Truck matter coming up?"). RULE: when mode is "query_only", "events" MUST be [], "isDiaryTask" false, "endorsement" null, and every write proposal ("newMatter", "contactUpsert", "propertyNote", "draftBlueprint", "financialEntry", "taskUpdates") null/[] — NEVER create or propose a calendar entry, task or note from a pure lookup question.
+     - "mutation_action": an imperative or logging statement ("Remind me to…", "Schedule…", "Add a task…", "Log an expense…", a dictated court endorsement).
+     - "hybrid": ONLY when the user explicitly combines a lookup AND a write command ("What's my schedule tomorrow, and add a review task at 4 PM?"). Extract ONLY the explicit write clause as events/proposals — the question clause is answered ("questionText"), never extracted.
+     A standalone date/time word ("today", "tomorrow", "next week") is NEVER by itself evidence to create anything.
+2. "summary": one line (≤15 words) describing the note.
+3. "intent": the PRIMARY purpose — "case_note", "schedule", "question", or "share". A note about a matter that ALSO contains dates is still "case_note" (the events ride along). A NEW client instruction with no matching matter is "case_note" with a "newMatter" proposal. A note with NO matter relevance (chambers admin) is "schedule" or "share" with events and NO matter. When "mode" is "query_only", "intent" MUST be "question".
+4. "matterMatches": rank the firm's matters this note is about — SEMANTIC fuzzy matching, not exact strings. Match client names, party names, suit numbers, and INFORMAL references ("the Chukwu file" → the matter with party Chukwu; "the Lekki land case" → the land matter in Lekki). Return the top 3 max, each {"matterId": <exact id from the directory>, "confidence": 0.0-1.0, "reason": "<why, ≤12 words>"}. Only include matches with confidence ≥ 0.3. If no existing matter is being discussed, return [].
+5. "matterCandidates": the EXACT word(s) the speaker used to refer to the matter/client (verbatim from the note; may be informal).
+6. "events": EVERY date, deadline, court event, or implied follow-up task — including ones without an explicit date word ("follow up with registry" is a task) and STANDALONE chambers/admin tasks with no matter. ONLY valid when "mode" is "mutation_action" or "hybrid" AND each event carries an actionable subject — NEVER create an event from a pure lookup question, and NEVER from a bare date mention. Each: {"title": "<short calendar title>", "type": "<one of: ${types}>", "dateISO": "YYYY-MM-DD resolved from TODAY (empty string if truly no date was spoken)", "time": "HH:MM 24h", "timeEstimated": true|false, "location": "<court/place if mentioned, else empty>", "note": "<CONCISE ACTION SUMMARY for this diary entry's Notes field — what the lawyer must DO, stripped of meta-speech; 1-2 sentences; if THIS entry involves multiple distinct checks/tasks, format them as '- ' bullet lines>"}. TIME RULES: if a specific clock time was spoken use it (timeEstimated false); if only a part of day was spoken use 09:00 for morning, 14:00 for afternoon, 17:00 for evening; if NO time was spoken use 09:00 — in all default cases set timeEstimated true.
+7. "isDiaryTask": true if the note contains any task, follow-up, check, or deadline the lawyer must act on (with or without a date).
+8. "endorsement": if courtroom proceedings were dictated (court session, orders, adjournment), extract {"court": "", "suitNumber": "", "parties": "", "judge": "", "orders": ["<each order/holding, one line>"], "nextAdjournedDate": "YYYY-MM-DD or empty", "nextAdjournedTime": "HH:MM or empty"}; otherwise null.
+9. "isQuestion": true only if the lawyer is ASKING for information; "questionText": the question in their words.
+10. "caseNoteText": the note body formatted for saving as a CASE NOTE (see FORMATTING RULES below).
+11. "clientUpdateText": if the note is clearly meant to be communicated to a client ("tell the client…", "update Mrs Tunde that…") OR reads like a client update, draft a warm, clear, plain-English message a lawyer could send as-is (no legalese clutter, no meta-speech); otherwise empty string.
+12. "newMatter": propose a NEW matter ONLY when the note is a genuinely NEW instruction/client that matches NO existing matter with confidence ≥ 0.5: {"title": "<Formal matter title, e.g. 'Mrs. Tunde Adeyemi — Lekki Phase 1 Commercial Lease Renewal'>", "clientName": "", "opposingParty": "", "practiceArea": "<e.g. Commercial Lease, Debt Recovery, Land Dispute>", "summaryNote": "<clean intake bullets: parties, property/subject, key figures, instructions>"}. When an existing matter clearly matches, return null.
+13. "contactUpsert": when the note introduces or updates a CONTACT: {"contactId": "<exact id from the contacts directory when this is an UPDATE, else empty>", "name": "", "phone": "", "email": "", "company": "", "role": "", "notes": "<what they want / context>"}; otherwise null.
+14. "propertyNote": when the note is about a PROPERTY/UNIT in the directory (estate, block, flat, tenant issue) rather than a litigation matter: {"propertyId": "<exact id>", "unitId": "<exact unitId if a specific flat/block was named, else empty>", "note": "<clean formatted note for the property/unit record>", "followUp": "<optional follow-up summary, else empty>"}; otherwise null.
+15. "draftBlueprint": when the lawyer asks to DRAFT/PREPARE a legal or property document, extract a STRUCTURED DRAFTING BLUEPRINT (the app assembles the document itself — you do NOT write the document): {"documents": ["<document type — use the snake_case registry value when known, else the spoken name: motion_on_notice, supporting_affidavit, written_address, statement_of_claim, statement_of_defence, notice_to_quit, seven_days_notice_of_intention, writ_of_summons, originating_summons, formal_demand_letter, tenancy_or_lease_agreement, deed_of_assignment, notice_of_appeal, appellants_brief, garnishee_application, writ_of_fi_fa, witness_statement_on_oath, power_of_attorney …>"], "reliefs": ["<each discrete prayer/relief the lawyer dictated, cleaned — plain professional wording, NO legalese rewriting, NO meta-speech>"], "groundsOrFacts": ["<each discrete fact or ground, in the order spoken, cleaned>"], "amounts": [{"label": "", "amount": <plain number in NAIRA>, "currency": "NGN"}], "periods": [{"label": "<what the period is for>", "value": <number>, "unit": "days|weeks|months|years"}], "dates": [{"label": "", "iso": "YYYY-MM-DD resolved from TODAY"}], "namedPeople": [{"name": "", "role": "<deponent / witness / landlord / tenant / counterparty …>"}], "specialInstructions": ["<any other drafting instruction, cleaned>"]}. CLEANING RULES: strip filler and meta-speech ("draft me a", "make it", "I want to", "um"); resolve self-corrections to the corrected value ONLY ("ten days, no, fourteen days" → fourteen days); do NOT invent facts, amounts, dates, reliefs or parties not spoken; do NOT rewrite reliefs into legalese — that happens at assembly. If the note is NOT a drafting instruction, return null.
+16. "financialEntry": when the note logs money spent or earned: {"type": "expense"|"fee", "amount": <plain number in NAIRA, e.g. "4.5 million naira" → 4500000, "14,500" → 14500>, "currency": "NGN", "description": "<clean description>", "matterId": "<exact id when a matter was named>"}; otherwise null.
+17. "taskUpdates": when the lawyer reports an OPEN TASK/REMINDER as done or changed: [{"kind": "task"|"event", "itemId": "<exact id from OPEN TASKS & REMINDERS>", "status": "Completed"|"In Progress"|"Blocked", "note": "<clean one-line outcome>"}]; otherwise [].
 
 FORMATTING RULES — strip meta-speech and adapt the format to the destination (the raw transcript is kept separately; your output is the CLEAN saved text):
 - STRIP all conversational scaffolding and meta-instructions: "From voice note…", "I want to capture a quick note…", "I'm trying to set a reminder for…", "Note to self…", hesitations, stumbles. The saved text must read as clean, direct, professional dictation — as if the lawyer had written it themselves.
@@ -458,10 +469,10 @@ FORMATTING RULES — strip meta-speech and adapt the format to the destination (
 - SNIPPETS: expand any spoken snippet trigger into its full text inside caseNoteText/draft briefs (never inside verbatim-style fields).
 - FINANCIAL AMOUNTS: parse spoken amounts into plain naira numbers ("18 million naira" → 18000000; "₦4.5 million" → 4500000; "14,500 naira" → 14500).
 
-RULES: never invent matters, dates, or details absent from the note; every id must be copied EXACTLY from its directory; never split one continuous note into more events than were actually dictated; newMatter and a high-confidence matterMatches must not both be returned.
+RULES: never invent matters, dates, or details absent from the note; every id must be copied EXACTLY from its directory; never split one continuous note into more events than were actually dictated; newMatter and a high-confidence matterMatches must not both be returned. A calendar/task extraction is ONLY valid when there is BOTH an actionable subject/task AND a clear intent to record or schedule it — a standalone date/time token ("today", "tomorrow", "next week") is NEVER sufficient evidence on its own. Classify "mode" FIRST and let it gate every write extraction (query_only → no events, no proposals, ever).
 
 Respond with STRICT JSON only — no prose, no markdown fences:
-{"summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":"","note":"..."}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":"","caseNoteText":"...","clientUpdateText":"","newMatter":null,"contactUpsert":null,"propertyNote":null,"draftBlueprint":null,"financialEntry":null,"taskUpdates":[]}`;
+{"mode":"query_only|mutation_action|hybrid","summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":"","note":"..."}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":"","caseNoteText":"...","clientUpdateText":"","newMatter":null,"contactUpsert":null,"propertyNote":null,"draftBlueprint":null,"financialEntry":null,"taskUpdates":[]}`;
 }
 
 /** Date arithmetic on YYYY-MM-DD strings (UTC-safe, exported for tests). */
@@ -535,6 +546,68 @@ export interface QuickAskAction {
 }
 
 /**
+ * enforceIntentGate — the deterministic READ vs WRITE gate applied AFTER the
+ * LLM analysis, BEFORE anything is staged on the triage card (owner bug
+ * report 2026-11-19: asking "What's my schedule today?" detected the date
+ * keyword "today" and mistakenly created a calendar entry for today).
+ *
+ * Two layers meet here: the LLM's own "mode" verdict and the deterministic
+ * classifier (classifyIntentMode) run over the raw source text. The merged
+ * verdict (resolveIntentMode) then HARD-GATES the parsed payload:
+ *
+ *   - query_only → events [], isDiaryTask false, endorsement null, every
+ *     write proposal (newMatter / contactUpsert / propertyNote /
+ *     draftBlueprint / financialEntry / taskUpdates) nulled, caseNoteText /
+ *     clientUpdateText emptied, intent forced to "question". Read-only
+ *     outputs (summary, matterMatches, matterCandidates, questionText)
+ *     survive — they only inform the answer UI.
+ *   - mutation_action / hybrid → the per-event DATE-KEYWORD GUARDRAIL still
+ *     applies: any proposed event whose title carries no actionable subject
+ *     (nothing but date words + generic containers, e.g. "My schedule
+ *     today") is dropped. For hybrid inputs only the explicit write clause
+ *     should ever have been extracted; the guardrail catches the rest.
+ *
+ * Pure and exported — the exact code path finalizeCapture runs is directly
+ * unit-tested (tests/unit/voiceCapture.test.ts).
+ */
+export function enforceIntentGate(
+  parsed: any,
+  sourceText: string
+): { mode: IntentMode; parsed: any } {
+  const mode = resolveIntentMode(classifyIntentMode(sourceText), parsed?.mode);
+  const filterEvents = (events: any): any[] =>
+    (Array.isArray(events) ? events : []).filter((e: any) =>
+      eventHasActionableSubject(String(e?.title || ""))
+    );
+  if (mode === "query_only") {
+    return {
+      mode,
+      parsed: {
+        ...parsed,
+        mode,
+        intent: "question",
+        isQuestion: true,
+        events: [],
+        isDiaryTask: false,
+        endorsement: null,
+        newMatter: null,
+        contactUpsert: null,
+        propertyNote: null,
+        draftBlueprint: null,
+        financialEntry: null,
+        taskUpdates: [],
+        caseNoteText: "",
+        clientUpdateText: "",
+      },
+    };
+  }
+  return {
+    mode,
+    parsed: { ...parsed, mode, events: filterEvents(parsed?.events) },
+  };
+}
+
+/**
  * validateQuickAskActions — sanitise the LLM's proposed tool actions against
  * the firm's data before executing anything. Exported pure for tests.
  *
@@ -542,6 +615,9 @@ export interface QuickAskAction {
  *   - create_event requires a title + a valid YYYY-MM-DD date (relative
  *     words are already resolved by the prompt, but a non-date string still
  *     cannot pass)
+ *   - create_event ALSO requires an actionable subject (date-keyword
+ *     guardrail, owner bug report 2026-11-19: "My schedule today"-style
+ *     titles are dropped — a lookup question never becomes an entry)
  *   - save_note requires a title + content
  *   - matterId must exist in the firm's matters (when supplied)
  *   - capped at 3 actions per call
@@ -564,6 +640,10 @@ export function validateQuickAskActions(
     if (type === "create_event") {
       const dateISO = String(raw.dateISO || "").trim();
       if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) continue;
+      // Date-keyword guardrail: a title with no actionable subject ("My
+      // schedule today", "Hearings this week") is a lookup restatement,
+      // not a task — never let it become a diary entry.
+      if (!eventHasActionableSubject(title)) continue;
       const time = /^\d{2}:\d{2}$/.test(String(raw.time || "")) ? String(raw.time) : "09:00";
       out.push({
         type,
@@ -1081,10 +1161,39 @@ export interface QuickAskActionResult {
 
 export interface QuickAskResult {
   answer: string;
+  /** The resolved read/write intent mode (owner bug report 2026-11-19):
+   *  "query_only" questions are answered read-only — the client renders a
+   *  "nothing was created" hint; actions are always [] in that mode. */
+  mode?: IntentMode;
   sources: { matters: QuickAskSource[]; notes: QuickAskSource[]; events: QuickAskSource[] };
   /** Items Quick Ask created on the lawyer's instruction (diary entries,
    *  saved notes). Empty for pure questions. */
   actions: QuickAskActionResult[];
+}
+
+/**
+ * gateQuickAskActions — the READ vs WRITE gate for Quick Ask (owner bug
+ * report 2026-11-19: "What's my schedule today?" created a calendar entry
+ * because of the date keyword "today"). Resolves the input's mode from the
+ * question text itself (deterministic classifier) merged with the model's
+ * own "mode" verdict, then hard-gates the proposed tool actions:
+ * query_only → ZERO actions, always — no event, task or note may be created
+ * or even staged from a pure lookup question. mutation_action / hybrid →
+ * validateQuickAskActions sanitises them (ids, dates, actionable subject).
+ * Pure and exported — directly unit-tested.
+ */
+export function gateQuickAskActions(
+  question: string,
+  envelopeMode: unknown,
+  rawActions: any[],
+  matters: AnalysisMatterRow[]
+): { mode: IntentMode; actions: QuickAskAction[] } {
+  const mode = resolveIntentMode(
+    classifyIntentMode(question),
+    typeof envelopeMode === "string" ? envelopeMode : undefined
+  );
+  if (mode === "query_only") return { mode, actions: [] };
+  return { mode, actions: validateQuickAskActions(rawActions, matters) };
 }
 
 /**
@@ -1372,20 +1481,29 @@ export const finalizeCapture = action({
         });
         const parsed = parseModelJson<any>(analysisRaw);
         if (parsed) {
+          // ── READ vs WRITE INTENT GATE (owner bug report 2026-11-19):
+          //    classify the transcript BEFORE anything is staged. A pure
+          //    lookup ("What's my schedule today?") can never produce
+          //    events or write proposals — even when the model misreads a
+          //    date keyword as an instruction. enforceIntentGate merges the
+          //    model's "mode" with the deterministic classifier and
+          //    hard-gates the payload accordingly.
+          const intentGate = enforceIntentGate(parsed, verbatim);
+          const gated = intentGate.parsed;
           // Semantic matches: validate LLM ids against the firm's real
           // matters, then merge the deterministic containment backstop.
           const matterMatches = rankAndValidateMatterMatches(
-            parsed.matterMatches,
+            gated.matterMatches,
             matters,
-            parsed.matterCandidates || [],
+            gated.matterCandidates || [],
             contacts
           );
           const deterministic = matchMatterCandidates(
-            parsed.matterCandidates || [],
+            gated.matterCandidates || [],
             matters,
             contacts
           );
-          const events = (Array.isArray(parsed.events) ? parsed.events : [])
+          const events = (Array.isArray(gated.events) ? gated.events : [])
             .slice(0, 6)
             .map((e: any) => ({
               title: String(e?.title || "").slice(0, 160),
@@ -1403,47 +1521,52 @@ export const finalizeCapture = action({
             }))
             .filter((e: any) => e.title);
           const endorsement =
-            parsed.endorsement && typeof parsed.endorsement === "object"
+            gated.endorsement && typeof gated.endorsement === "object"
               ? {
-                  court: String(parsed.endorsement.court || "").slice(0, 160),
-                  suitNumber: String(parsed.endorsement.suitNumber || "").slice(0, 80),
-                  parties: String(parsed.endorsement.parties || "").slice(0, 240),
-                  judge: String(parsed.endorsement.judge || "").slice(0, 120),
-                  orders: (Array.isArray(parsed.endorsement.orders)
-                    ? parsed.endorsement.orders
+                  court: String(gated.endorsement.court || "").slice(0, 160),
+                  suitNumber: String(gated.endorsement.suitNumber || "").slice(0, 80),
+                  parties: String(gated.endorsement.parties || "").slice(0, 240),
+                  judge: String(gated.endorsement.judge || "").slice(0, 120),
+                  orders: (Array.isArray(gated.endorsement.orders)
+                    ? gated.endorsement.orders
                     : []
                   )
                     .map((o: any) => String(o || "").slice(0, 400))
                     .filter(Boolean)
                     .slice(0, 12),
                   nextAdjournedDate: /^\d{4}-\d{2}-\d{2}$/.test(
-                    String(parsed.endorsement.nextAdjournedDate || "")
+                    String(gated.endorsement.nextAdjournedDate || "")
                   )
-                    ? String(parsed.endorsement.nextAdjournedDate)
+                    ? String(gated.endorsement.nextAdjournedDate)
                     : "",
                   nextAdjournedTime: /^\d{2}:\d{2}$/.test(
-                    String(parsed.endorsement.nextAdjournedTime || "")
+                    String(gated.endorsement.nextAdjournedTime || "")
                   )
-                    ? String(parsed.endorsement.nextAdjournedTime)
+                    ? String(gated.endorsement.nextAdjournedTime)
                     : "",
                 }
               : null;
           const triageMeta = {
-            ...parsed,
+            ...gated,
+            // Read/write mode resolved by enforceIntentGate (owner bug
+            // report 2026-11-19): "query_only" captures render as
+            // read-only on the triage card and never stage writes.
+            mode: intentGate.mode,
+            allowWriteTools: intentGate.mode !== "query_only",
             matterMatches,
             events,
-            isDiaryTask: parsed.isDiaryTask === true || events.length > 0,
+            isDiaryTask: gated.isDiaryTask === true || events.length > 0,
             endorsement,
             // Destination-formatted note body (paragraphs vs bullets, meta-
             // speech stripped — owner spec 2026-11-19). Empty string when the
             // model omitted it; the client falls back to smartClean/verbatim.
-            caseNoteText: String(parsed.caseNoteText || "")
+            caseNoteText: String(gated.caseNoteText || "")
               .trim()
               .slice(0, MAX_TRANSCRIPT_CHARS),
             // WORKSPACE PROPOSALS (owner spec 2026-11-19, Part 1): validated
             // new-matter / contact / property / draft / financial / task-done
             // proposals the triage card renders as 1-tap action cards.
-            proposals: validateWorkspaceProposals(parsed, {
+            proposals: validateWorkspaceProposals(gated, {
               matters,
               contacts,
               properties: properties || [],
@@ -1467,7 +1590,7 @@ export const finalizeCapture = action({
           //    fails, fall back to the minimal blueprint — documents: []
           //    with the transcript preserved and a clarifying missing-field
           //    entry. The dictation is never lost.
-          const hadBlueprintIntent = parsed?.draftBlueprint != null;
+          const hadBlueprintIntent = gated?.draftBlueprint != null;
           if (
             hadBlueprintIntent &&
             !triageMeta.proposals.draftBlueprint &&
@@ -1499,7 +1622,7 @@ export const finalizeCapture = action({
               triageMeta.proposals.draftBlueprint = minimalBlueprint(verbatim);
             }
           }
-          patch.triageIntent = parsed.intent || "share";
+          patch.triageIntent = gated.intent || "share";
           patch.triageMeta = triageMeta;
           result.triageIntent = patch.triageIntent;
           result.triageMeta = triageMeta;
@@ -1803,7 +1926,7 @@ export const transcribeBatch = action({
  * report 2026-11-18: "how many matters do I have?" → "you have no matters").
  */
 export const QUICK_ASK_SYSTEM_PROMPT =
-  "You answer a Nigerian lawyer's questions and carry out their instructions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.\n\nACTION TOOLS — the lawyer may ask you to DO something, not just answer:\n- create_event: create a Court Diary / calendar entry (e.g. 'add a check on the Chukwu matter for tomorrow at 10 AM', 'remind me to file the brief on Friday'). Resolve relative dates ('tomorrow', 'next week', 'in 3 days') using TODAY; if no clock time is given use 09:00. matterId must be copied EXACTLY from the data when a matter is named; omit it when no matter is named. Each create_event action carries a 'note' field — a CONCISE ACTION SUMMARY for the entry's Notes field (what the lawyer must DO, 1-2 sentences, or '- ' bullet lines if the entry involves multiple distinct checks). NEVER copy the lawyer's meta-speech ('I'm trying to set a reminder…', 'can you please…') into the note; strip it and state the task directly.\n- save_note: save a case note to a matter (e.g. 'note that the client confirmed the settlement terms on the Chukwu matter'). The 'content' is CLEAN, PROFESSIONAL TEXT, not the raw instruction: strip the lawyer's meta-speech and filler, use a concise paragraph for a continuous narrative, and switch to '- ' bullets when the instruction lists 3+ distinct items or steps. Never invent facts the lawyer did not state; preserve names, dates, amounts and citations EXACTLY. matterId as above.\n\nAction rules: only act on a CLEAR instruction to create or save; if the request is ambiguous or merely asks a question, return actions: []. At most 3 actions. Prefer event types 'Deadline', 'Meeting', 'Hearing', 'Mention' or 'Task' when unsure.\n\nRespond with STRICT JSON only — no prose, no markdown fences:\n{\"answer\":\"<your answer, ≤120 words>\",\"actions\":[{\"type\":\"create_event\",\"title\":\"...\",\"eventType\":\"Deadline\",\"dateISO\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"matterId\":\"...\",\"location\":\"\",\"note\":\"<concise action summary>\"},{\"type\":\"save_note\",\"title\":\"...\",\"content\":\"<clean formatted note text>\",\"matterId\":\"...\"}]}";
+  "You answer a Nigerian lawyer's questions and carry out their instructions using ONLY the firm data provided. Be concise (≤120 words). Cite what you used inline as [Matter: X], [Note: Y] or [Schedule: Z]. The FIRM DATA SUMMARY holds the authoritative counts and matter inventory — answer counting questions (e.g. 'how many matters do I have?') from those counts, never from the keyword-matched subsets. The KEYWORD-MATCHED sections are filtered subsets: an empty subset only means no title matched the question's wording, not that the firm has none. If the data does not contain the answer, say so plainly and name what is missing (e.g. 'no matter with that name is on record'). Never invent matters, dates, figures or case details.\n\nREAD vs WRITE — classify the lawyer's input FIRST, before proposing any action, and report it as \"mode\":\n- \"query_only\": any question or lookup ('What\u2019s my schedule today?', 'What do I have tomorrow?', 'Any hearings this week?', 'Do I have anything tomorrow?', 'Show my tasks for Friday', 'When is the Sino Truck matter coming up?'). When mode is \"query_only\", actions MUST be [] — NEVER create or propose a calendar entry, task or note from a pure lookup question. A date/time word ('today', 'tomorrow', 'next week') inside a question is NEVER an instruction to create anything.\n- \"mutation_action\": a clear imperative or logging instruction ('Remind me to\u2026', 'Schedule\u2026', 'Add a task\u2026', 'Log an expense\u2026').\n- \"hybrid\": ONLY when the lawyer explicitly combines a lookup AND a write command ('What\u2019s my schedule tomorrow, and add a review task at 4 PM?'). Extract ONLY the explicit write clause as an action — never the question clause.\n\nACTION TOOLS — the lawyer may ask you to DO something, not just answer:\n- create_event: create a Court Diary / calendar entry (e.g. 'add a check on the Chukwu matter for tomorrow at 10 AM', 'remind me to file the brief on Friday'). Resolve relative dates ('tomorrow', 'next week', 'in 3 days') using TODAY; if no clock time is given use 09:00. matterId must be copied EXACTLY from the data when a matter is named; omit it when no matter is named. Each create_event action carries a 'note' field — a CONCISE ACTION SUMMARY for the entry's Notes field (what the lawyer must DO, 1-2 sentences, or '- ' bullet lines if the entry involves multiple distinct checks). NEVER copy the lawyer's meta-speech ('I'm trying to set a reminder…', 'can you please…') into the note; strip it and state the task directly.\n- save_note: save a case note to a matter (e.g. 'note that the client confirmed the settlement terms on the Chukwu matter'). The 'content' is CLEAN, PROFESSIONAL TEXT, not the raw instruction: strip the lawyer's meta-speech and filler, use a concise paragraph for a continuous narrative, and switch to '- ' bullets when the instruction lists 3+ distinct items or steps. Never invent facts the lawyer did not state; preserve names, dates, amounts and citations EXACTLY. matterId as above.\n\nAction rules: only act when mode is \"mutation_action\" or \"hybrid\" AND the instruction is a CLEAR command to create or save; if the request is ambiguous or merely asks a question, mode is \"query_only\" and actions MUST be []. At most 3 actions. Prefer event types 'Deadline', 'Meeting', 'Hearing', 'Mention' or 'Task' when unsure.\n\nRespond with STRICT JSON only — no prose, no markdown fences:\n{\"mode\":\"query_only|mutation_action|hybrid\",\"answer\":\"<your answer, ≤120 words>\",\"actions\":[{\"type\":\"create_event\",\"title\":\"...\",\"eventType\":\"Deadline\",\"dateISO\":\"YYYY-MM-DD\",\"time\":\"HH:MM\",\"matterId\":\"...\",\"location\":\"\",\"note\":\"<concise action summary>\"},{\"type\":\"save_note\",\"title\":\"...\",\"content\":\"<clean formatted note text>\",\"matterId\":\"...\"}]}";
 
 /** A slim matter row as buildQuickAskContext consumes. */
 export interface QuickAskMatterRow {
@@ -1982,17 +2105,21 @@ export const quickAsk = action({
 
     // Parse the JSON envelope; a plain-text answer (older model behaviour,
     // refusal formatting) degrades gracefully to answer-only.
-    const envelope = parseModelJson<{ answer?: string; actions?: any[] }>(answerRaw);
+    const envelope = parseModelJson<{ answer?: string; actions?: any[]; mode?: string }>(answerRaw);
     const answer = (envelope?.answer || answerRaw || "").trim();
 
-    // ── EXECUTE validated tool actions (owner spec §5 — read + write). The
-    //    LLM never touches the database directly: validateQuickAskActions
-    //    sanitises its proposals against the firm's real matters, then the
-    //    internal mutations do the writes with ownership stamps so the
-    //    one-tap Undo can verify provenance.
+    // ── READ vs WRITE INTENT GATE (owner bug report 2026-11-19): resolve
+    //    the mode from the question text merged with the model's own
+    //    verdict, then hard-gate the actions — a pure lookup ("What's my
+    //    schedule today?") executes ZERO writes, even when the model
+    //    misreads a date keyword as an instruction. The LLM never touches
+    //    the database directly either way: gateQuickAskActions →
+    //    validateQuickAskActions sanitises proposals against the firm's
+    //    real matters, then the internal mutations do the writes with
+    //    ownership stamps so the one-tap Undo can verify provenance.
+    const actionGate = gateQuickAskActions(q, envelope?.mode, envelope?.actions || [], matters);
     const executed: QuickAskActionResult[] = [];
-    const validated = validateQuickAskActions(envelope?.actions || [], matters);
-    for (const act of validated) {
+    for (const act of actionGate.actions) {
       try {
         const matter = act.matterId ? matters.find((m: any) => m.id === act.matterId) : null;
         if (act.type === "create_event") {
@@ -2058,6 +2185,7 @@ export const quickAsk = action({
 
     return {
       answer,
+      mode: actionGate.mode,
       sources: { matters: matchedMatters, notes: matchedNotes, events: upcoming },
       actions: executed,
     };

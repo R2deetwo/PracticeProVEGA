@@ -58,6 +58,7 @@ import {
   DocumentPlusIcon,
   DocumentTextIcon,
   EditIcon,
+  MagnifyingGlassIcon,
   MicrophoneIcon,
   OfficeBuildingIcon,
   PlusIcon,
@@ -173,6 +174,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const { currentUser } = useAuth();
 
   const triage = capture.triageMeta || {};
+
+  // ── READ vs WRITE mode (owner bug report 2026-11-19): the backend's
+  //    enforceIntentGate resolved this capture's intent. A pure lookup
+  //    ("What's my schedule today?") is query_only — events and write
+  //    proposals were hard-gated to empty server-side; the card answers
+  //    the question instead of staging anything.
+  const queryOnly = triage.mode === "query_only";
 
   // ── Multi-intent action toggles (owner spec §4) ─────────────────────────
   // Defaults from the analysis: a note about a matter wants to be a Case
@@ -1586,6 +1594,26 @@ export const TriageCard: React.FC<TriageCardProps> = ({
         <p className="text-sm text-slate-500">No matters yet — the note will be saved standalone.</p>
       )}
 
+      {/* ── READ-ONLY QUESTION BANNER (owner bug report 2026-11-19): a
+          pure lookup capture is answered, never staged — no events, no
+          proposals, nothing created. Shown only when the backend resolved
+          mode = query_only. */}
+      {queryOnly ? (
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2.5"
+        >
+          <MagnifyingGlassIcon className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
+          <p className="text-xs text-slate-700 leading-relaxed">
+            <strong className="font-semibold text-slate-900">
+              Read-only question — nothing was created or scheduled.
+            </strong>{" "}
+            Questions only look things up. Say “Remind me…”, “Schedule…” or
+            “Add a task…” when you want something recorded.
+          </p>
+        </div>
+      ) : null}
+
       {/* ── MULTI-INTENT TOGGLES (owner spec §4) ───────────────────────────
           One note can be both a Case Note and a Diary task. */}
       <div className="flex flex-wrap gap-2" role="group" aria-label="What should happen to this note">
@@ -1896,6 +1924,14 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-base leading-relaxed text-slate-800 whitespace-pre-wrap">
             {askResult.answer}
           </div>
+          {/* Read-only hint (owner bug report 2026-11-19): pure lookup
+              questions never create entries — the diary stays untouched. */}
+          {askResult.mode === "query_only" ? (
+            <p className="flex items-center gap-1.5 text-2xs font-semibold text-blue-700">
+              <MagnifyingGlassIcon className="w-3.5 h-3.5 shrink-0" />
+              Read-only question — nothing was created or scheduled.
+            </p>
+          ) : null}
           <QuickAskActions actions={askResult.actions || []} />
           {[
             ...askResult.sources.matters.slice(0, 3),

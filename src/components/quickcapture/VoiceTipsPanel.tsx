@@ -48,6 +48,11 @@ interface VoiceTipsPanelProps {
 
 const EXAMPLES: { label: string; say: string; does: string }[] = [
   {
+    label: "Ask a question (read-only)",
+    say: "“What's my schedule today? Any hearings this week on the Sino Truck matter?”",
+    does: "Answers from your Court Diary, matters and notes — strictly read-only. Nothing is created, staged or scheduled; a date word like “today” is never treated as an instruction.",
+  },
+  {
     label: "New matter",
     say: "“New instruction: Mrs. Tunde Adeyemi wants us to handle a commercial lease renewal for her warehouse in Lekki Phase 1. Remind me to send her our engagement letter tomorrow morning.”",
     does: "Proposes creating the matter with intake bullets, and queues the engagement-letter task for tomorrow 9:00 AM.",
@@ -85,6 +90,10 @@ const EXAMPLES: { label: string; say: string; does: string }[] = [
 ];
 
 const TRICKS: { title: string; body: string }[] = [
+  {
+    title: "Questions are read-only — asks never create entries",
+    body: "Ask anything — “What's my schedule today?”, “Do I have anything tomorrow?”, “When is the Sino Truck matter coming up?” — and Quick Ask answers from your own records without creating anything. Diary entries, tasks and notes are only created from clear instructions like “Remind me…”, “Schedule…”, “Add a task…” or “Log an expense…”. Combine both in one breath (“What's my schedule tomorrow, and add a review task at 4 PM?”) and only the explicit instruction is acted on — the question part stays a question.",
+  },
   {
     title: "Add More — incremental dictation",
     body: "Tap “Add More — continue dictating” any time before or after saving. Each new clip joins the same draft; dates, matters and events are re-checked across the whole note. Your manual edits are never overwritten.",

@@ -33,6 +33,8 @@ import {
   rankAndValidateMatterMatches,
   validateQuickAskActions,
   validateWorkspaceProposals,
+  enforceIntentGate,
+  gateQuickAskActions,
 } from '../../convex/voiceCapture';
 import { backoffDelayMs, segmentKey } from '../../src/services/voice/audioQueue';
 import { isRetryableError } from '../../src/services/voice/voiceCaptureService';
@@ -44,6 +46,9 @@ import {
   formatEndorsementText,
   eventDescriptionFrom,
   extractLearnedTerms,
+  classifyIntentMode,
+  resolveIntentMode,
+  eventHasActionableSubject,
 } from '../../src/services/voice/draftUtils';
 
 // ─── Verbatim assembly ──────────────────────────────────────────────────────
@@ -511,9 +516,15 @@ describe('QUICK_ASK_SYSTEM_PROMPT', () => {
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('save_note');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('add a check on the Chukwu matter for tomorrow at 10 AM');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain("use 09:00");
-    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('only act on a CLEAR instruction');
+    // Read/write gating contract (owner bug report 2026-11-19): only act
+    // when the mode is a write; pure lookups return actions: [].
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain(
+      'only act when mode is "mutation_action" or "hybrid"'
+    );
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('actions MUST be []');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"answer"');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"actions"');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"mode"');
   });
 });
 
@@ -745,9 +756,11 @@ describe('validateQuickAskActions (§5 action sanitisation)', () => {
   });
 
   it('caps at 3 actions per call', () => {
+    // Titles carry actionable subjects (date-keyword guardrail, owner bug
+    // report 2026-11-19) so the cap — not the guardrail — is what's tested.
     const raw = Array.from({ length: 5 }, (_, i) => ({
       type: 'create_event',
-      title: `Event ${i}`,
+      title: `Registry check ${i} on Sino Truck`,
       dateISO: '2026-11-19',
     }));
     expect(validateQuickAskActions(raw, matters)).toHaveLength(3);
@@ -1137,5 +1150,296 @@ describe('EDIT_SELECTION_SYSTEM_PROMPT', () => {
     expect(EDIT_SELECTION_SYSTEM_PROMPT).toContain('ONLY a selected passage');
     expect(EDIT_SELECTION_SYSTEM_PROMPT).toContain('Return ONLY the rewritten passage');
     expect(EDIT_SELECTION_SYSTEM_PROMPT).toContain('Do not add new facts');
+  });
+});
+
+// ─── READ vs WRITE INTENT GATING (owner bug report 2026-11-19) ─────────────
+// Asking a read-only question like "What's my schedule today?" used to detect
+// the date keyword "today" and MISTAKENLY create/stage a calendar entry for
+// today. Three layers now prevent it, each tested below:
+//   1. classifyIntentMode — deterministic question/write/hybrid detection
+//   2. resolveIntentMode + enforceIntentGate / gateQuickAskActions — the
+//      hard gates (query_only → zero events, zero actions, always)
+//   3. eventHasActionableSubject — the per-event date-keyword guardrail
+
+describe('classifyIntentMode (strict read vs write classification)', () => {
+  it('classifies pure lookup questions as query_only', () => {
+    const queries = [
+      "What's my schedule today?",
+      'What do I have tomorrow?',
+      'Any hearings this week?',
+      'Do I have anything tomorrow?',
+      'Show my tasks for Friday',
+      'When is the Sino Truck matter coming up?',
+      'What matters do I have?',
+    ];
+    for (const q of queries) {
+      expect(classifyIntentMode(q)).toBe('query_only');
+    }
+  });
+
+  it('classifies imperative / logging dictations as mutation_action', () => {
+    const writes = [
+      'Remind me to send her our engagement letter tomorrow morning.',
+      'Schedule a meeting with Kunle tomorrow at 10 AM.',
+      'Add a task to review the Sino Truck brief.',
+      'Log an expense on the Sino Truck matter — spent 14,500 naira today on CTC fees.',
+      'Court rose at 1 PM. Suit FHC/L/CS/45/2026, Chukwu v Zenith Bank, before Justice Ogundipe.',
+      'Note that the client confirmed the settlement terms on the Chukwu matter.',
+      'Follow up with the registrar at Ikeja High Court before court sitting.',
+      'New instruction: Mrs. Tunde Adeyemi wants us to handle a commercial lease renewal.',
+    ];
+    for (const w of writes) {
+      expect(classifyIntentMode(w)).toBe('mutation_action');
+    }
+  });
+
+  it('classifies explicit lookup + command combinations as hybrid', () => {
+    const hybrids = [
+      "What's my schedule tomorrow, and add a review task at 4 PM?",
+      'Do I have anything tomorrow? If yes, remind me to prepare the file tonight.',
+      'Can you remind me to call Kunle tomorrow?',
+      'When is the hearing? Also schedule a client call for Friday.',
+    ];
+    for (const h of hybrids) {
+      expect(classifyIntentMode(h)).toBe('hybrid');
+    }
+  });
+});
+
+describe('resolveIntentMode (defence-in-depth merge)', () => {
+  it('a deterministic query_only can NEVER be upgraded by the model (the regression)', () => {
+    // The exact failure mode being fixed: the model says "mutation_action"
+    // because it saw the date keyword "today" — the deterministic verdict
+    // overrides it.
+    expect(resolveIntentMode('query_only', 'mutation_action')).toBe('query_only');
+    expect(resolveIntentMode('query_only', 'hybrid')).toBe('query_only');
+    expect(resolveIntentMode('query_only', undefined)).toBe('query_only');
+  });
+
+  it('the model can still downgrade an ambiguous command to query_only', () => {
+    expect(resolveIntentMode('mutation_action', 'query_only')).toBe('query_only');
+    expect(resolveIntentMode('hybrid', 'query_only')).toBe('query_only');
+  });
+
+  it('hybrid from either side wins; otherwise mutation_action stands', () => {
+    expect(resolveIntentMode('hybrid', 'mutation_action')).toBe('hybrid');
+    expect(resolveIntentMode('mutation_action', 'hybrid')).toBe('hybrid');
+    expect(resolveIntentMode('mutation_action', 'mutation_action')).toBe('mutation_action');
+    expect(resolveIntentMode('mutation_action', undefined)).toBe('mutation_action');
+  });
+});
+
+describe('eventHasActionableSubject (date-keyword guardrail)', () => {
+  it('drops titles that are nothing but date words and generic containers', () => {
+    const junk = [
+      'My schedule today',
+      "What's my schedule today",
+      'Hearings this week',
+      'My day tomorrow',
+      'Reminder',
+      'Check',
+      "Today's entries",
+      'Tasks for Friday',
+    ];
+    for (const j of junk) {
+      expect(eventHasActionableSubject(j)).toBe(false);
+    }
+  });
+
+  it('keeps titles that carry an actionable subject or task', () => {
+    const real = [
+      'Reminder for Sino Truck matter',
+      'Review task',
+      'Prepare brief',
+      'Check registry at Ikeja',
+      'Visit the court registry to confirm the next adjourned date',
+      'Hearing — Sino Truck v Zenith Bank',
+      'Send engagement letter to Mrs. Tunde Adeyemi',
+      'Call Kunle',
+      'Registry check on Sino Truck',
+    ];
+    for (const r of real) {
+      expect(eventHasActionableSubject(r)).toBe(true);
+    }
+  });
+});
+
+describe('enforceIntentGate (Quick Capture hard gate)', () => {
+  // A hostile/buggy model payload for a read-only question: an event staged
+  // for "today" with a generic title — exactly what the owner reported.
+  const hallucinatedPayload = (questionishDate: string) => ({
+    mode: 'mutation_action', // the model got the mode WRONG
+    intent: 'schedule',
+    summary: 'Asks about the schedule',
+    events: [
+      { title: 'My schedule today', type: 'Task', dateISO: questionishDate, time: '09:00', timeEstimated: true, location: '', note: 'Check the schedule.' },
+    ],
+    isDiaryTask: true,
+    endorsement: { court: 'x', suitNumber: 'y', parties: 'z', judge: 'w', orders: ['o'], nextAdjournedDate: '', nextAdjournedTime: '' },
+    newMatter: { title: 'Junk Matter', clientName: 'X', opposingParty: 'Y', practiceArea: 'Z', summaryNote: 'junk' },
+    contactUpsert: { contactId: '', name: 'Junk', phone: '', email: '', company: '', role: '', notes: '' },
+    propertyNote: { propertyId: 'p1', unitId: '', note: 'junk', followUp: '' },
+    draftBlueprint: { documents: ['formal_demand_letter'], reliefs: [], groundsOrFacts: [], amounts: [], periods: [], dates: [], namedPeople: [], specialInstructions: [] },
+    financialEntry: { type: 'expense', amount: 1000, currency: 'NGN', description: 'junk', matterId: '' },
+    taskUpdates: [{ kind: 'task', itemId: 't1', status: 'Completed', note: 'junk' }],
+    caseNoteText: 'Junk case note',
+    clientUpdateText: 'Junk update',
+    matterMatches: [{ matterId: 'm1', confidence: 0.9, reason: 'sino truck' }],
+    questionText: "What's my schedule today?",
+  });
+
+  it('REGRESSION: "What\'s my schedule today?" stages ZERO entries even when the model hallucinates one', () => {
+    const gate = enforceIntentGate(hallucinatedPayload('2026-11-19'), "What's my schedule today?");
+    expect(gate.mode).toBe('query_only');
+    expect(gate.parsed.events).toEqual([]);
+    expect(gate.parsed.isDiaryTask).toBe(false);
+    expect(gate.parsed.endorsement).toBeNull();
+    expect(gate.parsed.newMatter).toBeNull();
+    expect(gate.parsed.contactUpsert).toBeNull();
+    expect(gate.parsed.propertyNote).toBeNull();
+    expect(gate.parsed.draftBlueprint).toBeNull();
+    expect(gate.parsed.financialEntry).toBeNull();
+    expect(gate.parsed.taskUpdates).toEqual([]);
+    expect(gate.parsed.caseNoteText).toBe('');
+    expect(gate.parsed.clientUpdateText).toBe('');
+    expect(gate.parsed.intent).toBe('question');
+    expect(gate.parsed.isQuestion).toBe(true);
+    // Read-only outputs survive — they only inform the answer UI.
+    expect(gate.parsed.summary).toBe('Asks about the schedule');
+    expect(gate.parsed.questionText).toBe("What's my schedule today?");
+    expect(gate.parsed.matterMatches).toEqual([{ matterId: 'm1', confidence: 0.9, reason: 'sino truck' }]);
+  });
+
+  it('REGRESSION: "What do I have tomorrow?" and "Any hearings this week?" also stage zero', () => {
+    for (const q of ['What do I have tomorrow?', 'Any hearings this week?']) {
+      const gate = enforceIntentGate({ mode: 'mutation_action', events: [{ title: 'Hearings this week', dateISO: '2026-11-20' }], isDiaryTask: true }, q);
+      expect(gate.mode).toBe('query_only');
+      expect(gate.parsed.events).toEqual([]);
+      expect(gate.parsed.isDiaryTask).toBe(false);
+    }
+  });
+
+  it('hybrid: keeps ONLY the explicit write clause and drops subject-less entries', () => {
+    const gate = enforceIntentGate(
+      {
+        mode: 'hybrid',
+        events: [
+          { title: 'My schedule tomorrow', dateISO: '2026-11-20', time: '09:00' }, // question clause — dropped
+          { title: 'Review task', dateISO: '2026-11-20', time: '16:00' },          // write clause — kept
+        ],
+      },
+      "What's my schedule tomorrow, and add a review task at 4 PM?"
+    );
+    expect(gate.mode).toBe('hybrid');
+    expect(gate.parsed.events).toHaveLength(1);
+    expect(gate.parsed.events[0].title).toBe('Review task');
+  });
+
+  it('mutation dictations keep their properly-subjected events', () => {
+    const gate = enforceIntentGate(
+      {
+        mode: 'mutation_action',
+        events: [
+          { title: 'Send engagement letter to Mrs. Tunde Adeyemi', dateISO: '2026-11-20', time: '09:00' },
+        ],
+      },
+      'Remind me to send her our engagement letter tomorrow morning.'
+    );
+    expect(gate.mode).toBe('mutation_action');
+    expect(gate.parsed.events).toHaveLength(1);
+  });
+});
+
+describe('gateQuickAskActions (Quick Ask hard gate)', () => {
+  const matters = [
+    { id: 'm1', title: 'Sino Truck matter' },
+    { id: 'm2', title: 'Chukwu v. Zenith Bank' },
+  ];
+
+  it('REGRESSION: read-only questions execute ZERO actions even when the model proposes some', () => {
+    for (const q of ["What's my schedule today?", 'What do I have tomorrow?', 'Any hearings this week?']) {
+      const gate = gateQuickAskActions(
+        q,
+        'mutation_action', // model got it wrong — gate still holds
+        [
+          { type: 'create_event', title: 'My schedule today', dateISO: '2026-11-19', time: '09:00' },
+          { type: 'save_note', title: 'Schedule', content: 'today schedule' },
+        ],
+        matters
+      );
+      expect(gate.mode).toBe('query_only');
+      expect(gate.actions).toEqual([]);
+    }
+  });
+
+  it('explicit commands keep their actions', () => {
+    const gate = gateQuickAskActions(
+      'Remind me to call Kunle tomorrow at 10 AM',
+      'mutation_action',
+      [{ type: 'create_event', title: 'Call Kunle', dateISO: '2026-11-20', time: '10:00' }],
+      matters
+    );
+    expect(gate.mode).toBe('mutation_action');
+    expect(gate.actions).toHaveLength(1);
+    expect(gate.actions[0].title).toBe('Call Kunle');
+  });
+
+  it('hybrid: only the write clause survives — the question clause is never staged', () => {
+    const gate = gateQuickAskActions(
+      "What's my schedule tomorrow, and add a review task at 4 PM?",
+      'hybrid',
+      [
+        { type: 'create_event', title: 'My schedule tomorrow', dateISO: '2026-11-20', time: '09:00' },
+        { type: 'create_event', title: 'Review task', dateISO: '2026-11-20', time: '16:00' },
+      ],
+      matters
+    );
+    expect(gate.mode).toBe('hybrid');
+    expect(gate.actions).toHaveLength(1);
+    expect(gate.actions[0].title).toBe('Review task');
+    expect(gate.actions[0].time).toBe('16:00');
+  });
+
+  it('validateQuickAskActions drops create_event titles without an actionable subject', () => {
+    const out = validateQuickAskActions(
+      [
+        { type: 'create_event', title: 'Hearings this week', dateISO: '2026-11-20' },
+        { type: 'create_event', title: 'Registry check on Sino Truck', dateISO: '2026-11-21' },
+      ],
+      matters
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe('Registry check on Sino Truck');
+  });
+});
+
+describe('prompts carry the read/write contract', () => {
+  const lagos = { dateISO: '2026-11-19', weekday: 'Thursday', time: '09:00' };
+  const matters = [
+    { id: 'm1', title: 'Sino Truck matter', suitNumber: null, clientName: null, parties: [], status: 'Active', court: null },
+  ];
+  const contacts = [{ id: 'c1', name: 'Chukwu Okafor' }];
+
+  it('buildAnalysisPrompt classifies mode FIRST and gates query_only writes', () => {
+    const p = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: ['Meeting', 'Hearing'] });
+    expect(p).toContain('1. "mode"');
+    // Mode is classified BEFORE extraction (item 1, ahead of summary item 2).
+    expect(p.indexOf('1. "mode"')).toBeLessThan(p.indexOf('2. "summary"'));
+    expect(p).toContain('NEVER create or propose a calendar entry, task or note from a pure lookup question');
+    expect(p).toContain('Extract ONLY the explicit write clause');
+    expect(p).toContain('NEVER by itself evidence to create anything');
+    expect(p).toContain('NEVER sufficient evidence on its own');
+    // The strict JSON envelope leads with the mode.
+    expect(p).toContain('{"mode":"query_only|mutation_action|hybrid"');
+  });
+
+  it('QUICK_ASK_SYSTEM_PROMPT gates query_only actions to []', () => {
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('READ vs WRITE');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('query_only');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('actions MUST be []');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('NEVER an instruction to create anything');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('Extract ONLY the explicit write clause');
+    expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"mode":"query_only|mutation_action|hybrid"');
   });
 });
