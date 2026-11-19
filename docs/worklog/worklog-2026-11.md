@@ -1025,3 +1025,16 @@ Gates: root tsc 0; vitest 2962/2962 (voiceCapture suite 104 incl. the new
 stripMetaSpeech / formatEndorsementText / eventDescriptionFrom /
 extractLearnedTerms / buildAnalysisPrompt / validateWorkspaceProposals /
 SMART_CLEAN / QUICK_ASK / EDIT_SELECTION contracts).
+
+**Deploy evidence (final):** the first dispatch (744b2981) tripped two
+repo ratchets — ADR-0004 raw form elements (+2: a raw <textarea>/<button>
+in VoiceTipsPanel) and the rounded-xl ratchet (+8 proposal cards). Fixed in
+d27e40ce → rebased to main as **03522df5** (ui/ primitives, rounded-2xl
+cards; local gates re-run: raw elements 2218 = baseline, roundedXl 73 ≤ 74,
+gray 0). Both targeted workflows re-dispatched and completed GREEN on
+03522df5 (Tests, E2E smoke, CodeQL, Staging, Build Android APK all green
+on the same sha). Live: version.json → sha 03522df5 (built 2026-11-19
+10:02 UTC); Convex production functions deployed to
+gregarious-malamute-537 with the live probe green. The new voiceTools
+dictionary/snippets endpoints, editSelection action and the two new
+tables are live in production.
