@@ -971,3 +971,57 @@ frontend + 44492689193 Convex backend; Tests / E2E smoke / CodeQL / Staging
   live index bundle (gemini-2.0-flash-live-001 absent).
 - APK bot released build-1204 (practicepro-1.0.806-release.apk) from the
   same commit.
+
+## 2026-11-19 (b) — Wispr-Flow-grade Quick Capture (workspace actions, voice intelligence, in-app guide)
+
+Commit 744b2981 on main (feat(voice)). The voice engine now formats every
+output for its destination and proposes real workspace actions instead of
+dumping raw transcripts.
+
+**Formatting layer:** diary Notes fields get the per-event concise action
+summary (editable inline on the triage card) — the `From voice note: <400
+chars>` dump is gone; the case-note draft seeds from the new formatted
+tier (caseNoteText: paragraphs → '- ' bullets at 3+ items, meta-speech
+stripped); courtroom endorsements ride along as the formal block
+(COURT / SUIT NO / PARTIES / CORAM / PROCEEDINGS / NEXT ADJOURNED DATE);
+Quick Ask write actions carry the same concise notes.
+
+**Part 1 — workspace actions:** the analysis sees PROPERTIES/UNITS and
+OPEN TASKS & REMINDERS directories too, and returns validated proposals
+rendered as 1-tap cards: Create New Matter (intake note + chained tasks +
+Link-to-Existing switcher), contact upsert, property/unit note, draft
+kickoff, expense/fee log, and mark-task-done (no duplicate tasks).
+validateWorkspaceProposals enforces the deterministic guards (no duplicate
+matter on ≥0.75 match, ids must exist, amounts sane). Standalone (no
+matter) tasks are first-class: "No linked matter" option, matterId
+strictly optional.
+
+**Part 2 — voice intelligence:** backtracking pivots ("actually / scratch
+that / no, wait / I mean / make that") discard the retracted phrase;
+register shifts by destination (formal endorsements, warm client updates
+with copy chip, ultra-concise diary, paragraph/bullet case notes);
+Personal Dictionary (voiceDictionary + voiceTools CRUD) with silent
+learning from draft edits via LCS word diff ("Chinedoo"→"Chinedu" learns
+Chinedu; "Ikeja High Cot"→"Ikeja High Court" learns the phrase) and
+SPELLING HINTS injected into polish/analysis; Spoken Snippets
+(voiceSnippets + 4 firm defaults, trigger expansion, manager UI); Whisper
+Mode (NS/AEC off, AGC on, persisted toggle); Edit Selection by Voice
+(editSelection action rewrites only the highlighted passage in place);
+Nigerian code-switching normalisation (Pidgin → professional English in
+formatted tiers, preserved in verbatim).
+
+**Part 3 — discovery:** "Quick Capture & Voice Guide" searchable Help
+section (deep-link id quick-capture-voice) + "?" Voice Tips button in
+Quick Capture; VoiceTipsPanel carries the 7 worked examples, the tricks,
+and the dictionary/snippets managers.
+
+**New Convex surface (deploy-gated):** voiceTools.ts (dictionary +
+snippets CRUD), editSelection action, two new internal directory queries,
+voiceDictionary/voiceSnippets tables (additive; schemaValidation stays
+off). The targeted Convex + Vercel production workflows were dispatched on
+744b2981 (runs 44500167034 backend, 44500178253 frontend).
+
+Gates: root tsc 0; vitest 2962/2962 (voiceCapture suite 104 incl. the new
+stripMetaSpeech / formatEndorsementText / eventDescriptionFrom /
+extractLearnedTerms / buildAnalysisPrompt / validateWorkspaceProposals /
+SMART_CLEAN / QUICK_ASK / EDIT_SELECTION contracts).
