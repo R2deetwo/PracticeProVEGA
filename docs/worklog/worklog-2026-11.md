@@ -1291,3 +1291,71 @@ wiring contracts incl. the channel trio + login-alert call sites);
 design ratchet animate-pulse 81→82 (documented: the Aloa X CRITICAL dot
 is a legitimate attention state); vite build + admin build green
 (admin chunk 357.53 kB); tsc 0 errors.
+
+## 2026-11-20 (a) — Backend sort-out: staging + Aloa X live, offline verified, main un-red
+
+Owner asks: assign the two new Convex deployments ("SHINY ECHIDNA SHOULD
+NOW BE FOR STAGING… NEVER DELETE THESE KEYS", "GROOVY MANDRILL SHOULD BE
+FOR ALOX") and confirm offline mode is still there ("THE APP SHOULD BE
+ABLE TO LAUNCH IN OFFLINE MODE… THERE SHOULD BE CACHE AND THE ABILITY FOR
+THING TO UPDATE WHEN THE USER IS CONNECTED").
+
+**Staging is LIVE (shiny-echidna-432):** deploy key verified against the
+deployment (`npx convex env list`) — it already carried an older copy of
+the backend plus `GEMINI_API_KEY` / `PracticePro_Vega_Mailer` (preserved
+by deploys). Set GitHub secrets `CONVEX_STAGING_DEPLOY_KEY` +
+`CONVEX_STAGING_URL`, activating `staging-deploy.yml` end to end: every
+push to main now deploys the staging Convex backend + the Vercel preview
+alias `staging-practice-pro-vega.vercel.app`, and the production promote
+gate's "staging must exist" precondition is satisfied (it had refused
+frontend promotions since Round 20). `docs/ops/STAGING_SETUP.md` flipped
+to DONE; RUNBOOK §1/§8 updated.
+
+**Aloa X reserved (groovy-mandrill-732):** key verified; deployment is
+intentionally EMPTY (no functions, no env vars). Secrets
+`CONVEX_ALOAX_DEPLOY_KEY` + `CONVEX_ALOAX_URL` set for the future
+standalone Aloa X surface. The 2026-11-19 watchdog stays on the
+production deployment it monitors (it reads production tables); the
+reserved deployment is for the supervisor's own app/data when it grows
+one. New `docs/ops/ENVIRONMENTS.md` = the four-environment map
+(production gregarious-malamute-537 / staging shiny-echidna-432 /
+Aloa X groovy-mandrill-732 / dev keen-jaguar-204) + key custody rules
+(owner instruction: never delete a key; rotate by replace-first).
+
+**Main was RED and is now green:** 9554e34b shipped with a stale
+`convex/_generated/api.d.ts` (no alox module) — CI Tests / Deploy to
+Staging / Build Android APK all failed on `internal.alox` type errors.
+Regenerated the api (adds the alox module), which surfaced 21 further
+errors: same-module `internal.*` references (alox.ts
+`runAloxWatchdogNow`, legal/search.ts `hydrateChunks`,
+legalKnowledge.ts `fetchInstrumentsByKeys`) whose inference now exceeds
+TypeScript's budget now that the api type map grew by a module —
+resolved to implicit-any/{}. Fixed with explicit annotations/casts that
+pin the shapes (documented inline at each site). Gates: convex tsc 0,
+root tsc 0, vitest 3241/3241, vite build green.
+
+**Offline mode — VERIFIED STILL THERE (the main APK):** three layers,
+all wired and tested:
+1. Launch offline: 8s native boot grace (14s web) → cached user served
+   from localStorage with Admin/Founder demoted to Lawyer (cached roles
+   are never trusted for privilege), flagged `isOfflineCache`;
+   DataProvider hydrates appState from the cached snapshot instead of
+   hanging on queries that will never land (the 2026-09 "APKs won't
+   open without internet" fix — Task 62 — intact).
+2. Cache: `practicepro_cached_user` + `practicepro_cached_appstate`
+   written through on every state change; volatile collections
+   stripped to keep localStorage bounded.
+3. Update when connected: the offline mutation queue (13 registered
+   mutations incl. trust + rent with server-side idempotency keys so a
+   replay can never double-book) replays on the 'online' event (2s
+   grace for the Convex websocket) and every 30s; single-flight lock
+   prevents double-execution; validation failures are dropped with a
+   toast, never silently lost. Convex's websocket auto-reconnects and
+   subscriptions resume — live data returns without user action.
+   UIContext shows the offline banner whenever offline or serving the
+   cache. offlineBoot.test.ts: 29/29 green.
+Caveat documented: Convex client 1.40.0 has NO built-in IndexedDB query
+persistence — the app's own localStorage layer IS the offline story.
+Founder APK: boots offline to the login screen (4s session watchdog,
+never a black screen) but serves no cached founder data by design —
+it's a control surface.

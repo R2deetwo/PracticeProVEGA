@@ -684,12 +684,28 @@ export const getAloxStatus = query({
   },
 });
 
-/** Manual "Run checks now" from the founder app (founder-gated). */
+/**
+ * Manual "Run checks now" from the founder app (founder-gated).
+ *
+ * The explicit annotations are load-bearing: typing this action requires
+ * `internal.alox.runAloxWatchdog` from the generated api, which itself is
+ * derived from `typeof` this module's exports — a circular inference that
+ * TypeScript resolves to implicit-any (TS7022/7023) now that the module
+ * count pushed the api type over its inference budget. Pinning the result
+ * shape (mirrors runAloxWatchdog's return) breaks the cycle.
+ */
 export const runAloxWatchdogNow = action({
   args: { sessionToken: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ checksRun: number; openCount: number; lastRunMs: number }> => {
     await requireFounder(ctx, undefined, args.sessionToken);
-    const result = await ctx.runMutation(internal.alox.runAloxWatchdog, {});
+    const result = (await ctx.runMutation(internal.alox.runAloxWatchdog, {})) as {
+      checksRun: number;
+      openCount: number;
+      lastRunMs: number;
+    };
     return result;
   },
 });

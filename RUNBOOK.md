@@ -17,7 +17,7 @@ Play/Android signing keystore for APK builds.
 |---|---|
 | Production frontend | https://practice-pro-vega.vercel.app |
 | Production backend | Convex `gregarious-malamute-537` (https://gregarious-malamute-537.convex.cloud) |
-| Staging | ⏸ Not configured yet — see §8 |
+| Staging | https://staging-practice-pro-vega.vercel.app → Convex `shiny-echidna-432` (auto-deploys on push to main; see §8) |
 | Cloudflare mirror | https://practice-pro-vega.prototypechigo.workers.dev — **frozen** (see §9) |
 | Android APK | GitHub Releases (`build-apk.yml` workflow) |
 | Health check | `version.json` on any frontend target (sha + status) |
@@ -242,22 +242,20 @@ token, Paystack keys, backup targets' write access.
 
 ---
 
-## 8. Staging backend (one-time setup, pending)
+## 8. Staging backend (LIVE since 2026-11-20)
 
-The staging pipeline is fully wired but the second Convex project does
-not exist yet, so staging deploys + the staging restore drill SKIPPED
-state:
+The staging backend is Convex `shiny-echidna-432`, wired via GitHub
+secrets `CONVEX_STAGING_DEPLOY_KEY` + `CONVEX_STAGING_URL`. Every push to
+`main` auto-deploys it (backend + Vercel preview alias
+`staging-practice-pro-vega.vercel.app`), and the production promote gate
+now passes its staging precondition. Run `Seed Staging Data`
+(`staging-seed.yml`) once for demo/test data, and `backup-restore-drill.yml`
+for the restore drill against staging.
 
-1. Convex dashboard → create project (e.g. `practice-pro-vega-staging`).
-2. Copy its **Production Deploy Key** → GitHub secret
-   `CONVEX_STAGING_DEPLOY_KEY`.
-3. Copy its deployment URL → GitHub secret `CONVEX_STAGING_URL`.
-4. Push to `main` once — staging auto-deploys; run `Seed Staging Data`
-   once for test data.
-5. Run `backup-restore-drill.yml` — the import half goes live.
-
-Until then: staging gate still runs typecheck+tests on every push, and
-production promotion remains the only deploy path.
+The full four-environment map — production, staging, the reserved Aloa X
+deployment (`groovy-mandrill-732`), and local dev (`keen-jaguar-204`) —
+lives in `docs/ops/ENVIRONMENTS.md`. **Owner instruction: never delete
+the deploy keys.**
 
 ---
 

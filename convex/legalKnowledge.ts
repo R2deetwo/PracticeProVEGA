@@ -75,10 +75,15 @@ export const searchKnowledge = action({
       ...provisionRows.map((p: any) => p.instrumentKey),
       ...formRows.map((f: any) => f.instrumentKey).filter(Boolean),
     ]);
-    const instruments = await ctx.runQuery(internal.legalKnowledge.fetchInstrumentsByKeys, {
+    // Cast pins the row type: fetchInstrumentsByKeys is reached through
+    // internal.legalKnowledge (this same module), and that self-referential
+    // route through the generated api now exceeds TS's inference budget,
+    // degrading the rows (and the Map built from them) to {} (TS2339 on
+    // instrument?.title etc. below).
+    const instruments = (await ctx.runQuery(internal.legalKnowledge.fetchInstrumentsByKeys, {
       keys: Array.from(instrumentKeys),
-    });
-    const instrumentMap = new Map(instruments.map((i: any) => [i.key, i]));
+    })) as any[];
+    const instrumentMap = new Map<string, any>(instruments.map((i: any) => [i.key, i]));
 
     const pScores = new Map(provisionResults.map((r: any) => [r._id, r._score]));
     const fScores = new Map(formResults.map((r: any) => [r._id, r._score]));

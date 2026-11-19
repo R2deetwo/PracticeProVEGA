@@ -205,9 +205,14 @@ export const hybridSearch = action({
     const top = fused.slice(0, topK);
 
     // ── 5. Hydrate + warnings ───────────────────────────────────────────
-    const hydrated = await ctx.runQuery(internal.legal.search.hydrateChunks, {
+    // Cast pins the element type: hydrateChunks is reached through
+    // internal.legal.search (this same module), and that self-referential
+    // route through the generated api now exceeds TS's inference budget,
+    // degrading `hydrated` to any/{} (TS7006/TS2339). The handler on the
+    // other side returns Array<Doc<"legal_chunks">> — same shape.
+    const hydrated = (await ctx.runQuery(internal.legal.search.hydrateChunks, {
       ids: top.map((t) => t.id),
-    });
+    })) as Array<Doc<"legal_chunks">>;
     const byId = new Map(hydrated.map((c) => [c._id, c]));
     const results = top
       .map((t) => {
