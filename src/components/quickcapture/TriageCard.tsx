@@ -70,6 +70,7 @@ import {
 import { useUI } from "../../contexts/UIContext";
 import { useDataActions } from "../../contexts/DataContext";
 import { useCoreState } from "../../contexts/CoreContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { MATTERS_NOTEBOOK_ID } from "../../constants";
 import type { Matter } from "../../types";
 import {
@@ -77,6 +78,15 @@ import {
   extractLearnedTerms,
   formatEndorsementText,
 } from "../../services/voice/draftUtils";
+// VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19): the Drafting Blueprint
+// card — deterministic taxonomy + assembly replace the old free-text brief.
+import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES } from "../../legal/drafting/documentTypes";
+import type { DraftBlueprint } from "../../legal/drafting/types";
+import { hydrate } from "../../legal/drafting/hydrate";
+import { computeMissingFields } from "../../legal/drafting/assemble";
+import { generateDraftBundle } from "../../services/draftProBlueprintService";
+import { saveDraft } from "../../utils/draftSession";
+import { openDraftProNewTab, isMobileOrNative } from "../../utils/tabNavigation";
 import {
   addDictionaryTerms,
   linkCapture,
@@ -157,9 +167,10 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   addMoreDisabled,
   onEditSelection,
 }) => {
-  const { addToast } = useUI();
+  const { addToast, navigateTo } = useUI();
   const actions = useDataActions();
   const { coreState } = useCoreState();
+  const { currentUser } = useAuth();
 
   const triage = capture.triageMeta || {};
 
@@ -253,6 +264,13 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const [taskUpdatesDone, setTaskUpdatesDone] = useState<string[]>([]);
   // Highlighted passage in the draft box (Edit Selection by Voice).
   const [selection, setSelection] = useState<{ start: number; end: number } | null>(null);
+  // ── DRAFTING BLUEPRINT state (owner spec §4): the working copy the Edit
+  //    blueprint mode mutates; falls back to the analysis blueprint.
+  const [blueprintDraft, setBlueprintDraft] = useState<DraftBlueprint | null>(null);
+  const [blueprintEditing, setBlueprintEditing] = useState(false);
+  const [blueprintReliefsText, setBlueprintReliefsText] = useState("");
+  const [blueprintExpanded, setBlueprintExpanded] = useState(false);
+  const [generatingMsg, setGeneratingMsg] = useState("");
 
   // Re-seed the per-capture state when the card stays mounted across a
   // capture switch (e.g. opening a different recent note).
@@ -274,6 +292,11 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     setDismissedProposals([]);
     setTaskUpdatesDone([]);
     setSelection(null);
+    setBlueprintDraft(null);
+    setBlueprintEditing(false);
+    setBlueprintExpanded(false);
+    setBlueprintReliefsText("");
+    setGeneratingMsg("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [capture.clientLocalId]);
 
@@ -568,33 +591,123 @@ export const TriageCard: React.FC<TriageCardProps> = ({
     }
   };
 
-  const applyDraftKickoff = async () => {
-    const p = proposals?.draftKickoff;
-    if (!p || proposalBusy) return;
+  // ── DRAFTING BLUEPRINT (owner spec §4, Phase 2): the Drafting Blueprint
+  //    card — documents in dependency order, matter linkage (0.85 gate),
+  //    key reliefs, missing-field count, and the Generate & Open CTA that
+  //    assembles the bundle deterministically and opens DraftPro.
+  const draftBlueprint: DraftBlueprint | null = proposals?.draftBlueprint || null;
+  const activeBlueprint = blueprintDraft || draftBlueprint;
+
+  const applyDraftBlueprint = async () => {
+    if (!activeBlueprint || proposalBusy) return;
+    if (activeBlueprint.documents.length === 0) {
+      addToast("Pick at least one document type in the blueprint first.", { type: "info" });
+      return;
+    }
     setProposalBusy("draft");
     try {
+      const matter = matters.find((m) => m.id === selectedMatterId) || null;
+      const result = await generateDraftBundle({
+        blueprint: activeBlueprint,
+        matter,
+        firm: coreState.firmDetails,
+        user: currentUser,
+        onProgress: setGeneratingMsg,
+      });
+      const isCourt = activeBlueprint.documents.some((d) =>
+        ["litigation_process", "appellate_process", "execution_and_enforcement"].includes(
+          d.documentCategory
+        )
+      );
+      const title =
+        activeBlueprint.documents.length === 1
+          ? DOCUMENT_TYPE_LABELS[activeBlueprint.documents[0].documentType]
+          : `${DOCUMENT_TYPE_LABELS[activeBlueprint.documents[0].documentType]} + ${
+              activeBlueprint.documents.length - 1
+            } more`;
       const now = new Date().toISOString();
-      await actions.addItem(
+      const created: any = await actions.addItem(
         "documents",
         {
-          title: `${p.documentType}${p.recipient ? ` — ${p.recipient}` : ""}`,
+          title,
           matterId: selectedMatterId || null,
-          content: p.brief,
-          summary: p.keyFigures || null,
-          source: "Voice Draft",
+          content: result.html,
+          documentType: activeBlueprint.documents[0].documentType,
+          source: "Voice Blueprint",
+          isCourtProcess: isCourt,
+          summary: activeBlueprint.dictated.reliefs.slice(0, 3).join(" ") || null,
+          metadata: {
+            draftBundle: result.bundle,
+            blueprint: activeBlueprint,
+            missingFields: result.missing,
+            voiceCaptureLocalId: capture.clientLocalId,
+          },
           createdAt: now,
           updatedAt: now,
         },
         "Draft"
       );
+      const documentId = created?.id as string | undefined;
+      const firmId = coreState.firmDetails?.id || "";
+      const draftKey = documentId ? `draft:doc:${documentId}` : `draft:${selectedMatterId || "general"}:blueprint`;
+      if (firmId) {
+        saveDraft(
+          draftKey,
+          {
+            title,
+            content: result.html,
+            matterId: selectedMatterId || null,
+            documentId: documentId || null,
+            documentType: activeBlueprint.documents[0].documentType,
+            draftBundle: result.bundle,
+            updatedAt: now,
+            savedAt: Date.now(),
+          },
+          firmId
+        );
+      }
+      // DRAFTPRO-NEW-TAB — desktop opens the dedicated DraftPro tab; the
+      // in-place result is mobile-only (isMobileOrNative), where tabs do
+      // not exist and in-app navigation is correct.
+      const open = openDraftProNewTab(draftKey, title);
+      if (open === "in-place" && isMobileOrNative()) {
+        navigateTo("editor", null, {
+          documentId,
+          matterId: selectedMatterId || undefined,
+        });
+      }
       setAppliedProposal("draft");
-      addToast(`Draft created — open it from Documents to finish and send.`, { type: "success" });
+      addToast("Draft generated — finishing it in DraftPro.", { type: "success" });
     } catch (err: any) {
-      addToast(err?.message || "Could not create the draft.", { type: "error" });
+      addToast(err?.message || "Could not generate the draft.", { type: "error" });
     } finally {
       setProposalBusy(null);
+      setGeneratingMsg("");
     }
   };
+
+  /** Missing-field count preview: hydrate (pure, no LLM) + the template
+   *  required-field diff — computed in code, never by the LLM (AC2.5). */
+  const blueprintMissingCount = useMemo(() => {
+    if (!activeBlueprint) return 0;
+    let count = activeBlueprint.missingCriticalFields.length;
+    try {
+      const ctx = hydrate({
+        blueprint: activeBlueprint,
+        matter: (matters.find((m) => m.id === selectedMatterId) || null) as any,
+        firm: coreState.firmDetails as any,
+        user: currentUser as any,
+      });
+      count +=
+        computeMissingFields(
+          ctx,
+          activeBlueprint.documents.map((d) => ({ documentType: d.documentType }))
+        ).length;
+    } catch {
+      /* preview only — the real count is computed at generation */
+    }
+    return count;
+  }, [activeBlueprint, matters, selectedMatterId, coreState.firmDetails, currentUser]);
 
   const applyFinancialEntry = async () => {
     const p = proposals?.financialEntry;
@@ -1059,26 +1172,33 @@ export const TriageCard: React.FC<TriageCardProps> = ({
             </div>
           ) : null}
 
-          {proposals.draftKickoff && !dismissedProposals.includes("draft") ? (
+          {activeBlueprint && !dismissedProposals.includes("draft") ? (
             <div className="flex flex-col gap-2 rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-bold uppercase tracking-wide text-indigo-700">
-                    Draft kickoff
+                    Drafting Blueprint
                   </span>
                   <p className="font-semibold text-sm text-slate-900 mt-0.5">
-                    {proposals.draftKickoff.documentType}
-                    {proposals.draftKickoff.recipient ? ` — ${proposals.draftKickoff.recipient}` : ""}
+                    {activeBlueprint.documents.length > 0
+                      ? activeBlueprint.documents
+                          .map((d) => DOCUMENT_TYPE_LABELS[d.documentType])
+                          .join(" → ")
+                      : "Document type needed"}
                   </p>
                   <p className="text-2xs text-slate-500 mt-0.5">
-                    {[proposals.draftKickoff.keyFigures, proposals.draftKickoff.noticePeriod]
-                      .filter(Boolean)
-                      .join(" · ")}
+                    {matters.find((m) => m.id === selectedMatterId)?.title ? (
+                      <>Linked: {matters.find((m) => m.id === selectedMatterId)!.title}</>
+                    ) : activeBlueprint.matchConfidence > 0 ? (
+                      <>No matter linked · best match {Math.round(activeBlueprint.matchConfidence * 100)}% (below the 85% auto-link bar)</>
+                    ) : (
+                      "No matter linked (standalone draft)"
+                    )}
                   </p>
                 </div>
                 {appliedProposal === "draft" ? (
                   <span className="inline-flex items-center gap-1 text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-1 shrink-0">
-                    <CheckIcon className="w-3 h-3" /> Created
+                    <CheckIcon className="w-3 h-3" /> Generated
                   </span>
                 ) : (
                   <Button
@@ -1086,27 +1206,192 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     size="sm"
                     iconOnly
                     icon={XMarkIcon}
-                    aria-label="Dismiss draft proposal"
+                    aria-label="Dismiss drafting blueprint"
                     className="!text-slate-400 shrink-0"
                     onClick={() => setDismissedProposals((d) => [...d, "draft"])}
                   />
                 )}
               </div>
-              <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-6">
-                {proposals.draftKickoff.brief}
+
+              {/* Low-confidence matter disambiguation (spec §4.5): one-tap
+                  alternatives — never auto-linked below 0.85. */}
+              {!selectedMatterId && activeBlueprint.matchAlternatives.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {activeBlueprint.matchAlternatives.map((alt) => (
+                    <Button
+                      key={alt.matterId}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedMatterId(alt.matterId)}
+                      className="!rounded-full !text-2xs !font-medium !text-indigo-700 !border-indigo-200 hover:!bg-indigo-100 truncate max-w-[220px]"
+                      title={`Link to ${alt.label}`}
+                    >
+                      Link: {alt.label} ({Math.round(alt.score * 100)}%)
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+
+              {/* Key reliefs / terms — first 3, expandable (spec §4). */}
+              {activeBlueprint.dictated.reliefs.length > 0 ? (
+                <div className="flex flex-col gap-0.5">
+                  {(blueprintExpanded
+                    ? activeBlueprint.dictated.reliefs
+                    : activeBlueprint.dictated.reliefs.slice(0, 3)
+                  ).map((r, i) => (
+                    <p key={i} className="text-xs text-slate-700 leading-relaxed">
+                      • {r}
+                    </p>
+                  ))}
+                  {activeBlueprint.dictated.reliefs.length > 3 ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="!text-2xs !font-semibold self-start !px-1 !py-0.5"
+                      onClick={() => setBlueprintExpanded((v) => !v)}
+                    >
+                      {blueprintExpanded
+                        ? "Show less"
+                        : `+ ${activeBlueprint.dictated.reliefs.length - 3} more relief${
+                            activeBlueprint.dictated.reliefs.length - 3 === 1 ? "" : "s"
+                          }`}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {/* Missing fields count (computed in code — AC2.5). */}
+              <p className="text-2xs text-slate-500">
+                {blueprintMissingCount > 0
+                  ? `${blueprintMissingCount} field${blueprintMissingCount === 1 ? "" : "s"} to fill — placeholders stay clickable in DraftPro.`
+                  : "All critical fields sourced from the file record."}
               </p>
-              <Button
-                variant={appliedProposal === "draft" ? "success" : "outline"}
-                size="sm"
-                minTouchTarget
-                icon={appliedProposal === "draft" ? CheckIcon : DocumentPlusIcon}
-                disabled={appliedProposal === "draft"}
-                loading={proposalBusy === "draft"}
-                onClick={() => void applyDraftKickoff()}
-                className="self-start"
-              >
-                {appliedProposal === "draft" ? "Draft created" : "Create Draft"}
-              </Button>
+
+              {/* Edit blueprint mode (spec §4 secondary action). */}
+              {blueprintEditing ? (
+                <div className="flex flex-col gap-2 rounded-lg bg-white border border-indigo-100 p-2.5">
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeBlueprint.documents.map((d, i) => (
+                      <span
+                        key={`${d.documentType}-${i}`}
+                        className="inline-flex items-center gap-1 text-2xs font-semibold text-white bg-indigo-600 rounded-full px-2 py-1"
+                      >
+                        {i + 1}. {DOCUMENT_TYPE_LABELS[d.documentType]}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          iconOnly
+                          icon={XMarkIcon}
+                          aria-label={`Remove ${DOCUMENT_TYPE_LABELS[d.documentType]}`}
+                          className="!text-white hover:!text-indigo-200 !p-0 !w-4 !h-4"
+                          onClick={() =>
+                            setBlueprintDraft({
+                              ...activeBlueprint,
+                              documents: activeBlueprint.documents.filter((_, idx) => idx !== i),
+                            })
+                          }
+                        />
+                      </span>
+                    ))}
+                    <Select
+                      value=""
+                      options={[
+                        { value: "", label: "+ Add document…" },
+                        ...DOCUMENT_TYPES.filter(
+                          (t) => !activeBlueprint.documents.some((d) => d.documentType === t)
+                        ).map((t) => ({ value: t, label: DOCUMENT_TYPE_LABELS[t] })),
+                      ]}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (!v) return;
+                        setBlueprintDraft({
+                          ...activeBlueprint,
+                          documents: [
+                            ...activeBlueprint.documents,
+                            {
+                              documentType: v as (typeof activeBlueprint.documents)[number]["documentType"],
+                              documentCategory: activeBlueprint.documents[0]?.documentCategory ?? "litigation_process",
+                              order: activeBlueprint.documents.length + 1,
+                            },
+                          ],
+                        });
+                      }}
+                      className="!w-auto min-w-[180px] !text-2xs"
+                    />
+                  </div>
+                  <Textarea
+                    value={blueprintReliefsText}
+                    onChange={(e) => setBlueprintReliefsText(e.target.value)}
+                    placeholder="One relief per line…"
+                    rows={4}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      minTouchTarget
+                      onClick={() => {
+                        const reliefs = blueprintReliefsText
+                          .split(/\n+/)
+                          .map((l) => l.replace(/^\s*[-•*]\s*/, "").trim())
+                          .filter(Boolean);
+                        setBlueprintDraft({
+                          ...activeBlueprint,
+                          dictated: { ...activeBlueprint.dictated, reliefs },
+                        });
+                        setBlueprintEditing(false);
+                      }}
+                    >
+                      Save blueprint
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      minTouchTarget
+                      onClick={() => {
+                        setBlueprintDraft(null);
+                        setBlueprintEditing(false);
+                      }}
+                    >
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+
+              {appliedProposal !== "draft" ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    minTouchTarget
+                    icon={DocumentTextIcon}
+                    loading={proposalBusy === "draft"}
+                    onClick={() => void applyDraftBlueprint()}
+                  >
+                    {proposalBusy === "draft"
+                      ? generatingMsg || "Assembling…"
+                      : "Generate & Open in DraftPro →"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    minTouchTarget
+                    icon={EditIcon}
+                    disabled={proposalBusy === "draft"}
+                    onClick={() => {
+                      setBlueprintReliefsText(activeBlueprint.dictated.reliefs.join("\n"));
+                      setBlueprintEditing(true);
+                    }}
+                  >
+                    Edit blueprint
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-2xs text-slate-500">
+                  Opened in DraftPro — fill the placeholder pills and export.
+                </p>
+              )}
             </div>
           ) : null}
 

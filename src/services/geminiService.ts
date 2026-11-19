@@ -1739,3 +1739,62 @@ Now generate the search query for the context above:`;
         return context.substring(0, 120).replace(/\s+/g, ' ').trim();
     }
 };
+
+// ─── VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19, §5b) ──────────────────
+
+/**
+ * fillProseSlots — the LLM's ONLY job in the blueprint pipeline: filling the
+ * BOUNDED prose slots of one document. Structure (captions, parties blocks,
+ * jurats, franking) is deterministic code — this call never writes it, and
+ * every fill is validated + citation-scrubbed by the caller (assemble.ts
+ * validateProseFill) before it can reach the AST.
+ *
+ * One batched strict-JSON call per document keeps latency and cost sane for
+ * bundles (motion + affidavit + written address = 3 calls, not ~10).
+ */
+export const fillProseSlots = async (
+    args: {
+        system: string;
+        user: string;
+        apiKey?: string;
+        aiSettings?: AiSettings | null;
+        signal?: AbortSignal;
+    }
+): Promise<Record<string, string>> => {
+    const apiKey = args.apiKey || getGeminiApiKey();
+    if (!apiKey && !args.aiSettings) return {};
+    const controller = args.signal ? undefined : new AbortController();
+    const signal = args.signal || controller?.signal;
+    const timeoutId = setTimeout(() => controller?.abort(), 90_000);
+    try {
+        const providerCfg: ProviderConfig =
+            resolveProvider(args.aiSettings) || { provider: 'gemini', apiKey: apiKey || '' };
+        const model = resolveModelLadder(providerCfg, 'draft')[0] || AI_CONFIG.gemini.defaultModel;
+        const response = await providerGenerateContent(providerCfg, model, {
+            contents: [{ role: 'user', parts: [{ text: args.user }] }],
+            systemInstruction: { parts: [{ text: args.system }] },
+            generationConfig: {
+                temperature: 0.35,
+                maxOutputTokens: 8192,
+                responseMimeType: 'application/json',
+            },
+        }, signal);
+        if (!response.ok) return {};
+        const data = await response.json();
+        const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const first = raw.indexOf('{');
+        const last = raw.lastIndexOf('}');
+        if (first === -1 || last <= first) return {};
+        const parsed = JSON.parse(raw.slice(first, last + 1)) as Record<string, unknown>;
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) {
+            if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+        }
+        return out;
+    } catch (e: any) {
+        console.warn('[fillProseSlots] failed:', e?.message || e);
+        return {};
+    } finally {
+        clearTimeout(timeoutId);
+    }
+};

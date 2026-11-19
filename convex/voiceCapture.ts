@@ -47,6 +47,16 @@ import { QUALITY_MODEL } from "./aiModels";
 // imports of its own, so the Convex function bundler just inlines the text
 // logic (owner spec 2026-11-19: context- & intent-aware formatting).
 import { stripMetaSpeech } from "../src/services/voice/draftUtils";
+// VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19, §4 Phase 2): the same
+// convention — pure, dependency-free modules under src/legal/drafting are
+// safe for the Convex bundler. The blueprint validator, self-correction
+// resolver and alias map live there, unit-tested in tests/unit/drafting/.
+import {
+  blueprintIsSubstantive,
+  minimalBlueprint,
+  validateDraftBlueprint,
+} from "../src/legal/drafting/blueprint";
+import type { DraftBlueprint } from "../src/legal/drafting/types";
 // Firm-wide default spoken snippets (used until the firm seeds its own).
 import { DEFAULT_SNIPPETS } from "./voiceTools";
 
@@ -434,7 +444,7 @@ EXTRACT — all that apply:
 11. "newMatter": propose a NEW matter ONLY when the note is a genuinely NEW instruction/client that matches NO existing matter with confidence ≥ 0.5: {"title": "<Formal matter title, e.g. 'Mrs. Tunde Adeyemi — Lekki Phase 1 Commercial Lease Renewal'>", "clientName": "", "opposingParty": "", "practiceArea": "<e.g. Commercial Lease, Debt Recovery, Land Dispute>", "summaryNote": "<clean intake bullets: parties, property/subject, key figures, instructions>"}. When an existing matter clearly matches, return null.
 12. "contactUpsert": when the note introduces or updates a CONTACT: {"contactId": "<exact id from the contacts directory when this is an UPDATE, else empty>", "name": "", "phone": "", "email": "", "company": "", "role": "", "notes": "<what they want / context>"}; otherwise null.
 13. "propertyNote": when the note is about a PROPERTY/UNIT in the directory (estate, block, flat, tenant issue) rather than a litigation matter: {"propertyId": "<exact id>", "unitId": "<exact unitId if a specific flat/block was named, else empty>", "note": "<clean formatted note for the property/unit record>", "followUp": "<optional follow-up summary, else empty>"}; otherwise null.
-14. "draftKickoff": when the lawyer asks to DRAFT/prePARE a document: {"documentType": "<e.g. Demand Letter, Client Update, Tenancy Agreement>", "recipient": "", "keyFigures": "<amounts/deadlines mentioned>", "noticePeriod": "", "brief": "<a pre-populated starter draft in clean professional legal English, structured with headings and placeholders like [Date] where facts are missing>"}; otherwise null.
+14. "draftBlueprint": when the lawyer asks to DRAFT/PREPARE a legal or property document, extract a STRUCTURED DRAFTING BLUEPRINT (the app assembles the document itself — you do NOT write the document): {"documents": ["<document type — use the snake_case registry value when known, else the spoken name: motion_on_notice, supporting_affidavit, written_address, statement_of_claim, statement_of_defence, notice_to_quit, seven_days_notice_of_intention, writ_of_summons, originating_summons, formal_demand_letter, tenancy_or_lease_agreement, deed_of_assignment, notice_of_appeal, appellants_brief, garnishee_application, writ_of_fi_fa, witness_statement_on_oath, power_of_attorney …>"], "reliefs": ["<each discrete prayer/relief the lawyer dictated, cleaned — plain professional wording, NO legalese rewriting, NO meta-speech>"], "groundsOrFacts": ["<each discrete fact or ground, in the order spoken, cleaned>"], "amounts": [{"label": "", "amount": <plain number in NAIRA>, "currency": "NGN"}], "periods": [{"label": "<what the period is for>", "value": <number>, "unit": "days|weeks|months|years"}], "dates": [{"label": "", "iso": "YYYY-MM-DD resolved from TODAY"}], "namedPeople": [{"name": "", "role": "<deponent / witness / landlord / tenant / counterparty …>"}], "specialInstructions": ["<any other drafting instruction, cleaned>"]}. CLEANING RULES: strip filler and meta-speech ("draft me a", "make it", "I want to", "um"); resolve self-corrections to the corrected value ONLY ("ten days, no, fourteen days" → fourteen days); do NOT invent facts, amounts, dates, reliefs or parties not spoken; do NOT rewrite reliefs into legalese — that happens at assembly. If the note is NOT a drafting instruction, return null.
 15. "financialEntry": when the note logs money spent or earned: {"type": "expense"|"fee", "amount": <plain number in NAIRA, e.g. "4.5 million naira" → 4500000, "14,500" → 14500>, "currency": "NGN", "description": "<clean description>", "matterId": "<exact id when a matter was named>"}; otherwise null.
 16. "taskUpdates": when the lawyer reports an OPEN TASK/REMINDER as done or changed: [{"kind": "task"|"event", "itemId": "<exact id from OPEN TASKS & REMINDERS>", "status": "Completed"|"In Progress"|"Blocked", "note": "<clean one-line outcome>"}]; otherwise [].
 
@@ -451,7 +461,7 @@ FORMATTING RULES — strip meta-speech and adapt the format to the destination (
 RULES: never invent matters, dates, or details absent from the note; every id must be copied EXACTLY from its directory; never split one continuous note into more events than were actually dictated; newMatter and a high-confidence matterMatches must not both be returned.
 
 Respond with STRICT JSON only — no prose, no markdown fences:
-{"summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":"","note":"..."}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":"","caseNoteText":"...","clientUpdateText":"","newMatter":null,"contactUpsert":null,"propertyNote":null,"draftKickoff":null,"financialEntry":null,"taskUpdates":[]}`;
+{"summary":"...","intent":"case_note|schedule|question|share","matterMatches":[{"matterId":"...","confidence":0.0,"reason":"..."}],"matterCandidates":["..."],"events":[{"title":"...","type":"...","dateISO":"YYYY-MM-DD","time":"HH:MM","timeEstimated":true,"location":"","note":"..."}],"isDiaryTask":false,"endorsement":null,"isQuestion":false,"questionText":"","caseNoteText":"...","clientUpdateText":"","newMatter":null,"contactUpsert":null,"propertyNote":null,"draftBlueprint":null,"financialEntry":null,"taskUpdates":[]}`;
 }
 
 /** Date arithmetic on YYYY-MM-DD strings (UTC-safe, exported for tests). */
@@ -604,14 +614,23 @@ export interface PropertyNoteProposal {
   followUp: string;
 }
 
-/** A validated document/draft kickoff proposal. */
-export interface DraftKickoffProposal {
-  documentType: string;
-  recipient: string;
-  keyFigures: string;
-  noticePeriod: string;
-  brief: string;
-}
+/** A validated DRAFTING BLUEPRINT (owner spec 2026-11-19, §4 Phase 2 —
+ *  replaces the old free-text DraftKickoffProposal): documents resolved
+ *  through the deterministic alias map, dictated content cleaned and
+ *  self-corrections resolved, the 0.85 matter gate applied. The full type
+ *  lives in src/legal/drafting/types.ts (single source of truth). */
+export type { DraftBlueprint };
+
+/** The focused retry prompt for a schema-invalid blueprint (spec §4.1:
+ *  reject → retry ONCE → safe fallback). Exported for unit tests. */
+export const BLUEPRINT_RETRY_SYSTEM_PROMPT = `You extract a STRUCTURED DRAFTING BLUEPRINT from a Nigerian lawyer's dictated note. The app assembles the document deterministically — you never write the document itself.
+
+Return STRICT JSON only, exactly this shape:
+{"documents":["motion_on_notice"],"reliefs":["..."],"groundsOrFacts":["..."],"amounts":[{"label":"","amount":0,"currency":"NGN"}],"periods":[{"label":"","value":0,"unit":"days"}],"dates":[{"label":"","iso":"YYYY-MM-DD"}],"namedPeople":[{"name":"","role":""}],"specialInstructions":["..."]}
+
+- "documents": snake_case registry values when you know them (motion_on_notice, supporting_affidavit, written_address, statement_of_claim, notice_to_quit, formal_demand_letter, tenancy_or_lease_agreement …), else the spoken name verbatim.
+- Clean each item: strip meta-speech ("draft me a", "I want to"); resolve self-corrections to the corrected value ONLY; never invent facts, amounts, dates, reliefs or parties.
+- Use an EMPTY array for any category the note does not contain. Never leave keys out.`;
 
 /** A validated expense/fee log proposal. */
 export interface FinancialEntryProposal {
@@ -634,7 +653,11 @@ export interface WorkspaceProposals {
   newMatter: NewMatterProposal | null;
   contactUpsert: ContactUpsertProposal | null;
   propertyNote: PropertyNoteProposal | null;
-  draftKickoff: DraftKickoffProposal | null;
+  /** Voice → DraftPro blueprint (owner spec 2026-11-19): replaces the old
+   *  free-text draftKickoff. Validated by validateDraftBlueprint —
+   *  documents resolved via the deterministic alias map, dictated content
+   *  cleaned, the 0.85 matter gate applied (never auto-linked below 0.85). */
+  draftBlueprint: DraftBlueprint | null;
   financialEntry: FinancialEntryProposal | null;
   taskUpdates: TaskUpdateProposal[];
   clientUpdateText: string;
@@ -661,6 +684,11 @@ export function validateWorkspaceProposals(
     properties: AnalysisPropertyRow[];
     openTasks: AnalysisOpenTaskRow[];
     bestMatterConfidence: number;
+    /** Voice → DraftPro pipeline (owner spec §4): the verbatim transcript
+     *  (audit trail on the blueprint) and the ranked matter matches with
+     *  labels (the 0.85 auto-link gate + alternatives). */
+    rawTranscript?: string;
+    matterMatches?: Array<{ matterId: string; confidence: number; label?: string }>;
   }
 ): WorkspaceProposals {
   const s = (x: any, cap = 400): string =>
@@ -722,20 +750,24 @@ export function validateWorkspaceProposals(
     }
   }
 
-  // ── Draft kickoff ───────────────────────────────────────────────────────
-  let draftKickoff: DraftKickoffProposal | null = null;
-  const rawDraft = parsed?.draftKickoff;
-  if (rawDraft && typeof rawDraft === "object") {
-    const brief = s(rawDraft.brief, 12000);
-    const documentType = s(rawDraft.documentType, 120);
-    if (brief && documentType) {
-      draftKickoff = {
-        documentType,
-        recipient: s(rawDraft.recipient, 160),
-        keyFigures: s(rawDraft.keyFigures, 400),
-        noticePeriod: s(rawDraft.noticePeriod, 80),
-        brief,
-      };
+  // ── Drafting blueprint (owner spec 2026-11-19, §4 Phase 2) ──────────
+  // Schema validation, alias-first document resolution, dictated cleaning
+  // and the 0.85 matter gate all happen in validateDraftBlueprint (pure,
+  // unit-tested in tests/unit/drafting/). A blueprint the model did not
+  // emit (null) — or one that fails validation with nothing to salvage —
+  // stays null here; the finalize action drives the retry/fallback flow.
+  let draftBlueprint: DraftBlueprint | null = null;
+  if (parsed?.draftBlueprint != null) {
+    const validation = validateDraftBlueprint(parsed.draftBlueprint, {
+      rawTranscript: ctx.rawTranscript || "",
+      matches: (ctx.matterMatches || []).map((m: any) => ({
+        matterId: m.matterId,
+        confidence: m.confidence,
+        label: m.label || m.matterId,
+      })),
+    });
+    if (validation.ok && blueprintIsSubstantive(validation.value)) {
+      draftBlueprint = validation.value;
     }
   }
 
@@ -781,7 +813,7 @@ export function validateWorkspaceProposals(
     newMatter,
     contactUpsert,
     propertyNote,
-    draftKickoff,
+    draftBlueprint,
     financialEntry,
     taskUpdates,
     clientUpdateText: s(parsed?.clientUpdateText, 4000),
@@ -1417,11 +1449,56 @@ export const finalizeCapture = action({
               properties: properties || [],
               openTasks: openTasks || [],
               bestMatterConfidence: matterMatches[0]?.confidence || 0,
+              rawTranscript: verbatim,
+              matterMatches: matterMatches.map((m: MatterMatch) => ({
+                matterId: m.matterId,
+                confidence: m.confidence,
+                label: matters.find((x: any) => x.id === m.matterId)?.title || m.matterId,
+              })),
             }),
             // Legacy fields kept for older clients / recent-notes strip.
             matchedMatterIds: matterMatches.map((m) => m.matterId),
             matchedContactIds: deterministic.matchedContactIds,
           };
+          // ── VOICE → DRAFTPRO PIPELINE (owner spec §4.1): reject → retry
+          //    ONCE → safe fallback. When the analysis emitted a blueprint
+          //    that failed schema validation (validateWorkspaceProposals
+          //    dropped it), run ONE focused re-extraction; if that also
+          //    fails, fall back to the minimal blueprint — documents: []
+          //    with the transcript preserved and a clarifying missing-field
+          //    entry. The dictation is never lost.
+          const hadBlueprintIntent = parsed?.draftBlueprint != null;
+          if (
+            hadBlueprintIntent &&
+            !triageMeta.proposals.draftBlueprint &&
+            gemini
+          ) {
+            try {
+              const retryRaw = await geminiText({
+                apiKey: gemini.key,
+                system: BLUEPRINT_RETRY_SYSTEM_PROMPT,
+                user: `TODAY (Lagos): ${lagosNow(Date.now()).dateISO}\n\nTHE LAWYER'S DICTATED NOTE:\n"""${verbatim.slice(0, MAX_TRANSCRIPT_CHARS)}"""`,
+                maxTokens: 2048,
+              });
+              const retryParsed = parseModelJson<any>(retryRaw);
+              const retryValidation = validateDraftBlueprint(retryParsed, {
+                rawTranscript: verbatim,
+                matches: triageMeta.matterMatches.map((m: MatterMatch) => ({
+                  matterId: m.matterId,
+                  confidence: m.confidence,
+                  label: matters.find((x: any) => x.id === m.matterId)?.title || m.matterId,
+                })),
+              });
+              triageMeta.proposals.draftBlueprint =
+                retryValidation.ok && blueprintIsSubstantive(retryValidation.value)
+                  ? retryValidation.value
+                  : minimalBlueprint(verbatim);
+            } catch {
+              // Provider failure on the retry: minimal blueprint — the
+              // transcript is preserved, never the dictation lost.
+              triageMeta.proposals.draftBlueprint = minimalBlueprint(verbatim);
+            }
+          }
           patch.triageIntent = parsed.intent || "share";
           patch.triageMeta = triageMeta;
           result.triageIntent = patch.triageIntent;
@@ -2076,5 +2153,77 @@ export const undoQuickAskAction = mutation({
       }
     );
     return result;
+  },
+});
+
+// ─── DRAFTPRO VOICE EDIT (owner spec 2026-11-19, §7.4 Phase 4) ──────────────
+
+export const DRAFT_VOICE_EDIT_SYSTEM_PROMPT = `You edit ONE selected passage of a Nigerian legal document in DraftPro according to a short spoken instruction. The surrounding document is court furniture generated by code — you never rewrite it.
+
+Classify the instruction into an intent:
+- "add": the instruction ADDS a new item (e.g. an alternative relief, a further ground) after the selected passage. Return ONLY the new item's text.
+- "delete": the instruction removes the selected passage. Return an empty string.
+- "rewrite": the instruction reworks the selected passage itself (tighten, expand, reword, formalise). Return ONLY the rewritten passage.
+
+RULES:
+1. Return STRICT JSON only: {"intent":"add|delete|rewrite","text":"<the new item or the rewritten passage; empty for delete>"}
+2. Rewrite ONLY what the instruction asks. Do not add facts, dates, names, amounts or legal conclusions absent from the passage and its context.
+3. Preserve every existing fact exactly: names, dates, amounts (₦), citations, statute names, Latin maxims, Nigerian legal terminology.
+4. Keep the professional register; Nigerian English spellings (judgement, defence) are correct.
+5. For "add" intents, return the new item text alone — never a sentence about adding it.
+6. If the instruction is unintelligible or not an edit, return {"intent":"rewrite","text":"<the selected passage unchanged>"}.`;
+
+/**
+ * draftVoiceEdit — the engine behind the DraftPro toolbar mic (owner spec
+ * §7.4 "Edit Selection by Voice"): the user selects a block (paragraph,
+ * relief, ground, argument), speaks an instruction, and ONLY that block
+ * changes. Structural/hydrated blocks (court, parties, case number) are
+ * guarded CLIENT-SIDE before this action is ever called; this action only
+ * ever sees prose passages.
+ */
+export const draftVoiceEdit = action({
+  args: {
+    selectedText: v.string(),
+    instruction: v.string(),
+    documentType: v.optional(v.string()),
+    surroundingText: v.optional(v.string()),
+    callerApiKey: v.optional(v.string()),
+    sessionToken: v.optional(v.string()),
+    userEmail: v.optional(v.string()),
+  },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ intent: "add" | "delete" | "rewrite"; text: string }> => {
+    const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    const allowed = await ctx.runMutation(
+      internal.securityHelpers.consumeRateLimit,
+      { key: `voice_draftedit:${auth.userId}`, maxRequests: 20 }
+    );
+    if (!allowed) throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    const selected = (args.selectedText || "").trim().slice(0, 20_000);
+    const instruction = (args.instruction || "").trim().slice(0, 2000);
+    if (!selected) throw new Error("Select the passage you want to edit first.");
+    if (!instruction) throw new Error("Say what you want changed, then try again.");
+
+    const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
+    if (!gemini) throw new ConvexError("AI is not configured yet — the platform AI key is being set up. Please try again shortly.");
+
+    const context = (args.surroundingText || "").trim().slice(0, 6000);
+    const out = await geminiText({
+      apiKey: gemini.key,
+      system: DRAFT_VOICE_EDIT_SYSTEM_PROMPT,
+      user:
+        `DOCUMENT TYPE: ${(args.documentType || "legal document").replace(/_/g, " ")}\n\n` +
+        `SPOKEN INSTRUCTION: "${instruction}"\n\n` +
+        (context ? `SURROUNDING TEXT (context only — do NOT rewrite): """${context}"""\n\n` : "") +
+        `SELECTED PASSAGE:\n"""${selected}"""`,
+      maxTokens: 2048,
+    });
+    const parsed = parseModelJson<{ intent?: string; text?: string }>(out);
+    const intent =
+      parsed?.intent === "add" || parsed?.intent === "delete" ? parsed.intent : "rewrite";
+    const text = String(parsed?.text ?? "").trim();
+    return { intent, text: intent === "delete" ? "" : text || selected };
   },
 });

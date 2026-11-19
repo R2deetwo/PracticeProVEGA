@@ -385,6 +385,11 @@ export default defineSchema({
     file: v.optional(v.any()),
     content: nullableString,
     source: nullableString,
+    /** VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19): the canonical
+     *  registry value (src/legal/drafting/documentTypes.ts) a voice-blueprint
+     *  draft was assembled as, e.g. "motion_on_notice". Optional/additive —
+     *  legacy and free-form documents simply leave it unset. */
+    documentType: nullableString,
     uploadedBy: nullableString,
     versions: v.optional(v.array(v.any())),
     comments: v.optional(v.array(v.any())),
@@ -408,6 +413,7 @@ export default defineSchema({
     updatedAt: nullableString,
   }).index("by_firm", ["firmId"]).index("by_matter", ["matterId"]).index("by_property", ["propertyId"])
     .index("by_category", ["firmId", "categoryId"])
+    .index("by_firm_type", ["firmId", "documentType"])
     .searchIndex("search_title", { searchField: "title" }),
 
   workflows: defineTable({
@@ -3398,6 +3404,29 @@ export default defineSchema({
     updatedAt: nullableString,
   })
     .index("by_firm_user", ["firmId", "userId"]),
+
+  // authorityLibrary — the firm's VERIFIED legal authorities (owner spec
+  // 2026-11-19, §6.2 "No fabricated citations"): written addresses and
+  // briefs may cite ONLY entries from this table. Ships EMPTY; the firm
+  // populates it via the editor's "Add authority" action or the CSV import
+  // (convex/authorityLibrary.ts importAuthoritiesCsv).
+  authorityLibrary: defineTable({
+    firmId: nullableString,
+    // The citation as it should print, e.g. "[2023] NWLR (Pt 1291) 1".
+    citation: v.string(),
+    court: nullableString,
+    year: nullableString,
+    // The proposition the authority supports (for the verify pill).
+    proposition: nullableString,
+    // Counsel has verified this authority against the report.
+    verified: v.optional(v.boolean()),
+    // Who added it and when (audit).
+    addedBy: nullableString,
+    createdAt: nullableString,
+    updatedAt: nullableString,
+  })
+    .index("by_firm", ["firmId"])
+    .index("by_firm_citation", ["firmId", "citation"]),
 
 // PHASE 0 REVERT: schemaValidation must stay false until all inserts are
 // audited. Enabling it broke signup because many existing mutations insert

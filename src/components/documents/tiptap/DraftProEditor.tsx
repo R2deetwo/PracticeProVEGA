@@ -79,6 +79,17 @@ import PrintPreviewDrawer from './PrintPreviewDrawer';
 import { HeaderConfiguration } from '../../../types';
 import Tooltip from '../../Tooltip';
 import { classifyAndCheckCitation } from '../../../utils/citationClassifier';
+// ── VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19, §7 Phase 4) ──────────
+import type { DraftBundle } from '../../../legal/drafting/types';
+import { DOCUMENT_TYPE_LABELS } from '../../../legal/drafting/documentTypes';
+import { astToHtml } from '../../../legal/drafting/astToHtml';
+import { findPlaceholders, fillSlot, insertNumberedItem } from '../../../legal/drafting/assemble';
+import { VoiceRecorder, recorderSupported } from '../../../services/voice/audioRecorder';
+import { transcribeBatch, blobToBase64, draftVoiceEdit } from '../../../services/voice/voiceCaptureService';
+import { convertBlobToWav } from '../../../utils/webmToWav';
+import { BundleTabs, PlaceholderNav, CounselReviewBanner, VoiceEditPanel } from './BundleMode';
+import { voiceEditRefusalReason } from '../../../legal/drafting/voiceEditGuards';
+import { MicrophoneIcon } from '../../../constants';
 
 // ─── Inline SVG Toolbar Icons (Heroicons 1.5px stroke — unified with constants.tsx) ───
 const Sparkles: React.FC<{className?:string}> = ({className}) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" /></svg>;
@@ -517,6 +528,11 @@ export interface DraftProEditorProps {
      *  prompt carried no substantive instruction (greeting/empty), so
      *  auto-drafting was suppressed and a hint should be shown. */
     promptWasTrivial?: boolean;
+    /** VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19, §7): the assembled
+     *  bundle behind this draft — enables bundle document tabs, placeholder
+     *  navigation, the non-printing counsel-review banner, AST-first exports
+     *  and Edit Selection by Voice. Free-form drafts simply omit it. */
+    draftBundle?: DraftBundle | null;
 }
 
 /**
@@ -552,6 +568,7 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     linkedMatterId,
     citations,
     promptWasTrivial = false,
+    draftBundle,
 }) => {
     const { addToast, navigateTo } = useUI();
     const { confirm: confirmDialog, ConfirmDialog: ConfirmDialogEl } = useConfirm();
@@ -562,6 +579,9 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
     const signerContext = useSignerContext();
     const { openWithContext, openPanel } = useAloa();
     const generateUploadUrl = useMutation(api.myFunctions.generateUploadUrl);
+    // VOICE → DRAFTPRO (spec §7.3): the generic updateItem mutation, used for
+    // the Save-to-matter offer when a suit-number placeholder is filled.
+    const updateMatterMutation = useMutation(api.myFunctions.updateItem);
 
     // ─── New-tab detection ──────────────────────────────────────────────
     // DraftPro can be opened in two ways:
@@ -598,6 +618,257 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             return false;
         }
     }, []);
+
+    // ─── VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19, §7 Phase 4) ──────
+    // The bundle behind this draft: one document per tab (dependency order),
+    // placeholder navigation, the NON-PRINTING counsel-review banner, and
+    // AST-first exports. htmlByDoc holds each document's current rendered
+    // state — seeded from the AST (the single renderer, astToHtml) and then
+    // carrying accepted placeholder fills and voice edits.
+    const bundle = draftBundle || null;
+    const bundleRef = useRef<DraftBundle | null>(null);
+    const [bundleDocIndex, setBundleDocIndex] = useState(0);
+    const [bundleHtml, setBundleHtml] = useState<string[]>([]);
+    const [noticePeriodConflict, setNoticePeriodConflict] = useState(false);
+
+    useEffect(() => {
+        if (!draftBundle) { bundleRef.current = null; setBundleHtml([]); setNoticePeriodConflict(false); return; }
+        bundleRef.current = draftBundle;
+        setBundleHtml(draftBundle.documents.map((d) => astToHtml(d)));
+        setBundleDocIndex(0);
+        // The conflict flag rides on the first document's metadata via the
+        // generation service; conservatively default to false here.
+        setNoticePeriodConflict(false);
+    }, [draftBundle]);
+
+    /** Per-document placeholder counts for the tabs (current rendered state). */
+    const bundleTabs = React.useMemo(() => {
+        if (!bundle) return [];
+        return bundle.documents.map((d, i) => ({
+            id: d.id,
+            label: DOCUMENT_TYPE_LABELS[d.documentType] || d.documentType,
+            placeholderCount: (bundleHtml[i] || '').split('data-type="legal-placeholder"').length - 1,
+        }));
+    }, [bundle, bundleHtml]);
+
+    /** Switch bundle tabs: persist the outgoing document's HTML first. */
+    const switchBundleDoc = (index: number) => {
+        if (!editor || !bundle || index === bundleDocIndex || index < 0 || index >= bundle.documents.length) return;
+        setBundleHtml((prev) => {
+            if (!prev.length) return prev;
+            const next = [...prev];
+            next[bundleDocIndex] = editor!.getHTML();
+            return next;
+        });
+        setBundleDocIndex(index);
+        editor.commands.setContent(bundleHtml[index] || astToHtml(bundle.documents[index]));
+    };
+
+    /** Placeholder navigation (spec §7.3): jump to the next/previous pill
+     *  and open the targeted fill modal. Alt+N / Alt+P are the shortcuts.
+     *  (Declared after the editor — see below.) */
+
+    /** AST-side fill sync (spec §7.3): after the modal fills pills, update
+     *  the bundle AST so programmatic state stays authoritative, and offer
+     *  Save-to-profile for matter/firm fields. */
+    const syncBundleFills = (values: Record<string, string>) => {
+        const b = bundleRef.current;
+        if (!b || !editor) return;
+        let updated = b;
+        const refs = findPlaceholders(b);
+        for (const [label, value] of Object.entries(values)) {
+            if (!value?.trim()) continue;
+            const ref = refs.find((r) => r.label === label);
+            if (!ref) continue;
+            updated = fillSlot(updated, ref.documentIndex, ref.slotKey, value, 'manual');
+        }
+        bundleRef.current = updated;
+        setDraftBundleState(updated);
+        // Save-to-profile offer: suit number + firm contact fields.
+        const suitValue = Object.entries(values).find(([l]) => /^SUIT NO/i.test(l))?.[1];
+        if (suitValue?.trim() && linkedMatterId) {
+            confirmDialog({
+                title: 'Save to the matter record?',
+                message: `Update the linked matter's suit number to “${suitValue.trim()}”?`,
+                confirmLabel: 'Save to matter',
+                cancelLabel: 'Not now',
+            }).then((ok) => {
+                if (ok) void updateLinkedMatterSuitNumber(suitValue.trim());
+            }).catch(() => undefined);
+        }
+    };
+
+    /** Save-to-matter (spec §7.3): updates the linked matter's suit number
+     *  through the generic updateItem mutation (same surface DataContext
+     *  uses), with the session bearer gate it already enforces. */
+    const updateLinkedMatterSuitNumber = async (suitNumber: string) => {
+        try {
+            await updateMatterMutation({
+                table: "matters",
+                id: linkedMatterId!,
+                data: { suitNumber, updatedAt: new Date().toISOString() },
+            });
+            addToast('Suit number saved to the matter record.', { type: 'success' });
+        } catch (err: any) {
+            addToast(err?.message || 'Could not update the matter record.', { type: 'error' });
+        }
+    };
+
+    // The AST state mirror for re-renders (kept in sync by syncBundleFills).
+    const [draftBundleState, setDraftBundleState] = useState<DraftBundle | null>(null);
+    useEffect(() => { setDraftBundleState(draftBundle || null); }, [draftBundle]);
+
+    /** EXPORT PRECEDENCE (spec §7.2): DOCX and PDF render the AST — when a
+     *  bundle is active, exports join every document's current rendered
+     *  state (AST-rendered + accepted edits) with page breaks; the live
+     *  editor HTML of the ACTIVE document is captured first so the latest
+     *  keystrokes are included. */
+    const bundleExportHtml = (): string | null => {
+        if (!bundleRef.current || !editor) return null;
+        const parts = [...(bundleHtml.length ? bundleHtml : bundleRef.current.documents.map((d) => astToHtml(d)))];
+        parts[bundleDocIndex] = editor.getHTML();
+        return parts.filter(Boolean).join('<div class="page-break" data-type="page-break"></div>');
+    };
+
+    // ─── EDIT SELECTION BY VOICE (owner spec §7.4) ───────────────────────────
+    const [voiceEditState, setVoiceEditState] = useState<'idle' | 'recording' | 'reviewing' | 'applying'>('idle');
+    const [voiceEditProposal, setVoiceEditProposal] = useState<{ instruction: string; before: string; after: string } | null>(null);
+    const [voiceEditIntent, setVoiceEditIntent] = useState<'add' | 'delete' | 'rewrite'>('rewrite');
+    const voiceRecorderRef = useRef<VoiceRecorder | null>(null);
+    const voiceSegmentsRef = useRef<Blob[]>([]);
+    const voiceSelectionRef = useRef<{ from: number; to: number; text: string } | null>(null);
+
+    /** Structural guard (AC4.4): court furniture (aligned caption/case-number/
+     *  signature lines) and hydrated record data are never voice-editable.
+     *  The refusal rules live in voiceEditGuards.ts (pure, unit-tested). */
+    const voiceEditGuarded = (from: number, to: number, text: string): string | null => {
+        const alignments: Array<string | undefined> = [];
+        editor?.state.doc.nodesBetween(from, to, (node) => {
+            alignments.push((node.attrs as any)?.textAlign);
+        });
+        return voiceEditRefusalReason({ selectedText: text, instruction: '', alignments });
+    };
+
+    const startVoiceEdit = async () => {
+        if (!editor) return;
+        if (voiceEditState === 'recording') { void stopVoiceEdit(); return; }
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to, ' ').trim();
+        if (!selectedText) { addToast('Select the passage you want to edit first.', { type: 'info' }); return; }
+        const guard = voiceEditGuarded(from, to, selectedText);
+        if (guard) { addToast(guard, { type: 'error' }); return; }
+        if (!recorderSupported()) { addToast('Voice edit needs a microphone-enabled browser.', { type: 'error' }); return; }
+        voiceSelectionRef.current = { from, to, text: selectedText };
+        voiceSegmentsRef.current = [];
+        try {
+            const rec = new VoiceRecorder({ onSegment: (seg) => { voiceSegmentsRef.current.push(seg.blob); } });
+            voiceRecorderRef.current = rec;
+            await rec.start();
+            setVoiceEditState('recording');
+        } catch (err: any) {
+            addToast(err?.userMessage || err?.message || 'Could not start recording.', { type: 'error' });
+        }
+    };
+
+    const stopVoiceEdit = async () => {
+        const rec = voiceRecorderRef.current;
+        if (!rec) return;
+        setVoiceEditState('applying');
+        try {
+            await rec.stop();
+            rec.destroy();
+            voiceRecorderRef.current = null;
+            const segs = voiceSegmentsRef.current;
+            if (segs.length === 0) { setVoiceEditState('idle'); addToast('Nothing was recorded — try again.', { type: 'info' }); return; }
+            const wav = await convertBlobToWav(segs[segs.length - 1]);
+            const audioBase64 = await blobToBase64(wav);
+            const { text: instruction } = await transcribeBatch({ audioBase64 });
+            if (!instruction.trim()) { setVoiceEditState('idle'); addToast('Could not hear the instruction — try again.', { type: 'info' }); return; }
+            const sel = voiceSelectionRef.current!;
+            // AC4.4: instructions targeting the suit/case number are refused
+            // (deterministic rules in voiceEditGuards.ts).
+            const refusal = voiceEditRefusalReason({
+                selectedText: sel.text,
+                instruction,
+                alignments: [],
+            });
+            if (refusal) {
+                setVoiceEditState('idle');
+                addToast(refusal, { type: 'error' });
+                return;
+            }
+            const surrounding = editor!.state.doc.textBetween(
+                Math.max(0, sel.from - 400),
+                Math.min(editor!.state.doc.content.size, sel.to + 400),
+                ' '
+            );
+            const result = await draftVoiceEdit({
+                selectedText: sel.text,
+                instruction,
+                documentType: bundleRef.current?.documents[bundleDocIndex]?.documentType,
+                surroundingText: surrounding,
+            });
+            if (result.intent === 'rewrite' && result.text.trim() === sel.text.trim()) {
+                setVoiceEditState('idle');
+                addToast('The instruction did not change the passage — try rephrasing.', { type: 'info' });
+                return;
+            }
+            setVoiceEditIntent(result.intent);
+            setVoiceEditProposal({
+                instruction: instruction.trim().slice(0, 160),
+                before: sel.text,
+                after: result.intent === 'delete' ? '' : result.text,
+            });
+            setVoiceEditState('reviewing');
+        } catch (err: any) {
+            setVoiceEditState('idle');
+            addToast(err?.userMessage || err?.message || 'Voice edit failed.', { type: 'error' });
+        }
+    };
+
+    const acceptVoiceEdit = () => {
+        const p = voiceEditProposal;
+        const sel = voiceSelectionRef.current;
+        if (!p || !sel || !editor) return;
+        setVoiceEditState('applying');
+        try {
+            if (voiceEditIntent === 'delete') {
+                editor.chain().focus().deleteRange({ from: sel.from, to: sel.to }).run();
+            } else if (voiceEditIntent === 'add') {
+                // AC4.3: exactly one new numbered relief/item, inserted as a
+                // SIBLING list item when the selection is inside a list —
+                // every other block stays byte-identical.
+                const $to = editor.state.doc.resolve(sel.to);
+                if ($to.parent.type.name === 'listItem') {
+                    const itemEnd = $to.after($to.depth);
+                    editor.chain().focus().insertContentAt(itemEnd, {
+                        type: 'listItem',
+                        content: [{ type: 'paragraph', content: p.after ? [{ type: 'text', text: p.after }] : [] }],
+                    }).run();
+                } else {
+                    editor.chain().focus().insertContentAt(sel.to, {
+                        type: 'paragraph',
+                        content: p.after ? [{ type: 'text', text: p.after }] : [],
+                    }).run();
+                }
+            } else {
+                editor.chain().focus().insertContentAt({ from: sel.from, to: sel.to }, p.after).run();
+            }
+            addToast('Passage updated. Ctrl/Cmd+Z undoes it.', { type: 'success' });
+        } catch (err: any) {
+            addToast(err?.message || 'Could not apply the edit.', { type: 'error' });
+        } finally {
+            setVoiceEditProposal(null);
+            setVoiceEditState('idle');
+            voiceSelectionRef.current = null;
+        }
+    };
+
+    const rejectVoiceEdit = () => { setVoiceEditProposal(null); setVoiceEditState('idle'); voiceSelectionRef.current = null; };
+    const retryVoiceEdit = async () => { setVoiceEditProposal(null); setVoiceEditState('idle'); await startVoiceEdit(); };
+
+    // Cleanup the recorder on unmount.
+    useEffect(() => () => { try { voiceRecorderRef.current?.destroy(); } catch { /* recorder already gone */ } }, []);
 
     // States
     // Number of explicit pageBreak nodes currently in the document
@@ -988,6 +1259,16 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
                     contentChangeDebounceRef.current = null;
                     try {
                         onContentChange?.(latestContentRef.current);
+                        // VOICE → DRAFTPRO: keep the active bundle document's
+                        // rendered state current (exports join these).
+                        if (bundleRef.current && bundleHtml.length) {
+                            setBundleHtml((prev) => {
+                                if (!prev.length) return prev;
+                                const next = [...prev];
+                                next[bundleDocIndex] = latestContentRef.current;
+                                return next;
+                            });
+                        }
                     } catch (htmlErr) {
                         console.error('[DraftPro] getHTML failed in debounced onContentChange:', htmlErr);
                     }
@@ -1007,6 +1288,42 @@ export const DraftProEditor: React.FC<DraftProEditorProps> = ({
             setPlaceholderCount(placeholders);
         },
     });
+
+    // ─── Placeholder navigation (owner spec 2026-11-19, §7.3) ────────────────
+    // Jump to the next/previous placeholder pill and open the targeted fill
+    // modal. Alt+N / Alt+P are the keyboard shortcuts. Declared here (after
+    // the editor) because the deps array needs the editor instance.
+    const focusNextPlaceholder = React.useCallback((dir: 1 | -1) => {
+        if (!editor) return;
+        const positions: { pos: number; label: string }[] = [];
+        editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === 'legalPlaceholder') positions.push({ pos, label: node.attrs.label });
+        });
+        if (positions.length === 0) {
+            addToast('All fields are filled.', { type: 'success' });
+            return;
+        }
+        const selPos = editor.state.selection.from;
+        const target =
+            dir === 1
+                ? positions.find((p) => p.pos > selPos) || positions[0]
+                : [...positions].reverse().find((p) => p.pos < selPos) || positions[positions.length - 1];
+        editor.chain().focus().setTextSelection(Math.max(0, target.pos - 1)).run();
+        setTargetPlaceholderLabel(target.label);
+        setActiveModal('fill_placeholders');
+    }, [editor, addToast]);
+
+    // Alt+N / Alt+P — placeholder navigation shortcuts (spec §7.3).
+    useEffect(() => {
+        if (!bundle) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (!e.altKey) return;
+            if (e.key === 'n' || e.key === 'N') { e.preventDefault(); focusNextPlaceholder(1); }
+            if (e.key === 'p' || e.key === 'P') { e.preventDefault(); focusNextPlaceholder(-1); }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [bundle, focusNextPlaceholder]);
 
     // Unmount flush: if the user navigates away mid-debounce, fire the
     // pending onContentChange immediately so the last edits aren't lost.
@@ -1777,9 +2094,11 @@ ${allCites.map((c: any) => {
         // The user gets the browser's "Save as PDF" dialog which is the most
         // reliable PDF generator available.
         try {
-            const html = editor.getHTML();
-
-            // ─── PRE-FLIGHT COMPLIANCE (advisory) ─────────────────────────
+            // VOICE → DRAFTPRO (spec §7.2): PDF renders the AST — when a
+            // bundle is active, print the joined per-document rendered
+            // state (all bundle documents, page-break separated) instead of
+            // the single live editor surface.
+            const html = bundleExportHtml() || editor.getHTML();
             // Deterministic court-process checks (signature block, citation
             // completeness, evidential-closure disclosure) surface before
             // print. Advisory only — the lawyer decides (V5 philosophy:
@@ -1887,7 +2206,10 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
         const startTime = Date.now();
         try {
             setIsSavingFile(true);
-            const html = editor.getHTML();
+            // VOICE → DRAFTPRO (spec §7.2): DOCX renders the AST — when a
+            // bundle is active, export the joined per-document rendered
+            // state (all bundle documents, page-break separated).
+            const html = bundleExportHtml() || editor.getHTML();
 
             // ─── PRE-FLIGHT COMPLIANCE (advisory) ─────────────────────────
             // Same deterministic checks as the print path — signature block,
@@ -2496,6 +2818,38 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                     </Button>
                 </div>
             )}
+
+            {/* ── VOICE → DRAFTPRO BUNDLE STRIP (owner spec 2026-11-19, §7) ──
+                Bundle tabs (documents in dependency order), the non-printing
+                counsel-review banner, placeholder navigation and the voice-edit
+                diff panel. Everything here renders OUTSIDE the TipTap content
+                tree, so none of it can leak into exports (AC6.2). */}
+            {bundle && bundleTabs.length > 0 ? (
+                <div className="flex-shrink-0">
+                    {bundleTabs.length > 1 ? (
+                        <BundleTabs tabs={bundleTabs} activeIndex={bundleDocIndex} onSelect={switchBundleDoc} />
+                    ) : null}
+                    <CounselReviewBanner noticePeriodConflict={noticePeriodConflict} />
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-white dark:bg-zinc-900 border-b border-slate-200 dark:border-zinc-800">
+                        <PlaceholderNav remaining={placeholderCount} onPrev={() => focusNextPlaceholder(-1)} onNext={() => focusNextPlaceholder(1)} />
+                        <ToolbarBtn
+                            icon={MicrophoneIcon}
+                            label={voiceEditState === 'recording' ? 'Stop & Edit' : 'Voice Edit'}
+                            onClick={() => void startVoiceEdit()}
+                            size="lg"
+                            className={voiceEditState === 'recording' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-violet-600 dark:text-violet-400'}
+                            disabled={!editor || voiceEditState === 'applying' || voiceEditState === 'reviewing'}
+                        />
+                    </div>
+                    <VoiceEditPanel
+                        proposal={voiceEditProposal}
+                        busy={voiceEditState === 'applying'}
+                        onAccept={acceptVoiceEdit}
+                        onReject={rejectVoiceEdit}
+                        onRetry={() => void retryVoiceEdit()}
+                    />
+                </div>
+            ) : null}
 
             {/* ── Ribbon Toolbar (hidden in Focus Mode — press F11 to toggle) ──
                 Organized into clear functional groups with visual dividers:
@@ -3621,6 +3975,10 @@ const saveAsFile = useCallback(async (format: 'docx' | 'pdf'): Promise<boolean> 
                                         }
 
                                         editor.view.dispatch(tr);
+                                        // VOICE → DRAFTPRO (spec §7.3): sync the AST-side
+                                        // fills + per-document HTML so exports stay
+                                        // AST-derived, then offer Save-to-matter.
+                                        syncBundleFills(values);
                                         addToast('Placeholders filled.', { type: 'success' });
                                     } catch (err) {
                                         console.error('Error filling placeholders:', err);

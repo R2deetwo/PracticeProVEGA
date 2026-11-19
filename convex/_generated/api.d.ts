@@ -15,6 +15,7 @@ import type * as aiModels from "../aiModels.js";
 import type * as analytics from "../analytics.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as authUtils from "../authUtils.js";
+import type * as authorityLibrary from "../authorityLibrary.js";
 import type * as automationEngine from "../automationEngine.js";
 import type * as automationRules from "../automationRules.js";
 import type * as backfillDocumentFiles from "../backfillDocumentFiles.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   authHelpers: typeof authHelpers;
   authUtils: typeof authUtils;
+  authorityLibrary: typeof authorityLibrary;
   automationEngine: typeof automationEngine;
   automationRules: typeof automationRules;
   backfillDocumentFiles: typeof backfillDocumentFiles;

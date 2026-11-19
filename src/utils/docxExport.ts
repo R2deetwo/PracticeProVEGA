@@ -81,6 +81,9 @@ interface ParaOptions {
   indentLeft?: number;    // twips
   quote?: boolean;
   pageBreakBefore?: boolean;
+  /** Paragraph justification — blueprint documents use right-aligned case
+   *  numbers, franking blocks and date lines (voice→draftpro pipeline). */
+  align?: 'left' | 'center' | 'right' | 'both';
 }
 
 function paraXml(runs: string[], opts: ParaOptions = {}): string {
@@ -90,6 +93,7 @@ function paraXml(runs: string[], opts: ParaOptions = {}): string {
   if (opts.numbering !== undefined) {
     pPrParts.push(`<w:numPr><w:ilvl w:val="${opts.ilvl ?? 0}"/><w:numId w:val="${opts.numbering}"/></w:numPr>`);
   }
+  if (opts.align) pPrParts.push(`<w:jc w:val="${opts.align}"/>`);
   if (opts.indentLeft || opts.quote) {
     pPrParts.push(`<w:ind w:left="${opts.indentLeft ?? 720}" w:hanging="0"/>`);
   }
@@ -97,6 +101,17 @@ function paraXml(runs: string[], opts: ParaOptions = {}): string {
   const pPr = pPrParts.length > 0 ? `<w:pPr>${pPrParts.join('')}</w:pPr>` : '';
   const body = runs.length > 0 ? runs.join('') : '';
   return `<w:p>${pPr}${body}</w:p>`;
+}
+
+/** Paragraph justification from a block element's inline style or
+ *  data-align attribute (the AST renderer emits both). */
+function paraAlign(el: HTMLElement): ParaOptions['align'] {
+  const attr = (el.getAttribute('data-align') || '').toLowerCase();
+  if (attr === 'center' || attr === 'right' || attr === 'left' || attr === 'both') return attr;
+  const style = (el.getAttribute('style') || '').toLowerCase();
+  const m = /text-align\s*:\s*(center|right|left|both|justify)/.exec(style);
+  if (!m) return undefined;
+  return m[1] === 'justify' ? 'both' : (m[1] as ParaOptions['align']);
 }
 
 // ─── List registry (each top-level list gets a fresh numId) ─────────────────
@@ -140,7 +155,7 @@ function convertNode(node: Node, flags: RunFlags, state: ConvertState, listCtx: 
       if (isPageBreak(el)) { emitPageBreak(state); return; }
       // divs with block children recurse; plain divs act as paragraphs.
       if (hasBlockChild(el)) { convertChildren(el, flags, state, listCtx); return; }
-      emitSimpleParagraph(el, flags, state, {});
+      emitSimpleParagraph(el, flags, state, { align: paraAlign(el) });
       return;
     }
     case 'h1':

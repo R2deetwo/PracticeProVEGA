@@ -7,6 +7,10 @@ export interface DraftSessionData {
   documentType?: string | null;
   // FIX 5b: Persist citations so they survive new-tab navigation and tab-close recovery
   citations?: any[];
+  // VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19): the assembled bundle
+  // behind this draft — enables bundle tabs, placeholder navigation and
+  // AST-first exports in the editor. Optional: free-form drafts have none.
+  draftBundle?: import("../legal/drafting/types").DraftBundle;
   updatedAt: string;
   savedAt: number;
 }

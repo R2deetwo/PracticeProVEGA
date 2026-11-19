@@ -5,6 +5,7 @@ import { DraftProEditor, SaveControl } from './tiptap/DraftProEditor';
 import { ChevronLeftIcon as BackIcon, CheckIcon as SaveIcon } from '../../constants';
 import { useCoreState } from '../../contexts/CoreContext';
 import { draftSessionKey, loadDraftSession, saveDraftSession, clearDraftSession } from '../../utils/draftSession';
+import type { DraftBundle } from '../../legal/drafting/types';
 import { registerDraftTab } from '../../utils/draftTabs';
 import { readHashContext } from '../../utils/tabNavigation';
 import { getAndClearPendingDraft } from '../../utils/draftContentStore';
@@ -31,6 +32,10 @@ export const WordProcessor: React.FC = () => {
     const [sessionKey, setSessionKey] = useState('');
     const [resolvedCitations, setResolvedCitations] = useState<any[] | undefined>(undefined);
     const [resolvedMatterId, setResolvedMatterId] = useState<string | undefined>(undefined);
+    // VOICE → DRAFTPRO PIPELINE: the assembled bundle carried by the draft
+    // session (owner spec 2026-11-19, §7) — enables tabs, placeholder
+    // navigation and AST-first exports in the editor.
+    const [resolvedDraftBundle, setResolvedDraftBundle] = useState<DraftBundle | undefined>(undefined);
     // "Save & Close" (2026-09-23): armed by handleSaveForClose, consumed when
     // the save-to-vault modal (newDocument) finishes — by SAVE or CANCEL — so
     // the editor closes right after the user completes the save flow instead
@@ -127,6 +132,7 @@ export const WordProcessor: React.FC = () => {
         // FIX 5b: citations — read from hash context → memory → localStorage
         const cites = ctx.citations || hashCtx.citations || stored?.citations || undefined;
         setResolvedCitations(cites);
+        setResolvedDraftBundle(stored?.draftBundle || undefined);
     }, [location.state, location.search, currentHistoryEntry, firmId]);
 
     // ─── Register with the tab manager (desktop only) ────────────────────
@@ -348,6 +354,7 @@ export const WordProcessor: React.FC = () => {
                     onSaveAndClose={handleSaveForClose}
                     linkedMatterId={resolvedMatterId}
                     citations={resolvedCitations ? { citations: resolvedCitations } : undefined}
+                    draftBundle={resolvedDraftBundle || null}
                 />
             </div>
         </div>

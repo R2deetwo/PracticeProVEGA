@@ -913,11 +913,17 @@ describe('buildAnalysisPrompt (Wispr-Flow upgrade, 2026-11-19)', () => {
     expect(out).toContain('"newMatter"');
     expect(out).toContain('"contactUpsert"');
     expect(out).toContain('"propertyNote"');
-    expect(out).toContain('"draftKickoff"');
+    expect(out).toContain('"draftBlueprint"');
     expect(out).toContain('"financialEntry"');
     expect(out).toContain('"taskUpdates"');
     expect(out).toContain('"clientUpdateText"');
     expect(out).toContain('"caseNoteText"');
+  });
+
+  it('never asks the LLM for missing critical fields (AC2.5)', () => {
+    const out = buildAnalysisPrompt({ lagos, matters, contacts, eventTypeNames: [] });
+    expect(out).not.toContain('missingCriticalFields');
+    expect(out).not.toContain('missingFields');
   });
 
   it('teaches backtracking, code-switching and register rules', () => {

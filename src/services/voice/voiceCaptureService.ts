@@ -9,6 +9,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import { convertBlobToWav } from "../../utils/webmToWav";
 import { getGeminiApiKey } from "../../utils/aiUtils";
+import type { DraftBlueprint } from "../../legal/drafting/types";
 // Exact backend result types — importing them keeps client and server
 // contracts in lockstep (triageMeta is `any` server-side; the typed view
 // below is what the UI consumes).
@@ -129,13 +130,7 @@ export interface WorkspaceProposalsView {
     note: string;
     followUp: string;
   } | null;
-  draftKickoff: {
-    documentType: string;
-    recipient: string;
-    keyFigures: string;
-    noticePeriod: string;
-    brief: string;
-  } | null;
+  draftBlueprint: DraftBlueprint | null;
   financialEntry: {
     type: "expense" | "fee";
     amount: number;
@@ -491,6 +486,22 @@ export async function saveSnippet(args: {
 export async function deleteSnippet(id: string): Promise<void> {
   await convex.mutation(api.voiceTools.deleteSnippet, {
     id,
+    sessionToken: readSessionBearer(),
+  });
+}
+
+// ─── DRAFTPRO VOICE EDIT (owner spec 2026-11-19, §7.4) ───────────────────────
+
+/** Rewrite / add-to / delete ONE selected block in a DraftPro document. */
+export async function draftVoiceEdit(args: {
+  selectedText: string;
+  instruction: string;
+  documentType?: string;
+  surroundingText?: string;
+}): Promise<{ intent: "add" | "delete" | "rewrite"; text: string }> {
+  return convex.action(api.voiceCapture.draftVoiceEdit, {
+    ...args,
+    callerApiKey: getGeminiApiKey() || undefined,
     sessionToken: readSessionBearer(),
   });
 }
