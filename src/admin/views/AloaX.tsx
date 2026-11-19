@@ -214,7 +214,7 @@ export const AloaX: React.FC = () => {
                         </p>
                     </div>
                     <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                        <div className={`px-3 py-1.5 rounded-xl border-2 font-black text-xs ${overallMeta.ring} ${overallMeta.text}`}>{overallMeta.label}</div>
+                        <div className={`px-3 py-1.5 rounded-lg border-2 font-black text-xs ${overallMeta.ring} ${overallMeta.text}`}>{overallMeta.label}</div>
                     </div>
                 </div>
                 <div className="flex gap-2 mt-3">
