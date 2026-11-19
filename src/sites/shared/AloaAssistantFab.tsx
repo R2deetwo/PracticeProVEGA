@@ -197,6 +197,12 @@ interface Bubble {
     text: string;
     steps?: string[];
     note?: string;
+    /** True when this answer came from the LIVE AI engine (vs the
+     * deterministic catalogue fallback). Rendered as a subtle "AI · live"
+     * tag so a regression to canned answers is VISIBLE at a glance
+     * (owner bug report 2026-11-19: "ALOA on the landing page is still
+     * giving canned answers"). */
+    live?: boolean;
     /** Professional-conduct-safe boundary line ("general information,
      *  not legal advice — speak with a qualified lawyer"). */
     lawyerNote?: string;
@@ -579,6 +585,7 @@ const AloaAssistantFab: React.FC<{
                     text: answer.intro,
                     steps: answer.steps,
                     note: answer.note,
+                    live: true,
                     lawyerNote: lawyerNoteCopy,
                     suggestions,
                     teamPrefill: question,
@@ -883,6 +890,17 @@ const AloaAssistantFab: React.FC<{
                                                 <AloaIcon className="w-4 h-4" />
                                             </div>
                                             <div className="bg-slate-100 rounded-lg rounded-tl-sm px-3.5 py-2.5 max-w-[85%]">
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                    <span className={`text-2xs font-bold uppercase tracking-wide ${isProperty ? 'text-emerald-700' : 'text-[#1E3A8A]'}`}>
+                                                        {isProperty ? 'ARIA' : 'ALOA'}
+                                                    </span>
+                                                    {b.live ? (
+                                                        <span className="inline-flex items-center gap-1 text-2xs text-slate-400">
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${isProperty ? 'bg-emerald-500' : 'bg-[#1D4ED8]'} animate-pulse`} />
+                                                            live AI
+                                                        </span>
+                                                    ) : null}
+                                                </div>
                                                 <p className="text-sm text-slate-700 leading-relaxed">{b.text}</p>
                                                 {/* Numbered steps — the substance of the guide. */}
                                                 {b.steps && b.steps.length > 0 && (

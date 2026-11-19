@@ -57,11 +57,13 @@ const Z_INDEX_EXEMPT = /src[\\/]overlays[\\/]constants\.ts$/;
 // UX-47 (loading-state consistency): animate-pulse is reserved for the
 // skeleton family (src/components/ui/Skeleton.tsx — the one home) and
 // for SEMANTIC attention states (live dots, unread badges, recording
-// rings). 80 semantic uses remain; hand-rolled skeleton blocks were
-// migrated to the family. New raw animate-pulse loading placeholders
+// rings). 81 semantic uses remain (the ALOA/ARIA landing "live AI"
+// indicator, owner bug report 2026-11-19, is a legitimate live dot);
+// hand-rolled skeleton blocks were migrated to the family. New raw
+// animate-pulse loading placeholders
 // fail this ratchet — use <Skeleton>/<SkeletonList>/composites.
 const ANIMATE_PULSE_RE = /\banimate-pulse\b/g;
-const ANIMATE_PULSE_BASELINE = 80;
+const ANIMATE_PULSE_BASELINE = 81;
 const ANIMATE_PULSE_EXEMPT = /src[\\/]components[\\/]ui[\\/]Skeleton\.tsx$/;
 
 /** Recursively collect .tsx/.ts files under a directory. */

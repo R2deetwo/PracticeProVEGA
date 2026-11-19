@@ -48,6 +48,46 @@ export const getFirmAiSettingsInternal = internalQuery({
 });
 
 /**
+ * INTERNAL: the operator/founder's stored Gemini key for ANONYMOUS surfaces
+ * (the landing-page assistants ALOA/ARIA — owner bug report 2026-11-19:
+ * "I even gave an API key as well so why is it still not working"). The
+ * landing chat previously read ONLY the platform env key; the key the
+ * founder set lives in Settings → AI Agent (firms.aiSettings), which the
+ * anonymous endpoint could never see — every call returned 503 and the
+ * panel silently regressed to the canned catalogue. This query walks the
+ * firms table in creation order and returns the FIRST usable stored Gemini
+ * key: in this founder-operated deployment the oldest firm IS the founder's
+ * practice, so the key they configured is the key the website assistant
+ * spends. Firms fully configured for a direct openai-compatible endpoint
+ * are skipped — their key belongs to their own endpoint, not Google.
+ * Server-side custody is unchanged: the key is never returned to any
+ * client, only spent by convex/landingChat.ts behind its rate-limit fence.
+ */
+export const getOperatorGeminiKeyInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    try {
+      // Table scan without an index returns documents in creation order —
+      // the founder's firm is first. Bounded scan; deployments of this
+      // scale have a handful of firms.
+      const firms = await ctx.db.query("firms").take(200);
+      for (const firm of firms) {
+        const ai = (firm as any).aiSettings;
+        const openaiFullyConfigured =
+          ai?.aiProvider === "openai-compatible" &&
+          !!(ai?.openaiBaseUrl || "").trim();
+        if (openaiFullyConfigured) continue;
+        const key = String(ai?.firmGeminiApiKey || "").trim();
+        if (key) return { key };
+      }
+      return { key: null };
+    } catch {
+      return { key: null };
+    }
+  },
+});
+
+/**
  * Shared key resolution for every server-side AI surface (S2):
  * caller's own key → the caller's firm key (server-side) → platform env key.
  */

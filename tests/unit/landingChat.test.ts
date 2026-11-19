@@ -6,6 +6,9 @@
  * Pins the pure surface of convex/landingChat.ts:
  *   - CORS allow-list: production/staging/mirror/local-dev allowed,
  *     unknown origins rejected, no-Origin (curl) allowed
+ *   - key chain (owner bug report 2026-11-19 "still canned — I even gave
+ *     an API key"): the founder's STORED firm key powers the anonymous
+ *     landing chat when no platform env key exists
  *   - history sanitisation: clamped, merged, never model-first
  *   - reference serialisation: bounded, control-char stripped, null-safe
  *   - answer parsing: JSON, fenced JSON, garbage → null, field clamping
@@ -16,6 +19,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   landingCorsHeaders,
+  resolveLandingApiKeys,
   sanitizeHistory,
   serializeReference,
   parseLandingAnswer,
@@ -45,9 +49,62 @@ describe('landingCorsHeaders', () => {
     expect(landingCorsHeaders('https://someone-else.vercel.app')).toBeNull();
   });
 
+  it('allows THIS project’s Vercel preview deployments (founder build testing)', () => {
+    expect(
+      landingCorsHeaders('https://practice-pro-vega-git-main-r2deetwo.vercel.app')
+    ).not.toBeNull();
+    expect(
+      landingCorsHeaders('https://practice-pro-vega-fk3j2n.vercel.app')
+    ).not.toBeNull();
+    // The allow-echo must name the caller exactly.
+    const headers = landingCorsHeaders('https://practice-pro-vega-git-main-r2deetwo.vercel.app');
+    expect(headers!['Access-Control-Allow-Origin']).toBe(
+      'https://practice-pro-vega-git-main-r2deetwo.vercel.app'
+    );
+  });
+
+  it('allows the agent sandbox preview hosts where builds are tested', () => {
+    expect(landingCorsHeaders('https://preview-web64c0fe4.space-z.ai')).not.toBeNull();
+    expect(landingCorsHeaders('https://preview-anything-at-all.space-z.ai')).not.toBeNull();
+    // But not arbitrary space-z.ai hosts.
+    expect(landingCorsHeaders('https://evil.space-z.ai')).toBeNull();
+  });
+
   it('allows no-Origin callers (curl / server-side) with empty headers', () => {
     expect(landingCorsHeaders(null)).toEqual({});
     expect(landingCorsHeaders('')).toEqual({});
+  });
+});
+
+// ─── Key chain (owner bug report 2026-11-19) ───────────────────────────────
+// "I even gave an api key as well so why is it still not working" — the key
+// set in Settings → AI Agent is stored on the firm (firms.aiSettings), which
+// the anonymous landing endpoint could never see when it read env vars only;
+// every call 503'd and the client silently regressed to the canned catalogue.
+
+describe('resolveLandingApiKeys', () => {
+  it('REGRESSION: the founder’s stored firm key powers the landing chat when no env key exists', () => {
+    expect(resolveLandingApiKeys(undefined, 'founder-stored-key')).toEqual(['founder-stored-key']);
+    expect(resolveLandingApiKeys('', 'founder-stored-key')).toEqual(['founder-stored-key']);
+    expect(resolveLandingApiKeys(null, 'founder-stored-key')).toEqual(['founder-stored-key']);
+  });
+
+  it('the platform env key is tried first (operator-controlled rotation)', () => {
+    expect(resolveLandingApiKeys('platform-env-key', 'founder-stored-key')).toEqual([
+      'platform-env-key',
+      'founder-stored-key',
+    ]);
+  });
+
+  it('de-duplicates identical keys so a retry never double-spends the same key', () => {
+    expect(resolveLandingApiKeys('same-key', 'same-key')).toEqual(['same-key']);
+    expect(resolveLandingApiKeys(' same-key ', 'same-key')).toEqual(['same-key']);
+  });
+
+  it('trims whitespace and returns [] when neither key is usable', () => {
+    expect(resolveLandingApiKeys('   ', '   ')).toEqual([]);
+    expect(resolveLandingApiKeys(undefined, null)).toEqual([]);
+    expect(resolveLandingApiKeys('  spaced-key  ', undefined)).toEqual(['spaced-key']);
   });
 });
 
