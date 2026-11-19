@@ -1109,3 +1109,13 @@ live-call suite excluded from CI); vite build green.
 Deploy: targeted Convex + Vercel production workflows dispatched on 79933e79
 (runs 44513167075 backend, 44513171489 frontend); Tests / E2E smoke / CodeQL /
 Staging / Build Android APK all running on the same sha.
+
+Deploy evidence (final): both targeted workflows completed GREEN on 79933e79
+(run 44513167075 Convex backend, run 44513171489 Vercel frontend). Live:
+version.json → sha 79933e79, status healthy (built 2026-11-19 11:18 UTC); the
+new authorityLibrary module answers in production (auth-gated via
+requireFirmUser — the endpoint exists and enforces the session bearer). The
+full CI matrix on the follow-up docs commit 87f2db48 (same code + worklog)
+completed green: Tests, E2E smoke, CodeQL, Staging, Build Android APK (the
+79933e79 copies of those three were superseded/cancelled by the newer run);
+the APK bot released build-1209 (practicepro-1.0.810).
