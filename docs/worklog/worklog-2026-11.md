@@ -1374,3 +1374,27 @@ public (verified 200), so the workflow now idempotently clears
 `ssoProtection`/`passwordProtection` on the project via the v9 REST API
 before verification — staging serves seeded demo data on its own backend,
 nothing new is exposed.
+
+**Staging bootstrapped + seeded (same day):** the seed workflow's first
+run failed on the R16 strict-identity gate — both seeders
+(`seedSentry:seedDemo`, `seedLegalRepo:seed`) require a founder BEARER
+session, and a fresh deployment has no users (chicken-and-egg). Manual
+bootstrap against shiny-echidna-432 with the staging deploy key:
+1. `ALLOW_DEMO_SEED=true` set on the staging deployment (env-gate for
+   the demo seeder — never set on production).
+2. `founderMetrics:createFounderAccount` (bootstrap-only while
+   countFounders === 0) — staging founder = the owner's email + a
+   generated STAGING-ONLY password (stored in the agent key store
+   alongside the deploy keys; production credentials untouched).
+3. `verifyLogin` → bearer session → both seeders ran:
+   "Seeded demo data for Revenue Engine!" + "Seeded 3 legal modules
+   successfully."
+Live checks: staging alias serves the app shell (healthy, sha 4adef904),
+production untouched and healthy (06e4a9ee), groovy-mandrill-732 still
+empty as reserved. The staging-seed.yml workflow remains the documented
+re-seed path for AFTER a founder exists; the one-time bootstrap was the
+missing piece.
+
+**Note for the backlog:** GitHub reports 90 Dependabot vulnerabilities
+on main (3 critical / 40 high / 36 moderate / 11 low) — surfaced on
+every push; needs a dedicated triage round.
