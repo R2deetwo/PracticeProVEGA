@@ -11,7 +11,7 @@
  *   Financial Books   financial_reconciliation_reports (red / missed runs)
  *   Backups           backup_log (last successful export)
  *   Database          table_size_records (tables at the 5000-row cap)
- *   Security          founder count, lockouts, failed-login pressure
+ *   Security          founder-set changes, lockouts, failed-login pressure
  *   Messaging         scheduled_messages dispatch backlog
  *   Alert Reach       founder device push registration
  *
@@ -33,7 +33,7 @@
  * phone buzz. The event feed is also the brute-force signal the watchdog
  * sweeps, and the "Recent founder logins" card on the Aloa X dashboard.
  */
-import { internalMutation, mutation, query, action } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query, action } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { requireFounder } from "./founderMetrics";
@@ -227,15 +227,45 @@ export function evaluateFounderCount(count: number): CheckOutcome {
       detail: "Zero users have role=Founder. Nobody can administer the platform. If an account was deactivated or its role changed, restore it from the Convex dashboard.",
     };
   }
-  if (count > 1) {
-    return {
-      checkKey: "security.founder_count", surface: "Security", status: "problem",
-      severity: "critical",
-      title: `${count} founder accounts exist (expected 1)`,
-      detail: "More than one user has role=Founder. Founder signup has been closed since the first account — multiple founders means a role was changed by hand. Verify each account.",
-    };
-  }
+  // 2026-11-20 owner review: a steady state of 2+ founders is NO LONGER a
+  // standing critical alert — the owner may legitimately keep more than one
+  // founder account ("we keep both accounts and that can be an okay
+  // thing"), and the old check nagged with a re-notify push every 6 hours
+  // forever. The escalation tripwire moved to computeFounderSetChange +
+  // the security.founder_set sweep outcome below: a ONE-SHOT critical alert
+  // the instant an account is ADDED to or REMOVED from the founder set —
+  // which is the actual attack signal (a role changed by hand) — while an
+  // intentional, stable multi-founder lineup stays quiet.
   return ok("security.founder_count", "Security");
+}
+
+/**
+ * Founder-set change detection (2026-11-20) — the replacement for the
+ * "expected exactly 1 founder" standing alert.
+ *
+ * The watchdog persists the founder email set it saw last sweep
+ * (alox_state.founderBaseline) and compares it against the live set every
+ * 15 minutes. Any addition or removal fires ONE immediate critical alert
+ * (security.founder_set) naming the accounts that appeared/disappeared;
+ * the baseline is then updated, so the alert opens with its push and
+ * quietly resolves on the next sweep (it is an EVENT, not a state —
+ * nothing re-notifies). First run after upgrade adopts the current set
+ * silently (the pre-existing multi-founder state is already known to the
+ * owner — the old alert covered it and resolves with one closing push).
+ *
+ * Case-insensitive on emails (role changes sometimes flip casing).
+ */
+export function computeFounderSetChange(
+  current: string[],
+  baseline: string[] | null | undefined
+): { added: string[]; removed: string[] } | null {
+  if (!baseline) return null; // first run — adopt silently
+  const cur = new Set(current.map((e) => e.toLowerCase().trim()));
+  const base = new Set(baseline.map((e) => e.toLowerCase().trim()));
+  const added = current.filter((e) => !base.has(e.toLowerCase().trim()));
+  const removed = baseline.filter((e) => !cur.has(e.toLowerCase().trim()));
+  if (added.length === 0 && removed.length === 0) return null;
+  return { added, removed };
 }
 
 export function evaluateFounderSecurity(
@@ -508,6 +538,45 @@ export const runAloxWatchdog = internalMutation({
     const signals = await gatherSignals(ctx, now);
     const outcomes = evaluateAllChecks(signals, now);
 
+    // ── Founder-set change detection (2026-11-20) ──
+    // Replaces the old "expected exactly 1 founder" standing alert. The
+    // founder emails live in alox_state.founderBaseline; any add/remove
+    // against it becomes a ONE-SHOT critical security.founder_set outcome
+    // (opens with a push this sweep, quietly resolves next sweep — an
+    // event, not a state). First run (no baseline) adopts silently.
+    const founderEmails = Array.from(
+      new Set(
+        signals.security.founders
+          .map((f) => String(f.email || "").toLowerCase().trim())
+          .filter((e) => e.length > 0)
+      )
+    ).sort();
+    const stateRow: any = await ctx.db.query("alox_state").first();
+    const founderSetChange = computeFounderSetChange(
+      founderEmails,
+      stateRow?.founderBaseline ?? null
+    );
+    if (founderSetChange) {
+      const parts: string[] = [];
+      if (founderSetChange.added.length > 0) {
+        parts.push(`ADDED: ${founderSetChange.added.join(", ")}`);
+      }
+      if (founderSetChange.removed.length > 0) {
+        parts.push(`REMOVED: ${founderSetChange.removed.join(", ")}`);
+      }
+      outcomes.push({
+        checkKey: "security.founder_set",
+        surface: "Security",
+        status: "problem",
+        severity: "critical",
+        title: "Founder accounts changed",
+        detail:
+          `The founder account set changed since the last sweep — ${parts.join(" · ")}. ` +
+          "Founder signup is closed, so this means a role was changed by hand (Convex dashboard) " +
+          "or an account was deactivated. If this was not you, investigate immediately.",
+      });
+    }
+
     // Existing OPEN alerts by checkKey.
     const openAlerts: any[] = await ctx.db
       .query("alox_alerts")
@@ -605,14 +674,16 @@ export const runAloxWatchdog = internalMutation({
       }
     }
 
-    // Heartbeat singleton.
-    const stateRow: any = await ctx.db.query("alox_state").first();
+    // Heartbeat singleton. founderBaseline is written EVERY sweep to the
+    // live founder set — the set-change alert above fires exactly once per
+    // actual change (this sweep's baseline update is what makes it one-shot).
     const statePatch = {
       lastRunAt: now,
       lastRunMs: Date.now() - startedAt,
       checksRun: outcomes.length,
       openCount,
       lastSummary: summary,
+      founderBaseline: founderEmails,
       updatedAt: now,
     };
     if (stateRow) await ctx.db.patch(stateRow._id, statePatch);
@@ -747,6 +818,12 @@ export const recordFounderLoginEvent = internalMutation({
     const email = args.email.toLowerCase().trim();
 
     // Dedup: same email + event pushed recently → record but stay silent.
+    // 2026-11-20 owner requirement — "anytime somebody logs into a founder
+    // account, I should get a notification. It's that simple.": SUCCESS
+    // events now ALWAYS push (logging in twice in 15 minutes from two
+    // devices is two logins — the founder wants both). Only FAILED bursts
+    // collapse (a 5-wrong-password burst should buzz once, not five times)
+    // and lockouts keep their unconditional push.
     const recent = await ctx.db
       .query("founder_login_events")
       .withIndex("by_email", (q: any) => q.eq("email", email))
@@ -759,7 +836,8 @@ export const recordFounderLoginEvent = internalMutation({
         now - r.createdAt < ALOX_THRESHOLDS.LOGIN_PUSH_DEDUP_MS
     );
 
-    const shouldPush = args.event === "locked" || !alreadyPushed;
+    const shouldPush =
+      args.event === "locked" || args.event === "success" || !alreadyPushed;
 
     await ctx.db.insert("founder_login_events", {
       email,
@@ -799,5 +877,142 @@ export const recordFounderLoginEvent = internalMutation({
       console.warn("[alox] founder-login push failed:", e?.message || e);
     }
     return { recorded: true, pushed: true };
+  },
+});
+
+// ─── Founder push/login diagnostics (2026-11-20) ────────────────────────────
+
+/**
+ * internalQuery: founderDiagnostics — READ-ONLY root-cause view for the
+ * "why do I get every Aloa X notification twice" investigation.
+ *
+ * NOT client-callable (internal): it is executed via the deploy key from
+ * CI (`npx convex run alox:founderDiagnostics`, see
+ * .github/workflows/alox-diagnostics.yml) or from the Convex dashboard.
+ * Returns everything needed to explain the notification topology — founder
+ * accounts, their registered device tokens (with capabilities, so the
+ * main-app vs founder-APK split is visible), sessions, open alerts, the
+ * login-event audit feed — with every sensitive value MASKED (emails:
+ * first char + domain; FCM tokens: first 6 + last 4; no session tokens at
+ * all) because the workflow logs of this public repository are
+ * world-readable.
+ */
+export const founderDiagnostics = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const maskEmail = (email: string): string => {
+      const [local, domain] = String(email || "").split("@");
+      if (!domain) return "***";
+      const shown = local.slice(0, 1);
+      const tail = local.length > 1 ? local.slice(-1) : "";
+      return `${shown}***${tail}@${domain}`;
+    };
+    const maskToken = (token: string): string => {
+      const t = String(token || "");
+      if (t.length <= 12) return `${t.slice(0, 4)}…`;
+      return `${t.slice(0, 6)}…${t.slice(-4)} (len ${t.length})`;
+    };
+
+    // Founder accounts with token/session topology.
+    const founders: any[] = await ctx.db
+      .query("users")
+      .filter((q: any) => q.eq(q.field("role"), "Founder"))
+      .take(2000);
+
+    // Cross-account token sharing: the SAME FCM token registered under
+    // more than one userId (registerPushToken reassigns, but stale rows
+    // from before that behaviour — or concurrent installs — can leave
+    // dupes; these become double pushes without the transport dedup).
+    const tokenOwnerCount = new Map<string, Set<string>>();
+    const accountSummaries = [];
+    for (const f of founders) {
+      const tokens = await ctx.db
+        .query("user_push_tokens")
+        .withIndex("by_user_active", (q: any) =>
+          q.eq("userId", String(f._id)).eq("isActive", true)
+        )
+        .take(50);
+      for (const t of tokens) {
+        if (!tokenOwnerCount.has(t.token)) tokenOwnerCount.set(t.token, new Set());
+        tokenOwnerCount.get(t.token)!.add(String(f._id));
+      }
+      const sessions = await ctx.db
+        .query("sessions")
+        .withIndex("by_user", (q: any) => q.eq("userId", f._id))
+        .order("desc")
+        .take(25);
+      const activeSessions = sessions.filter(
+        (s: any) => s.revokedAt == null && s.expiresAt > now
+      );
+      accountSummaries.push({
+        maskedEmail: maskEmail(f.email || f.tokenIdentifier || ""),
+        displayName: String(f.name || ""),
+        memberSince: f.createdAt ? new Date(f.createdAt).toISOString().slice(0, 10) : null,
+        deactivated: !!f.deactivatedAt,
+        lockedNow: !!(f.lockedUntil && f.lockedUntil > now),
+        failedLoginAttempts: f.failedLoginAttempts ?? 0,
+        activeTokens: tokens.map((t: any) => ({
+          fingerprint: maskToken(t.token),
+          deviceType: String(t.deviceType || ""),
+          capabilities: String(t.capabilities || ""),
+          deviceName: String(t.deviceName || "").slice(0, 60),
+          registeredAt: t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 10) : null,
+          updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString().slice(0, 10) : null,
+        })),
+        activeSessionCount: activeSessions.length,
+        activeSessionDevices: activeSessions
+          .slice(0, 5)
+          .map((s: any) => String(s.device || "").slice(0, 30)),
+      });
+    }
+
+    const sharedTokens = Array.from(tokenOwnerCount.entries())
+      .filter(([, owners]) => owners.size > 1)
+      .map(([token, owners]) => ({ fingerprint: maskToken(token), ownerCount: owners.size }));
+
+    // Open alerts + watchdog heartbeat.
+    const openAlerts = await ctx.db
+      .query("alox_alerts")
+      .withIndex("by_status", (q: any) => q.eq("status", "open"))
+      .order("desc")
+      .take(50);
+    const state: any = await ctx.db.query("alox_state").first();
+
+    // Recent login audit feed (the "logs of any time an account is logged
+    // into" the owner asked for — this is that table's real content).
+    const recentLogins = await ctx.db
+      .query("founder_login_events")
+      .order("desc")
+      .take(25);
+
+    return {
+      generatedAt: new Date(now).toISOString(),
+      founderCount: founders.length,
+      founders: accountSummaries,
+      tokensRegisteredUnderMultipleFounderAccounts: sharedTokens,
+      watchdog: {
+        lastRunAt: state?.lastRunAt ? new Date(state.lastRunAt).toISOString() : null,
+        openCount: state?.openCount ?? null,
+        founderBaseline: Array.isArray(state?.founderBaseline)
+          ? (state.founderBaseline as string[]).map((e) => maskEmail(e))
+          : null,
+      },
+      openAlerts: openAlerts.map((a: any) => ({
+        checkKey: a.checkKey,
+        severity: a.severity,
+        title: a.title,
+        notifyCount: a.notifyCount,
+        firstSeenAt: a.firstSeenAt ? new Date(a.firstSeenAt).toISOString() : null,
+        lastNotifiedAt: a.lastNotifiedAt ? new Date(a.lastNotifiedAt).toISOString() : null,
+      })),
+      recentFounderLogins: recentLogins.map((e: any) => ({
+        maskedEmail: maskEmail(e.email),
+        event: e.event,
+        clientHint: e.clientHint ?? null,
+        notified: !!e.notified,
+        at: e.createdAt ? new Date(e.createdAt).toISOString() : null,
+      })),
+    };
   },
 });

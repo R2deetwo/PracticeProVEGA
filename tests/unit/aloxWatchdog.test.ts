@@ -37,9 +37,11 @@ import {
   evaluateFounderBruteforce,
   evaluateMessagingBacklog,
   evaluatePushReachability,
+  computeFounderSetChange,
   shouldRenotify,
 } from "../../convex/alox";
 import { channelForType } from "../../convex/pushNotificationsNode";
+import { dedupeTokenRecords } from "../../convex/pushNotifications";
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -145,15 +147,50 @@ describe("evaluateDbCapacity", () => {
   });
 });
 
-describe("evaluateFounderCount (role-escalation tripwire)", () => {
-  it("exactly 1 founder is the contract", () => {
+describe("evaluateFounderCount (administerability floor)", () => {
+  it("exactly 1 founder is the classic contract", () => {
     expect(evaluateFounderCount(1).status).toBe("ok");
   });
   it("zero founders = critical (platform unadministerable)", () => {
     expect(evaluateFounderCount(0).severity).toBe("critical");
   });
-  it("two founders = critical (founder signup is closed — a role was changed by hand)", () => {
-    expect(evaluateFounderCount(2).severity).toBe("critical");
+  it("a STEADY state of 2+ founders is no longer a standing alert (2026-11-20 owner review — the owner may keep two founder accounts)", () => {
+    // The escalation tripwire moved to computeFounderSetChange + the
+    // security.founder_set sweep outcome: a ONE-SHOT alert when the set
+    // CHANGES, not a re-notifying 6-hour nag while it merely "is" > 1.
+    expect(evaluateFounderCount(2).status).toBe("ok");
+    expect(evaluateFounderCount(5).status).toBe("ok");
+  });
+});
+
+describe("computeFounderSetChange (the one-shot escalation tripwire)", () => {
+  it("first run (no baseline) adopts the current set silently — no alert", () => {
+    expect(computeFounderSetChange(["a@x.com", "b@x.com"], null)).toBeNull();
+    expect(computeFounderSetChange(["a@x.com"], undefined)).toBeNull();
+  });
+  it("an unchanged set (any stable size) is quiet", () => {
+    expect(computeFounderSetChange(["a@x.com"], ["a@x.com"])).toBeNull();
+    expect(computeFounderSetChange(["a@x.com", "b@x.com"], ["b@x.com", "a@x.com"])).toBeNull();
+  });
+  it("an account ADDED to the founder set is reported once", () => {
+    const r = computeFounderSetChange(["a@x.com", "intruder@x.com"], ["a@x.com"]);
+    expect(r).not.toBeNull();
+    expect(r!.added).toEqual(["intruder@x.com"]);
+    expect(r!.removed).toEqual([]);
+  });
+  it("an account REMOVED from the founder set is reported once", () => {
+    const r = computeFounderSetChange(["a@x.com"], ["a@x.com", "old@x.com"]);
+    expect(r!.added).toEqual([]);
+    expect(r!.removed).toEqual(["old@x.com"]);
+  });
+  it("email casing/whitespace differences are NOT a change (role edits flip casing)", () => {
+    expect(computeFounderSetChange(["A@X.com"], ["a@x.com"])).toBeNull();
+    expect(computeFounderSetChange(["a@x.com"], [" a@x.com "])).toBeNull();
+  });
+  it("swap = one added + one removed in a single report", () => {
+    const r = computeFounderSetChange(["new@x.com"], ["old@x.com"]);
+    expect(r!.added).toEqual(["new@x.com"]);
+    expect(r!.removed).toEqual(["old@x.com"]);
   });
 });
 
@@ -272,9 +309,24 @@ describe("wiring: founder login push alerts", () => {
     expect(myFunctions).toMatch(/String\(user\.role \|\| ""\) !== "Founder"\) return;/);
     expect(myFunctions).toMatch(/ctx\.scheduler\.runAfter\(0, \(internal as any\)\.alox\.recordFounderLoginEvent/);
   });
-  it("lockouts ALWAYS push; other events dedup inside a 15-minute window", () => {
-    expect(alox).toMatch(/const shouldPush = args\.event === "locked" \|\| !alreadyPushed;/);
+  it("lockouts and SUCCESS logins ALWAYS push; only failed-attempt bursts dedup (2026-11-20 owner rule: every founder login notifies)", () => {
+    expect(alox).toMatch(
+      /const shouldPush =\s*args\.event === "locked" \|\| args\.event === "success" \|\| !alreadyPushed;/
+    );
     expect(alox).toContain("LOGIN_PUSH_DEDUP_MS: 15 * 60 * 1000");
+  });
+  it("the founder-set tripwire is wired into the sweep (one-shot security.founder_set alert + baseline persistence)", () => {
+    expect(alox).toMatch(/computeFounderSetChange\(/);
+    expect(alox).toContain('checkKey: "security.founder_set"');
+    // The baseline written every sweep is what makes the alert ONE-SHOT:
+    // the sweep that fires it also records the new set as the norm.
+    expect(alox).toMatch(/founderBaseline: founderEmails,/);
+    // First run adopts silently (the pre-existing two-founder state must
+    // not fire a spurious alert on deploy — it resolves the old one).
+    expect(alox).toMatch(/stateRow\?\.founderBaseline \?\? null/);
+  });
+  it("the watchdog schema persists the founder baseline (alox_state.founderBaseline)", () => {
+    expect(schema).toMatch(/founderBaseline: v\.optional\(v\.array\(v\.string\(\)\)\)/);
   });
   it("the founder APK identifies itself so the alert says where the login came from", () => {
     expect(adminApp).toContain("clientHint: 'founder-apk'");
@@ -351,5 +403,53 @@ describe("regression: founder recovery search stays fixed", () => {
   });
   it("recovery clears the deactivation flag (email ownership = account ownership)", () => {
     expect(myFunctions).toMatch(/\.\.\.\(wasDeactivated \? \{ deactivatedAt: null \} : \{\}\)/);
+  });
+});
+
+// ─── PART 3: one push per physical device (2026-11-20) ─────────────────────
+
+describe("dedupeTokenRecords (the 'I get that message twice' fix)", () => {
+  it("the same FCM token under two founder accounts collapses to ONE push", () => {
+    const records = [
+      { token: "tok-phone-1", userId: "founderA", deviceType: "android", capabilities: "data_only,inline_reply" },
+      { token: "tok-phone-1", userId: "founderB", deviceType: "android", capabilities: "data_only,inline_reply" },
+    ];
+    const { deduped, duplicates } = dedupeTokenRecords(records);
+    expect(deduped.length).toBe(1);
+    expect(duplicates).toBe(1);
+    expect(deduped[0].token).toBe("tok-phone-1");
+  });
+
+  it("distinct devices (two phones, or main app + founder APK installs) each get their push", () => {
+    const records = [
+      { token: "tok-main-app", userId: "founderA", deviceType: "android" },
+      { token: "tok-founder-apk", userId: "founderB", deviceType: "android" },
+    ];
+    const { deduped, duplicates } = dedupeTokenRecords(records);
+    expect(deduped.length).toBe(2);
+    expect(duplicates).toBe(0);
+  });
+
+  it("stale duplicate rows for one account also collapse (token rotation leftovers)", () => {
+    const records = [
+      { token: "tok-old", userId: "founderA", deviceType: "android" },
+      { token: "tok-new", userId: "founderA", deviceType: "android" },
+    ];
+    expect(dedupeTokenRecords(records).deduped.length).toBe(2); // different tokens = different registrations
+  });
+
+  it("empty input is handled", () => {
+    expect(dedupeTokenRecords([])).toEqual({ deduped: [], duplicates: 0 });
+  });
+});
+
+describe("wiring: dispatchPushToUsers sends one push per device", () => {
+  it("the dispatcher dedupes token records before scheduling the FCM action", () => {
+    const pushNotifications = read("convex/pushNotifications.ts");
+    expect(pushNotifications).toMatch(/const \{ deduped, duplicates \} = dedupeTokenRecords\(tokenRecords\);/);
+    expect(pushNotifications).toMatch(/tokens: deduped\.map\(\(r\) => r\.token\)/);
+    expect(pushNotifications).toMatch(/tokenRecords: deduped,/);
+    // The old raw fan-out must not come back:
+    expect(pushNotifications).not.toMatch(/tokens: tokenRecords\.map\(\(r\) => r\.token\)/);
   });
 });

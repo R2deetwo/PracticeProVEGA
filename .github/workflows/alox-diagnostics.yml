@@ -1,0 +1,145 @@
+name: Aloa X Founder Diagnostics
+
+# 2026-11-20 — READ-ONLY diagnostic (R17 drill pattern, same as
+# inspect-push-state.yml): the owner reported "every Aloa X notification
+# arrives twice" + "more than one founder account" alerts. The code-level
+# root causes were fixed in the same push (transport-level token dedup in
+# dispatchPushToUsers; the founder-count standing alert replaced by a
+# one-shot founder-set change tripwire). This workflow surfaces the
+# RUNTIME topology the report was about:
+#
+#   - which founder accounts exist (emails MASKED: first char + domain)
+#   - every active device token per account, with capabilities (so the
+#     main-app vs founder-APK install split is visible) — tokens MASKED
+#     (first 6 + last 4 chars; never usable to send anything)
+#   - tokens registered under MORE THAN ONE founder account (the raw
+#     material of the duplicate notifications)
+#   - open watchdog alerts + the login-event audit feed (masked)
+#
+# All output is masked by the query itself — safe for the public logs of
+# this repository. Run on demand (workflow_dispatch) any time the founder
+# notification topology needs a look; the equivalent post-deploy command
+# is `npx convex run alox:founderDiagnostics`.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Read founder/push/alert state (production, read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Dump masked founder/push/alert state
+        run: |
+          npx convex run --prod --inline-query '
+            const now = Date.now();
+            const maskEmail = (e) => {
+              if (!e) return null;
+              const parts = String(e).split("@");
+              const d = parts.length > 1 ? parts[1] : "?";
+              return String(parts[0]).slice(0, 1) + "***" + String(parts[0]).slice(-1) + "@" + d;
+            };
+            const maskToken = (t) => {
+              const s = String(t || "");
+              return s.length <= 12 ? s.slice(0, 4) + "…" : s.slice(0, 6) + "…" + s.slice(-4) + " (len " + s.length + ")";
+            };
+
+            const founders = (await ctx.db.query("users").take(5000)).filter(u => u.role === "Founder");
+            const tokenOwnerCount = new Map();
+            const accountSummaries = [];
+            for (const f of founders) {
+              const tokens = (await ctx.db.query("user_push_tokens").collect())
+                .filter(t => String(t.userId) === String(f._id) && t.isActive);
+              for (const t of tokens) {
+                if (!tokenOwnerCount.has(t.token)) tokenOwnerCount.set(t.token, new Set());
+                tokenOwnerCount.get(t.token).add(String(f._id));
+              }
+              const sessions = (await ctx.db.query("sessions").collect())
+                .filter(s => String(s.userId) === String(f._id) && s.revokedAt == null && s.expiresAt > now);
+              accountSummaries.push({
+                maskedEmail: maskEmail(f.email || f.tokenIdentifier),
+                displayName: String(f.name || ""),
+                memberSince: f.createdAt ? new Date(f.createdAt).toISOString().slice(0, 10) : null,
+                deactivated: !!f.deactivatedAt,
+                lockedNow: !!(f.lockedUntil && f.lockedUntil > now),
+                failedLoginAttempts: f.failedLoginAttempts ?? 0,
+                activeTokens: tokens.map(t => ({
+                  fingerprint: maskToken(t.token),
+                  deviceType: String(t.deviceType || ""),
+                  capabilities: String(t.capabilities || ""),
+                  deviceName: String(t.deviceName || "").slice(0, 60),
+                  registeredAt: t.createdAt ? new Date(t.createdAt).toISOString().slice(0, 10) : null,
+                  updatedAt: t.updatedAt ? new Date(t.updatedAt).toISOString().slice(0, 10) : null,
+                })),
+                activeSessionCount: sessions.length,
+                activeSessionDevices: sessions.slice(0, 5).map(s => String(s.device || "").slice(0, 30)),
+              });
+            }
+            const sharedTokens = Array.from(tokenOwnerCount.entries())
+              .filter(([, owners]) => owners.size > 1)
+              .map(([token, owners]) => ({ fingerprint: maskToken(token), ownerCount: owners.size }));
+
+            const openAlerts = (await ctx.db.query("alox_alerts").collect())
+              .filter(a => a.status === "open")
+              .sort((a, b) => (b.firstSeenAt || 0) - (a.firstSeenAt || 0))
+              .slice(0, 50);
+            const state = (await ctx.db.query("alox_state").collect())[0] || null;
+            const recentLogins = (await ctx.db.query("founder_login_events").collect())
+              .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
+              .slice(0, 25);
+
+            return {
+              generatedAt: new Date(now).toISOString(),
+              founderCount: founders.length,
+              founders: accountSummaries,
+              tokensRegisteredUnderMultipleFounderAccounts: sharedTokens,
+              watchdog: {
+                lastRunAt: state && state.lastRunAt ? new Date(state.lastRunAt).toISOString() : null,
+                openCount: state ? (state.openCount ?? null) : null,
+                founderBaseline: state && Array.isArray(state.founderBaseline)
+                  ? state.founderBaseline.map(maskEmail)
+                  : null,
+              },
+              openAlerts: openAlerts.map(a => ({
+                checkKey: a.checkKey,
+                severity: a.severity,
+                title: a.title,
+                notifyCount: a.notifyCount,
+                firstSeenAt: a.firstSeenAt ? new Date(a.firstSeenAt).toISOString() : null,
+                lastNotifiedAt: a.lastNotifiedAt ? new Date(a.lastNotifiedAt).toISOString() : null,
+              })),
+              recentFounderLogins: recentLogins.map(e => ({
+                maskedEmail: maskEmail(e.email),
+                event: e.event,
+                clientHint: e.clientHint ?? null,
+                notified: !!e.notified,
+                at: e.createdAt ? new Date(e.createdAt).toISOString() : null,
+              })),
+            };
+          ' 2>&1 | tee alox-diagnostics.log
+          echo "::notice::Founder diagnostics written to alox-diagnostics.log (artifact)"
+
+      - name: Upload diagnostic log
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: alox-founder-diagnostics
+          path: alox-diagnostics.log
+          retention-days: 7

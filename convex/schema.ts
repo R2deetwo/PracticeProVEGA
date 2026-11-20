@@ -2983,6 +2983,13 @@ export default defineSchema({
     checksRun: v.number(),
     openCount: v.number(),
     lastSummary: v.optional(v.any()), // [{checkKey, status, severity, title}]
+    // 2026-11-20 founder-set baseline (sorted lowercase founder emails
+    // seen at the last sweep). The watchdog compares the live founder
+    // set against it every sweep and fires a ONE-SHOT
+    // security.founder_set alert the moment an account is added or
+    // removed — replacing the old "expected exactly 1 founder" standing
+    // alert (the owner legitimately runs two founder accounts).
+    founderBaseline: v.optional(v.array(v.string())),
     updatedAt: v.number(),
   }).index("by_lastRunAt", ["lastRunAt"]),
 

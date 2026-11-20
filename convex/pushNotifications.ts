@@ -362,6 +362,36 @@ export const notifyAppUpdate = mutation({
 // test actions dispatch inline and return real results.
 
 /**
+ * dedupeTokenRecords — one push per PHYSICAL DEVICE, no matter how many
+ * user accounts hold a registration for it (2026-11-20).
+ *
+ * THE DUPLICATE-NOTIFICATION BUG: notifyFounders fans out to EVERY founder
+ * account, and dispatchPushToUsers then collected tokens per userId. When
+ * the same phone has logged into more than one founder account (exactly
+ * the owner's two-account setup), the SAME FCM device token was registered
+ * under BOTH userIds — so every watchdog/login alert was sent to that
+ * token TWICE and the phone showed every Aloa X notification twice.
+ *
+ * The transport-level fix: collapse token records by token before
+ * dispatch. Keeps the first record per token (capability info is a
+ * property of the APK install, identical across accounts). The per-user
+ * IN-APP notification rows are unaffected — those are per-account records
+ * by design and only one account's rows are ever visible on a device.
+ */
+export function dedupeTokenRecords(
+  tokenRecords: { token: string; userId: string; deviceType: string; capabilities?: string }[]
+): { deduped: typeof tokenRecords; duplicates: number } {
+  const seen = new Set<string>();
+  const deduped: typeof tokenRecords = [];
+  for (const record of tokenRecords) {
+    if (seen.has(record.token)) continue;
+    seen.add(record.token);
+    deduped.push(record);
+  }
+  return { deduped, duplicates: tokenRecords.length - deduped.length };
+}
+
+/**
  * internalMutation: dispatchPushToUsers — REAL FCM push for specific users.
  *
  * THE MISSING PIECE (2026-09-14, "no push when I send a message to a user
@@ -384,6 +414,9 @@ export const notifyAppUpdate = mutation({
  * PracticeProMessagingService posts MessagingStyle notifications with
  * inline reply; notification payloads for everything else (stale APKs,
  * future iOS) so delivery never regresses.
+ *
+ * ONE PUSH PER DEVICE (2026-11-20): token records are deduped by token
+ * before dispatch — see dedupeTokenRecords above.
  */
 export const dispatchPushToUsers = internalMutation({
   args: {
@@ -424,9 +457,20 @@ export const dispatchPushToUsers = internalMutation({
       }
     }
     if (tokenRecords.length === 0) return { dispatched: 0 };
+    // One push per physical device: the same phone logged into two founder
+    // accounts registers the same FCM token under both userIds — without
+    // this collapse every founder alert would arrive twice on that phone
+    // (the 2026-11-20 "I get that message twice" report).
+    const { deduped, duplicates } = dedupeTokenRecords(tokenRecords);
+    if (duplicates > 0) {
+      console.warn(
+        `[dispatchPushToUsers] collapsed ${duplicates} duplicate token registration(s) — ` +
+        `${deduped.length} device(s) will be pushed`
+      );
+    }
     ctx.scheduler.runAfter(0, internal.pushNotificationsNode.sendFcmPush, {
-      tokens: tokenRecords.map((r) => r.token),
-      tokenRecords,
+      tokens: deduped.map((r) => r.token),
+      tokenRecords: deduped,
       title: args.title,
       body: args.body,
       data: args.data ?? {},
@@ -435,7 +479,7 @@ export const dispatchPushToUsers = internalMutation({
       ...(args.notificationCount ? { notificationCount: args.notificationCount } : {}),
       ...(args.replyable ? { replyable: args.replyable } : {}),
     });
-    return { dispatched: tokenRecords.length };
+    return { dispatched: deduped.length };
   },
 });
 
