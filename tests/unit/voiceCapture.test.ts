@@ -16,6 +16,11 @@
 import { describe, it, expect } from 'vitest';
 import {
   assembleVerbatim,
+  collapseFillerLoops,
+  sanitizeSegmentText,
+  isFillerOnlyText,
+  wavRmsLevel,
+  SILENT_RMS_THRESHOLD,
   lagosNow,
   matchMatterCandidates,
   parseModelJson,
@@ -1672,5 +1677,127 @@ describe('speaker draft composition (client helpers)', () => {
     const out = composeSpeakerDraft(set, { S1: 'Chigozie', S2: 'Mrs. Adeyemi' }, { 2: 'Witness' });
     expect(out).toContain('**Mrs. Adeyemi:** Mrs. Adeyemi.');
     expect(out).toContain('**Witness:** I want to file for divorce.');
+  });
+});
+
+// ─── HALLUCINATED-FILLER GUARD (owner spec 2026-11-20) ─────────────────────
+//
+// Whisper's signature failure on near-silent audio (worst under Low-Volume /
+// Quiet Mode) is the endless "So. So. So…" loop; Gemini emits "Thank you."
+// on room noise. The deterministic guards collapse loops and drop
+// filler-only transcripts before they reach Recent Voice Notes.
+
+describe('collapseFillerLoops (the "so so so" fix)', () => {
+  it('collapses a run of the same filler token to one instance', () => {
+    expect(collapseFillerLoops('so so so so so')).toBe('so');
+    expect(collapseFillerLoops('So. So. So. So.')).toBe('So.');
+    expect(collapseFillerLoops('um um um')).toBe('um');
+  });
+
+  it('collapses ANY token repeated 3+ times (hallucination loop)', () => {
+    expect(collapseFillerLoops('the the the file')).toBe('the file');
+    expect(collapseFillerLoops('file file file file')).toBe('file');
+  });
+
+  it('keeps a real 2× stutter of a non-filler word (verbatim tier honesty)', () => {
+    expect(collapseFillerLoops('the the file')).toBe('the the file');
+  });
+
+  it('leaves normal speech untouched', () => {
+    const speech = 'File the divorce petition at the High Court tomorrow morning';
+    expect(collapseFillerLoops(speech)).toBe(speech);
+  });
+
+  it('collapses loops ACROSS sentence punctuation', () => {
+    expect(collapseFillerLoops('Okay. so so. Next item. um um um.')).toBe('Okay. so. Next item. um.');
+  });
+});
+
+describe('isFillerOnlyText + sanitizeSegmentText', () => {
+  it('drops transcripts made only of hallucination tokens', () => {
+    expect(isFillerOnlyText('so so so')).toBe(true);
+    expect(isFillerOnlyText('Thank you.')).toBe(true);
+    expect(isFillerOnlyText('Mm-hmm.')).toBe(true);
+    expect(sanitizeSegmentText('So. So. So. So.').dropped).toBe(true);
+    expect(sanitizeSegmentText('So. So. So. So.').text).toBe('');
+  });
+
+  it('keeps transcripts with ANY substantive word', () => {
+    const res = sanitizeSegmentText('so so so file the petition tomorrow');
+    expect(res.dropped).toBe(false);
+    expect(res.text).toBe('so file the petition tomorrow');
+  });
+
+  it('drops empty/whitespace transcripts', () => {
+    expect(sanitizeSegmentText('   ').dropped).toBe(true);
+    expect(sanitizeSegmentText('').dropped).toBe(true);
+  });
+});
+
+describe('assembleVerbatim — prompt-echo dedupe (the segment-level "so" loop)', () => {
+  it('collapses consecutive identical segment texts (prompt-conditioned echo)', () => {
+    const out = assembleVerbatim([
+      { index: 0, text: 'File the petition in Ikeja' },
+      { index: 1, text: 'file the petition in ikeja.' },
+    ]);
+    expect(out).toBe('File the petition in Ikeja');
+  });
+
+  it('collapses filler loops across the segment seam', () => {
+    const out = assembleVerbatim([
+      { index: 0, text: 'Call the registrar so' },
+      { index: 1, text: 'so so so before Friday' },
+    ]);
+    expect(out).toBe('Call the registrar so before Friday');
+  });
+
+  it('still orders out-of-order replays correctly', () => {
+    const out = assembleVerbatim([
+      { index: 1, text: 'second part' },
+      { index: 0, text: 'first part' },
+    ]);
+    expect(out).toBe('first part second part');
+  });
+});
+
+describe('wavRmsLevel (digital-silence guard)', () => {
+  /** Build a minimal 16-bit mono PCM WAV with the given samples. */
+  function makeWav(samples: number[]): Uint8Array {
+    const data = new Uint8Array(44 + samples.length * 2);
+    const dv = new DataView(data.buffer);
+    const w = (off: number, s: string) => {
+      for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i));
+    };
+    w(0, 'RIFF');
+    dv.setUint32(4, 36 + samples.length * 2, true);
+    w(8, 'WAVE');
+    w(12, 'fmt ');
+    dv.setUint32(16, 16, true);
+    dv.setUint16(20, 1, true);   // PCM
+    dv.setUint16(22, 1, true);   // mono
+    dv.setUint32(24, 16000, true);
+    dv.setUint32(28, 32000, true);
+    dv.setUint16(32, 2, true);
+    dv.setUint16(34, 16, true);
+    w(36, 'data');
+    dv.setUint32(40, samples.length * 2, true);
+    samples.forEach((s, i) => dv.setInt16(44 + i * 2, s, true));
+    return data;
+  }
+
+  it('reports ~0 for digital silence', () => {
+    expect(wavRmsLevel(makeWav(new Array(1600).fill(0)))).toBeLessThan(0.00001);
+  });
+
+  it('reports a clearly-audible level for real speech-level samples', () => {
+    const speech = Array.from({ length: 1600 }, (_, i) =>
+      Math.round(Math.sin(i / 5) * 12000)
+    );
+    expect(wavRmsLevel(makeWav(speech))).toBeGreaterThan(SILENT_RMS_THRESHOLD * 10);
+  });
+
+  it('never throws on garbage bytes (assumes speech — audio is never killed by the guard)', () => {
+    const garbage = new Uint8Array(64).fill(0xff);
+    expect(wavRmsLevel(garbage)).toBeGreaterThan(0);
   });
 });

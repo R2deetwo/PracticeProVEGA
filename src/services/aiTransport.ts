@@ -120,7 +120,22 @@ export const serverProxyStream = async (
     body: unknown,
     signal?: AbortSignal
 ): Promise<Response> => {
-    const payload = body as { contents?: unknown; systemInstruction?: { parts: { text: string }[] } };
+    const payload = body as {
+        contents?: unknown;
+        systemInstruction?: { parts: { text: string }[] };
+        // 2026-11-20 (owner: "ALOA still fails to deliver the response after
+        // thinking"): the proxy body used to carry ONLY contents +
+        // systemInstruction — tools, generationConfig and safetySettings were
+        // STRIPPED. Substantive legal questions then ran with Google's
+        // DEFAULT safety thresholds (the direct path sends BLOCK_NONE), so
+        // family-law / divorce intake questions were blocked or recitation-
+        // filtered into EMPTY candidates — the model "finished thinking"
+        // with no text and the chat showed nothing. All three fields now
+        // travel with the request; the /ai/stream route forwards them.
+        tools?: unknown;
+        generationConfig?: unknown;
+        safetySettings?: unknown;
+    };
     const bearer = readSessionBearer();
     if (!bearer) {
         return new Response(JSON.stringify({ error: { message: 'No session — sign in to use the firm AI proxy.', code: 401 } }), {
@@ -139,6 +154,9 @@ export const serverProxyStream = async (
             model: modelTag,
             contents: payload.contents,
             systemInstruction: payload.systemInstruction?.parts?.[0]?.text,
+            ...(payload.tools ? { tools: payload.tools } : {}),
+            ...(payload.generationConfig ? { generationConfig: payload.generationConfig } : {}),
+            ...(payload.safetySettings ? { safetySettings: payload.safetySettings } : {}),
         }),
     });
 };

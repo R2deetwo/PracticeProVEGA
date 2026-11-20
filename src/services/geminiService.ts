@@ -644,6 +644,20 @@ IMPORTANT:
                     const rawText = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
                     const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall)?.map((p: any) => p.functionCall) || undefined;
 
+                    // ── 2026-11-20 (ALOA empty-response fix) ── blocked or
+                    // recitation-filtered generations arrive as HTTP 200 with
+                    // EMPTY candidates. Treat as failure → next model on the
+                    // ladder. A silent { text: '' } success is what produced
+                    // "thinking… then nothing" in the chat.
+                    const blockReason: string =
+                        String(data?.promptFeedback?.blockReason || '') ||
+                        String(candidate?.finishReason || '');
+                    if (!rawText && !functionCalls?.length) {
+                        const why = blockReason && blockReason !== 'STOP'
+                            ? ` (${blockReason})` : '';
+                        throw new Error(`The model returned an empty response${why}.`);
+                    }
+
                     // ─── Capture thought_signature ──────────────────────────
                     // Gemini API includes a thoughtSignature in the response
                     // when using thinking models. We MUST preserve this and
@@ -684,6 +698,16 @@ IMPORTANT:
                 systemInstruction: { parts: [{ text: stripPII(systemInstruction + researchSuffix) }] },
                 tools: [{ functionDeclarations: tools }],
                 generationConfig: { temperature: 0.2, topP: 0.1, topK: 40 },
+                // 2026-11-20: safety parity with the direct path — the action
+                // forwards these to Google. Without them, default filters
+                // emptied substantive legal answers.
+                safetySettings: [
+                    { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+                    { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" },
+                ],
                 // S2: only the user's OWN key is passed (BYO). Firm keys
                 // resolve server-side — never through this arg again.
                 firmGeminiApiKey: providerCfg?.viaServerProxy ? undefined : clientKey,
@@ -693,6 +717,24 @@ IMPORTANT:
             const candidate = response?.candidates?.[0];
             const rawText = candidate?.content?.parts?.find((p: any) => p.text)?.text || '';
             const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall)?.map((p: any) => p.functionCall) || undefined;
+
+            // ── 2026-11-20 (ALOA empty-response fix) ── a "successful" HTTP
+            // call can still carry NO answer: promptFeedback.blockReason
+            // (prompt blocked before generation) or finishReason SAFETY /
+            // RECITATION / PROHIBITED_CONTENT / EMPTY (generation blocked
+            // mid-flight). Returning that as { text: '' } made AloaChat
+            // silently drop the turn ("thinking ended, no response"). Treat
+            // it as a model failure so the ladder advances / the caller
+            // falls back — and say WHY.
+            const blockReason: string =
+                String(response?.promptFeedback?.blockReason || '') ||
+                String(candidate?.finishReason || '');
+            const blockedEmpty = !rawText && !functionCalls?.length;
+            if (blockedEmpty) {
+                const why = blockReason && blockReason !== 'STOP'
+                    ? ` (${blockReason})` : '';
+                throw new Error(`The model returned an empty response${why}.`);
+            }
 
             // Capture thought_signature (same as direct path above)
             const thoughtPart = candidate?.content?.parts?.find((p: any) => p.thought === true || p.thoughtSignature);
@@ -928,6 +970,16 @@ You are operating in RESEARCH MODE. Apply these rules:
     let fullText = '';
     const collectedToolCalls: any[] = [];
     let collectedThoughtSignature: string | undefined;
+    // ── 2026-11-20 (ALOA empty-response fix) ──────────────────────────
+    // The reader used to treat ANY well-formed SSE stream as success. A
+    // blocked prompt (promptFeedback.blockReason) or a recitation/safety-
+    // filtered generation (finishReason SAFETY / RECITATION / …) streams
+    // ZERO text parts — streamMessage "succeeded" with an empty string,
+    // AloaChat removed the placeholder bubble and the user saw thinking
+    // end into NOTHING. We now track why the stream ended and THROW on
+    // text-less, tool-less streams so the caller's fallbacks (blocking
+    // call, other ladder models, visible error + Retry) actually fire.
+    let streamBlockReason = '';
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
@@ -946,8 +998,30 @@ You are operating in RESEARCH MODE. Apply these rules:
             if (!dataStr || dataStr === '[DONE]') continue;
             try {
                 const data = JSON.parse(dataStr);
+                // Prompt-level block: Gemini answers with promptFeedback
+                // instead of candidates. Capture it — no parts will follow.
+                if (data?.promptFeedback?.blockReason) {
+                    streamBlockReason = String(data.promptFeedback.blockReason);
+                }
+                if (data?.error?.message) {
+                    // Provider seam errors surface as error chunks.
+                    streamBlockReason = streamBlockReason || String(data.error.message);
+                }
                 const chunkParts = data?.candidates?.[0]?.content?.parts || [];
+                const chunkFinish = data?.candidates?.[0]?.finishReason;
+                if (chunkFinish && chunkFinish !== 'STOP' && chunkFinish !== 'MAX_TOKENS') {
+                    streamBlockReason = streamBlockReason || String(chunkFinish);
+                }
                 for (const p of chunkParts) {
+                    // Thought parts (thinking models) are internal reasoning —
+                    // never shown, never mixed into the answer text. Only
+                    // their signature is collected for tool-call continuity.
+                    if (p.thought === true) {
+                        if (p.thoughtSignature && !collectedThoughtSignature) {
+                            collectedThoughtSignature = p.thoughtSignature;
+                        }
+                        continue;
+                    }
                     if (p.text) {
                         fullText += p.text;
                         onChunk(p.text);
@@ -961,6 +1035,15 @@ You are operating in RESEARCH MODE. Apply these rules:
                 }
             } catch { /* skip */ }
         }
+    }
+
+    // Empty-stream guard: no text AND no tool calls is a failure, never a
+    // silent success. Throwing lets AloaChat run its fallback chain
+    // (blocking sendMessage → direct conversational retry → visible error
+    // card with a Retry button) instead of vanishing the turn.
+    if (!fullText.trim() && collectedToolCalls.length === 0) {
+        const why = streamBlockReason ? ` (${streamBlockReason})` : '';
+        throw new Error(`The model returned an empty response${why}.`);
     }
 
     const sanitized = validateAIResponse(fullText, agent === 'ARIA');

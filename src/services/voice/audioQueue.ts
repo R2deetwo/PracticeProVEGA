@@ -201,6 +201,27 @@ export class VoiceSyncManager {
   private listeners = new Set<Listener>();
   private intervalId: number | null = null;
   private uploadTarget: string | null = null;
+  // ── PURGE GUARD (owner spec 2026-11-20: deleted notes must never
+  // reappear). purgeCapture deletes the IndexedDB rows, but an upload that
+  // was ALREADY in flight for the same capture resolves afterwards and used
+  // to putCapture()/finalize the capture straight back — resurrecting the
+  // note the user just deleted. Every stage of the drain loop now checks
+  // this set first. Bounded: entries drop off once the set grows past 200.
+  private purgedCaptures = new Set<string>();
+
+  private isPurged(clientLocalId: string): boolean {
+    return this.purgedCaptures.has(clientLocalId);
+  }
+
+  private markPurged(clientLocalId: string): void {
+    this.purgedCaptures.add(clientLocalId);
+    if (this.purgedCaptures.size > 200) {
+      // Drop the oldest half — a set this size means a mass cleanup, and
+      // any in-flight work for those ids has long finished.
+      const keep = Array.from(this.purgedCaptures).slice(-100);
+      this.purgedCaptures = new Set(keep);
+    }
+  }
 
   /** Subscribe to queue events. Returns an unsubscribe function. */
   subscribe(listener: Listener): () => void {
@@ -316,6 +337,9 @@ export class VoiceSyncManager {
 
   /** Drop a capture's queue records (e.g., user discards the session). */
   async purgeCapture(clientLocalId: string): Promise<void> {
+    // Mark FIRST so an in-flight upload/finalize for this capture abandons
+    // its post-flight bookkeeping instead of resurrecting the local row.
+    this.markPurged(clientLocalId);
     const segs = await getSegmentsForCapture(clientLocalId).catch(() => [] as QueuedSegment[]);
     for (const s of segs) await deleteSegment(s.key).catch(() => undefined);
     await deleteCaptureRow(clientLocalId).catch(() => undefined);
@@ -416,11 +440,14 @@ export class VoiceSyncManager {
   }
 
   private async drainCapture(cap: QueuedCapture): Promise<void> {
+    // Purged while queued/in flight — nothing left to do for this capture.
+    if (this.isPurged(cap.clientLocalId)) return;
     const segs = await getSegmentsForCapture(cap.clientLocalId).catch(() => [] as QueuedSegment[]);
     const pending = segs.filter((s) => s.status === "pending");
 
     for (const seg of pending) {
       if (seg.nextAttemptAt > Date.now()) continue; // backoff not elapsed
+      if (this.isPurged(cap.clientLocalId)) return; // deleted mid-flight
       this.uploadTarget = cap.clientLocalId;
       this.emit({ type: "upload-started", clientLocalId: cap.clientLocalId, segmentIndex: seg.segmentIndex });
       try {
@@ -436,6 +463,7 @@ export class VoiceSyncManager {
           startedAt: cap.startedAt,
           multiSpeaker: cap.multiSpeaker,
         });
+        if (this.isPurged(cap.clientLocalId)) return; // deleted while uploading
         await deleteSegment(seg.key).catch(() => undefined);
         this.emit({
           type: "segment-uploaded",
@@ -444,6 +472,9 @@ export class VoiceSyncManager {
           verbatimSoFar: uploaded?.verbatimSoFar,
         });
       } catch (err: any) {
+        // Purged mid-flight: the server refused a deleted capture (or the
+        // local rows are gone) — abandon without bookkeeping.
+        if (this.isPurged(cap.clientLocalId)) return;
         const msg = String(err?.message || err || "upload failed");
         if (isRetryableError(err)) {
           // Network hiccup / rate limit — back off this segment, stop this
@@ -456,7 +487,8 @@ export class VoiceSyncManager {
           }).catch(() => undefined);
           return; // keep ordering — do not skip ahead in this capture
         }
-        // Permanent (auth lost / payload rejected): dead-letter THIS segment.
+        // Permanent (auth lost / payload rejected / capture deleted):
+        // dead-letter THIS segment.
         await putSegment({ ...seg, status: "dead", lastError: msg }).catch(() => undefined);
         this.emit({ type: "dead", clientLocalId: cap.clientLocalId, segmentIndex: seg.segmentIndex, error: msg });
       }
@@ -470,13 +502,14 @@ export class VoiceSyncManager {
     const stillPending = remaining.some((s) => s.status === "pending");
     const expectedCount = cap.segmentCount ?? 0;
     const done = !stillPending && expectedCount > 0;
-    if (!stillPending && done && cap.status !== "ready") {
+    if (!stillPending && done && cap.status !== "ready" && !this.isPurged(cap.clientLocalId)) {
       await this.finalizeCapture(cap);
     }
   }
 
   private async finalizeCapture(cap: QueuedCapture): Promise<void> {
     if (cap.finalizeNextAttemptAt > Date.now()) return;
+    if (this.isPurged(cap.clientLocalId)) return;
     try {
       await putCapture({ ...cap, status: "transcribing" });
       const result = await finalizeCapture({
@@ -486,6 +519,7 @@ export class VoiceSyncManager {
         totalDurationMs: cap.totalDurationMs,
         multiSpeaker: cap.multiSpeaker,
       });
+      if (this.isPurged(cap.clientLocalId)) return; // deleted while finalizing
       const fresh = (await getCapture(cap.clientLocalId).catch(() => undefined)) ?? cap;
       await putCapture({ ...fresh, status: "ready", finalizeError: undefined });
       this.emit({ type: "ready", clientLocalId: cap.clientLocalId });
@@ -505,7 +539,20 @@ export class VoiceSyncManager {
     } catch (err: any) {
       const msg = String(err?.message || err || "finalize failed");
       const attempts = (cap.finalizeAttempts ?? 0) + 1;
+      // Retry cap (2026-11-20): a capture the server deleted (the no-speech
+      // guard, a user delete from another device) or persistently rejected
+      // must not retry forever — after 5 attempts the capture is closed out
+      // and its local rows are swept.
+      const giveUp =
+        attempts >= 5 ||
+        /no speech was detected/i.test(msg) ||
+        /capture not found/i.test(msg);
       const fresh = (await getCapture(cap.clientLocalId).catch(() => undefined)) ?? cap;
+      if (giveUp) {
+        await purgeQueueRecords(cap.clientLocalId);
+        this.emit({ type: "finalize-error", clientLocalId: cap.clientLocalId, error: msg });
+        return;
+      }
       await putCapture({
         ...fresh,
         finalizeAttempts: attempts,
@@ -516,6 +563,13 @@ export class VoiceSyncManager {
       this.emit({ type: "finalize-error", clientLocalId: cap.clientLocalId, error: msg });
     }
   }
+}
+
+/** Sweep every local queue record for a capture (segments + the row). */
+async function purgeQueueRecords(clientLocalId: string): Promise<void> {
+  const segs = await getSegmentsForCapture(clientLocalId).catch(() => [] as QueuedSegment[]);
+  for (const s of segs) await deleteSegment(s.key).catch(() => undefined);
+  await deleteCaptureRow(clientLocalId).catch(() => undefined);
 }
 
 /** App-wide singleton. */

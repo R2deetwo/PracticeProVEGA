@@ -105,6 +105,7 @@ export interface Entitlements {
 
     canUseAI: boolean;
     canUseAutomation: boolean;
+    canUseVox: boolean;
     canUseAdvancedReporting: boolean;
     canUsePropertyManager: boolean;
     canUseClientPortal: boolean;
@@ -198,6 +199,12 @@ export function computeEntitlements(input: EntitlementInput): Entitlements {
 
         canUseAI: isGrowthOrAbove,
         canUseAutomation: isEnterpriseOrAbove,
+        // VOX (owner spec 2026-11-20): voice capture, multi-speaker
+        // diarization and the hybrid Legal Pad are MIDDLE TIER AND ABOVE —
+        // Growth / Pro / Enterprise / Komplete (a live trial of any of
+        // those counts). Mirrors convex/tierLimits.ts canUseVox, which the
+        // backend enforces on every Vox action (UPGRADE_REQUIRED_FOR_VOX).
+        canUseVox: isGrowthOrAbove,
         canUseAdvancedReporting: isProOrAbove,
         canUsePropertyManager,
         canUseClientPortal: isGrowthOrAbove,
@@ -226,6 +233,7 @@ export function computeEntitlements(input: EntitlementInput): Entitlements {
         checkFeatureAccess: (feature: string) => {
             switch (feature) {
                 case 'ai': return isGrowthOrAbove;
+                case 'vox': return isGrowthOrAbove;
                 case 'automation': return isEnterpriseOrAbove;
                 case 'team': return isGrowthOrAbove;
                 case 'bi': return isProOrAbove;

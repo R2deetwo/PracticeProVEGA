@@ -132,7 +132,25 @@ const handleAiStream = httpAction(async (ctx, request) => {
         );
       }
     }
-    const { model, contents, systemInstruction, apiKey: providedApiKey } = await request.json();
+    // 2026-11-20 (owner: "ALOA still fails to deliver the response after
+    // thinking"): the route previously rebuilt the Gemini body with ONLY
+    // contents + systemInstruction — tools, generationConfig and
+    // safetySettings sent by the client were DISCARDED. Consequences:
+    //  - no BLOCK_NONE safety thresholds → substantive legal questions
+    //    (divorce petitions, family-law intake) hit Google's DEFAULT
+    //    filters and came back as EMPTY candidates (promptFeedback
+    //    .blockReason / finishReason SAFETY / RECITATION) — the client
+    //    saw "thinking" end with no text and rendered nothing;
+    //  - no thinking budget / token config → thinking models could burn
+    //    the whole output on reasoning and return no answer text;
+    //  - no tools → tool-capable turns degraded on the proxy path.
+    // The route now forwards all three fields, defaulting safetySettings
+    // to BLOCK_NONE (matching the direct path) when the client omits them.
+    const {
+        model, contents, systemInstruction,
+        tools, generationConfig, safetySettings,
+        apiKey: providedApiKey,
+    } = await request.json();
     // CRO AUDIT FIX (Track D — D5): removed hard-coded fallback Gemini API key.
     // Hard-coding API keys in source is a security issue — anyone with repo
     // access can extract and abuse the key. Now requires one of:
@@ -179,7 +197,24 @@ const handleAiStream = httpAction(async (ctx, request) => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
 
     const body: any = { contents };
-    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] };
+    if (systemInstruction) body.systemInstruction = typeof systemInstruction === "string"
+        ? { parts: [{ text: systemInstruction }] }
+        : systemInstruction;
+    if (tools) body.tools = tools;
+    if (generationConfig) body.generationConfig = generationConfig;
+    // Safety parity with the direct path: BLOCK_NONE unless the caller
+    // explicitly asks for something else. Legal intake questions about
+    // divorce, abuse or crime are PROFESSIONAL queries — default filters
+    // must not eat them into empty responses.
+    body.safetySettings = Array.isArray(safetySettings) && safetySettings.length
+        ? safetySettings
+        : [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" },
+          ];
 
     const response = await fetch(url, {
       method: "POST",

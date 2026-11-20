@@ -136,6 +136,13 @@ export const generateContent = action({
     systemInstruction: v.optional(v.any()),
     tools: v.optional(v.any()),
     generationConfig: v.optional(v.any()),
+    // 2026-11-20 (ALOA empty-response fix): safety parity with the direct
+    // path. The client's BLOCK_NONE thresholds now travel through the
+    // action too — without them, substantive legal questions (divorce
+    // petitions, family-law intake) hit Google's DEFAULT filters and came
+    // back as EMPTY candidates (finishReason SAFETY / RECITATION), which
+    // the chat rendered as "thinking ended, no response".
+    safetySettings: v.optional(v.any()),
     modelName: v.string(),
     /** DEPRECATED AS A FIRM-KEY CHANNEL (S2): now carries only the caller's
      *  OWN BYO key when present. Firm keys resolve server-side above. */
@@ -190,6 +197,16 @@ export const generateContent = action({
     if (args.systemInstruction) body.systemInstruction = args.systemInstruction;
     if (args.tools) body.tools = args.tools;
     if (args.generationConfig) body.generationConfig = args.generationConfig;
+    // Safety parity with the direct path — see the args comment above.
+    body.safetySettings = Array.isArray(args.safetySettings) && args.safetySettings.length
+        ? args.safetySettings
+        : [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "BLOCK_NONE" },
+          ];
 
     const response = await fetch(url, {
       method: "POST",

@@ -10,6 +10,7 @@ import { useUI } from '../contexts/UIContext';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { useMessagesBadge } from '../hooks/useMessagesBadge';
 import { Z_CLASS } from '../overlays/constants';
+import { VoxUpsellModal } from './quickcapture/VoxUpsellModal';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
     DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, ScalesIcon, MicrophoneIcon
@@ -173,7 +174,16 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         billing: !hasPropertyFeatures && !features.canUseAdvancedBilling,
         // Analytics: Growth+ (Sidebar: locked + upgrade modal)
         reporting: !features.canUseReportGenerator,
+        // VOX (owner spec 2026-11-20): voice capture is Growth+ — the tab
+        // stays VISIBLE with a lock badge (discoverability), and tapping it
+        // opens the DEDICATED Vox upgrade card, not the generic one.
+        quickCapture: !features.canUseVox,
     };
+
+    // ── VOX UPSELL (owner spec 2026-11-20): the dedicated Vox modal —
+    // Growth pre-selected, three Vox-specific value points. Free-tier
+    // taps on the Vox tab land here.
+    const [showVoxUpsell, setShowVoxUpsell] = useState(false);
 
 
     // Apply product-aware labels to nav items (override the static 'Contacts' / 'Matters' labels).
@@ -202,6 +212,12 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         // K-2: locked items open the upgrade modal — the same destination
         // the desktop's lock icon goes to — instead of the view.
         if (lockedViews[view]) {
+            // VOX: the dedicated Vox upgrade card (Growth pre-selected),
+            // not the generic upgrade modal.
+            if (view === 'quickCapture') {
+                setShowVoxUpsell(true);
+                return;
+            }
             openModal('upgradePlan');
             return;
         }
@@ -250,6 +266,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         light(); // Haptic feedback
         // K-2: the More sheet honors the same locks as the primary bar.
         if (lockedViews[view]) {
+            if (view === 'quickCapture') {
+                setShowVoxUpsell(true);
+                return;
+            }
             openModal('upgradePlan');
             return;
         }
@@ -332,8 +352,11 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                                             onClick={(e) => handleMoreItemClick(e, item.view)}
                                             className="active-press flex flex-col items-center gap-2 group relative"
                                         >
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${parentView === item.view ? 'bg-primary-600 text-white shadow-primary-500/30' : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 group-active:scale-95'}`}>
+                                            <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-sm ${parentView === item.view ? 'bg-primary-600 text-white shadow-primary-500/30' : 'bg-slate-50 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 group-active:scale-95'}`}>
                                                 {React.cloneElement(item.icon, { className: "w-6 h-6" })}
+                                                {lockedViews[item.view] && (
+                                                    <LockClosedIcon className="absolute -top-1 -right-1 w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
+                                                )}
                                             </div>
                                             {count > 0 && (
                                                 <span className="absolute top-0 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 bg-red-600 text-white text-3xs font-bold rounded-full border-2 border-white dark:border-zinc-900 z-10 animate-pulse">
@@ -349,6 +372,9 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
                     </div>
                 </>
             )}
+            {/* VOX UPSELL (owner spec 2026-11-20): Free-tier tap on the Vox
+                tab opens the dedicated Growth upgrade card. */}
+            {showVoxUpsell && <VoxUpsellModal onClose={() => setShowVoxUpsell(false)} />}
         </>
     );
 };

@@ -132,6 +132,30 @@ export const getCaptureInternal = internalQuery({
   },
 });
 
+/**
+ * The firm's plan fields for the Vox entitlement gate (owner spec
+ * 2026-11-20). Actions have no ctx.db, so the firm record reaches them
+ * through this projection — subscriptionPlan + trial window, exactly what
+ * effectiveFirmPlan (tierLimits) needs. Never returns more than the plan
+ * fields.
+ */
+export const getFirmPlanInternal = internalQuery({
+  args: { firmId: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      const firm: any = await ctx.db.get(args.firmId as any);
+      if (!firm) return null;
+      return {
+        subscriptionPlan: (firm.subscriptionPlan as string) || null,
+        trialPlan: (firm.trialPlan as string) || null,
+        trialEndsAt: typeof firm.trialEndsAt === "number" ? firm.trialEndsAt : null,
+      };
+    } catch {
+      return null;
+    }
+  },
+});
+
 /** Patch one capture, firm re-checked inside the transaction. */
 export const patchCaptureInternal = internalMutation({
   args: { clientLocalId: v.string(), firmId: v.string(), patch: v.any() },

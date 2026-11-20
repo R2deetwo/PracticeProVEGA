@@ -81,6 +81,18 @@ export function isUnifiedEntitledPlan(plan: string | null | undefined): boolean 
   return p === 'Komplete' || p === 'Enterprise';
 }
 
+// ─── VOX ENTITLEMENT (owner spec 2026-11-20) ────────────────────────────────
+// Vox — voice capture, multi-speaker diarization and the hybrid Legal Pad —
+// is gated to the MIDDLE TIER AND ABOVE (Growth and up). The Free tier
+// (Core, and the legacy Starter spelling) cannot use it. Enforced on every
+// Vox audio upload / transcription / diarization / Legal Pad action
+// (UPGRADE_REQUIRED_FOR_VOX) — mirrors src/utils/entitlements.ts canUseVox.
+const VOX_ENTITLED_PLANS = new Set(['Growth', 'Pro', 'Enterprise', 'Komplete']);
+
+export function canUseVox(plan: string | null | undefined): boolean {
+  return VOX_ENTITLED_PLANS.has((plan || '').trim());
+}
+
 function isUnifiedProduct(product: string | null | undefined): boolean {
   const prod = (product || '').toLowerCase().trim();
   return prod === 'unified' || prod === 'komplete';

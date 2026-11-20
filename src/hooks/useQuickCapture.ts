@@ -164,6 +164,27 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
         }
       }
       if (e.type === "finalize-error" && e.clientLocalId === activeIdRef.current) {
+        // ── NO-SPEECH OUTCOME (owner spec 2026-11-20): the backend deleted
+        // the capture (every segment was silence/hallucination) — land on a
+        // clean error state instead of retry-forever processing.
+        if (/no speech was detected/i.test(e.error || "")) {
+          if (pollRef.current) {
+            window.clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+          activeIdRef.current = null;
+          appendOffsetRef.current = 0;
+          appendBaseDurationMsRef.current = 0;
+          preAppendCaptureRef.current = null;
+          setState((s) => ({
+            ...s,
+            phase: "error",
+            error: e.error || "No speech was detected in this recording.",
+            appending: false,
+            clientLocalId: null,
+          }));
+          return;
+        }
         setState((s) =>
           s.phase === "processing" || s.phase === "queued"
             ? { ...s, error: e.error || "Processing failed — will retry automatically." }
@@ -288,11 +309,16 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
     } else {
       // Online: the drain loop will emit 'ready' (typically 3–15s).
       // A poll backs up the event in case it fired during teardown races.
+      // MISSES: when the server deletes the capture (the no-speech guard)
+      // or it is otherwise gone, the poll sees errors/nulls — after 3
+      // consecutive misses it stops instead of ticking forever.
+      let pollMisses = 0;
       pollRef.current = window.setInterval(() => {
         const cid = activeIdRef.current;
         if (!cid) return;
         getCaptureByLocalId(cid)
           .then((capture) => {
+            pollMisses = 0;
             if (capture?.status === "ready") {
               if (pollRef.current) window.clearInterval(pollRef.current);
               pollRef.current = null;
@@ -305,7 +331,13 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
               if (!wasAppend) onReadyToastRef.current?.(capture);
             }
           })
-          .catch(() => undefined);
+          .catch(() => {
+            pollMisses += 1;
+            if (pollMisses >= 3 && pollRef.current) {
+              window.clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+          });
       }, 3000);
     }
   }, []);

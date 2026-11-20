@@ -3433,6 +3433,12 @@ export default defineSchema({
     error: nullableString,
     createdAt: nullableString,
     updatedAt: nullableString,
+    // ── DELETE TOMBSTONE (owner spec 2026-11-20: "deleting a note removes it
+    // cleanly … so it never reappears"). A tombstoned row is hidden from
+    // every read path and refuses in-flight uploads; it is physically swept
+    // ~7 days after deletion (see deleteCapture).
+    deleted: v.optional(v.boolean()),
+    deletedAt: v.optional(v.number()),
   })
     .index("by_client_local_id", ["clientLocalId"])
     .index("by_firm_user", ["firmId", "userId"])

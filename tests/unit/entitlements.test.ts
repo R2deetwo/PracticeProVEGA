@@ -32,6 +32,7 @@ import {
     getDisplayPlan,
     effectiveFirmPlan,
     resolveTierLimitsForFirm,
+    canUseVox,
 } from '../../convex/tierLimits';
 import { isPropertyCapable, isLegalCapable, isKomplete } from '../../src/constants/tiers';
 
@@ -327,5 +328,51 @@ describe('12. Cross-product permissions — staffCanViewBilling', () => {
     it('Unified firms follow the property rule (rent ledger is operational for the whole team)', () => {
         expect(staffCanViewBilling({ role: 'Lawyer', isSolo: false, product: 'unified' })).toBe(true);
         expect(staffCanViewBilling({ role: 'Paralegal', isSolo: false, product: 'komplete' })).toBe(true);
+    });
+});
+
+// ─── VOX ENTITLEMENT (owner spec 2026-11-20) ────────────────────────────────
+//
+// Vox — voice capture, multi-speaker diarization and the hybrid Legal Pad —
+// is MIDDLE TIER AND ABOVE: Free (Core / legacy Starter) is locked; Growth,
+// Pro, Enterprise and Komplete unlock it; a LIVE trial of any entitled plan
+// unlocks it for the trial window. Both mirrors (frontend computeEntitlements
+// and the convex tierLimits canUseVox the backend enforces with
+// UPGRADE_REQUIRED_FOR_VOX) must agree.
+
+describe('canUseVox — Vox is Growth-and-above on BOTH mirrors', () => {
+    const entitled = ['Growth', 'Pro', 'Enterprise', 'Komplete'];
+    const locked = ['Core', 'Starter', '', undefined as any, null];
+
+    it.each(entitled)('unlocks Vox on the %s plan (frontend)', (plan) => {
+        const e = computeEntitlements({ billingPlan: plan });
+        expect(e.canUseVox).toBe(true);
+        expect(e.checkFeatureAccess('vox')).toBe(true);
+    });
+
+    it.each(locked)('locks Vox on the %s plan (frontend)', (plan) => {
+        const e = computeEntitlements({ billingPlan: plan });
+        expect(e.canUseVox).toBe(false);
+        expect(e.checkFeatureAccess('vox')).toBe(false);
+    });
+
+    it.each(entitled)('unlocks Vox on the %s plan (convex mirror)', (plan) => {
+        expect(canUseVox(plan)).toBe(true);
+    });
+
+    it.each(['Core', 'Starter'])('locks Vox on the %s plan (convex mirror)', (plan) => {
+        expect(canUseVox(plan)).toBe(false);
+    });
+
+    it('a LIVE Growth trial unlocks Vox (trial-aware, both mirrors)', () => {
+        const future = Date.now() + 86_400_000;
+        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Growth', trialEndsAt: future }).canUseVox).toBe(true);
+        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Growth', trialEndsAt: future }))).toBe(true);
+    });
+
+    it('an EXPIRED Growth trial re-locks Vox (both mirrors)', () => {
+        const past = Date.now() - 86_400_000;
+        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Growth', trialEndsAt: past }).canUseVox).toBe(false);
+        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Growth', trialEndsAt: past }))).toBe(false);
     });
 });

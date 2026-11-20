@@ -1758,16 +1758,20 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         }
     };
 
-    const handleSend = async (overrideContent?: string) => {
+    const handleSend = async (overrideContent?: string, opts?: { isRetry?: boolean }) => {
         const content = overrideContent ?? textInput;
         if (!content.trim() && pendingAttachments.length === 0) return;
 
         // ─── DOUBLE-FIRE GUARD (2026-11-18) ─────────────────────────────
         // One user action must enqueue exactly ONE message. See the
         // lastSendGuardRef declaration comment for the history.
+        // 2026-11-20: explicit retries (the Retry button on error cards,
+        // Regenerate) are EXEMPT — they intentionally re-send the same
+        // content and must never be suppressed by this guard.
         const guardNow = Date.now();
         const guardLast = lastSendGuardRef.current;
         if (
+            !opts?.isRetry &&
             guardLast &&
             guardLast.content === content &&
             guardNow - guardLast.at < 1200
@@ -1972,6 +1976,38 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         // Capture context values at enqueue time so they don't drift
         // if the user sends another message while this is queued.
         const capturedMessages = [...messages, newUserMsg];
+
+        // ── 2026-11-20 (owner spec): SHORT FOLLOW-UPS AFTER A FAILED TURN ──
+        // "Well??", "And?", "So?" right after an unanswered/errored turn must
+        // NEVER be ignored. When the previous model message is an error card
+        // (or the previous user message never got a reply at all), the nudge
+        // is augmented — for the AI call only — with an instruction to answer
+        // the pending question now. The displayed/saved bubble keeps exactly
+        // what the user typed.
+        const NUDGE_RE = /^(?:well+|so+|and+|yes|yeah|please|go\s+on|continue|answer|respond|reply|hmm+|\?+)[\s?!.]*$/i;
+        const trimmedContent = content.trim();
+        const lastStateMsg = messages[messages.length - 1];
+        const lastWasError = !!lastStateMsg && (lastStateMsg as any).role === 'model' && !!(lastStateMsg as any).isError;
+        const lastWasUnansweredUser = !!lastStateMsg && (lastStateMsg as any).role === 'user';
+        const isNudgeAfterFailure =
+            trimmedContent.length > 0 &&
+            trimmedContent.length <= 12 &&
+            NUDGE_RE.test(trimmedContent) &&
+            (lastWasError || lastWasUnansweredUser);
+        let aiPayloadMessages = capturedMessages;
+        if (isNudgeAfterFailure) {
+            // Find the unanswered question: the last user message BEFORE the
+            // nudge (skipping error cards).
+            const priorUser = [...messages].reverse().find(m => m.role === 'user' && typeof m.content === 'string' && m.content.trim());
+            const priorText = typeof priorUser?.content === 'string' ? priorUser.content.trim().slice(0, 600) : '';
+            aiPayloadMessages = [...capturedMessages];
+            aiPayloadMessages[aiPayloadMessages.length - 1] = {
+                ...newUserMsg,
+                content: priorText
+                    ? `${trimmedContent}\n\n[System note: your previous reply to the user's last message failed to arrive (technical error). The user is prompting you to answer. Answer their previous question now, completely and substantively. Their pending message was: "${priorText}"]`
+                    : `${trimmedContent}\n\n[System note: your previous reply failed to arrive (technical error) and the user is prompting you. Acknowledge the failure in one line, then ask what they need.]`,
+            };
+        }
         const capturedActiveConvId = activeConversationId;
         const capturedAiContext = {
             appState: { ...coreState, ...matterState, ...executionState, ...financeState, ...documentState } as any,
@@ -2361,7 +2397,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     setAloaStatus('Writing…');
                     try {
                         const streamed = await aiService.streamMessage(
-                            capturedMessages,
+                            aiPayloadMessages,
                             capturedAiContext,
                             (chunk) => {
                                 setMessages(prev => prev.map(m =>
@@ -2432,12 +2468,63 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     setAloaStatus(pendingAttachments.length > 0 ? `Reading ${pendingAttachments.length} document${pendingAttachments.length > 1 ? 's' : ''}…` : 'Thinking…');
                     setMessages(prev => prev.map(m => m.id === streamMsgId ? { ...m, content: '' } : m));
 
-                    const response = streamHandoff ?? await aiService.sendMessage(
-                        capturedMessages,
-                        capturedAiContext,
-                        effectiveModel,
-                        signal
-                    );
+                    // ── 2026-11-20 (owner spec: "automatically retry once or
+                    // fall back cleanly to a direct conversational LLM
+                    // response"): the primary blocking call gets ONE lean
+                    // automatic retry before any error reaches the user. The
+                    // retry strips the heavy injected context (web fetches,
+                    // RAG blocks, tool chatter) down to the recent text
+                    // conversation — a payload that differs enough from the
+                    // failed one to survive whatever tripped the first call
+                    // (safety filter, recitation cutoff, oversized context).
+                    let response: any = streamHandoff;
+                    if (!response) {
+                        try {
+                            response = await aiService.sendMessage(
+                                aiPayloadMessages,
+                                capturedAiContext,
+                                effectiveModel,
+                                signal
+                            );
+                        } catch (primaryErr: any) {
+                            if (signal.aborted) throw primaryErr; // timeout — propagate
+                            console.warn('[ALOA] Primary AI call failed — attempting one direct conversational retry:', primaryErr?.message);
+                            setAloaStatus('Retrying…');
+                            const leanHistory = aiPayloadMessages
+                                .filter((m: any) =>
+                                    (m.role === 'user' || m.role === 'model') &&
+                                    typeof m.content === 'string' &&
+                                    m.content.trim().length > 0 &&
+                                    !m.isError && !m.toolCalls && !m.toolResult
+                                )
+                                .slice(-6)
+                                .map((m: any) => ({
+                                    ...m,
+                                    // Trim injected web-content blobs that may
+                                    // have tripped a filter on the first call.
+                                    content: m.content.length > 4000 ? m.content.slice(0, 4000) : m.content,
+                                }));
+                            const leanContext = {
+                                ...capturedAiContext,
+                                searchBrain: undefined,
+                                searchLegalRepo: undefined,
+                                isFirmSearchEnabled: false,
+                            };
+                            try {
+                                response = await aiService.sendMessage(
+                                    leanHistory,
+                                    leanContext,
+                                    'flash',
+                                    signal
+                                );
+                            } catch (retryErr: any) {
+                                if (signal.aborted) throw retryErr;
+                                // Both attempts failed — surface the ORIGINAL
+                                // error (more context about the real cause).
+                                throw primaryErr;
+                            }
+                        }
+                    }
 
                     let currentResponse = response;
                     let iterationCount = 0;
@@ -2448,7 +2535,7 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     // research off mid-flight; 6 bounds it while letting the
                     // full packet workflow complete inside one message turn.
                     const maxIterations = 6;
-                    let turnHistory = [...capturedMessages];
+                    let turnHistory = [...aiPayloadMessages];
 
                     while (currentResponse.toolCalls && currentResponse.toolCalls.length > 0 && iterationCount < maxIterations) {
                         iterationCount++;
@@ -2680,8 +2767,27 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                         }
                         return modelMsg;
                     } else {
-                        setMessages(prev => prev.filter(m => m.id !== streamMsgId));
-                        return null;
+                        // ── 2026-11-20 (owner: "ALOA still fails to deliver
+                        // the response after thinking") ── this branch used to
+                        // DELETE the placeholder bubble and return null — the
+                        // user watched the thinking indicator stop into a
+                        // silent, empty conversation. That can NEVER happen
+                        // again: a turn that ends with no text and no terminal
+                        // action renders a visible, actionable message. The
+                        // service layer now throws on empty streams (so the
+                        // ladder + error card fire first); this is the
+                        // last-resort guard for any path that still sneaks an
+                        // empty response through (e.g. tool loop exhausted).
+                        console.warn('[ALOA] Turn ended with empty text — rendering visible failure card instead of dropping silently.');
+                        const emptyMsg: AloaMessage = {
+                            id: streamMsgId,
+                            role: 'model',
+                            content: `**I wasn't able to complete that response** — the model returned an empty answer.\n\nTap **Retry** and I'll answer it again.`,
+                            isError: true,
+                            retryPrompt: content,
+                        } as any;
+                        setMessages(prev => prev.map(m => m.id === streamMsgId ? emptyMsg : m));
+                        return emptyMsg;
                     }
                 } finally {
                     if (reasoningTimer) clearInterval(reasoningTimer);
@@ -2745,8 +2851,11 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                     role: 'model',
                     content: `**${errorMessage}**\n\n${isAuthError ? "Please check your AI Settings." : "Please try again later."}`,
                     isError: true,
-                    errorDetails: JSON.stringify(error.message || error, null, 2)
-                };
+                    errorDetails: JSON.stringify(error.message || error, null, 2),
+                    // 2026-11-20: 1-tap Retry — the card carries the prompt of
+                    // the turn that failed so the button can re-send it.
+                    retryPrompt: content,
+                } as any;
 
                 setMessages(prev => [...prev.filter(m => m.id !== streamMsgId), errorMsgObj]);
 
@@ -2834,7 +2943,8 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
         if (typeof prompt !== 'string' || !prompt.trim()) return;
         setMessages(prev => prev.slice(0, userIdx));
         // Let the truncation commit before re-sending the same turn.
-        setTimeout(() => { handleSend(prompt); }, 50);
+        // isRetry bypasses the double-fire guard (same content, <1200ms).
+        setTimeout(() => { handleSend(prompt, { isRetry: true }); }, 50);
     };
 
     // ─── Draft in DraftPro ────────────────────────────────────────────────
@@ -3917,6 +4027,31 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                                             </>
                                         );
                                     })()}
+                                    {/* ── 2026-11-20 (owner spec): 1-tap Retry on
+                                        error cards. A user must NEVER face a
+                                        silent failed turn — the card carries
+                                        the failed turn's prompt and one tap
+                                        re-sends it. Always visible (error
+                                        recovery must not hide behind hover). */}
+                                    {msg.isError && (msg as any).retryPrompt && !isLoading && (
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => {
+                                                const errIdx = messages.findIndex(m => m.id === msg.id);
+                                                if (errIdx >= 0) {
+                                                    setMessages(prev => prev.slice(0, errIdx));
+                                                }
+                                                const promptToRetry = (msg as any).retryPrompt as string;
+                                                setTimeout(() => { handleSend(promptToRetry, { isRetry: true }); }, 50);
+                                            }}
+                                            className="mt-2 rounded-md bg-white dark:bg-zinc-800 border border-red-200 dark:border-red-900/40 px-2.5 py-1 text-xs font-semibold text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                        >
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            Retry
+                                        </Button>
+                                    )}
                                     {/* Attachment thumbnails/files */}
                                     {msg.attachments && msg.attachments.length > 0 && (
                                         <div className="grid grid-cols-2 gap-2 mt-2">

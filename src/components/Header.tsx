@@ -12,6 +12,7 @@ import { useMatterState } from '../contexts/MatterContext';
 import { useDataActions } from '../contexts/DataContext';
 import { getInitials, getUserColor, timeAgo } from '../utils/colorUtils';
 import { usePermissions } from '../hooks/usePermissions';
+import { useFeatures } from '../hooks/useFeatures';
 import ConnectionStatus from './auth/ConnectionStatus';
 import { PresenceAvatars } from './ui/PresenceAvatars';
 import { useProduct } from '../contexts/ProductContext';
@@ -64,6 +65,9 @@ const Header: React.FC = React.memo(() => {
     const { openPanel: openAloaPanel } = useAloa();
     const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
     const { light: hapticLight } = useHapticFeedback();
+    // VOX ENTITLEMENT (owner spec 2026-11-20): drives the mic's Free-tier
+    // lock dot — see the mic button render below.
+    const { canUseVox: voxEnabled } = useFeatures();
 
     const [isNotificationsOpen, setNotificationsOpen] = useState(false);
     const [notifTab, setNotifTab] = useState<'platform' | 'firm'>('platform');
@@ -438,20 +442,31 @@ const Header: React.FC = React.memo(() => {
                     Opens the ALOA panel directly in Quick Capture mode
                     (voice, dictation and AI share one unified home).
                     Built on the ui/Button primitive (ADR-0004) with the
-                    'bare' variant for the one-off emerald look. */}
-                <Button
-                    variant="bare"
-                    size="md"
-                    iconOnly
-                    icon={MicrophoneIcon}
-                    aria-label="Vox — start recording"
-                    title="Vox — dictate a note, task or question"
-                    className="rounded-lg bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-sm"
-                    onClick={() => {
-                        hapticLight();
-                        openAloaCapture();
-                    }}
-                />
+                    'bare' variant for the one-off emerald look.
+                    VOX ENTITLEMENT (owner spec 2026-11-20): Free-tier users
+                    still see the mic (discoverability) with a subtle lock
+                    dot — tapping it opens Vox, where the upgrade card
+                    explains what they get on Growth. */}
+                <div className="relative">
+                    <Button
+                        variant="bare"
+                        size="md"
+                        iconOnly
+                        icon={MicrophoneIcon}
+                        aria-label="Vox — start recording"
+                        title="Vox — dictate a note, task or question"
+                        className="rounded-lg bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-sm"
+                        onClick={() => {
+                            hapticLight();
+                            openAloaCapture();
+                        }}
+                    />
+                    {!voxEnabled && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-white border-2 border-primary-600 flex items-center justify-center" aria-hidden>
+                            <LockClosedIcon className="w-1.5 h-1.5 text-primary-600" />
+                        </span>
+                    )}
+                </div>
 
                 {/* R61 — the demo Vega|Atrium product switcher is RETIRED.
                     Owner direction: it made no sense in the workspace captures

@@ -49,6 +49,7 @@ import {
   ClipboardIcon,
   CogIcon,
   DocumentTextIcon,
+  LockClosedIcon,
   MicrophoneIcon,
   MagnifyingGlassIcon,
   SparklesIcon,
@@ -60,6 +61,8 @@ import { useUI } from "../../contexts/UIContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCoreState } from "../../contexts/CoreContext";
 import { useMatterState } from "../../contexts/MatterContext";
+import { useAloa } from "../../contexts/AloaProvider";
+import { useFeatures } from "../../hooks/useFeatures";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { useQuickCapture } from "../../hooks/useQuickCapture";
 import { MATTERS_NOTEBOOK_ID } from "../../constants";
@@ -82,6 +85,7 @@ import { VoiceTipsPanel } from "./VoiceTipsPanel";
 import { TriageCard } from "./TriageCard";
 import { QuickAskActions } from "./QuickAskActions";
 import { LegalPadView } from "./LegalPadView";
+import { VoxUpsellModal } from "./VoxUpsellModal";
 
 const formatMs = (ms: number) => {
   const total = Math.floor(ms / 1000);
@@ -499,19 +503,42 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       );
   }, [qc.capture, draftSource]);
 
+  // ── VOX ENTITLEMENT (owner spec 2026-11-20): Vox is a MIDDLE-TIER-AND-
+  //    ABOVE feature. Free-tier users still SEE Vox (discoverability) —
+  //    with a lock badge on the mic and a tier chip — but every attempt to
+  //    record (mic, Conversation mode, Legal Pad, Add More) opens the
+  //    dedicated upgrade modal wired to the billing flow with Growth
+  //    pre-selected. The backend independently rejects Free-tier uploads
+  //    (UPGRADE_REQUIRED_FOR_VOX) — this is the polite front of that gate.
+  const { canUseVox } = useFeatures();
+  const [showVoxUpsell, setShowVoxUpsell] = useState(false);
+  const guardVox = useCallback(
+    (action: () => void) => {
+      if (!canUseVox) {
+        medium();
+        setShowVoxUpsell(true);
+        return;
+      }
+      action();
+    },
+    [canUseVox, medium]
+  );
+
   const handleAddMore = useCallback(() => {
     const capture = qc.capture;
     if (!capture) return;
-    medium();
-    void qc.appendRecording({
-      clientLocalId: capture.clientLocalId,
-      // max existing index + 1 — robust even when dead segments left gaps.
-      existingSegmentCount: capture.nextSegmentIndex ?? capture.segmentCount,
-      existingDurationMs: capture.durationMs,
-      kind: capture.kind,
-      outputMode: capture.outputMode,
+    guardVox(() => {
+      medium();
+      void qc.appendRecording({
+        clientLocalId: capture.clientLocalId,
+        // max existing index + 1 — robust even when dead segments left gaps.
+        existingSegmentCount: capture.nextSegmentIndex ?? capture.segmentCount,
+        existingDurationMs: capture.durationMs,
+        kind: capture.kind,
+        outputMode: capture.outputMode,
+      });
     });
-  }, [qc.capture, qc.appendRecording, medium]);
+  }, [qc.capture, qc.appendRecording, medium, guardVox]);
 
   // Refresh the recent-captures strip.
   const refreshRecent = useCallback(() => {
@@ -638,15 +665,39 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     [embedded, onExitEmbedded, navigateTo]
   );
 
-  // ── Compact header (owner directive, 2026-11-19; rebrand 2026-11-20):
+  // ── Compact header (owner directives 2026-11-19 → 2026-11-20):
   //    phone viewports and the narrow ALOA panel column get a strict
-  //    three-slot bar — back | one-line title | Full Office + ⚙ — while the
-  //    wide standalone view keeps the informative title + subtitle. The
-  //    product is VOX everywhere (owner direction 2026-11-20: "get rid of
-  //    that QC") — three letters, never wraps, never collides with the
-  //    buttons; "ALOA" is rendered exactly once (the back button).
+  //    three-slot bar — `< ALOA` | Vox | Dashboard + ⚙. The product is VOX
+  //    everywhere; "ALOA" renders exactly once (the back affordance).
+  //
+  //    OWNER UPDATE (2026-11-20, this session):
+  //    1. "Full Office" is now "Dashboard" — same destination, the label
+  //       the app actually uses everywhere else.
+  //    2. The Dashboard button loses its border/box (ghost) so it sits
+  //       cleanly beside the ⚙ gear.
+  //    3. On DESKTOP, the ALOA-panel-embedded pane carries NO exit button
+  //       at all — clicking outside the pane already retracts it; a button
+  //       that duplicates that is noise. (Standalone wide view and phones
+  //       keep it: there is no pane to click away there.)
+  //    4. Standalone phones get a real `< ALOA` back affordance that opens
+  //       the ALOA assistant over the office (previously a bare spacer).
   const compactHeader = embedded || isPhoneLike;
   const headerTitle = "Vox";
+  const desktopPane = embedded && !isPhoneLike;
+  const { openPanel: openAloaPanel } = useAloa();
+
+  const handleBackToAloa = useCallback(() => {
+    light();
+    if (embedded && onBackToChat) {
+      onBackToChat();
+      return;
+    }
+    // Standalone (mobile APK): Vox is the full surface here — the ALOA
+    // panel is unmounted in this view. Go to the office and open ALOA on
+    // top of it, so `< ALOA` lands the user back with their assistant.
+    navigateTo("dashboard");
+    openAloaPanel("chat");
+  }, [light, embedded, onBackToChat, navigateTo, openAloaPanel]);
 
   // ─── Render ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -662,26 +713,19 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           Safe-area padded so nothing crowds the Android status bar. */}
       <header className="bg-white border-b border-slate-200 pt-[calc(0.75rem+env(safe-area-inset-top))]">
         <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
-          {/* LEFT SLOT — the single back affordance (embedded). "ALOA"
-              lives ONLY here, one line, never truncated. Standalone keeps
-              the informative title + subtitle on wide screens. */}
+          {/* LEFT SLOT — the single back affordance: `< ALOA`. Embedded
+              panes return to the chat; standalone phones open ALOA over the
+              office. One line, never truncated, no badge stacking. */}
           {compactHeader ? (
-            embedded && onBackToChat ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={ChevronLeftIcon}
-                className="!px-2 whitespace-nowrap shrink-0"
-                onClick={() => {
-                  light();
-                  onBackToChat();
-                }}
-              >
-                ALOA
-              </Button>
-            ) : (
-              <span className="w-1 shrink-0" aria-hidden />
-            )
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={ChevronLeftIcon}
+              className="!px-2 whitespace-nowrap shrink-0"
+              onClick={handleBackToAloa}
+            >
+              ALOA
+            </Button>
           ) : (
             <div className="min-w-0">
               <h1 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap">
@@ -705,10 +749,12 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               </h1>
             </div>
           ) : null}
-          {/* RIGHT SLOT — Full Office pill + settings gear (compact) or
-              the full action set (wide standalone). shrink-0 + gap-2: never
-              wraps, never crowds the title. */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* RIGHT SLOT — Dashboard + settings gear. Ghost (borderless) so
+              it sits cleanly beside the ⚙; the desktop ALOA-pane variant
+              carries NO exit button (clicking outside retracts the pane —
+              owner 2026-11-20). shrink-0 + gap-2: never wraps, never
+              crowds the title. */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {!compactHeader ? (
               <>
                 {/* Voice Tips (owner spec 2026-11-19, Part 3): subtle "?"
@@ -724,7 +770,8 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 />
                 {/* QUIET MODE (quiet-speech profile): court galleries /
                     shared spaces — noise suppression off so faint speech
-                    survives. */}
+                    survives. Kept intact per the owner's explicit "do NOT
+                    rebuild or remove Low-Volume / Quiet Mode" directive. */}
                 <Button
                   variant={whisperMode ? "primary" : "ghost"}
                   size="sm"
@@ -739,19 +786,20 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 </Button>
               </>
             ) : null}
-            <Button
-              variant="outline"
-              size="sm"
-              minTouchTarget
-              icon={ChevronRightIcon}
-              className="whitespace-nowrap"
-              onClick={() => {
-                light();
-                exitToView("dashboard");
-              }}
-            >
-              Full Office
-            </Button>
+            {!desktopPane && (
+              <Button
+                variant="ghost"
+                size="sm"
+                minTouchTarget
+                className="whitespace-nowrap font-semibold text-slate-600"
+                onClick={() => {
+                  light();
+                  exitToView("dashboard");
+                }}
+              >
+                Dashboard
+              </Button>
+            )}
             {compactHeader ? (
               <div className="relative shrink-0" ref={settingsMenuRef}>
                 <Button
@@ -1152,26 +1200,45 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               </div>
             ) : (
               <>
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="!w-28 !h-28 !rounded-full !px-0 shadow-lg"
-                  aria-label="Start recording"
-                  onClick={() => {
-                    medium();
-                    void qc.startRecording();
-                  }}
-                  disabled={!qc.supported}
-                >
-                  <MicrophoneIcon className="w-11 h-11" />
-                </Button>
+                <div className="relative">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="!w-28 !h-28 !rounded-full !px-0 shadow-lg"
+                    aria-label={canUseVox ? "Start recording" : "Unlock Vox — available on Growth and above"}
+                    onClick={() => {
+                      guardVox(() => {
+                        medium();
+                        void qc.startRecording();
+                      });
+                    }}
+                    disabled={!qc.supported}
+                  >
+                    <MicrophoneIcon className="w-11 h-11" />
+                  </Button>
+                  {/* Free-tier lock badge (owner spec 2026-11-20): Vox stays
+                      discoverable — the mic carries a subtle lock so Free
+                      users see what they're missing, and tapping opens the
+                      upgrade card instead of failing. */}
+                  {!canUseVox && (
+                    <span
+                      className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 shadow-sm px-2 py-0.5"
+                      aria-hidden
+                    >
+                      <LockClosedIcon className="w-3 h-3 text-primary-600" />
+                      <span className="text-2xs font-bold text-primary-600 uppercase tracking-wide">Growth</span>
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm font-semibold text-slate-900">
                   {conversationMode ? "Tap to record the conversation" : "Tap to speak"}
                 </p>
                 <p className="text-xs text-slate-500 text-center max-w-xs">
-                  {conversationMode
-                    ? "Client consultations, witness conferences, settlement meetings, court hearings — each speaker is separated and labelled for you."
-                    : "Dictate a note, a task or a question — no forms first. We'll suggest where it should go when you stop."}
+                  {!canUseVox
+                    ? "Vox — voice capture, speaker labelling and the hybrid Legal Pad — is available on Growth and above."
+                    : conversationMode
+                      ? "Client consultations, witness conferences, settlement meetings, court hearings — each speaker is separated and labelled for you."
+                      : "Dictate a note, a task or a question — no forms first. We'll suggest where it should go when you stop."}
                 </p>
                 {!online ? (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
@@ -1281,6 +1348,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
         <LegalPadView onExit={() => setMode("speak")} />
       )}
 
+      {/* Vox upgrade modal (owner spec 2026-11-20) — Free-tier users
+          tapping the locked mic / Legal Pad / Add More land here instead of
+          a dead button or a backend error. */}
+      {showVoxUpsell ? <VoxUpsellModal onClose={() => setShowVoxUpsell(false)} /> : null}
+
       {/* Mode toggle — thumb-reachable at the bottom, lifted clear of the
           Android gesture bar by the safe-area inset. */}
       {mode === "speak" ? (
@@ -1303,10 +1375,12 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             size="md"
             minTouchTarget
             fullWidth
-            icon={DocumentTextIcon}
+            icon={!canUseVox ? LockClosedIcon : DocumentTextIcon}
             onClick={() => {
-              light();
-              setMode("pad");
+              guardVox(() => {
+                light();
+                setMode("pad");
+              });
             }}
           >
             Legal Pad

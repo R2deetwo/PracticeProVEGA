@@ -41,6 +41,7 @@ import { action, query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v, ConvexError } from "convex/values";
 import { requireFirmUser } from "./authHelpers";
+import { canUseVox, effectiveFirmPlan } from "./tierLimits";
 import { QUALITY_MODEL } from "./aiModels";
 // Pure, dependency-free formatting helpers shared with the CLIENT bundle
 // (TriageCard / QuickCaptureView). Safe to import here: draftUtils has zero
@@ -163,13 +164,206 @@ export function assembleVerbatim(
   segmentTexts: { index: number; text: string }[]
 ): string {
   if (!segmentTexts || segmentTexts.length === 0) return "";
-  return [...segmentTexts]
-    .sort((a, b) => a.index - b.index)
+  const sorted = [...segmentTexts].sort((a, b) => a.index - b.index);
+  // 2026-11-20 (owner: "fix the repeating 'so' loop"): a prompt-conditioned
+  // transcriber can echo the PREVIOUS segment's text verbatim when the next
+  // chunk is near-silent (Low-Volume / Quiet Mode is the worst case — the
+  // recorder keeps the noise-suppression gate open). Consecutive identical
+  // segment texts are collapsed to one before the join.
+  const deduped: { index: number; text: string }[] = [];
+  const normText = (t: string) =>
+    (t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  for (const s of sorted) {
+    const prev = deduped[deduped.length - 1];
+    if (prev && normText(prev.text) && normText(prev.text) === normText(s.text)) {
+      continue; // identical consecutive segment — an echo, not a real repeat
+    }
+    deduped.push(s);
+  }
+  const joined = deduped
     .map((s) => (s.text || "").trim())
     .filter(Boolean)
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
+  // Cross-seam loop collapse ("…end. so" + "so so…" → "…end. so") — the
+  // per-segment sanitizer cannot see across the join.
+  return collapseFillerLoops(joined);
+}
+
+// ─── HALLUCINATED-FILLER GUARD (owner spec 2026-11-20) ─────────────────────
+//
+// Speech models hallucinate short filler tokens on near-silent audio —
+// Whisper's signature failure is an endless "So. So. So…" and Gemini emits
+// "Thank you." / "Mm-hmm." on room noise. Low-Volume / Quiet Mode (the
+// whisper capture profile: noise suppression OFF so quiet speech survives)
+// feeds the transcriber more noise floor, so the failure clusters there.
+// These three deterministic helpers run on EVERY segment transcript — they
+// can never remove real words, only collapse pathological repetition and
+// drop transcripts that contain nothing else.
+
+/**
+ * TRUE spoken fillers: even a 2× consecutive repeat is collapsed to one.
+ * Deliberately NARROW — common function words (the, and, a, is…) are NOT
+ * here, so a real human stutter ("the the file") survives the VERBATIM
+ * tier intact (Smart Clean handles stutters on the cleaned tier).
+ */
+const LOOP_COLLAPSE_2X = new Set([
+  "so", "um", "uh", "uhm", "erm", "er", "ah", "ahh", "ahem", "hm", "hmm",
+  "hmmm", "mm", "mmm", "mm-hmm", "mhm", "huh", "uh-huh", "uh-oh", "oh",
+  "ooh", "yeah", "ya", "yep", "yup", "nah", "nope", "hey", "hi", "hello",
+  "thanks", "thank", "please", "bye", "goodbye", "welcome", "okay", "ok",
+  "okey", "you", "your", "music", "sound", "noise", "silence", "applause",
+  "laughter", "laughing", "cheering", "clapping", "coughing", "sighing",
+  "sigh", "exhale", "breathing", "breath", "wind", "breeze", "sub", "sin",
+  "sen",
+]);
+
+/**
+ * FILLER-ONLY detection vocabulary (a SUPERSET of LOOP_COLLAPSE_2X): a
+ * transcript made entirely of these tokens (plus punctuation) carries no
+ * substance — it is a hallucination on silence, never real dictation.
+ * Function words belong HERE (not in LOOP_COLLAPSE_2X) because "the the
+ * the" alone is still nonsense, while "the the file" is real speech.
+ */
+const FILLER_ONLY_TOKENS = new Set([
+  ...LOOP_COLLAPSE_2X,
+  "yes", "no", "am", "i", "me", "my", "the", "and", "a", "an", "of", "to",
+  "it", "is", "in", "on", "for", "this", "that",
+]);
+
+/** Strip punctuation/case for token comparison. */
+const tokenKey = (t: string) => t.toLowerCase().replace(/[^a-z0-9'-]/g, "");
+
+/** True when the transcript contains no word outside the filler vocabulary. */
+export function isFillerOnlyText(text: string): boolean {
+  const tokens = (text || "").split(/\s+/).map(tokenKey).filter(Boolean);
+  if (tokens.length === 0) return true;
+  return tokens.every((t) => FILLER_ONLY_TOKENS.has(t));
+}
+
+/**
+ * Collapse runs of a repeated token: "so so so so" → "so", "the the the" →
+ * "the". Rules (conservative by design — this runs on the VERBATIM tier):
+ *   - any token repeated 3+ times consecutively → one instance (a real
+ *     stutter is 2; 3+ is a loop);
+ *   - a TRUE filler token (LOOP_COLLAPSE_2X) repeated even twice → one
+ *     instance;
+ *   - everything else is left exactly as spoken.
+ * The LAST raw instance of the run is the survivor, so sentence-final
+ * punctuation ("So. So. So." → "So.") is preserved.
+ */
+export function collapseFillerLoops(text: string): string {
+  if (!text) return text;
+  const rawTokens = text.split(/\s+/).filter((t) => t.length > 0);
+  const out: string[] = [];
+  // Current run of an identical token. The survivor rule at flush:
+  //   filler OR 3+ run  → ONE instance (the last — punctuation rides along)
+  //   exactly 2, non-filler → BOTH instances (a real stutter, verbatim-true)
+  let runKey = "";
+  let runFirst = "";
+  let runLast = "";
+  let runTotal = 0;
+  const flush = () => {
+    if (!runKey) return;
+    if (LOOP_COLLAPSE_2X.has(runKey) || runTotal >= 3) {
+      out.push(runLast);
+    } else if (runTotal === 2) {
+      out.push(runFirst, runLast);
+    } else {
+      out.push(runLast);
+    }
+    runKey = "";
+    runFirst = "";
+    runLast = "";
+    runTotal = 0;
+  };
+  for (const raw of rawTokens) {
+    const key = tokenKey(raw);
+    if (!key) {
+      // pure punctuation — flushes the run, never starts one
+      flush();
+      out.push(raw);
+      continue;
+    }
+    if (runKey === key) {
+      runTotal++;
+      runLast = raw;
+      continue;
+    }
+    flush();
+    runKey = key;
+    runFirst = raw;
+    runLast = raw;
+    runTotal = 1;
+  }
+  flush();
+  return out.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Full segment-transcript sanitizer: collapse loops, then decide whether
+ * anything substantive remains. Returns the cleaned text and whether the
+ * transcript should be dropped entirely (filler-only hallucination).
+ */
+export function sanitizeSegmentText(text: string): { text: string; dropped: boolean } {
+  const collapsed = collapseFillerLoops((text || "").trim());
+  if (!collapsed || isFillerOnlyText(collapsed)) {
+    return { text: "", dropped: true };
+  }
+  return { text: collapsed, dropped: false };
+}
+
+/**
+ * Digital-silence guard: RMS level of a 16-bit PCM WAV in [0, 1]. The
+ * recorder delivers 16 kHz mono WAVs; anything at/below SILENT_RMS carries
+ * no recoverable speech (it is the codec's noise floor) — submitting it to
+ * the transcription endpoint only buys hallucinated fillers. Quiet-mode
+ * recordings of REAL whispered speech sit orders of magnitude above this.
+ */
+export const SILENT_RMS_THRESHOLD = 0.0006;
+
+export function wavRmsLevel(wavBytes: Uint8Array): number {
+  try {
+    const dv = new DataView(wavBytes.buffer, wavBytes.byteOffset, wavBytes.byteLength);
+    // Walk the RIFF chunks to the data chunk (skip LIST/fmt extras).
+    let offset = 12;
+    let dataLen = 0;
+    let dataOffset = 0;
+    let bitsPerSample = 16;
+    while (offset + 8 <= dv.byteLength) {
+      const chunkId = String.fromCharCode(
+        dv.getUint8(offset), dv.getUint8(offset + 1), dv.getUint8(offset + 2), dv.getUint8(offset + 3)
+      );
+      const chunkSize = dv.getUint32(offset + 4, true);
+      if (chunkId === "fmt ") {
+        // fmt chunk layout: +0..3 "fmt ", +4..7 size, +8..9 audioFormat,
+        // +10..11 channels, +12..15 sampleRate, +16..19 byteRate,
+        // +20..21 blockAlign, +22..23 bitsPerSample.
+        bitsPerSample = dv.getUint16(offset + 8 + 14, true) || 16;
+      } else if (chunkId === "data") {
+        dataOffset = offset + 8;
+        dataLen = Math.min(chunkSize, dv.byteLength - dataOffset);
+        break;
+      }
+      offset += 8 + chunkSize + (chunkSize % 2);
+    }
+    if (!dataLen || bitsPerSample !== 16) return 1; // unparseable → assume speech
+    const sampleCount = Math.floor(dataLen / 2);
+    if (sampleCount <= 0) return 0;
+    // Stride on long clips — RMS is stable well before every sample.
+    const stride = sampleCount > 40_000 ? Math.ceil(sampleCount / 40_000) : 1;
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < sampleCount; i += stride) {
+      const v = dv.getInt16(dataOffset + i * 2, true) / 32768;
+      sum += v * v;
+      n++;
+    }
+    return Math.sqrt(sum / Math.max(n, 1));
+  } catch {
+    return 1; // never let the guard itself kill audio
+  }
 }
 
 /** Lagos (West Africa) is UTC+01:00 year-round — no DST to worry about. */
@@ -240,6 +434,7 @@ export function buildVerbatimPrompt(continuationTail?: string): string {
     "You are a verbatim speech-to-text transcription engine for a Nigerian legal practice.",
     "Transcribe EXACTLY what is spoken — word for word. Do NOT clean up, summarise, punctuate beyond natural pauses, or remove fillers (um, uh, repetitions).",
     "Preserve Nigerian names (Chidi, Ngozi, Adebayo...), titles (Barrister, SAN, Hon. Justice), amounts in Naira, dates, case names, statute names, and Latin legal terms exactly as spoken.",
+    "PRODUCT NAMES (vocabulary hints — spell them EXACTLY): the assistant is \"ALOA\" (never \"Alleva\", \"Aloha\", \"Alleluia\"), the voice-capture tool is \"Vox\" (never \"Fox\", \"Box\", \"Vocks\"), plus \"PracticePro\", \"DraftPro\", \"Atrium\", \"Vega\".",
     "If the speaker uses Nigerian Pidgin, transcribe the Pidgin phrasing — do not translate.",
     "Never add content that was not spoken. If a passage is unintelligible, write [inaudible].",
     "Return ONLY the transcript text — no preamble, no commentary.",
@@ -283,6 +478,7 @@ export function buildDiarizationTranscriptionPrompt(continuationTail?: string): 
     "You are a diarizing speech-to-text engine for a Nigerian legal practice: the audio may contain TWO OR MORE distinct voices (a lawyer and their client, opposing counsel, a witness, a judge).",
     "Split the audio into SPEAKER TURNS. Label each distinct voice with a short id: \"1\", \"2\", \"3\"… (local to THIS clip). Consecutive speech by the same voice is ONE turn.",
     "Transcribe each turn EXACTLY word for word — no cleaning, no summary, no fillers removed. Preserve Nigerian names, titles (Barrister, SAN, My Lord), amounts, dates and Pidgin phrasing exactly as spoken. Unintelligible passages: [inaudible].",
+    "PRODUCT NAMES (vocabulary hints — spell them EXACTLY): the assistant is \"ALOA\" (never \"Alleva\", \"Aloha\"), the voice-capture tool is \"Vox\" (never \"Fox\", \"Box\"), plus \"PracticePro\", \"DraftPro\", \"Atrium\", \"Vega\".",
     "If the clip contains only ONE voice, return a single turn with speaker \"1\".",
     "Respond with STRICT JSON only, no markdown fences:",
     '{"turns":[{"speaker":"1","text":"..."},{"speaker":"2","text":"..."}]}',
@@ -1479,6 +1675,31 @@ export function gateQuickAskActions(
   return { mode, actions: validateQuickAskActions(rawActions, matters) };
 }
 
+// ─── VOX ENTITLEMENT GATE (owner spec 2026-11-20) ───────────────────────────
+//
+// Vox — voice capture, multi-speaker diarization and the hybrid Legal Pad —
+// is a MIDDLE-TIER-AND-ABOVE feature (Growth / Pro / Enterprise / Komplete;
+// a live trial of any of those counts, per effectiveFirmPlan). The Free
+// tier (Core / legacy Starter) cannot upload audio, transcribe, diarize or
+// finalize Legal Pad sessions. The structured error code rides the message
+// so the client can open the dedicated Vox upsell modal instead of a
+// generic failure toast.
+
+/** Message thrown when a Free-tier workspace calls a Vox action. */
+export const VOX_UPGRADE_REQUIRED_MESSAGE =
+  "UPGRADE_REQUIRED_FOR_VOX: Vox — voice capture, speaker diarization and the hybrid Legal Pad — is available on the Growth plan and above. Upgrade to unlock it.";
+
+/** Throws UPGRADE_REQUIRED_FOR_VOX when the firm's effective plan is Free. */
+async function requireVoxEntitlement(ctx: any, firmId: string): Promise<void> {
+  const firm: any = await ctx.runQuery(internal.voiceCaptureInternal.getFirmPlanInternal, {
+    firmId,
+  });
+  const plan = firm ? effectiveFirmPlan(firm) : "Core";
+  if (!canUseVox(plan)) {
+    throw new ConvexError(VOX_UPGRADE_REQUIRED_MESSAGE);
+  }
+}
+
 /**
  * uploadSegment — one recorded audio segment: archive + transcribe.
  * Idempotent on (clientLocalId, segmentIndex); offline replays are safe.
@@ -1502,6 +1723,10 @@ export const uploadSegment = action({
   },
   handler: async (ctx, args): Promise<UploadSegmentResult> => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // VOX ENTITLEMENT (owner spec 2026-11-20): audio upload + transcription
+    // + diarization are Growth-and-above. Free-tier callers get the
+    // structured UPGRADE_REQUIRED_FOR_VOX error.
+    await requireVoxEntitlement(ctx, auth.firmId);
     const allowed = await ctx.runMutation(
       internal.securityHelpers.consumeRateLimit,
       { key: `voice_upload:${auth.userId}`, maxRequests: 60 }
@@ -1531,6 +1756,13 @@ export const uploadSegment = action({
       firmId: auth.firmId,
     });
 
+    // Tombstone check (owner spec 2026-11-20: deleted notes must never
+    // reappear): the user deleted this capture while an upload was in
+    // flight. Refuse — permanent, non-retryable — so the client dead-letters
+    // the segment instead of resurrecting the note.
+    if (row?.deleted === true) {
+      throw new ConvexError("This voice note was deleted — the upload was discarded.");
+    }
     // Idempotent replay check — already have this segment's text?
     const existingTexts: any[] = Array.isArray(row?.segmentTexts) ? row.segmentTexts : [];
     if (existingTexts.some((t) => t.index === args.segmentIndex)) {
@@ -1553,9 +1785,51 @@ export const uploadSegment = action({
     const continuationTail = prev ? prev.slice(-400) : undefined;
 
     const wavBytes = decodeBase64ToBytes(args.audioBase64);
+    // Archive FIRST (owner rule: audio is never lost) — then decide whether
+    // the frame is worth a transcription call.
     const storageId = await ctx.storage.store(
       new Blob([wavBytes.buffer as ArrayBuffer], { type: "audio/wav" })
     );
+
+    // ── 2026-11-20 (owner spec): near-silent / zero-speech frames are never
+    // submitted to the transcription endpoint. Digital silence (codec noise
+    // floor) and sub-400ms crumbs cannot contain speech — transcribing them
+    // is precisely what produced the endless "So. So. So…" hallucinations
+    // in Recent Voice Notes (worst under Low-Volume / Quiet Mode, where the
+    // open noise gate feeds the model more room noise). The audio is still
+    // ARCHIVED (never lost) — only the transcription call is skipped.
+    const segDurationMs = Math.max(0, args.endMs - args.startMs);
+    const rms = wavRmsLevel(wavBytes);
+    if (segDurationMs < 400 || (rms > 0 && rms <= SILENT_RMS_THRESHOLD)) {
+      const appendResult: any = await ctx.runMutation(
+        internal.voiceCaptureInternal.appendSegmentToRow,
+        {
+          captureId,
+          firmId: auth.firmId,
+          segment: {
+            storageId: String(storageId),
+            mimeType: "audio/wav",
+            startMs: args.startMs,
+            endMs: args.endMs,
+            bytes: wavBytes.byteLength,
+          },
+          segmentText: {
+            index: args.segmentIndex,
+            text: "",
+            provider: "skipped-silence",
+            at: Date.now(),
+          },
+          // A silent frame carries no speaker turns either.
+        }
+      );
+      return {
+        captureId,
+        skipped: appendResult?.skipped ?? false,
+        provider: "skipped-silence",
+        verbatimSoFar: assembleVerbatim(appendResult?.segmentTexts ?? []),
+        status: "transcribing",
+      };
+    }
 
     const { text, provider, turns } = await transcribeSegment(ctx, {
       wavBytes,
@@ -1565,6 +1839,14 @@ export const uploadSegment = action({
       continuationTail,
       diarize: args.multiSpeaker === true || row?.multiSpeaker === true,
     });
+
+    // ── HALLUCINATION FILTER (owner spec 2026-11-20): collapse repeated-token
+    // loops ("so so so" → "so") and drop filler-only transcripts BEFORE they
+    // ever reach the transcript store or Recent Voice Notes.
+    const sanitized = sanitizeSegmentText(text);
+    const cleanTurns = turns
+      ?.map((t) => ({ speaker: t.speaker, text: sanitizeSegmentText(t.text).text }))
+      .filter((t) => t.text.length > 0);
 
     const appendResult: any = await ctx.runMutation(
       internal.voiceCaptureInternal.appendSegmentToRow,
@@ -1580,11 +1862,11 @@ export const uploadSegment = action({
         },
         segmentText: {
           index: args.segmentIndex,
-          text,
-          provider,
+          text: sanitized.text,
+          provider: sanitized.dropped ? `${provider}+filtered` : provider,
           at: Date.now(),
         },
-        turns: turns && turns.length > 0 ? turns : undefined,
+        turns: cleanTurns && cleanTurns.length > 0 ? cleanTurns : undefined,
       }
     );
 
@@ -1618,6 +1900,9 @@ export const finalizeCapture = action({
   },
   handler: async (ctx, args): Promise<FinalizeCaptureResult> => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // VOX ENTITLEMENT: finalize drives Smart Clean, triage, the Legal Pad
+    // merge and the diarization reconcile pass — Growth and above only.
+    await requireVoxEntitlement(ctx, auth.firmId);
     const allowed = await ctx.runMutation(
       internal.securityHelpers.consumeRateLimit,
       { key: `voice_finalize:${auth.userId}`, maxRequests: 15 }
@@ -1628,7 +1913,8 @@ export const finalizeCapture = action({
       clientLocalId: args.clientLocalId,
       firmId: auth.firmId,
     });
-    if (!row) throw new Error("Capture not found.");
+    // Tombstoned (deleted) captures cannot finalize — the user deleted them.
+    if (!row || row.deleted === true) throw new Error("Capture not found.");
 
     const texts: any[] = Array.isArray(row.segmentTexts) ? row.segmentTexts : [];
     if (texts.length === 0) {
@@ -1641,9 +1927,33 @@ export const finalizeCapture = action({
     }
 
     const verbatim = assembleVerbatim(texts);
-    const lastProvider = [...texts].sort((a, b) => b.index - a.index)[0]?.provider || null;
     const shorthand =
       typeof args.shorthandText === "string" ? args.shorthandText : row.shorthandText || "";
+
+    // ── EMPTY / FILLER-ONLY GUARD (owner spec 2026-11-20: "prevent empty or
+    // filler-only transcripts from being saved to Recent Voice Notes").
+    // Every segment was silence-skipped or hallucination-filtered and the
+    // user typed nothing — there is no note here. Delete the row + archived
+    // audio so the note never appears anywhere, and fail with a clear,
+    // NON-retryable message (retrying cannot conjure speech out of silence).
+    // Legacy rows recorded before the segment sanitizer may still carry
+    // filler-only text — isFillerOnlyText catches those too.
+    const noSpeechDetected =
+      (!verbatim.trim() || isFillerOnlyText(verbatim)) && !shorthand.trim();
+    if (noSpeechDetected) {
+      const segs: any[] = Array.isArray(row.segments) ? row.segments : [];
+      for (const s of segs) {
+        try { await ctx.storage.delete(s.storageId as any); } catch { /* already gone */ }
+      }
+      await ctx.runMutation(internal.voiceCaptureInternal.deleteCaptureInternal, {
+        clientLocalId: args.clientLocalId,
+        firmId: auth.firmId,
+      });
+      throw new ConvexError(
+        "No speech was detected in this recording — nothing was saved. Tap record and try again, speaking a little closer to the microphone."
+      );
+    }
+    const lastProvider = [...texts].sort((a, b) => b.index - a.index)[0]?.provider || null;
 
     const result: any = {
       captureId: row._id,
@@ -2102,7 +2412,10 @@ export const listRecentCaptures = query({
       .withIndex("by_firm_user", (q: any) => q.eq("firmId", auth.firmId).eq("userId", auth.userId))
       .order("desc")
       .collect();
-    return rows.slice(0, Math.min(args.limit ?? 15, 30)).map((r) => projectCapture(r, true));
+    return rows
+      .filter((r) => r.deleted !== true) // tombstoned deletes never reappear
+      .slice(0, Math.min(args.limit ?? 15, 30))
+      .map((r) => projectCapture(r, true));
   },
 });
 
@@ -2112,7 +2425,9 @@ async function loadOwnedCapture(ctx: any, auth: { firmId: string }, clientLocalI
     .query("voiceCaptures")
     .withIndex("by_client_local_id", (q: any) => q.eq("clientLocalId", clientLocalId))
     .first();
-  if (!row) throw new Error("Capture not found.");
+  // Tombstoned (deleted) captures are GONE to every read path — the user
+  // deleted them; an in-flight upload must never resurrect them.
+  if (!row || row.deleted === true) throw new Error("Capture not found.");
   if (row.firmId !== auth.firmId) throw new Error("Not authorized.");
   return row;
 }
@@ -2181,7 +2496,16 @@ export const getSegmentUrl = query({
   },
 });
 
-/** deleteCapture — remove the row and its archived audio. */
+/** deleteCapture — remove the row's visibility and its archived audio.
+ *
+ * 2026-11-20 (owner spec: "deleting a note removes it cleanly … so it never
+ * reappears"): a PHYSICAL delete raced the drain loop — an in-flight
+ * uploadSegment for the same capture would re-create the row via
+ * upsertCaptureRow right after the delete, and the note resurrected in
+ * Recent Voice Notes. Deletion is now a TOMBSTONE: the row is flagged
+ * `deleted`, its audio is purged, every read path hides it, and any
+ * in-flight upload that lands sees the flag and refuses with a permanent
+ * error. Old tombstones are physically swept after 7 days. */
 export const deleteCapture = mutation({
   args: {
     clientLocalId: v.string(),
@@ -2197,7 +2521,33 @@ export const deleteCapture = mutation({
         await ctx.storage.delete(s.storageId as any);
       } catch { /* already gone */ }
     }
-    await ctx.db.delete(row._id);
+    await ctx.db.patch(row._id, {
+      deleted: true,
+      deletedAt: Date.now(),
+      status: "failed",
+      segments: [],
+      segmentTexts: [],
+      segmentTurns: [],
+      verbatimText: "",
+      smartCleanText: null,
+      mergedSummary: null,
+      updatedAt: new Date().toISOString(),
+    });
+    // Sweep this firm's stale tombstones (older than 7 days) — bounded scan
+    // over the firm's own rows, piggybacked on the delete that created new
+    // ones, so no cron is needed.
+    try {
+      const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const firmRows: any[] = await ctx.db
+        .query("voiceCaptures")
+        .withIndex("by_firm_user", (q: any) => q.eq("firmId", auth.firmId).eq("userId", auth.userId))
+        .collect();
+      for (const r of firmRows) {
+        if (r.deleted === true && typeof r.deletedAt === "number" && r.deletedAt < cutoff) {
+          try { await ctx.db.delete(r._id); } catch { /* already gone */ }
+        }
+      }
+    } catch { /* sweeping is best-effort */ }
   },
 });
 
@@ -2211,6 +2561,8 @@ export const repolish = action({
   },
   handler: async (ctx, args): Promise<{ smartCleanText: string }> => {
     const auth = await requireFirmUser(ctx, args.userEmail, args.sessionToken);
+    // VOX ENTITLEMENT: repolish is part of the Vox pipeline.
+    await requireVoxEntitlement(ctx, auth.firmId);
     const allowed = await ctx.runMutation(
       internal.securityHelpers.consumeRateLimit,
       { key: `voice_polish:${auth.userId}`, maxRequests: 10 }
@@ -2220,7 +2572,7 @@ export const repolish = action({
       clientLocalId: args.clientLocalId,
       firmId: auth.firmId,
     });
-    if (!row) throw new Error("Capture not found.");
+    if (!row || row.deleted === true) throw new Error("Capture not found.");
     if (!row.verbatimText) throw new Error("Nothing to polish yet.");
     const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
     if (!gemini) throw new Error("No AI key available for Smart Clean.");
