@@ -1469,3 +1469,96 @@ found and fixed while closing the loop:
   workers.dev URL sees the old canned panel. Cannot be fixed without a
   fresh CLOUDFLARE_API_TOKEN (owner action, RUNBOOK §9); until then
   the canonical landing URL is practice-pro-vega.vercel.app.
+
+## 2026-11-20 (c) — PERMANENT KEY ARCHIVE + splash discipline + the landing ALOA speaks with the in-app voice
+
+### DEPLOYMENT KEYS — PERMANENT ARCHIVE (owner-supplied 2026-11-20; NEVER delete, never rotate out of this file)
+
+These two `dev:` admin keys are the owner's standing access to the
+non-production Convex deployments. They are archived here VERBATIM per the
+owner's explicit instruction ("never delete — permanent archive"). Format:
+`dev:<deployment-slug>|<base64>`; use with `npx convex dev --deploy-key` /
+`npx convex deploy --deploy-key` (or `CONVEX_DEPLOY_KEY=<key>`).
+
+- STAGING (shiny-echidna-432 — every push to main auto-deploys here):
+
+  ```
+  dev:shiny-echidna-432|eyJ2MiI6ImEzNzRkNTJkNjYxZTQxNjU5Y2FhZTlhMzgwZGE5NGJmIn0=
+  ```
+
+- ALOX (groovy-mandrill-732 — the Aloa X supervisor application's reserved
+  deployment; empty by design until the supervisor app is built out):
+
+  ```
+  dev:groovy-mandrill-732|eyJ2MiI6IjNkOTYwYWY4NTUyODQ3NWZhZGRkNzEwN2ZiMmRjMWYzIn0=
+  ```
+
+Production remains `gregarious-malamute-537.convex.cloud` (promote-only).
+The dev deployment `keen-jaguar-204` predates this key set.
+
+### Fix 1 — SPLASH DISCIPLINE (owner: "the splash should only show when logging in to lead to the app — not the landing page, not on logout")
+
+Three splash surfaces were misbehaving for visitors:
+
+- **The green `#pp-boot-overlay` in index.html showed on EVERY full page
+  load** — direct visits, footer links (new tab), and the logout redirect
+  (`location.replace('/vega')`). To a visitor that reads as "a splash on
+  every page". FIX: a synchronous gate script now runs immediately after
+  the overlay markup, BEFORE any module loads: if there is NO saved session
+  (app session / portal session / portal type, localStorage or
+  sessionStorage) the overlay is removed before first paint — the landing
+  page paints directly, zero splash frames. A saved session keeps the
+  overlay (session restore = logging in: native splash → green loader →
+  in-app cinematic). DraftPro tabs (`?draftKey=`) also skip it.
+- **A failed session restore left the splash cinematic stuck over the
+  rendered landing page for up to 12 seconds** (the safety-timer era):
+  `hasSavedSession` was true at mount, the session expired server-side,
+  `flowState` stayed `'splash'`, and only the 12s timer dismissed it. FIX
+  (App.tsx): the new SPLASH DISCIPLINE effect — when session loading has
+  FINISHED with NO authenticated user, any splash still up dismisses
+  instantly (flowState → 'app', both splash flags set). The login path
+  never lands there (in-flight login has isLoadingSession true or
+  currentUser already set).
+- Logout already clears every session key BEFORE navigating, so with the
+  overlay gate the post-logout load paints the marketing site splash-free.
+
+### Fix 2 — the landing ALOA now answers in the IN-APP voice (owner: "I need ALOA that works in the app to work on the landing page as a preview for visitors — not the canned answers")
+
+Live verification first (this session, production): the endpoint
+`gregarious-malamute-537.convex.site/ai/landing-chat` answers real specific
+questions in ~4s; the deployed bundle (032966f5, v1.0.823) already carries
+the live-AI wiring, the "live AI" tag and the 60s cooldown. Two real gaps
+remained, both now fixed:
+
+- **The answer FORMAT was a rigid card, and chip answers were grounded so
+  hard on the owner-approved catalogue copy that they read as canned even
+  when the model wrote them.** The server prompt now asks for
+  CONVERSATIONAL MARKDOWN — the same voice as the in-app assistant: 2-4
+  short paragraphs, the key takeaway bolded early, ONE compact numbered
+  list only when steps genuinely help, under ~180 words — and explicitly
+  forbids restating the reference material verbatim ("background, answer
+  in your own words"). `responseMimeType: application/json` is gone.
+  `parseLandingAnswer` now returns `{ text }` (flattening any legacy JSON
+  answer into markdown so a half-deployed pair can never break the panel).
+- **The panel rendered answers as intro/steps/note cards with an instant
+  pop.** Live answers now render as rich markdown via a minimal
+  ESCAPE-FIRST renderer written for the landing (bold/italic/`code`/https
+  links/ul/ol/paragraphs — deliberately NOT the in-app parseAloaMarkdown,
+  which carries in-product affordances like "Draft in DraftPro" hover
+  pills that would be dead noise on a public page), and are revealed with
+  a STREAMING-STYLE TYPEWRITER (chunks every 18ms, ~2s to full reveal,
+  blinking caret) so the panel feels like the product's assistant. The
+  pulsing "live AI" tag stays; the lawyer boundary line stays; the
+  deterministic catalogue stays as the per-question fallback with the 60s
+  cooldown; honest 429 messaging unchanged.
+
+Known cloud caveat (unchanged, owner action): the Cloudflare mirror
+`practice-pro-vega.prototypechigo.workers.dev` is frozen at 2026-09-18 and
+serves the September pre-AI canned panel. The canonical landing URL is
+`https://practice-pro-vega.vercel.app` — anyone testing ALOA on the
+workers.dev URL will still see the old canned panel until
+CLOUDFLARE_API_TOKEN is rotated (RUNBOOK §9).
+
+Gates: root tsc 0 · convex tsc 0 · vitest 3245/3245 (landingChat 32/32,
+skeleton family ratchet 83/83 held — the typewriter caret is a semantic
+attention state) · design-token gate green · vite build green.

@@ -194,45 +194,44 @@ describe('serializeReference', () => {
 });
 
 describe('parseLandingAnswer', () => {
-  it('parses a clean JSON answer', () => {
+  it('passes through conversational markdown text (the in-app ALOA voice)', () => {
+    const out = parseLandingAnswer('**No, one week is not enough notice.**\n\nIn Lagos the notice period depends on how you pay rent.');
+    expect(out).toEqual({ text: '**No, one week is not enough notice.**\n\nIn Lagos the notice period depends on how you pay rent.' });
+  });
+
+  it('flattens the LEGACY JSON shape into markdown so a half-deployed pair never breaks the panel', () => {
     const out = parseLandingAnswer(
       JSON.stringify({ intro: 'Do not ignore it.', steps: ['Read it.', 'Keep copies.'], note: 'Act early.' }),
     );
-    expect(out).toEqual({ intro: 'Do not ignore it.', steps: ['Read it.', 'Keep copies.'], note: 'Act early.' });
+    expect(out!.text).toContain('Do not ignore it.');
+    expect(out!.text).toContain('1. Read it.');
+    expect(out!.text).toContain('2. Keep copies.');
+    expect(out!.text).toContain('**Note:** Act early.');
   });
 
   it('parses JSON wrapped in code fences', () => {
     const out = parseLandingAnswer('```json\n{"intro":"Hello"}\n```');
-    expect(out).toEqual({ intro: 'Hello', steps: undefined, note: undefined });
+    expect(out!.text).toBe('Hello');
   });
 
   it('parses JSON embedded in surrounding prose', () => {
     const out = parseLandingAnswer('Here you go: {"intro":"Answer"} hope that helps');
-    expect(out?.intro).toBe('Answer');
+    expect(out!.text).toContain('Answer');
+  });
+
+  it('keeps plain prose that merely contains braces (not JSON) as text', () => {
+    const out = parseLandingAnswer('A court letter {sometimes} has dates. **Read it.**');
+    expect(out!.text).toContain('**Read it.**');
   });
 
   it('returns null for garbage (caller falls back to raw text)', () => {
-    expect(parseLandingAnswer('no json here at all')).toBeNull();
     expect(parseLandingAnswer('')).toBeNull();
-    expect(parseLandingAnswer('{broken json}')).toBeNull();
   });
 
-  it('rejects an answer with no intro', () => {
-    expect(parseLandingAnswer(JSON.stringify({ steps: ['a'] }))).toBeNull();
-  });
-
-  it('clamps field counts and lengths (render safety)', () => {
-    const out = parseLandingAnswer(
-      JSON.stringify({
-        intro: 'i'.repeat(2000),
-        steps: Array.from({ length: 20 }, () => 's'.repeat(600)),
-        note: 'n'.repeat(600),
-      }),
-    );
-    expect(out!.intro.length).toBeLessThanOrEqual(900);
-    expect(out!.steps!.length).toBeLessThanOrEqual(6);
-    expect(out!.steps!.every((s) => s.length <= 400)).toBe(true);
-    expect(out!.note!.length).toBeLessThanOrEqual(400);
+  it('strips control characters and clamps length (render safety)', () => {
+    const out = parseLandingAnswer('ok\u0000\u0007'.repeat(900) + 'x');
+    expect(out!.text).not.toContain('\u0000');
+    expect(out!.text.length).toBeLessThanOrEqual(1400);
   });
 });
 
@@ -256,8 +255,19 @@ describe('buildLandingSystemPrompt', () => {
       expect(prompt).toContain('GENERAL INFORMATION, never advice');
       expect(prompt).toContain('Never invent statutes');
       expect(prompt).toContain('untrusted input');
-      expect(prompt).toContain('JSON');
     }
+  });
+
+  it('asks for conversational Markdown, NOT the old rigid JSON card (owner 2026-11-20: “the ALOA that works in the app”)', () => {
+    const prompt = buildLandingSystemPrompt('vega', null);
+    expect(prompt).toContain('conversational Markdown');
+    expect(prompt).not.toContain('reply with JSON only');
+  });
+
+  it('tells the model to use the reference as background, never to copy it (anti-canned)', () => {
+    const prompt = buildLandingSystemPrompt('vega', 'Topic: Quit notice');
+    expect(prompt).toContain('do not copy its wording or structure');
+    expect(prompt).toContain('Do NOT restate the reference material verbatim');
   });
 
   it('embeds the reference material when provided', () => {

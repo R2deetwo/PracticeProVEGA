@@ -444,7 +444,9 @@
        Android devices: brand green + the P mark + a live spinner says
        "loading" for the entire pre-app phase, seamlessly continuing the
        native splash (same green, same mark — scripts/generate-splash-assets.py).
-       Pure HTML/CSS — zero JavaScript. -->
+       HTML/CSS only; the gate script right below decides — per visit —
+       whether the visitor should ever see it (session boot) or not
+       (landing page / logged out). -->
   <div id="pp-boot-overlay" aria-hidden="true">
     <svg width="72" height="56" viewBox="14 8 36 28" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M14 34C14 35.1046 14.8954 36 16 36H48C49.1046 36 50 35.1046 50 34V10C50 8.89543 49.1046 8 48 8H16C14.8954 8 14 8.89543 14 10V34Z" fill="rgba(255,255,255,0.16)"/>
@@ -454,6 +456,42 @@
     <div class="pp-boot-spinner" role="status" aria-label="Loading"></div>
     <p class="pp-boot-label">Starting</p>
   </div>
+  <script>
+    // SPLASH DISCIPLINE (owner direction 2026-11-20): the splash — this
+    // green loader included — belongs to the LOGIN sequence only (native
+    // splash → this loader → the in-app cinematic → the app). It must
+    // NEVER appear for a visitor opening the landing page, for a
+    // logged-out user landing on the marketing site, or on logout
+    // redirects. This runs synchronously BEFORE any module script, so
+    // for those visitors the overlay is gone before the first paint —
+    // the page paints directly, no splash frame ever flashes.
+    (function () {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        // DraftPro tabs (?draftKey=) skip ALL splash — dedicated editor tab.
+        if (params.get('draftKey')) {
+          var d = document.getElementById('pp-boot-overlay');
+          if (d) d.remove();
+          return;
+        }
+        // A saved session means the APP is booting (session restore =
+        // logging in): keep the overlay — it bridges into the splash
+        // cinematic. No session = a visitor: landing/login pages paint
+        // directly.
+        var hasSession =
+          localStorage.getItem('practicepro_user_session') ||
+          sessionStorage.getItem('practicepro_user_session') ||
+          localStorage.getItem('practicepro_portal_session') ||
+          sessionStorage.getItem('practicepro_portal_session') ||
+          localStorage.getItem('practicepro_portal_type') ||
+          sessionStorage.getItem('practicepro_portal_type');
+        if (!hasSession) {
+          var el = document.getElementById('pp-boot-overlay');
+          if (el) el.remove();
+        }
+      } catch (e) { /* storage unavailable — keep the default overlay */ }
+    })();
+  </script>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
   <script>

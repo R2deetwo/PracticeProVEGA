@@ -1164,6 +1164,23 @@ export const App: React.FC = () => {
         }
     }, [isLoadingSession, hasSavedSession]);
 
+    // ── SPLASH DISCIPLINE (owner direction 2026-11-20): the splash is
+    // for LOGGING IN — never for the landing page, never on logout. When
+    // session loading has FINISHED with NO authenticated user (a fresh
+    // visitor, or a remembered session that failed to restore / expired),
+    // any splash still on screen must dismiss IMMEDIATELY. Previously the
+    // initial splash lingered up to 12s OVER the rendered landing page
+    // while the safety timer counted down — that read as "splash on every
+    // page". The login path never lands here: while a login is in flight
+    // either isLoadingSession is true or currentUser is already set.
+    useEffect(() => {
+        if (isLoadingSession || currentUser) return;
+        if (hasInitialSplashFinished && flowState !== 'splash') return;
+        setFlowState('app');
+        setSplashAnimationComplete(true);
+        setHasInitialSplashFinished(true);
+    }, [isLoadingSession, currentUser, hasInitialSplashFinished, flowState]);
+
     // ── Push Notification Registration ──────────────────────────────────
     // When the user is authenticated AND on a native platform (Android APK),
     // request notification permission and register for push notifications.

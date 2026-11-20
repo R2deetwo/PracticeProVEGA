@@ -53,22 +53,28 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *      separate thing from reaching a lawyer).
  *
  * LIVE AI ENGINE (owner direction, 2026-11-18: "we cannot have something
- *   that is not smart or answers only preset answers"):
+ *   that is not smart or answers only preset answers"; 2026-11-20: "I
+ *   need ALOA that works in the app to work on the landing page as a
+ *   preview for visitors — not the canned answers"):
  *   Every question — free text AND topic chips — is answered by the real
  *   AI through the PUBLIC rate-limited /ai/landing-chat action on Convex
  *   (CORS allow-list + per-IP hourly/daily limits + global daily cap;
- *   see convex/landingChat.ts). The matched topic's owner-approved copy
- *   rides along as grounding REFERENCE so answers stay consistent with
- *   the curated guidance (and the encoded statutory specifics). The
- *   deterministic catalogue below is now the FALLBACK: if the AI surface
- *   is unreachable (key rotation, network, timeout) the panel answers
- *   exactly as it did before — it never regresses to silence. A failed
- *   call falls back for THAT QUESTION ONLY and starts a 60s cooldown
- *   (no hammering a dead surface); the next question retries the engine.
- *   Rate-limit replies are shown HONESTLY, never impersonated by the
- *   catalogue (owner bug report 2026-11-20: two hiccups used to silently
- *   disable the AI for the whole visit, which read as "still a canned
- *   dispenser").
+ *   see convex/landingChat.ts), in the SAME CONVERSATIONAL MARKDOWN
+ *   VOICE as the in-app ALOA — free-flowing prose with a bold takeaway,
+ *   a compact list only when steps genuinely help — rendered rich here
+ *   and revealed with a streaming-style typewriter so the panel feels
+ *   like the product's assistant, not a form. The matched topic's
+ *   owner-approved copy rides along as background REFERENCE (facts must
+ *   stay consistent; wording must NOT be copied — see the server prompt)
+ *   so answers stay reliable without looking canned. The deterministic
+ *   catalogue below is now the FALLBACK: if the AI surface is unreachable
+ *   (key rotation, network, timeout) the panel answers exactly as it did
+ *   before — it never regresses to silence. A failed call falls back for
+ *   THAT QUESTION ONLY and starts a 60s cooldown (no hammering a dead
+ *   surface); the next question retries the engine. Rate-limit replies
+ *   are shown HONESTLY, never impersonated by the catalogue (owner bug
+ *   report 2026-11-20: two hiccups used to silently disable the AI for
+ *   the whole visit, which read as "still a canned dispenser").
  *
  * NAMING (assistantIdentity.ts is the single source of truth):
  *   vega → ALOA (legal guide), atrium → ARIA (property guide).
@@ -140,9 +146,8 @@ const CONVEX_URL = (import.meta.env.VITE_CONVEX_URL as string) || 'https://grega
 const CONVEX_HTTP_URL = CONVEX_URL.replace('.convex.cloud', '.convex.site');
 
 interface LandingAiAnswer {
-    intro: string;
-    steps?: string[];
-    note?: string;
+    /** Conversational markdown — the in-app ALOA voice. */
+    text: string;
 }
 
 interface LandingAiHistoryItem {
@@ -158,7 +163,10 @@ interface LandingAiHistoryItem {
 const LANDING_AI_TIMEOUT_MS = 14000;
 
 /** Ask the live engine. Returns:
- *  - an answer when the engine replied;
+ *  - an answer (conversational markdown) when the engine replied — the
+ *    NEW {text} shape is preferred, and the legacy {intro, steps, note}
+ *    shape is flattened client-side so a half-deployed pair can never
+ *    break the panel;
  *  - 'rate_limited' when the visitor hit the per-IP fence — the caller
  *    shows an honest “you’ve reached the limit” message, NEVER a canned
  *    card (a canned card after real answers reads as the AI breaking —
@@ -190,19 +198,61 @@ async function askLandingAI(payload: {
         if (!res.ok) return null;
         const data = await res.json();
         const a = data?.answer;
+        // New shape: free conversational markdown text.
+        if (typeof a?.text === 'string' && a.text.trim()) {
+            return { text: a.text.trim().slice(0, 2000) };
+        }
+        // Legacy shape (intro/steps/note): flatten to markdown so the
+        // panel renders one consistent experience either way.
         if (a && typeof a.intro === 'string' && a.intro.trim()) {
-            return {
-                intro: a.intro.trim(),
-                steps: Array.isArray(a.steps)
-                    ? a.steps.filter((s: unknown): s is string => typeof s === 'string' && !!s.trim()).slice(0, 6)
-                    : undefined,
-                note: typeof a.note === 'string' && a.note.trim() ? a.note.trim() : undefined,
-            };
+            const parts: string[] = [a.intro.trim()];
+            const steps = Array.isArray(a.steps)
+                ? a.steps.filter((s: unknown): s is string => typeof s === 'string' && !!s.trim()).slice(0, 6)
+                : [];
+            if (steps.length) parts.push(steps.map((s: string, i: number) => `${i + 1}. ${s.trim()}`).join('\n'));
+            if (typeof a.note === 'string' && a.note.trim()) parts.push(`**Note:** ${a.note.trim()}`);
+            return { text: parts.join('\n\n').slice(0, 2000) };
         }
         return null;
     } catch {
         return null;
     }
+}
+
+/** Minimal, ESCAPE-FIRST markdown renderer for live AI answers —
+ *  paragraphs, **bold**, *italic*, `code`, https links and compact
+ *  ul/ol lists. Every character is HTML-escaped BEFORE any tag is
+ *  introduced, so model output can never inject markup. Deliberately
+ *  NOT the in-app parseAloaMarkdown: that one carries interactive
+ *  in-product affordances (task pills, “Draft in DraftPro” hovers) that
+ *  would be dead weight + confusing noise on a public marketing page. */
+function renderLandingMarkdown(md: string): string {
+    const esc = (s: string) => s
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const inline = (s: string) => esc(s)
+        .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-200/70 text-[0.85em]">$1</code>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+            '<a href="$2" target="_blank" rel="noopener noreferrer" class="font-semibold underline underline-offset-2 hover:opacity-80">$1</a>');
+    const blocks = md.replace(/\r/g, '').split(/\n\s*\n/);
+    const out: string[] = [];
+    for (const raw of blocks) {
+        const block = raw.trim();
+        if (!block) continue;
+        const lines = block.split('\n').map((l) => l.trim());
+        const isOl = lines.length > 0 && lines.every((l) => /^\d+[.)]\s+/.test(l));
+        const isUl = lines.length > 0 && lines.every((l) => /^[-*•]\s+/.test(l));
+        if (isOl || isUl) {
+            const items = lines.map((l) => inline(l.replace(isOl ? /^\d+[.)]\s+/ : /^[-*•]\s+/, '')));
+            const tag = isOl ? 'ol' : 'ul';
+            const cls = isOl ? 'list-decimal' : 'list-disc';
+            out.push(`<${tag} class="${cls} list-inside space-y-1 my-1.5 pl-1">${items.map((i) => `<li>${i}</li>`).join('')}</${tag}>`);
+        } else {
+            out.push(`<p class="my-1.5 first:mt-0 last:mb-0">${lines.map(inline).join('<br/>')}</p>`);
+        }
+    }
+    return out.join('');
 }
 
 interface Bubble {
@@ -211,11 +261,14 @@ interface Bubble {
     steps?: string[];
     note?: string;
     /** True when this answer came from the LIVE AI engine (vs the
-     * deterministic catalogue fallback). Rendered as a subtle "AI · live"
-     * tag so a regression to canned answers is VISIBLE at a glance
-     * (owner bug report 2026-11-19: "ALOA on the landing page is still
-     * giving canned answers"). */
+     * deterministic catalogue fallback). Rendered as a subtle pulsing
+     * "live AI" tag so a regression to canned answers is VISIBLE at a
+     * glance (owner bug report 2026-11-19: "ALOA on the landing page is
+     * still giving canned answers"). */
     live?: boolean;
+    /** Render `text` as conversational markdown (the in-app ALOA voice)
+     *  instead of the intro/steps/note card. Set on every live answer. */
+    markdown?: boolean;
     /** Professional-conduct-safe boundary line ("general information,
      *  not legal advice — speak with a qualified lawyer"). */
     lawyerNote?: string;
@@ -405,6 +458,18 @@ const AloaAssistantFab: React.FC<{
     // dispenser” (owner bug report 2026-11-20).
     const liveAiCooldownUntilRef = useRef(0);
 
+    // ── Streaming-style reveal (owner direction 2026-11-20: the landing
+    //    ALOA must feel like the in-app one). Live answers arrive whole
+    //    (the anonymous endpoint is a single POST, not SSE), so the panel
+    //    reveals them with a typewriter: chunks land every ~18ms and the
+    //    full answer is visible within ~2s regardless of length — the
+    //    perceived cadence of token streaming without a streaming
+    //    transport. revealIdx = index of the bubble currently revealing;
+    //    -1 = idle. */
+    const [revealIdx, setRevealIdx] = useState(-1);
+    const [revealChars, setRevealChars] = useState(0);
+    const revealTimer = useRef<number | null>(null);
+
     const introBubble = useMemo<Bubble>(
         () => ({
             role: 'aloa',
@@ -522,12 +587,13 @@ const AloaAssistantFab: React.FC<{
     // Keep the transcript pinned to the latest bubble. For LONG structured
     // guides (steps) the pin moves to the TOP of the answer instead — landing
     // mid-steps hides the intro the way the owner's "blocked up" screenshot
-    // did; the guide should read top-down.
+    // did; the guide should read top-down. revealChars rides the deps so a
+    // typewriter reveal keeps the transcript glued to the growing text.
     useEffect(() => {
         const el = transcriptRef.current;
         if (!el) return;
         const last = bubbles[bubbles.length - 1];
-        if (last?.role === 'aloa' && last.steps?.length) {
+        if (last?.role === 'aloa' && last.steps?.length && revealIdx < 0) {
             const node = el.querySelector<HTMLElement>(`[data-bubble="${bubbles.length - 1}"]`);
             if (node) {
                 el.scrollTop = Math.max(
@@ -538,15 +604,44 @@ const AloaAssistantFab: React.FC<{
             }
         }
         el.scrollTop = el.scrollHeight;
-    }, [bubbles, isThinking, isPanelOpen]);
+    }, [bubbles, isThinking, isPanelOpen, revealIdx, revealChars]);
 
     // Pending timers must never fire into an unmounted tree, and the
     // cookie-bar suppression class must never outlive the panel.
     useEffect(() => () => {
         if (thinkTimer.current) window.clearTimeout(thinkTimer.current);
         if (handoffTimer.current) window.clearTimeout(handoffTimer.current);
+        if (revealTimer.current) window.clearInterval(revealTimer.current);
         document.body.classList.remove('practicepro-aloa-open');
     }, []);
+
+    // The reveal driver: grow revealChars until the target bubble's full
+    // text is visible, then park at -1. Chunks scale with length so short
+    // answers still read as typing and long ones never drag.
+    useEffect(() => {
+        if (revealIdx < 0) return;
+        const target = bubbles[revealIdx];
+        const total = target ? target.text.length : 0;
+        if (revealChars >= total) {
+            if (revealTimer.current) { window.clearInterval(revealTimer.current); revealTimer.current = null; }
+            return;
+        }
+        if (revealTimer.current) return; // already ticking
+        const chunk = Math.max(2, Math.ceil(total / 110)); // ≈110 ticks → ~2s
+        revealTimer.current = window.setInterval(() => {
+            setRevealChars((c) => {
+                const next = c + chunk;
+                if (next >= total && revealTimer.current) {
+                    window.clearInterval(revealTimer.current);
+                    revealTimer.current = null;
+                }
+                return next;
+            });
+        }, 18);
+        return () => {
+            if (revealTimer.current) { window.clearInterval(revealTimer.current); revealTimer.current = null; }
+        };
+    }, [revealIdx, bubbles]);
 
     const pushAloaReply = useCallback((content: {
         text: string;
@@ -606,16 +701,20 @@ const AloaAssistantFab: React.FC<{
             }
             if (result) {
                 liveAiCooldownUntilRef.current = 0; // healthy again — clear any cooldown
+                const nextIdx = bubbles.length; // the index this bubble will land at
                 setBubbles((prev) => [...prev, {
                     role: 'aloa' as const,
-                    text: result.intro,
-                    steps: result.steps,
-                    note: result.note,
+                    // Conversational markdown — the in-app ALOA voice,
+                    // revealed with the streaming-style typewriter.
+                    text: result.text,
                     live: true,
+                    markdown: true,
                     lawyerNote: lawyerNoteCopy,
                     suggestions,
                     teamPrefill: question,
                 }]);
+                setRevealChars(0);
+                setRevealIdx(nextIdx);
                 return true;
             }
             // Transient failure (network/timeout/key): answer THIS question
@@ -930,25 +1029,48 @@ const AloaAssistantFab: React.FC<{
                                                         </span>
                                                     ) : null}
                                                 </div>
-                                                <p className="text-sm text-slate-700 leading-relaxed">{b.text}</p>
-                                                {/* Numbered steps — the substance of the guide. */}
-                                                {b.steps && b.steps.length > 0 && (
-                                                    <ol className="mt-2 space-y-1">
-                                                        {b.steps.map((s, si) => (
-                                                            <li key={si} className="flex gap-2 items-start">
-                                                                <span className={`mt-px w-4 h-4 rounded-full text-2xs font-bold text-white flex items-center justify-center shrink-0 ${isProperty ? 'bg-atrium-emerald' : 'bg-primary-600'}`}>
-                                                                    {si + 1}
-                                                                </span>
-                                                                <span className="text-xs text-slate-700 leading-relaxed">{s}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ol>
-                                                )}
-                                                {/* Caution callout — visually distinct from the steps. */}
-                                                {b.note && (
-                                                    <p className="mt-1.5 text-xs leading-relaxed text-slate-600 border-l-2 border-amber-300 bg-amber-50 rounded-r-lg px-2.5 py-1">
-                                                        {b.note}
-                                                    </p>
+                                                {b.markdown ? (
+                                                    // Live AI answer — conversational markdown rendered
+                                                    // rich (the in-app ALOA voice), revealed with the
+                                                    // streaming-style typewriter. Partial text is
+                                                    // re-parsed each frame; unclosed markers just render
+                                                    // literally for a tick. Escape-first renderer — no
+                                                    // model output can inject markup.
+                                                    <div className="text-sm text-slate-700 leading-relaxed [&_a]:break-all">
+                                                        <span
+                                                            dangerouslySetInnerHTML={{
+                                                                __html: renderLandingMarkdown(
+                                                                    i === revealIdx ? b.text.slice(0, revealChars) : b.text,
+                                                                ),
+                                                            }}
+                                                        />
+                                                        {i === revealIdx && revealChars < b.text.length && (
+                                                            <span className={`inline-block w-[2px] h-[1em] align-text-bottom ml-0.5 ${isProperty ? 'bg-emerald-500' : 'bg-[#1D4ED8]'} animate-pulse`} />
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-sm text-slate-700 leading-relaxed">{b.text}</p>
+                                                        {/* Numbered steps — the substance of the guide. */}
+                                                        {b.steps && b.steps.length > 0 && (
+                                                            <ol className="mt-2 space-y-1">
+                                                                {b.steps.map((s, si) => (
+                                                                    <li key={si} className="flex gap-2 items-start">
+                                                                        <span className={`mt-px w-4 h-4 rounded-full text-2xs font-bold text-white flex items-center justify-center shrink-0 ${isProperty ? 'bg-atrium-emerald' : 'bg-primary-600'}`}>
+                                                                            {si + 1}
+                                                                        </span>
+                                                                        <span className="text-xs text-slate-700 leading-relaxed">{s}</span>
+                                                                    </li>
+                                                                ))}
+                                                            </ol>
+                                                        )}
+                                                        {/* Caution callout — visually distinct from the steps. */}
+                                                        {b.note && (
+                                                            <p className="mt-1.5 text-xs leading-relaxed text-slate-600 border-l-2 border-amber-300 bg-amber-50 rounded-r-lg px-2.5 py-1">
+                                                                {b.note}
+                                                            </p>
+                                                        )}
+                                                    </>
                                                 )}
                                                 {/* Lawyer boundary line (owner review round 2): the
                                                     professional-conduct-safe "this is the amount of

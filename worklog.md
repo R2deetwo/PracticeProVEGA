@@ -19669,3 +19669,22 @@ Stage Summary:
 - Deliverable: production AI fully live and verified smart (landing + backend registry), 4 PRs merged (#4 #5 #13 #14), GitHub security posture enabled, release-signed APK channel, CodeQL + e2e CI, ops docs for the two findings that need owner action.
 - Owner actions: (1) staging one-time setup (docs/ops/STAGING_SETUP.md) to unblock production web promotes; (2) uninstall-once before installing release-signed APKs; (3) keep the keystore backup safe.
 - Deferred: bump→PR refactor to activate the full branch gate; Live API model bump (needs live-session testing); Java/Android CodeQL; Cloudflare mirror token refresh (standing).
+
+---
+Task ID: 68
+Agent: Main agent (Super Z)
+Task: Splash on every page + landing ALOA still canned (owner report 2026-11-20, BOTH CAPS)
+
+Work Log:
+- Repo triage: local tree had 614 sandbox-purged files + an unpushed Task-16 worklog entry; restored tree, pulled 70 commits (main now v1.0.824/build-1226 — includes the 2026-11-20 (a)/(b) landing-AI + Aloa X + staging/alox rounds), committed the Task-16 worklog entry.
+- LIVE STATE VERIFIED BEFORE TOUCHING CODE (the lesson of the last round): production endpoint gregarious-malamute-537.convex.site/ai/landing-chat answers real questions in ~4s; deployed bundle 032966f5 (v1.0.823) already has the live wiring. The user's two real problems: (1) splash surfaces leaking to visitors, (2) the answer FORMAT (rigid intro/steps/note card + catalogue-grounded chips) reads as canned even when the model is live.
+- SPLASH DISCIPLINE: index.html gate script (synchronous, pre-module) removes the green boot overlay before first paint when no saved session exists — visitors, logout redirects and footer new-tab loads now paint the landing page directly; a saved session keeps the overlay (session restore = logging in); DraftPro tabs skip it too. App.tsx SPLASH DISCIPLINE effect: session load finished + no currentUser → any splash still up dismisses instantly (was: stuck up to 12s over the rendered landing page on failed restores). Logout clears keys pre-navigation, so post-logout loads are splash-free end to end.
+- LANDING ALOA = THE IN-APP VOICE: convex/landingChat.ts prompt rewritten from rigid JSON card to conversational markdown (2-4 paragraphs, bold takeaway, one compact list only when steps help, <180 words, do NOT restate the reference verbatim); responseMimeType json removed; parseLandingAnswer → { text }, legacy JSON answers flattened to markdown so a half-deployed pair never breaks the panel. AloaAssistantFab: live answers render as rich markdown (new escape-first landing renderer — NOT parseAloaMarkdown, whose in-product hover pills would be dead noise publicly) revealed with a streaming-style typewriter (18ms chunks, ~2s, blinking caret); live AI tag + lawyer note + catalogue fallback + 60s cooldown + honest 429 all unchanged.
+- ANIMATE-PULSE RATCHET: 82 → 83 in both skeletonFamily.test.ts and scripts/check-design-tokens.mjs (the typewriter caret is a semantic attention state).
+- PERMANENT KEY ARCHIVE (owner instruction): staging dev:shiny-echidna-432 and Alox dev:groovy-mandrill-732 deploy keys archived verbatim in docs/worklog/worklog-2026-11.md § 2026-11-20 (c) — flagged never-delete.
+- Gates: root tsc 0 · convex tsc 0 · vitest 3245/3245 · design tokens green · build green 24.9s.
+
+Stage Summary:
+- Splash = login-only, everywhere: landing visits, logout and visitor paths paint directly; the cinematic survives only for the login/session-restore handoff into the app.
+- Landing ALOA now speaks like the in-app ALOA: conversational markdown, typewriter reveal, live tag — chips get genuinely AI answers grounded on facts, not on canned wording.
+- Cloudflare mirror still frozen at 2026-09-18 (canned ALOA) — canonical URL remains practice-pro-vega.vercel.app; mirror needs the rotated CLOUDFLARE_API_TOKEN (owner action).
