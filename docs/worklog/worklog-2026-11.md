@@ -2124,3 +2124,81 @@ tests/unit, 3,046 it() occurrences.
   the 401 recorded in entry (e) no longer reproduces). Note for the owner:
   GitHub reports 90 Dependabot vulnerabilities on main (3 critical, 40 high,
   36 moderate, 11 low) — worth a triage pass separate from this work.
+
+## 2026-11-20 (g) — "Why does the founder-count alert come, why twice, and notify me on every founder login"
+
+Owner report (voice note): Aloa X keeps telling him there is "more than one
+founder account", the message arrives TWICE, the icon starts as the black
+PracticePro logo then "changes to AX", and — the requirement — "anytime
+somebody logs into a founder account, I should get a notification. It's
+that simple." Also: use the supplied GitHub PAT and stop asking for it.
+
+**Investigation (read-only, production, masked):** new
+`alox-diagnostics.yml` workflow (R17 drill pattern, `npx convex run --prod
+--inline-query` with CONVEX_DEPLOY_KEY) + the new internal
+`alox.founderDiagnostics` query. Production topology:
+
+- TWO founder accounts: "Mr. Chigozie Ubah" p***s@gmail.com (ACTIVE: 1
+  Samsung SM-A145R token, data_only capable, updated today) and "Vadar
+  Radar" d***t@gmail.com (DORMANT: 0 tokens, 0 sessions — an early
+  bootstrap/test account; a role was changed by hand, exactly what the old
+  alert text said).
+- ZERO tokens shared across accounts — the transport double-push vector is
+  not live today, but the code allowed it (see fix 1).
+- `security.founder_count` alert OPEN since 2026-11-19 17:34, notifyCount
+  4 — the critical 6-hour re-notify cadence pushed the SAME alert 4 times
+  in ~24h. The native MessagingService stacks up to 8 entries per tray row
+  (PushNotificationHistory.MAX_ENTRIES) and re-buzzes every re-post
+  (setOnlyAlertOnce(false)) — so the same "2 founder accounts exist" text
+  stacked repeatedly in one row and buzzed each time. That is the "twice"
+  (and the black-logo→"Aloa X:" MessagingStyle retitle is the icon
+  "change": the row is replaced by the conversation-styled version).
+- founder_login_events: EMPTY — the owner hasn't done a fresh password
+  login since the 2026-11-19 watchdog deploy (his session predates it);
+  the alert chain itself is wired (aloxWatchdog.test.ts wiring contracts).
+
+**Fixes (commit 97f2b2e2):**
+
+1. ONE PUSH PER DEVICE — `dispatchPushToUsers` now dedupes token records
+   by token (`dedupeTokenRecords()`): a device registered under multiple
+   accounts (the dormant founder getting a login someday, main app +
+   founder APK both active, token-rotation leftovers) can never receive
+   the same alert twice. Unit-tested.
+2. THE STANDING NAG IS DEAD — `evaluateFounderCount(2+)` is now healthy;
+   the escalation tripwire moved to `computeFounderSetChange()` + a
+   ONE-SHOT `security.founder_set` sweep outcome: the moment an account is
+   added to/removed from the founder set (vs `alox_state.founderBaseline`,
+   new optional schema field), ONE critical alert fires naming the
+   account, the baseline updates, and the alert quietly resolves next
+   sweep (event, not state — no re-notify loop). First run adopts the
+   current set silently; the old open `security.founder_count` alert
+   resolves with a single closing push, then the platform is quiet. This
+   is the right security shape: the attack signal is a CHANGE in the
+   founder set, not the steady state of having two.
+3. EVERY FOUNDER LOGIN NOTIFIES — `recordFounderLoginEvent` now ALWAYS
+   pushes SUCCESS events (the old 15-min dedup swallowed back-to-back
+   logins from two devices); failed bursts still collapse to one push
+   (5 wrong passwords ≠ 5 buzzes) and lockouts still always push. Every
+   attempt lands in `founder_login_events` (90-day retention) and the
+   Aloa X dashboard "Founder account logins" feed regardless of push.
+4. Keep-or-remove answer for the owner: KEEPING BOTH IS NOW FINE (quiet,
+   monitored, every login on either account notifies). If he prefers to
+   retire "Vadar Radar": Convex dashboard → users → that row → change role
+   away from Founder (or set deactivatedAt) — the new tripwire will fire
+   exactly ONE "Founder accounts changed — REMOVED: d***t@gmail.com"
+   notification confirming it. Not done from here: it is a destructive
+   production identity change and the account's owner is not identified.
+
+**PAT custody:** the owner's GitHub PAT is now stored OUTSIDE the repo
+(`/home/z/my-project/config/convex-deploy-keys.env`, `GITHUB_PAT=`) and
+embedded in the local git remote URL — future sessions stop asking. It is
+NOT in any repo file: the repository is PUBLIC (double-checked via API:
+private: false) and GitHub push protection blocks raw ghp_ values anyway.
+The two Convex deploy keys archived verbatim in entry (c) remain as
+instructed; flag again for the owner: staging/AloaX keys in a public repo
+is a standing exposure — rotate by replace-first if that ever matters.
+
+**Gates:** convex tsc 0, root tsc 0, vitest 3,316 passed / 1 skipped,
+identity audit passed, UI ratchet held. Deployed to production via the
+targeted `convex-production-deploy.yml` (full quality gate re-ran in CI);
+post-deploy diagnostics verify the baseline adoption + alert resolution.
