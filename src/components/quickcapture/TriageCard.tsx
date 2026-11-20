@@ -1067,7 +1067,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
                     <div
                       role="menu"
                       aria-label={`Label ${label}`}
-                      className="mt-1.5 rounded-xl border border-slate-200 bg-white shadow-lg p-2.5 space-y-2 z-10"
+                      className="mt-1.5 rounded-lg border border-slate-200 bg-white shadow-lg p-2.5 space-y-2 z-10"
                     >
                       <div className="flex flex-wrap gap-1.5">
                         <Button variant="outline" size="sm" className="!text-2xs" onClick={() => applySpeakerName("Me (Counsel)")}>
