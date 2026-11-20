@@ -2120,6 +2120,7 @@ tests/unit, 3,046 it() occurrences.
 ### Deployment status (this entry)
 
 - Docs-only; no functions/schema changed; nothing to deploy.
-- PUSH TO MAIN: still expected BLOCKED — the archived PAT returned 401 on
-  2026-11-20 (e). This entry is committed locally; push will be retried and
-  reported. Owner action remains: mint a fresh PAT and update the split archive.
+- PUSH TO MAIN: SUCCEEDED — 6dcd922e pushed (the archived PAT works again;
+  the 401 recorded in entry (e) no longer reproduces). Note for the owner:
+  GitHub reports 90 Dependabot vulnerabilities on main (3 critical, 40 high,
+  36 moderate, 11 low) — worth a triage pass separate from this work.
