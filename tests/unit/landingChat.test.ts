@@ -54,6 +54,31 @@ describe('http route registration — preflight must be routable', () => {
   });
 });
 
+// ─── CSP RATCHET (the 2026-11-20 "STILL canned" root cause, round 3) ──────
+// The landing chat fetches the Convex HTTP-action surface at
+// https://<deployment>.convex.site — but the <meta http-equiv CSP> in the
+// HTML shells allowed only *.convex.cloud. A REAL browser blocks the fetch
+// at the CSP layer (before any network request), so every visitor silently
+// fell back to the canned catalogue — while curl (never enforces CSP) and
+// fetch-mocked browser tests kept "verifying" the endpoint as live. These
+// pins make dropping the directive fail the suite immediately.
+describe('CSP allows the Convex HTTP-action domain browsers must reach', () => {
+  const shells = ['index.html', 'admin.html'] as const;
+
+  for (const shell of shells) {
+    it(`REGRESSION: ${shell} connect-src allows https://*.convex.site (landing chat + /ai/stream)`, () => {
+      const html = readFileSync(join(process.cwd(), shell), 'utf8');
+      const csp = html.match(/http-equiv="Content-Security-Policy"\s+content="([\s\S]*?)"/);
+      expect(csp).not.toBeNull();
+      const connectSrc = csp![1].split(';')
+        .map((d) => d.trim())
+        .find((d) => d.startsWith('connect-src'));
+      expect(connectSrc).toBeDefined();
+      expect(connectSrc!).toContain('https://*.convex.site');
+    });
+  }
+});
+
 describe('landingCorsHeaders', () => {
   it('allows the production, staging and mirror origins with echo', () => {
     for (const origin of [
