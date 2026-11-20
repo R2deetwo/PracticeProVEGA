@@ -1562,3 +1562,57 @@ CLOUDFLARE_API_TOKEN is rotated (RUNBOOK §9).
 Gates: root tsc 0 · convex tsc 0 · vitest 3245/3245 (landingChat 32/32,
 skeleton family ratchet 83/83 held — the typewriter caret is a semantic
 attention state) · design-token gate green · vite build green.
+
+### Fix 2b — THE ROOT CAUSE FOUND: the route was POST-only, so every BROWSER call died at preflight
+
+After shipping the voice change to staging, the end-to-end browser test
+STILL fell back to the catalogue — while curl kept answering. The split
+pointed at the one difference between the two callers: browsers send a
+CORS PREFLIGHT (OPTIONS) before a cross-origin `application/json` POST.
+Probe: `OPTIONS /ai/landing-chat` on BOTH deployments returned
+**404 "No matching routes found"**. Convex's httpRouter dispatches by
+(path, method) — the route was registered `method: "POST"` only, so the
+handler's carefully-written OPTIONS/CORS branch was DEAD CODE the whole
+time. **No browser visitor has EVER reached the live engine** — every
+single web fetch failed before leaving the ground and the panel silently
+regressed to the canned catalogue, while every curl/server-side
+"verification" in the worklogs (no Origin → no preflight) reported the
+endpoint as healthy. Same latent bug on `/ai/stream` (the browser
+viaServerProxy AI mode) and `/api/push-reply` (its OPTIONS branch was
+also unreachable).
+
+FIX (convex/http.ts): every route whose handler contains an OPTIONS
+branch is now registered for BOTH methods — `/ai/landing-chat`,
+`/ai/stream`, `/api/agent/inspect` (GET+OPTIONS; browsers preflight the
+custom x-agent-inspect-key header), `/api/push-reply`. The inline
+handlers were extracted to named consts so one handler serves both
+registrations. Three REGRESSION pins added to tests/unit/landingChat.test.ts
+grep http.ts for the OPTIONS registrations — a POST-only re-registration
+now fails the suite.
+
+LIVE VERIFICATION on staging (shiny-echidna-432, deployed with the
+staging key):
+- `OPTIONS /ai/landing-chat` with Origin=staging Vercel → **204** +
+  ACAO echo/Methods/Headers/Max-Age; Origin=localhost:4174 → **204**;
+  Origin=evil.example.com → **403**.
+- `POST /ai/landing-chat` with Origin → **200 + full CORS headers +
+  the new conversational answer** ("**No, a one-week notice to quit is
+  generally not legal…**" — bold takeaway, flowing paragraphs, no card).
+- Chip-style question (court letter + full reference payload): the model
+  keeps the FACTS (court name, suit number, respond-by date, keep
+  originals, act early) but speaks entirely in its own words — the
+  anti-canned grounding instruction works.
+- `/ai/stream` and `/api/push-reply` preflights → 200.
+- Client rendering (browser, fetch mocked at the window.fetch seam —
+  this sandbox's headless browser has no external network): live answer
+  renders with the pulsing "live AI" tag, `<strong>` bold, `<ol><li>`
+  list, streaming-style typewriter reveal with blinking caret that
+  clears on completion. The 60s cooldown also verified live (a question
+  inside the cooldown window correctly skips the engine).
+
+NOTE for the production promote: this fix must reach PRODUCTION
+(gregarious-malamute-537) before the website ALOA is truly live for
+visitors — the currently-deployed production backend still 404s the
+preflight, which is exactly what the owner has been seeing. Frontend at
+032966f5 already calls the endpoint correctly; once the backend promote
+lands, every browser visitor gets the real AI.

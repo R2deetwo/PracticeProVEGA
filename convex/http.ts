@@ -16,9 +16,24 @@ const http = httpRouter();
 // rate limits + a global daily cap (see convex/landingChat.ts). Owner
 // direction 2026-11-18: the website assistant is a real AI, with the
 // client-side topic catalogue kept as grounding reference + fallback.
+//
+// ROOT-CAUSE FIX (owner report 2026-11-20, "STILL canned answers"): the
+// route was registered POST-ONLY, so Convex's httpRouter answered every
+// CORS PREFLIGHT (OPTIONS) with 404 "No matching routes found" — the
+// handler's OPTIONS branch below was DEAD CODE. Browsers must preflight a
+// cross-origin application/json POST, so EVERY browser visitor's fetch
+// failed before leaving the ground and the panel silently fell back to
+// the canned catalogue, while curl/server-side callers (no preflight)
+// kept "verifying" the endpoint as live. The route is now registered for
+// BOTH methods — the handler branches on request.method.
 http.route({
   path: "/ai/landing-chat",
   method: "POST",
+  handler: handleLandingChat,
+});
+http.route({
+  path: "/ai/landing-chat",
+  method: "OPTIONS",
   handler: handleLandingChat,
 });
 
@@ -64,10 +79,11 @@ http.route({
   }),
 });
 
-http.route({
-  path: "/ai/stream",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
+// /ai/stream — same preflight fix as /ai/landing-chat above: the handler's
+// OPTIONS branch was dead code on a POST-only route, so browser callers
+// (the viaServerProxy AI mode) could never pass preflight. Handler
+// extracted to a const so it can serve both method registrations.
+const handleAiStream = httpAction(async (ctx, request) => {
     if (request.method === "OPTIONS") {
       return new Response(null, {
         headers: {
@@ -186,7 +202,17 @@ http.route({
         "Access-Control-Allow-Origin": "*",
       }
     });
-  }),
+});
+
+http.route({
+  path: "/ai/stream",
+  method: "POST",
+  handler: handleAiStream,
+});
+http.route({
+  path: "/ai/stream",
+  method: "OPTIONS",
+  handler: handleAiStream,
 });
 
 // ─── AUTOMATED EMAIL UNSUBSCRIBE ────────────────────────────────────────────
@@ -245,10 +271,10 @@ export default http;
 // ─── Agent Inspection API ────────────────────────────────────────────────────
 // Secure endpoint for automated AI agents to audit the app's data layer.
 // Gated by AGENT_INSPECT_SECRET env var — returns 403 without it.
-http.route({
-  path: "/api/agent/inspect",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
+// Same preflight fix as /ai/landing-chat: GET-only registration left this
+// handler's OPTIONS branch dead (browsers preflight the custom
+// x-agent-inspect-key header). Extracted to a const for both methods.
+const handleAgentInspect = httpAction(async (ctx, request) => {
     // CORS
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -374,7 +400,17 @@ http.route({
         "Access-Control-Allow-Origin": "*",
       },
     });
-  }),
+});
+
+http.route({
+  path: "/api/agent/inspect",
+  method: "GET",
+  handler: handleAgentInspect,
+});
+http.route({
+  path: "/api/agent/inspect",
+  method: "OPTIONS",
+  handler: handleAgentInspect,
 });
 
 // ─── Observability Drill API (R17) ───────────────────────────────────────────
@@ -435,10 +471,9 @@ http.route({
 // mutation it unlocks re-checks conversation membership.
 //
 // Payload: { replyToken: string, conversationId: string, text: string }
-http.route({
-  path: "/api/push-reply",
-  method: "POST",
-  handler: httpAction(async (ctx, request) => {
+// Same preflight fix: POST-only registration left the handler's OPTIONS
+// branch dead. Extracted to a const for both methods.
+const handlePushReply = httpAction(async (ctx, request) => {
     // Preflight for the (unlikely) browser-based caller.
     if (request.method === "OPTIONS") {
       return new Response(null, {
@@ -500,5 +535,15 @@ http.route({
         "Access-Control-Allow-Origin": "*",
       },
     });
-  }),
+});
+
+http.route({
+  path: "/api/push-reply",
+  method: "POST",
+  handler: handlePushReply,
+});
+http.route({
+  path: "/api/push-reply",
+  method: "OPTIONS",
+  handler: handlePushReply,
 });

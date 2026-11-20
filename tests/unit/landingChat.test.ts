@@ -17,6 +17,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   landingCorsHeaders,
   resolveLandingApiKeys,
@@ -25,6 +27,32 @@ import {
   parseLandingAnswer,
   buildLandingSystemPrompt,
 } from '../../convex/landingChat';
+
+// ─── ROUTE REGISTRATION RATCHET (the 2026-11-20 root cause) ─────────────
+// The landing chat was registered POST-ONLY in convex/http.ts, so Convex's
+// httpRouter answered every CORS PREFLIGHT (OPTIONS) with 404 — the
+// handler's OPTIONS branch was dead code and EVERY browser visitor fell
+// back to the canned catalogue while curl (no preflight) kept "verifying"
+// the endpoint as live. These pins make a POST-only re-registration fail
+// the suite immediately.
+describe('http route registration — preflight must be routable', () => {
+  const httpSrc = readFileSync(join(process.cwd(), 'convex/http.ts'), 'utf8');
+
+  it('REGRESSION: /ai/landing-chat is registered for BOTH POST and OPTIONS', () => {
+    expect(httpSrc).toMatch(/path:\s*"\/ai\/landing-chat",\s*method:\s*"POST"/);
+    expect(httpSrc).toMatch(/path:\s*"\/ai\/landing-chat",\s*method:\s*"OPTIONS"/);
+  });
+
+  it('REGRESSION: /ai/stream is registered for BOTH POST and OPTIONS (browser viaServerProxy mode)', () => {
+    expect(httpSrc).toMatch(/path:\s*"\/ai\/stream",\s*method:\s*"POST"/);
+    expect(httpSrc).toMatch(/path:\s*"\/ai\/stream",\s*method:\s*"OPTIONS"/);
+  });
+
+  it('REGRESSION: /api/push-reply is registered for BOTH POST and OPTIONS', () => {
+    expect(httpSrc).toMatch(/path:\s*"\/api\/push-reply",\s*method:\s*"POST"/);
+    expect(httpSrc).toMatch(/path:\s*"\/api\/push-reply",\s*method:\s*"OPTIONS"/);
+  });
+});
 
 describe('landingCorsHeaders', () => {
   it('allows the production, staging and mirror origins with echo', () => {
