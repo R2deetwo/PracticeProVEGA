@@ -60,7 +60,6 @@ import { useUI } from "../../contexts/UIContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { useCoreState } from "../../contexts/CoreContext";
 import { useMatterState } from "../../contexts/MatterContext";
-import { useProduct } from "../../contexts/ProductContext";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { useQuickCapture } from "../../hooks/useQuickCapture";
 import { MATTERS_NOTEBOOK_ID } from "../../constants";
@@ -78,7 +77,7 @@ import {
   getStartupViewPreference,
   setStartupViewPreference,
 } from "../../utils/startupViewPreference";
-import { extractNewClipText, joinDraftText } from "../../services/voice/draftUtils";
+import { extractNewClipText, joinDraftText, composeSpeakerDraft, defaultSpeakerLabels, isMultiSpeakerSet } from "../../services/voice/draftUtils";
 import { VoiceTipsPanel } from "./VoiceTipsPanel";
 import { TriageCard } from "./TriageCard";
 import { QuickAskActions } from "./QuickAskActions";
@@ -135,6 +134,23 @@ function writeWhisperPref(on: boolean): void {
   } catch { /* private mode etc. */ }
 }
 
+/** CONVERSATION MODE persistence (owner spec 2026-11-20) — local
+ *  preference, same pattern as Quiet Mode. OFF by default: solo
+ *  dictation stays the zero-friction default. */
+const CONVERSATION_PREF_KEY = "practicepro_conversation_mode";
+function readConversationPref(): boolean {
+  try {
+    return localStorage.getItem(CONVERSATION_PREF_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeConversationPref(on: boolean): void {
+  try {
+    localStorage.setItem(CONVERSATION_PREF_KEY, on ? "1" : "0");
+  } catch { /* private mode etc. */ }
+}
+
 /** Phone-like device? Same heuristic the boot redirect in App.tsx uses. */
 function useIsPhoneLike(): boolean {
   const [isPhone, setIsPhone] = useState(() => {
@@ -184,13 +200,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const isPhoneLike = useIsPhoneLike();
 
-  // ── Workspace accent (owner directive, 2026-11-19): in Vega and
-  //    Komplete workspaces Quick Capture's hero elements — the mic circle,
-  //    the Ask button and the active Speak tab — wear the Vega deep-blue
-  //    register (#1D4ED8 / #1E3A8A) with crisp white icons and text.
-  //    Green stays exclusive to Atrium firms and the admin console.
-  const { isAtrium } = useProduct();
-  const vegaAccent = !isAtrium; // Vega + Komplete (unified)
+  // ── ACCENT NOTE (owner directive, 2026-11-20): "use the blue accent
+  //    for Vega and Complete — green only for Atrium. Quick capture is
+  //    blue but the full office is green — that makes no sense." The
+  //    per-surface hardcoded blues are GONE: every hero element here now
+  //    reads the app-wide primary-* ramp, which is the Vega blue
+  //    (#1D4ED8 / #1E3A8A) for Vega AND Komplete workspaces and the estate
+  //    jade for Atrium — one uniform register everywhere.
 
   // ── "Start in Quick Capture on mobile" (owner addendum 2026-11-18).
   //    OFF by default — everyone lands on the Full Office dashboard first.
@@ -213,7 +229,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     setStartupViewPreference(currentUser.id, next ? "capture" : "office");
     addToast(
       next
-        ? "Mobile launches will open straight into Quick Capture."
+        ? "Mobile launches will open straight into Vox."
         : "Mobile launches will open the Full Office dashboard first.",
       { type: "success" }
     );
@@ -240,6 +256,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
    *  profile): persisted local preference, threaded into the capture hook
    *  so the next recording uses quiet-speech constraints. */
   const [whisperMode, setWhisperMode] = useState(readWhisperPref);
+  /** CONVERSATION MODE (owner spec 2026-11-20): multi-speaker capture —
+   *  consultations, witness conferences, settlement meetings, court
+   *  hearings. Toggle sits above the mic; the NEXT recording round picks
+   *  it up (live-ref, same as Quiet Mode). Persisted locally. */
+  const [conversationMode, setConversationMode] = useState(readConversationPref);
   /** Voice Tips panel (Part 3). */
   const [showTips, setShowTips] = useState(false);
   /** Compact-header settings popover (owner directive 2026-11-19): the
@@ -278,6 +299,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   const qc = useQuickCapture({
     eventTypeNames,
     whisper: whisperMode,
+    conversation: conversationMode,
     onReadyToast: () => {
       addToast("Voice note ready — tap to review it.", { type: "success" });
     },
@@ -291,6 +313,20 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
         next
           ? "Quiet Mode on — quiet speech is captured cleanly."
           : "Quiet Mode off — standard noise filtering.",
+        { type: "success" }
+      );
+      return next;
+    });
+  }, [addToast]);
+
+  const toggleConversationMode = useCallback(() => {
+    setConversationMode((prev) => {
+      const next = !prev;
+      writeConversationPref(next);
+      addToast(
+        next
+          ? "Conversation mode on — the next recording separates each speaker for labelling."
+          : "Conversation mode off — the next recording is a solo dictation.",
         { type: "success" }
       );
       return next;
@@ -316,8 +352,15 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       // A different capture (first arrival, or a brand-new note after Done):
       // seed a fresh draft from the preferred tier. The "clean" tier now
       // prefers the FORMATTED body (caseNoteText — paragraphs/bullets chosen
-      // by content, meta-speech stripped) over plain Smart Clean.
-      const formatted = formattedTierText(capture);
+      // by content, meta-speech stripped) over plain Smart Clean. A
+      // DIARIZED conversation (conversation mode, 2+ speakers) seeds the
+      // speaker-attributed dialogue instead — bold "**Label:**" blocks the
+      // triage card relabels live (owner spec 2026-11-20).
+      const diarized = isMultiSpeakerSet(capture.speakerTurns);
+      const formatted =
+        diarized && draftSource === "clean"
+          ? composeSpeakerDraft(capture.speakerTurns!, defaultSpeakerLabels(capture.speakerTurns!))
+          : formattedTierText(capture);
       const source: DraftSource = formatted && draftSource === "clean" ? "clean" : "verbatim";
       setDraftText(source === "clean" ? formatted || verbatim : verbatim);
       setDraftSource(source);
@@ -595,14 +638,15 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     [embedded, onExitEmbedded, navigateTo]
   );
 
-  // ── Compact header (owner directive, 2026-11-19): phone viewports and
-  //    the narrow ALOA panel column get a strict three-slot bar — back |
-  //    one-line title | Full Office + ⚙ — while the wide standalone view
-  //    keeps the informative title + subtitle. On phones the embedded
-  //    title shrinks to "QC" so it can never wrap or collide with the
+  // ── Compact header (owner directive, 2026-11-19; rebrand 2026-11-20):
+  //    phone viewports and the narrow ALOA panel column get a strict
+  //    three-slot bar — back | one-line title | Full Office + ⚙ — while the
+  //    wide standalone view keeps the informative title + subtitle. The
+  //    product is VOX everywhere (owner direction 2026-11-20: "get rid of
+  //    that QC") — three letters, never wraps, never collides with the
   //    buttons; "ALOA" is rendered exactly once (the back button).
   const compactHeader = embedded || isPhoneLike;
-  const headerTitle = embedded && isPhoneLike ? "QC" : "Quick Capture";
+  const headerTitle = "Vox";
 
   // ─── Render ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -641,7 +685,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           ) : (
             <div className="min-w-0">
               <h1 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap">
-                Quick Capture
+                Vox
               </h1>
               <p className="text-2xs text-slate-500 leading-tight truncate">
                 {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
@@ -655,7 +699,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             <div className="flex-1 min-w-0 flex justify-center">
               <h1
                 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap truncate"
-                aria-label="Quick Capture"
+                aria-label="Vox"
               >
                 {headerTitle}
               </h1>
@@ -686,9 +730,6 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   size="sm"
                   aria-pressed={whisperMode}
                   title="Quiet Mode — capture quiet speech cleanly"
-                  className={
-                    whisperMode && vegaAccent ? "!bg-[#1D4ED8] hover:!bg-[#1E3A8A]" : ""
-                  }
                   onClick={() => {
                     light();
                     toggleWhisperMode();
@@ -718,8 +759,8 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   size="sm"
                   iconOnly
                   icon={CogIcon}
-                  aria-label="Quick Capture settings"
-                  title="Quick Capture settings"
+                  aria-label="Vox settings"
+                  title="Vox settings"
                   aria-expanded={showSettingsMenu}
                   aria-haspopup="menu"
                   onClick={() => {
@@ -730,7 +771,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 {showSettingsMenu ? (
                   <div
                     role="menu"
-                    aria-label="Quick Capture settings"
+                    aria-label="Vox settings"
                     className={`absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg p-2 ${Z_CLASS.panelMenu}`}
                   >
                     {/* Quiet Mode — quiet-speech capture profile. */}
@@ -765,15 +806,9 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                             toggleWhisperMode();
                           }
                         }}
-                        className={`${
-                          whisperMode
-                            ? vegaAccent
-                              ? "bg-[#1D4ED8]"
-                              : "bg-emerald-600"
-                            : "bg-slate-300"
-                        } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 ${
-                          vegaAccent ? "focus-visible:ring-blue-600" : "focus-visible:ring-emerald-500"
-                        } focus-visible:ring-offset-2`}
+                        className={`
+                          ${whisperMode ? "bg-primary-600" : "bg-slate-300"}
+                        } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                       >
                         <span
                           className={`${
@@ -792,7 +827,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                           htmlFor="qc-startup-toggle"
                           className="text-sm font-semibold text-slate-800 leading-tight"
                         >
-                          Start in Quick Capture on mobile
+                          Start in Vox on mobile
                           <span className="block text-2xs font-normal text-slate-400 mt-0.5">
                             Launch straight here instead of the dashboard
                           </span>
@@ -801,7 +836,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                           id="qc-startup-toggle"
                           role="switch"
                           aria-checked={startInQuickCapture}
-                          aria-label="Start in Quick Capture on mobile"
+                          aria-label="Start in Vox on mobile"
                           tabIndex={0}
                           onClick={() => {
                             light();
@@ -814,15 +849,9 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                               handleToggleStartup();
                             }
                           }}
-                          className={`${
-                            startInQuickCapture
-                              ? vegaAccent
-                                ? "bg-[#1D4ED8]"
-                                : "bg-emerald-600"
-                              : "bg-slate-300"
-                          } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 ${
-                            vegaAccent ? "focus-visible:ring-blue-600" : "focus-visible:ring-emerald-500"
-                          } focus-visible:ring-offset-2`}
+                          className={`
+                            ${startInQuickCapture ? "bg-primary-600" : "bg-slate-300"}
+                          } relative inline-flex items-center h-6 rounded-full w-11 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2`}
                         >
                           <span
                             className={`${
@@ -886,7 +915,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
       ) : null}
 
       {mode === "speak" ? (
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
           {/* Search / ask bar */}
           <div className="px-4 pt-4">
             <form
@@ -915,7 +944,6 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 minTouchTarget
                 icon={SparklesIcon}
                 loading={asking}
-                className={vegaAccent ? "!bg-[#1D4ED8] hover:!bg-[#1E3A8A]" : ""}
               >
                 Ask
               </Button>
@@ -937,7 +965,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               Searching your matters, notes and schedule…
             </div>
           ) : askResult ? (
-            <div className="mx-4 mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <div className="mx-4 mt-3 rounded-lg border border-primary-200 bg-primary-50 p-4">
               <p className="text-base leading-relaxed text-slate-800 whitespace-pre-wrap">{askResult.answer}</p>
               {/* Read-only hint (owner bug report 2026-11-19): pure lookup
                   questions never create entries — say so explicitly so the
@@ -981,6 +1009,46 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           {/* The walkie-talkie launcher — generous vertical breathing room
               on phones so the mic circle owns the visual centre. */}
           <div className="flex flex-col items-center gap-4 px-4 pt-10 pb-8">
+            {/* CONVERSATION MODE (owner spec 2026-11-20): solo dictation vs
+                multi-speaker capture. A segmented pair ABOVE the mic — the
+                next recording round picks the mode (live-ref, same as Quiet
+                Mode). Conversation recordings transcribe with speaker-turn
+                separation and stage with tappable speaker pills. Built on
+                the ui/Button primitive (ADR-0004 — no raw form elements). */}
+            {qc.phase === "idle" || qc.phase === "error" ? (
+              <div
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white p-0.5 shadow-sm"
+                role="group"
+                aria-label="Recording mode"
+              >
+                <Button
+                  variant="bare"
+                  size="sm"
+                  aria-pressed={!conversationMode}
+                  className={`!rounded-full !px-3 !py-1.5 text-xs font-bold transition-colors ${
+                    !conversationMode
+                      ? "bg-primary-600 text-white hover:bg-primary-700"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                  onClick={() => { if (conversationMode) toggleConversationMode(); }}
+                >
+                  Dictation
+                </Button>
+                <Button
+                  variant="bare"
+                  size="sm"
+                  aria-pressed={conversationMode}
+                  className={`!rounded-full !px-3 !py-1.5 text-xs font-bold transition-colors ${
+                    conversationMode
+                      ? "bg-primary-600 text-white hover:bg-primary-700"
+                      : "text-slate-500 hover:text-slate-800"
+                  }`}
+                  onClick={() => { if (!conversationMode) toggleConversationMode(); }}
+                >
+                  Conversation
+                </Button>
+              </div>
+            ) : null}
             {qc.phase === "triage" && qc.capture ? (
               <div className="w-full max-w-md">
                 {qc.error ? (
@@ -1054,7 +1122,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
               </>
             ) : qc.phase === "processing" ? (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <span className="inline-block w-8 h-8 rounded-full border-[3px] border-slate-200 border-t-emerald-600 animate-spin" />
+                <span className="inline-block w-8 h-8 rounded-full border-[3px] border-slate-200 border-t-primary-600 animate-spin" />
                 <p className="font-semibold text-slate-900">
                   {qc.appending ? "Transcribing your addition…" : "Transcribing…"}
                 </p>
@@ -1087,9 +1155,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 <Button
                   variant="primary"
                   size="lg"
-                  className={`!w-28 !h-28 !rounded-full !px-0 shadow-lg ${
-                    vegaAccent ? "!bg-[#1D4ED8] hover:!bg-[#1E3A8A]" : ""
-                  }`}
+                  className="!w-28 !h-28 !rounded-full !px-0 shadow-lg"
                   aria-label="Start recording"
                   onClick={() => {
                     medium();
@@ -1099,10 +1165,13 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 >
                   <MicrophoneIcon className="w-11 h-11" />
                 </Button>
-                <p className="text-sm font-semibold text-slate-900">Tap to speak</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {conversationMode ? "Tap to record the conversation" : "Tap to speak"}
+                </p>
                 <p className="text-xs text-slate-500 text-center max-w-xs">
-                  Dictate a note, a task or a question — no forms first. We'll suggest where it
-                  should go when you stop.
+                  {conversationMode
+                    ? "Client consultations, witness conferences, settlement meetings, court hearings — each speaker is separated and labelled for you."
+                    : "Dictate a note, a task or a question — no forms first. We'll suggest where it should go when you stop."}
                 </p>
                 {!online ? (
                   <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
@@ -1225,7 +1294,6 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             minTouchTarget
             fullWidth
             icon={MicrophoneIcon}
-            className={vegaAccent ? "!bg-[#1D4ED8] !text-white" : ""}
             onClick={() => setMode("speak")}
           >
             Speak

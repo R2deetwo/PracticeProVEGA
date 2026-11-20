@@ -69,15 +69,19 @@ import {
   XMarkIcon,
 } from "../../constants";
 import { useUI } from "../../contexts/UIContext";
-import { useDataActions } from "../../contexts/DataContext";
+import { useDataActions, useDataState } from "../../contexts/DataContext";
 import { useCoreState } from "../../contexts/CoreContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { MATTERS_NOTEBOOK_ID } from "../../constants";
 import type { Matter } from "../../types";
 import {
+  composeSpeakerDraft,
+  defaultSpeakerLabels,
   eventDescriptionFrom,
   extractLearnedTerms,
   formatEndorsementText,
+  isMultiSpeakerSet,
+  type SpeakerTurnSet,
 } from "../../services/voice/draftUtils";
 // VOICE → DRAFTPRO PIPELINE (owner spec 2026-11-19): the Drafting Blueprint
 // card — deterministic taxonomy + assembly replace the old free-text brief.
@@ -172,6 +176,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   const actions = useDataActions();
   const { coreState } = useCoreState();
   const { currentUser } = useAuth();
+  const { appState } = useDataState();
 
   const triage = capture.triageMeta || {};
 
@@ -219,6 +224,89 @@ export const TriageCard: React.FC<TriageCardProps> = ({
   }, [semanticMatches, triage.matchedMatterIds, triage.matchedContactIds, matters]);
 
   const [selectedMatterId, setSelectedMatterId] = useState(preselectedMatterId);
+
+  // ── MULTI-SPEAKER DIARIZATION (owner spec 2026-11-20) ─────────────────────
+  // Conversation-mode captures stage with reconciled speaker turns. The
+  // panel below the header shows the dialogue as tappable speaker pills —
+  // 1-tap relabel with legal-role presets (Me (Counsel) / Client /
+  // Opposing Counsel / Witness / Judge / Court / custom), "update all turns
+  // for this speaker" ON by default, and merge-speakers for voices the
+  // audio split. Solo dictations (or a reconcile that found only one
+  // voice) keep the clean single-block view — no badges, no clutter.
+  const speakerSet = (capture.speakerTurns ?? null) as SpeakerTurnSet | null;
+  const diarized = isMultiSpeakerSet(speakerSet);
+  const [speakerLabels, setSpeakerLabels] = useState<Record<string, string>>(() =>
+    speakerSet ? defaultSpeakerLabels(speakerSet) : {}
+  );
+  /** Per-TURN label overrides — set when "Update all turns" is OFF. */
+  const [turnLabelOverrides, setTurnLabelOverrides] = useState<Record<number, string>>({});
+  const [openSpeakerMenu, setOpenSpeakerMenu] = useState<{ speakerId: string; turnIndex: number | null } | null>(null);
+  const [updateAllTurns, setUpdateAllTurns] = useState(true);
+  const [customSpeakerName, setCustomSpeakerName] = useState("");
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  useEffect(() => {
+    // Fresh capture (or Add More re-finalize): reseed labels + drop overrides.
+    if (speakerSet) setSpeakerLabels(defaultSpeakerLabels(speakerSet));
+    setTurnLabelOverrides({});
+    setOpenSpeakerMenu(null);
+    setMergeTargetId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capture.clientLocalId, capture.speakerTurns]);
+
+  /** The matched/selected matter's client name — pre-fills the Client preset. */
+  const presetClientName = useMemo(() => {
+    const m = matters.find((x) => x.id === selectedMatterId);
+    if (!m?.clientId) return null;
+    const c = (appState.contacts || []).find((ct: any) => ct.id === m.clientId);
+    return c?.name || null;
+  }, [matters, selectedMatterId, appState.contacts]);
+
+  const applySpeakerDraft = (
+    nextLabels: Record<string, string>,
+    nextOverrides: Record<number, string>
+  ) => {
+    if (!speakerSet) return;
+    setSpeakerLabels(nextLabels);
+    setTurnLabelOverrides(nextOverrides);
+    onDraftChange(composeSpeakerDraft(speakerSet, nextLabels, nextOverrides));
+  };
+
+  const applySpeakerName = (name: string) => {
+    if (!openSpeakerMenu || !speakerSet) return;
+    const { speakerId, turnIndex } = openSpeakerMenu;
+    const nextLabels = { ...speakerLabels, [speakerId]: name };
+    let nextOverrides = { ...turnLabelOverrides };
+    if (updateAllTurns || turnIndex === null) {
+      // Rename the speaker across the whole note (default).
+      speakerSet.turns.forEach((t, i) => {
+        if (t.speakerId === speakerId) delete nextOverrides[i];
+      });
+    } else {
+      // Rename THIS turn only.
+      nextOverrides[turnIndex] = name;
+    }
+    applySpeakerDraft(nextLabels, nextOverrides);
+    setOpenSpeakerMenu(null);
+    setCustomSpeakerName("");
+    addToast(updateAllTurns || turnIndex === null
+      ? `All turns relabelled “${name}”.`
+      : `That turn relabelled “${name}”.`, { type: "success" });
+  };
+
+  const mergeSpeakers = () => {
+    if (!openSpeakerMenu || !speakerSet || !mergeTargetId) return;
+    const from = openSpeakerMenu.speakerId;
+    const targetLabel = speakerLabels[mergeTargetId] || "Speaker";
+    const nextLabels = { ...speakerLabels, [from]: targetLabel };
+    const nextOverrides = { ...turnLabelOverrides };
+    speakerSet.turns.forEach((t, i) => {
+      if (t.speakerId === from) delete nextOverrides[i];
+    });
+    applySpeakerDraft(nextLabels, nextOverrides);
+    setOpenSpeakerMenu(null);
+    setMergeTargetId("");
+    addToast(`Merged into “${targetLabel}”.`, { type: "success" });
+  };
 
   const matterOptions: SelectOption[] = useMemo(
     () => [
@@ -866,7 +954,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-700">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700">
               <CheckIcon className="w-4 h-4" />
             </span>
             <h3 className="font-bold text-slate-900 text-base leading-tight">
@@ -919,6 +1007,192 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* ── MULTI-SPEAKER DIARIZATION PANEL (owner spec 2026-11-20) ─────────
+          Conversation-mode captures: the dialogue grouped into speaker turns
+          with a TAPPABLE pill at the start of each turn. 1-tap relabel with
+          legal-role presets, "Update all turns for this speaker" ON by
+          default, and Merge Speakers for voices the audio split. The draft
+          below re-composes on every change (bold "**Label:**" blocks); the
+          raw per-turn text is never reworded. Solo dictations never see
+          this panel. */}
+      {diarized && speakerSet ? (
+        <div className="flex flex-col gap-2 rounded-2xl border border-primary-200 bg-primary-50/40 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-700">
+              Conversation — {new Set(speakerSet.turns.map((t) => t.speakerId)).size} speakers ·{" "}
+              {speakerSet.turns.length} turns
+            </span>
+            <span className="text-2xs text-slate-500">
+              Tap a name to relabel or merge — the draft updates everywhere.
+            </span>
+          </div>
+          <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto no-scrollbar pr-1">
+            {speakerSet.turns.map((t, i) => {
+              const label =
+                turnLabelOverrides[i] || speakerLabels[t.speakerId] || "Speaker";
+              const isOpen =
+                openSpeakerMenu?.turnIndex === i ||
+                (openSpeakerMenu?.speakerId === t.speakerId && openSpeakerMenu?.turnIndex === null);
+              return (
+                <div key={i} className="relative">
+                  <div className="flex items-start gap-2">
+                    <Button
+                      variant="bare"
+                      size="sm"
+                      className="!px-2 !py-0.5 !rounded-full !text-2xs !font-bold bg-primary-100 text-primary-800 hover:bg-primary-200 shrink-0 mt-0.5"
+                      aria-haspopup="menu"
+                      aria-expanded={isOpen}
+                      title="Relabel this speaker"
+                      onClick={() => {
+                        if (isOpen) {
+                          setOpenSpeakerMenu(null);
+                        } else {
+                          setOpenSpeakerMenu({ speakerId: t.speakerId, turnIndex: i });
+                          setUpdateAllTurns(true);
+                          setCustomSpeakerName("");
+                          setMergeTargetId("");
+                        }
+                      }}
+                    >
+                      {label}
+                    </Button>
+                    <p className="text-xs text-slate-600 leading-relaxed line-clamp-3 min-w-0">
+                      {t.text}
+                    </p>
+                  </div>
+                  {/* The 1-tap assignment popover (owner spec §2): presets,
+                      update-all toggle, custom name, merge speakers. */}
+                  {isOpen ? (
+                    <div
+                      role="menu"
+                      aria-label={`Label ${label}`}
+                      className="mt-1.5 rounded-xl border border-slate-200 bg-white shadow-lg p-2.5 space-y-2 z-10"
+                    >
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button variant="outline" size="sm" className="!text-2xs" onClick={() => applySpeakerName("Me (Counsel)")}>
+                          Me (Counsel)
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="!text-2xs"
+                          onClick={() => applySpeakerName(presetClientName ? `Client (${presetClientName})` : "Client")}
+                        >
+                          {presetClientName ? `Client (${presetClientName})` : "Client"}
+                        </Button>
+                        <Button variant="outline" size="sm" className="!text-2xs" onClick={() => applySpeakerName("Opposing Counsel")}>
+                          Opposing Counsel
+                        </Button>
+                        <Button variant="outline" size="sm" className="!text-2xs" onClick={() => applySpeakerName("Witness")}>
+                          Witness
+                        </Button>
+                        <Button variant="outline" size="sm" className="!text-2xs" onClick={() => applySpeakerName("Judge / Court")}>
+                          Judge / Court
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          aria-label="Custom name"
+                          placeholder="Custom name…"
+                          value={customSpeakerName}
+                          onChange={(e) => setCustomSpeakerName((e.target as HTMLInputElement).value)}
+                          styleVariant="bare"
+                          inputClassName="flex-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && customSpeakerName.trim()) {
+                              e.preventDefault();
+                              applySpeakerName(customSpeakerName.trim());
+                            }
+                          }}
+                        />
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={!customSpeakerName.trim()}
+                          onClick={() => applySpeakerName(customSpeakerName.trim())}
+                        >
+                          Apply
+                        </Button>
+                      </div>
+                      {/* Update all turns for this speaker — default ON so a
+                          rename sweeps the entire note in one tap. */}
+                      <div className="flex items-center justify-between gap-3 px-0.5">
+                        <span className="text-2xs text-slate-600 font-semibold">
+                          Update all turns for this speaker
+                        </span>
+                        <div
+                          id="tc-speaker-update-all"
+                          role="switch"
+                          aria-checked={updateAllTurns}
+                          aria-label="Update all turns for this speaker"
+                          tabIndex={0}
+                          onClick={() => setUpdateAllTurns((v) => !v)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setUpdateAllTurns((v) => !v);
+                            }
+                          }}
+                          className={`${
+                            updateAllTurns ? "bg-primary-600" : "bg-slate-300"
+                          } relative inline-flex items-center h-5 rounded-full w-9 transition-colors cursor-pointer shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500`}
+                        >
+                          <span
+                            className={`${
+                              updateAllTurns ? "translate-x-5" : "translate-x-1"
+                            } inline-block w-3.5 h-3.5 transform bg-white rounded-full transition-transform`}
+                          />
+                        </div>
+                      </div>
+                      {/* Merge speakers — audio conditions sometimes split one
+                          voice into two labels; fold this speaker into
+                          another without losing any turn. */}
+                      {new Set(speakerSet.turns.map((x) => x.speakerId)).size > 2 ? (
+                        <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                          <Select
+                            aria-label="Merge this speaker into"
+                            value={mergeTargetId}
+                            onChange={(e) => setMergeTargetId((e.target as HTMLSelectElement).value)}
+                            selectClassName="!text-xs"
+                            containerClassName="flex-1"
+                            options={[
+                              { value: "", label: "Merge into…" },
+                              ...Array.from(
+                                new Set(speakerSet.turns.map((x) => x.speakerId))
+                              )
+                                .filter((id) => id !== openSpeakerMenu?.speakerId)
+                                .map((id) => ({
+                                  value: id,
+                                  label: speakerLabels[id] || id,
+                                })),
+                            ]}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={!mergeTargetId}
+                            onClick={mergeSpeakers}
+                          >
+                            Merge
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-2xs text-slate-400 px-0.5">
+                          Two speakers detected — relabelling is enough; merge appears when a third voice is split.
+                        </p>
+                      )}
+                      <Button variant="ghost" size="sm" fullWidth onClick={() => setOpenSpeakerMenu(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {/* Editable transcript draft with Formatted / Verbatim toggle.
           The toggle sits in this header row — NOT absolutely positioned over
@@ -1759,8 +2033,8 @@ export const TriageCard: React.FC<TriageCardProps> = ({
               quick-schedule form appears immediately, prefilled with the
               note summary, the matched matter, tomorrow at 9:00 AM. */}
           {eventDrafts.length === 0 ? (
-            <div className="flex flex-col gap-2 rounded-lg border border-dashed border-emerald-300 bg-emerald-50/40 p-3">
-              <span className="text-xs font-semibold text-emerald-800">
+            <div className="flex flex-col gap-2 rounded-lg border border-dashed border-primary-300 bg-primary-50/40 p-3">
+              <span className="text-xs font-semibold text-primary-800">
                 Quick schedule — no date was spoken
               </span>
               <Input
@@ -1921,7 +2195,7 @@ export const TriageCard: React.FC<TriageCardProps> = ({
           render as cards with View / Undo. */}
       {askResult ? (
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-base leading-relaxed text-slate-800 whitespace-pre-wrap">
+          <div className="rounded-lg bg-primary-50 border border-primary-200 p-3 text-base leading-relaxed text-slate-800 whitespace-pre-wrap">
             {askResult.answer}
           </div>
           {/* Read-only hint (owner bug report 2026-11-19): pure lookup

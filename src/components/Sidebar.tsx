@@ -17,9 +17,6 @@ import {
 } from '../constants';
 import { lazyWithReload } from '../utils/lazyWithReload';
 import { useMessagesBadge } from '../hooks/useMessagesBadge';
-import { useAloa } from '../contexts/AloaProvider';
-import { MicrophoneIcon } from '../constants';
-import { Button } from './ui';
 
 // V7 (A: initial payload): the onboarding checklist (~40 KB source) rode
 // the eager entry chunk via Sidebar's static import though it only renders
@@ -151,15 +148,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
     const { isSidebarRetracted, openModal, addToast } = useUI();
     const { isLegal, isProperty, isUnified, product, hasPropertyFeatures, terminology } = useProduct();
     const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
-
-    // DESKTOP QUICK CAPTURE (owner direction 2026-11-19: "bring the quick
-    // capture to the desktop version"): a first-class entry at the top of
-    // the desktop sidebar — same destination as the Header mic button and
-    // the mobile Dashboard card (the ALOA panel's unified Quick Capture
-    // home, Whisper-backed). Built on the ui/Button primitive (ADR-0004,
-    // 'bare' variant for the one-off emerald look).
-    const { openPanel: openAloaPanel } = useAloa();
-    const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
 
     // Data fetching for workspaces
     const diagnoseMutation = useMutation(api.myFunctions.diagnoseConnectivity);
@@ -373,36 +361,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                     utilities (Tasks, Messages, Calendar, Clients). Product
                     gating and every lock are unchanged — order only. */}
                 <NavSection title="MAIN MENU" isRetracted={isSidebarRetracted}>
-                    {/* QUICK CAPTURE — desktop's first-class voice entry (owner
-                        direction 2026-11-19). Opens the ALOA panel directly in
-                        Quick Capture mode, identical to the Header mic button
-                        and the mobile Dashboard card: one unified voice +
-                        dictation + AI home, Whisper-backed. ui/Button 'bare'
-                        variant styled to sit with the nav items. */}
-                    <div className={isSidebarRetracted ? 'px-1 mb-1' : 'px-3 mb-1'}>
-                        <Button
-                            variant="bare"
-                            size="md"
-                            fullWidth={!isSidebarRetracted}
-                            iconOnly={isSidebarRetracted}
-                            icon={MicrophoneIcon}
-                            aria-label="Quick Capture — start recording"
-                            title="Quick Capture — dictate a note, task or question"
-                            className={
-                                'gap-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 ' +
-                                'transition-colors shadow-sm shadow-emerald-600/20 font-semibold'
-                            }
-                            onClick={openAloaCapture}
-                        >
-                            {!isSidebarRetracted && (
-                                // flex-1 + text-left: BASE's justify-center
-                                // cannot be relied on to lose to justify-start
-                                // (compiled-CSS order), so the label aligns
-                                // itself instead — matches the NavItemLinks.
-                                <span className="flex-1 text-left">Quick Capture</span>
-                            )}
-                        </Button>
-                    </div>
+                    {/* VOX PILL REMOVED (owner direction 2026-11-20): "I
+                        don't think we need the quick capture pill to be in
+                        this main menu section. I think we can have it at the
+                        top where it already is. There's already a mic
+                        there." The Header mic button (and the mobile bottom
+                        nav's Vox tab) remain the voice entry points. */}
                     <NavItemLink
                         item={{ view: 'dashboard', text: 'Home', icon: <DashboardIcon /> }}
                         setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}

@@ -3474,9 +3474,9 @@ export const AloaChat: React.FC<{ onClose: () => void; onDraftStream?: (chunk: s
                             size="md"
                             iconOnly
                             icon={MicrophoneIcon}
-                            title="Quick Capture — dictate a note by voice"
-                            aria-label="Open Quick Capture mode"
-                            className="touch-target p-2 rounded-lg transition-all bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                            title="Vox — dictate a note by voice"
+                            aria-label="Open Vox mode"
+                            className="touch-target p-2 rounded-lg transition-all bg-primary-50 text-primary-600 hover:bg-primary-100 dark:bg-primary-900/30 dark:text-primary-400 dark:hover:bg-primary-900/50"
                             onClick={(e) => { e.stopPropagation(); onOpenCapture(); }}
                         />
                     ) : null}

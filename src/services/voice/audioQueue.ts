@@ -65,6 +65,8 @@ export interface QueuedCapture {
   totalDurationMs?: number;
   eventTypeNames?: string[];
   shorthandText?: string;
+  /** Conversation mode (multi-speaker diarization, 2026-11-20). */
+  multiSpeaker?: boolean;
   finalizeAttempts: number;
   finalizeNextAttemptAt: number;
   status: "pending" | "uploading" | "transcribing" | "ready" | "failed";
@@ -235,6 +237,8 @@ export class VoiceSyncManager {
     outputMode: OutputMode;
     startedAt: number;
     eventTypeNames?: string[];
+    /** Conversation mode (multi-speaker diarization, 2026-11-20). */
+    multiSpeaker?: boolean;
   }): Promise<void> {
     const existing = await getCapture(meta.clientLocalId).catch(() => undefined);
     await putCapture({
@@ -248,6 +252,7 @@ export class VoiceSyncManager {
       totalDurationMs: existing?.totalDurationMs,
       eventTypeNames: meta.eventTypeNames ?? existing?.eventTypeNames,
       shorthandText: existing?.shorthandText ?? "",
+      multiSpeaker: meta.multiSpeaker ?? existing?.multiSpeaker,
       finalizeAttempts: existing?.finalizeAttempts ?? 0,
       finalizeNextAttemptAt: existing?.finalizeNextAttemptAt ?? 0,
       status: existing?.status ?? "pending",
@@ -429,6 +434,7 @@ export class VoiceSyncManager {
           startMs: seg.startMs,
           endMs: seg.endMs,
           startedAt: cap.startedAt,
+          multiSpeaker: cap.multiSpeaker,
         });
         await deleteSegment(seg.key).catch(() => undefined);
         this.emit({
@@ -478,6 +484,7 @@ export class VoiceSyncManager {
         shorthandText: cap.shorthandText || undefined,
         eventTypeNames: cap.eventTypeNames,
         totalDurationMs: cap.totalDurationMs,
+        multiSpeaker: cap.multiSpeaker,
       });
       const fresh = (await getCapture(cap.clientLocalId).catch(() => undefined)) ?? cap;
       await putCapture({ ...fresh, status: "ready", finalizeError: undefined });

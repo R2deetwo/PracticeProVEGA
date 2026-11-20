@@ -92,7 +92,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const SECTIONS = useMemo(() => [
         { id: 'getting-started', title: 'Getting Started: The Basics', subtitle: 'Dashboard, modules, and navigation', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics', 'navigation', 'sidebar'] },
         { id: 'aloa-tips', title: `Mastering ${assistantName} (AI Assistant)`, subtitle: 'Voice dictation, drafting, research, and daily briefings', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria'] },
-        { id: 'quick-capture-voice', title: 'Quick Capture & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
+        { id: 'quick-capture-voice', title: 'Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
         { id: 'notes-backlinks', title: 'Notes & Bidirectional Backlinks', subtitle: 'Link notes to matters, contacts, properties, and documents', keywords: ['notes', 'backlinks', 'bidirectional', 'link', 'endorsements', 'mention', 'notebook', '[['] },
         { id: 'draftpro-editor', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
         { id: 'messaging', title: 'Messaging & Compose', subtitle: 'Conversations, notices, scheduled messages, bulk compose', keywords: ['messaging', 'messages', 'compose', 'whatsapp', 'email', 'notice', 'scheduled', 'ticket', 'conversation', 'inbox', 'resident', 'client', 'team'] },
@@ -294,13 +294,13 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                     <Accordion>
                         <AccordionItem
                             id="quick-capture-voice"
-                            title="Quick Capture & Voice Guide"
+                            title="Vox & Voice Guide"
                             isOpen={isSectionOpen('quick-capture-voice')}
                             onToggle={() => handleSectionToggle('quick-capture-voice')}
                         >
                             <div className="space-y-4">
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    Quick Capture turns spoken dictation into structured firm
+                                    Vox turns spoken dictation into structured firm
                                     records — matters, diary entries, endorsements, property
                                     notes, expenses, drafts and more. Questions stay
                                     strictly read-only (“What's my schedule today?” never

@@ -208,6 +208,17 @@ export interface CaptureProjection {
   polishError?: string | null;
   triageError?: string | null;
   mergeError?: string | null;
+  // MULTI-SPEAKER DIARIZATION (owner spec 2026-11-20): conversation-mode
+  // captures carry reconciled speaker turns + roles for the staging card.
+  multiSpeaker?: boolean;
+  speakerTurns?: SpeakerTurnsResult | null;
+  speakerError?: string | null;
+}
+
+/** The finalize-time reconcile pass output (see convex/voiceCapture.ts). */
+export interface SpeakerTurnsResult {
+  speakers: { id: string; role: string; name: string | null; confidence: number }[];
+  turns: { speakerId: string; text: string }[];
 }
 
 export interface QuickAskResultView {
@@ -269,6 +280,9 @@ export interface UploadSegmentArgs {
   startMs: number;
   endMs: number;
   startedAt?: number;
+  /** Conversation mode (multi-speaker diarization, 2026-11-20): the
+   *  backend transcribes with speaker-turn separation. */
+  multiSpeaker?: boolean;
 }
 
 /**
@@ -298,6 +312,7 @@ export async function uploadSegment(args: UploadSegmentArgs): Promise<{
     startMs: args.startMs,
     endMs: args.endMs,
     startedAt: args.startedAt,
+    multiSpeaker: args.multiSpeaker ?? undefined,
     // 2026-11-18: send the caller's own BYO key (the same key text ALOA
     // chat already uses client-side) so quick capture spends the user's
     // account key instead of depending solely on the platform env key.
@@ -311,6 +326,8 @@ export async function finalizeCapture(args: {
   shorthandText?: string;
   eventTypeNames?: string[];
   totalDurationMs?: number;
+  /** Conversation mode (multi-speaker diarization, 2026-11-20). */
+  multiSpeaker?: boolean;
 }): Promise<FinalizeCaptureResult> {
   return convex.action(api.voiceCapture.finalizeCapture, {
     ...args,

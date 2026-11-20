@@ -29,6 +29,8 @@ export const upsertCaptureRow = internalMutation({
     outputMode: v.string(),
     startedAt: v.optional(v.number()),
     segmentCount: v.optional(v.number()),
+    // Conversation-mode capture (multi-speaker diarization, 2026-11-20).
+    multiSpeaker: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const now = new Date().toISOString();
@@ -37,7 +39,17 @@ export const upsertCaptureRow = internalMutation({
       .withIndex("by_client_local_id", (q) => q.eq("clientLocalId", args.clientLocalId))
       .first();
     if (existing) {
-      await ctx.db.patch(existing._id, { updatedAt: now });
+      await ctx.db.patch(existing._id, {
+        updatedAt: now,
+        // The flag rides the first upload of a session; later replays of
+        // the same capture keep the original mode unless one arrives with
+        // an explicit flag (an "Add More" round recorded in a different
+        // mode keeps the capture's original mode — diarization is a
+        // whole-capture property).
+        ...(args.multiSpeaker !== undefined && existing.multiSpeaker === undefined
+          ? { multiSpeaker: args.multiSpeaker }
+          : {}),
+      });
       return existing._id;
     }
     return await ctx.db.insert("voiceCaptures", {
@@ -49,6 +61,7 @@ export const upsertCaptureRow = internalMutation({
       status: "recording",
       startedAt: args.startedAt ?? Date.now(),
       segmentCount: args.segmentCount ?? undefined,
+      multiSpeaker: args.multiSpeaker ?? undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -72,6 +85,9 @@ export const appendSegmentToRow = internalMutation({
       provider: v.string(),
       at: v.number(),
     }),
+    // Conversation-mode diarized turns for this segment (2026-11-20):
+    // [{speaker: "1", text: "..."}] — parallel to segmentText by index.
+    turns: v.optional(v.array(v.object({ speaker: v.string(), text: v.string() }))),
   },
   handler: async (ctx, args) => {
     const row: any = await ctx.db.get(args.captureId);
@@ -85,12 +101,19 @@ export const appendSegmentToRow = internalMutation({
     }
     segs.push(args.segment);
     texts.push(args.segmentText);
+    const turnPatch: any = {};
+    if (args.turns && args.turns.length > 0) {
+      const segTurns = Array.isArray(row.segmentTurns) ? row.segmentTurns : [];
+      segTurns.push({ index: args.segmentText.index, turns: args.turns });
+      turnPatch.segmentTurns = segTurns;
+    }
     await ctx.db.patch(args.captureId, {
       segments: segs,
       segmentTexts: texts,
       durationMs: Math.max(row.durationMs || 0, args.segment.endMs),
       status: "transcribing",
       updatedAt: new Date().toISOString(),
+      ...turnPatch,
     });
     return { skipped: false, segmentTexts: texts };
   },
@@ -194,6 +217,12 @@ export const listFirmMattersInternal = internalQuery({
         status: m.status,
         court: m.court,
         parties,
+        // DIARIZATION ROLE CONTEXT (owner spec 2026-11-20): the speaker
+        // role-inference pass matches voices against the matched matter's
+        // people — opposing counsel and the presiding judge ride along
+        // (client name is already projected above).
+        opposingCounsel: m.opposingCounsel ? String(m.opposingCounsel) : null,
+        presidingJudge: m.presidingJudge ? String(m.presidingJudge) : null,
       };
     });
     // Active matters first, then the rest (both groups keep insertion

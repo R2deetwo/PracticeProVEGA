@@ -30,11 +30,12 @@ const read = (...p: string[]) => readFileSync(join(__dirname, '..', '..', ...p),
 
 describe('R52 accent resolution — one accent per product, no per-view switching', () => {
     it('auto follows the active product mode', () => {
-        // Komplete (unified / default) → GREEN everywhere
+        // Komplete (unified / default) → the Vega BLUE register everywhere
+        // (owner directive 2026-11-20: uniform blue for Vega + Komplete)
         expect(resolveAccentTheme('auto', 'unified')).toBe('komplete');
         expect(resolveAccentTheme('auto', 'komplete')).toBe('komplete');
         expect(resolveAccentTheme('auto', undefined)).toBe('komplete');
-        // Vega → the legal copper
+        // Vega → the same blue register
         expect(resolveAccentTheme('auto', 'vega')).toBe('vega');
         expect(resolveAccentTheme('auto', 'legal')).toBe('vega');
         // Atrium → the estate jade
@@ -48,7 +49,7 @@ describe('R52 accent resolution — one accent per product, no per-view switchin
         expect(resolveAccentTheme('atrium', 'unified')).toBe('atrium');
     });
 
-    it('komplete maps to NO scope class — the :root green is the komplete register', () => {
+    it('komplete maps to NO scope class — the :root blue is the komplete register', () => {
         expect(accentSkinClass('komplete')).toBe('');
         expect(accentSkinClass('vega')).toBe('app-skin-vega');
         expect(accentSkinClass('atrium')).toBe('app-skin-atrium');
@@ -122,15 +123,17 @@ describe('R52 wiring — one application point, no per-view skinning', () => {
         expect(accentIdx).toBeGreaterThan(productIdx);
     });
 
-    it('index.css carries all three registers: default green, vega navy, atrium jade', () => {
+    it('index.css carries the registers: default Vega blue (komplete), the same vega blue, atrium jade', () => {
         const css = read('src', 'index.css');
-        // Komplete = the :root favicon green
-        expect(css).toContain('--color-primary-500: 22 163 74');
-        // Vega = the light-enterprise navy (R60 — the copper retired
-        // with the Warm Chambers when the /vega page rebranded light)
-        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-500: 30 58 138/);
-        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-400: 99 102 241/);
-        // Atrium = the estate jade ramp
+        // Komplete = the :root Vega blue #1D4ED8 (owner directive
+        // 2026-11-20: uniform blue for Vega AND Komplete — green is
+        // Atrium-only)
+        expect(css).toContain('--color-primary-500: 30 78 216');
+        // Vega = the SAME blue (one uniform register; the skin mirrors
+        // :root so a stored 'vega' preference changes nothing visually)
+        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-500: 30 78 216/);
+        expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-700: 30 58 138/);
+        // Atrium = the estate jade ramp (the only green left)
         expect(css).toMatch(/\.app-skin-atrium\s*\{[\s\S]*?--color-primary-500: 5 150 105/);
         expect(css).toMatch(/\.app-skin-atrium\s*\{[\s\S]*?--color-primary-600: 12 122 87/);
     });

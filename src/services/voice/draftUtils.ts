@@ -509,3 +509,83 @@ export function eventHasActionableSubject(title: string): boolean {
   const hasNoun = significant.some((w) => GENERIC_SUBJECT_WORDS.has(w));
   return hasAction && hasNoun;
 }
+
+// ─── MULTI-SPEAKER DIARIZATION helpers (owner spec, 2026-11-20) ─────────────
+
+/** The reconcile pass output shape (mirrors convex/voiceCapture.ts). */
+export interface SpeakerTurnSet {
+  speakers: { id: string; role: string; name: string | null; confidence: number }[];
+  turns: { speakerId: string; text: string }[];
+}
+
+/** Human label for a role id ("counsel" → "Me (Counsel)"). */
+export function speakerRoleLabel(role: string): string {
+  switch (role) {
+    case "counsel": return "Me (Counsel)";
+    case "client": return "Client";
+    case "opposing_counsel": return "Opposing Counsel";
+    case "witness": return "Witness";
+    case "judge": return "Judge / Court";
+    case "court_official": return "Court Official";
+    default: return "Speaker";
+  }
+}
+
+/** Default display label per speaker: the inferred name when confident,
+ *  else the role label, else "Speaker N" (1-indexed by order of first
+ *  turn). The staging card's rename popover starts from these. */
+export function defaultSpeakerLabels(set: SpeakerTurnSet): Record<string, string> {
+  const labels: Record<string, string> = {};
+  let n = 0;
+  const seen = new Set<string>();
+  for (const t of set.turns || []) {
+    if (seen.has(t.speakerId)) continue;
+    seen.add(t.speakerId);
+    n += 1;
+    const s = (set.speakers || []).find((x) => x.id === t.speakerId);
+    const inferred = s && s.confidence >= 0.6 && s.name ? s.name : null;
+    labels[t.speakerId] = inferred || (s && s.role !== "unknown" ? speakerRoleLabel(s.role) : `Speaker ${n}`);
+  }
+  return labels;
+}
+
+/** Compose the speaker-attributed draft: one "**Label:** text" line per
+ *  turn, consecutive turns by the same speaker merged into one block
+ *  (clean dialogue form, ready to save as a Case Note / Attendance Note /
+ *  Witness Statement / Court Endorsement with attribution preserved).
+ *  `turnOverrides` (turn index → label) lets the staging card rename a
+ *  SINGLE turn when "Update all turns for this speaker" is OFF. */
+export function composeSpeakerDraft(
+  set: SpeakerTurnSet,
+  labels: Record<string, string>,
+  turnOverrides?: Record<number, string>
+): string {
+  const blocks: string[] = [];
+  let currentSpeaker = "";
+  let currentLines: string[] = [];
+  const flush = () => {
+    if (currentSpeaker && currentLines.length > 0) {
+      blocks.push(`**${currentSpeaker}:** ${currentLines.join(" ")}`);
+    }
+    currentLines = [];
+  };
+  (set.turns || []).forEach((t, i) => {
+    const label =
+      (turnOverrides && turnOverrides[i]) || labels[t.speakerId] || "Speaker";
+    if (label !== currentSpeaker) {
+      flush();
+      currentSpeaker = label;
+    }
+    currentLines.push((t.text || "").trim());
+  });
+  flush();
+  return blocks.join("\n\n");
+}
+
+/** True when the set carries a genuine multi-person conversation (2+
+ *  distinct speakers with turns) — the staging card only shows speaker
+ *  pills then; a solo dictation keeps the clean single-block view. */
+export function isMultiSpeakerSet(set: SpeakerTurnSet | null | undefined): boolean {
+  if (!set || !Array.isArray(set.turns) || set.turns.length === 0) return false;
+  return new Set(set.turns.map((t) => t.speakerId)).size >= 2;
+}

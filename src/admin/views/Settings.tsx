@@ -24,7 +24,7 @@ const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark
 const LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
 const SECTION_TITLE = 'text-sm font-black text-slate-500 dark:text-zinc-400 uppercase tracking-widest mb-3';
 
-type Tab = 'account' | 'security' | 'appearance' | 'notifications' | 'system' | 'about';
+type Tab = 'account' | 'security' | 'appearance' | 'notifications' | 'ingestion' | 'system' | 'about';
 
 // Safe localStorage getter
 function safeGet(key: string, fallback: string): string {
@@ -102,6 +102,52 @@ export const Settings: React.FC = () => {
         return v === 'push' || v === 'email' || v === 'both' ? v : 'both';
     });
 
+    // INGESTION ENGINE CONFIG (owner request 2026-11-20: "there's no
+    // configuration to configure the ingestor in settings"). The same
+    // session-gated backend surface the Ingestion console uses — the
+    // settings-level control: on/off, pacing, and live status. useQuery
+    // returns undefined while loading AND on error (module missing), which
+    // the panel renders honestly instead of a black screen. The 'skip'
+    // sentinel keeps the query (and its typing) clean pre-auth.
+    const ingestionDash: any = useQuery(
+        api.legal.engine.getIngestionDashboard,
+        bearerToken ? { sessionToken: bearerToken } : 'skip',
+    );
+    const setEngineState = useMutation(api.legal.engine.setIngestionEngineState);
+    const [engineBusy, setEngineBusy] = useState(false);
+    const engineState = ingestionDash?.engine as
+        | { enabled: boolean; maxTasksPerRun: number; runsCount: number; lastRunAt: number | null }
+        | undefined;
+
+    const toggleEngineSetting = async () => {
+        if (!bearerToken || engineBusy) return;
+        setEngineBusy(true);
+        try {
+            await setEngineState({ sessionToken: bearerToken, enabled: !(engineState?.enabled ?? false) });
+            addToast(engineState?.enabled
+                ? 'Ingestion engine paused — crawling stops within one 15-minute cycle.'
+                : 'Ingestion engine ON — builtin sources seeded, runs every 15 minutes.', { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Could not update the engine.', { type: 'error' });
+        } finally {
+            setEngineBusy(false);
+        }
+    };
+
+    const setEnginePacing = async (pages: number) => {
+        if (!bearerToken || engineBusy) return;
+        if ((engineState?.maxTasksPerRun ?? 4) === pages) return;
+        setEngineBusy(true);
+        try {
+            await setEngineState({ sessionToken: bearerToken, enabled: engineState?.enabled ?? false, maxTasksPerRun: pages });
+            addToast(`Pacing set to ${pages} page${pages > 1 ? 's' : ''} per 15-minute run.`, { type: 'success' });
+        } catch (e: any) {
+            addToast(e?.message || 'Could not update pacing.', { type: 'error' });
+        } finally {
+            setEngineBusy(false);
+        }
+    };
+
     const toggleSetting = (key: string, setter: (v: boolean) => void, current: boolean, label: string) => {
         const newVal = !current;
         setter(newVal);
@@ -144,6 +190,7 @@ export const Settings: React.FC = () => {
         { id: 'appearance', label: 'Theme', icon: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
         { id: 'security', label: 'Security', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
         { id: 'notifications', label: 'Alerts', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
+        { id: 'ingestion', label: 'Ingestion', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
         { id: 'system', label: 'System', icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01' },
         { id: 'about', label: 'About', icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
     ];
@@ -395,6 +442,60 @@ export const Settings: React.FC = () => {
                                             {lastPushResult.error || (lastPushResult.errors || []).join(' | ') || 'Push failed — see the toast for details.'}
                                         </p>
                                     )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'ingestion' && (
+                    <div className="space-y-4">
+                        <div className={CARD}>
+                            <p className={SECTION_TITLE}>Legal Ingestion Engine</p>
+                            <p className="text-xs text-slate-500 dark:text-zinc-400 mb-3">
+                                The autonomous crawler that builds ALOA's Nigerian legal knowledge base — judgments, statutes, SEC regulations, court rules. Runs every 15 minutes by itself; no laptop needed. The full console (seed sources, add-a-URL, coverage gaps, activity feed) is in <span className="font-semibold">More → Ingestion</span>.
+                            </p>
+                            {!ingestionDash ? (
+                                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                                    Ingestion backend not reachable right now — this screen needs the <span className="font-mono">legal/engine</span> Convex module. If it keeps happening, run the <span className="font-semibold">convex-production-deploy</span> workflow and reopen the app.
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <ToggleRow
+                                        label="Engine"
+                                        description={engineState?.enabled ? 'Running — crawls politely every 15 minutes' : 'Paused — no crawling'}
+                                        checked={!!engineState?.enabled}
+                                        onChange={toggleEngineSetting}
+                                    />
+                                    <div className="p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg">
+                                        <p className="text-sm font-bold text-slate-700 dark:text-zinc-200">Pages per run</p>
+                                        <p className="text-xs text-slate-500 dark:text-zinc-400 mb-2">How many pages each 15-minute run may process (politeness cap: one page per site per run).</p>
+                                        <div className="flex gap-1.5 flex-wrap">
+                                            {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
+                                                <button
+                                                    key={n}
+                                                    disabled={engineBusy}
+                                                    onClick={() => setEnginePacing(n)}
+                                                    className={`w-9 h-9 rounded-lg text-xs font-bold transition-colors ${
+                                                        (engineState?.maxTasksPerRun ?? 4) === n
+                                                            ? 'bg-primary-600 text-white'
+                                                            : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-700'
+                                                    }`}
+                                                >
+                                                    {n}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2 text-xs">
+                                        <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Runs so far</span><span className="font-bold text-slate-700 dark:text-zinc-200">{engineState?.runsCount ?? 0}</span></div>
+                                        <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Corpus</span><span className="font-bold text-slate-700 dark:text-zinc-200">{ingestionDash.corpus?.judgments ?? 0} judgments · {ingestionDash.corpus?.instruments ?? 0} instruments · {ingestionDash.corpus?.chunks ?? 0} chunks</span></div>
+                                        <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Queue</span><span className="font-bold text-slate-700 dark:text-zinc-200">{ingestionDash.queue?.queued ?? 0} queued · {ingestionDash.queue?.in_progress ?? 0} in progress · {ingestionDash.queue?.failed ?? 0} failed</span></div>
+                                        <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Enabled sources</span><span className="font-bold text-slate-700 dark:text-zinc-200">{(ingestionDash.seeds ?? []).filter((s: any) => s.enabled).length} of {(ingestionDash.seeds ?? []).length}</span></div>
+                                    </div>
+                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed">
+                                        Every fetch is robots.txt-respecting, SHA-256-verified and audit-logged. PDFs are deferred to the desktop ingester; keyword search works now, embeddings stay optional.
+                                    </p>
                                 </div>
                             )}
                         </div>

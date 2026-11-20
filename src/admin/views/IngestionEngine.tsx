@@ -104,17 +104,29 @@ export const IngestionEngine: React.FC = () => {
     }, [refresh]);
 
     // ── Actions ─────────────────────────────────────────────────────────
+    // 2026-11-20 OWNER BUG REPORT ("the paused button can't be toggled —
+    // it doesn't do anything"): the old guard bailed SILENTLY when
+    // dash?.engine was null, but engine state only ever gets created BY
+    // this mutation — a chicken-and-egg deadlock that left the switch
+    // dead on fresh deployments (compounded by the dashboard query
+    // throwing on a boolean range filter, see convex/legal/engine.ts).
+    // The backend now always returns an engine object; the toggle always
+    // fires, and every guard failure is VISIBLE instead of silent.
     const toggleEngine = async () => {
-        if (!convex || !sessionToken || !dash?.engine) return;
+        if (!convex || !sessionToken) {
+            setLoadError('Not connected — reopen the app and try again.');
+            return;
+        }
+        const nextEnabled = !(dash?.engine?.enabled ?? false);
         setBusy('engine');
         try {
             await convex.mutation(api.legal.engine.setIngestionEngineState, {
                 sessionToken,
-                enabled: !dash.engine.enabled,
+                enabled: nextEnabled,
             });
-            setNotice(dash.engine.enabled
-                ? 'Engine paused — crawling stops within one 15-minute cycle.'
-                : 'Engine ON — the builtin sources are seeded and it runs every 15 minutes by itself.');
+            setNotice(nextEnabled
+                ? 'Engine ON — the builtin sources are seeded and it runs every 15 minutes by itself.'
+                : 'Engine paused — crawling stops within one 15-minute cycle.');
             await refresh();
         } catch (e: any) {
             setNotice(null);

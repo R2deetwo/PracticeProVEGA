@@ -70,6 +70,12 @@ export interface UseQuickCaptureOptions {
    *  for whispered court-gallery notes. Read live via ref so toggling
    *  mid-session applies on the next recording without remounting. */
   whisper?: boolean;
+  /** CONVERSATION MODE (owner spec 2026-11-20): multi-speaker capture —
+   *  client consultations, witness conferences, settlement meetings,
+   *  court hearings. The backend transcribes with speaker-turn separation
+   *  (diarization) and the staging card offers tappable speaker pills
+   *  with legal-role presets. Read live via ref, same as whisper. */
+  conversation?: boolean;
 }
 
 export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
@@ -112,6 +118,12 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
   useEffect(() => {
     whisperRef.current = !!opts.whisper;
   }, [opts.whisper]);
+  // Conversation Mode (multi-speaker diarization, 2026-11-20) — same
+  // live-ref pattern: toggling applies to the NEXT recording round.
+  const conversationRef = useRef(!!opts.conversation);
+  useEffect(() => {
+    conversationRef.current = !!opts.conversation;
+  }, [opts.conversation]);
   const pollRef = useRef<number | null>(null);
 
   // Keep refs fresh without re-binding listeners.
@@ -337,6 +349,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
       outputMode: outputModeRef.current,
       startedAt: Date.now(),
       eventTypeNames: eventTypeNamesRef.current,
+      multiSpeaker: conversationRef.current,
     });
     const rec = makeRecorder();
     recorderRef.current = rec;
@@ -415,6 +428,7 @@ export function useQuickCapture(opts: UseQuickCaptureOptions = {}) {
           outputMode: args.outputMode ?? "smart-clean",
           startedAt: Date.now(),
           eventTypeNames: eventTypeNamesRef.current,
+          multiSpeaker: conversationRef.current,
         });
         const rec = makeRecorder();
         recorderRef.current = rec;

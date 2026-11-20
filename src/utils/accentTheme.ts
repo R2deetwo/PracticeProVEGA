@@ -1,5 +1,6 @@
 /**
- * R52 — the accent theme engine (unified product branding).
+ * R52 — the accent theme engine (unified product branding), retuned
+ * 2026-11-20 to the owner's uniform-accent directive.
  *
  * OWNER BUG REPORT: "In the unified app interface (?app=komplete), brand
  * accents are fragmenting across views. Home renders the primary brand
@@ -9,14 +10,21 @@
  * centralised theme state or user-controlled appearance preferences."
  *
  * The R28 "legal-side skin" (App.tsx LEGAL_SIDE_VIEWS) is retired by
- * owner direction: a Komplete firm now keeps ONE uniform primary accent
- * (the favicon green) on EVERY route — Home, Properties, Matters, Tasks,
- * Documents, Research, Calendar, Financials — no module-level switching.
- * The accent is now resolved in exactly one place, from two inputs:
+ * owner direction: a Komplete firm keeps ONE uniform primary accent on
+ * EVERY route — Home, Properties, Matters, Tasks, Documents, Research,
+ * Calendar, Financials — no module-level switching.
+ *
+ * 2026-11-20 OWNER DIRECTIVE (uniform blue): "use the blue accent for
+ * Vega and Complete — if it's only Atrium, use the green colour... it
+ * doesn't make sense to have a different colour." Vega and Komplete now
+ * share THE SAME register — the Vega blue #1D4ED8 / #1E3A8A (the colour
+ * Vox always wore). Green/jade remains EXCLUSIVE to Atrium. The accent
+ * still resolves in exactly one place, from two inputs:
  *
  *   1. the ACTIVE PRODUCT (ProductContext — the app= URL param stays
- *      purely informational): 'unified' → komplete green, 'vega' → the
- *      light-enterprise navy, 'atrium' → the estate jade;
+ *      purely informational): 'unified' → komplete BLUE (the :root
+ *      register), 'vega' → the SAME blue (the skin mirrors :root),
+ *      'atrium' → the estate jade;
  *   2. the USER'S LOCKED PREFERENCE (Settings → Display → Appearance),
  *      persisted per-account in localStorage, which overrides the
  *      product default when set to anything other than 'auto'.
@@ -24,8 +32,8 @@
  * Application mechanism (unchanged from R28, it already beats the
  * html.theme-* cascade): a scope class on the app-container div remaps
  * the --color-primary-* ramp that every primary-* Tailwind class reads.
- * Komplete needs NO class — the :root default IS the komplete green —
- * so the default path stays byte-identical.
+ * Komplete needs NO class — the :root default IS the (now blue)
+ * komplete register — so the default path stays byte-identical.
  */
 
 import type { Product } from '../types';
@@ -45,8 +53,9 @@ export function isAccentPreference(value: unknown): value is AccentThemePreferen
 /**
  * Resolve the active accent from preference + product.
  * 'auto' (the default) inherits from the active product mode:
- * unified/komplete → green, vega → the navy register, atrium → jade.
- * An explicit preference is a LOCK — it wins regardless of product.
+ * unified/komplete → the Vega blue register, vega → the SAME blue,
+ * atrium → jade. An explicit preference is a LOCK — it wins regardless
+ * of product.
  */
 export function resolveAccentTheme(
     preference: AccentThemePreference,
@@ -55,13 +64,15 @@ export function resolveAccentTheme(
     if (preference !== 'auto') return preference;
     if (product === 'vega' || product === 'legal') return 'vega';
     if (product === 'atrium' || product === 'property') return 'atrium';
-    return 'komplete'; // 'unified' / 'komplete' / unresolved → the default green
+    return 'komplete'; // 'unified' / 'komplete' / unresolved → the default (Vega blue) register
 }
 
 /**
  * The scope class for the app container. Komplete returns '' — the :root
- * green ramp already is the komplete register, so the default DOM is
- * byte-identical to pre-R52 for Komplete firms (and logged-out surfaces).
+ * blue ramp already is the komplete register, so the default DOM is
+ * byte-identical for Komplete firms (and logged-out surfaces). The vega
+ * skin class exists for stored 'vega' preferences but mirrors :root's
+ * blue exactly (one uniform register, 2026-11-20).
  */
 export function accentSkinClass(id: AccentThemeId): string {
     if (id === 'vega') return 'app-skin-vega';
@@ -80,20 +91,20 @@ export const ACCENT_THEME_OPTIONS: Array<{
     {
         value: 'auto',
         label: 'Auto — follow active product',
-        description: 'Komplete → Green · Vega → Navy · Atrium → Jade',
-        swatch: 'linear-gradient(135deg, #16A34A 34%, #1E3A8A 67%, #0C7A57 100%)',
+        description: 'Komplete → Blue · Vega → Blue · Atrium → Jade',
+        swatch: 'linear-gradient(135deg, #1D4ED8 60%, #0C7A57 100%)',
     },
     {
         value: 'komplete',
-        label: 'Komplete — Green',
-        description: 'The PracticePro favicon green. The unified default.',
-        swatch: '#16A34A',
+        label: 'Komplete — Blue',
+        description: 'The Vega blue (#1D4ED8). One uniform accent for Komplete and Vega.',
+        swatch: '#1D4ED8',
     },
     {
         value: 'vega',
-        label: 'Vega — Navy',
-        description: 'The light-enterprise register of the Vega product.',
-        swatch: '#1E3A8A',
+        label: 'Vega — Blue',
+        description: 'The same Vega blue — Komplete and Vega share one register.',
+        swatch: '#1D4ED8',
     },
     {
         value: 'atrium',

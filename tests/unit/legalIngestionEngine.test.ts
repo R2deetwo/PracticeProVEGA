@@ -474,6 +474,50 @@ describe('the founder APK wiring', () => {
     });
 });
 
+// ─── 2026-11-20 OWNER BUG REPORT — "the paused button can't be toggled" ────
+// Two compounding defects left the founder staring at a dead switch:
+//   1. getIngestionDashboard used a RANGE filter (.gte) on the BOOLEAN
+//      `enabled` field — Convex rejects that at runtime, so the whole
+//      dashboard query threw on every poll and the view fell into its
+//      "backend not deployed" branch.
+//   2. Even with the query healthy, engine state rows are created ON
+//      FIRST TOGGLE; the view's guard silently returned while
+//      `dash?.engine` was null → the mutation that creates the row could
+//      never fire (chicken-and-egg deadlock), and the failure was
+//      INVISIBLE (no toast, no error, no busy state).
+describe('the toggle must actually toggle (2026-11-20 regression)', () => {
+    it('REGRESSION: the dashboard never range-filters the boolean `enabled` field', () => {
+        const engine = read('convex/legal/engine.ts');
+        expect(engine).not.toContain('gte("enabled"');
+        expect(engine).not.toContain('lte("enabled"');
+        expect(engine).not.toContain('gt("enabled"');
+        expect(engine).not.toContain('lt("enabled"');
+    });
+
+    it('REGRESSION: the dashboard returns a DEFAULT engine object when no state row exists yet', () => {
+        const engine = read('convex/legal/engine.ts');
+        expect(engine).toContain('DEFAULT_ENGINE');
+        // The default must look OFF and sane so the first toggle turns it ON.
+        expect(engine).toMatch(/DEFAULT_ENGINE = \{\s*enabled: false/);
+    });
+
+    it('REGRESSION: the view toggle has NO silent `!dash?.engine` bail-out', () => {
+        const view = read('src/admin/views/IngestionEngine.tsx');
+        expect(view).not.toContain('!dash?.engine');
+        // The toggle must derive the next state from whatever engine data
+        // exists (null-safe), never refuse to fire.
+        expect(view).toContain("dash?.engine?.enabled ?? false");
+    });
+
+    it('Settings exposes the ingestion engine config (owner: "no configuration to configure the ingestor in settings")', () => {
+        const settings = read('src/admin/views/Settings.tsx');
+        expect(settings).toContain("'ingestion'");
+        expect(settings).toContain('setIngestionEngineState');
+        expect(settings).toContain('getIngestionDashboard');
+        expect(settings).toContain('Pages per run');
+    });
+});
+
 describe('founder signup hardening (this round\'s security ask)', () => {
     it('founderSignupOpen exposes exactly one boolean, no privilege', () => {
         const fm = read('convex/founderMetrics.ts');

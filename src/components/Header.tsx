@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Theme, Notification, UserRole } from '../types';
-import { SearchIcon, SunIcon, MoonIcon, BellIcon, LogoutIcon, PracticeProLogoWithText, DesktopComputerIcon, Logo, RevertIcon, ChatAltIcon, PencilSquareIcon, LockClosedIcon, MicrophoneIcon } from '../constants';
+import { SearchIcon, SunIcon, MoonIcon, BellIcon, LogoutIcon, DesktopComputerIcon, RevertIcon, ChatAltIcon, PencilSquareIcon, LockClosedIcon, MicrophoneIcon } from '../constants';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Capacitor } from '@capacitor/core';
@@ -390,9 +390,11 @@ const Header: React.FC = React.memo(() => {
                     </button>
                 </div>
 
-                <div className="md:hidden mr-2">
-                    <Logo className="h-8 w-8 text-primary-500" />
-                </div>
+                {/* The mobile top bar is CLEAN (owner direction
+                    2026-11-20): the PracticePro "P" logo is gone from the
+                    phone header — "let's just have the clean app". Product
+                    identity comes from the features themselves, not a logo
+                    tile. Desktop keeps its own chrome below. */}
 
                 <div className="hidden md:flex items-center space-x-1">
                     <button onClick={toggleSidebarRetraction} aria-label="Toggle sidebar" className="flex items-center justify-center w-9 h-9 p-0 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-700 text-slate-500 transition-colors">
@@ -442,9 +444,9 @@ const Header: React.FC = React.memo(() => {
                     size="md"
                     iconOnly
                     icon={MicrophoneIcon}
-                    aria-label="Quick Capture — start recording"
-                    title="Quick Capture — dictate a note, task or question"
-                    className="rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800 transition-colors shadow-sm"
+                    aria-label="Vox — start recording"
+                    title="Vox — dictate a note, task or question"
+                    className="rounded-lg bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-sm"
                     onClick={() => {
                         hapticLight();
                         openAloaCapture();

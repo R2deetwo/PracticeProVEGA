@@ -165,8 +165,16 @@ const MatterCardItem: React.FC<{
     return (
         <div
             onClick={() => selectionMode && onSelect ? onSelect(matter.id, !isSelected) : navigateTo('matterDetail', matter.id)}
-            className={`group relative p-3.5 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 min-h-[48px] ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
+            className={`group relative p-3 mb-2 rounded-lg border-l-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:bg-slate-50 dark:hover:bg-zinc-800 overflow-hidden ${isActive ? 'border-l-primary-600 bg-primary-50 dark:bg-primary-950/30' : isSelected ? 'border-l-indigo-500 bg-indigo-50 dark:bg-indigo-950/30' : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 shadow-sm'}`}
         >
+            {/* SLIM FORM FACTOR (owner direction 2026-11-20): "the Matters
+                cards look kind of off — they don't have the same slim factor
+                the Properties one has. Emulate that style." The card now
+                matches PropertyListItem's anatomy exactly — p-3, no
+                min-height, 2 rows (title + one meta row), avatars inline in
+                the meta row instead of a third footer row with a divider.
+                All matter data (client, stage, adjourned date, overdue,
+                review reminder, close/reopen, delete, assignees) is kept. */}
             <div className="flex items-start gap-2">
                 {/* Checkbox — visible on hover or when selection mode active */}
                 {/* V7 (E: touch target + keyboard): the checkbox was a 14px
@@ -174,9 +182,12 @@ const MatterCardItem: React.FC<{
                     so keyboard users could not select matters at all) and the
                     row actions were 22px taps. The input is now the real
                     control at the WCAG 2.2 AA minimum (24px), and the icon
-                    buttons carry ≥26px hit areas with proper labels. */}
+                    buttons carry ≥26px hit areas with proper labels.
+                    SLIM: it no longer occupies a permanent layout column —
+                    it floats over the card's top-left corner so the body
+                    starts flush-left like the Properties card. */}
                 <div
-                    className={`flex-shrink-0 mt-0.5 transition-opacity ${selectionMode ? 'opacity-100' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100'}`}
+                    className={`absolute left-1.5 top-1.5 z-10 rounded transition-opacity ${selectionMode ? 'opacity-100 bg-white/80 dark:bg-zinc-900/80' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100 md:hover:opacity-100 md:focus-within:opacity-100'}`}
                 >
                     <input autoComplete="off" data-lpignore="true"
                         type="checkbox"
@@ -192,7 +203,7 @@ const MatterCardItem: React.FC<{
                         <div className="flex-1 min-w-0 pr-2">
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-primary-600 transition-colors leading-tight">{matter.title}</h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[120px]">
+                                <span className="text-2xs text-slate-500 dark:text-zinc-400 font-medium truncate max-w-[140px]">
                                     {/* TASK 64: clearer copy than the old "Deleted Client" —
                                     an unresolvable id can also mean a legacy link (pre stable-id
                                     era) or an offline-created matter whose client hasn't synced
@@ -219,12 +230,26 @@ const MatterCardItem: React.FC<{
                                 {overdueTasks.length > 0 && (
                                     <span className="px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">{overdueTasks.length} overdue</span>
                                 )}
+                                {/* SLIM: assignee avatars ride INLINE in the meta
+                                    row (Properties grammar) instead of a third
+                                    footer row with a border divider. */}
+                                {assignedUsers.length > 0 && (
+                                    <span className="flex -space-x-1" aria-label={`${assignedUsers.length} assigned`}>
+                                        {assignedUsers.slice(0, 4).map((user: any) => (
+                                            <div key={user.id} className={`w-4 h-4 rounded-full border border-white dark:border-zinc-800 flex items-center justify-center text-[7px] text-white font-bold ${getUserColor(user.name)}`}>{getInitials(user.name)}</div>
+                                        ))}
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
                             <InlineMatterReview matter={matter} />
                             {/* V3 (V-MATTER-3): close/reopen reachable from the
-                                card itself — reopening previously had NO UI. */}
+                                card itself — reopening previously had NO UI.
+                                SLIM: hover-revealed on md like the delete
+                                button, so the resting card shows only the
+                                chips (Properties grammar). Always visible on
+                                touch (opacity-100 below md). */}
                             {isClosed ? (
                                 <Button
                                     variant="bare"
@@ -232,7 +257,7 @@ const MatterCardItem: React.FC<{
                                     aria-label="Reopen this closed matter"
                                     onClick={(e) => { e.stopPropagation(); handleReopenMatter(matter.id).catch(() => {}); }}
                                     title="Reopen this closed matter"
-                                    className="p-1.5 text-slate-300 hover:text-emerald-500 transition-colors"
+                                    className="p-1.5 text-slate-300 hover:text-emerald-500 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                                 </Button>
@@ -243,7 +268,7 @@ const MatterCardItem: React.FC<{
                                     aria-label="Close this matter (checks for unbilled work first)"
                                     onClick={(e) => { e.stopPropagation(); openModal('closeMatter', matter.id); }}
                                     title="Close this matter (checks for unbilled work first)"
-                                    className="p-1.5 text-slate-300 hover:text-primary-600 transition-colors"
+                                    className="p-1.5 text-slate-300 hover:text-primary-600 transition-colors opacity-100 md:opacity-0 md:group-hover:opacity-100"
                                 >
                                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                                 </Button>
@@ -258,13 +283,6 @@ const MatterCardItem: React.FC<{
                             </button>
                         </div>
                     </div>
-                    {assignedUsers.length > 0 && (
-                        <div className="flex -space-x-1 mt-1.5 pt-1.5 border-t border-slate-100 dark:border-zinc-700/50">
-                            {assignedUsers.slice(0, 4).map((user: any) => (
-                                <div key={user.id} className={`w-4 h-4 rounded-full border border-white dark:border-zinc-800 flex items-center justify-center text-[7px] text-white font-bold ${getUserColor(user.name)}`}>{getInitials(user.name)}</div>
-                            ))}
-                        </div>
-                    )}
                 </div>
             </div>
         </div>

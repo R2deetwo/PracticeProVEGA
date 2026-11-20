@@ -55,9 +55,16 @@ export const getIngestionDashboard = query({
     const artifacts = await ctx.db.query("legal_raw_artifacts").take(10000);
 
     // ── seed sources (the founder's editable discovery roots) ───────────
+    // 2026-11-20 OWNER BUG REPORT ("the paused button can't be toggled"):
+    // this was an index RANGE filter (gte) on the BOOLEAN `enabled` field,
+    // which Convex rejects at runtime (range filters need number/string/
+    // bigint). The whole dashboard query threw on every poll, so the
+    // founder view fell into its "backend not deployed" branch with a
+    // dead toggle. A plain bounded scan is correct here (≤ a handful of
+    // seed rows) and can never throw.
     const seeds = await ctx.db
       .query("legal_seed_sources")
-      .withIndex("by_enabled", (q) => q.gte("enabled", false))
+      .order("asc")
       .take(100);
 
     // ── recent activity ─────────────────────────────────────────────────
@@ -90,6 +97,22 @@ export const getIngestionDashboard = query({
       .order("asc")
       .take(10);
 
+    // 2026-11-20: when the state row does not exist yet (fresh deployment —
+    // it is created on first toggle), return a DEFAULT OFF engine object
+    // instead of null. The old null made the founder view's toggle guard
+    // (`!dash?.engine` → silent return) a chicken-and-egg deadlock: the
+    // only mutation that creates the row could never be invoked because
+    // the row did not exist. The UI now always has an engine to toggle.
+    const DEFAULT_ENGINE = {
+      enabled: false,
+      maxTasksPerRun: 4,
+      autoSeedBuiltins: true,
+      seededBuiltinsAt: null as number | null,
+      lastRunAt: null as number | null,
+      lastRunSummary: null as any,
+      runsCount: 0,
+    };
+
     return {
       engine: state
         ? {
@@ -101,7 +124,7 @@ export const getIngestionDashboard = query({
             lastRunSummary: state.lastRunSummary ?? null,
             runsCount: state.runsCount ?? 0,
           }
-        : null,
+        : DEFAULT_ENGINE,
       queue,
       corpus: {
         judgments: judgments.length,

@@ -236,26 +236,31 @@
   --color-white: 255 255 255;
   --color-black: 0 0 0;
 
-  /* Primary (Green) — Brand color, matches favicon (#16A34A = green-600)
+  /* Primary (Vega Blue) — the ONE accent for Vega AND Komplete workspaces
+     (owner directive 2026-11-20: "use the blue accent for Vega and Complete
+     — if it's only Atrium, use the green; it doesn't make sense to have a
+     different colour" — Quick Capture was blue while the Full Office and
+     Legal Pad were green). #1D4ED8 main / #1E3A8A hover. The Atrium estate
+     jade remains exclusive to the .app-skin-atrium register.
      IMPORTANT: This MUST be defined in :root so the landing page (which has
      no theme class applied) still gets a primary color. Without this,
      text-primary-500 resolves to rgb( / 1) which is INVALID CSS and the
      color is missing entirely. */
-  --color-primary-50:  240 253 244;
-  --color-primary-100: 220 252 231;
-  --color-primary-200: 187 247 208;
-  --color-primary-300: 134 239 172;
-  --color-primary-400: 74 222 128;
-  --color-primary-500: 22 163 74;    /* #16A34A — favicon green */
-  --color-primary-600: 21 128 61;    /* darker for hover/active */
-  --color-primary-700: 20 83 45;
-  --color-primary-800: 22 101 52;
-  --color-primary-900: 20 83 45;
-  --color-primary-950: 5 46 22;
+  --color-primary-50:  239 246 255;
+  --color-primary-100: 219 234 254;
+  --color-primary-200: 191 219 254;
+  --color-primary-300: 147 197 253;
+  --color-primary-400: 96 165 250;
+  --color-primary-500: 30 78 216;    /* #1D4ED8 — THE Vega blue */
+  --color-primary-600: 30 78 216;    /* buttons sit on the blue; hover goes deep */
+  --color-primary-700: 30 58 138;    /* #1E3A8A — deep blue for hover/active */
+  --color-primary-800: 30 58 138;
+  --color-primary-900: 23 37 84;
+  --color-primary-950: 23 37 84;
 
   /* App semantic tokens */
-  --primary-accent: 22, 163, 74;     /* match primary-500 */
-  --primary-light:  220, 252, 231;   /* match primary-100 */
+  --primary-accent: 30, 78, 216;     /* match primary-500 */
+  --primary-light:  219, 234, 254;   /* match primary-100 */
   /* UX-02: semantic STATUS tokens — the ONE status vocabulary. Success /
      warning / danger / info mean the same thing on every screen and flip
      with the theme (light ramps here, dark ramps in .dark). Consume via
@@ -347,22 +352,28 @@
  * product + the user's locked preference (Settings → Display →
  * Appearance) — never per-view. Applies when the resolved accent is
  * 'vega': a pure Vega firm on auto (every route), or any user who locks
- * the Vega palette. Komplete resolves to NO class — the :root green is
- * the komplete register — so its default path is byte-identical. */
+ * the Vega palette.
+ * 2026-11-20: the vega register and the komplete register are now THE
+ * SAME VEGA BLUE (#1D4ED8 / #1E3A8A) — owner directive: "we should use
+ * the blue accent for Vega and Complete... let's have a uniform colour
+ * for Complete, which is that blue colour." The skin class stays (a
+ * stored 'vega' preference keeps resolving to it) but its values mirror
+ * :root exactly, so Vega firms and Komplete firms render one uniform
+ * accent. Only Atrium keeps a distinct (jade) register. */
 .app-skin-vega {
-  --color-primary-50:  238 242 255;
-  --color-primary-100: 224 231 255;
-  --color-primary-200: 199 210 254;
-  --color-primary-300: 165 180 252;
-  --color-primary-400: 99 102 241;   /* #6366F1 — the vibrant indigo, interactive end */
-  --color-primary-500: 30 58 138;    /* #1E3A8A — the executive navy, THE accent */
-  --color-primary-600: 27 52 126;    /* darker navy for hover/active */
-  --color-primary-700: 23 44 108;
-  --color-primary-800: 20 37 90;
-  --color-primary-900: 16 30 74;
-  --color-primary-950: 9 17 44;
-  --primary-accent: 30, 58, 138;     /* match primary-500 */
-  --primary-light:  224, 231, 255;   /* match primary-100 */
+  --color-primary-50:  239 246 255;
+  --color-primary-100: 219 234 254;
+  --color-primary-200: 191 219 254;
+  --color-primary-300: 147 197 253;
+  --color-primary-400: 96 165 250;
+  --color-primary-500: 30 78 216;    /* #1D4ED8 — THE Vega blue (uniform with :root) */
+  --color-primary-600: 30 78 216;
+  --color-primary-700: 30 58 138;    /* #1E3A8A — deep blue for hover/active */
+  --color-primary-800: 30 58 138;
+  --color-primary-900: 23 37 84;
+  --color-primary-950: 23 37 84;
+  --primary-accent: 30, 78, 216;     /* match primary-500 */
+  --primary-light:  219, 234, 254;   /* match primary-100 */
 }
 
 /* R52 — THE ATRIUM ESTATE SKIN. The property register of the /atrium

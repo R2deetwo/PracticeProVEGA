@@ -360,7 +360,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         // court must be able to hit record within a second of opening the
         // app. Its own lazy chunk keeps it out of the dashboard bundle.
         if (view === 'quickCapture') {
-            document.title = "Quick Capture — PracticePro";
+            document.title = "Vox — PracticePro";
             return <React.Suspense fallback={<GenericSkeleton />}><QuickCaptureView /></React.Suspense>;
         }
 

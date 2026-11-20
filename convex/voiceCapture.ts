@@ -270,6 +270,207 @@ function eventTypesLine(names: string[]): string {
   return safe || "Meeting, Hearing, Mention, Deadline, Consultation";
 }
 
+// ─── MULTI-SPEAKER DIARIZATION (owner spec 2026-11-20) ─────────────────────
+// Conversation-mode recordings — client consultations, witness conferences,
+// settlement meetings, court hearings — are transcribed as SPEAKER TURNS
+// (speakerId + text per turn), then a finalize-time pass reconciles the
+// per-segment labels into whole-capture speakers and pre-suggests legal
+// roles from the matched Matter context + conversational cues.
+
+/** The diarizing transcription prompt (per audio segment). */
+export function buildDiarizationTranscriptionPrompt(continuationTail?: string): string {
+  return [
+    "You are a diarizing speech-to-text engine for a Nigerian legal practice: the audio may contain TWO OR MORE distinct voices (a lawyer and their client, opposing counsel, a witness, a judge).",
+    "Split the audio into SPEAKER TURNS. Label each distinct voice with a short id: \"1\", \"2\", \"3\"… (local to THIS clip). Consecutive speech by the same voice is ONE turn.",
+    "Transcribe each turn EXACTLY word for word — no cleaning, no summary, no fillers removed. Preserve Nigerian names, titles (Barrister, SAN, My Lord), amounts, dates and Pidgin phrasing exactly as spoken. Unintelligible passages: [inaudible].",
+    "If the clip contains only ONE voice, return a single turn with speaker \"1\".",
+    "Respond with STRICT JSON only, no markdown fences:",
+    '{"turns":[{"speaker":"1","text":"..."},{"speaker":"2","text":"..."}]}',
+    continuationTail
+      ? `CONTEXT: This clip continues a recording. The previous clip ended with: "${continuationTail}". Do not repeat that text; continue from where it ends.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** Parse + sanitize the diarizing transcriber's JSON (exported for tests). */
+export function parseSegmentTurns(raw: string): { speaker: string; text: string }[] | null {
+  const parsed = parseModelJson<any>(raw);
+  const turns = parsed?.turns;
+  if (!Array.isArray(turns) || turns.length === 0) return null;
+  const out: { speaker: string; text: string }[] = [];
+  for (const t of turns) {
+    const speaker = String(t?.speaker ?? "1").replace(/[^0-9A-Za-z]/g, "").slice(0, 4) || "1";
+    const text = String(t?.text || "").trim();
+    if (!text) continue;
+    out.push({ speaker, text: text.slice(0, 8000) });
+  }
+  return out.length > 0 ? out : null;
+}
+
+/** The finalize-time reconcile + role-inference prompt (exported for tests). */
+export function buildSpeakerReconcilePrompt(opts: {
+  counselName: string | null;
+  matter: {
+    title: string;
+    clientName: string | null;
+    opposingCounsel: string | null;
+    presidingJudge: string | null;
+    parties: string[];
+  } | null;
+}): string {
+  const matterCtx = opts.matter
+    ? [
+        `Matter: ${opts.matter.title}`,
+        opts.matter.clientName ? `Client (likely a speaker): ${opts.matter.clientName}` : "",
+        opts.matter.opposingCounsel ? `Opposing counsel: ${opts.matter.opposingCounsel}` : "",
+        opts.matter.presidingJudge ? `Presiding judge: ${opts.matter.presidingJudge}` : "",
+        opts.matter.parties.length ? `Parties: ${opts.matter.parties.join(", ")}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "(no matter matched — rely on conversational cues only)";
+  return `You reconcile the speaker labels of a MULTI-SPEAKER recording made by a Nigerian lawyer and pre-suggest each speaker's legal role.
+
+The recording was made by ${opts.counselName || "the lawyer"} (Counsel) — their device, their voice is one of the speakers.
+MATCHED MATTER CONTEXT (use for identification where confident):
+${matterCtx}
+
+You receive turns labelled T1, T2, T3… in recording order. Each carries a LOCAL segment label (e.g. "seg3:1" = first voice in segment 3). The same physical voice may carry DIFFERENT local labels in different segments — your job is to unify them into whole-recording speakers S1, S2, S3…
+
+CUES (in priority order):
+- "My Lord", "Your Lordship", "the court", "Hon. Justice" — addressed TO the judge; the speaker using them is NOT the judge unless they are delivering a ruling.
+- The person asking structured questions in a consultation/witness interview is usually Counsel; the person answering with personal facts is usually the Client or a Witness.
+- Names spoken in the matter context (client, opposing counsel, judge) identify voices when the conversation itself uses the names.
+- Voice/style continuity across segments: same speaker = same S-id.
+
+RULES:
+- Assign EVERY turn exactly one S-id. Merge voices that are clearly the same person split across segments.
+- Suggest a role for each S-id: "counsel", "client", "opposing_counsel", "witness", "judge", "court_official", "other", or "unknown" — plus a display name ONLY when you are confident (the matter context name, or a name the recording itself uses). Otherwise name = null.
+- ${opts.counselName || "Counsel"} is "counsel" — match their voice by style/role in the conversation.
+- NEVER invent, merge or reword turn text. You may additionally return "turnClean": {"T1": "…"} — the same turn with ONLY filler words (um, uh, like, you know, stutters) and false starts removed; every name, number, date, amount and substantive word must be kept EXACTLY as spoken. When in doubt, omit a turn from turnClean and its verbatim text is kept.
+
+Respond with STRICT JSON only, no markdown fences:
+{"speakers":[{"id":"S1","role":"counsel","name":"${JSON.stringify(opts.counselName || "").replace(/^"|"$/g, "")}","confidence":0.0}],"assignment":{"T1":"S1","T2":"S2"},"turnClean":{"T1":"…"}}`;
+}
+
+/** Deterministic anti-hallucination guard for a model-proposed "cleaned"
+ *  turn: the cleaned text must stay within 60–140% of the original length
+ *  and share ≥ 60% of the original's significant words — anything else is
+ *  rejected and the verbatim turn is kept (fillers beat fiction).
+ *  (Exported for tests.) */
+export function cleanedTurnAcceptable(original: string, cleaned: string): boolean {
+  const o = (original || "").trim();
+  const c = (cleaned || "").trim();
+  if (!o || !c) return false;
+  if (c.length < o.length * 0.6 || c.length > o.length * 1.4) return false;
+  const norm = (s: string) =>
+    new Set(
+      s
+        .toLowerCase()
+        .replace(/[^a-z0-9\s₦]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 3 && !["the", "and", "that", "this", "with", "have"].includes(w))
+    );
+  const origWords = norm(o);
+  if (origWords.size === 0) return true; // nothing significant to protect
+  let kept = 0;
+  for (const w of norm(c)) if (origWords.has(w)) kept += 1;
+  return kept / origWords.size >= 0.6;
+}
+
+/** Parse + apply the reconcile result over OUR turn texts (exported for
+ *  tests). The model's returned text is NEVER trusted blindly — only a
+ *  "turnClean" proposal that passes the cleanedTurnAcceptable guard may
+ *  replace a turn's verbatim text (filler removal only, never rewording). */
+export function parseReconcileResult(
+  raw: string,
+  flatTurns: { key: string; localLabel: string; text: string }[]
+): {
+  speakers: { id: string; role: string; name: string | null; confidence: number }[];
+  turns: { speakerId: string; text: string }[];
+} | null {
+  const parsed = parseModelJson<any>(raw);
+  const speakersRaw = parsed?.speakers;
+  const assignment = parsed?.assignment;
+  const turnClean = parsed?.turnClean && typeof parsed.turnClean === "object" ? parsed.turnClean : null;
+  if (!Array.isArray(speakersRaw) || speakersRaw.length === 0 || !assignment || typeof assignment !== "object") {
+    return null;
+  }
+  // Sanitize speakers.
+  const speakers: { id: string; role: string; name: string | null; confidence: number }[] = [];
+  const idSet = new Set<string>();
+  for (const s of speakersRaw) {
+    const id = String(s?.id || "").trim().slice(0, 8);
+    if (!id || idSet.has(id)) continue;
+    const role = String(s?.role || "unknown").toLowerCase().slice(0, 24);
+    const name = s?.name == null ? null : String(s.name).trim().slice(0, 80) || null;
+    const confidence = Math.max(0, Math.min(1, Number(s?.confidence) || 0));
+    idSet.add(id);
+    speakers.push({ id, role, name, confidence });
+  }
+  if (speakers.length === 0) return null;
+  // Apply the assignment to OUR texts; unknown ids fall back to S?.
+  // A guarded turnClean proposal (filler removal) may replace the text.
+  const turns: { speakerId: string; text: string }[] = [];
+  for (const t of flatTurns) {
+    const assigned = String(assignment[t.key] || "").trim().slice(0, 8);
+    const speakerId = idSet.has(assigned) ? assigned : speakers[0].id;
+    let text = t.text;
+    if (turnClean) {
+      const proposal = turnClean[t.key];
+      if (typeof proposal === "string" && cleanedTurnAcceptable(t.text, proposal)) {
+        text = proposal.trim().slice(0, 8000);
+      }
+    }
+    turns.push({ speakerId, text });
+  }
+  // Drop speakers that ended up with no turns.
+  const used = new Set(turns.map((t) => t.speakerId));
+  const finalSpeakers = speakers.filter((s) => used.has(s.id));
+  if (finalSpeakers.length === 0) return null;
+  return { speakers: finalSpeakers, turns };
+}
+
+/** Deterministic fallback when the reconcile pass is unavailable (no key /
+ *  unparseable): keep every local label as its own speaker. The staging UI
+ *  can still label + merge manually. (Exported for tests.) */
+export function fallbackSpeakerTurns(
+  segTurns: { index: number; turns: { speaker: string; text: string }[] }[]
+): {
+  speakers: { id: string; role: string; name: string | null; confidence: number }[];
+  turns: { speakerId: string; text: string }[];
+} {
+  const speakers: { id: string; role: string; name: string | null; confidence: number }[] = [];
+  const turns: { speakerId: string; text: string }[] = [];
+  for (const seg of [...segTurns].sort((a, b) => a.index - b.index)) {
+    for (const t of seg.turns || []) {
+      const id = `V${seg.index}-${t.speaker}`;
+      if (!speakers.some((s) => s.id === id)) {
+        speakers.push({ id, role: "unknown", name: null, confidence: 0 });
+      }
+      turns.push({ speakerId: id, text: t.text });
+    }
+  }
+  return { speakers, turns };
+}
+
+/** Flatten segment turns into the reconcile prompt's input format. */
+export function flattenSegmentTurns(
+  segTurns: { index: number; turns: { speaker: string; text: string }[] }[]
+): { key: string; localLabel: string; text: string }[] {
+  const out: { key: string; localLabel: string; text: string }[] = [];
+  const ordered = [...segTurns].sort((a, b) => a.index - b.index);
+  ordered.forEach((seg) => {
+    (seg.turns || []).forEach((t, i) => {
+      out.push({ key: `T${out.length + 1}`, localLabel: `seg${seg.index}:${t.speaker}`, text: t.text });
+      void i;
+    });
+  });
+  return out;
+}
+
 export function buildTriagePrompt(opts: {
   lagos: { dateISO: string; weekday: string; time: string };
   matters: { id: string; title?: string | null; suitNumber?: string | null }[];
@@ -462,6 +663,8 @@ EXTRACT — all that apply:
 FORMATTING RULES — strip meta-speech and adapt the format to the destination (the raw transcript is kept separately; your output is the CLEAN saved text):
 - STRIP all conversational scaffolding and meta-instructions: "From voice note…", "I want to capture a quick note…", "I'm trying to set a reminder for…", "Note to self…", hesitations, stumbles. The saved text must read as clean, direct, professional dictation — as if the lawyer had written it themselves.
 - BACKTRACKING: when the speaker pivots ("actually", "scratch that", "no, wait", "I mean", "make that"), discard the retracted phrase COMPLETELY — keep only the final corrected intent. "Tuesday at 2 PM — actually scratch that, Wednesday at 4 PM, and tell them to bring the original C of O, no, certified copy" → event on Wednesday at 16:00 + note "Client to bring certified copy of the Certificate of Occupancy." Never surface the abandoned version.
+- ORDERED MAPPINGS: when the dictation links a list of people/things to a list of values by order ("respectively", "in that order", or plain parallel listing), bind them POSITIONALLY and keep the binding explicit in the note text — "Three children: Tunde (male, 12), Bola (male, 9), Ada (female, 6)." NEVER merge the two lists ambiguously and NEVER drop ages, genders, counts or amounts. Copy numbers EXACTLY as spoken; if one half of the mapping is missing, say "age not stated" rather than guessing.
+- INSTRUCTIONS ARE NEVER DROPPED: a client instruction the lawyer relays ("client wants to file a divorce petition", "she instructed me to write the bank") is a FIRST-CLASS fact of the note — it must appear in the caseNoteText (and the summary when it is the note's point), and imply its Action/diary follow-up. Never reduce an explicit instruction to a vague "wants assistance".
 - CODE-SWITCHING: normalise casual Nigerian Pidgin phrasing into crisp professional English in formatted outputs ("make I follow up with registrar for Ikeja before court sit" → "Follow up with the Registrar at Ikeja High Court before court sitting") while keeping every fact identical. Names of people, places and courts must be spelled correctly (Ikeja High Court, not "Ikeja High Cot").
 - REGISTER SHIFTING by destination: COURT ENDORSEMENTS strict formal Nigerian legal register (the structured fields); CLIENT UPDATES warm, clear, plain English without legalese clutter; DIARY/CALENDAR entries ultra-concise actionable summaries (1 line or tight bullets) with zero conversational filler; CASE/ATTENDANCE NOTES clean paragraphs for narrative, switching to '- ' bullets when the dictation contains 3+ distinct action items, findings, documents or multi-part steps.
 - DIARY EVENT NOTE (each event's "note"): a CONCISE ACTION SUMMARY, never the whole transcript — e.g. "Visit the court registry to confirm the next adjourned date on the Sino Truck file." Bullets only when that one entry carries several distinct checks.
@@ -913,8 +1116,15 @@ Produce a STRUCTURED SUMMARY that weaves the two together:
 4. "Action Items" — concrete next steps, each on its own line.
 5. "Discrepancies" — anything the shorthand asserts that the verbatim record contradicts (or vice versa). If none, write "None noted."
 
+SECTION RULES (each section must be COMPLETE before you move on):
+- "Key Facts" must capture EVERY material fact from BOTH records: parties and their details, children/family members (with gender and age where stated), relationships, addresses, property descriptions, dates, durations, amounts (₦), documents mentioned, and any stated history of the matter. Nothing material from either record may be silently dropped.
+- ORDERED MAPPINGS: when a list is linked to another list by order ("respectively", "in that order", or plain parallel listing), bind the items POSITIONALLY and spell the binding out. "Three children — Tunde, Bola and Ada — aged 12, 9 and 6 respectively" is a Key Fact line "Three children: Tunde (male, 12), Bola (male, 9), Ada (female, 6)." NEVER merge two ordered lists into one ambiguous string, and NEVER drop the ages, genders or order. If the records give an ordered list WITHOUT the paired values (or vice versa), state exactly what was given and mark the missing half "age not stated" rather than guessing.
+- "Client Instructions / Requests" must list EVERY instruction, want and request the client expressed — however phrased ("she wants to file for divorce", "he asked us to draft...", "they want us to write the bank"). Express instructions like filing a petition, drafting a document, writing a letter or commencing an action are ALWAYS instructions. Never leave this section empty or vague when the client expressed any want, need or instruction anywhere in either record; quote the operative verb accurately ("file a petition for divorce", not just "wants help").
+- "Action Items" must NEVER be empty when the session produced instructions, follow-ups, undertakings, deadlines or next steps. Every instruction the client gave implies an action item implementing it (e.g. "Prepare and file the divorce petition"), every undertaking by the lawyer ("I will write to...") is one, every document either party promised to bring/obtain is one, and every procedural step discussed (registry, service, filing, court date) is one. Phrase each as a concrete imperative the lawyer can act on tomorrow.
+- "Discrepancies" must actively CROSS-CHECK the two records: counts (three children vs two), ages and their order, names/spellings, dates, amounts (₦) and addresses. Also flag within-record inconsistencies the client themselves corrected or contradicted. "None noted." only when you have actually compared these dimensions and found nothing.
+
 RULES:
-- Never invent facts absent from both records.
+- Never invent facts absent from both records. In particular: never invent or interpolate ages, dates, amounts, counts or document names — copy them EXACTLY as they appear, and when a value was corrected mid-speech use the corrected value.
 - Names, dates, amounts (₦), case citations, and legal terminology must be copied EXACTLY as they appear in the records.
 - Where the shorthand and the verbatim conflict, surface it under Discrepancies rather than silently choosing one.
 - Write in clean professional English; preserve Nigerian Pidgin quotes verbatim inside quotation marks if quoting the client.
@@ -1031,10 +1241,62 @@ async function transcribeWithGemini(opts: {
   return text;
 }
 
+/** DIARIZING transcription (conversation mode, 2026-11-20): Gemini
+ *  inline audio with the speaker-turn prompt. Returns structured turns;
+ *  the plain-text join is the compat tier for segmentTexts/verbatim. */
+async function transcribeWithGeminiDiarize(opts: {
+  wavBase64: string;
+  apiKey: string;
+  continuationTail?: string;
+}): Promise<{ turns: { speaker: string; text: string }[]; text: string }> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${QUALITY_MODEL}:generateContent`;
+  const body = {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          { inlineData: { mimeType: "audio/wav", data: opts.wavBase64 } },
+          { text: buildDiarizationTranscriptionPrompt(opts.continuationTail) },
+        ],
+      },
+    ],
+    generationConfig: { temperature: 0, maxOutputTokens: 8192, responseMimeType: "application/json" },
+  };
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": opts.apiKey },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throwGeminiFailure(res.status, errText, "diarizing transcription");
+  }
+  const data: any = await res.json();
+  const raw = (data?.candidates?.[0]?.content?.parts || [])
+    .map((p: any) => (typeof p?.text === "string" ? p.text : ""))
+    .join("")
+    .trim();
+  const turns = parseSegmentTurns(raw);
+  if (!turns) {
+    // Model ignored the JSON contract — treat its prose as a single turn
+    // rather than failing the segment (never lose audio over formatting).
+    if (raw) return { turns: [{ speaker: "1", text: raw }], text: raw };
+    throw new ConvexError("The diarizing transcription returned no text — it will retry automatically.");
+  }
+  return { turns, text: turns.map((t) => t.text).join(" ") };
+}
+
 /**
  * The provider chain: Whisper when the platform key exists, else Gemini.
  * Returns the text plus which provider produced it (recorded per segment
  * and per capture for the audit trail).
+ *
+ * DIARIZATION (2026-11-20): when `diarize` is set (conversation mode) the
+ * chain ALWAYS uses the Gemini diarizing path — whisper-1 cannot separate
+ * speakers, so a Whisper transcription of a multi-person consultation
+ * would be a wall of merged text with no attribution. On a diarize-path
+ * failure the segment falls back to the PLAIN chain so the audio is never
+ * lost (the capture then stages without speaker attribution).
  */
 export async function transcribeSegment(_ctx: any, opts: {
   wavBytes: Uint8Array;
@@ -1042,7 +1304,24 @@ export async function transcribeSegment(_ctx: any, opts: {
   user: any;
   callerKey?: string | null;
   continuationTail?: string;
-}): Promise<{ text: string; provider: string }> {
+  diarize?: boolean;
+}): Promise<{ text: string; provider: string; turns?: { speaker: string; text: string }[] }> {
+  if (opts.diarize) {
+    const geminiD = await resolveGeminiKey(_ctx, opts.user, opts.callerKey);
+    if (geminiD) {
+      try {
+        const out = await transcribeWithGeminiDiarize({
+          wavBase64: opts.wavBase64,
+          apiKey: geminiD.key,
+          continuationTail: opts.continuationTail,
+        });
+        return { text: out.text, provider: "gemini-diarize", turns: out.turns };
+      } catch (err: any) {
+        console.error("[voiceCapture] diarizing transcription failed, falling back to the plain chain:", err?.message);
+        // fall through to the plain chain — audio is never lost
+      }
+    }
+  }
   const openAiKey = (process.env.OPENAI_API_KEY || "").trim();
   if (openAiKey) {
     try {
@@ -1135,6 +1414,10 @@ export interface FinalizeCaptureResult {
   triageError: string | null;
   mergeError: string | null;
   status: string;
+  /** Multi-speaker diarization (2026-11-20): the reconciled speakers +
+   *  turns when the capture was recorded in conversation mode. */
+  speakerTurns?: any;
+  speakerError?: string | null;
 }
 
 export interface QuickAskSource {
@@ -1211,6 +1494,8 @@ export const uploadSegment = action({
     startMs: v.number(),
     endMs: v.number(),
     startedAt: v.optional(v.number()),
+    // Conversation mode (multi-speaker diarization, 2026-11-20).
+    multiSpeaker: v.optional(v.boolean()),
     callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()), // ignored — session is the proof
@@ -1238,6 +1523,7 @@ export const uploadSegment = action({
       outputMode: args.outputMode,
       startedAt: args.startedAt ?? undefined,
       segmentCount: args.segmentCount ?? undefined,
+      multiSpeaker: args.multiSpeaker ?? undefined,
     });
 
     const row: any = await ctx.runQuery(internal.voiceCaptureInternal.getCaptureInternal, {
@@ -1271,12 +1557,13 @@ export const uploadSegment = action({
       new Blob([wavBytes.buffer as ArrayBuffer], { type: "audio/wav" })
     );
 
-    const { text, provider } = await transcribeSegment(ctx, {
+    const { text, provider, turns } = await transcribeSegment(ctx, {
       wavBytes,
       wavBase64: args.audioBase64,
       user: auth.user,
       callerKey: args.callerApiKey,
       continuationTail,
+      diarize: args.multiSpeaker === true || row?.multiSpeaker === true,
     });
 
     const appendResult: any = await ctx.runMutation(
@@ -1297,6 +1584,7 @@ export const uploadSegment = action({
           provider,
           at: Date.now(),
         },
+        turns: turns && turns.length > 0 ? turns : undefined,
       }
     );
 
@@ -1321,6 +1609,9 @@ export const finalizeCapture = action({
     shorthandText: v.optional(v.string()), // legal pad: latest typed notes
     eventTypeNames: v.optional(v.array(v.string())), // firm's calendar types
     totalDurationMs: v.optional(v.number()),
+    // Conversation mode (multi-speaker diarization, 2026-11-20) — also
+    // read from the stored row so replays need not repeat it.
+    multiSpeaker: v.optional(v.boolean()),
     callerApiKey: v.optional(v.string()), // the caller's own BYO key
     sessionToken: v.optional(v.string()),
     userEmail: v.optional(v.string()),
@@ -1372,6 +1663,10 @@ export const finalizeCapture = action({
     };
 
     const gemini = await resolveGeminiKey(ctx, auth.user, args.callerApiKey);
+    // The matters directory is shared by the analysis pass and the
+    // multi-speaker reconcile pass below (2026-11-20) — hoisted so the
+    // reconcile block can reuse it (or load it for legalpad captures).
+    let mattersDir: any[] | null = null;
     const patch: any = {
       verbatimText: verbatim,
       provider: lastProvider,
@@ -1429,6 +1724,7 @@ export const finalizeCapture = action({
           internal.voiceCaptureInternal.listFirmMattersInternal,
           { firmId: auth.firmId }
         );
+        mattersDir = matters;
         const contacts: any[] = await ctx.runQuery(
           internal.voiceCaptureInternal.listFirmContactsInternal,
           { firmId: auth.firmId }
@@ -1650,6 +1946,83 @@ export const finalizeCapture = action({
       }
     }
 
+    // ── MULTI-SPEAKER RECONCILE + ROLE INFERENCE (owner spec 2026-11-20):
+    //    unify the per-segment speaker labels into whole-recording
+    //    speakers and pre-suggest legal roles from the matched matter's
+    //    people (client, opposing counsel, judge) + conversational cues
+    //    ("My Lord", Q&A patterns). The staging card renders tappable
+    //    speaker pills the lawyer can relabel/merge before saving. When
+    //    only ONE speaker is detected the UI keeps the clean single-block
+    //    view (no badges) — diarization only surfaces when it found
+    //    people. Turn TEXT always comes from our own segment turns — the
+    //    model returns ids/roles/names only, never reworded text.
+    const segTurns: { index: number; turns: { speaker: string; text: string }[] }[] = Array.isArray(
+      row.segmentTurns
+    )
+      ? row.segmentTurns
+      : [];
+    const isMultiSpeaker = args.multiSpeaker === true || row.multiSpeaker === true;
+    if (isMultiSpeaker && segTurns.length > 0) {
+      const flatTurns = flattenSegmentTurns(segTurns);
+      if (flatTurns.length > 0) {
+        if (!gemini) {
+          // No AI key: deterministic per-segment fallback — the staging
+          // card can still label + merge speakers by hand.
+          const speakerResult = fallbackSpeakerTurns(segTurns);
+          patch.speakerTurns = speakerResult;
+          result.speakerTurns = speakerResult as any;
+          result.speakerError = "No AI key available for speaker identification — raw per-segment labels kept.";
+        } else {
+        try {
+          if (mattersDir === null) {
+            mattersDir = await ctx.runQuery(
+              internal.voiceCaptureInternal.listFirmMattersInternal,
+              { firmId: auth.firmId }
+            );
+          }
+          // The best-matched matter from the analysis (or null).
+          const topMatchId =
+            (Array.isArray(patch.triageMeta?.matterMatches) && patch.triageMeta.matterMatches[0]?.matterId) ||
+            null;
+          const matterRow = topMatchId
+            ? (mattersDir || []).find((m: any) => m.id === topMatchId) || null
+            : null;
+          const reconcileRaw = await geminiText({
+            apiKey: gemini.key,
+            system: buildSpeakerReconcilePrompt({
+              counselName: auth.user?.name || null,
+              matter: matterRow
+                ? {
+                    title: String(matterRow.title || ""),
+                    clientName: matterRow.clientName || null,
+                    opposingCounsel: matterRow.opposingCounsel || null,
+                    presidingJudge: matterRow.presidingJudge || null,
+                    parties: Array.isArray(matterRow.parties) ? matterRow.parties : [],
+                  }
+                : null,
+            }),
+            user: flatTurns
+              .map((t) => `${t.key} [${t.localLabel}] ${t.text.slice(0, 2000)}`)
+              .join("\n"),
+            maxTokens: 2048,
+          });
+          const reconciled = parseReconcileResult(reconcileRaw, flatTurns);
+          const speakerResult =
+            reconciled ?? fallbackSpeakerTurns(segTurns);
+          patch.speakerTurns = speakerResult;
+          result.speakerTurns = speakerResult as any;
+        } catch (err: any) {
+          // The capture still finalizes — it just stages without
+          // attribution, with the raw per-segment turns as fallback.
+          const speakerResult = fallbackSpeakerTurns(segTurns);
+          patch.speakerTurns = speakerResult;
+          result.speakerTurns = speakerResult as any;
+          result.speakerError = err?.message || "Speaker reconcile failed.";
+        }
+        }
+      }
+    }
+
     await ctx.runMutation(internal.voiceCaptureInternal.patchCaptureInternal, {
       clientLocalId: args.clientLocalId,
       firmId: auth.firmId,
@@ -1775,12 +2148,15 @@ function projectCapture(row: any, slim: boolean) {
     base.snippet = (row.verbatimText || row.smartCleanText || row.mergedSummary || "").slice(0, 180);
     base.hasSmartClean = !!row.smartCleanText;
     base.hasMergedSummary = !!row.mergedSummary;
+    base.multiSpeaker = row.multiSpeaker === true;
     return base;
   }
   base.verbatimText = row.verbatimText;
   base.smartCleanText = row.smartCleanText;
   base.mergedSummary = row.mergedSummary;
   base.shorthandText = row.shorthandText;
+  base.multiSpeaker = row.multiSpeaker === true;
+  base.speakerTurns = row.speakerTurns ?? null;
   base.segments = Array.isArray(row.segments)
     ? row.segments.map((s: any) => ({ storageId: s.storageId, startMs: s.startMs, endMs: s.endMs }))
     : [];

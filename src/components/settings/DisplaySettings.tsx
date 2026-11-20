@@ -253,7 +253,7 @@ const AccentPicker: React.FC = () => {
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-3">
                 {preference === 'auto'
-                    ? `Auto — currently following your active product (${resolved === 'komplete' ? 'Komplete green' : resolved === 'vega' ? 'Vega legal copper' : 'Atrium jade'}).`
+                    ? `Auto — currently following your active product (${resolved === 'atrium' ? 'Atrium jade' : 'Vega blue'}).`
                     : 'Locked — this palette applies to every screen until you change it.'}
             </p>
         </div>
@@ -263,11 +263,11 @@ const AccentPicker: React.FC = () => {
 /* ── StartupViewPicker ────────────────────────────────────────────────────
    Where the app opens on launch (owner addendum 2026-11-18: "Default to
    Full Office Dashboard First"). Everyone starts on the Full Office
-   dashboard; the Quick Capture opt-in applies to MOBILE launches only.
+   dashboard; the Vox opt-in applies to MOBILE launches only.
    Uses the ui/Button primitive (ADR-0004 — no new raw form elements). */
 const STARTUP_VIEW_OPTIONS: { value: StartupViewPreference; label: string; hint: string }[] = [
     { value: 'office', label: 'Full Office', hint: 'Default — open the full workspace' },
-    { value: 'capture', label: 'Quick Capture (mobile)', hint: 'Phone launches open the capture screen' },
+    { value: 'capture', label: 'Vox (mobile)', hint: 'Phone launches open the capture screen' },
     { value: 'auto', label: 'Full Office (legacy “Auto”)', hint: 'Same as Full Office — phones are no longer forced into capture' },
 ];
 
@@ -309,9 +309,9 @@ const StartupViewPicker: React.FC = () => {
                 })}
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Applies the next time you open the app. Quick Capture launches apply to phones
+                Applies the next time you open the app. Vox launches apply to phones
                 only — desktop always keeps the full workspace. You can also flip this from the
-                “Start in Quick Capture on mobile” switch inside Quick Capture itself.
+                “Start in Vox on mobile” switch inside Vox itself.
             </p>
         </div>
     );
@@ -400,30 +400,30 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
 
             {/* ─── Startup View ────────────────────────────────────────────
                 Owner addendum 2026-11-18: everyone opens the Full Office
-                dashboard first. Quick Capture is an explicit, per-account
+                dashboard first. Vox is an explicit, per-account
                 opt-in for mobile launches (localStorage, instant boot read).
-                The same preference is toggled in Quick Capture's header. */}
+                The same preference is toggled in Vox's header. */}
             <SettingsCard title="Startup View" className={className}>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
                     Choose where the app opens. By default everyone lands on the full
-                    workspace — flip on Quick Capture if you want the record button
+                    workspace — flip on Vox if you want the record button
                     first on your phone.
                 </p>
                 <StartupViewPicker />
             </SettingsCard>
 
-            {/* ─── Quick Capture & Voice ──────────────────────────────────
-                Owner request 2026-11-19: Quick Capture properly explained
-                and considered in Settings. This card is the Settings-side
-                map of every Quick Capture / Quick Ask behaviour and where
-                its controls live (the ⚙ menu in Quick Capture itself, the
-                Voice Tips panel, and the Startup View card above). */}
-            <SettingsCard title="Quick Capture & Voice" className={className}>
+            {/* ─── Vox & Voice ─────────────────────────────────────────────
+                Owner request 2026-11-19: the voice capture screen properly
+                explained and considered in Settings. This card is the
+                Settings-side map of every Vox / Quick Ask behaviour and where
+                its controls live (the ⚙ menu in Vox itself, the Voice Tips
+                panel, and the Startup View card above). */}
+            <SettingsCard title="Vox & Voice" className={className}>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-                    Quick Capture is the voice-first capture screen — dictate
+                    Vox is the voice-first capture screen — dictate
                     anything and it becomes structured firm records (matters,
                     diary entries, endorsements, property notes, expenses,
-                    drafts). Its controls live in Quick Capture's own ⚙ menu;
+                    drafts). Its controls live in Vox's own ⚙ menu;
                     this card explains what each one does.
                 </p>
                 <div className="space-y-4">
@@ -444,7 +444,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                     <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
                         <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Quiet Mode</h4>
                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                            In Quick Capture's ⚙ menu (and the header on desktop). Relaxes
+                            In Vox's ⚙ menu (and the header on desktop). Relaxes
                             noise suppression so faint, quiet speech in court galleries or
                             shared rooms is captured cleanly instead of being filtered out.
                             Saved per device.
@@ -464,17 +464,17 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                     <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
                         <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Snippets & Personal Dictionary</h4>
                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                            Managed in Quick Capture's "?" Voice Tips panel (also in Help &
+                            Managed in Vox's "?" Voice Tips panel (also in Help &
                             Support). Snippets expand a spoken trigger into full text
                             ("…and insert chambers signature"); the dictionary learns your
                             spelling corrections and feeds them to every future dictation.
                         </p>
                     </div>
                     <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
-                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Start in Quick Capture (mobile)</h4>
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Start in Vox (mobile)</h4>
                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                             Covered by the Startup View card above — flip it on there, or
-                            use the switch inside Quick Capture's ⚙ menu on a phone. It
+                            use the switch inside Vox's ⚙ menu on a phone. It
                             only affects mobile launches and is saved per device.
                         </p>
                     </div>

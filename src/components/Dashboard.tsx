@@ -362,25 +362,25 @@ const Dashboard: React.FC = () => {
                         variant="bare"
                         size="md"
                         fullWidth
-                        aria-label="Quick Capture — start recording"
-                        className="flex items-center gap-3 rounded-2xl border-2 border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 via-white to-emerald-50 dark:from-emerald-900/20 dark:via-zinc-800 dark:to-emerald-900/20 p-4 shadow-lg shadow-emerald-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6"
+                        aria-label="Vox — start recording"
+                        className="flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6"
                         onClick={() => {
                             hapticLight();
                             openAloaCapture();
                         }}
                     >
-                        <span className="flex items-center justify-center w-12 h-12 rounded-full bg-emerald-600 text-white shadow-md shrink-0">
+                        <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary-600 text-white shadow-md shrink-0">
                             <MicrophoneIcon className="w-6 h-6" />
                         </span>
                         <span className="min-w-0 flex-1">
                             <span className="block text-sm font-black text-slate-900 dark:text-white">
-                                Quick Capture
+                                Vox
                             </span>
                             <span className="block text-xs text-slate-600 dark:text-zinc-300 leading-snug">
                                 Dictate a note, task or question — 1 tap to record
                             </span>
                         </span>
-                        <ChevronRightIcon className="w-5 h-5 text-emerald-500 shrink-0" />
+                        <ChevronRightIcon className="w-5 h-5 text-primary-500 shrink-0" />
                     </Button>
                 </div>
 

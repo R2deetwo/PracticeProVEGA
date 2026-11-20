@@ -72,7 +72,7 @@ const InlineMatterReview: React.FC<InlineMatterReviewProps> = ({ matter }) => {
 
     if (reminder && !reminder.dismissed) {
         return (
-            <div className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded text-2xs font-bold shadow-sm transition-all group ${
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-3xs font-bold transition-all group ${
                 isDue ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' :
                 isSoon ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
                 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'

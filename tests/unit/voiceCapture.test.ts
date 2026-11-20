@@ -24,6 +24,13 @@ import {
   SMART_CLEAN_SYSTEM_PROMPT,
   buildTriagePrompt,
   buildMergePrompt,
+  buildDiarizationTranscriptionPrompt,
+  parseSegmentTurns,
+  buildSpeakerReconcilePrompt,
+  parseReconcileResult,
+  cleanedTurnAcceptable,
+  fallbackSpeakerTurns,
+  flattenSegmentTurns,
   classifyGeminiFailure,
   GEMINI_FAILURE_MESSAGES,
   buildQuickAskContext,
@@ -49,6 +56,11 @@ import {
   classifyIntentMode,
   resolveIntentMode,
   eventHasActionableSubject,
+  composeSpeakerDraft,
+  defaultSpeakerLabels,
+  isMultiSpeakerSet,
+  speakerRoleLabel,
+  type SpeakerTurnSet,
 } from '../../src/services/voice/draftUtils';
 
 // ─── Verbatim assembly ──────────────────────────────────────────────────────
@@ -244,6 +256,39 @@ describe('prompts', () => {
     expect(p).toContain('RECORD B');
     expect(p).toContain('Discrepancies');
     expect(p).toContain('Never invent facts');
+  });
+
+  // 2026-11-20 OWNER BUG REPORT (the divorce-consultation session): the
+  // merged summary dropped the children's ages ("I said their ages
+  // respectively, and it didn't get that"), missed the explicit "wants to
+  // file a divorce petition" instruction under Client Instructions, and
+  // produced an EMPTY Action Items section. These pins keep the
+  // completeness rules in the prompt.
+  it('merge prompt REGRESSION: ordered mappings, instruction capture, action-item completeness, cross-checking', () => {
+    const p = buildMergePrompt();
+    // "aged 12, 9 and 6 respectively" must bind positionally, spelled out
+    expect(p).toContain('ORDERED MAPPINGS');
+    expect(p).toContain('respectively');
+    expect(p).toContain('POSITIONALLY');
+    // "wants to file a divorce petition" is ALWAYS a Client Instruction
+    expect(p).toContain('Client Instructions / Requests');
+    expect(p).toContain('file a petition for divorce');
+    // Action Items may never be empty when instructions exist
+    expect(p).toMatch(/Action Items[^]*NEVER be empty/);
+    // Discrepancies must actively cross-check counts/ages/amounts/dates
+    expect(p).toContain('CROSS-CHECK');
+  });
+
+  it('analysis prompt REGRESSION: ordered mappings + client instructions are first-class facts', () => {
+    const p = buildAnalysisPrompt({
+      lagos: { dateISO: '2026-11-20', weekday: 'Friday', time: '09:00' },
+      matters: [],
+      contacts: [],
+      eventTypeNames: ['Meeting'],
+    });
+    expect(p).toContain('ORDERED MAPPINGS');
+    expect(p).toContain('INSTRUCTIONS ARE NEVER DROPPED');
+    expect(p).toContain('file a divorce petition');
   });
 });
 
@@ -1441,5 +1486,191 @@ describe('prompts carry the read/write contract', () => {
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('NEVER an instruction to create anything');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('Extract ONLY the explicit write clause');
     expect(QUICK_ASK_SYSTEM_PROMPT).toContain('"mode":"query_only|mutation_action|hybrid"');
+  });
+});
+
+// ─── MULTI-SPEAKER DIARIZATION (owner spec 2026-11-20) ──────────────────────
+
+describe('diarizing transcription prompt + turn parsing', () => {
+  it('the transcription prompt demands strict speaker-turn JSON', () => {
+    const p = buildDiarizationTranscriptionPrompt();
+    expect(p).toContain('SPEAKER TURNS');
+    expect(p).toContain('{"turns":[{"speaker":"1","text":"..."},{"speaker":"2","text":"..."}]}');
+    expect(p).toContain('word for word');
+  });
+
+  it('the continuation tail rides along so segments join at sentence boundaries', () => {
+    const p = buildDiarizationTranscriptionPrompt('end of the previous clip');
+    expect(p).toContain('end of the previous clip');
+  });
+
+  it('parseSegmentTurns parses, sanitizes and drops empties', () => {
+    const turns = parseSegmentTurns(
+      JSON.stringify({ turns: [{ speaker: '1', text: 'Good afternoon ma' }, { speaker: ' 2 ', text: '  ' }, { speaker: 3, text: 'My Lord, the matter is adjourned' }] })
+    );
+    expect(turns).toEqual([
+      { speaker: '1', text: 'Good afternoon ma' },
+      { speaker: '3', text: 'My Lord, the matter is adjourned' },
+    ]);
+  });
+
+  it('parseSegmentTurns returns null for garbage (caller keeps the plain chain)', () => {
+    expect(parseSegmentTurns('not json at all')).toBeNull();
+    expect(parseSegmentTurns(JSON.stringify({ turns: [] }))).toBeNull();
+  });
+});
+
+describe('speaker reconcile prompt + parse', () => {
+  it('carries the counsel identity, matter context and the courtroom cues', () => {
+    const p = buildSpeakerReconcilePrompt({
+      counselName: 'Chigozie Okafor',
+      matter: {
+        title: 'Adeyemi v Adeyemi',
+        clientName: 'Mrs. Adeyemi',
+        opposingCounsel: 'Barr. Ogundipe',
+        presidingJudge: 'Justice Nwosu',
+        parties: ['Mrs. Adeyemi', 'Mr. Adeyemi'],
+      },
+    });
+    expect(p).toContain('Chigozie Okafor');
+    expect(p).toContain('Mrs. Adeyemi');
+    expect(p).toContain('Barr. Ogundipe');
+    expect(p).toContain('Justice Nwosu');
+    expect(p).toContain('My Lord');
+    expect(p).toContain('"assignment"');
+  });
+
+  it('applies the assignment over OUR turn texts — the model never rewrites words', () => {
+    const flat = [
+      { key: 'T1', localLabel: 'seg0:1', text: 'Counsel asks: state your name for the record' },
+      { key: 'T2', localLabel: 'seg0:2', text: 'My name is Mrs. Adeyemi' },
+    ];
+    const out = parseReconcileResult(
+      JSON.stringify({
+        speakers: [
+          { id: 'S1', role: 'counsel', name: 'Chigozie Okafor', confidence: 0.9 },
+          { id: 'S2', role: 'client', name: 'Mrs. Adeyemi', confidence: 0.8 },
+        ],
+        assignment: { T1: 'S1', T2: 'S2' },
+      }),
+      flat
+    );
+    expect(out).not.toBeNull();
+    expect(out!.turns).toEqual([
+      { speakerId: 'S1', text: 'Counsel asks: state your name for the record' },
+      { speakerId: 'S2', text: 'My name is Mrs. Adeyemi' },
+    ]);
+    expect(out!.speakers.map((s) => s.role)).toEqual(['counsel', 'client']);
+  });
+
+  it('a guarded turnClean (filler removal) is accepted; a rewording is rejected', () => {
+    const flat = [
+      { key: 'T1', localLabel: 'seg0:1', text: 'Um, so, my name is Mrs. Adeyemi and I want to file for divorce' },
+    ];
+    const good = parseReconcileResult(
+      JSON.stringify({
+        speakers: [{ id: 'S1', role: 'client', name: 'Mrs. Adeyemi', confidence: 0.9 }],
+        assignment: { T1: 'S1' },
+        turnClean: { T1: 'My name is Mrs. Adeyemi and I want to file for divorce' },
+      }),
+      flat
+    );
+    expect(good!.turns[0].text).toBe('My name is Mrs. Adeyemi and I want to file for divorce');
+
+    const bad = parseReconcileResult(
+      JSON.stringify({
+        speakers: [{ id: 'S1', role: 'client', name: null, confidence: 0.9 }],
+        assignment: { T1: 'S1' },
+        turnClean: { T1: 'The client introduced herself and requested a dissolution petition immediately.' },
+      }),
+      flat
+    );
+    // Hallucinated summary rejected — the verbatim turn survives.
+    expect(bad!.turns[0].text).toContain('Um, so, my name is Mrs. Adeyemi');
+  });
+
+  it('unknown assignment ids fall back and unused speakers are dropped', () => {
+    const flat = [
+      { key: 'T1', localLabel: 'seg0:1', text: 'one voice only' },
+    ];
+    const out = parseReconcileResult(
+      JSON.stringify({
+        speakers: [
+          { id: 'S1', role: 'counsel', name: null, confidence: 0.5 },
+          { id: 'S9', role: 'ghost', name: null, confidence: 0.5 },
+        ],
+        assignment: { T1: 'S-not-in-list' },
+      }),
+      flat
+    );
+    expect(out!.turns[0].speakerId).toBe('S1');
+    expect(out!.speakers.some((s) => s.id === 'S9')).toBe(false);
+  });
+
+  it('cleanedTurnAcceptable direct cases', () => {
+    expect(cleanedTurnAcceptable('Um, so, we have three children', 'We have three children')).toBe(true);
+    expect(cleanedTurnAcceptable('We have three children', 'The couple has three kids together')).toBe(false);
+    expect(cleanedTurnAcceptable('', 'anything')).toBe(false);
+  });
+
+  it('fallbackSpeakerTurns + flattenSegmentTurns keep every turn without AI', () => {
+    const segTurns = [
+      { index: 1, turns: [{ speaker: '1', text: 'second segment first' }] },
+      { index: 0, turns: [{ speaker: '1', text: 'first segment' }, { speaker: '2', text: 'the client' }] },
+    ];
+    const flat = flattenSegmentTurns(segTurns);
+    expect(flat.map((t) => t.text)).toEqual(['first segment', 'the client', 'second segment first']);
+    const fb = fallbackSpeakerTurns(segTurns);
+    expect(fb.turns).toHaveLength(3);
+    expect(fb.speakers.map((s) => s.id).sort()).toEqual(['V0-1', 'V0-2', 'V1-1'].sort());
+  });
+});
+
+describe('speaker draft composition (client helpers)', () => {
+  const set: SpeakerTurnSet = {
+    speakers: [
+      { id: 'S1', role: 'counsel', name: 'Chigozie', confidence: 0.9 },
+      { id: 'S2', role: 'client', name: 'Mrs. Adeyemi', confidence: 0.85 },
+    ],
+    turns: [
+      { speakerId: 'S1', text: 'Please state your name.' },
+      { speakerId: 'S2', text: 'Mrs. Adeyemi.' },
+      { speakerId: 'S2', text: 'I want to file for divorce.' },
+      { speakerId: 'S1', text: 'Thank you.' },
+    ],
+  };
+
+  it('isMultiSpeakerSet: 2+ speakers true, solo false, null false', () => {
+    expect(isMultiSpeakerSet(set)).toBe(true);
+    expect(isMultiSpeakerSet({ speakers: [{ id: 'S1', role: 'counsel', name: null, confidence: 0 }], turns: [{ speakerId: 'S1', text: 'solo' }] })).toBe(false);
+    expect(isMultiSpeakerSet(null)).toBe(false);
+  });
+
+  it('defaultSpeakerLabels prefers confident inferred names, falls back to role labels', () => {
+    const labels = defaultSpeakerLabels(set);
+    expect(labels.S1).toBe('Chigozie');
+    expect(labels.S2).toBe('Mrs. Adeyemi');
+  });
+
+  it('speakerRoleLabel maps the legal roles', () => {
+    expect(speakerRoleLabel('counsel')).toBe('Me (Counsel)');
+    expect(speakerRoleLabel('opposing_counsel')).toBe('Opposing Counsel');
+    expect(speakerRoleLabel('judge')).toBe('Judge / Court');
+    expect(speakerRoleLabel('unknown')).toBe('Speaker');
+  });
+
+  it('composeSpeakerDraft merges consecutive turns and bolds the label', () => {
+    const out = composeSpeakerDraft(set, { S1: 'Chigozie', S2: 'Mrs. Adeyemi' });
+    expect(out).toBe(
+      '**Chigozie:** Please state your name.\n\n' +
+        '**Mrs. Adeyemi:** Mrs. Adeyemi. I want to file for divorce.\n\n' +
+        '**Chigozie:** Thank you.'
+    );
+  });
+
+  it('turnOverrides relabel a SINGLE turn when update-all is off', () => {
+    const out = composeSpeakerDraft(set, { S1: 'Chigozie', S2: 'Mrs. Adeyemi' }, { 2: 'Witness' });
+    expect(out).toContain('**Mrs. Adeyemi:** Mrs. Adeyemi.');
+    expect(out).toContain('**Witness:** I want to file for divorce.');
   });
 });

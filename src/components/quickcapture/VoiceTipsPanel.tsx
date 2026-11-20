@@ -91,6 +91,10 @@ const EXAMPLES: { label: string; say: string; does: string }[] = [
 
 const TRICKS: { title: string; body: string }[] = [
   {
+    title: "Conversation mode — record everyone, label each speaker",
+    body: "Switch the mode above the mic from “Dictation” to “Conversation” before client consultations, witness conferences, settlement meetings or court hearings. Each speaker's words are transcribed as separate turns with a tappable name pill — tap a pill to relabel that speaker in one tap (Me (Counsel), Client — pre-filled from the matched matter, Opposing Counsel, Witness, Judge / Court, or any custom name). “Update all turns for this speaker” is on by default, so one rename sweeps the whole note; turn it off to relabel a single turn. If the audio split one voice into two labels, the menu's “Merge into…” folds them together. Saved notes keep the attribution as bold “Name:” dialogue blocks, so the Case Note, Attendance Note or Witness Statement Draft reads as a clean conversation. Solo dictations are unaffected — no speaker badges, just the normal clean transcript.",
+  },
+  {
     title: "Questions are read-only — asks never create entries",
     body: "Ask anything — “What's my schedule today?”, “Do I have anything tomorrow?”, “When is the Sino Truck matter coming up?” — and Quick Ask answers from your own records without creating anything. Diary entries, tasks and notes are only created from clear instructions like “Remind me…”, “Schedule…”, “Add a task…” or “Log an expense…”. Combine both in one breath (“What's my schedule tomorrow, and add a review task at 4 PM?”) and only the explicit instruction is acted on — the question part stays a question.",
   },
@@ -381,9 +385,9 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
         <h3 className="text-sm font-bold text-slate-900 mb-1">Startup preference</h3>
         <p className="text-xs text-slate-500 leading-relaxed">
           By default the app opens the Full Office dashboard. On your phone you
-          can flip <strong>“Start in Quick Capture on mobile”</strong> (in
-          Quick Capture’s ⚙ menu) so launch lands straight on the mic — it is
-          OFF by default and saved per device.
+          can flip <strong>“Start in Vox on mobile”</strong> (in Vox's ⚙
+          menu) so launch lands straight on the mic — it is OFF by default
+          and saved per device.
         </p>
       </section>
     </div>
@@ -395,12 +399,12 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
     <div className="border-b border-slate-200 bg-slate-50/60 px-4 py-4">
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 shrink-0">
+          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700 shrink-0">
             <SparklesIcon className="w-4 h-4" />
           </span>
           <div className="min-w-0">
             <h2 className="font-bold text-slate-900 text-sm leading-tight">
-              Voice Tips — Quick Capture & Voice Guide
+              Voice Tips — Vox & Voice Guide
             </h2>
             <p className="text-2xs text-slate-500">
               Tricks, snippets and your Voice Dictionary

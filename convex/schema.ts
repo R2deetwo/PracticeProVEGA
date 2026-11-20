@@ -3406,6 +3406,19 @@ export default defineSchema({
       )
     ),
     segmentCount: v.optional(v.number()),
+    // ── MULTI-SPEAKER DIARIZATION (owner spec 2026-11-20): "conversation
+    // mode" recordings — client consultations, witness conferences,
+    // settlement meetings, court hearings. `multiSpeaker` is set at capture
+    // time (the Vox Conversation toggle); `segmentTurns` holds the RAW
+    // per-segment speaker turns from the diarizing transcriber (parallel to
+    // segmentTexts by index: [{index, turns:[{speaker, text}]}]);
+    // `speakerTurns` holds the FINAL reconciled result of the finalize-time
+    // role-inference pass: {speakers:[{id, role, name, confidence}],
+    // turns:[{speakerId, text}]} — text always from our own segment turns,
+    // never the model's paraphrase.
+    multiSpeaker: v.optional(v.boolean()),
+    segmentTurns: v.optional(v.any()),
+    speakerTurns: v.optional(v.any()),
     // Post-capture triage (quick captures): the single best next action.
     triageIntent: nullableString, // 'case_note' | 'schedule' | 'question' | 'share'
     triageMeta: v.optional(v.any()),

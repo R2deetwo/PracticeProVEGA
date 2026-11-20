@@ -54,8 +54,8 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
   if (pad.phase === "idle" || pad.phase === "error") {
     return (
       <div className="flex flex-col items-center justify-center gap-5 p-6 min-h-[60vh] text-center">
-        <div className="w-20 h-20 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center">
-          <MicrophoneIcon className="w-9 h-9 text-emerald-600" />
+        <div className="w-20 h-20 rounded-full bg-primary-50 border border-primary-200 flex items-center justify-center">
+          <MicrophoneIcon className="w-9 h-9 text-primary-600" />
         </div>
         <div>
           <h3 className="text-lg font-bold text-slate-900">Hybrid Legal Pad</h3>
@@ -81,7 +81,7 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
             Start consultation
           </Button>
           <Button variant="ghost" size="sm" onClick={onExit}>
-            Back to Quick Capture
+            Back to Vox
           </Button>
         </div>
       </div>
@@ -96,7 +96,7 @@ export const LegalPadView: React.FC<{ onExit: () => void }> = ({ onExit }) => {
       <div className="flex flex-col gap-4 p-4 pb-24">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-100 text-emerald-700">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-primary-100 text-primary-700">
               <CheckIcon className="w-4 h-4" />
             </span>
             <div className="min-w-0">
