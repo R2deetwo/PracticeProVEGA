@@ -1693,3 +1693,8 @@ carries either field, and both dedicated surfaces (`getUserApiKey`,
 
 Gates: convex tsc 0 · root tsc 0 · vitest 3249/3249 (userResolution 12/12,
 recoveryFlow 18/18).
+
+Fix 3 promoted to production: `convex-production-deploy` run 44717130588
+on ba20bcbf — success (the failed run 44717106142 in the list was a
+superseded dispatch against a mid-rebase SHA; ignore). The getUser
+projection fix is live on gregarious-malamute-537.
