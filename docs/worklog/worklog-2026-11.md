@@ -2053,3 +2053,73 @@ echo dedupe, canUseVox on both mirrors (incl. trial window).
   deploy, vercel-production-deploy, APK build). Owner action: mint one
   at GitHub → Settings → Developer settings → Personal access tokens,
   then update BOTH split halves in the archive above.
+
+## 2026-11-20 (f) — Jurisdiction Intelligence Layer: Phase 0 diagnostic + the basis spec
+
+Owner forwarded the full "VEGA: Jurisdiction Intelligence Layer (ALOA X + DraftPro)"
+spec (J1-J16 taxonomy, Source Store, rule store, Jurisdiction Engine, consumers,
+learning loop, eval harness) and asked: see what can be implemented, improve the MD,
+keep it simple. Per the spec's own Operating Rule 1 (diagnostic before build) this
+session is READ-ONLY + docs.
+
+### Deliverables
+
+- `docs/proposals/JURISDICTION_INTELLIGENCE_LAYER.md` — the owner's spec preserved,
+  with grounded additions: "Seed today" column mapping every J-class to existing
+  code; 4a.1 extend-don't-duplicate table mapping (legal_judgments/legal_instruments
+  + new jurisdiction_rules/legal_authority_edges); 4b.1 Convex constraint honesty
+  note; 4b.2 rule versioning; 4c.1 the 10-file de-hardcoding migration inventory;
+  4d reuse map (hybridSearch, CorpusBackend, complianceGate, instrument_changes,
+  engine console); 5a.1 MatterFacts builder sources; 5c.7 batched reasoning; 5c.8
+  dual-date limitation; 5c.9 offline rules snapshot; concrete DraftPro/ALDIA/intake
+  integration points; sanitizeIngestedText() algorithm (9.1); Appendix B slice
+  order S0-S5 + "not building now" list; Appendix C additions changelog.
+- `docs/proposals/jurisdiction-intelligence-phase0.md` — the Phase 0 report with
+  evidence, gap table vs SourceDoc, PLAN / RISKS (8) / DECISIONS (11) / DEFERRED.
+
+### Phase 0 headline findings (evidence in the report)
+
+1. THREE parallel legal-source systems exist and barely touch: the autonomous
+   legal_* crawl pipeline (provenance-strong, review-absent, hybridSearch has ZERO
+   product callers), the founder-curated corpus (what ALOA actually queries via
+   searchKnowledge), and the client-side ALOA-X indexer (localStorage;
+   aloa_documents written but never read).
+2. The deterministic core the spec demands is ALREADY BUILT: jurisdictionMatrix
+   (3 forums x 22 subjects), limitationEngine (Lagos+POPA, SAFE_STOP),
+   complianceGate orchestrator, frontloading/signature gates, lePhantomCite +
+   the sequential verificationHarness with its pluggable CorpusBackend seam —
+   currently invoked with a null backend (UNVERIFIABLE by design). The spec is a
+   promotion of these hardcoded tables into a governed, effective-dated rule
+   store, not a greenfield build.
+3. Citation verification against ingested sources: NONE today (three weaker
+   internal layers only; firm authority library ships empty) — the spec's
+   verifier pass is exactly the existing seam.
+4. Live retrieval baseline BLOCKED with evidence: ALOX deployment has no legal/*
+   functions; staging has them but LEGAL_INGEST_TOKEN is not configured (env
+   list: only ALLOW_DEMO_SEED / GEMINI_DEMO_KEY / PracticePro_Vega_Mailer /
+   SITE_URL). Ingester offline selftest 22/22 PASS + legalKbShared suite stand in
+   as mechanics evidence; the 10-question protocol is in the DEFERRED block.
+5. In-Convex engine ingests keyword-only (no embeddings, worker.ts:52-54) — the
+   dense leg of hybridSearch is dormant until approval-time embedding (S1) or the
+   Python CLI runs.
+6. Nothing sanitizes ingested text today (injection risk once hybridSearch is
+   wired) — sanitizeIngestedText() is specced as S0 work.
+7. matters.court is free text (schema.ts:234) — court normalization to registry
+   keys is an explicit, user-confirmed step in the MatterFacts builder.
+
+### Gates
+
+Docs-only session: no code changed, so no test gates apply. Spot-verified every
+load-bearing file:line cited in the report (jurisdictionProfiles.ts:39/47/49-60,
+worker.ts:48-56, schema.ts:3486, AloaChat.tsx:2147, limitationEngine.ts:44-52,
+jurisdictionMatrix.ts:78-84, verificationHarness.ts:34-42, LEGAL_KB.md:284,
+queue.ts:328-356, search.ts:436-462, complianceGate.ts full read,
+legal/schema.ts full read). Test counts verified by command: 161 files under
+tests/unit, 3,046 it() occurrences.
+
+### Deployment status (this entry)
+
+- Docs-only; no functions/schema changed; nothing to deploy.
+- PUSH TO MAIN: still expected BLOCKED — the archived PAT returned 401 on
+  2026-11-20 (e). This entry is committed locally; push will be retried and
+  reported. Owner action remains: mint a fresh PAT and update the split archive.
