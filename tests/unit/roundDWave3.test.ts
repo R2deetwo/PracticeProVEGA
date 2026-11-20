@@ -357,9 +357,12 @@ describe('D4 — SecurityCenter + /ai/stream source contracts', () => {
 
   it('/ai/stream enforces the IP block (x-forwarded-for → isIpBlocked → 403)', () => {
     const src = read('convex/http.ts');
-    const streamAt = src.indexOf('path: "/ai/stream"');
-    expect(streamAt).toBeGreaterThan(-1);
-    const body = src.slice(streamAt, streamAt + 3000);
+    // 2026-11-20 preflight fix: the handler is the shared const
+    // `handleAiStream` (POST + OPTIONS); the IP-block contract is asserted
+    // against that handler body.
+    const handlerAt = src.indexOf('const handleAiStream = httpAction(');
+    expect(handlerAt).toBeGreaterThan(-1);
+    const body = src.slice(handlerAt, handlerAt + 3000);
     expect(body).toContain('x-forwarded-for');
     expect(body).toContain('internal.securityHelpers.isIpBlocked');
     expect(body).toContain('status: 403');

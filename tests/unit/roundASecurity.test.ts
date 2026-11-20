@@ -907,9 +907,15 @@ describe('H17 — seedSentry is env-gated and voids financial rows', () => {
 describe('H18 — HTTP surface', () => {
   it('/ai/stream requires a session bearer (auth + 401 path present)', () => {
     const src = read('convex/http.ts');
-    const streamAt = src.indexOf('path: "/ai/stream"');
-    expect(streamAt).toBeGreaterThan(-1);
-    const body = src.slice(streamAt, streamAt + 1600);
+    // 2026-11-20 preflight fix: the inline handler was extracted to
+    // `const handleAiStream` so the POST and OPTIONS registrations share
+    // ONE handler (POST-only registration made the CORS preflight 404 —
+    // the OPTIONS branch was dead code; see the registration pins in
+    // landingChat.test.ts). The auth contract is asserted against that
+    // shared handler body.
+    const handlerAt = src.indexOf('const handleAiStream = httpAction(');
+    expect(handlerAt).toBeGreaterThan(-1);
+    const body = src.slice(handlerAt, handlerAt + 3000);
     expect(body).toContain('resolveUserBySessionToken(ctx, bearer)');
     expect(body).toContain('status: 401');
     expect(body).toContain('Authorization');
@@ -917,9 +923,13 @@ describe('H18 — HTTP surface', () => {
 
   it('/api/agent/inspect returns 404 when AGENT_INSPECT_SECRET is unset (inverted gate fixed)', () => {
     const src = read('convex/http.ts');
-    const inspectAt = src.indexOf('path: "/api/agent/inspect"');
-    expect(inspectAt).toBeGreaterThan(-1);
-    const body = src.slice(inspectAt, src.indexOf('path: "/api/observability/drill"'));
+    // Same 2026-11-20 extraction: the handler is the shared const
+    // `handleAgentInspect` (registered GET + OPTIONS — browsers preflight
+    // the custom x-agent-inspect-key header). The 404 gate is asserted
+    // against that shared handler body.
+    const handlerAt = src.indexOf('const handleAgentInspect = httpAction(');
+    expect(handlerAt).toBeGreaterThan(-1);
+    const body = src.slice(handlerAt, handlerAt + 3000);
     expect(body).toContain('Inspect endpoint not configured');
     expect(body).toContain('status: 404');
   });

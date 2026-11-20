@@ -1616,3 +1616,28 @@ visitors — the currently-deployed production backend still 404s the
 preflight, which is exactly what the owner has been seeing. Frontend at
 032966f5 already calls the endpoint correctly; once the backend promote
 lands, every browser visitor gets the real AI.
+
+### Fix 2c — production promote gate: 3 source-contract pins re-anchored to the extracted handlers
+
+The first `convex-production-deploy` run for 402c3106 FAILED at the unit
+gate (run 44714667147): three pre-existing source-contract tests anchor
+on `path: "/ai/stream"` / `path: "/api/agent/inspect"` in convex/http.ts
+and expect the security code within the next 1.6–3KB — but the 2b
+extraction moved that code into the shared handler consts, so the pins
+found bare registrations. (The local gate claim in the 2b entry was run
+before the final extraction landed in the commit — CI caught what the
+local run missed. Lesson logged.)
+
+Fixed by re-anchoring the pins to the handler bodies — the SAME security
+contracts, now asserted against `const handleAiStream` / `const
+handleAgentInspect` (the code POST and OPTIONS both dispatch to):
+
+- roundASecurity H18 `/ai/stream`: `resolveUserBySessionToken(ctx,
+  bearer)` + `status: 401` + `Authorization` inside handleAiStream.
+- roundASecurity `/api/agent/inspect`: `Inspect endpoint not configured`
+  + `status: 404` inside handleAgentInspect.
+- roundDWave3 D4 `/ai/stream`: `x-forwarded-for` →
+  `internal.securityHelpers.isIpBlocked` → `status: 403` (plus the H18
+  auth strings) inside handleAiStream.
+
+Gates: vitest 3248/3248 passed (1 skipped) — full suite, all files.
