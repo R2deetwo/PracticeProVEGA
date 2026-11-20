@@ -15,6 +15,7 @@ import { useQuery, useConvex } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useFounderAuth } from '../admin/FounderContexts';
 import NairaSymbol from './NairaSymbol';
+import { Button } from './ui';
 
 const KPI_CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden cursor-pointer transition-colors hover:border-primary-400';
 const KPI_LABEL = 'text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest';
@@ -278,12 +279,15 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
                     <div className="flex items-center justify-between gap-2">
                         <p className={SECTION_TITLE}>Product Breakdown — Tap to filter dashboard</p>
                         {onNavigateToSignals && (
-                            <button
+                            <Button
+                                variant="bare"
+                                size="sm"
+                                activePress
                                 onClick={() => onNavigateToSignals(productFilter)}
-                                className="text-2xs font-bold text-primary-600 dark:text-primary-400 active-press flex-shrink-0"
+                                className="text-2xs font-bold text-primary-600 dark:text-primary-400 flex-shrink-0 py-0.5 px-1"
                             >
                                 View signals →
-                            </button>
+                            </Button>
                         )}
                     </div>
                     <div className="grid grid-cols-3 gap-3">
