@@ -1745,3 +1745,33 @@ all fixed:
 Gates: root tsc 0 · vitest 3249/3249 (aloxWatchdog 53/53 — its
 "no 'coming soon' in Settings" stub-guard forced honest rewording, which
 is the guard working as designed) · design-token gate green.
+
+### Fix 5 — the missing half: Vercel production frontend promoted (splash + landing ALOA panel live)
+
+The backend CORS fix went to production first, but the FRONTEND was still
+yesterday's build (06e4a9ee) — and the new backend answers in the {text}
+shape the old panel cannot parse, so the live landing would have silently
+fallen back to the catalogue AGAIN (the exact "half-deployed pair" trap
+the new client guards against — but only once BOTH halves ship). Two
+Vercel production runs today: 44720023300 failed the ADR-0004 ratchet
+(the View-signals link added one raw <button> to src/components — gate
+worked as designed; swapped to the ui/ Button primitive, baseline back
+to 2218), then 44721013377 on 4871c254: SUCCESS.
+
+Live verification (production, this session):
+- practice-pro-vega.vercel.app serves the new bundle — the "SPLASH
+  DISCIPLINE" gate script is present in the served HTML (visitors and
+  logged-out users never see the boot overlay; it only bridges the
+  login/session-restore boot).
+- OPTIONS /ai/landing-chat Origin=vercel → 204.
+- POST with the same Origin → 200, source:"ai", conversational markdown
+  ("**PracticePro is a platform designed to help everyday Nigerians
+  understand common legal situations.**…").
+
+Full production stack is now coherent: Convex backend + Vercel frontend
+both carry the preflight fix, the conversational panel, and the splash
+discipline. Founder APK picks up today's admin fixes on its next release
+build. Known stale surface (unchanged, owner action): the Cloudflare
+mirror workers.dev URL still serves the September panel until
+CLOUDFLARE_API_TOKEN is rotated (RUNBOOK §9) — the canonical URL is
+practice-pro-vega.vercel.app.
