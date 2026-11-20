@@ -55,3 +55,24 @@ export const ToastContext = createContext<{ addToast: (msg: string, opts?: { typ
 });
 
 export const useFounderToast = () => useContext(ToastContext);
+
+// ─── Founder Notification Preferences (2026-11-20 honesty fix) ──────
+// Settings → Notifications writes these localStorage keys; the signal
+// dispatcher (useFounderSignals) and the Notifications Center read them
+// LIVE, so a toggle actually stops (or resumes) its signal category on
+// the next poll. Keys default to ON when unset.
+export const FOUNDER_NOTIF_KEYS = {
+    newUsers: 'founder_notif_new_users',
+    churn: 'founder_notif_churn',
+    scaling: 'founder_notif_scaling',
+    milestone: 'founder_notif_milestone',
+} as const;
+
+export function founderNotifPref(key: string): boolean {
+    try {
+        const v = localStorage.getItem(key);
+        return v === null ? true : v === 'true';
+    } catch {
+        return true;
+    }
+}

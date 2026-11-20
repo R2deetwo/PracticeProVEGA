@@ -1698,3 +1698,50 @@ Fix 3 promoted to production: `convex-production-deploy` run 44717130588
 on ba20bcbf — success (the failed run 44717106142 in the list was a
 superseded dispatch against a mid-rebase SHA; ignore). The getUser
 projection fix is live on gregarious-malamute-537.
+
+### Fix 4 — Founder app audit: 2 broken surfaces repaired, fake settings made real/honest
+
+Full audit of src/admin/ (all 18 views + boot/nav + every backend target).
+Everything recently built (Aloa X watchdog, Ingestion Engine, founder login
+push alerts, crons, deep links) verified genuinely wired end-to-end. The
+audit surfaced two BROKEN surfaces and a cluster of write-only settings —
+all fixed:
+
+- **SalesPipeline crashed on every open** — it read its bearer from the
+  CONSUMER `useAuth()`, but the founder APK mounts no AuthProvider
+  (admin/main.tsx wires only ConvexProvider + Router), so the view threw
+  instantly and the error boundary showed "View Error — Sales". Tapping a
+  sales-lead push landed there too. Fixed: reads `useFounderAuth()` like
+  every other founder view (backend calls were already correctly arg'd).
+- **Financial Hub "Update Bank Details" could never save** — the mutation
+  omitted `sessionToken`, so strict founder auth rejected every save
+  ("Unauthenticated"). Fixed: passes the verified bearer (the load query
+  already did).
+- **Settings → Signal Types toggles were write-only** — five toggles +
+  delivery channel + session timeout wrote localStorage keys nothing read;
+  turning "Churn Risks" OFF kept the churn alerts buzzing. Fixed: the
+  signal dispatcher (useFounderSignals) now reads the new_users / churn /
+  scaling keys LIVE (OFF genuinely silences that category on the next
+  poll), and the Notifications Center gates milestone synthesis by the
+  milestone key. Shared helper `founderNotifPref` in FounderContexts.
+- **Honesty pass on the rest**: Email channel option disabled ("not yet
+  available"; Push + Email behaves as Push); session timeout labeled
+  "enforcement ships soon" with an info toast; Payment Failures relabeled
+  "always on today" (server pushes can't be opted out client-side yet);
+  the System tab "Push Token" row no longer hardcodes "Registered" — it
+  shows Verified / Failing / Unknown based on the last diagnostics run.
+- **Analytics "All Time" removed** — it returned the identical fixed
+  30-day window as "30 Days" (backend builds a fixed window); a button
+  that lies about its range is worse than no button.
+- **Dashboard dead prop wired** — onNavigateToSignals was destructured
+  dead; the Product Breakdown section now has a "View signals →" link
+  that hands the active product filter to Signals (cards keep filtering).
+- **Bottom-nav badge overlap fixed** — the emerald signup badge moved
+  below the red pending badge instead of painting over it.
+- FounderNotificationsCenter milestone quirk (same milestone reappearing
+  unread each refresh) now ALSO respects the milestone toggle; left as-is
+  otherwise (id-stable, mark-read works).
+
+Gates: root tsc 0 · vitest 3249/3249 (aloxWatchdog 53/53 — its
+"no 'coming soon' in Settings" stub-guard forced honest rewording, which
+is the guard working as designed) · design-token gate green.

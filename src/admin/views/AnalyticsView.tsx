@@ -103,7 +103,7 @@ export const AnalyticsView: React.FC = () => {
                     </div>
                     {/* Time range selector */}
                     <div className="flex gap-1 bg-slate-100 dark:bg-zinc-800 rounded-lg p-1">
-                        {(['7d', '30d', 'all'] as const).map(r => (
+                        {(/* 2026-11-20: 'All Time' removed — the backend builds a fixed 30-day window, so it was identical to 30 Days */ ['7d', '30d'] as const).map(r => (
                             <button
                                 key={r}
                                 onClick={() => setTimeRange(r)}
@@ -111,7 +111,7 @@ export const AnalyticsView: React.FC = () => {
                                     timeRange === r ? 'bg-primary-600 text-white shadow-sm' : 'text-slate-500 dark:text-zinc-400'
                                 }`}
                             >
-                                {r === '7d' ? '7 Days' : r === '30d' ? '30 Days' : 'All Time'}
+                                {r === '7d' ? '7 Days' : '30 Days'}
                             </button>
                         ))}
                     </div>

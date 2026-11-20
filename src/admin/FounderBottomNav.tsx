@@ -316,7 +316,7 @@ export const FounderBottomNav: React.FC<FounderBottomNavProps> = ({ activeView, 
                                     {/* New signup badge — shows count of
                                         users who registered in the last 24h. Caps at 9+. */}
                                     {item.view === 'notifications' && newSignupCount > 0 && (
-                                        <span className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
+                                        <span className="absolute -bottom-1.5 -right-2 min-w-[16px] h-4 px-1 bg-emerald-500 text-white text-2xs font-bold rounded-full flex items-center justify-center">
                                             {formatBadgeCount(newSignupCount)}
                                         </span>
                                     )}

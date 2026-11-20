@@ -16,7 +16,6 @@ import React, { useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import { useFounderAuth, useFounderToast } from '../FounderContexts';
-import { useAuth } from "../../contexts/AuthContext";
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm';
 
@@ -36,7 +35,14 @@ const PRODUCT_BADGE: Record<string, string> = {
 };
 
 export const SalesPipeline: React.FC = () => {
-    const { bearerToken } = useAuth();
+    // FOUNDER APK CONTEXT (2026-11-20 crash fix): this view used the
+    // CONSUMER useAuth() for its bearer token — but the founder app mounts
+    // no AuthProvider (src/admin/main.tsx wires only ConvexProvider +
+    // Router), so useAuth() threw 'must be used within an AuthProvider' on
+    // every open and ViewErrorBoundary swallowed the view into an error
+    // screen. The founder app's own useFounderAuth() carries the same
+    // verified bearer; use it like every other founder view.
+    const { bearerToken } = useFounderAuth();
     const { currentUser } = useFounderAuth();
     const { addToast } = useFounderToast();
     const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);

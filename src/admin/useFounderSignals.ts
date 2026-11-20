@@ -30,7 +30,7 @@
 import { useEffect, useRef } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useFounderAuth } from './FounderContexts';
+import { useFounderAuth, founderNotifPref, FOUNDER_NOTIF_KEYS } from './FounderContexts';
 import { registerForNotifications, showLocalNotification } from '../utils/notifications';
 import { Capacitor } from '@capacitor/core';
 
@@ -114,9 +114,18 @@ export function useFounderSignals({ enabled }: { enabled: boolean }) {
         }
 
         const newSignals: { title: string; body: string; type: string; extra: Record<string, any> }[] = [];
+        // Settings gates (2026-11-20): the Signal Types toggles in
+        // Settings > Notifications are read LIVE here - turning a category
+        // OFF actually stops its on-device alerts on the next poll. Keys
+        // default to ON when unset. (Previously these toggles were
+        // write-only - the dispatcher ignored them completely.)
+        const wantNewUsers = founderNotifPref(FOUNDER_NOTIF_KEYS.newUsers);
+        const wantChurn = founderNotifPref(FOUNDER_NOTIF_KEYS.churn);
+        const wantScaling = founderNotifPref(FOUNDER_NOTIF_KEYS.scaling);
+
 
         // ─── New users / firms ────────────────────────────────────────
-        if (alerts.newUsers24hCount > 0) {
+        if (wantNewUsers && alerts.newUsers24hCount > 0) {
             const prevCount = prev?.newUsers24hCount ?? 0;
             if (alerts.newUsers24hCount > prevCount) {
                 newSignals.push({
@@ -127,7 +136,7 @@ export function useFounderSignals({ enabled }: { enabled: boolean }) {
                 });
             }
         }
-        if (alerts.newFirms24hCount > 0) {
+        if (wantNewUsers && alerts.newFirms24hCount > 0) {
             const prevCount = prev?.newFirms24hCount ?? 0;
             if (alerts.newFirms24hCount > prevCount) {
                 const names = (alerts.newFirms24h as any[]).slice(0, 2).map((f: any) => f.name).join(', ');
@@ -141,7 +150,7 @@ export function useFounderSignals({ enabled }: { enabled: boolean }) {
         }
 
         // ─── Churn ────────────────────────────────────────────────────
-        if (alerts.churnRiskCount > 0) {
+        if (wantChurn && alerts.churnRiskCount > 0) {
             const prevCount = prev?.churnRiskCount ?? 0;
             // Notify if churn pool grew, OR if this is the first time we see churn
             if (alerts.churnRiskCount > prevCount) {
@@ -159,7 +168,7 @@ export function useFounderSignals({ enabled }: { enabled: boolean }) {
             if (!acc) return s.severity as Severity;
             return severityRank(s.severity) > severityRank(acc) ? (s.severity as Severity) : acc;
         }, null);
-        if (worstSeverity && (worstSeverity === 'critical' || worstSeverity === 'warning')) {
+        if (wantScaling && worstSeverity && (worstSeverity === 'critical' || worstSeverity === 'warning')) {
             const prevSeverity = prev?.worstScalingSeverity || null;
             const escalated = !prevSeverity || severityRank(worstSeverity) > severityRank(prevSeverity);
             if (escalated) {
@@ -177,7 +186,7 @@ export function useFounderSignals({ enabled }: { enabled: boolean }) {
 
         // ─── Push product pick (only when product changes) ───────────
         const currentPushProduct = alerts.pushProduct?.product || null;
-        if (currentPushProduct && currentPushProduct !== prev?.pushProduct) {
+        if (wantScaling && currentPushProduct && currentPushProduct !== prev?.pushProduct) {
             const p = alerts.pushProduct;
             newSignals.push({
                 title: `Push product: ${currentPushProduct}`,

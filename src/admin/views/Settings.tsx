@@ -273,13 +273,13 @@ export const Settings: React.FC = () => {
                             <p className={SECTION_TITLE}>Security & Data Isolation</p>
                             <div className="space-y-3">
                                 <ToggleRow label="Allow Screen Capture / Screenshots" description="When OFF, screenshots and screen recording are blocked (FLAG_SECURE on Android). Default: ON (allowed)." checked={screenCapture} onChange={() => toggleSetting('founder_screen_capture', setScreenCapture, screenCapture, 'Screen capture')} />
-                                <ToggleRow label="Biometric Authentication (Coming Soon)" description="Require Face ID / Fingerprint on app launch — not yet enforced" checked={biometric} onChange={() => toggleSetting('founder_biometric', setBiometric, biometric, 'Biometric auth')} />
+                                <ToggleRow label="Biometric Authentication (not yet enforced)" description="Require Face ID / Fingerprint on app launch — not yet enforced" checked={biometric} onChange={() => toggleSetting('founder_biometric', setBiometric, biometric, 'Biometric auth')} />
                                 <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg min-w-0">
                                     <div className="min-w-0 flex-1">
                                         <p className="text-sm font-bold text-slate-700 dark:text-zinc-200">Session Timeout</p>
-                                        <p className="text-xs text-slate-500 dark:text-zinc-400">Auto-lock after inactivity</p>
+                                        <p className="text-xs text-slate-500 dark:text-zinc-400">Auto-lock after inactivity (enforcement ships soon)</p>
                                     </div>
-                                    <select value={sessionTimeout} onChange={e => { setSessionTimeout(e.target.value); try { localStorage.setItem('founder_session_timeout', e.target.value); } catch {} addToast(`Session timeout: ${e.target.value} min`, { type: 'success' }); }} className="px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-200 flex-shrink-0">
+                                    <select value={sessionTimeout} onChange={e => { setSessionTimeout(e.target.value); try { localStorage.setItem('founder_session_timeout', e.target.value); } catch {} addToast(`Preference saved (${e.target.value} min) — auto-lock enforcement ships soon.`, { type: 'info' }); }} className="px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-200 flex-shrink-0">
                                         <option value="5">5 min</option>
                                         <option value="15">15 min</option>
                                         <option value="30">30 min</option>
@@ -299,11 +299,11 @@ export const Settings: React.FC = () => {
                             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-zinc-900 rounded-lg min-w-0">
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm font-bold text-slate-700 dark:text-zinc-200">Delivery Channel</p>
-                                    <p className="text-xs text-slate-500 dark:text-zinc-400">How alerts reach you</p>
+                                    <p className="text-xs text-slate-500 dark:text-zinc-400">How alerts reach you (email delivery ships soon; Push + Email behaves as Push until then)</p>
                                 </div>
                                 <select value={notifChannel} onChange={e => { const v = e.target.value as any; setNotifChannel(v); try { localStorage.setItem('founder_notif_channel', v); } catch {} addToast(`Alert channel: ${v}`, { type: 'success' }); }} className="px-3 py-1.5 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-lg text-slate-700 dark:text-zinc-200 flex-shrink-0">
                                     <option value="push">Mobile Push</option>
-                                    <option value="email">Email</option>
+                                    <option value="email" disabled>Email (not yet available)</option>
                                     <option value="both">Push + Email</option>
                                 </select>
                             </div>
@@ -315,7 +315,7 @@ export const Settings: React.FC = () => {
                                 <ToggleRow label="Churn Risks" description="Get notified when users go inactive for 14+ days" checked={notifChurn} onChange={() => toggleSetting('founder_notif_churn', setNotifChurn, notifChurn, 'Churn alerts')} />
                                 <ToggleRow label="Scaling Alerts" description="Matter velocity, plan concentration, active ratio" checked={notifScaling} onChange={() => toggleSetting('founder_notif_scaling', setNotifScaling, notifScaling, 'Scaling alerts')} />
                                 <ToggleRow label="Milestone Alerts" description="10th, 50th, 100th, 1000th firm signup" checked={notifMilestone} onChange={() => toggleSetting('founder_notif_milestone', setNotifMilestone, notifMilestone, 'Milestone alerts')} />
-                                <ToggleRow label="Payment Failures" description="Subscription payment failures and billing errors" checked={notifPaymentFailure} onChange={() => toggleSetting('founder_notif_payment_failure', setNotifPaymentFailure, notifPaymentFailure, 'Payment alerts')} />
+                                <ToggleRow label="Payment Failures (always on today)" description="Server payment-failure pushes are always sent — per-type opt-out ships with the alerting upgrade" checked={notifPaymentFailure} onChange={() => toggleSetting('founder_notif_payment_failure', setNotifPaymentFailure, notifPaymentFailure, 'Payment alerts')} />
                             </div>
                         </div>
                         {/* Test Push Notification */}
@@ -428,7 +428,7 @@ export const Settings: React.FC = () => {
                             <div className="space-y-2 text-xs">
                                 <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Mode</span><span className="font-bold text-emerald-600">{APP_MODE === 'production' ? 'Production' : APP_MODE}</span></div>
                                 <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Platform</span><span className="font-bold text-slate-700 dark:text-zinc-200">{Capacitor.isNativePlatform() ? 'Native APK' : 'Web'}</span></div>
-                                <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Push Token</span><span className="font-bold text-slate-700 dark:text-zinc-200">{Capacitor.isNativePlatform() ? 'Registered' : 'N/A'}</span></div>
+                                <div className="flex justify-between p-2 bg-slate-50 dark:bg-zinc-900 rounded-lg"><span className="text-slate-500 dark:text-zinc-400">Push Token</span><span className="font-bold text-slate-700 dark:text-zinc-200">{Capacitor.isNativePlatform() ? (lastPushResult ? (lastPushResult.success && (lastPushResult.sent || 0) > 0 ? 'Verified' : 'Failing — run diagnostics') : 'Unknown — run diagnostics') : 'N/A'}</span></div>
                             </div>
                         </div>
                     </div>

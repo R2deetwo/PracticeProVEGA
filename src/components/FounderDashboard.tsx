@@ -3,7 +3,8 @@
  *
  * FEATURES:
  *   - Product filter toggle (All / Atrium / Vega / Komplete)
- *   - Clickable product breakdown cards → navigate to Signals
+ *   - Clickable product breakdown cards → filter the dashboard (plus a
+ *     "View signals →" link that hands the current filter to Signals)
  *   - Top Entities toggle (Organizations by Properties vs Firms by Matters)
  *   - Compact currency formatting (no overflow)
  *   - Atrium-first layout (property metrics take priority)
@@ -50,7 +51,7 @@ interface FounderDashboardProps {
     onNavigateToSubscriptions?: () => void;
 }
 
-export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals: _onNavigateToSignals, onNavigateToSubscriptions }) => {
+export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateToSignals, onNavigateToSubscriptions }) => {
     const { currentUser, bearerToken } = useFounderAuth();
     const [productFilter, setProductFilter] = useState<ProductFilter>('all');
     const [entityToggle, setEntityToggle] = useState<'properties' | 'matters'>('properties');
@@ -274,7 +275,17 @@ export const FounderDashboard: React.FC<FounderDashboardProps> = ({ onNavigateTo
 
                 {/* ─── PRODUCT BREAKDOWN (clickable → filter dashboard) ──── */}
                 <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden">
-                    <p className={SECTION_TITLE}>Product Breakdown — Tap to filter dashboard</p>
+                    <div className="flex items-center justify-between gap-2">
+                        <p className={SECTION_TITLE}>Product Breakdown — Tap to filter dashboard</p>
+                        {onNavigateToSignals && (
+                            <button
+                                onClick={() => onNavigateToSignals(productFilter)}
+                                className="text-2xs font-bold text-primary-600 dark:text-primary-400 active-press flex-shrink-0"
+                            >
+                                View signals →
+                            </button>
+                        )}
+                    </div>
                     <div className="grid grid-cols-3 gap-3">
                         {/* Atrium */}
                         <button

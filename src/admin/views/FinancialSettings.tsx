@@ -68,6 +68,11 @@ export const FinancialSettings: React.FC = () => {
         accountNumber,
         accountName: accountName.trim(),
         founderEmail: currentUser.email,
+        // 2026-11-20 fix: this call omitted the bearer, so the backend's
+        // strict founder auth (resolveCaller rejects caller-supplied email
+        // without a session) refused EVERY save with "Unauthenticated".
+        // The load above already passed it; the save now does too.
+        sessionToken: (bearerToken ?? undefined),
       });
       addToast('Bank details updated. All new checkouts will use these details.', { type: 'success' });
     } catch (e: any) {

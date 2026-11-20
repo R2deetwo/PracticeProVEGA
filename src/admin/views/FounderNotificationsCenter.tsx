@@ -21,7 +21,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useConvex } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
-import { useFounderAuth } from '../FounderContexts';
+import { useFounderAuth, founderNotifPref, FOUNDER_NOTIF_KEYS } from '../FounderContexts';
 
 type Category = 'security' | 'signup' | 'subscription' | 'broadcast' | 'churn' | 'milestone' | 'system';
 type FilterTab = 'all' | Category;
@@ -123,7 +123,7 @@ const FounderNotificationsCenter: React.FC = () => {
                         });
                     });
                     // Milestones
-                    if (alerts.totalUsers > 0 && alerts.totalUsers % 10 === 0) {
+                    if (founderNotifPref(FOUNDER_NOTIF_KEYS.milestone) && alerts.totalUsers > 0 && alerts.totalUsers % 10 === 0) {
                         feed.push({
                             id: `milestone_users_${alerts.totalUsers}`,
                             category: 'milestone',
@@ -133,7 +133,7 @@ const FounderNotificationsCenter: React.FC = () => {
                             isRead: false,
                         });
                     }
-                    if (alerts.totalFirms > 0 && alerts.totalFirms % 5 === 0) {
+                    if (founderNotifPref(FOUNDER_NOTIF_KEYS.milestone) && alerts.totalFirms > 0 && alerts.totalFirms % 5 === 0) {
                         feed.push({
                             id: `milestone_firms_${alerts.totalFirms}`,
                             category: 'milestone',
