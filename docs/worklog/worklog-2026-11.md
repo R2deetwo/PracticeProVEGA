@@ -1665,3 +1665,31 @@ unit gate on the 3 mis-anchored source pins — fixed in 11f2006e (see
 "Fix 2c" above), second run green. Splash fix (905767b9: boot-overlay
 gate + instant dismiss on failed restore) is frontend-side and rides
 the Vercel build; the backend promote was the last blocker for ALOA.
+
+### Fix 3 — getUser no longer ships the BYO Gemini key or the portal capability token
+
+`AUTH_STRIP_FIELDS` (the NDPA projection applied by the PUBLIC `getUser`)
+gained `geminiApiKey` + `portalAccessToken`. Until now both rode every
+getUser poll to the client:
+
+- `geminiApiKey` — the user's own BYO Gemini key. No client code reads it
+  from the session user (sweep verified: AuthContext/AgentSettings/
+  AloaXView/aiUtils all hydrate via the session-gated `getUserApiKey`
+  query, in-memory only; saves go through `saveUserApiKey`).
+- `portalAccessToken` — the capability token that opens the bearer's
+  client/tenant portal (by_portal_access_token). Portal URL building
+  (App.tsx) falls back to the tokenless path for the moment before
+  AuthContext's `ensurePortalAccessToken` effect lands the token in
+  localUserOverrides — and that mutation is session-gated
+  (requirePortalCaller; the caller's email is rebound to the session
+  identity, so it can never mint/read anyone else's token — verified in
+  source).
+
+Regression pin added (userResolution.test.ts): a projected record never
+carries either field, and both dedicated surfaces (`getUserApiKey`,
+`ensurePortalAccessToken`) must stay in the source. findFounderAccounts'
+500-cap + deactivated-skip fix was already live (2026-11-19, bounded
+5000-scan + deactivated flagged) — re-verified this session, unchanged.
+
+Gates: convex tsc 0 · root tsc 0 · vitest 3249/3249 (userResolution 12/12,
+recoveryFlow 18/18).

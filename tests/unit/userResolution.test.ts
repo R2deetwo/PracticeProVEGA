@@ -110,6 +110,10 @@ describe("stripAuthFields — the NDPA projection", () => {
     failedLoginAttempts: 1,
     lockedUntil: null,
     passwordHash: "legacy-hash",
+    // 2026-11-20 leak regression: getUser shipped these to the client on
+    // every poll until they joined AUTH_STRIP_FIELDS.
+    geminiApiKey: "AIza-syBYOkey009",
+    portalAccessToken: "pt_live_capabilitytoken",
   };
 
   it("removes every auth-only field", () => {
@@ -143,6 +147,17 @@ describe("stripAuthFields — the NDPA projection", () => {
     expect(safe.failedLoginAttempts).toBeUndefined(); // → lockout dead
     expect(safe.lockedUntil).toBeUndefined();
     expect(safe.verificationCode).toBeUndefined();    // → reset OTP dead
+  });
+
+  it("a projected record never carries the BYO Gemini key or the portal capability token (2026-11-20 leak)", () => {
+    const safe: Record<string, any> = stripAuthFields(record);
+    // getUser shipped both on every poll; the key is only readable via the
+    // session-gated getUserApiKey, the token only via ensurePortalAccessToken.
+    expect(safe.geminiApiKey).toBeUndefined();
+    expect(safe.portalAccessToken).toBeUndefined();
+    // The real key surfaces stay session-gated in the source contract.
+    expect(myFunctionsSrc).toContain("export const getUserApiKey = query(");
+    expect(portalsSrc).toContain("export const ensurePortalAccessToken = mutation(");
   });
 });
 

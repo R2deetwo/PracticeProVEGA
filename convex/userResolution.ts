@@ -43,7 +43,17 @@ import { v } from "convex/values";
  * 2026-09-14 (reset-link round): resetTokenHash + resetTokenIssuedAt added —
  * same class of leak (a leaked hash is not directly usable, but the hash +
  * the public completePasswordResetWithToken would let an attacker brute the
- * 192-bit token offline; strip it at the source like everything else). */
+ * 192-bit token offline; strip it at the source like everything else).
+ * 2026-11-20: geminiApiKey + portalAccessToken added — getUser was returning
+ * the user's BYO Gemini key and their portal capability token to the client
+ * on EVERY poll. Both have dedicated gated surfaces: the key is read via
+ * getUserApiKey (session-gated, hydrates in-memory only) and saved via
+ * saveUserApiKey; the portal token is minted/fetched via
+ * ensurePortalAccessToken (AuthContext stores it in localUserOverrides for
+ * portal URL building). No client code reads either field from the getUser
+ * result — verified by sweep (AgentSettings/AloaXView/aiUtils all use
+ * getUserApiKey; App.tsx portal URLs fall back to the tokenless path until
+ * the effect lands). */
 export const AUTH_STRIP_FIELDS = [
   "password",
   "passwordHash",
@@ -56,6 +66,8 @@ export const AUTH_STRIP_FIELDS = [
   "recoveryFailedAttempts",
   "resetTokenHash",
   "resetTokenIssuedAt",
+  "geminiApiKey",
+  "portalAccessToken",
 ] as const;
 
 /** Convex validator fragment shared by getUser / getUserForAuth args. */
