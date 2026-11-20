@@ -1641,3 +1641,27 @@ handleAgentInspect` (the code POST and OPTIONS both dispatch to):
   auth strings) inside handleAiStream.
 
 Gates: vitest 3248/3248 passed (1 skipped) — full suite, all files.
+
+### PRODUCTION PROMOTE COMPLETE — the website ALOA is truly live (2026-11-20)
+
+`convex-production-deploy` run 44715283407 on 11f2006e: **success**. The
+preflight fix + conversational-voice engine are now on PRODUCTION
+(gregarious-malamute-537) — the deployment every browser visitor and
+every APK talks to. Live probes (this session, production, with browser
+Origin headers — the exact flow that used to die):
+
+- `OPTIONS /ai/landing-chat` Origin=practice-pro-vega.vercel.app →
+  **204** + ACAO origin echo + `POST, OPTIONS` + `Content-Type` +
+  `Max-Age: 86400`. Origin=evil.example.com → **403** (allow-list held).
+- `OPTIONS /ai/stream` → **200**. `OPTIONS /api/push-reply` → **200**.
+- `POST /ai/landing-chat` with Origin → **200, source:"ai"**, full
+  conversational markdown answer ("**a landlord cannot increase your
+  rent by 40% with just one week's notice**…") — bold takeaway, flowing
+  paragraphs, own words. Every browser visitor now reaches the real
+  engine; the canned catalogue is fallback-only, as designed.
+
+The first promote attempt (run 44714667147, on 402c3106) failed at the
+unit gate on the 3 mis-anchored source pins — fixed in 11f2006e (see
+"Fix 2c" above), second run green. Splash fix (905767b9: boot-overlay
+gate + instant dismiss on failed restore) is frontend-side and rides
+the Vercel build; the backend promote was the last blocker for ALOA.
