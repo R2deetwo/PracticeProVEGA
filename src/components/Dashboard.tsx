@@ -362,7 +362,7 @@ const Dashboard: React.FC = () => {
                         variant="bare"
                         size="md"
                         fullWidth
-                        aria-label="Vox — start recording"
+                        aria-label="ALOA Vox — start recording"
                         className="flex items-center gap-3 rounded-2xl border-2 border-primary-200 dark:border-primary-800 bg-gradient-to-r from-primary-50 via-white to-primary-50 dark:from-primary-900/20 dark:via-zinc-800 dark:to-primary-900/20 p-4 shadow-lg shadow-primary-500/5 active:scale-[0.99] transition-transform text-left mb-4 sm:mb-6"
                         onClick={() => {
                             hapticLight();
@@ -374,7 +374,7 @@ const Dashboard: React.FC = () => {
                         </span>
                         <span className="min-w-0 flex-1">
                             <span className="block text-sm font-black text-slate-900 dark:text-white">
-                                Vox
+                                ALOA <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">Vox</span>
                             </span>
                             <span className="block text-xs text-slate-600 dark:text-zinc-300 leading-snug">
                                 Dictate a note, task or question — 1 tap to record

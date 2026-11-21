@@ -267,7 +267,7 @@ const AccentPicker: React.FC = () => {
    Uses the ui/Button primitive (ADR-0004 — no new raw form elements). */
 const STARTUP_VIEW_OPTIONS: { value: StartupViewPreference; label: string; hint: string }[] = [
     { value: 'office', label: 'Full Office', hint: 'Default — open the full workspace' },
-    { value: 'capture', label: 'Vox (mobile)', hint: 'Phone launches open the capture screen' },
+    { value: 'capture', label: 'ALOA Vox (mobile)', hint: 'Phone launches open the capture screen' },
     { value: 'auto', label: 'Full Office (legacy “Auto”)', hint: 'Same as Full Office — phones are no longer forced into capture' },
 ];
 
@@ -309,9 +309,9 @@ const StartupViewPicker: React.FC = () => {
                 })}
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-                Applies the next time you open the app. Vox launches apply to phones
+                Applies the next time you open the app. ALOA Vox launches apply to phones
                 only — desktop always keeps the full workspace. You can also flip this from the
-                “Start in Vox on mobile” switch inside Vox itself.
+                “Start in ALOA Vox on mobile” switch inside ALOA Vox itself.
             </p>
         </div>
     );
@@ -418,12 +418,12 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                 Settings-side map of every Vox / Quick Ask behaviour and where
                 its controls live (the ⚙ menu in Vox itself, the Voice Tips
                 panel, and the Startup View card above). */}
-            <SettingsCard title="Vox & Voice" className={className}>
+            <SettingsCard title="ALOA Vox & Voice" className={className}>
                 <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
-                    Vox is the voice-first capture screen — dictate
+                    ALOA ALOA Vox is the voice-first capture screen — dictate
                     anything and it becomes structured firm records (matters,
                     diary entries, endorsements, property notes, expenses,
-                    drafts). Its controls live in Vox's own ⚙ menu;
+                    drafts). Its controls live in ALOA Vox's own ⚙ menu;
                     this card explains what each one does.
                 </p>
                 <div className="space-y-4">
@@ -444,7 +444,7 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                     <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
                         <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Quiet Mode</h4>
                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                            In Vox's ⚙ menu (and the header on desktop). Relaxes
+                            In ALOA Vox's ⚙ menu (and the header on desktop). Relaxes
                             noise suppression so faint, quiet speech in court galleries or
                             shared rooms is captured cleanly instead of being filtered out.
                             Saved per device.
@@ -464,17 +464,17 @@ const DisplaySettings: React.FC<DisplaySettingsProps> = ({ theme, setTheme, clas
                     <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
                         <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Snippets & Personal Dictionary</h4>
                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
-                            Managed in Vox's "?" Voice Tips panel (also in Help &
+                            Managed in ALOA Vox's "?" Voice Tips panel (also in Help &
                             Support). Snippets expand a spoken trigger into full text
                             ("…and insert chambers signature"); the dictionary learns your
                             spelling corrections and feeds them to every future dictation.
                         </p>
                     </div>
                     <div className="pt-4 border-t border-slate-200 dark:border-zinc-700">
-                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Start in Vox (mobile)</h4>
+                        <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Start in ALOA Vox (mobile)</h4>
                         <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed">
                             Covered by the Startup View card above — flip it on there, or
-                            use the switch inside Vox's ⚙ menu on a phone. It
+                            use the switch inside ALOA Vox's ⚙ menu on a phone. It
                             only affects mobile launches and is saved per device.
                         </p>
                     </div>

@@ -458,8 +458,8 @@ const Header: React.FC = React.memo(() => {
                         size="md"
                         iconOnly
                         icon={MicrophoneIcon}
-                        aria-label="Vox — start recording"
-                        title="Vox — dictate a note, task or question"
+                        aria-label="ALOA Vox — start recording"
+                        title="ALOA Vox — dictate a note, task or question"
                         className="rounded-lg bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 transition-colors shadow-sm"
                         onClick={() => {
                             hapticLight();

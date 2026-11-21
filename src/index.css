@@ -1574,6 +1574,37 @@ html.font-size-lg .line-clamp-2 {
   animation: pulsateSubtle 4s ease-in-out infinite;
 }
 
+/* ─── ALOA Vox rest-state pulse (2026-11-22 owner task #2) ──────────────
+   After the first-use callout is dismissed, the centered Vox box rests
+   in the mobile header with a SUBTLE pulse so users always know where
+   Vox lives. Brand-tinted (primary indigo, not the red of the alert
+   pulsateSubtle), gentle scale + a soft ring — closer to a heartbeat
+   than a notification. Honors prefers-reduced-motion. */
+@keyframes voxRestPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.28);
+  }
+  50% {
+    transform: scale(1.025);
+    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.12);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.28);
+  }
+}
+
+.animate-vox-rest-pulse {
+  animation: voxRestPulse 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-vox-rest-pulse {
+    animation: none;
+  }
+}
+
 body.aloax-is-processing .aloax-nav-badge {
   display: block;
 }

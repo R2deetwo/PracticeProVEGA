@@ -202,8 +202,15 @@ import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { Z_CLASS } from '../overlays/constants';
 // Startup-view preference (Settings → Display): where phones land on boot.
 import { getStartupViewPreference } from '../utils/startupViewPreference';
-const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes
-const IDLE_TIMEOUT_REMEMBER = 7 * 24 * 60 * 60 * 1000; // 7 days when Remember Me is on
+// ── Session idle policy (2026-11-22 owner task #4, legal-grade) ──────────
+// Vega holds confidential/privileged legal records, so EVERY staff
+// session locks on idle — including "Remember Me". Remember Me extends
+// the SERVER token lifetime (30-day absolute expiry), it must NOT turn
+// the idle lock off: an unlocked shared/hospital computer with a live
+// matter list was exactly the exposure the owner reported. 15 minutes is
+// the OWASP-recommended idle window for confidential business apps; the
+// lock screen unlock is a password re-verification, not a full login.
+const IDLE_TIMEOUT_DEFAULT = 15 * 60 * 1000; // 15 minutes — all staff sessions
 
 type FlowState = 'splash' | 'setup' | 'app' | 'pending_approval';
 
@@ -365,7 +372,7 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
         // court must be able to hit record within a second of opening the
         // app. Its own lazy chunk keeps it out of the dashboard bundle.
         if (view === 'quickCapture') {
-            document.title = "Vox — PracticePro";
+            document.title = "ALOA Vox — PracticePro";
             return <React.Suspense fallback={<GenericSkeleton />}><QuickCaptureView /></React.Suspense>;
         }
 
@@ -1018,14 +1025,14 @@ export const App: React.FC = () => {
     }, []);
 
 
-    // Check if Remember Me was set — if so, use a much longer idle timeout
-    const hasRememberMe = localStorage.getItem('practicepro_user_session') !== null;
-    const idleTimeout = hasRememberMe ? IDLE_TIMEOUT_REMEMBER : IDLE_TIMEOUT_DEFAULT;
+    // 2026-11-22: the idle policy no longer depends on Remember Me — every
+    // staff session locks on idle (see IDLE_TIMEOUT_DEFAULT above). The
+    // useIdleTimer hook is now CROSS-TAB: activity in any tab keeps every
+    // tab alive, and true idle locks all of them together.
+    const idleTimeout = IDLE_TIMEOUT_DEFAULT;
 
     useIdleTimer(() => {
         if (!isAuthenticated || isSessionLocked) return;
-        // If Remember Me is active, don't lock on idle — just let the session continue
-        if (hasRememberMe) return;
         // Portal users (Tenant/Client) should be logged out on inactivity,
         // not locked — they get a clear message and a fresh login.
         const isPortalUser = currentUser?.role === UserRole.Client || currentUser?.role === UserRole.Tenant;

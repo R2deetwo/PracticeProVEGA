@@ -385,9 +385,9 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
         <h3 className="text-sm font-bold text-slate-900 mb-1">Startup preference</h3>
         <p className="text-xs text-slate-500 leading-relaxed">
           By default the app opens the Full Office dashboard. On your phone you
-          can flip <strong>“Start in Vox on mobile”</strong> (in Vox's ⚙
-          menu) so launch lands straight on the mic — it is OFF by default
-          and saved per device.
+          can flip <strong>“Start in ALOA Vox on mobile”</strong> (in ALOA
+          Vox's ⚙ menu) so launch lands straight on the mic — it is OFF by
+          default and saved per device.
         </p>
       </section>
     </div>
@@ -404,7 +404,7 @@ export const VoiceTipsPanel: React.FC<VoiceTipsPanelProps> = ({
           </span>
           <div className="min-w-0">
             <h2 className="font-bold text-slate-900 text-sm leading-tight">
-              Voice Tips — Vox & Voice Guide
+              Voice Tips — ALOA Vox Guide
             </h2>
             <p className="text-2xs text-slate-500">
               Tricks, snippets and your Voice Dictionary

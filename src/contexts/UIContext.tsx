@@ -265,7 +265,22 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
         return (stored as FontSize) || 'md';
     });
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
-    const [isSidebarRetracted, setIsSidebarRetracted] = React.useState(false);
+    // 2026-11-22 (owner task, collapsible sidebar): the desktop collapse
+    // choice now PERSISTS across reloads — a lawyer who prefers the icon
+    // rail keeps it after refresh. Read defensively: only the literal
+    // string 'true' counts as retracted.
+    const [isSidebarRetracted, setIsSidebarRetracted] = React.useState(() => {
+        try {
+            return localStorage.getItem('practicepro_sidebar_retracted') === 'true';
+        } catch {
+            return false;
+        }
+    });
+    React.useEffect(() => {
+        try {
+            localStorage.setItem('practicepro_sidebar_retracted', isSidebarRetracted ? 'true' : 'false');
+        } catch { /* storage unavailable — in-memory only */ }
+    }, [isSidebarRetracted]);
 
     // ─── Terms Bar Visibility ─────────────────────────────────────────────
     // When a user dismisses the Terms bar with "Not Now" but later tries to
@@ -394,6 +409,27 @@ export const UIProvider: React.FC<{ children?: React.ReactNode }> = ({ children 
     React.useEffect(() => {
         localStorage.setItem('practicepro_session_locked', isSessionLocked ? 'true' : 'false');
     }, [isSessionLocked]);
+
+    // ─── Cross-tab session-lock propagation (2026-11-22, owner task #4) ──
+    // PRIVATE LEGAL RECORDS / MULTI-TAB BOUNDARY: the lock flag is persisted
+    // above, but before this effect a SECOND tab only read it at mount — a
+    // lock (or unlock) in tab A never reached an already-open tab B, so a
+    // lawyer who locked the workspace in one tab left a fully-interactive
+    // matter list live in the other. The `storage` event fires in every
+    // OTHER tab whenever this key changes, so lock/unlock now propagates
+    // live to all tabs of the same browser profile. (Unlock rides the same
+    // channel: verifying the password in ONE tab unlocks the others —
+    // possession of the password was just proven, re-asking per tab is
+    // security theater that trains users to type passwords reflexively.)
+    React.useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key !== 'practicepro_session_locked') return;
+            const lockedNow = e.newValue === 'true';
+            setIsSessionLocked((prev) => (prev === lockedNow ? prev : lockedNow));
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+    }, []);
 
     // Heartbeat Effect
     React.useEffect(() => {

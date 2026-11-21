@@ -133,6 +133,7 @@ export const TermsOfService: React.FC<{ onBack: () => void; activeProduct?: 'veg
                                     <p>In these Terms, the terms below mean:</p>
                                     <div className="space-y-8 pl-4 border-l-2 border-slate-100">
                                         {isVega && <p><strong>"ALOA"</strong> or <strong>"ALOA™"</strong> means Advanced Legal Office Assistant — the AI agent (powered by Google's Gemini API) for conversation, research, drafting, voice control, and proactive intelligence.</p>}
+                                        {isVega && <p><strong>"ALOA Vox"</strong> or <strong>"Vox"</strong> means the voice-first capture feature of ALOA — speech recording, transcription into the hybrid Legal Pad, and multi-speaker labelling — available on Growth-tier subscriptions and above.</p>}
                                         {isProperty && <p><strong>"ARIA"</strong> or <strong>"ARIA™"</strong> means Asset & Revenue Intelligence Assistant — the AI agent inside Atrium OS that monitors rent collection, resident compliance, and portfolio revenue.</p>}
                                         <p><strong>"AI Agents"</strong> means the AI-powered parts of the Platform: ALOA™/ARIA™ (whichever applies), Jurisdiction Scout, ALDIA, DraftPro, Court Rules Agent, Privacy Shield Agent, and Scale Expert Agent.</p>
                                         <p><strong>"ALDIA"</strong> means Advanced Legal Document Intelligence Agent — summarises documents, analyses risk, extracts metadata, and identifies clauses.</p>

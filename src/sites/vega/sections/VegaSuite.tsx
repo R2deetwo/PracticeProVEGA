@@ -53,6 +53,10 @@ const TABS: SuiteTab[] = [
                 detail: 'Every case with its client, stage and court — filterable, searchable, always current.',
             },
             {
+                title: 'ALOA Vox™ voice capture',
+                detail: 'Dictate notes, tasks and questions hands-free — captured to a hybrid Legal Pad with each speaker labelled in consultations. Growth tier and above.',
+            },
+            {
                 title: 'Deadlines by the right rules',
                 detail: 'Filing and service windows computed under the matter\u2019s Civil Procedure Rules — 36 states and the FCT.',
             },

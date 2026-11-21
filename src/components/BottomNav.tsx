@@ -39,7 +39,7 @@ const navItemsList: NavItemDef[] = [
     // (2026-11-18): the app boots into the Full Office dashboard for
     // everyone — this entry (plus the Header mic button and the ALOA
     // panel's Quick Capture mode) is the explicit way IN.
-    { view: 'quickCapture', text: 'Vox', icon: <MicrophoneIcon />, permission: () => true },
+    { view: 'quickCapture', text: 'ALOA Vox', icon: <MicrophoneIcon />, permission: () => true },
     { view: 'research', text: 'Research', icon: <ResearchIcon />, permission: () => true },
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },
     { view: 'contacts', text: 'Contacts', icon: <ContactsIcon />, permission: () => true },

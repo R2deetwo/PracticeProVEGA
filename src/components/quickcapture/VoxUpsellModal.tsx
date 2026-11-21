@@ -69,7 +69,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
     openModal("paymentGateway", null, {
       amount: growthPrice?.annual ?? 0,
       title: "Upgrade to Growth",
-      description: `${coreState.firmDetails?.name || "Your firm"} — unlocks Vox voice capture and the full Growth feature set`,
+      description: `${coreState.firmDetails?.name || "Your firm"} — unlocks ALOA Vox voice capture and the full Growth feature set`,
       forcePracticeProAccount: true,
       subscriptionContext: {
         requestedPlan: SubscriptionPlan.Growth,
@@ -100,7 +100,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
             <LockClosedIcon className="w-6 h-6 text-white" />
           </div>
           <h3 id="vox-upsell-title" className="text-lg font-black leading-snug">
-            Unlock Vox — Voice-First Legal Capture
+            Unlock ALOA Vox — Voice-First Legal Capture
           </h3>
           <p className="text-sm text-white/80 mt-1">Available on Growth and above.</p>
         </div>

@@ -106,7 +106,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
         { id: 'trust-accounting', category: 'Core Workflows', title: 'Trust Accounting', subtitle: 'Trust ledger, deposits, withdrawals, transfers', keywords: ['trust', 'accounting', 'ledger', 'deposit', 'withdrawal', 'transfer', 'escrow', 'client funds'] },
         { id: 'enterprise-jurisdiction', category: 'Core Workflows', title: 'Enterprise Jurisdiction & Intake', subtitle: 'Procedural intelligence, party representation, intake wizard', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules', 'procedural', 'wizard', 'party', 'claimant', 'defendant'] },
         { id: 'aloa-tips', category: 'AI & Voice', title: `${assistantName} — Your AI Assistant`, subtitle: 'Commands, dictation, briefings and everyday use', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria', 'tips', 'mastering'] },
-        { id: 'quick-capture-voice', category: 'AI & Voice', title: 'Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
+        { id: 'quick-capture-voice', category: 'AI & Voice', title: 'ALOA Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'aloa vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
         { id: 'draftpro-editor', category: 'AI & Voice', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
         { id: 'research-guide', category: 'AI & Voice', title: 'Research Studio', subtitle: 'Chronology, legal matrix, gap analysis, audio briefings', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery', 'matrix', 'gap', 'audio', 'briefing'] },
         { id: 'aldia-analysis', category: 'AI & Voice', title: 'ALDIA Document Analysis', subtitle: 'Risk scoring, metadata extraction, PII detection', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii', 'ndpa', 'rpc', 'compliance', 'opposing counsel'] },
@@ -260,7 +260,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                             <ZapIcon className="w-6 h-6" />
                         </div>
                         <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">AI &amp; Voice</h3>
-                        <p className="text-sm text-slate-600 dark:text-zinc-400">{assistantName}, Vox, DraftPro, Research Studio and ALDIA — every AI feature in one place.</p>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">{assistantName}, ALOA Vox, DraftPro, Research Studio and ALDIA — every AI feature in one place.</p>
                     </button>
 
                     <button
@@ -803,13 +803,13 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
 
                         <AccordionItem
                             id="quick-capture-voice"
-                            title="Vox & Voice Guide"
+                            title="ALOA Vox & Voice Guide"
                             isOpen={isSectionOpen('quick-capture-voice')}
                             onToggle={() => handleSectionToggle('quick-capture-voice')}
                         >
                             <div className="space-y-4">
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    Vox turns spoken dictation into structured firm
+                                    ALOA ALOA Vox turns spoken dictation into structured firm
                                     records — matters, diary entries, endorsements, property
                                     notes, expenses, drafts and more. Questions stay
                                     strictly read-only (“What's my schedule today?” never

@@ -233,7 +233,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
     setStartupViewPreference(currentUser.id, next ? "capture" : "office");
     addToast(
       next
-        ? "Mobile launches will open straight into Vox."
+        ? "Mobile launches will open straight into ALOA Vox."
         : "Mobile launches will open the Full Office dashboard first.",
       { type: "success" }
     );
@@ -267,6 +267,51 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   const [conversationMode, setConversationMode] = useState(readConversationPref);
   /** Voice Tips panel (Part 3). */
   const [showTips, setShowTips] = useState(false);
+
+  // ── VOX CALLOUT (owner task 2026-11-22): the centered ALOA Vox box in
+  //    the compact header shows an expanded first-use card ONCE so users
+  //    immediately understand what Vox is; after "Got it" it settles into
+  //    the compact resting box (with the subtle pulse) and never nags
+  //    again. Re-openable from the box itself (a tap on the resting box
+  //    re-shows it) so the explanation is never lost — just out of the
+  //    way. Stored per-device (localStorage): every new APK install /
+  //    browser profile gets exactly one introduction.
+  const VOX_CALLOUT_KEY = "practicepro_vox_callout_dismissed_at";
+  const [showVoxCallout, setShowVoxCallout] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(VOX_CALLOUT_KEY) === null;
+    } catch {
+      return true;
+    }
+  });
+  const dismissVoxCallout = useCallback(() => {
+    const now = Date.now();
+    try {
+      localStorage.setItem(VOX_CALLOUT_KEY, String(now));
+    } catch { /* storage unavailable — session-only dismissal */ }
+    setShowVoxCallout(false);
+    light();
+  }, [light]);
+  /** Outside-tap closes the callout WITHOUT persisting dismissal — the
+   *  first-use card comes back next visit until explicitly accepted. */
+  const voxBoxRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showVoxCallout) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (voxBoxRef.current && !voxBoxRef.current.contains(e.target as Node)) {
+        setShowVoxCallout(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowVoxCallout(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showVoxCallout]);
   /** Compact-header settings popover (owner directive 2026-11-19): the
    *  phone header carries only Full Office + ⚙ — Quiet Mode, the startup
    *  preference and the tips guide fold into this menu so the capture
@@ -682,7 +727,6 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
   //    4. Standalone phones get a real `< ALOA` back affordance that opens
   //       the ALOA assistant over the office (previously a bare spacer).
   const compactHeader = embedded || isPhoneLike;
-  const headerTitle = "Vox";
   const desktopPane = embedded && !isPhoneLike;
   const { openPanel: openAloaPanel } = useAloa();
 
@@ -712,7 +756,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
           folds Quiet Mode, the startup preference and the tips guide away.
           Safe-area padded so nothing crowds the Android status bar. */}
       <header className="bg-white border-b border-slate-200 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2">
+        <div className="relative flex items-center justify-between gap-2 px-4 pt-3 pb-2">
           {/* LEFT SLOT — the single back affordance: `< ALOA`. Embedded
               panes return to the chat; standalone phones open ALOA over the
               office. One line, never truncated, no badge stacking. */}
@@ -728,8 +772,11 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             </Button>
           ) : (
             <div className="min-w-0">
-              <h1 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap">
-                Vox
+              {/* ALOA Vox naming (owner task 2026-11-22): the wide header
+                  carries the full feature name with the stylized Vox mark. */}
+              <h1 className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap flex items-baseline gap-1.5">
+                <span className="text-xs font-semibold tracking-wide uppercase text-slate-400 dark:text-zinc-500">ALOA</span>
+                <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent font-black">Vox</span>
               </h1>
               <p className="text-2xs text-slate-500 leading-tight truncate">
                 {currentUser?.name ? `Capturing for ${coreState.firmDetails?.name || "your firm"}` : "Speak first, route later"}
@@ -737,16 +784,116 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
             </div>
           )}
 
-          {/* CENTER SLOT — the one compact title: never two lines, never
-              colliding (whitespace-nowrap + truncate + flex-1 min-w-0). */}
+          {/* CENTER SLOT — the ALOA VOX box (owner task 2026-11-22):
+              absolutely centered on the bar (left-1/2 -translate-x-1/2) so
+              it lines up with the top-center camera/notch of a standard
+              phone regardless of how wide the left/right slots are — the
+              old flex-1 approximation drifted whenever `< ALOA` and
+              `Dashboard + ⚙` had different widths. First use shows the
+              expanded callout below it; once dismissed the box rests here
+              compact with the subtle pulse (animate-vox-rest-pulse). The
+              embedded desktop pane (narrow column) drops the "ALOA" prefix
+              so the box never crowds. */}
           {compactHeader ? (
-            <div className="flex-1 min-w-0 flex justify-center">
-              <h1
-                className="font-bold text-slate-900 leading-tight text-base whitespace-nowrap truncate"
-                aria-label="Vox"
+            <div
+              className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 z-20"
+              ref={voxBoxRef}
+            >
+              <Button
+                variant="bare"
+                type="button"
+                data-tour-id="vox-header-box"
+                aria-label="ALOA Vox — voice capture"
+                aria-expanded={showVoxCallout}
+                activePress
+                onClick={() => {
+                  light();
+                  setShowVoxCallout((v) => !v);
+                }}
+                className={`
+                  relative flex items-center gap-1.5 h-9 pl-2.5 pr-3 rounded-lg
+                  border border-primary-200 dark:border-primary-800/60
+                  bg-white dark:bg-zinc-800 shadow-sm
+                  transition-all duration-200
+                  focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500
+                  ${showVoxCallout ? "ring-2 ring-primary-400/60" : ""}
+                  ${!showVoxCallout ? "animate-vox-rest-pulse" : ""}
+                `}
               >
-                {headerTitle}
-              </h1>
+                <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-primary-600 text-white shrink-0">
+                  <MicrophoneIcon className="w-4 h-4" />
+                </span>
+                <span className="whitespace-nowrap leading-none flex items-baseline gap-1">
+                  <span className="text-2xs font-semibold tracking-wide uppercase text-slate-500 dark:text-zinc-400 hidden min-[380px]:inline">
+                    ALOA
+                  </span>
+                  <span
+                    className="text-sm font-black bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent"
+                    style={{ letterSpacing: "0.01em" }}
+                  >
+                    Vox
+                  </span>
+                </span>
+              </Button>
+
+              {/* First-use callout — expanded explanation card. Dismissible
+                  ("Got it"), never auto-reopens after dismissal; re-opens
+                  only when the user taps the resting box. Anchored under
+                  the box, centered, clamped to the viewport. */}
+              {showVoxCallout && (
+                <div
+                  role="dialog"
+                  aria-label="About ALOA Vox"
+                  className={`absolute left-1/2 -translate-x-1/2 top-full mt-2 w-[19rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-xl p-4 ${Z_CLASS.panelMenu}`}
+                >
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-600 text-white shrink-0">
+                      <MicrophoneIcon className="w-5 h-5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-slate-900 dark:text-white leading-tight">
+                        ALOA{" "}
+                        <span className="bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
+                          Vox
+                        </span>
+                      </p>
+                      <p className="text-2xs text-slate-500 dark:text-zinc-400 leading-tight">
+                        Voice-first legal capture
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-zinc-300 leading-relaxed">
+                    Speak naturally — Vox captures the audio and the words,
+                    drafts them into the hybrid Legal Pad, and labels each
+                    speaker in consultations. Notes, tasks, questions and new
+                    matters, straight from your voice.
+                  </p>
+                  <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-2 leading-relaxed">
+                    Available on Growth and above — the mic below is always
+                    one tap away.
+                  </p>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        light();
+                        setShowTips(true);
+                        dismissVoxCallout();
+                      }}
+                    >
+                      Voice tips
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={dismissVoxCallout}
+                    >
+                      Got it
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
           {/* RIGHT SLOT — Dashboard + settings gear. Ghost (borderless) so
@@ -807,8 +954,8 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                   size="sm"
                   iconOnly
                   icon={CogIcon}
-                  aria-label="Vox settings"
-                  title="Vox settings"
+                  aria-label="ALOA Vox settings"
+                  title="ALOA Vox settings"
                   aria-expanded={showSettingsMenu}
                   aria-haspopup="menu"
                   onClick={() => {
@@ -819,7 +966,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 {showSettingsMenu ? (
                   <div
                     role="menu"
-                    aria-label="Vox settings"
+                    aria-label="ALOA Vox settings"
                     className={`absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 bg-white shadow-lg p-2 ${Z_CLASS.panelMenu}`}
                   >
                     {/* Quiet Mode — quiet-speech capture profile. */}
@@ -875,7 +1022,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                           htmlFor="qc-startup-toggle"
                           className="text-sm font-semibold text-slate-800 leading-tight"
                         >
-                          Start in Vox on mobile
+                          Start in ALOA Vox on mobile
                           <span className="block text-2xs font-normal text-slate-400 mt-0.5">
                             Launch straight here instead of the dashboard
                           </span>
@@ -884,7 +1031,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                           id="qc-startup-toggle"
                           role="switch"
                           aria-checked={startInQuickCapture}
-                          aria-label="Start in Vox on mobile"
+                          aria-label="Start in ALOA Vox on mobile"
                           tabIndex={0}
                           onClick={() => {
                             light();
@@ -1205,7 +1352,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                     variant="primary"
                     size="lg"
                     className="!w-28 !h-28 !rounded-full !px-0 shadow-lg"
-                    aria-label={canUseVox ? "Start recording" : "Unlock Vox — available on Growth and above"}
+                    aria-label={canUseVox ? "Start recording" : "Unlock ALOA Vox — available on Growth and above"}
                     onClick={() => {
                       guardVox(() => {
                         medium();
@@ -1235,7 +1382,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                 </p>
                 <p className="text-xs text-slate-500 text-center max-w-xs">
                   {!canUseVox
-                    ? "Vox — voice capture, speaker labelling and the hybrid Legal Pad — is available on Growth and above."
+                    ? "ALOA Vox — voice capture, speaker labelling and the hybrid Legal Pad — is available on Growth and above."
                     : conversationMode
                       ? "Client consultations, witness conferences, settlement meetings, court hearings — each speaker is separated and labelled for you."
                       : "Dictate a note, a task or a question — no forms first. We'll suggest where it should go when you stop."}
