@@ -132,17 +132,27 @@ function getTelegramConfig() {
 // ─── Gzip compression ────────────────────────────────────────────────────
 // Uses Web APIs (TextEncoder, CompressionStream, Response) which are
 // available in the Convex actions runtime.
-async function gzip(data: string): Promise<ArrayBuffer> {
+/** Compress with gzip when the runtime supports CompressionStream.
+ *  LIVE-AUDIT FIX (2026-11-22): Convex's V8 isolate does NOT expose
+ *  CompressionStream — the first real run of this pipeline (targets
+ *  configured) crashed with "CompressionStream is not defined", proving
+ *  the gzip path had never been exercisable. Fallback: upload the RAW
+ *  JSON bytes with an honest .json extension — the export is complete
+ *  either way; only the wire size differs. */
+async function maybeGzip(data: string): Promise<{ bytes: ArrayBuffer; ext: "json.gz" | "json" }> {
   const encoder = new TextEncoder();
   const encoded = encoder.encode(data);
+  if (typeof (globalThis as any).CompressionStream === "undefined") {
+    return { bytes: encoded.slice().buffer, ext: "json" };
+  }
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(encoded);
       controller.close();
     },
   });
-  const compressed = stream.pipeThrough(new CompressionStream("gzip"));
-  return await new Response(compressed).arrayBuffer();
+  const compressed = stream.pipeThrough(new (globalThis as any).CompressionStream("gzip"));
+  return { bytes: await new Response(compressed).arrayBuffer(), ext: "json.gz" };
 }
 
 // ArrayBuffer → base64 (for GitHub API)
@@ -324,7 +334,6 @@ export const runBackup = internalAction({
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
     const timeStr = now.toISOString().split("T")[1].split(".")[0].replace(/[:]/g, ""); // HHMMSS
-    const backupKey = `${dateStr}/convex-backup-${timeStr}.json.gz`;
 
     // ─── Export each table ──────────────────────────────────────────────
     const exportData: Record<string, any> = {
@@ -354,7 +363,8 @@ export const runBackup = internalAction({
 
     // ─── Serialize + compress ──────────────────────────────────────────
     const jsonStr = JSON.stringify(exportData);
-    const compressed = await gzip(jsonStr);
+    const { bytes: compressed, ext } = await maybeGzip(jsonStr);
+    const backupKey = `${dateStr}/convex-backup-${timeStr}.${ext}`;
     const compressedSize = compressed.byteLength;
 
     const results: any = { backupKey, totalDocs, rawBytes: totalBytes, compressedBytes: compressedSize, targets: {} };

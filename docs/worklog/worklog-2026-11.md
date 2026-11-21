@@ -2413,3 +2413,129 @@ skipped; UI-primitives ratchet held at 2218; design-token gate green;
 `npx vite build` clean. Convex deploy note: getSystemErrors/
 getIngestionInspector/alox signals need a production deploy before the
 founder APK shows them (the views degrade gracefully pre-deploy).
+
+---
+
+## 2026-11-22 (evening) — Production deploy of 03fdcc62 + live verification round
+
+**OWNER TASK:** deploy the updated Convex backend to production and verify
+the 03fdcc62 changes appear in the Founder APK and live app.
+
+### The "modest-chameleon-129" question (resolved honestly)
+
+The owner named `modest-chameleon-129` as production. Forensic result:
+`modest-chameleon-129.convex.cloud` exists but is a COMPLETELY EMPTY
+deployment (bare "Server Error" for every function path, including
+`myFunctions:ping`; zero functions ever deployed). It is referenced
+NOWHERE in the repo, GitHub secrets, or local credential stores, and no
+deploy key for it exists anywhere I can access. Every held key was
+dry-run-probed: production key → `gregarious-malamute-537` (project
+`practicepro-vega`/`practice-pro-production`), staging key →
+`shiny-echidna-432`, Aloa X key → `groovy-mandrill-732`. Meanwhile the
+Founder APK built today from 03fdcc62 embeds
+`https://gregarious-malamute-537.convex.cloud` (no `VITE_CONVEX_URL`
+secret override exists), and the last five production deploys (latest
+2026-11-20, run 44755197210) all deployed there — verified from the run
+logs. **Conclusion: the production deployment the Founder APK and live
+app actually use is `gregarious-malamute-537`**, so that is where the
+backend was deployed. If the owner intends to migrate production to
+modest-chameleon-129: create its deploy key in the Convex dashboard
+(Deployments → the deployment → Settings → API keys), set it as the
+`CONVEX_DEPLOY_KEY` GitHub secret (and/or local env), set the env vars on
+it (GEMINI_API_KEY, LEGAL_INGEST_TOKEN, backup targets, Firebase,
+Chakra…), run `npx convex deploy`, then repoint `VITE_CONVEX_URL` in the
+APK builds — data does NOT move with a code deploy (a snapshot export
+from the nightly backup JSON + an import script would be needed).
+
+### Deploy executed
+
+Local gates mirroring convex-production-deploy.yml, then
+`npx convex deploy` with the production key (env var only — never a
+tracked file). Deployed 8f580d0a (= 03fdcc62 + the embedding upgrade
+below) to https://gregarious-malamute-537.convex.cloud, and the official
+`convex-production-deploy.yml` workflow was dispatched afterwards for the
+Actions audit trail.
+
+### Env vars verified/configured on production
+
+- `LEGAL_INGEST_TOKEN` — SET (fresh 256-bit token; also stored in the
+  local untracked credential store). The legal queue/ingest/audit/search
+  token-gated endpoints were permanently "Unauthorized" before; the
+  founder inspector is session-gated (unaffected), external clients
+  (Python ingester, ops) can now authenticate.
+- GitHub backup target — CONFIGURED: private repo
+  `R2deetwo/PracticePro-Backups` created + `GITHUB_BACKUP_OWNER` /
+  `GITHUB_BACKUP_REPO` / `GITHUB_BACKUP_TOKEN` set. (Telegram target
+  intentionally left unconfigured — no bot token exists; per-target
+  config-awareness already shows the honest state.)
+- Existing GEMINI_API_KEY / GEMINI_DEMO_KEY / SITE_URL / Firebase /
+  Chakra / Brevo verified present and unchanged.
+
+### Live verification (the owner's checklist)
+
+1. **ALOA X + System Status read the same errors**: both now query
+   `error_events` (886 rows in prod; latest entries are Gemini 429s —
+   these were the "11 in 24h" the watchdog counted). The old
+   analytics_events path (365 rows) is no longer consulted for errors.
+   Alert deep-links route via signal targets (`onNavigate` → System
+   Status / ingestion console). `founder_login_events` is genuinely
+   empty (0 rows) — the empty-state explanation in the founder feed is
+   data-truthful; future logins record going forward.
+2. **Legal Ingestion Engine inspector**: the worker was triggered
+   manually (`npx convex run legal/worker:runIngestionWorker`). First
+   run: **purgedBlocked: 195** junk QUEUED rows (227 → 31; cdn-cgi,
+   cookie/privacy pages, blogs, assets gone), 1 index harvested, 2 PDFs
+   deferred (documented boundary), 1 network failure. Queue now holds
+   only allow-listed content: 16 INEC state-election PDFs (DOC_LINK
+   priority) + SEC/NASS/NigeriaLII index pages. The SEC index harvest
+   run rejected 111 junk links (visible reject samples in the audit
+   trail) and accepted 8 real documents.
+3. **Research tabs**: AI Notes / Practice Notes / Contract Analyzer
+   shipped in 03fdcc62 (code-verified: `/analyzer` renders ResearchView
+   with `initialTab="contract_analyzer"` behind the legal FeatureGuard;
+   the AI Notes tab self-gates Growth+ with an upgrade CTA). The Founder
+   APK built from 03fdcc62 (run 44937234256) already contains it; APK
+   builds for 8f580d0a were triggered by the push.
+
+### Bugs found by live verification (all fixed + redeployed)
+
+- **`embedded` was structurally 0** — the in-Convex engine never
+  embedded (Python-tool boundary), and the sandbox cannot reach Gemini
+  embeddings (geo-block) so the Python path can't run from here either.
+  FIX: **in-engine embeddings** (`convex/legal/embed.ts`): the worker now
+  embeds chunks in-run with the platform GEMINI_API_KEY via
+  batchEmbedContents (768-dim, model fallback text-embedding-004 →
+  gemini-embedding-001 with outputDimensionality=768,
+  LEGAL_EMBEDDING_MODEL override, x-goog-api-key header only). A bounded
+  backfill (32/run) heals legacy vector-less chunks each 15-min cycle;
+  skips are audited once per run (`embeddings.skipped`). VERIFIED LIVE:
+  first run backfilled the 1 legacy chunk — **chunksEmbedded: 1, embedded
+  > 0**; the inspector/dashboard now say "pass pending" when the key is
+  set instead of the old "by design" text (corpus.embeddingConfigured).
+- **"0 instruments" root cause**: instrument ingestion ALWAYS failed with
+  `ArgumentValidationError .instrument.amendmentTracker.repealRef: null`
+  (builders emitted null; Convex `v.optional` requires the key to be
+  ABSENT, not null). FIX: buildInstrumentMeta (TS + the Python
+  metadata.py twin) now omit unknown fields; deep-null regression test
+  added. Found via the audit trail, confirmed from the backup export
+  (7 of 11 failed rows were this bug; the rest are 3 dead 404s + junk
+  URLs that predate the strict filter — left as honest history).
+- **Failed rows could never retry** (every enqueue path answered
+  "already_failed"). FIX: the founder's Add-a-URL now RESETS a failed row
+  (fresh attempts, founder:revive audit) — the inspector's failed-bucket
+  hint tells the founder exactly that.
+- **The nightly backup crashed on first real run**
+  (`CompressionStream is not defined` — the Convex V8 isolate has no
+  CompressionStream; the gzip path was never exercisable while the job
+  was unconfigured). FIX: maybeGzip() degrades to raw `.json` (honest
+  extension, complete export). VERIFIED LIVE: manual runBackup → 5,468
+  docs / 135 tables / 3.45 MB →
+  github.com/R2deetwo/PracticePro-Backups/…/convex-backup-192125.json,
+  backup_log row (target github, success, sha, URL), 30-day retention
+  cleanup path active. The 02:00 UTC cron is now genuinely operational.
+
+**Gates:** tsc root 0 / convex 0; eslint 0 on touched files; vitest
+3,408 passed (+13 legalEmbed, +1 instrument-null regression, +2 backup
+fallback source-scans) / 1 skipped; UI-primitives ratchet 2218 held;
+identity audit green; three production deploys this session (embedding
+upgrade, instrument fix, backup fix) — all verified live afterwards.

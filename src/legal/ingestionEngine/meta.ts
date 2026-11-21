@@ -164,12 +164,16 @@ export interface InstrumentMeta {
     key: string;
     issuingBody: string;
     instrumentType: string;
-    commencementDate: string | null;
-    year: number | null;
+    /** Absent (not null) when unknown — Convex validators reject null
+     *  for v.optional fields (the 2026-11-22 "0 instruments" root cause:
+     *  repealRef: null failed ArgumentValidationError on every instrument
+     *  ingestion). */
+    commencementDate?: string;
+    year?: number;
     status: string;
     structure: Array<{ level: string; number: string; heading: string }>;
-    amendmentTracker: { amended: boolean; amendmentRefs: string[]; repealed: boolean; repealRef: string | null };
-    summary: string | null;
+    amendmentTracker: { amended: boolean; amendmentRefs: string[]; repealed: boolean; repealRef?: string };
+    summary?: string;
 }
 
 function issuingBodyFor(sourceUrl: string, title: string, text: string): string {
@@ -215,16 +219,20 @@ export function buildInstrumentMeta(title: string, text: string, sourceUrl: stri
     const yearM = /\b(19|20)\d{2}\b/.exec(`${title} ${text.slice(0, 2000)}`);
     const key = title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80)
         || sourceUrl.split("/").filter(Boolean).pop()?.slice(0, 60) || "instrument";
+    const commencement = isoDate(text.slice(0, 3000));
+    const summary = text.slice(0, 600).replace(/\s+/g, " ").slice(0, 500);
     return {
         title: title.trim().slice(0, 200) || key,
         key,
         issuingBody: issuingBodyFor(sourceUrl, title, text),
         instrumentType: instrumentTypeFor(category, title, text),
-        commencementDate: isoDate(text.slice(0, 3000)) || null,
-        year: yearM ? parseInt(yearM[0], 10) : null,
+        // Omit-when-unknown (never null): every field below is
+        // v.optional(...) on the Convex side and null fails validation.
+        ...(commencement ? { commencementDate: commencement } : {}),
+        ...(yearM ? { year: parseInt(yearM[0], 10) } : {}),
         status: "in_force",
         structure: structureSummary(text),
-        amendmentTracker: { amended: false, amendmentRefs: [], repealed: false, repealRef: null },
-        summary: text.slice(0, 600).replace(/\s+/g, " ").slice(0, 500) || null,
+        amendmentTracker: { amended: false, amendmentRefs: [], repealed: false },
+        ...(summary ? { summary } : {}),
     };
 }

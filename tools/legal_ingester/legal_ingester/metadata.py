@@ -157,18 +157,27 @@ def build_instrument_meta(title: str, text: str, source_url: str, category: str)
     diffs + instrument_changes rows track what changes later."""
     year_m = re.search(r"\b(19|20)\d{2}\b", f"{title} {text[:2000]}")
     key = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")[:80] or source_url.split("/")[-1][:60]
-    return {
+    commencement = _iso_date(text[:3000])
+    summary = " ".join(text[:600].split())[:500]
+    # Omit-when-unknown (never None): Convex v.optional validators reject
+    # explicit nulls — repealRef: None failed ArgumentValidationError on
+    # every instrument ingestion (the 2026-11-22 "0 instruments" bug).
+    payload = {
         "title": title.strip()[:200] or key,
         "key": key,
         "issuingBody": _issuing_body(source_url, title, text),
         "instrumentType": _instrument_type(category, title, text),
-        "commencementDate": _iso_date(text[:3000]) or None,
-        "year": int(year_m.group(0)) if year_m else None,
         "status": "in_force",
         "structure": _structure_summary(text),
-        "amendmentTracker": {"amended": False, "amendmentRefs": [], "repealed": False, "repealRef": None},
-        "summary": " ".join(text[:600].split())[:500],
+        "amendmentTracker": {"amended": False, "amendmentRefs": [], "repealed": False},
     }
+    if commencement:
+        payload["commencementDate"] = commencement
+    if year_m:
+        payload["year"] = int(year_m.group(0))
+    if summary:
+        payload["summary"] = summary
+    return payload
 
 
 def _issuing_body(source_url: str, title: str, text: str) -> str:

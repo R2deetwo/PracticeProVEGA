@@ -52,6 +52,7 @@ import type * as invoiceFinancials from "../invoiceFinancials.js";
 import type * as invoiceNumbering from "../invoiceNumbering.js";
 import type * as landingChat from "../landingChat.js";
 import type * as legal_audit from "../legal/audit.js";
+import type * as legal_embed from "../legal/embed.js";
 import type * as legal_engine from "../legal/engine.js";
 import type * as legal_ingest from "../legal/ingest.js";
 import type * as legal_queue from "../legal/queue.js";
@@ -157,6 +158,7 @@ declare const fullApi: ApiFromModules<{
   invoiceNumbering: typeof invoiceNumbering;
   landingChat: typeof landingChat;
   "legal/audit": typeof legal_audit;
+  "legal/embed": typeof legal_embed;
   "legal/engine": typeof legal_engine;
   "legal/ingest": typeof legal_ingest;
   "legal/queue": typeof legal_queue;

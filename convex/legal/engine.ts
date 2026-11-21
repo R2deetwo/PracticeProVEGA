@@ -283,18 +283,39 @@ export const enqueueUrlForIngestion = mutation({
     }
     const normalized = verdict.url;
     const hash = urlHash(normalized);
+    const now = Date.now();
     const existing = await ctx.db
       .query("legal_scrape_queue")
       .withIndex("by_urlHash", (q) => q.eq("urlHash", hash))
       .first();
     if (existing) {
+      // 2026-11-22: a FAILED row gets a real second chance when the
+      // founder re-adds it by hand — reset to queued with fresh
+      // attempts (before, every path said "already_failed" and a
+      // code-bug casualty could NEVER retry; the inspector's failed
+      // bucket shows the URL + last error, and re-adding is the retry).
+      if (existing.status === "failed") {
+        await ctx.db.patch(existing._id, {
+          status: "queued",
+          attempts: 0,
+          priority: Math.min(existing.priority ?? PRIORITY.CURATED, PRIORITY.CURATED),
+          updatedAt: now,
+        });
+        await ctx.db.insert("system_audit_logs", {
+          eventType: "queue.enqueue",
+          actor: `founder:${founder.email}`,
+          status: "ok",
+          payload: { source: "founder:revive", url: normalized, category: existing.domainCategory },
+          createdAt: now,
+        });
+        return { queued: true, category: existing.domainCategory, revived: true };
+      }
       return { queued: false, status: `already_${existing.status}` };
     }
     const category =
       args.domainCategory && QUEUE_CATEGORIES.includes(args.domainCategory as any)
         ? args.domainCategory
         : classifyCategory(normalized, "");
-    const now = Date.now();
     await ctx.db.insert("legal_scrape_queue", {
       sourceUrl: normalized,
       urlHash: hash,
@@ -445,7 +466,7 @@ export const getIngestionInspector = query({
       in_progress: "Claimed by a running worker — moves to completed/failed within the run.",
       completed: "Fetched and processed. Index pages harvest links; documents are parsed into judgments/instruments/chunks; unchanged pages short-circuit as dedup/304.",
       skipped_dedup: "Skipped without re-parsing — the SHA-256 already exists (identical content) or the server returned 304 Not Modified.",
-      failed: "Terminal failures after 3 attempts. Each row carries the exact error (HTTP status, network/timeout, robots block or parse failure).",
+      failed: "Terminal failures after 3 attempts. Each row carries the exact error (HTTP status, network/timeout, robots block or parse failure). To retry one: copy the URL into Add a URL above — a failed row re-queued by hand gets fresh attempts.",
     };
     return {
       bucket,

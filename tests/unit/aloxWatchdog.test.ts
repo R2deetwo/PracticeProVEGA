@@ -501,3 +501,24 @@ describe("wiring: dispatchPushToUsers sends one push per device", () => {
     expect(pushNotifications).not.toMatch(/tokens: tokenRecords\.map\(\(r\) => r\.token\)/);
   });
 });
+
+// ─── 2026-11-22 deploy-verification round: the backup pipeline's first REAL run ───
+
+describe("backup pipeline: gzip fallback (CompressionStream is absent in the Convex runtime)", () => {
+  it("maybeGzip degrades to raw .json instead of crashing the nightly run", () => {
+    const backups = read("convex/backups.ts");
+    // The live run crashed with "CompressionStream is not defined" — the fix
+    // must keep the honest fallback, not assume the API exists.
+    expect(backups).toContain("maybeGzip");
+    expect(backups).toMatch(/typeof \(globalThis as any\)\.CompressionStream === "undefined"/);
+    expect(backups).toContain('ext: "json.gz" | "json"');
+    // And the old unconditional gzip() call must not come back:
+    expect(backups).not.toMatch(/await gzip\(jsonStr\)/);
+  });
+
+  it("the backup key reflects the ACTUAL format shipped (.json when uncompressed)", () => {
+    const backups = read("convex/backups.ts");
+    expect(backups).toContain("convex-backup-${timeStr}.${ext}");
+    expect(backups).not.toContain("convex-backup-${timeStr}.json.gz`;");
+  });
+});

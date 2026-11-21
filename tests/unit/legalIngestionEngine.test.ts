@@ -307,6 +307,28 @@ describe('judgment metadata (metadata.py port)', () => {
         expect(meta.amendmentTracker.amended).toBe(false);
         expect(meta.structure.some((s) => s.level === 'section')).toBe(true);
     });
+
+    it('instrument meta NEVER carries null values (Convex v.optional rejects null — 2026-11-22 "0 instruments" regression)', () => {
+        // A text with no dates, no year, no summary-worthy content: every
+        // optional field is unknown. The payload must OMIT them, not send
+        // null — the audit trail caught "repealRef: null" failing
+        // ArgumentValidationError on every instrument ingestion in prod.
+        const meta = buildInstrumentMeta('Bare Rules', '', 'https://court.example/rules', 'rules_of_court');
+        const deepNulls: string[] = [];
+        const walk = (obj: unknown, path: string) => {
+            for (const [k, v] of Object.entries(obj ?? {})) {
+                if (v === null || v === undefined) deepNulls.push(`${path}.${k}`);
+                else if (typeof v === 'object') walk(v, `${path}.${k}`);
+            }
+        };
+        walk(meta, 'instrument');
+        expect(deepNulls).toEqual([]);
+        // And the fields are simply absent, not null:
+        expect('repealRef' in meta.amendmentTracker).toBe(false);
+        expect('commencementDate' in meta).toBe(false);
+        expect('year' in meta).toBe(false);
+        expect('summary' in meta).toBe(false);
+    });
 });
 
 describe('builtin seed sources', () => {

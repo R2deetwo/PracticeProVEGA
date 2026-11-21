@@ -194,7 +194,9 @@ export const IngestionEngine: React.FC = () => {
                 url: urlInput.trim(),
             });
             if (result?.queued) {
-                setNotice(`Added to the queue (${String(result?.category ?? 'unknown').replace(/_/g, ' ')}). The next run picks it up.`);
+                setNotice(result?.revived
+                    ? `Re-queued the failed URL with fresh attempts (${String(result?.category ?? 'unknown').replace(/_/g, ' ')}) — the next run retries it.`
+                    : `Added to the queue (${String(result?.category ?? 'unknown').replace(/_/g, ' ')}). The next run picks it up.`);
                 setUrlInput('');
             } else if (result?.rejected) {
                 // 2026-11-22 strict filter: show WHY the URL was refused
