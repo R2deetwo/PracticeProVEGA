@@ -79,8 +79,10 @@ export function resolveAccentTheme(
  * register explicitly (2026-11-22): :root is the corporate PracticePro
  * green, so komplete carries .app-skin-komplete — the same Vega blue as
  * .app-skin-vega (one uniform register, 2026-11-20) — and atrium carries
- * the estate jade. Only surfaces OUTSIDE the app container (the hub
- * landing page, login, marketing sites) fall back to the corporate green.
+ * the estate jade. The provider (AccentThemeContext) AUTH-GATES the
+ * class: with no signed-in user there is no workspace to brand, so
+ * logged-out surfaces (the hub landing page, login, marketing sites)
+ * fall back to the corporate green :root register.
  */
 export function accentSkinClass(id: AccentThemeId): string {
     if (id === 'vega') return 'app-skin-vega';

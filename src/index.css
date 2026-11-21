@@ -390,8 +390,10 @@
  * repainted the corporate hub (the PracticePro "P", Talk to Us, footer)
  * blue too, which is not the brand. :root is the corporate green again,
  * so Komplete firms scope the blue explicitly via this class on the app
- * container. Logged-out surfaces (login, marketing sites) correctly fall
- * back to the corporate green. */
+ * container. AccentThemeContext AUTH-GATES the class — the app container
+ * also wraps the logged-out marketing sites and login, and with no
+ * signed-in user there is no workspace to brand: those surfaces fall
+ * back to the corporate green :root register. */
 .app-skin-komplete {
   --color-primary-50:  239 246 255;
   --color-primary-100: 219 234 254;

@@ -117,6 +117,14 @@ describe('R52 wiring — one application point, no per-view skinning', () => {
         expect(app).not.toContain('app-skin-vega'); // the class name lives only in CSS + accentTheme.ts
     });
 
+    it('AccentThemeContext AUTH-GATES the skin — logged-out surfaces keep the corporate green (2026-11-22)', () => {
+        // The app container wraps the logged-out marketing sites too;
+        // without the gate the product accent repaints the corporate
+        // hub (the PracticePro "P", Talk to Us) — the owner's report.
+        const ctx = read('src', 'contexts', 'AccentThemeContext.tsx');
+        expect(ctx).toContain("currentUser ? accentSkinClass(resolved) : ''");
+    });
+
     it('the provider is registered after ProductProvider (it reads product + auth)', () => {
         const providers = read('src', 'contexts', 'AppProvider.tsx');
         const productIdx = providers.indexOf('<ProductProvider />');
