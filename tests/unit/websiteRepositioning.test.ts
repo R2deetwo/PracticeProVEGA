@@ -847,6 +847,9 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // highly engaging sections"): twelve bands fold to six — the hero,
     // the tabbed Core Suite hub, the Nigeria differentiators, the
     // trust/segments band, pricing (with the folded FAQ), the final CTA.
+    // 2026-11-22: the Institutional Readiness positioning band joins
+    // between trust and pricing (owner spec) — seven bands, one quiet
+    // addition, no consolidation undone.
     const order = (body.match(/<(Vega[A-Za-z]+)/g) || []).map((t) =>
       t.slice(1)
     );
@@ -855,6 +858,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
       "VegaSuite",
       "VegaWhyNigeria",
       "VegaTrust",
+      "VegaInstitutional",
       "VegaPricing",
       "VegaFinalCTA",
     ]);

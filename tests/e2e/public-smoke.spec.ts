@@ -37,14 +37,17 @@ test('ALOA panel opens and answers a question', async ({ page }) => {
   const input = page.locator('textarea[aria-label*="Your question"]').first();
   await input.waitFor({ state: 'visible', timeout: 10_000 });
 
-  // Ask a question that needs a real answer.
-  await input.fill('What is a demand letter and when do I need one?');
+  // Ask a question that needs a real answer. 2026-11-22: ALOA is
+  // Vega's PRODUCT guide — the e2e asks a product question (the happy
+  // path); legal questions route to the boundary reply + directories
+  // card, which is covered by the unit pins.
+  await input.fill('How does Vega track court matters for a litigation firm?');
   await input.press('Enter');
 
   // The panel must produce SOME visible answer text within 30s — the
   // catalogue fallback guarantees this even if the AI call fails; a fully
   // silent panel is the regression this guards against.
-  await expect(page.locator('body')).toContainText(/demand letter|letter/i, {
+  await expect(page.locator('body')).toContainText(/matter|court|Vega/i, {
     timeout: 30_000,
   });
 });

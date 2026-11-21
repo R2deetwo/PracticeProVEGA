@@ -6,7 +6,21 @@ import { Z_CLASS } from '../../overlays/constants';
 import { getAssistantName } from '../../utils/assistantIdentity';
 
 /**
- * AloaAssistantFab — the non-lawyer-first website assistant (bank-style).
+ * AloaAssistantFab — the website assistant (bank-style FAB + panel).
+ *
+ * 2026-11-22 ROLE SPLIT (owner spec, "Landing-Page ALOA — Deep Product
+ * Specialist"):
+ *   VEGA → ALOA is strictly an expert PRODUCT GUIDE & ONBOARDING
+ *   SPECIALIST for Vega: features explained with concrete law-firm
+ *   examples, plans/pricing, workspace setup, inviting staff. It does
+ *   NOT answer substantive legal questions, gives no legal advice or
+ *   education, and NEVER invites visitors to contact PracticePro for
+ *   legal help (PracticePro is a B2B software provider, not a law
+ *   firm). Legal questions get the approved 2–3 sentence boundary reply
+ *   + the Official Legal Directories card (NBA resources only — RPC
+ *   Rule 39: no touting, no endorsement, no "vetted lawyers").
+ *   ATRIUM → ARIA keeps the everyday property-guide register (the
+ *   rework is a Vega-only directive).
  *
  * WHAT THIS IS (owner direction, 2026-11-16):
  *   "I wanted it like how the banks have it: it's there, but it doesn't
@@ -20,17 +34,15 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *      It's a Vega thing." The hub no longer mounts this component; the
  *      LandingProduct type is narrowed to 'vega' | 'atrium' so an
  *      accidental re-mount fails to compile.
- *   2. OWNERSHIP COPY. ALOA introduces itself as VEGA'S legal guide (not
- *      "PracticePro's"); ARIA as ATRIUM'S property guide.
+ *   2. OWNERSHIP COPY. ALOA introduces itself as VEGA'S product guide
+ *      (not "PracticePro's"); ARIA as ATRIUM'S property guide.
  *   3. TOPICS COLLAPSE. Once the visitor picks a topic or asks a
  *      question, the chip cloud collapses to a toggle so the ANSWER gets
  *      the space (owner: "you would expect it to sort of drop down…
  *      it's being blocked up").
- *   4. USEFUL REPLIES. Each topic answer is a structured mini-guide
- *      (intro + numbered steps + caution note). Statutory specifics are
- *      stated ONLY where the deterministic framework is encoded
- *      (tenancyNoticePeriods.ts / legal corpus: lagos_tenancy_law_2011)
- *      — everything else stays process-level guidance.
+ *   4. USEFUL REPLIES. Vega topic answers are product walkthroughs with
+ *      concrete examples (the catalogue doubles as the AI grounding
+ *      reference); Atrium keeps its structured property mini-guides.
  *   5. NO PREMATURE FUNNEL. Per-reply "send this to our team" CTAs are
  *      gone — "funneling… it's a bit too early" for the lawyer
  *      marketplace. One subtle "Ask our team" link rides the footer.
@@ -44,13 +56,13 @@ import { getAssistantName } from '../../utils/assistantIdentity';
  *      clicking that button."
  *   7. QUESTIONS GET ANSWERED, NOT FUNNELLED (owner review round 2):
  *      a free-text question is matched against the topic catalogue and
- *      ANSWERED in the panel; out-of-scope questions get an honest
- *      boundary reply ("this is the amount of information we can give
- *      you — reach out to a lawyer for more in-depth information") plus
- *      the professional-conduct-safe lawyer note. The message drawer
- *      opens ONLY when the visitor clicks a link themselves — never an
- *      auto-jump, and never a purchase funnel (buying Vega is a
- *      separate thing from reaching a lawyer).
+ *      ANSWERED in the panel; the message drawer opens ONLY when the
+ *      visitor clicks a link themselves — never an auto-jump, and never
+ *      a purchase funnel. For VEGA (2026-11-22): out-of-scope (legal)
+ *      questions get the product-boundary reply + the Official Legal
+ *      Directories card (NBA resources only — never "reach out to us
+ *      for legal help"); for ATRIUM they keep the honest
+ *      qualified-professional boundary reply.
  *
  * LIVE AI ENGINE (owner direction, 2026-11-18: "we cannot have something
  *   that is not smart or answers only preset answers"; 2026-11-20: "I
@@ -148,6 +160,10 @@ const CONVEX_HTTP_URL = CONVEX_URL.replace('.convex.cloud', '.convex.site');
 interface LandingAiAnswer {
     /** Conversational markdown — the in-app ALOA voice. */
     text: string;
+    /** True when the engine flagged the reply as a legal-question decline
+ *     (the [[OFFICIAL_DIRECTORIES]] marker) — the panel renders the
+ *     Official Legal Directories card under the reply. */
+    directoriesAction?: boolean;
 }
 
 interface LandingAiHistoryItem {
@@ -179,6 +195,9 @@ async function askLandingAI(payload: {
     product: LandingProduct;
     history: LandingAiHistoryItem[];
     reference?: { chip: string; reply: string; steps?: string[]; note?: string };
+    /** Vega audience toggle: 'non_lawyer' reinforces the product-only
+ *     boundary server-side. Omitted for atrium (no toggle there). */
+    userRole?: 'lawyer' | 'non_lawyer';
 }): Promise<LandingAiAnswer | 'rate_limited' | null> {
     try {
         const controller = new AbortController();
@@ -198,9 +217,10 @@ async function askLandingAI(payload: {
         if (!res.ok) return null;
         const data = await res.json();
         const a = data?.answer;
+        const directoriesAction = data?.action === 'official_directories' || a?.action === 'official_directories';
         // New shape: free conversational markdown text.
         if (typeof a?.text === 'string' && a.text.trim()) {
-            return { text: a.text.trim().slice(0, 2000) };
+            return { text: a.text.trim().slice(0, 2000), directoriesAction };
         }
         // Legacy shape (intro/steps/note): flatten to markdown so the
         // panel renders one consistent experience either way.
@@ -211,7 +231,7 @@ async function askLandingAI(payload: {
                 : [];
             if (steps.length) parts.push(steps.map((s: string, i: number) => `${i + 1}. ${s.trim()}`).join('\n'));
             if (typeof a.note === 'string' && a.note.trim()) parts.push(`**Note:** ${a.note.trim()}`);
-            return { text: parts.join('\n\n').slice(0, 2000) };
+            return { text: parts.join('\n\n').slice(0, 2000), directoriesAction };
         }
         return null;
     } catch {
@@ -272,6 +292,10 @@ interface Bubble {
     /** Professional-conduct-safe boundary line ("general information,
      *  not legal advice — speak with a qualified lawyer"). */
     lawyerNote?: string;
+    /** Vega only: render the Official Legal Directories action card —
+     *  set on legal-question declines (the engine's
+     *  [[OFFICIAL_DIRECTORIES]] marker) and the offline boundary reply. */
+    directoriesAction?: boolean;
     /** Topic chips to offer as follow-ups (matched by chip label). */
     suggestions?: string[];
     /** When set, renders the opt-in "send this to our team" link with
@@ -281,70 +305,33 @@ interface Bubble {
 }
 
 /**
- * Topic catalogue — plain-language, non-lawyer-first. Each answer is a
- * structured mini-guide: intro + numbered steps + a caution note. NO
- * invented legal specifics: the only statutory figures quoted (Lagos
- * notice-to-quit periods, court-order-only recovery) come from the
- * deterministic framework encoded in src/utils/tenancyNoticePeriods.ts
- * and the legal corpus (lagos_tenancy_law_2011) — everything else is
- * process-level guidance. Atrium skews property; vega skews general
- * legal. Per-reply sales CTAs are deliberately absent (owner: the
- * lawyer funnel comes later, in its own round).
+ * Topic catalogue. 2026-11-22 split:
+ *   VEGA — product prompts with concrete law-firm scenarios (owner
+ *   spec: "suggested product prompts with concrete scenarios"). Each
+ *   answer is a product walkthrough; the copy doubles as the AI
+ *   grounding reference. No legal-advice topics, no consumer legal
+ *   guidance — those questions now route to the product-boundary reply
+ *   + the Official Legal Directories card.
+ *   ATRIUM — the everyday property mini-guides (unchanged register).
  */
 function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
-    const legal: AssistantTopic[] = [
-        {
-            id: 'court_letter',
-            chip: 'I received a court letter',
-            reply: 'Do not ignore it — and do not panic. Most court letters open a process rather than end one, but the dates printed on them are enforced strictly.',
-            steps: [
-                'Read it carefully and note three things: the court\u2019s name, the suit number, and any date you are asked to respond by.',
-                'Keep the original somewhere safe and make copies. Never write on it, and never hand the original over to anyone who just asks.',
-                'Work out what it is: an originating process (someone has started a case against you), a hearing notice (a date is fixed), or a document you are being asked to respond to.',
-                'Act early. If a response date is printed on it, treat it as real even if you plan to challenge the case — ignoring it can lead to judgment being entered against you in your absence.',
-            ],
-            note: 'Before you reply in writing, have someone qualified review it — what you write back becomes part of the case.',
-            keywords: ['court letter', 'court', 'summons', 'writ', 'subpoena', 'hearing', 'lawsuit', 'sue', 'sued', 'case against me', 'served', 'bailiff', 'sheriff', 'judgment', 'judgement', 'petition'],
-        },
-        {
-            id: 'landlord_tenant',
-            chip: 'Landlord or tenant problem',
-            reply: 'These disputes move in steps — and the steps matter as much as who is \u201Cright\u201D.',
-            steps: [
-                'Put your position in writing. A dated letter or message creates a record; phone calls do not.',
-                'Keep everything: rent receipts, bank transfers, the agreement, messages, photos of the property.',
-                'Know the notice rules. In Lagos (Tenancy Law 2011), a notice to quit must match the tenancy period: 1 week for a weekly tenancy, 1 month for monthly, 3 months for quarterly, 6 months for yearly. A notice that understates the period is invalid.',
-                'In Lagos a landlord cannot recover possession without a court order — even after the notice expires, self-help eviction is unlawful. Other states follow a similar pattern; confirm the rule where the property is.',
-            ],
-            note: 'Never resort to self-help — changing locks, removing belongings, cutting power. Courts treat that seriously even when the rent is genuinely owed.',
-            keywords: ['landlord', 'tenant', 'rent', 'eviction', 'evict', 'quit notice', 'notice to quit', 'tenancy', 'lease', 'deposit', 'premises', 'occupancy'],
-        },
-        {
-            id: 'document',
-            chip: 'I need a document or agreement',
-            reply: 'A well-drafted document is cheaper than the dispute it prevents.',
-            steps: [
-                'Put it in writing. Verbal agreements are hard to prove even when they are valid.',
-                'Cover the essentials: full names and addresses of everyone bound by it, what each side is giving or doing, the money involved, how long it lasts, and how it can end.',
-                'Get it stamped where the law requires — unstamped documents can face penalties and evidential problems when you need them in court.',
-                'Never sign under pressure. Take it away, read all of it, and have it reviewed before you commit.',
-            ],
-            note: 'If the other side drafted the document, assume it favours them — that is exactly what review is for.',
-            keywords: ['agreement', 'contract', 'document', 'draft', 'stamp', 'deed', 'mou', 'nda', 'memorandum', 'will', 'paperwork'],
-        },
-        {
-            id: 'business',
-            chip: 'Registering a business (CAC)',
-            reply: 'Good move — registering properly protects the name, shields the owners, and unlocks what a Nigerian business actually needs: bank accounts, contracts, tenders.',
-            steps: [
-                'Choose the vehicle first. A business name (sole proprietor or partnership) is simpler, but you remain personally liable for its debts. A limited company (LTD) keeps liability with the company and is what partners and investors expect.',
-                'Do a name search on the CAC portal and have backup names ready — the first choice is often taken.',
-                'File the registration with complete owner details, and collect your certificate when issued.',
-                'After registration come continuing duties: companies file annual returns and keep proper records. Missing them attracts penalties and can get the name struck off the register.',
-            ],
-            keywords: ['cac', 'registering', 'register a business', 'register my business', 'registration', 'business name', 'incorporate', 'incorporation', 'ltd', 'limited liability', 'rc number', 'corporate affairs'],
-        },
-    ];
+    // The one consumer-legal topic ATRIUM still carries (landlord/tenant
+    // basics). The other former consumer-legal topics (court letters,
+    // documents, CAC) retired with the 2026-11-22 Vega product-specialist
+    // rework — Vega's chip cloud is product prompts only.
+    const landlordTenant: AssistantTopic = {
+        id: 'landlord_tenant',
+        chip: 'Landlord or tenant problem',
+        reply: 'These disputes move in steps — and the steps matter as much as who is \u201Cright\u201D.',
+        steps: [
+            'Put your position in writing. A dated letter or message creates a record; phone calls do not.',
+            'Keep everything: rent receipts, bank transfers, the agreement, messages, photos of the property.',
+            'Know the notice rules. In Lagos (Tenancy Law 2011), a notice to quit must match the tenancy period: 1 week for a weekly tenancy, 1 month for monthly, 3 months for quarterly, 6 months for yearly. A notice that understates the period is invalid.',
+            'In Lagos a landlord cannot recover possession without a court order — even after the notice expires, self-help eviction is unlawful. Other states follow a similar pattern; confirm the rule where the property is.',
+        ],
+        note: 'Never resort to self-help — changing locks, removing belongings, cutting power. Courts treat that seriously even when the rent is genuinely owed.',
+        keywords: ['landlord', 'tenant', 'rent', 'eviction', 'evict', 'quit notice', 'notice to quit', 'tenancy', 'lease', 'deposit', 'premises', 'occupancy'],
+    };
 
     const propertyTopics: AssistantTopic[] = [
         {
@@ -396,6 +383,63 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
         keywords: ['lawyer', 'law firm', 'solicitor', 'barrister', 'advocate', 'attorney', 'legal practice', 'i run a firm', 'practice'],
     };
 
+    // ── VEGA PRODUCT PROMPTS (2026-11-22 owner spec) ─────────────────
+    // Concrete-scenario product prompts for the lawyer-first default
+    // state. Answers are product walkthroughs with realistic law-firm
+    // examples; prices come from src/constants/tiers.ts (the single
+    // source of truth — never edit them here without touching that).
+    const vegaProductTopics: AssistantTopic[] = [
+        {
+            id: 'matters_example',
+            chip: 'Show me how Vega tracks court matters',
+            reply: 'Every case lives as a Matter — one file with the parties, counsel, court dates, filing deadlines and documents, that the whole firm works from.',
+            steps: [
+                'A litigator opens the matter for a Lagos High Court suit and the next adjourned date is the first thing on the file — with hearing reminders firing 7, 3 and 1 days before, to assigned counsel by email and in-app.',
+                'Parties, opposing counsel and the presiding judge sit on the matter, so an associate picking up the file sees the whole picture without a handover meeting.',
+                'Filing deadlines ride the same timeline as hearings under the matter’s Civil Procedure Rules — the diary keeps itself instead of depending on one person’s memory.',
+                'Notes, documents and bills attach to the matter — the file IS the workspace.',
+            ],
+            keywords: ['matter', 'matters', 'case', 'court', 'track', 'tracking', 'deadline', 'adjournment', 'hearing', 'cause list', 'litigation', 'diary', 'reminder', 'case management'],
+        },
+        {
+            id: 'vox_draftpro',
+            chip: 'How do Vox and DraftPro work together?',
+            reply: 'Vox captures what you say; DraftPro turns it into the document the matter needs — one chain from courtroom to draft.',
+            steps: [
+                'Walking out of court, you dictate into Vox — “adjourned to the 14th, counsel to file written addresses” — and it lands as a structured note on the matter, with the date picked up as a task.',
+                'Back at the desk, DraftPro drafts the follow-up — the letter of notification or the written addresses — from the matter’s own details and your templates, formatted to Nigerian court practice.',
+                'The draft files back onto the matter for review. Capture, organise, draft — one chain, no retyping.',
+            ],
+            keywords: ['vox', 'draftpro', 'voice', 'dictate', 'dictation', 'draft', 'drafting', 'template', 'document', 'speech', 'recording', 'transcribe'],
+        },
+        {
+            id: 'plans_onboarding',
+            chip: 'Walk me through Vega plans & onboarding',
+            reply: 'Four plans, one free tier to start, and setup a firm can finish in an afternoon.',
+            steps: [
+                'Free — ₦0: 1 user, 10 active matters, legal billing & ledger record-keeping, and the standard DraftPro contract analyzer. No card needed.',
+                'Growth — ₦45,000/month (₦432,000/year): 5 users, unlimited matters, Vox voice capture, court rules intelligence, Client Portal for up to 20 clients, ALOA copilot, automated retainer billing and court date reminders.',
+                'Pro — ₦80,000/month (₦768,000/year): unlimited users, uncapped Client Portal, priority ALOA copilot, advanced billing analytics and the Billing Monitor.',
+                'Enterprise — custom: the regulatory cross-referencing engine, custom court document archives, and sales-assisted onboarding.',
+                'Getting started: create the firm workspace, invite your associates and staff, and matters can start the same day.',
+            ],
+            signupCta: true,
+            keywords: ['plan', 'plans', 'pricing', 'price', 'cost', 'tier', 'tiers', 'onboarding', 'onboard', 'setup', 'invite', 'team', 'staff', 'trial', 'free', 'subscription', 'how much', 'naira'],
+        },
+        {
+            id: 'trust_accounts',
+            chip: 'Client funds, compliance & data privacy',
+            reply: 'Client money and office money never mix — the segregation is the default workflow, not a discipline.',
+            steps: [
+                'Client accounts are segregated from the office account, aligned with Nigerian trust-accounting standards (RPC Rule 23) — a corporate lawyer keeping a client’s completion funds apart from the firm’s professional fees is working the standard flow, not being careful.',
+                'Ledgers record every movement against the right matter and the right account, with retainer billing, auto-invoicing and partner-level monitor controls on top.',
+                'Data privacy follows the NDPA — matter records stay inside permissioned workflows, encrypted in transit and at rest.',
+            ],
+            keywords: ['client account', 'trust', 'trust account', 'accounting', 'ledger', 'funds', 'money', 'compliance', 'rule 23', 'ndpa', 'privacy', 'data protection', 'billing', 'safe', 'security'],
+        },
+        lawyerFirm,
+    ];
+
     const estateManager: AssistantTopic = {
         id: 'estate_manager',
         chip: 'I manage property / an estate',
@@ -407,7 +451,7 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
 
     if (product === 'atrium') {
         return [
-            legal[1], // landlord/tenant
+            landlordTenant,
             propertyTopics[0], // service charge
             propertyTopics[1], // maintenance
             propertyTopics[2], // tenancy agreement review
@@ -415,14 +459,19 @@ function buildTopics(product: LandingProduct, name: string): AssistantTopic[] {
             lawyerFirm,
         ];
     }
-    return [...legal, lawyerFirm];
+    // Vega — the lawyer-first product prompts (2026-11-22): concrete
+    // scenarios, zero consumer-legal guidance in the chip cloud.
+    return vegaProductTopics;
 }
 
 const AloaAssistantFab: React.FC<{
     product: LandingProduct;
     onContactSales: (source: string, opts?: OpenContactOptions) => void;
     onSignup?: () => void;
-}> = ({ product, onContactSales, onSignup }) => {
+    /** Vega only: opens the Official Legal Directories drawer (triggered
+ *     by the legal-question action pill and the non-lawyer notice link). */
+    onOpenDirectories?: () => void;
+}> = ({ product, onContactSales, onSignup, onOpenDirectories }) => {
     const name = getAssistantName(product === 'atrium');
     const brand = BRAND[product];
     const topics = useMemo(() => buildTopics(product, name), [product, name]);
@@ -443,6 +492,12 @@ const AloaAssistantFab: React.FC<{
     // Owner review: once the visitor picks a topic or asks a question, the
     // chip cloud collapses to a toggle so the ANSWER gets the space.
     const [topicsOpen, setTopicsOpen] = useState(true);
+    // ── Audience toggle (2026-11-22 owner spec, VEGA ONLY): "I am a
+    //    Lawyer" (default — full practitioner experience) vs "I am not
+    //    a Lawyer" (reveals the product-only notice + the NBA directory
+    //    link, and passes userRole:'non_lawyer' to the engine so the
+    //    boundary is reinforced on every reply). Atrium has no toggle.
+    const [audience, setAudience] = useState<'lawyer' | 'non_lawyer'>('lawyer');
 
     const panelRef = useRef<HTMLDivElement>(null);
     const transcriptRef = useRef<HTMLDivElement>(null);
@@ -474,10 +529,12 @@ const AloaAssistantFab: React.FC<{
         () => ({
             role: 'aloa',
             // Owner review: ALOA is VEGA'S tool, ARIA is ATRIUM'S — never
-            // "PracticePro's guide".
+            // "PracticePro's guide". 2026-11-22: Vega's ALOA is the
+            // PRODUCT guide (lawyer-first); ARIA keeps the everyday
+            // property-guide register.
             text: isProperty
                 ? `Hi, I'm ${name} — Atrium's property guide. You don't need to be a property professional to ask here. Tell me what's on your mind, or pick a topic below.`
-                : `Hi, I'm ${name} — Vega's legal guide. You don't need to be a lawyer to ask here. Tell me what's on your mind, or pick a topic below.`,
+                : `Hi, I'm ${name} — Vega's product guide. Ask me about features, workflows, plans, or getting your firm set up — or pick a prompt below.`,
         }),
         [name, isProperty],
     );
@@ -584,27 +641,94 @@ const AloaAssistantFab: React.FC<{
         return () => window.removeEventListener('keydown', onKey);
     }, [isPanelOpen, closePanel]);
 
-    // Keep the transcript pinned to the latest bubble. For LONG structured
-    // guides (steps) the pin moves to the TOP of the answer instead — landing
-    // mid-steps hides the intro the way the owner's "blocked up" screenshot
-    // did; the guide should read top-down. revealChars rides the deps so a
-    // typewriter reveal keeps the transcript glued to the growing text.
-    useEffect(() => {
+    // ── Scroll UX (2026-11-22 owner spec): the transcript ANCHORS, it
+    //    does not PIN. Old bug: every reveal tick set scrollTop =
+    //    scrollHeight, so a long answer yanked the viewport to the
+    //    BOTTOM mid-read and the visitor had to scroll back up to the
+    //    opening paragraph. New contract:
+    //    1. On submit, ONE smooth scroll anchors the user's prompt near
+    //       the TOP of the transcript viewport — ALOA's reply then grows
+    //       downward below the fold without moving it.
+    //    2. When the reply lands, one corrective re-anchor (skipped if
+    //       the visitor has scrolled on their own since submitting).
+    //    3. Continuous bottom-pinning during the typewriter reveal is
+    //       GONE; instead a quiet "More below" pill appears when content
+    //       overflows past the fold and the visitor has not scrolled.
+    const [showMoreBelow, setShowMoreBelow] = useState(false);
+    const userTookScrollRef = useRef(false);
+    const programmaticScrollUntilRef = useRef(0);
+
+    const scrollTranscriptTo = useCallback((top: number, behavior: ScrollBehavior = 'auto') => {
         const el = transcriptRef.current;
         if (!el) return;
-        const last = bubbles[bubbles.length - 1];
-        if (last?.role === 'aloa' && last.steps?.length && revealIdx < 0) {
-            const node = el.querySelector<HTMLElement>(`[data-bubble="${bubbles.length - 1}"]`);
-            if (node) {
-                el.scrollTop = Math.max(
-                    0,
-                    node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12,
-                );
-                return;
-            }
+        // Anchors are INSTANT by default: the submit-time and reply-land
+        // scrolls race layout churn (the chip cloud collapsing, the
+        // typewriter reveal re-rendering every ~18ms) which cancels or
+        // retargets smooth programmatic scrolls mid-flight (measured live:
+        // a smooth scroll to 123 landed at 0). Only the user-initiated
+        // pill click asks for 'smooth'.
+        programmaticScrollUntilRef.current = Date.now() + 700; // scroll events in this window are ours
+        el.scrollTo({ top, behavior });
+    }, []);
+
+    const anchorBubbleTop = useCallback((idx: number) => {
+        const el = transcriptRef.current;
+        if (!el) return;
+        const node = el.querySelector<HTMLElement>(`[data-bubble="${idx}"]`);
+        if (!node) return;
+        scrollTranscriptTo(Math.max(0, node.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop - 12));
+    }, [scrollTranscriptTo]);
+
+    const onTranscriptScroll = useCallback(() => {
+        const el = transcriptRef.current;
+        if (!el) return;
+        if (Date.now() > programmaticScrollUntilRef.current) userTookScrollRef.current = true;
+        const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+        setShowMoreBelow(distance > 140);
+    }, []);
+
+    // The anchor driver: watches the conversation, not the reveal — the
+    // reveal only grows content BELOW the anchor, so it never re-fires.
+    const lastAnchoredYouRef = useRef(-1);
+    const lastAnchoredReplyRef = useRef(-1);
+    useEffect(() => {
+        const el = transcriptRef.current;
+        if (!el || !isPanelOpen) return;
+        let lastYou = -1;
+        for (let i = bubbles.length - 1; i >= 0; i--) {
+            if (bubbles[i].role === 'you') { lastYou = i; break; }
         }
-        el.scrollTop = el.scrollHeight;
-    }, [bubbles, isThinking, isPanelOpen, revealIdx, revealChars]);
+        if (lastYou < 0) return;
+        const last = bubbles[bubbles.length - 1];
+        if (lastYou !== lastAnchoredYouRef.current) {
+            // A new prompt was just submitted — anchor it at the top.
+            lastAnchoredYouRef.current = lastYou;
+            lastAnchoredReplyRef.current = -1;
+            userTookScrollRef.current = false;
+            anchorBubbleTop(lastYou);
+        } else if (
+            last?.role === 'aloa' &&
+            bubbles.length - 1 !== lastAnchoredReplyRef.current &&
+            !userTookScrollRef.current
+        ) {
+            // The reply just landed — one corrective re-anchor so the
+            // user's prompt + the reply's opening sit near the top (the
+            // chip collapse above can shift layout). Skipped entirely if
+            // the visitor has taken over scrolling.
+            lastAnchoredReplyRef.current = bubbles.length - 1;
+            anchorBubbleTop(lastYou);
+        }
+    }, [bubbles, isPanelOpen, anchorBubbleTop]);
+
+    // Overflow bookkeeping for the "More below" pill. Content growth
+    // (reveal ticks) does NOT fire scroll events, so the distance is
+    // recomputed on conversation/reveal changes as well as on scroll.
+    useEffect(() => {
+        const el = transcriptRef.current;
+        if (!el || !isPanelOpen) return;
+        const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+        setShowMoreBelow(distance > 140);
+    }, [bubbles, revealIdx, revealChars, isThinking, isPanelOpen, topicsOpen, audience]);
 
     // Pending timers must never fire into an unmounted tree, and the
     // cookie-bar suppression class must never outlive the panel.
@@ -660,19 +784,21 @@ const AloaAssistantFab: React.FC<{
         }, 450);
     }, []);
 
-    /** Professional-conduct-safe boundary line, attached to every guide
-     *  answer (owner review round 2: "this is the amount of information we
-     *  can give you — reach out to a lawyer for more in-depth
-     *  information"). Neutral wording only: no referral-for-gain, no
-     * purchase conditioning. */
+    /** Professional-conduct-safe boundary line. 2026-11-22: Vega's line
+     *  is the PRODUCT boundary (software provider, not a law firm —
+     *  representation questions go to the official NBA directories);
+     *  Atrium keeps the qualified-professional line. Neutral wording
+     *  only: no referral-for-gain, no purchase conditioning. */
     const lawyerNoteCopy = isProperty
         ? 'General property guidance only — for advice on your specific situation, speak with a qualified professional.'
-        : 'General legal information, not legal advice — for anything specific to your situation, the right next step is a qualified lawyer.';
+        : 'Product guidance for Vega only — PracticePro is a software provider, not a law firm. For legal matters, consult a qualified legal practitioner.';
 
     /** Live-AI answer path (owner direction 2026-11-18). Pushes the answer
      *  bubble and returns true when handled (a real answer OR an honest
      *  rate-limit message); returns false WITHOUT pushing so the caller
-     *  falls back to the deterministic catalogue for THIS question. */
+     *  falls back to the deterministic catalogue for THIS question. The
+     *  Vega audience toggle rides along as userRole ('non_lawyer'
+     *  reinforces the product-only boundary server-side). */
     const askAi = useCallback(
         async (
             question: string,
@@ -688,7 +814,16 @@ const AloaAssistantFab: React.FC<{
                     role: b.role === 'you' ? ('user' as const) : ('assistant' as const),
                     text: (b.steps?.length ? `${b.text} ${b.steps.join(' ')}` : b.text).slice(0, 300),
                 }));
-            const result = await askLandingAI({ question, product, history, reference });
+            const result = await askLandingAI({
+                question,
+                product,
+                history,
+                reference,
+                // Vega audience toggle: 'non_lawyer' flips the engine's
+                // visitor context so the product-only boundary is
+                // reinforced on every reply. Atrium has no toggle.
+                ...(product === 'vega' ? { userRole: audience } : {}),
+            });
             setIsThinking(false);
             if (result === 'rate_limited') {
                 // The visitor asked too much too fast — say so honestly.
@@ -712,6 +847,10 @@ const AloaAssistantFab: React.FC<{
                     lawyerNote: lawyerNoteCopy,
                     suggestions,
                     teamPrefill: question,
+                    // Legal-question decline (the engine's
+                    // [[OFFICIAL_DIRECTORIES]] marker) → the Official
+                    // Legal Directories card rides under the reply.
+                    ...(result.directoriesAction ? { directoriesAction: true } : {}),
                 }]);
                 setRevealChars(0);
                 setRevealIdx(nextIdx);
@@ -819,10 +958,9 @@ const AloaAssistantFab: React.FC<{
             // the old flow auto-jumped into the message drawer (which reads
             // as a purchase funnel). A question now gets a real answer in the
             // panel; the drawer opens only if the visitor clicks the opt-in
-            // link themselves. Professional-conduct safety: the boundary is
-            // stated plainly ("this is the amount of information we can give
-            // you"), with a neutral pointer to qualified lawyers — no
-            // referral-for-gain, no conditioning help on buying anything.
+            // link themselves. 2026-11-22: for Vega the matched fallback is
+            // the product walkthrough (the catalogue IS the product prompts);
+            // unmatched questions fall to the product-boundary reply below.
             if (match && match.score >= 2) {
                 const t = match.topic;
                 setUsedTopics((prev) => new Set(prev).add(t.id));
@@ -835,21 +973,25 @@ const AloaAssistantFab: React.FC<{
                 return;
             }
 
-            // Out of scope ("Tell me about maritime law"): honest boundary
-            // reply — the guide's scope, then the qualified-lawyer next step.
+            // 2. UNMATCHED or weakly-matched question, engine unavailable
+            //    → the boundary reply. 2026-11-22: Vega's boundary is the
+            //    PRODUCT boundary (no legal answers, no "contact us for
+            //    legal help") + the Official Legal Directories card; a
+            //    legal question or a product question both land here and
+            //    both are handled honestly. Atrium keeps the honest
+            //    qualified-professional boundary reply.
             pushAloaReply({
                 text: isProperty
                     ? 'Straight answer: that looks outside what I can walk through reliably here. I cover everyday property situations — service charges, maintenance, tenancy agreements, landlord and tenant basics — in plain language. For your specific situation the details are where it matters, and that is exactly what a qualified professional is for.'
-                    : 'Straight answer: that looks outside what I can cover reliably here. I give general, plain-language guidance on everyday legal matters — court letters, landlord and tenant issues, agreements, business registration. Specialist areas and anything specific to your situation need a qualified lawyer, and I would rather say that plainly than sound confident and mislead you.',
-                steps: [
-                    isProperty
-                        ? 'For your specific situation, the right next step is a qualified professional — a directory of vetted practitioners is coming to Vega to make that step easy.'
-                        : 'For your specific situation, the right next step is a qualified lawyer — a lawyer directory is coming to Vega to make finding one easy.',
-                    isProperty
-                        ? 'For tenancy and property disputes, your local Nigerian Bar Association (NBA) branch can point you to a property-law practitioner today.'
-                        : 'Your local Nigerian Bar Association (NBA) branch can point you to practitioners in that field today.',
+                    : 'I am here specifically as Vega’s product guide — features, workflows, plans, and getting your firm set up. I am not able to help with legal matters themselves: PracticePro is a software provider, not a law firm. If you are looking for legal representation, the official Nigerian Bar Association directories are the right place — the card below takes you there.',
+                steps: isProperty ? [
+                    'For your specific situation, the right next step is a qualified professional — a directory of vetted practitioners is coming to Vega to make that step easy.',
+                    'For tenancy and property disputes, your local Nigerian Bar Association (NBA) branch can point you to a property-law practitioner today.',
                     'If it is an everyday matter, try the common questions below — those I can walk through properly.',
+                ] : [
+                    'For anything about Vega — a feature, a workflow, a plan — try the prompts below, or ask me again in a moment.',
                 ],
+                ...(isProperty ? {} : { directoriesAction: true }),
                 lawyerNote: lawyerNoteCopy,
                 suggestions: match ? [match.topic.chip] : undefined,
                 teamPrefill: q,
@@ -865,7 +1007,7 @@ const AloaAssistantFab: React.FC<{
     };
     const nudgeCopy = isProperty
         ? { title: 'Property question?', sub: `Ask ${name} — free, no sign-up needed.` }
-        : { title: 'Need help with a legal matter?', sub: `Ask ${name} — free, and you don't need to be a lawyer.` };
+        : { title: 'Questions about Vega?', sub: `Ask ${name} — Vega's product guide. Free, no sign-up.` };
     // ── Render ──────────────────────────────────────────────────────────
     return (
         <>
@@ -925,16 +1067,16 @@ const AloaAssistantFab: React.FC<{
                 {nudgePhase === 'hidden' && (
                 <button
                     onClick={openPanel}
-                    aria-label={`Ask ${name} — ${isProperty ? 'property help' : 'legal help'}, free`}
+                    aria-label={`Ask ${name} — ${isProperty ? 'property help' : 'Vega product guide'}, free`}
                     className={`hidden md:flex flex-col items-start pl-3 pr-4 py-1.5 rounded-full bg-white/95 backdrop-blur border border-slate-200 shadow-lg hover:shadow-xl transition-all active:scale-[0.98] group`}
                 >
                     <span className={`text-sm font-bold leading-tight ${brand.pill}`}>Ask {name}</span>
-                    <span className="text-2xs text-slate-500 leading-tight">{isProperty ? 'Property help · Free' : 'Legal help · Free'}</span>
+                    <span className="text-2xs text-slate-500 leading-tight">{isProperty ? 'Property help · Free' : 'Vega product guide · Free'}</span>
                 </button>
                 )}
                 <button
                     onClick={openPanel}
-                    aria-label={`Ask ${name} — ${isProperty ? 'property help' : 'legal help'}, free`}
+                    aria-label={`Ask ${name} — ${isProperty ? 'property help' : 'Vega product guide'}, free`}
                     title={`Ask ${name}`}
                     style={nudgePhase === 'out'
                         ? ({ '--aloa-ring': isProperty ? 'rgba(5, 150, 105, 0.5)' : 'rgba(30, 58, 138, 0.5)' } as React.CSSProperties)
@@ -973,9 +1115,9 @@ const AloaAssistantFab: React.FC<{
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm font-bold text-slate-900 leading-tight">
                                         {name} <span className="text-slate-400 font-medium">·</span>{' '}
-                                        <span className="font-semibold text-slate-600">{isProperty ? 'Atrium\u2019s property guide' : 'Vega\u2019s legal guide'}</span>
+                                        <span className="font-semibold text-slate-600">{isProperty ? 'Atrium\u2019s property guide' : 'Vega\u2019s product guide'}</span>
                                     </p>
-                                    <p className="text-2xs text-slate-500 mt-0.5">{isProperty ? 'General property guidance, not professional advice' : 'General legal guidance, not legal advice'}</p>
+                                    <p className="text-2xs text-slate-500 mt-0.5">{isProperty ? 'General property guidance, not professional advice' : 'Features, workflows & plans — product guidance, not legal advice'}</p>
                                 </div>
                                 <button
                                     onClick={closePanel}
@@ -986,15 +1128,73 @@ const AloaAssistantFab: React.FC<{
                                 </button>
                             </div>
 
-                            {/* Trust chips */}
-                            <div className="flex items-center gap-2 px-4 pt-3 text-2xs font-semibold text-slate-500">
-                                <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Free</span>
-                                <span className="px-2 py-1 rounded-full bg-slate-50 text-slate-600 border border-slate-100">No sign-up</span>
-                                <span className="px-2 py-1 rounded-full bg-slate-50 text-slate-600 border border-slate-100">You don't need to be {isProperty ? 'a property pro' : 'a lawyer'}</span>
-                            </div>
+                            {/* Chat utility area — VEGA: the audience toggle
+                                (2026-11-22 owner spec); ATRIUM: the trust
+                                chips. Default is "I am a Lawyer" — the full
+                                practitioner experience, zero consumer
+                                directory clutter. "I am not a Lawyer"
+                                reveals the quiet product-only notice + the
+                                NBA directory link, and flips the userRole
+                                sent to the engine. */}
+                            {isProperty ? (
+                                <div className="flex items-center gap-2 px-4 pt-3 text-2xs font-semibold text-slate-500">
+                                    <span className="px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">Free</span>
+                                    <span className="px-2 py-1 rounded-full bg-slate-50 text-slate-600 border border-slate-100">No sign-up</span>
+                                    <span className="px-2 py-1 rounded-full bg-slate-50 text-slate-600 border border-slate-100">You don't need to be a property pro</span>
+                                </div>
+                            ) : (
+                                <div className="px-4 pt-3 pb-1">
+                                    <div
+                                        role="radiogroup"
+                                        aria-label="Are you a lawyer?"
+                                        className="flex items-center p-0.5 rounded-full border border-slate-200 bg-slate-50"
+                                    >
+                                        {([
+                                            { value: 'lawyer', label: 'I am a Lawyer' },
+                                            { value: 'non_lawyer', label: 'I am not a Lawyer' },
+                                        ] as const).map((opt) => (
+                                            <button
+                                                key={opt.value}
+                                                role="radio"
+                                                aria-checked={audience === opt.value}
+                                                onClick={() => setAudience(opt.value)}
+                                                className={`flex-1 py-1.5 rounded-full text-2xs font-bold transition-all active:scale-[0.98] ${
+                                                    audience === opt.value
+                                                        ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                                                        : 'text-slate-500 hover:text-slate-700'
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {audience === 'non_lawyer' && (
+                                        <p className="mt-2 text-2xs leading-[1.7] text-slate-500 animate-fade-in">
+                                            Vega by PracticePro is practice management software built exclusively for lawyers and law firms. Looking for legal representation in Lagos?{' '}
+                                            <button
+                                                onClick={onOpenDirectories}
+                                                className="font-semibold text-[#1E3A8A] underline underline-offset-2 decoration-slate-300 hover:decoration-[#1E3A8A] transition-colors"
+                                            >
+                                                Locate a licensed practitioner via official NBA directories →
+                                            </button>
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
-                            {/* Transcript */}
-                            <div ref={transcriptRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                            {/* Transcript — the scroll container (the
+                                "More below" pill rides INSIDE it as a
+                                sticky element, so it floats over the
+                                content without needing a wrapper).
+                                flex-basis 300px: the long product prompt
+                                chips below are content-sized siblings —
+                                a plain flex-1 (basis 0) let them squeeze
+                                the transcript to a sliver on fresh open
+                                (measured 24px); the basis floor keeps the
+                                conversation the main event while the
+                                panel is content-sized, and grow fills the
+                                panel once it hits its max-height cap. */}
+                            <div ref={transcriptRef} onScroll={onTranscriptScroll} className="flex-[1_1_300px] overflow-y-auto px-4 py-3 space-y-3">
                                 {/* Intro */}
                                 <div className="flex items-start gap-2.5">
                                     <div className={`w-7 h-7 rounded-lg ${brand.avatar} text-white flex items-center justify-center shrink-0`}>
@@ -1081,6 +1281,26 @@ const AloaAssistantFab: React.FC<{
                                                         {b.lawyerNote}
                                                     </p>
                                                 )}
+                                                {/* Legal-question decline (Vega product guide):
+                                                    the Official Legal Directories action card —
+                                                    RPC-neutral, NBA resources only. */}
+                                                {b.directoriesAction && (
+                                                    <button
+                                                        onClick={onOpenDirectories}
+                                                        className="mt-2 w-full flex items-center gap-3 rounded-xl border border-slate-200 bg-white hover:border-[#1E3A8A]/40 hover:shadow-sm transition-all text-left px-3 py-2.5"
+                                                    >
+                                                        <span className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center shrink-0" aria-hidden="true">
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18M4 21V7l8-4 8 4v14M9 21v-5h6v5" />
+                                                            </svg>
+                                                        </span>
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block text-xs font-bold text-slate-900">Official Legal Directories</span>
+                                                            <span className="block text-2xs text-slate-500 leading-snug">NBA resources to locate a licensed practitioner</span>
+                                                        </span>
+                                                        <span className="text-slate-300 shrink-0" aria-hidden="true">→</span>
+                                                    </button>
+                                                )}
                                                 {/* Follow-up topic suggestions (weak match). */}
                                                 {b.suggestions && b.suggestions.length > 0 && (
                                                     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1148,6 +1368,27 @@ const AloaAssistantFab: React.FC<{
                                         </div>
                                     </div>
                                 )}
+
+                                {/* "More below" — sticky at the bottom edge of
+                                    the visible transcript area; rendered ONLY
+                                    when content overflows the fold and the
+                                    visitor has not scrolled down
+                                    (2026-11-22 scroll spec). Disappears on
+                                    click or reaching the bottom. */}
+                                {showMoreBelow && (
+                                    <div className="sticky bottom-2 flex justify-center pointer-events-none">
+                                        <button
+                                            onClick={() => {
+                                                const el = transcriptRef.current;
+                                                if (el) scrollTranscriptTo(el.scrollHeight, 'smooth');
+                                            }}
+                                            className="pointer-events-auto px-3 py-1.5 rounded-full bg-white/95 backdrop-blur border border-slate-200 shadow-md text-2xs font-bold text-slate-600 hover:text-slate-900 hover:shadow-lg transition-all active:scale-[0.97]"
+                                            aria-label="Scroll to the rest of the reply"
+                                        >
+                                            ↓ More below
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Quick topics — collapse to a toggle once the
@@ -1193,7 +1434,7 @@ const AloaAssistantFab: React.FC<{
                                         value={question}
                                         onChange={(e) => { setQuestion(e.target.value); if (questionError) setQuestionError(null); }}
                                         onKeyDown={onQuestionKeyDown}
-                                        placeholder={isProperty ? 'Type your property question…' : 'Type your legal question…'}
+                                        placeholder={isProperty ? 'Type your property question…' : 'Ask about Vega — features, workflows, plans…'}
                                         aria-label={`Your question for ${name}`}
                                         className="flex-1 resize-none bg-transparent px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 outline-none max-h-24 min-h-[2.5rem]"
                                     />
@@ -1210,12 +1451,14 @@ const AloaAssistantFab: React.FC<{
                                     {questionError
                                         ?? (
                                             <>
-                                                {name} gives general guidance, not legal advice.{' '}
+                                                {isProperty
+                                                    ? `${name} gives general guidance, not professional advice.`
+                                                    : `${name} guides on the product — PracticePro is a software provider, not a law firm.`}{' '}
                                                 <button
                                                     onClick={() => handoff('Aloa Landing Assistant', {
                                                         prefill: isProperty
                                                             ? 'I have a property question. Here is my situation: '
-                                                            : 'I have a legal question. Here is my situation: ',
+                                                            : 'I have a question about Vega. Here it is: ',
                                                         variant: 'assist',
                                                     })}
                                                     className="font-semibold underline underline-offset-2 decoration-slate-300 hover:decoration-slate-500 hover:text-slate-700 transition-colors"

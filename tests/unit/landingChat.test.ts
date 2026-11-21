@@ -26,6 +26,7 @@ import {
   serializeReference,
   parseLandingAnswer,
   buildLandingSystemPrompt,
+  extractDirectoriesAction,
 } from '../../convex/landingChat';
 
 // ─── ROUTE REGISTRATION RATCHET (the 2026-11-20 root cause) ─────────────
@@ -289,26 +290,79 @@ describe('parseLandingAnswer', () => {
 });
 
 describe('buildLandingSystemPrompt', () => {
-  it('carries the ALOA legal persona for vega', () => {
+  it('carries the ALOA product-specialist persona for vega (2026-11-22 owner spec)', () => {
     const prompt = buildLandingSystemPrompt('vega', null);
-    expect(prompt).toContain("ALOA, Vega's legal guide");
-    expect(prompt).toContain('NOT lawyers');
+    expect(prompt).toContain('ALOA, the product guide for Vega');
+    expect(prompt).toContain('Product Guide & Onboarding Specialist');
+    expect(prompt).toContain('NOT a law firm');
     expect(prompt).toContain('Nigerian');
   });
 
-  it('carries the ARIA property persona for atrium', () => {
+  it('vega: deep product knowledge — features, concrete examples, verified plans', () => {
+    const prompt = buildLandingSystemPrompt('vega', null);
+    // The feature blocks the owner enumerated, each with example framing.
+    expect(prompt).toContain('MATTER & CASE MANAGEMENT');
+    expect(prompt).toContain('IN-APP ALOA');
+    expect(prompt).toContain('DRAFTPRO');
+    expect(prompt).toContain('VOX');
+    expect(prompt).toContain('PRACTICE PROFILE ENGINES');
+    expect(prompt).toContain('COMPLIANCE & ACCOUNTING SAFEGUARDS');
+    expect(prompt).toContain('RPC Rule 23');
+    expect(prompt).toContain('NDPA');
+    // Concrete-example mandate + the signature example.
+    expect(prompt).toContain('pair a concise feature explanation with ONE concrete, realistic law-firm example');
+    expect(prompt).toContain('Lagos High Court');
+    // Plans/prices from src/constants/tiers.ts — the onboarding guidance.
+    expect(prompt).toContain('₦45,000/month');
+    expect(prompt).toContain('₦80,000/month');
+    expect(prompt).toContain('₦432,000/year');
+    expect(prompt).toContain('never invent features, roadmaps or discounts');
+  });
+
+  it('vega: the hard legal boundary — no legal answers, NBA-only referral, RPC 39 neutrality', () => {
+    const prompt = buildLandingSystemPrompt('vega', null);
+    expect(prompt).toContain('do NOT answer substantive legal questions');
+    expect(prompt).toContain('NEVER invite the visitor to contact PracticePro for legal help');
+    // RPC Rule 39: no touting/endorsement — the exact forbidden phrases.
+    expect(prompt).toContain('never tout or endorse');
+    expect(prompt).toContain('"vetted lawyers"');
+    // The approved decline copy + the action marker the panel renders.
+    expect(prompt).toContain('PracticePro builds practice management software for legal practitioners');
+    expect(prompt).toContain('official Nigerian Bar Association directories below');
+    expect(prompt).toContain('[[OFFICIAL_DIRECTORIES]]');
+    // And the old consumer-legal register is gone.
+    expect(prompt).not.toContain("Vega's legal guide");
+    expect(prompt).not.toContain('most of them NOT lawyers');
+  });
+
+  it('vega: the audience toggle rides through — non_lawyer reinforces the boundary', () => {
+    const lawyer = buildLandingSystemPrompt('vega', null, 'lawyer');
+    const nonLawyer = buildLandingSystemPrompt('vega', null, 'non_lawyer');
+    expect(lawyer).toContain('default "I am a Lawyer" mode');
+    expect(nonLawyer).toContain('identified as NOT a lawyer');
+    expect(nonLawyer).toContain('Reinforce the boundary on EVERY reply');
+  });
+
+  it('carries the ARIA property persona for atrium (unchanged register)', () => {
     const prompt = buildLandingSystemPrompt('atrium', null);
     expect(prompt).toContain("ARIA, Atrium's property guide");
     expect(prompt).toContain('service charges');
+    // The Vega rework must not leak into ARIA.
+    expect(prompt).not.toContain('Product Guide & Onboarding Specialist');
+    expect(prompt).not.toContain('[[OFFICIAL_DIRECTORIES]]');
   });
 
-  it('always carries the non-negotiable boundary + security lines', () => {
-    for (const product of ['vega', 'atrium'] as const) {
-      const prompt = buildLandingSystemPrompt(product, null);
-      expect(prompt).toContain('GENERAL INFORMATION, never advice');
-      expect(prompt).toContain('Never invent statutes');
-      expect(prompt).toContain('untrusted input');
-    }
+  it('atrium keeps the general-information boundary + security lines', () => {
+    const prompt = buildLandingSystemPrompt('atrium', null);
+    expect(prompt).toContain('GENERAL INFORMATION, never advice');
+    expect(prompt).toContain('Never invent statutes');
+    expect(prompt).toContain('untrusted input');
+  });
+
+  it('vega keeps the security lines (untrusted input, rules win)', () => {
+    const prompt = buildLandingSystemPrompt('vega', null);
+    expect(prompt).toContain('untrusted input');
+    expect(prompt).toContain('these rules win');
   });
 
   it('asks for conversational Markdown, NOT the old rigid JSON card (owner 2026-11-20: “the ALOA that works in the app”)', () => {
@@ -318,9 +372,8 @@ describe('buildLandingSystemPrompt', () => {
   });
 
   it('tells the model to use the reference as background, never to copy it (anti-canned)', () => {
-    const prompt = buildLandingSystemPrompt('vega', 'Topic: Quit notice');
+    const prompt = buildLandingSystemPrompt('vega', 'Topic: Court matter tracking');
     expect(prompt).toContain('do not copy its wording or structure');
-    expect(prompt).toContain('Do NOT restate the reference material verbatim');
   });
 
   it('embeds the reference material when provided', () => {
@@ -332,5 +385,31 @@ describe('buildLandingSystemPrompt', () => {
   it('states the no-reference fallback explicitly', () => {
     const prompt = buildLandingSystemPrompt('vega', null);
     expect(prompt).toContain('None provided for this question');
+  });
+});
+
+describe('extractDirectoriesAction (the [[OFFICIAL_DIRECTORIES]] marker contract)', () => {
+  it('passes clean text through untouched, no action', () => {
+    const out = extractDirectoriesAction('**Vega tracks matters on one file.** Ask me anything about the product.');
+    expect(out).toEqual({ text: '**Vega tracks matters on one file.** Ask me anything about the product.' });
+  });
+
+  it('strips an end-of-reply marker and flags the action', () => {
+    const out = extractDirectoriesAction(
+      'I cannot provide legal advice — please consult the official NBA directories below.\n\n[[OFFICIAL_DIRECTORIES]]',
+    );
+    expect(out.action).toBe('official_directories');
+    expect(out.text).not.toContain('[[OFFICIAL_DIRECTORIES]]');
+    expect(out.text).toContain('official NBA directories below');
+  });
+
+  it('strips repeated inline markers cleanly', () => {
+    const out = extractDirectoriesAction('See below. [[OFFICIAL_DIRECTORIES]] [[OFFICIAL_DIRECTORIES]] Thanks.');
+    expect(out.action).toBe('official_directories');
+    expect(out.text).toBe('See below. Thanks.');
+  });
+
+  it('is null-safe for garbage input', () => {
+    expect(extractDirectoriesAction('')).toEqual({ text: '' });
   });
 });

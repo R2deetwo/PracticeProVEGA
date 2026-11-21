@@ -6,6 +6,7 @@ import { useSiteScroll } from '../shared/useSiteScroll';
 import { useSignupOpener, useContactSales } from '../shared/useSignupOpener';
 import { PrimaryButton, GhostButton } from '../shared/ctas';
 import ContactSalesDrawer from '../shared/ContactSalesDrawer';
+import LegalDirectoriesDrawer from '../shared/LegalDirectoriesDrawer';
 import AloaAssistantFab from '../shared/AloaAssistantFab';
 import { VegaNavBar, VegaFooter, VegaMobileStickyCTA } from './VegaShell';
 import { vegaSiteConfig } from './siteConfig';
@@ -13,6 +14,7 @@ import { VegaHero } from './sections/VegaHero';
 import { VegaSuite } from './sections/VegaSuite';
 import { VegaWhyNigeria } from './sections/VegaWhyNigeria';
 import { VegaTrust } from './sections/VegaTrust';
+import { VegaInstitutional } from './sections/VegaInstitutional';
 import { VegaPricing } from './sections/VegaPricing';
 import { VegaFinalCTA } from './sections/VegaFinalCTA';
 
@@ -60,6 +62,13 @@ export const VegaSite: React.FC = () => {
         openContactSales,
         closeContactSales,
     } = useContactSales();
+
+    // The Official Legal Directories drawer (2026-11-22 owner spec):
+    // triggered by the ALOA panel's legal-question action pill and the
+    // audience toggle's non-lawyer link. RPC-neutral NBA resources only.
+    const [isDirectoriesOpen, setDirectoriesOpen] = React.useState(false);
+    const openDirectories = React.useCallback(() => setDirectoriesOpen(true), []);
+    const closeDirectories = React.useCallback(() => setDirectoriesOpen(false), []);
 
     // R22 "The Night Chambers" — scroll-reveal machinery for /vega. Sections
     // opt in with [data-vg-reveal]; ONE observer reveals them as they enter
@@ -164,6 +173,12 @@ export const VegaSite: React.FC = () => {
                 <VegaSuite onSignup={openSignup} />
                 <VegaWhyNigeria />
                 <VegaTrust />
+                {/* Institutional & cross-border readiness (2026-11-22): the
+                    quiet positioning beat between the trust band and the
+                    pricing matrix — why demanding institutional clients,
+                    due-diligence reviews and cross-border instructions reward
+                    higher operational standards. */}
+                <VegaInstitutional />
                 <VegaPricing onContactSales={(s) => openContactSales(s || 'Vega Pricing')} onSignup={openSignup} />
                 <VegaFinalCTA
                     onSignup={openSignup}
@@ -174,9 +189,15 @@ export const VegaSite: React.FC = () => {
             {/* Mobile sticky bottom CTA bar */}
             <VegaMobileStickyCTA onSignup={openSignup} onContactSales={() => openContactSales('Mobile Sticky CTA')} />
 
-            {/* Website assistant FAB — the non-lawyer-first "ask ALOA" bubble
-                (proactive nudge + quick topics + question handoff). */}
-            <AloaAssistantFab product="vega" onContactSales={openContactSales} onSignup={() => openSignup()} />
+            {/* Website assistant FAB — Vega's PRODUCT GUIDE (2026-11-22):
+                features, workflows, plans & onboarding with concrete
+                examples; legal questions route to the boundary reply + the
+                Official Legal Directories drawer (NBA resources). */}
+            <AloaAssistantFab product="vega" onContactSales={openContactSales} onSignup={() => openSignup()} onOpenDirectories={openDirectories} />
+
+            {/* Official Legal Directories (Lagos & Nigeria) — the RPC-neutral
+                NBA referral surface for visitors seeking representation. */}
+            <LegalDirectoriesDrawer isOpen={isDirectoriesOpen} onClose={closeDirectories} />
 
             <ContactSalesDrawer
                 isOpen={isContactDrawerOpen}
