@@ -2676,3 +2676,55 @@ silently revert to a MONTH-OLD snapshot between messages — always
 local build/deploy/test, and re-verify after. The stale deploy to
 modest-chameleon-129 was caught and corrected precisely because the
 deploy-then-probe loop ran.
+
+---
+
+## 2026-11-22 — R76: the brand-colour revert — PracticePro green is the company colour, the Vega blue is an app accent
+
+**Owner report (with screenshot):** "the P on Practice Pro, the main
+site that owns those apps… is now blue, and Talk to Us is now blue,
+whereas we still have our green… blue is not the brand color for
+Practice Pro, it's the green. Sort that out, or revert it back to how
+it was, better still."
+
+**Root cause:** f98bab2e (the 2026-11-20 "uniform Vega blue" round)
+painted the `:root` `--color-primary-*` ramp itself blue. `:root`
+drives every UNSCOPED surface — the corporate hub (the P mark, Talk to
+Us, nav pills, footer links), the marketing sites, login, logged-out
+modals — so the product accent leaked onto the company brand. The
+mismatch was visible in one screen: the hero ribbons and eyebrow badge
+hardcode their greens (`rgb(28,183,76)`, emerald-300/400) and stayed
+green, while every token-driven element turned blue.
+
+**Fix (commit e870655b) — revert + re-scope:**
+- `:root` reverts to the favicon green **#16A34A** (the exact
+  pre-f98bab2e ramp): the hub P, Talk to Us, Contact Us hover, footer
+  links, login all render the PracticePro green again.
+- NEW `.app-skin-komplete` scope (same Vega blue #1D4ED8/#1E3A8A as
+  `.app-skin-vega`); `accentSkinClass('komplete')` returns it instead
+  of `''`. The 2026-11-20 uniform-blue directive still holds INSIDE
+  the app container: Vega + Komplete render one uniform blue on every
+  route; Atrium keeps the estate jade; logged-out surfaces fall back
+  to the corporate green.
+- Comments + test pins updated (accentTheme.ts,
+  AccentThemeContext.tsx, the stale R52 comment in App.tsx, and
+  accentTheme.test.ts: green `:root`, blue komplete/vega skins, jade
+  atrium).
+
+**The colour architecture, stated once:** `:root` is the CORPORATE
+PracticePro register (green) — it owns everything outside the app
+container. Product registers are APP-SCOPED: `.app-skin-komplete` /
+`.app-skin-vega` (one uniform blue) and `.app-skin-atrium` (jade), painted
+by AccentThemeContext on the app container only. A product accent may
+never again be defined by repainting `:root`.
+
+**Gates:** tsc 0 · vitest 3,414/3,414 (1 skip) · eslint 0 ·
+ui-primitives ratchet 2,218 held · vite build green; dist CSS verified
+(`:root` green `22 163 74`, `.app-skin-komplete` blue `30 78 216`).
+Production promote run 44954740776 on e870655b; live verification of
+the hub green recorded below.
+
+**Lesson:** an owner directive about an APP accent ("use the blue for
+Vega and Complete") must never be implemented at the `:root` token
+level — `:root` is the company register. Product accents are scoped
+classes; the corporate brand is the default.
