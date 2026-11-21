@@ -167,6 +167,10 @@ const FounderApp: React.FC = () => {
                 dashboard: 'dashboard',
                 ingestion: 'ingestion',
                 aloax: 'aloax',
+                // 2026-11-22: Aloa X's backend-error alerts deep-link to
+                // System Status (the unified error_events log) — tapping
+                // the push now lands on the exact error details.
+                system: 'system',
             };
             const target = VIEW_MAP[view];
             if (target) {
@@ -235,7 +239,7 @@ const FounderApp: React.FC = () => {
             case 'financials': return <ViewErrorBoundary viewName="Financials"><FinancialSettings /></ViewErrorBoundary>;
             case 'sales': return <ViewErrorBoundary viewName="Sales"><SalesPipeline /></ViewErrorBoundary>;
             case 'ingestion': return <ViewErrorBoundary viewName="Ingestion"><IngestionEngine /></ViewErrorBoundary>;
-            case 'aloax': return <ViewErrorBoundary viewName="AloaX"><AloaX /></ViewErrorBoundary>;
+            case 'aloax': return <ViewErrorBoundary viewName="AloaX"><AloaX onNavigate={(v) => setActiveView(v)} /></ViewErrorBoundary>;
             default: return null;
         }
     };

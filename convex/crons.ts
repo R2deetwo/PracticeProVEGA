@@ -200,11 +200,14 @@ crons.daily(
   {}
 );
 
-// ─── NIGHTLY R2 BACKUP ───────────────────────────────────────────────────
-// Full database export to Cloudflare R2 at 2:00 AM UTC (3:00 AM WAT).
-// Exports all 72 tables, gzip-compresses, uploads to R2, and cleans up
-// backups older than 30 days. If R2 env vars are not set, the backup
-// silently skips (app still works). See convex/backups.ts for setup.
+// ─── NIGHTLY BACKUP ───────────────────────────────────────────────────────
+// Full database export to GitHub/Telegram at 2:00 AM UTC (3:00 AM WAT).
+// Exports all 135 tables (full schema inventory, audited 2026-11-22),
+// gzip-compresses, uploads to each configured target, and cleans up
+// backups older than 30 days. If no target env vars are set, the run
+// records a `none` row in backup_log and the ALOA X watchdog shows an
+// honest "NOT CONFIGURED" info state (no false alarms). See
+// convex/backups.ts + RUNBOOK.md for setup.
 crons.daily(
   "nightlyR2Backup",
   { hourUTC: 2, minuteUTC: 0 },

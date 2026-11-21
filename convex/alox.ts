@@ -80,7 +80,7 @@ export const ALOX_THRESHOLDS = {
 export interface CheckOutcome {
   checkKey: string;
   surface: string;
-  status: "ok" | "problem";
+  status: "ok" | "problem" | "info";
   severity?: "critical" | "warning";
   title?: string;
   detail?: string;
@@ -89,13 +89,21 @@ export interface CheckOutcome {
 const ok = (checkKey: string, surface: string): CheckOutcome =>
   ({ checkKey, surface, status: "ok" });
 
+/** Informational outcome — NOT an alert. Used when a surface is
+ * deliberately not configured (e.g. no backup targets): the dashboard
+ * shows an honest "not configured" state instead of a false alarm or a
+ * reassuring green dot. Never opens/re-notifies an alert; resolves any
+ * alert previously open for the same checkKey. */
+const info = (checkKey: string, surface: string, title: string, detail: string): CheckOutcome =>
+  ({ checkKey, surface, status: "info", title, detail });
+
 export function evaluateBackendErrors(errors24h: number): CheckOutcome {
   if (errors24h >= ALOX_THRESHOLDS.BACKEND_ERRORS_CRITICAL) {
     return {
       checkKey: "backend.errors", surface: "Backend & API", status: "problem",
       severity: "critical",
       title: `${errors24h} backend errors in 24h`,
-      detail: `The backend captured ${errors24h} error events in the last 24 hours (crons, webhooks or actions failing). Open System Status for the stack traces.`,
+      detail: `The backend captured ${errors24h} error events in the last 24 hours (crons, webhooks or actions failing). Open System Status for the exact failures and stack traces.`,
     };
   }
   if (errors24h >= ALOX_THRESHOLDS.BACKEND_ERRORS_WARNING) {
@@ -103,7 +111,7 @@ export function evaluateBackendErrors(errors24h: number): CheckOutcome {
       checkKey: "backend.errors", surface: "Backend & API", status: "problem",
       severity: "warning",
       title: `${errors24h} backend errors in 24h`,
-      detail: `The backend captured ${errors24h} error events in the last 24 hours. Worth a look in System Status.`,
+      detail: `The backend captured ${errors24h} error events in the last 24 hours. Worth a look — System Status lists each one with its stack trace.`,
     };
   }
   return ok("backend.errors", "Backend & API");
@@ -173,13 +181,47 @@ export function evaluateReconciliation(
   return ok("finance.reconciliation", "Financial Books");
 }
 
-export function evaluateBackups(lastSuccessAt: number | null, now: number): CheckOutcome {
+/**
+ * Backups check (2026-11-22 clarity fix — founder bug report).
+ *
+ * THE PIPELINE (audited): crons.ts `nightlyR2Backup` fires daily at 02:00
+ * UTC → convex/backups.ts runBackup exports EVERY table (see ALL_TABLES)
+ * as one gzip'd JSON → uploads to GitHub (GITHUB_BACKUP_* env vars) and
+ * Telegram (TELEGRAM_* env vars) → writes a backup_log row per target →
+ * 30-day retention cleanup. If NO target env vars are set the job exits
+ * with NO_TARGETS_CONFIGURED and writes nothing — which used to read as
+ * "the nightly backup has never completed", a false alarm.
+ *
+ * The check now distinguishes the three real states:
+ *   1. NOT CONFIGURED (no target env vars) → INFO, no alert. The pipeline
+ *      exists but has nowhere to send data; the dashboard says exactly
+ *      that and points at the Runbook.
+ *   2. CONFIGURED but never succeeded → WARNING (real: data unprotected
+ *      AND the job is failing).
+ *   3. CONFIGURED + stale success → the old warning/critical ladder.
+ */
+export function evaluateBackups(
+  lastSuccessAt: number | null,
+  now: number,
+  targetsConfigured?: string[]
+): CheckOutcome {
+  // Explicit empty array = probed and NOTHING is configured → info.
+  // undefined = legacy caller that only knows the success timestamp (a
+  // recorded success implies a target existed) → the classic ladder.
+  if (targetsConfigured !== undefined && targetsConfigured.length === 0) {
+    return info(
+      "backups.stale",
+      "Backups",
+      "Backups not configured",
+      "The nightly 02:00 UTC export job exists (every table, gzip) but no upload target is configured — set GITHUB_BACKUP_* or TELEGRAM_* env vars (see RUNBOOK.md → Backups). Until then this check stays quiet instead of crying wolf."
+    );
+  }
   if (lastSuccessAt === null) {
     return {
       checkKey: "backups.stale", surface: "Backups", status: "problem",
       severity: "warning",
-      title: "No successful backup on record",
-      detail: "The nightly 02:00 UTC backup has never completed. If this is intentional (targets not configured), disable this check mentally — otherwise data is unprotected.",
+      title: "Backup never succeeded",
+      detail: `Targets are configured (${(targetsConfigured ?? ["github/telegram"]).join(" + ")}) but no backup has ever completed. The 02:00 UTC job is failing — check its error log and target credentials.`,
     };
   }
   const age = now - lastSuccessAt;
@@ -381,6 +423,19 @@ async function gatherSignals(ctx: any, now: number) {
     .query("legal_scrape_queue")
     .withIndex("by_status_priority", (q: any) => q.eq("status", "in_progress"))
     .take(100);
+  // 2026-11-22: real operational telemetry (the founder bug report asked
+  // why the card showed a bare "On") — completed count + the last run's
+  // outcome mix (pdfDeferred etc.) so the card reads like a status page.
+  const completedRows = await ctx.db
+    .query("legal_scrape_queue")
+    .withIndex("by_status_priority", (q: any) => q.eq("status", "completed"))
+    .take(1000);
+  const judgmentsCount = (await ctx.db.query("legal_judgments").take(1000)).length;
+  const instrumentsCount = (await ctx.db.query("legal_instruments").take(1000)).length;
+  const chunksRows = await ctx.db.query("legal_chunks").take(1000);
+  const chunksEmbedded = chunksRows.filter(
+    (c: any) => Array.isArray(c.embedding) && c.embedding.length > 0
+  ).length;
 
   // Financial reconciliation.
   const latestReport: any = await ctx.db
@@ -397,6 +452,19 @@ async function gatherSignals(ctx: any, now: number) {
     .take(30);
   const lastBackup = backupRows.find((b: any) => b.success === true);
   const lastBackupAt = lastBackup ? Date.parse(String(lastBackup.createdAt)) : null;
+
+  // 2026-11-22: WHICH upload targets are configured? The nightly job
+  // silently no-ops without them (runBackup → NO_TARGETS_CONFIGURED) —
+  // the watchdog must distinguish "not configured" (info, no alert)
+  // from "configured but failing" (real warning). Env vars are readable
+  // from queries in the Convex runtime.
+  const backupTargetsConfigured: string[] = [];
+  if (process.env.GITHUB_BACKUP_TOKEN && process.env.GITHUB_BACKUP_OWNER && process.env.GITHUB_BACKUP_REPO) {
+    backupTargetsConfigured.push("github");
+  }
+  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_BACKUP_CHAT_ID) {
+    backupTargetsConfigured.push("telegram");
+  }
 
   // DB capacity (latest weekly recording).
   const sizeRecord: any = await ctx.db
@@ -480,6 +548,13 @@ async function gatherSignals(ctx: any, now: number) {
       failed: failedRows.length,
       queued: queuedRows.length,
       inProgress: inProgressRows.length,
+      completed: completedRows.length,
+      corpus: {
+        judgments: judgmentsCount,
+        instruments: instrumentsCount,
+        chunks: chunksRows.length,
+        chunksEmbedded,
+      },
     },
     finance: latestReport[0]
       ? {
@@ -489,7 +564,11 @@ async function gatherSignals(ctx: any, now: number) {
           creditsWaiting: latestReport[0].creditsWaiting ?? 0,
         }
       : null,
-    backups: { lastSuccessAt: lastBackupAt, target: lastBackup?.target ?? null },
+    backups: {
+      lastSuccessAt: lastBackupAt,
+      target: lastBackup?.target ?? null,
+      targetsConfigured: backupTargetsConfigured,
+    },
     db: { topTables, recordedAt: sizeRecord[0]?.recordedAt ?? null },
     security: {
       founderCount: founders.length,
@@ -514,7 +593,7 @@ export function evaluateAllChecks(signals: Signals, now: number): CheckOutcome[]
     evaluateIngestion(signals.ingestion.enabled, signals.ingestion.lastRunAt, now),
     evaluateIngestionFailures(signals.ingestion.failed),
     evaluateReconciliation(signals.finance ? { ranAt: signals.finance.ranAt, ok: signals.finance.ok } : null, now),
-    evaluateBackups(signals.backups.lastSuccessAt, now),
+    evaluateBackups(signals.backups.lastSuccessAt, now, signals.backups.targetsConfigured ?? []),
     evaluateDbCapacity(signals.db.topTables.length > 0 ? signals.db.topTables.map((t: any) => ({ table: t.table, rowCount: t.rowCount, capped: t.capped })) : null),
     evaluateFounderCount(signals.security.founderCount),
     evaluateFounderSecurity(
@@ -584,6 +663,18 @@ export const runAloxWatchdog = internalMutation({
       .take(200);
     const openByKey = new Map(openAlerts.map((a: any) => [a.checkKey, a]));
 
+    // 2026-11-22 (founder bug report): "clicking a warning/alert should
+    // take me to the exact error details, not a dead screen." The push
+    // link now routes by surface — backend errors land on System Status
+    // (the unified error_events log with stack traces), ingestion alerts
+    // land on the Ingestion console, everything else on the Aloa X
+    // control room. The founder app's VIEW_MAP resolves these.
+    const linkViewFor = (checkKey: string): string => {
+      if (checkKey.startsWith("backend.")) return "system";
+      if (checkKey.startsWith("ingestion.")) return "ingestion";
+      return "aloax";
+    };
+
     const summary: Array<{ checkKey: string; status: string; severity?: string; title?: string }> = [];
     let openCount = 0;
 
@@ -612,7 +703,7 @@ export const runAloxWatchdog = internalMutation({
               title: `Aloa X: ${outcome.title}`,
               message: outcome.detail || "",
               type: "alox_alert",
-              link: { view: "aloax", id: null, context: { checkKey: outcome.checkKey } },
+              link: { view: linkViewFor(outcome.checkKey), id: null, context: { checkKey: outcome.checkKey } },
               tag: `alox-${outcome.checkKey}`,
             });
           } catch (e: any) {
@@ -638,7 +729,7 @@ export const runAloxWatchdog = internalMutation({
                 title: `Aloa X: ${outcome.title}${existing.notifyCount > 1 ? " (still open)" : ""}`,
                 message: outcome.detail || "",
                 type: "alox_alert",
-                link: { view: "aloax", id: null, context: { checkKey: outcome.checkKey } },
+                link: { view: linkViewFor(outcome.checkKey), id: null, context: { checkKey: outcome.checkKey } },
                 tag: `alox-${outcome.checkKey}`,
               });
             } catch (e: any) {
@@ -647,7 +738,10 @@ export const runAloxWatchdog = internalMutation({
           }
         }
       } else {
-        summary.push({ checkKey: outcome.checkKey, status: "ok" });
+        // ok OR info: no alert lifecycle beyond resolving anything that was
+        // open for this checkKey (e.g. backup targets were just configured,
+        // or the previously-failing check turned healthy).
+        summary.push({ checkKey: outcome.checkKey, status: outcome.status });
         if (existing) {
           // Healthy again → resolve (+ closing push if it was open long enough).
           await ctx.db.patch(existing._id, {

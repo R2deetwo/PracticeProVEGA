@@ -115,16 +115,31 @@ describe("evaluateReconciliation (financial books)", () => {
   });
 });
 
-describe("evaluateBackups", () => {
-  it("no successful backup on record = warning", () => {
+describe("evaluateBackups (2026-11-22: config-aware — unconfigured ≠ failing)", () => {
+  it("NO targets configured = INFO, never an alert (the nightly job skips by design)", () => {
+    const r = evaluateBackups(null, NOW, []);
+    expect(r.status).toBe("info");
+    expect(r.severity).toBeUndefined();
+    // Even a stale success date stays info while nothing is configured.
+    expect(evaluateBackups(NOW - 8 * DAY, NOW, []).status).toBe("info");
+  });
+  it("targets configured but no successful backup = real warning", () => {
+    const r = evaluateBackups(null, NOW, ["github"]);
+    expect(r.status).toBe("problem");
+    expect(r.severity).toBe("warning");
+    expect(r.detail).toContain("github");
+  });
+  it("a fresh success with targets configured is healthy", () => {
+    expect(evaluateBackups(NOW - 29 * HOUR, NOW, ["github", "telegram"]).status).toBe("ok");
+  });
+  it("31h old = late warning; 8 days = critical (only when configured)", () => {
+    expect(evaluateBackups(NOW - 31 * HOUR, NOW, ["telegram"]).severity).toBe("warning");
+    expect(evaluateBackups(NOW - 8 * DAY, NOW, ["telegram"]).severity).toBe("critical");
+  });
+  it("the legacy two-arg call (no targets array) still warns on a stale record", () => {
+    // Back-compat for callers that only know the success timestamp: a
+    // recorded success implies a target was configured.
     expect(evaluateBackups(null, NOW).severity).toBe("warning");
-  });
-  it("29h old is fine (nightly job, 30h tolerance)", () => {
-    expect(evaluateBackups(NOW - 29 * HOUR, NOW).status).toBe("ok");
-  });
-  it("31h old = late warning; 8 days = critical", () => {
-    expect(evaluateBackups(NOW - 31 * HOUR, NOW).severity).toBe("warning");
-    expect(evaluateBackups(NOW - 8 * DAY, NOW).severity).toBe("critical");
   });
 });
 
@@ -361,6 +376,39 @@ describe("wiring: the practicepro-watchdog channel trio", () => {
   });
   it("the client channel map mirrors the same routing", () => {
     expect(clientNotifications).toContain("return 'practicepro-watchdog';");
+  });
+});
+
+describe("wiring: error-telemetry unification (2026-11-22 founder bug report)", () => {
+  it("System Status reads error_events — the SAME table the watchdog counts", () => {
+    const founderMetrics = read("convex/founderMetrics.ts");
+    expect(founderMetrics).toMatch(/query\("error_events"\)/);
+    // The contradictory analytics_events read is gone:
+    expect(founderMetrics).not.toMatch(
+      /getSystemErrors[\s\S]{0,600}query\("analytics_events"\)/
+    );
+  });
+  it("both windows (24h/7d) are returned so the header can quote the watchdog's number", () => {
+    const founderMetrics = read("convex/founderMetrics.ts");
+    expect(founderMetrics).toContain("errors24h");
+    expect(founderMetrics).toContain("errors7d");
+  });
+  it("backend-error alerts deep-link to System Status, ingestion alerts to the Ingestion console", () => {
+    expect(alox).toMatch(/if \(checkKey\.startsWith\("backend\."\)\) return "system";/);
+    expect(alox).toMatch(/if \(checkKey\.startsWith\("ingestion\."\)\) return "ingestion";/);
+    expect(adminApp).toMatch(/system: 'system',/);
+  });
+  it("the watchdog distinguishes unconfigured backups (env-var probe) from failing ones", () => {
+    expect(alox).toMatch(/process\.env\.GITHUB_BACKUP_TOKEN/);
+    expect(alox).toMatch(/targetsConfigured/);
+    const backups = read("convex/backups.ts");
+    expect(backups).toMatch(/recordUnconfiguredRun/);
+  });
+  it("the backup export covers the full schema inventory (incl. the Legal KB)", () => {
+    const backups = read("convex/backups.ts");
+    for (const t of ["legal_judgments", "legal_chunks", "legal_scrape_queue", "sessions", "user_push_tokens", "error_events", "alox_alerts"]) {
+      expect(backups).toContain(`"${t}"`);
+    }
   });
 });
 

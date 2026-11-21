@@ -10,9 +10,16 @@
  *   | Properties  | property-capable firms only         | never locked                    |
  *   | Matters     | legal-capable firms only            | never locked                    |
  *   | Documents   | legal-capable firms only            | never locked                    |
- *   | Research    | legal-capable firms only            | Growth+ (else upgrade modal)    |
+ *   | Research    | legal-capable firms only            | never locked (2026-11-22)       |
  *   | Financials  | canViewBilling (role + product)     | property-capable: never; Vega: Pro+ |
  *   | Analytics   | canViewBilling (role + product)     | Growth+ (else upgrade modal)    |
+ *
+ * 2026-11-22: Research is no longer plan-locked on either surface — the
+ * Contract Analyzer (standard on every plan, R48) and Practice Notes
+ * became Research tabs, so locking the page would take the analyzer away
+ * from Core firms. The AI Notes tab now gates ITSELF inside ResearchView
+ * (locked screen + upgrade CTA), which keeps the Growth+ monetization
+ * without locking the standard features.
  *
  * Before this round: mobile showed Properties to Vega-only firms, showed
  * Documents to Atrium-only firms, had no plan locks at all (a Core Vega
@@ -60,11 +67,16 @@ describe('BottomNav ↔ Sidebar parity (one entitlement interpretation, both sur
         expect(bottom).toContain("if (item.view === 'documents' && !isLegal) return false;");
     });
 
-    it('Research plan lock (Growth+) applies on BOTH surfaces and opens the SAME upgrade modal', () => {
-        expect(side).toContain('locked={!features.canUseResearchStudio}');
-        expect(side).toContain("openModal('upgradePlan')");
-        expect(bottom).toContain('research: !features.canUseResearchStudio,');
-        expect(bottom).toContain("openModal('upgradePlan')");
+    it('Research: NEVER plan-locked on either surface (2026-11-22) — the AI Notes tab self-gates inside the view', () => {
+        // The page hosts Contract Analyzer (standard per R48) + Practice
+        // Notes, so the nav entry must open for every legal firm. The
+        // Growth+ gate lives INSIDE ResearchView on the AI Notes tab.
+        expect(side).not.toContain('locked={!features.canUseResearchStudio}');
+        expect(bottom).not.toContain('research: !features.canUseResearchStudio,');
+        const researchView = read('src/components/ResearchView.tsx');
+        expect(researchView).toContain("{ id: 'research_notes', label: 'AI Notes', locked: !canUseResearchStudio }");
+        expect(researchView).toContain("{ id: 'contract_analyzer', label: 'Contract Analyzer' }");
+        expect(researchView).toContain("{ id: 'notes', label: 'Practice Notes' }");
     });
 
     it('Financials: property-capable firms never lock, Vega-only firms lock below Pro — BOTH surfaces', () => {

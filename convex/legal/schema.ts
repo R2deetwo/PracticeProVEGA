@@ -1,5 +1,6 @@
 import { defineTable } from "convex/server";
 import { v } from "convex/values";
+import { URL_PRIORITY } from "../../src/legal/ingestionEngine/urlFilter";
 
 /**
  * legal/schema — the Legal Knowledge Base & Retrieval Engine tables.
@@ -48,11 +49,19 @@ export const DOMAIN_CATEGORIES = [
 ] as const;
 export type DomainCategory = (typeof DOMAIN_CATEGORIES)[number];
 
-/** Queue priorities: lower = more urgent. */
+/** Queue priorities: lower = more urgent. DOC_LINK/INDEX_DISCOVERY come
+ *  from the pure urlFilter module (the enqueue-time scorer) so the gate
+ *  and the queue can never disagree on ordering. */
 export const PRIORITY = {
   GAP_FILL: 0, // query-time gap detection — user is waiting on coverage
+  /** Direct document link / canonical legal detail path (owner spec
+   *  Priority 1 — highest signal). */
+  DOC_LINK: URL_PRIORITY.DOC_LINK, // 2
   CURATED: 3, // founder/operator-curated source
   DEFAULT: 5, // routine seed discovery
+  /** Index/listing pages — discovery only, never stored (owner spec
+   *  Priority 2). */
+  INDEX_DISCOVERY: URL_PRIORITY.INDEX_DISCOVERY, // 6
   FRESHNESS_RECHECK: 8, // weekly sweep re-verification
   BACKGROUND: 9,
 } as const;

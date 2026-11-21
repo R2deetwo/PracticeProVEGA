@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalAction, internalMutation, internalQuery } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { normalizeUrl, urlHash } from "./shared";
+import { urlHash } from "./shared";
 import { PRIORITY } from "./schema";
 import {
   robotsUrlFor,
@@ -17,6 +17,7 @@ import {
   extractJudgmentMeta,
   buildInstrumentMeta,
   BUILTIN_SEED_SOURCES,
+  filterCandidateUrl,
 } from "../../src/legal/ingestionEngine";
 
 /**
@@ -62,7 +63,10 @@ const ENGINE_UA =
 const FETCH_TIMEOUT_MS = 15_000;
 const ROBOTS_TIMEOUT_MS = 8_000;
 const MAX_BODY_BYTES = 2_000_000;
-const MAX_LINKS_PER_INDEX = 25;
+/** Raw links forwarded from one index page to the strict filter (nav/footer
+ *  links die inside the filter, so the raw scan is wider than the yield;
+ *  queue growth stays bounded by dedup + the one-page-per-domain pacing). */
+const MAX_LINK_CANDIDATES_PER_INDEX = 200;
 const MAX_ATTEMPTS = 3;
 
 export interface EngineRunSummary {
@@ -76,6 +80,9 @@ export interface EngineRunSummary {
   chunksIngested: number;
   documentsIngested: number;
   indexesHarvested: number;
+  /** 2026-11-22 strict-filter round: junk queued URLs deleted by the
+   *  pre-run purge (block-list/allow-list violators). */
+  purgedBlocked: number;
   durationMs: number;
   startedAt: number;
 }
@@ -83,7 +90,7 @@ export interface EngineRunSummary {
 const emptySummary = (): EngineRunSummary => ({
   claimed: 0, completed: 0, failed: 0, notModified: 0, dedupSkipped: 0,
   robotsSkipped: 0, pdfDeferred: 0, chunksIngested: 0, documentsIngested: 0,
-  indexesHarvested: 0, durationMs: 0, startedAt: Date.now(),
+  indexesHarvested: 0, purgedBlocked: 0, durationMs: 0, startedAt: Date.now(),
 });
 
 // ── Internal state access ───────────────────────────────────────────────────
@@ -151,7 +158,12 @@ export const claimForEngine = internalMutation({
   },
 });
 
-/** Complete a claimed row (mirrors queue.complete — one task, one outcome). */
+/** Complete a claimed row (mirrors queue.complete — one task, one outcome).
+ *  2026-11-22: when the completed task IS a seed source (the weekly
+ *  freshness sweep re-queues seeds), the seed's lastSweptAt is patched —
+ *  the Ingestion view used to show "swept never" even right after the
+ *  engine crawled the seed, because only the MONDAY cron ever stamped
+ *  it. Now a sweep is a sweep whenever the engine actually fetched it. */
 export const completeForEngine = internalMutation({
   args: {
     taskId: v.id("legal_scrape_queue"),
@@ -165,6 +177,7 @@ export const completeForEngine = internalMutation({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const task = await ctx.db.get(args.taskId);
     await ctx.db.patch(args.taskId, {
       status: args.outcome === "completed" ? "completed" : "skipped_dedup",
       lastCheckedAt: now,
@@ -176,6 +189,16 @@ export const completeForEngine = internalMutation({
       lastError: args.error,
       updatedAt: now,
     });
+    // Seed sweep telemetry: stamp the matching seed source row.
+    if (task?.urlHash) {
+      const seed = await ctx.db
+        .query("legal_seed_sources")
+        .withIndex("by_urlHash", (q: any) => q.eq("urlHash", task.urlHash))
+        .first();
+      if (seed) {
+        await ctx.db.patch(seed._id, { lastSweptAt: now });
+      }
+    }
     await ctx.db.insert("system_audit_logs", {
       eventType: args.outcome === "completed" ? "scrape.fetch" : "scrape.dedup_skip",
       actor: "ingester:engine",
@@ -222,7 +245,14 @@ export const failForEngine = internalMutation({
 
 /** Enqueue discovered URLs (index-page link harvest, founder-added URLs).
  *  Idempotent on urlHash; terminal rows are never resurrected here — only
- *  the weekly freshness sweep re-queues seeds explicitly. */
+ *  the weekly freshness sweep re-queues seeds explicitly.
+ *
+ *  2026-11-22 STRICT FILTER: every candidate passes filterCandidateUrl
+ *  BEFORE insertion — junk (Cloudflare internals, cookie/privacy pages,
+ *  blogs, assets, off-domain links) is rejected with a reason instead of
+ *  polluting the queue, and survivors carry policy priorities (document
+ *  links 2 < curated 3 < index discovery 6). `parentUrl` (the index page
+ *  the link was found on) drives the off-domain rule. */
 export const enqueueForEngine = internalMutation({
   args: {
     urls: v.array(
@@ -231,14 +261,25 @@ export const enqueueForEngine = internalMutation({
         domainCategory: v.string(),
         priority: v.optional(v.number()),
         discoveredFrom: v.optional(v.string()),
+        parentUrl: v.optional(v.string()),
       }),
     ),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     let queued = 0;
+    let rejected = 0;
+    const rejectSamples: string[] = [];
     for (const item of args.urls) {
-      const normalized = normalizeUrl(item.sourceUrl);
+      const verdict = filterCandidateUrl(item.sourceUrl, item.parentUrl);
+      if (!verdict.allowed) {
+        rejected++;
+        if (rejectSamples.length < 5) {
+          rejectSamples.push(`${item.sourceUrl.slice(0, 120)} — ${verdict.reason}`);
+        }
+        continue;
+      }
+      const normalized = verdict.url;
       const hash = urlHash(normalized);
       const existing = await ctx.db
         .query("legal_scrape_queue")
@@ -249,38 +290,94 @@ export const enqueueForEngine = internalMutation({
         sourceUrl: normalized,
         urlHash: hash,
         domainCategory: item.domainCategory,
-        priority: item.priority ?? PRIORITY.DEFAULT,
+        priority: item.priority ?? verdict.priority,
         status: "queued",
         attempts: 0,
         discoveredFrom: item.discoveredFrom,
+        documentType: verdict.kind === "index" ? "index" : undefined,
         createdAt: now,
         updatedAt: now,
       });
       queued++;
     }
-    if (queued > 0) {
+    if (queued > 0 || rejected > 0) {
       await ctx.db.insert("system_audit_logs", {
         eventType: "queue.enqueue",
         actor: "ingester:engine",
         status: "ok",
-        payload: { count: queued, source: "harvest" },
+        payload: {
+          count: queued,
+          rejected,
+          source: "harvest",
+          ...(rejectSamples.length > 0 ? { rejectSamples } : {}),
+        },
         createdAt: now,
       });
     }
-    return { queued };
+    return { queued, rejected };
+  },
+});
+
+/** 2026-11-22 STRICT FILTER — the junk purge. Deletes every QUEUED row
+ *  that violates the block-list/allow-list policy (Cloudflare internals,
+ *  cookie pages, blogs, assets, non-legal pages that slipped in before
+ *  the gate existed) so the next 15-minute run only ever processes
+ *  genuine legal authorities. Bounded to 1000 rows per call; runs at the
+ *  start of every worker cycle until the backlog is drained. */
+export const purgeBlockedQueuedInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    const rows = await ctx.db
+      .query("legal_scrape_queue")
+      .withIndex("by_status_priority", (q) => q.eq("status", "queued"))
+      .order("asc")
+      .take(1000);
+    const violators: string[] = [];
+    for (const row of rows) {
+      const verdict = filterCandidateUrl(row.sourceUrl);
+      if (!verdict.allowed) {
+        violators.push(`${row.sourceUrl.slice(0, 140)} — ${verdict.reason}`);
+        await ctx.db.delete(row._id);
+      }
+    }
+    if (violators.length > 0) {
+      await ctx.db.insert("system_audit_logs", {
+        eventType: "queue.purge",
+        actor: "ingester:engine",
+        status: "ok",
+        payload: {
+          purged: violators.length,
+          scanned: rows.length,
+          urls: violators.slice(0, 50), // cap the audit payload
+        },
+        createdAt: now,
+      });
+    }
+    return { purged: violators.length, scanned: rows.length };
   },
 });
 
 /** Upsert the builtin authoritative seeds (port of seeds.py) into
- *  legal_seed_sources + the queue at CURATED priority. Idempotent. */
+ *  legal_seed_sources + the queue at CURATED priority. Idempotent.
+ *  2026-11-22: seed URLs pass the SAME strict filter as every other
+ *  candidate (they are index roots, so they classify as index discovery —
+ *  but a future seed that violates policy is refused visibly instead of
+ *  silently poisoning the queue). */
 export const seedBuiltinSourcesInternal = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
     let added = 0;
     let updated = 0;
+    const refused: string[] = [];
     for (const s of BUILTIN_SEED_SOURCES) {
-      const normalized = normalizeUrl(s.sourceUrl);
+      const verdict = filterCandidateUrl(s.sourceUrl);
+      if (!verdict.allowed) {
+        refused.push(`${s.sourceUrl} — ${verdict.reason}`);
+        continue;
+      }
+      const normalized = verdict.url;
       const hash = urlHash(normalized);
       const existing = await ctx.db
         .query("legal_seed_sources")
@@ -320,7 +417,7 @@ export const seedBuiltinSourcesInternal = internalMutation({
           status: "queued",
           attempts: 0,
           discoveredFrom: "seed:builtin",
-          documentType: s.kind === "index" ? "index" : undefined,
+          documentType: verdict.kind === "index" ? "index" : undefined,
           createdAt: now,
           updatedAt: now,
         });
@@ -331,11 +428,11 @@ export const seedBuiltinSourcesInternal = internalMutation({
     await ctx.db.insert("system_audit_logs", {
       eventType: "queue.enqueue",
       actor: "ingester:engine",
-      status: "ok",
-      payload: { source: "seed:builtin", added, updated },
+      status: refused.length > 0 ? "error" : "ok",
+      payload: { source: "seed:builtin", added, updated, ...(refused.length > 0 ? { refused } : {}) },
       createdAt: now,
     });
-    return { added, updated };
+    return { added, updated, refused: refused.length };
   },
 });
 
@@ -540,20 +637,33 @@ async function processTask(
   const docType = classifyDocumentType(category, task.sourceUrl, document.text);
 
   if (docType === "index") {
-    // Index page: harvest same-domain child links into the queue.
-    let parentHost = domain;
-    const sameDomain: Array<{ sourceUrl: string; domainCategory: string; discoveredFrom: string }> = [];
+    // Index page: harvest child links into the queue — STRICT (2026-11-22):
+    // every link passes filterCandidateUrl with THIS page as the parent,
+    // so only same-host (or official-subdomain document) links that match
+    // the legal allow-list ever enter the queue. Junk hrefs (cookie
+    // pages, /cdn-cgi/, blogs, assets, off-site) die there with a reason.
+    // The cap counts RAW candidates forwarded to the filter — nav bars and
+    // footer links get rejected inside, so scanning more raw links is how
+    // enough real documents survive per index.
+    const candidates: Array<{
+      sourceUrl: string;
+      domainCategory: string;
+      discoveredFrom: string;
+      parentUrl: string;
+    }> = [];
     for (const link of document.links) {
-      if (sameDomain.length >= MAX_LINKS_PER_INDEX) break;
-      try {
-        if (new URL(link).host === parentHost && link !== task.sourceUrl) {
-          sameDomain.push({ sourceUrl: link, domainCategory: category, discoveredFrom: task.sourceUrl });
-        }
-      } catch { /* malformed href — skip */ }
+      if (candidates.length >= MAX_LINK_CANDIDATES_PER_INDEX) break;
+      if (link === task.sourceUrl) continue;
+      candidates.push({
+        sourceUrl: link,
+        domainCategory: category,
+        discoveredFrom: task.sourceUrl,
+        parentUrl: task.sourceUrl,
+      });
     }
-    if (sameDomain.length > 0) {
+    if (candidates.length > 0) {
       try {
-        await ctx.runMutation(internal.legal.worker.enqueueForEngine, { urls: sameDomain });
+        await ctx.runMutation(internal.legal.worker.enqueueForEngine, { urls: candidates });
       } catch { /* queue full / transient — never fatal */ }
     }
     summary.completed++;
@@ -674,6 +784,16 @@ export const runIngestionWorker = internalAction({
     if (state.autoSeedBuiltins && !state.seededBuiltinsAt) {
       await ctx.runMutation(internal.legal.worker.seedBuiltinSourcesInternal, {});
     }
+
+    // 2b. STRICT FILTER purge (2026-11-22): before claiming anything,
+    // delete every QUEUED row that violates the block-list/allow-list —
+    // junk that entered before the gate existed (or through legacy
+    // paths) never gets fetched. Bounded to 1000 rows/run, so a large
+    // backlog drains over successive 15-minute cycles.
+    try {
+      const purge = await ctx.runMutation(internal.legal.worker.purgeBlockedQueuedInternal, {});
+      summary.purgedBlocked = purge?.purged ?? 0;
+    } catch { /* purge must never block the run */ }
 
     // 3. Claim this run's tasks (one per domain).
     const limit = Math.max(1, Math.min(args.limit ?? state.maxTasksPerRun ?? 4, 8));

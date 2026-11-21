@@ -19,9 +19,18 @@ import { ResearchStudio } from './research/ResearchStudio';
 import { LAW_REPORTS_DISCLOSURE } from '../utils/citationVerification';
 import NotesView from './NotesView';
 import ErrorBoundary from './ErrorBoundary';
-import { ChevronRightIcon, LockClosedIcon, ResearchIcon, PlusIcon } from '../constants';
+import { ChevronRightIcon, LockClosedIcon, ResearchIcon, PlusIcon, ScalesIcon } from '../constants';
 import { useFeatures } from '../hooks/useFeatures';
 import { readHashContext, type ContextResult } from '../utils/tabNavigation';
+
+// OWNER DIRECTION (2026-11-22): "I think I want to subsume Contract Analyzer
+// into Research — AI Notes, Practice Notes, and Contract Analyzer." The
+// analyzer becomes the third Research tab so all reading/analysis work lives
+// on one page. Lazy-loaded exactly like the old App.tsx route so the main
+// bundle keeps the analyzer's chunk out of the initial payload.
+const ContractAnalyzer = React.lazy(() =>
+    import('./draftpro/ContractAnalyzer').then(m => ({ default: m.ContractAnalyzer }))
+);
 
 /** Helper: extract context from ContextResult, log on error */
 function extractContext(result: ContextResult): Record<string, any> {
@@ -55,9 +64,9 @@ const ResearchPlaceholder: React.FC<{ onClick: () => void }> = ({ onClick }) => 
     </div>
 );
 
-type ResearchTab = 'research_notes' | 'notes';
+type ResearchTab = 'research_notes' | 'notes' | 'contract_analyzer';
 
-const ResearchView: React.FC = () => {
+const ResearchView: React.FC<{ initialTab?: ResearchTab }> = ({ initialTab }) => {
     const { matterState } = useMatterState();
     const { documentState } = useDocumentState();
     const { coreState } = useCoreState();
@@ -66,7 +75,7 @@ const ResearchView: React.FC = () => {
     const { currentUser, bearerToken } = useAuth();
     const { canUseResearchStudio } = useFeatures();
 
-    const [activeTab, setActiveTab] = useState<ResearchTab>('research_notes');
+    const [activeTab, setActiveTab] = useState<ResearchTab>(initialTab ?? 'research_notes');
     const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
     const [mobileWorkspaceView, setMobileWorkspaceView] = useState<'notebooks' | 'chat' | 'sources' | 'studio'>('chat');
     const [isSaving, setIsSaving] = useState(false);
@@ -81,6 +90,27 @@ const ResearchView: React.FC = () => {
         context?: string;
         documentTitle?: string;
     } | null>(null);
+
+    // ─── Deep-link tab selection (2026-11-22) ──────────────────────────
+    // Navigations may carry `researchTab` ('notes' | 'contract_analyzer')
+    // in the in-app context or the URL hash — the /analyzer deep link and
+    // Help Center entries use it to open the right tab directly. Processed
+    // once per context id so it never fights the user's own tab switches.
+    const [processedTabCtxId, setProcessedTabCtxId] = useState<string | null>(null);
+    useEffect(() => {
+        const ctx =
+            currentHistoryEntry?.context ||
+            (window.history.state?.state as any) ||
+            extractContext(readHashContext()) ||
+            {};
+        const ctxId = ctx.id || ctx.researchTab || 'unknown';
+        if (ctxId === processedTabCtxId) return;
+        if (ctx.researchTab === 'notes' || ctx.researchTab === 'contract_analyzer') {
+            setActiveTab(ctx.researchTab);
+            setProcessedTabCtxId(ctxId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentHistoryEntry?.context, processedTabCtxId]);
 
     const selectedNotebookId = currentHistoryEntry.selectedResearchNotebookId || null;
 
@@ -487,17 +517,22 @@ const ResearchView: React.FC = () => {
     };
 
     const tabDef: { id: ResearchTab; label: string; locked?: boolean }[] = [
-        { id: 'research_notes', label: 'AI Notebooks', locked: !canUseResearchStudio },
+        { id: 'research_notes', label: 'AI Notes', locked: !canUseResearchStudio },
         // UX-05 (Phase 1): the Case Law tab is gone — it was a permanent
         // stub (no law-report database is connected, MOCK_CASE_LAW is []).
-        // Its corpus disclosure moved into the AI Notebooks empty state so
+        // Its corpus disclosure moved into the AI Notes empty state so
         // the honesty survives without the dead navigation.
         { id: 'notes', label: 'Practice Notes' },
+        // 2026-11-22: Contract Analyzer subsumed into Research (owner
+        // direction). MODULE 1 is standard on every plan (R48) — the tab
+        // is never locked; only its internal Statutory Cross-Reference
+        // module gates itself (Enterprise tier, via RegulatoryGateModal).
+        { id: 'contract_analyzer', label: 'Contract Analyzer' },
     ];
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-900">
-            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex justify-between items-center mb-0">
+            <div className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 flex flex-wrap justify-between items-center gap-2 mb-0">
                 {/* Page header: same ResearchIcon as the sidebar nav, paired
                     with the "Research" title and "PracticePro Research" subtitle
                     so the page identity matches its navigation entry point. */}
@@ -510,13 +545,17 @@ const ResearchView: React.FC = () => {
                         <p className="text-2xs sm:text-xs text-slate-500 dark:text-zinc-400 -mt-0.5 truncate">PracticePro Research</p>
                     </div>
                 </div>
-                <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex gap-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0">
+                {/* Tab pills — 3 tabs now (AI Notes / Practice Notes / Contract
+                    Analyzer): wrap on narrow screens instead of squashing or
+                    overflowing the header. */}
+                <div className="p-1 bg-slate-100 dark:bg-zinc-800 rounded-lg flex flex-wrap justify-end gap-1 border border-slate-200 dark:border-zinc-700 flex-shrink-0 max-w-full">
                     {tabDef.map(tab => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`px-3 md:px-4 py-1.5 text-xs md:text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 ${activeTab === tab.id ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'}`}
+                            className={`px-2.5 md:px-4 py-1.5 text-2xs md:text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === tab.id ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-white' : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200'}`}
                         >
+                            {tab.id === 'contract_analyzer' && <ScalesIcon className="w-3.5 h-3.5 flex-shrink-0" />}
                             {tab.label}
                             {tab.locked && <LockClosedIcon className="w-3 h-3 text-slate-400" />}
                         </button>
@@ -530,6 +569,19 @@ const ResearchView: React.FC = () => {
                     {activeTab === 'notes' && (
                         <div className="h-full overflow-hidden p-0 bg-transparent">
                             <NotesView noBox={true} />
+                        </div>
+                    )}
+                    {activeTab === 'contract_analyzer' && (
+                        <div className="h-full overflow-hidden">
+                            <React.Suspense
+                                fallback={
+                                    <div className="h-full flex items-center justify-center">
+                                        <div className="w-8 h-8 border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+                                    </div>
+                                }
+                            >
+                                <ContractAnalyzer embedded />
+                            </React.Suspense>
                         </div>
                     )}
                 </ErrorBoundary>

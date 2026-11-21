@@ -41,7 +41,7 @@ const RISK_BORDER: Record<RiskLevel, string> = {
     Low: 'border-l-sky-500',
 };
 
-export const ContractAnalyzer: React.FC = () => {
+export const ContractAnalyzer: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
     const analysis = useContractAnalysis();
     const features = useFeatures();
     const [tab, setTab] = useState<'analysis' | 'regulatory'>('analysis');
@@ -104,8 +104,13 @@ export const ContractAnalyzer: React.FC = () => {
     };
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 pb-32">
-            {/* Header — navy on light, thin border, no heavy shadow */}
+        <div className={`h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-zinc-900 ${embedded ? 'pb-10' : 'pb-32'}`}>
+            {/* Header — navy on light, thin border, no heavy shadow.
+                EMBEDDED MODE (Research page tab): the Research view already
+                provides the page chrome (icon, "Research" title, tab pills),
+                so a second sticky header would stack two glass bars — hide it
+                and keep only the workspace. */}
+            {!embedded && (
             <header className="sticky top-0 pt-safe z-30 glass flex-shrink-0 py-4 px-4 sm:px-6 lg:px-8 shadow-sm border-b border-slate-200 dark:border-zinc-700 mb-6">
                 <div className="flex flex-wrap items-center gap-4">
                     <div className="p-2 bg-slate-900 dark:bg-zinc-800 rounded-lg">
@@ -128,8 +133,9 @@ export const ContractAnalyzer: React.FC = () => {
                     )}
                 </div>
             </header>
+            )}
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${embedded ? 'pt-5' : ''}`}>
                 {/* Control bar: doc type + upload + phase */}
                 <div className="flex flex-wrap items-end gap-4 mb-5">
                     <div className="w-full sm:w-72">

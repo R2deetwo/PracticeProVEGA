@@ -2,9 +2,9 @@ import { v } from "convex/values";
 import { query, mutation, action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { requireFounderCaller } from "../callerAuth";
-import { normalizeUrl, urlHash } from "./shared";
+import { urlHash } from "./shared";
 import { PRIORITY } from "./schema";
-import { classifyCategory } from "../../src/legal/ingestionEngine";
+import { classifyCategory, filterCandidateUrl } from "../../src/legal/ingestionEngine";
 
 /**
  * legal/engine — the FOUNDER APK's control surface for the ingestion
@@ -266,10 +266,16 @@ export const enqueueUrlForIngestion = mutation({
   },
   handler: async (ctx, args) => {
     const founder = await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
-    const normalized = normalizeUrl(args.url);
-    if (!/^https?:\/\//.test(normalized)) {
-      throw new Error("Enter a full http(s) URL, e.g. https://nigerialii.org/…");
+    // 2026-11-22 STRICT FILTER: the founder's manual adds pass the same
+    // gate as discovered links — the block-list always rejects junk
+    // (cdn-cgi, cookie pages, blogs, assets…), and URLs off the legal
+    // allow-list are refused WITH THE REASON so the founder knows what to
+    // fix (e.g. link the .pdf directly instead of a viewer page).
+    const verdict = filterCandidateUrl(args.url);
+    if (!verdict.allowed) {
+      return { queued: false, rejected: verdict.reason ?? "rejected by URL policy" };
     }
+    const normalized = verdict.url;
     const hash = urlHash(normalized);
     const existing = await ctx.db
       .query("legal_scrape_queue")
@@ -287,10 +293,13 @@ export const enqueueUrlForIngestion = mutation({
       sourceUrl: normalized,
       urlHash: hash,
       domainCategory: category,
-      priority: PRIORITY.CURATED,
+      // Founder-curated entries keep their CURATED boost (3); direct
+      // document links score even higher (DOC_LINK 2) via the verdict.
+      priority: Math.min(PRIORITY.CURATED, verdict.priority),
       status: "queued",
       attempts: 0,
       discoveredFrom: `founder:${founder.email}`,
+      documentType: verdict.kind === "index" ? "index" : undefined,
       createdAt: now,
       updatedAt: now,
     });
@@ -314,3 +323,136 @@ const QUEUE_CATEGORIES = [
   "electoral",
   "index",
 ];
+
+// ─── The inspector (2026-11-22: "no dead-end metric cards") ─────────────────
+//
+// FOUNDER CONTRACT: every metric card and queue bucket in the Ingestion
+// view is clickable and opens an inspector drawer. This query returns the
+// actual rows behind the number — where judgments/instruments/chunks/
+// artifacts live, why chunks show "0 embedded", and the exact URL + error
+// for every failed queue row.
+
+const INSPECTOR_BUCKETS = [
+  "judgments",
+  "instruments",
+  "chunks",
+  "artifacts",
+  "queued",
+  "in_progress",
+  "completed",
+  "skipped_dedup",
+  "failed",
+] as const;
+
+export const getIngestionInspector = query({
+  args: { sessionToken: v.string(), bucket: v.string() },
+  handler: async (ctx, args) => {
+    await requireFounderCaller(ctx, { sessionToken: args.sessionToken });
+    const bucket = args.bucket as (typeof INSPECTOR_BUCKETS)[number];
+    if (!INSPECTOR_BUCKETS.includes(bucket)) {
+      throw new Error(`Unknown inspector bucket "${args.bucket}".`);
+    }
+
+    // ── Corpus buckets: where ingested records live ────────────────────
+    if (bucket === "judgments") {
+      const rows = await ctx.db
+        .query("legal_judgments")
+        .withIndex("by_date", (q: any) => q.gte("dateDelivered", ""))
+        .order("desc")
+        .take(50);
+      return {
+        bucket,
+        hint: "Stored in the legal_judgments table (Legal KB). ALOA cites these via the retrieval index — each row links the citation, court, parties and source URL.",
+        rows: rows.map((j: any) => ({
+          title: j.citation,
+          sub: `${j.court} · delivered ${j.dateDelivered}`,
+          sourceUrl: j.sourceUrl,
+        })),
+      };
+    }
+    if (bucket === "instruments") {
+      const rows = await ctx.db
+        .query("legal_instruments")
+        .order("desc")
+        .take(50);
+      return {
+        bucket,
+        hint: "Stored in the legal_instruments table (Legal KB) — acts, regulations, rules of court and guidelines with their section structure.",
+        rows: rows.map((i: any) => ({
+          title: i.title,
+          sub: `${String(i.instrumentType || "").replace(/_/g, " ")} · ${i.status} · ${i.issuingBody}`,
+          sourceUrl: i.sourceUrl,
+        })),
+      };
+    }
+    if (bucket === "chunks") {
+      const rows = await ctx.db
+        .query("legal_chunks")
+        .order("desc")
+        .take(50);
+      const total = await ctx.db.query("legal_chunks").take(1000);
+      const embedded = total.filter(
+        (c: any) => Array.isArray(c.embedding) && c.embedding.length > 0
+      ).length;
+      return {
+        bucket,
+        hint:
+          embedded > 0
+            ? `Stored in the legal_chunks table — the search index ALOA retrieves from (${embedded} of ${total.length} sampled rows carry 768-dim embeddings; keyword + vector search both active).`
+            : "Stored in the legal_chunks table — keyword search (BM25-style) works today. 0 embedded is EXPECTED: the in-Convex worker never generates embeddings by design (no embedding API key in the Convex runtime); the dense vector leg joins when the Python ingester runs the embedding pass. This is a documented boundary, not a failure.",
+        rows: rows.map((c: any) => ({
+          title: c.heading || (c.boundaryPath || []).join(" › ") || c.documentKey,
+          sub: `${c.documentType} · ${(c.boundaryPath || []).join(" › ") || "no boundary"} · ${c.tokenCount} tokens · ${Array.isArray(c.embedding) && c.embedding.length > 0 ? "embedded" : "not embedded (keyword-only)"}`,
+          sourceUrl: c.sourceUrl,
+        })),
+      };
+    }
+    if (bucket === "artifacts") {
+      const rows = await ctx.db
+        .query("legal_raw_artifacts")
+        .order("desc")
+        .take(50);
+      return {
+        bucket,
+        hint: "Stored in legal_raw_artifacts (metadata) + Convex file storage (bytes), content-addressed by SHA-256 — every document is stored ONCE and re-parses never re-fetch.",
+        rows: rows.map((a: any) => ({
+          title: `${String(a.sha256 || "").slice(0, 16)}… · ${a.contentType}`,
+          sub: `${a.byteSize.toLocaleString("en-NG")} bytes · fetched ${a.fetchedAt ? new Date(a.fetchedAt).toISOString().slice(0, 10) : "?"} · parse ${a.parseStatus}`,
+          sourceUrl: a.sourceUrl,
+        })),
+      };
+    }
+
+    // ── Queue buckets: the pipeline's live state ───────────────────────
+    const rows = await ctx.db
+      .query("legal_scrape_queue")
+      .withIndex("by_status_priority", (q: any) => q.eq("status", bucket))
+      .order("asc")
+      .take(50);
+    const hints: Record<string, string> = {
+      queued: "Waiting for the next 15-minute run (or Run Now). Ordered by priority: gap fills → document links → curated → index discovery → freshness rechecks.",
+      in_progress: "Claimed by a running worker — moves to completed/failed within the run.",
+      completed: "Fetched and processed. Index pages harvest links; documents are parsed into judgments/instruments/chunks; unchanged pages short-circuit as dedup/304.",
+      skipped_dedup: "Skipped without re-parsing — the SHA-256 already exists (identical content) or the server returned 304 Not Modified.",
+      failed: "Terminal failures after 3 attempts. Each row carries the exact error (HTTP status, network/timeout, robots block or parse failure).",
+    };
+    return {
+      bucket,
+      hint: hints[bucket] ?? "",
+      rows: rows.map((r: any) => ({
+        title: r.sourceUrl,
+        sub: [
+          `attempts ${r.attempts}`,
+          r.lastError ? `error: ${r.lastError}` : null,
+          r.documentType ? `parsed as ${r.documentType}` : null,
+          r.documentKey ? `key: ${r.documentKey}` : null,
+          `priority ${r.priority}`,
+          r.lastCheckedAt ? `checked ${new Date(r.lastCheckedAt).toISOString().slice(0, 16).replace("T", " ")} UTC` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        sourceUrl: r.sourceUrl,
+      })),
+    };
+  },
+});

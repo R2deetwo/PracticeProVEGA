@@ -12,7 +12,7 @@ import {
     DashboardIcon, MattersIcon, TasksIcon, DocumentsIcon, CalendarIcon,
     ContactsIcon, BillingIcon, ReportingIcon, MessagingIcon, CogIcon,
     ResearchIcon, OfficeBuildingIcon, ChevronDownIcon, CheckCircleIcon, PlusIcon,
-    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon, ScalesIcon,
+    ShieldCheckIcon, LockClosedIcon, ReportingIcon as DashboardChartIcon,
     ArchiveIcon, HelpIcon
 } from '../constants';
 import { lazyWithReload } from '../utils/lazyWithReload';
@@ -383,21 +383,18 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
                         />
                     )}
-                    {/* R48: DraftPro Contract Analyzer — MODULE 1 is standard on
-                        every plan (MODULE 2's statutory tab gates itself inside
-                        the view), so the item is never locked. */}
-                    {isLegal && (
-                        <NavItemLink
-                            item={{ view: 'analyzer', text: 'Contract Analyzer', icon: <ScalesIcon /> }}
-                            setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                        />
-                    )}
+                    {/* 2026-11-22: the standalone Contract Analyzer nav item is
+                        GONE — the analyzer was subsumed into Research as its
+                        third tab (owner direction: "AI Notes, Practice Notes,
+                        and Contract Analyzer"). MODULE 1 is standard on every
+                        plan (R48), so the Research item is no longer plan-
+                        locked either: Practice Notes and Contract Analyzer
+                        are open to every legal workspace, and the AI Notes
+                        tab gates itself inside the view (Growth+). */}
                     {isLegal && (
                         <NavItemLink
                             item={{ view: 'research', text: 'Research', icon: <ResearchIcon /> }}
                             setView={setView} currentView={currentView} isSidebarRetracted={isSidebarRetracted} counts={counts}
-                            locked={!features.canUseResearchStudio}
-                            onLockedClick={() => openModal('upgradePlan')}
                         />
                     )}
                     {isHighTier && showAloaX && (

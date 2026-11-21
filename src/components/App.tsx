@@ -53,9 +53,11 @@ const lazyWithReload = (factory: () => Promise<any>) =>
 
 const ReportingView = lazyWithReload(() => import('./ReportingView'));
 const WordProcessor = lazyWithReload(() => import('./documents/WordProcessor').then(m => ({ default: m.WordProcessor })));
-// R48: the DraftPro Contract Analyzer (MODULE 1 + the gated MODULE 2 tab).
-// Heavy like the editor (pdfjs + JSZip) — lazy, never in the main chunk.
-const ContractAnalyzer = lazyWithReload(() => import('./draftpro/ContractAnalyzer').then(m => ({ default: m.ContractAnalyzer })));
+// 2026-11-22: the Contract Analyzer no longer has its own route — it is the
+// third tab inside ResearchView (owner direction: "subsume Contract Analyzer
+// into Research — AI Notes, Practice Notes, and Contract Analyzer"). The
+// lazy chunk now loads from ResearchView itself; /analyzer deep links render
+// ResearchView with the analyzer tab pre-selected.
 const ResearchView = lazyWithReload(() => import('./ResearchView'));
 const AloaXView = lazyWithReload(() => import('./indexer/AloaXView').then(m => ({ default: m.AloaXView })));
 const TimelineView = lazyWithReload(() => import('./TimelineView'));
@@ -552,9 +554,11 @@ const MainContent = React.memo(({ onToggleToolkit, isToolkitOpen, onCloseToolkit
             // ErrorBoundary — a render error in the TipTap stack escalated to
             // the root GlobalErrorBoundary and blanked the entire app.
             case 'editor': return <ErrorBoundary><React.Suspense fallback={<GenericSkeleton />}><WordProcessor /></React.Suspense></ErrorBoundary>;
-            // R48: DraftPro Contract Analyzer — standard on every Vega (legal)
-            // workspace; MODULE 2's statutory tab gates itself inside the view.
-            case 'analyzer': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ContractAnalyzer /></React.Suspense></FeatureGuard></ViewWrapper>;
+            // 2026-11-22: Contract Analyzer is now a Research tab (owner
+            // direction). The /analyzer route keeps working for old deep
+            // links — it opens Research with the analyzer tab selected.
+            // MODULE 2's statutory tab still gates itself inside the view.
+            case 'analyzer': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView initialTab="contract_analyzer" /></React.Suspense></FeatureGuard></ViewWrapper>;
             case 'research': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ResearchView /></React.Suspense></FeatureGuard></ViewWrapper>;
             case 'indexer': return <ViewWrapper><React.Suspense fallback={<GenericSkeleton />}><AloaXView /></React.Suspense></ViewWrapper>;
             case 'compliance': return <ViewWrapper><FeatureGuard requiredProduct="legal"><React.Suspense fallback={<GenericSkeleton />}><ComplianceView /></React.Suspense></FeatureGuard></ViewWrapper>; // Reachable via Settings → Compliance (nav item) + /compliance

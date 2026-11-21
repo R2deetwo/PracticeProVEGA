@@ -13,7 +13,7 @@ import { Z_CLASS } from '../overlays/constants';
 import { VoxUpsellModal } from './quickcapture/VoxUpsellModal';
 import { 
     DashboardIcon, MattersIcon, TasksIcon, CalendarIcon, ContactsIcon,
-    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, ScalesIcon, MicrophoneIcon
+    DocumentsIcon, BillingIcon, ReportingIcon, MessagingIcon, ArchiveIcon, HelpIcon, CogIcon, ResearchIcon, OfficeBuildingIcon, LockClosedIcon, MicrophoneIcon
 } from '../constants';
 
 interface NavItemDef {
@@ -44,11 +44,10 @@ const navItemsList: NavItemDef[] = [
     { view: 'calendar', text: 'Calendar', icon: <CalendarIcon />, permission: () => true },
     { view: 'contacts', text: 'Contacts', icon: <ContactsIcon />, permission: () => true },
     { view: 'documents', text: 'Documents', icon: <DocumentsIcon />, permission: () => true },
-    // UX-42 (nav parity): Contract Analyzer was desktop-only — mobile users
-    // had no path to it at all. It joins the More sheet gated exactly like
-    // the Sidebar: legal firms only, never locked (MODULE 1 is standard on
-    // every plan per R48).
-    { view: 'analyzer', text: 'Contract Analyzer', icon: <ScalesIcon />, permission: () => true },
+    // 2026-11-22: the standalone Contract Analyzer entry is GONE — it is
+    // now the third tab inside Research (AI Notes / Practice Notes /
+    // Contract Analyzer, owner direction). Mobile users reach it via the
+    // Research tab; the /analyzer route still deep-links correctly.
     { view: 'billing', text: 'Financials', icon: <BillingIcon />, permission: (p) => p.canViewBilling },
     { view: 'reporting', text: 'Analytics', icon: <ReportingIcon />, permission: (p) => p.canViewBilling },
     { view: 'properties', text: 'Properties', icon: <OfficeBuildingIcon />, permission: () => true },
@@ -167,8 +166,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
     // visible (matching the desktop's locked-with-upgrade-CTA treatment)
     // but tap opens the upgrade modal, never the view.
     const lockedViews: Partial<Record<View, boolean>> = {
-        // Research Studio: legal firms, Growth+ (Sidebar: locked + upgrade modal)
-        research: !features.canUseResearchStudio,
+        // 2026-11-22: Research is NO LONGER plan-locked — Contract Analyzer
+        // (standard on every plan per R48) and Practice Notes now live as
+        // Research tabs. The AI Notes tab gates ITSELF inside the view
+        // (locked screen + upgrade CTA), so free users keep the analyzer.
         // Financials: property-capable firms never lock (their revenue
         // hub); Vega-only firms lock below Pro (Sidebar: same rule)
         billing: !hasPropertyFeatures && !features.canUseAdvancedBilling,
@@ -202,7 +203,6 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         if (item.view === 'matters' && !isLegal) return false;
         if (item.view === 'research' && !isLegal) return false;
         if (item.view === 'documents' && !isLegal) return false;
-        if (item.view === 'analyzer' && !isLegal) return false;
         if (item.view === 'properties' && !hasPropertyFeatures) return false;
         return item.permission(permissions);
     });

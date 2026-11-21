@@ -1197,67 +1197,56 @@ export const getAdminActionLog = query({
 
 /**
  * query: getSystemErrors
- * Returns recent system errors from analytics_events — Gemini failures,
- * PDF generation failures, Convex errors.
+ *
+ * 2026-11-22 UNIFICATION (founder bug report): this view used to read
+ * `analytics_events` — client-side product analytics filtered to names
+ * containing error/fail/exception — while the ALOA X watchdog counted the
+ * `error_events` table (server-side cron/webhook/action failures captured
+ * by observability.ts). The founder saw "11 backend errors in 24h" in
+ * Aloa X and "0 errors in the last 7 days — all systems operational"
+ * here: two different tables, two different definitions, one
+ * contradictory screen pair.
+ *
+ * Both surfaces now read the SAME table (`error_events`) with the SAME
+ * time windows (24h / 7d), so the numbers can never drift apart again.
+ * Aloa X's "backend errors" alert deep-links here for the stack traces.
  */
 export const getSystemErrors = query({
   args: { tokenIdentifier: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, args) => {
     await requireFounder(ctx, args.tokenIdentifier, args.sessionToken);
 
-    const events = await ctx.db
-      .query("analytics_events")
-      .take(1000);
-
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
+    const week7d = now - 7 * DAY;
 
-    // CRO AUDIT FIX — NOISE_PATTERNS filter to prevent ALOA chat content
-    // from leaking through error events. If an error event's name contains
-    // any of these patterns, it's excluded entirely. This prevents the
-    // founder from seeing user ALOA search queries or chat content that
-    // might be embedded in error properties.
-    const NOISE_PATTERNS = [
-      'aloa', 'search', 'chat_message', 'chat_conversation',
-      'draft_generated', 'ai_request', 'gemini', 'citation',
-      'research_', 'document_generated', 'form_submit',
-      'user_query', 'prompt', 'conversation',
-    ];
+    // Bounded read of the server-side error telemetry (30-day retention,
+    // 1000-row hard cap per scope in observability.ts — 200 is generous).
+    const rows = await ctx.db
+      .query("error_events")
+      .withIndex("by_timestamp", (q: any) => q.gte("timestamp", week7d))
+      .order("desc")
+      .take(200);
 
-    return events
-      .filter((e: any) => {
-        const evt = (e.event || '').toLowerCase();
-        // Must be an error/fail/exception event
-        if (!(evt.includes('error') || evt.includes('fail') || evt.includes('exception'))) return false;
-        // Must be within 7 days
-        if ((e.timestamp || 0) <= now - 7 * DAY) return false;
-        // CRO AUDIT FIX — exclude events that might contain ALOA/chat content
-        if (NOISE_PATTERNS.some(p => evt.includes(p))) return false;
-        return true;
-      })
-      .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0))
-      .slice(0, 50)
-      .map((e: any) => {
-        // CRO AUDIT FIX — strip properties to only safe fields.
-        // Never return raw properties — they might contain user content.
-        const safeProps: any = {};
-        const rawProps = e.properties || {};
-        // Only keep known-safe error fields
-        if (rawProps.errorMessage) safeProps.errorMessage = rawProps.errorMessage;
-        if (rawProps.errorType) safeProps.errorType = rawProps.errorType;
-        if (rawProps.error) safeProps.error = rawProps.error;
-        if (rawProps.url) safeProps.url = rawProps.url;
-        if (rawProps.method) safeProps.method = rawProps.method;
-        if (rawProps.status) safeProps.status = rawProps.status;
-        if (rawProps.statusCode) safeProps.statusCode = rawProps.statusCode;
-        return {
-          event: e.event,
-          firmId: e.firmId,
-          properties: safeProps,
-          timestamp: e.timestamp,
-          timeAgo: Math.floor((now - (e.timestamp || 0)) / DAY),
-        };
-      });
+    const errors24h = rows.filter((e: any) => e.timestamp >= now - DAY).length;
+
+    return {
+      // Windowed counts — the header shows both so the number Aloa X
+      // quotes ("N in 24h") is literally on this screen too.
+      errors24h,
+      errors7d: rows.length,
+      errors: rows.map((e: any) => ({
+        id: e._id,
+        scope: e.scope ?? "unknown",      // cron | webhook | action | http
+        name: e.name ?? "unknown",        // e.g. 'crons:runSubscriptionDunning'
+        message: e.message ?? "",
+        stack: e.stack ?? null,           // expandable in the UI
+        context: e.context ?? null,       // JSON string with extra detail
+        severity: e.severity ?? "error",  // error | warning
+        timestamp: e.timestamp,
+        timeAgoDays: Math.floor((now - (e.timestamp || 0)) / DAY),
+      })),
+    };
   },
 });
 

@@ -378,9 +378,14 @@ describe('the worker (convex/legal/worker.ts)', () => {
         expect(worker).toContain('pdf.deferred');
     });
 
-    it('index pages harvest same-domain child links (conservative cap)', () => {
-        expect(worker).toContain('MAX_LINKS_PER_INDEX');
+    it('index pages harvest child links through the strict filter (2026-11-22: cap + parentUrl)', () => {
+        // The raw-candidate cap replaced the old unfiltered same-domain cap:
+        // links now pass filterCandidateUrl (block-list + allow-list +
+        // off-domain rule) inside enqueueForEngine, with the index page as
+        // the parent.
+        expect(worker).toContain('MAX_LINK_CANDIDATES_PER_INDEX');
         expect(worker).toContain('enqueueForEngine');
+        expect(worker).toContain('parentUrl: task.sourceUrl,');
     });
 
     it('retry policy caps at 3 attempts then terminal failure', () => {

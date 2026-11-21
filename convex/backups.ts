@@ -11,7 +11,8 @@
  * off-Convex copies of your entire database.
  *
  * WHAT IT DOES:
- *   1. Reads every table in the Convex database (72 tables)
+ *   1. Reads every table in the Convex database (135 tables — the full
+ *      schema inventory, audited 2026-11-22)
  *   2. Serializes all documents to a single JSON blob
  *   3. Compresses with gzip
  *   4. Uploads to GitHub (if GITHUB_BACKUP_TOKEN is set)
@@ -30,7 +31,11 @@
  *     TELEGRAM_BOT_TOKEN     — bot token from @BotFather
  *     TELEGRAM_BACKUP_CHAT_ID — chat ID of the private channel (negative number)
  *
- * If a target's env vars are missing, it silently skips. The app still works.
+ * If a target's env vars are missing, it records one `none` row per run
+ * (target "none", success false) so the pipeline's firing stays visible;
+ * the ALOA X watchdog reads the env vars directly and shows an honest
+ * "NOT CONFIGURED" info state — no false "backup failed" alarms. The
+ * app still works either way.
  *
  * COST: $0/month — GitHub private repos are free, Telegram cloud is free.
  */
@@ -39,28 +44,73 @@ import { internalAction, mutation, query, internalQuery, internalMutation } from
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 
-// ─── Table list — all 72 tables from schema.ts ────────────────────────────
+// ─── Table list — every table in convex/schema.ts (2026-11-22 audit) ──────
+// FOUNDER AUDIT ("document what exact data this job is intended to back
+// up"): the original list had 72 tables and had drifted — 63 newer tables
+// were silently excluded, including the ENTIRE Legal KB (judgments,
+// instruments, chunks, artifacts, queue, seeds), the Aloa X watchdog
+// (alerts/state/login events), sessions, push tokens, wallets, trust
+// transactions, reconciliation reports and the estate/visitor stack.
+// This list is now the complete schema inventory (135 tables), grouped by
+// domain so future drift is easy to spot. `legal_raw_artifacts` rows are
+// metadata only — the artifact BYTES live in Convex file storage, which
+// table reads cannot export (an honest boundary: the parse cache is
+// re-fetchable from source URLs; the structured data IS backed up).
 const ALL_TABLES = [
-  "firms", "users", "matters", "contacts", "tasks", "documents", "workflows",
-  "leads", "notifications", "invoices", "events", "timeEntries", "expenses",
-  "firmActivity", "chatMessages", "chatConversations", "noteNotebooks",
-  "notePages", "eventTypes", "contactCategories", "documentCategories",
-  "checklistTemplates", "documentTemplates", "documentTemplateCategories",
-  "externalCounselInvites", "automationRules", "intakeForms",
-  "documentGenerationMetadata", "clientMessages", "archive",
-  "researchNotebooks", "researchSources", "researchMessages",
-  "researchAnalysisResults", "presence", "properties", "tenancies",
-  "memories", "aloaConversations", "aloaMessages", "analytics_events",
-  "usage_snapshots", "firm_health_scores", "user_feedback", "legal_modules",
-  "statutes", "firm_licenses", "ledger_entries", "service_charges",
-  "leads_pipeline", "automation_logs", "atrium_inbound_messages",
-  "index_checkpoints", "module_usage_logs", "aloa_documents",
-  "sales_inquiries", "service_request_types", "client_service_requests",
-  "maintenance_tickets", "portal_invites", "scheduled_messages",
-  "portal_conversations", "portal_messages", "payment_proofs",
-  "portal_settings", "portal_notices", "notification_preferences",
-  "proactive_insights", "conversation_summaries", "audit_logs",
-  "invoice_outbox", "backup_log",
+  // Core workspace
+  "firms", "users", "contacts", "matters", "matterStageHistory", "tasks",
+  "documents", "workflows", "events", "eventTypes", "timeEntries", "expenses",
+  "leads", "notifications", "invoices", "archive", "contactCategories",
+  "documentCategories", "checklistTemplates", "documentTemplates",
+  "documentTemplateCategories", "externalCounselInvites", "intakeForms",
+  "documentGenerationMetadata", "conflict_checks", "feature_flags",
+  "termsAcceptance", "impersonation_tokens", "rateLimits",
+  // Messaging & portals
+  "presence", "chatMessages", "chatConversations", "clientMessages", "portal_conversations",
+  "portal_messages", "portal_invites", "portal_notices", "portal_settings",
+  "scheduled_messages", "message_opt_outs", "atrium_inbound_messages",
+  "notification_preferences", "app_notifications",
+  // Notes & research
+  "noteNotebooks", "notePages", "researchNotebooks", "researchSources",
+  "researchMessages", "researchAnalysisResults",
+  // AI & voice
+  "memories", "aloaConversations", "aloaMessages", "aloa_documents",
+  "ai_output_logs", "conversation_summaries", "proactive_insights",
+  "voiceCaptures", "voiceSnippets", "voiceDictionary",
+  // Legal knowledge base (the autonomous corpus)
+  "legal_scrape_queue", "legal_raw_artifacts", "legal_judgments",
+  "legal_instruments", "legal_chunks", "legal_query_cache",
+  "legal_seed_sources", "legal_engine_state",
+  "statutes", "legal_modules", "instruments", "instrument_provisions",
+  "instrument_changes", "court_forms", "authorityLibrary",
+  // Property (Atrium)
+  "properties", "tenancies", "service_charges", "maintenance_tickets",
+  "client_service_requests", "service_request_types", "payment_proofs",
+  "property_relationships", "relationship_types", "resident_wallets",
+  "wallet_transactions", "trust_transactions", "estate_amenities",
+  "estate_amenity_bookings", "estate_bulletins", "estate_service_providers",
+  "visitor_tokens",
+  // Money
+  "ledger_entries", "charge_types", "financial_counters",
+  "financial_audit_log", "financial_reconciliation_reports",
+  "reconciliation_matches", "invoice_outbox", "paystackEvents",
+  "refundRequests", "organization_payout_details",
+  // Automation & growth
+  "automationRules", "automation_workflows", "automation_dispatch_log",
+  "automation_logs", "automation_unit_opt_outs", "leads_pipeline",
+  "sales_inquiries", "subscriptionRequests", "subscriptionAddons",
+  "firm_licenses", "firm_health_scores", "usage_snapshots",
+  "analytics_events", "module_usage_logs", "index_checkpoints",
+  "user_feedback", "institutions",
+  // WhatsApp
+  "whatsapp_settings", "whatsapp_templates", "whatsapp_template_mappings",
+  // Security & observability
+  "sessions", "user_push_tokens", "blockedIps", "suspendedUsers",
+  "securityEvents", "sentry_arrival_requests", "audit_logs",
+  "error_events", "alox_alerts", "alox_state", "founder_login_events",
+  "table_size_records", "firmActivity",
+  // Self-reference (the backup ledger itself)
+  "backup_log",
 ] as const;
 
 // ─── Config helpers ──────────────────────────────────────────────────────
@@ -257,6 +307,17 @@ export const runBackup = internalAction({
     const telegramConfig = getTelegramConfig();
 
     if (!githubConfig && !telegramConfig) {
+      // 2026-11-22: the job FIRES but has nowhere to send data. Record
+      // that fact (target "none", success false) so the founder can see
+      // the pipeline is alive but unconfigured — the ALOA X watchdog
+      // separately reads the env vars and shows the honest "NOT
+      // CONFIGURED" state instead of "never completed". Old "none" rows
+      // are pruned to the last 7 (a week's evidence is plenty).
+      try {
+        await ctx.runMutation(internal.backups.recordUnconfiguredRun, {});
+      } catch (e: any) {
+        console.warn("[Backup] Could not record the unconfigured run:", e?.message);
+      }
       return { success: false, reason: "NO_TARGETS_CONFIGURED" };
     }
 
@@ -374,6 +435,40 @@ export const runBackup = internalAction({
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BACKUP LOG MUTATIONS / QUERIES
+
+/**
+ * 2026-11-22: nightly-run evidence when NO target is configured. Inserts
+ * one `none` row per unconfigured run (so the job's firing is visible in
+ * backup_log) and prunes older `none` rows to the most recent 7 — bounded,
+ * and never touched by the per-target retention (which only deletes
+ * SUCCESS rows by target).
+ */
+export const recordUnconfiguredRun = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = new Date().toISOString();
+    await ctx.db.insert("backup_log", {
+      target: "none",
+      backupKey: `unconfigured/${now.split("T")[0]}`,
+      externalId: "",
+      fileUrl: "",
+      sizeBytes: 0,
+      success: false,
+      error: "NO_TARGETS_CONFIGURED — set GITHUB_BACKUP_* or TELEGRAM_* env vars (RUNBOOK.md → Backups)",
+      createdAt: now,
+    });
+    // Prune: keep the newest 7 "none" rows, delete the rest.
+    const noneRows = await ctx.db
+      .query("backup_log")
+      .withIndex("by_target_created", (q: any) => q.eq("target", "none").lt("createdAt", now))
+      .order("desc")
+      .take(50);
+    for (const row of noneRows.slice(7)) {
+      await ctx.db.delete(row._id);
+    }
+    return { recorded: true };
+  },
+});
 // ═══════════════════════════════════════════════════════════════════════════
 
 export const logBackup = internalMutation({

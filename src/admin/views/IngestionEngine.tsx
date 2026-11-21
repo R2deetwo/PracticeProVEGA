@@ -30,6 +30,7 @@ import { api } from '../../../convex/_generated/api';
 import { useFounderAuth } from '../FounderContexts';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import { Z_CLASS } from '../../overlays/constants';
 
 const CARD = 'bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 p-5 shadow-sm overflow-hidden';
 
@@ -82,6 +83,11 @@ export const IngestionEngine: React.FC = () => {
     const [busy, setBusy] = useState<string | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
     const [urlInput, setUrlInput] = useState('');
+    // ── Inspector drawer (2026-11-22: "no dead-end metric cards") ────
+    // Which bucket the drawer is showing rows for (null = closed).
+    const [inspectorBucket, setInspectorBucket] = useState<string | null>(null);
+    const [inspector, setInspector] = useState<any>(null);
+    const [inspectorLoading, setInspectorLoading] = useState(false);
 
     const sessionToken = bearerToken ?? undefined;
 
@@ -102,6 +108,22 @@ export const IngestionEngine: React.FC = () => {
         const interval = setInterval(refresh, 10_000);
         return () => clearInterval(interval);
     }, [refresh]);
+
+    // ── Inspector fetch ───────────────────────────────────────────────
+    const openInspector = useCallback(async (bucket: string) => {
+        if (!convex || !sessionToken) return;
+        setInspectorBucket(bucket);
+        setInspector(null);
+        setInspectorLoading(true);
+        try {
+            const data = await convex.query(api.legal.engine.getIngestionInspector, { sessionToken, bucket });
+            setInspector(data);
+        } catch (e: any) {
+            setInspector({ bucket, hint: e?.message || 'Could not load this bucket.', rows: [] });
+        } finally {
+            setInspectorLoading(false);
+        }
+    }, [convex, sessionToken]);
 
     // ── Actions ─────────────────────────────────────────────────────────
     // 2026-11-20 OWNER BUG REPORT ("the paused button can't be toggled —
@@ -171,10 +193,17 @@ export const IngestionEngine: React.FC = () => {
                 sessionToken,
                 url: urlInput.trim(),
             });
-            setNotice(result?.queued
-                ? `Added to the queue (${String(result?.category ?? 'unknown').replace(/_/g, ' ')}). The next run picks it up.`
-                : `Already known to the queue (${String(result?.status || 'present')}).`);
-            setUrlInput('');
+            if (result?.queued) {
+                setNotice(`Added to the queue (${String(result?.category ?? 'unknown').replace(/_/g, ' ')}). The next run picks it up.`);
+                setUrlInput('');
+            } else if (result?.rejected) {
+                // 2026-11-22 strict filter: show WHY the URL was refused
+                // (block-list hit or off the legal allow-list) so the fix
+                // is obvious instead of a silent no-op.
+                setNotice(`Not queued — ${result.rejected}.`);
+            } else {
+                setNotice(`Already known to the queue (${String(result?.status || 'present')}).`);
+            }
             await refresh();
         } catch (e: any) {
             setNotice(null);
@@ -190,11 +219,44 @@ export const IngestionEngine: React.FC = () => {
     const queue = dash?.queue ?? {};
     const lastSummary = engine?.lastRunSummary ?? null;
 
-    const statTile = (label: string, value: number | string, sub?: string) => (
-        <div key={label} className="bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-700 p-3">
-            <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{label}</p>
+    // Pipeline stage strip (2026-11-22): where documents succeed or stall,
+    // visible at a glance. Embed shows "dormant" while 0 chunks carry
+    // embeddings — an honest boundary, not a failure.
+    const stages: Array<{ label: string; state: 'ok' | 'dormant' }> = [
+        { label: 'Fetch', state: (engine?.runsCount ?? 0) > 0 ? 'ok' : 'dormant' },
+        { label: 'Dedupe', state: (engine?.runsCount ?? 0) > 0 ? 'ok' : 'dormant' },
+        { label: 'Parse', state: (engine?.runsCount ?? 0) > 0 ? 'ok' : 'dormant' },
+        { label: 'Chunk', state: (corpus?.chunks ?? 0) > 0 ? 'ok' : 'dormant' },
+        { label: 'Embed', state: (corpus?.chunksEmbedded ?? 0) > 0 ? 'ok' : 'dormant' },
+        { label: 'Index', state: ((corpus?.judgments ?? 0) + (corpus?.instruments ?? 0)) > 0 ? 'ok' : 'dormant' },
+    ];
+    const STAGE_STYLE: Record<string, string> = {
+        ok: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300',
+        dormant: 'bg-slate-50 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-700 text-slate-400 dark:text-zinc-500',
+    };
+
+    // Interactive stat tile (2026-11-22): every metric opens its inspector
+    // bucket — no dead-end cards. ADR-0004: this file is raw-form-free, so
+    // the tile is a div role="button" (the same house pattern as the
+    // Switch above), never a raw form element.
+    const statTile = (label: string, value: number | string, bucket: string, sub?: string) => (
+        <div
+            key={label}
+            role="button"
+            tabIndex={0}
+            onClick={() => openInspector(bucket)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openInspector(bucket); } }}
+            className="text-left bg-slate-50 dark:bg-zinc-900/60 rounded-lg border border-slate-200 dark:border-zinc-700 p-3 hover:border-primary-300 dark:hover:border-primary-700 hover:bg-primary-50/40 dark:hover:bg-primary-900/10 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:outline-none"
+            aria-label={`Inspect ${label}`}
+        >
+            <div className="flex items-center justify-between gap-1">
+                <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{label}</p>
+                <svg className="w-3 h-3 text-slate-300 dark:text-zinc-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+            </div>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5">{value}</p>
-            {sub && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5">{sub}</p>}
+            {sub && <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 leading-relaxed">{sub}</p>}
         </div>
     );
 
@@ -256,7 +318,27 @@ export const IngestionEngine: React.FC = () => {
                     </div>
 
                     {engine && (
-                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-zinc-700 flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <>
+                        {/* Pipeline stages — the end-to-end chain at a glance:
+                            Fetch → Dedupe → Parse → Chunk → Embed → Index.
+                            A slate chip is a DORMANT stage (by design), a
+                            green chip is live. */}
+                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-zinc-700">
+                            <p className="text-2xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Pipeline</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {stages.map((s) => (
+                                    <span key={s.label} className={`px-2 py-1 rounded-md border text-2xs font-bold ${STAGE_STYLE[s.state]}`}>
+                                        {s.state === 'ok' ? '●' : '○'} {s.label}
+                                    </span>
+                                ))}
+                            </div>
+                            {(corpus?.chunksEmbedded ?? 0) === 0 && (corpus?.chunks ?? 0) > 0 && (
+                                <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1.5 leading-relaxed">
+                                    Embed is dormant by design: keyword search works today; the vector leg joins when the Python ingester runs the embedding pass.
+                                </p>
+                            )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
                             <div className="text-2xs text-slate-500 dark:text-zinc-400">
                                 <span className="font-bold text-slate-700 dark:text-zinc-300">{engine.runsCount}</span> runs
                                 · last {timeAgo(engine.lastRunAt)} · {engine.maxTasksPerRun} pages/run
@@ -269,10 +351,11 @@ export const IngestionEngine: React.FC = () => {
                                         ['dedupSkipped', 'bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300'],
                                         ['failed', 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'],
                                         ['pdfDeferred', 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'],
+                                        ['purgedBlocked', 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-300'],
                                     ] as const).map(([key, cls]) =>
                                         lastSummary[key] > 0 ? (
                                             <span key={key} className={`px-2 py-0.5 rounded-full text-2xs font-bold ${cls}`}>
-                                                {key === 'notModified' ? '304 free' : key === 'pdfDeferred' ? 'PDFs deferred' : key}: {lastSummary[key]}
+                                                {key === 'notModified' ? '304 free' : key === 'pdfDeferred' ? 'PDFs deferred' : key === 'purgedBlocked' ? 'junk purged' : key}: {lastSummary[key]}
                                             </span>
                                         ) : null,
                                     )}
@@ -296,6 +379,7 @@ export const IngestionEngine: React.FC = () => {
                                 </Button>
                             </div>
                         </div>
+                        </>
                     )}
 
                     {notice && (
@@ -310,24 +394,24 @@ export const IngestionEngine: React.FC = () => {
                     )}
                 </div>
 
-                {/* Corpus + queue stats */}
+                {/* Corpus + queue stats — every tile opens its inspector */}
                 {corpus && (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {statTile('Judgments', corpus.judgments)}
-                        {statTile('Instruments', corpus.instruments)}
-                        {statTile('Chunks', corpus.chunks, `${corpus.chunksEmbedded} embedded`)}
-                        {statTile('Raw artifacts', corpus.rawArtifacts, 'stored once, hashed')}
+                        {statTile('Judgments', corpus.judgments, 'judgments')}
+                        {statTile('Instruments', corpus.instruments, 'instruments')}
+                        {statTile('Chunks', corpus.chunks, 'chunks', corpus.chunksEmbedded > 0 ? `${corpus.chunksEmbedded} embedded` : '0 embedded — tap to see why')}
+                        {statTile('Raw artifacts', corpus.rawArtifacts, 'artifacts', 'stored once, hashed')}
                     </div>
                 )}
                 {dash && (
                     <div className={CARD}>
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-3">Queue</h3>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                            {statTile('Queued', queue.queued ?? 0)}
-                            {statTile('In progress', queue.in_progress ?? 0)}
-                            {statTile('Completed', queue.completed ?? 0)}
-                            {statTile('Dedup / 304', queue.skipped_dedup ?? 0)}
-                            {statTile('Failed', queue.failed ?? 0)}
+                            {statTile('Queued', queue.queued ?? 0, 'queued')}
+                            {statTile('In progress', queue.in_progress ?? 0, 'in_progress')}
+                            {statTile('Completed', queue.completed ?? 0, 'completed')}
+                            {statTile('Dedup / 304', queue.skipped_dedup ?? 0, 'skipped_dedup')}
+                            {statTile('Failed', queue.failed ?? 0, 'failed', 'tap for URL + error')}
                         </div>
                         {Array.isArray(dash.queuedPreview) && dash.queuedPreview.length > 0 && (
                             <div className="mt-3 space-y-1">
@@ -476,8 +560,67 @@ export const IngestionEngine: React.FC = () => {
                 <p className="text-center text-2xs text-slate-400 dark:text-zinc-500 leading-relaxed px-4">
                     Honest boundaries: PDFs are deferred to the desktop ingester (pypdf); embeddings stay optional — keyword
                     search works now, the vector leg joins when embeddings run. Every step is audit-logged with SHA-256 provenance.
+                    Junk URLs (cdn-cgi, cookie pages, blogs) are rejected before the queue and purged from it every run.
                 </p>
             </div>
+
+            {/* ── Inspector drawer (2026-11-22) ────────────────────────────
+                Bottom sheet listing the rows behind any metric tile: where
+                records live, why chunks aren't embedded, and the exact URL +
+                error for every failed item. Closes on veil tap or the X. */}
+            {inspectorBucket && (
+                <>
+                    <div
+                        className={`fixed inset-0 ${Z_CLASS.bottomNavVeil} bg-black/40 backdrop-blur-[2px]`}
+                        onClick={() => setInspectorBucket(null)}
+                    />
+                    <div className={`fixed bottom-0 left-0 right-0 ${Z_CLASS.bottomNavSheet} max-h-[78vh] flex flex-col bg-white dark:bg-zinc-900 rounded-t-2xl shadow-2xl animate-slide-in-up origin-bottom`}>
+                        <div className="flex items-start justify-between gap-3 px-5 pt-4 pb-3 border-b border-slate-200 dark:border-zinc-700">
+                            <div className="min-w-0">
+                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Inspector</p>
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white capitalize">{String(inspectorBucket).replace(/_/g, ' ')}</h3>
+                                {inspector?.hint && (
+                                    <p className="text-2xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">{inspector.hint}</p>
+                                )}
+                            </div>
+                            <div
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setInspectorBucket(null)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setInspectorBucket(null); } }}
+                                className="p-1.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 flex-shrink-0 cursor-pointer"
+                                aria-label="Close inspector"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-5 py-3 space-y-2">
+                            {inspectorLoading && (
+                                <div className="py-8 text-center">
+                                    <div className="w-7 h-7 mx-auto border-2 border-slate-300 dark:border-zinc-700 border-t-primary-600 rounded-full animate-spin" />
+                                    <p className="text-2xs text-slate-400 mt-2">Loading rows…</p>
+                                </div>
+                            )}
+                            {!inspectorLoading && (inspector?.rows?.length ?? 0) === 0 && (
+                                <p className="text-2xs text-slate-400 dark:text-zinc-500 text-center py-8">
+                                    Nothing here yet — this bucket is empty.
+                                </p>
+                            )}
+                            {!inspectorLoading && (inspector?.rows ?? []).map((row: any, i: number) => (
+                                <div key={i} className="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900/60 border border-slate-200 dark:border-zinc-700">
+                                    <p className="text-xs font-semibold text-slate-800 dark:text-zinc-200 break-words leading-snug">{row.title}</p>
+                                    <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-0.5 break-words leading-relaxed">{row.sub}</p>
+                                    {row.sourceUrl && row.sourceUrl !== row.title && (
+                                        <p className="text-2xs text-primary-600 dark:text-primary-400 mt-1 break-all">{row.sourceUrl}</p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

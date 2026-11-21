@@ -2310,3 +2310,106 @@ Live smoke test in DEV demo mode (Vega): Help categories/order/search
 verified, Profile has no sub-tabs, Display holds all appearance settings,
 Notifications tab renders the new card without the error boundary, and
 the matter-row hover geometry measured overlap-free.
+
+## 2026-11-22 (b) — Contract Analyzer into Research + ALOA X truth audit + Legal KB strict URL filtering
+
+Owner direction (two reports): "I think I want to subsume Contract Analyzer
+into Research — AI Notes, Practice Notes, and Contract Analyzer. Make it
+neat please." + the ALOA X / Legal Ingestor audit ("every status, count,
+alert, backup check, and account metric reflects real, accurate,
+non-contradictory system truth").
+
+**1. Research page (3 tabs).** ContractAnalyzer gains `embedded` (hides its
+sticky header inside another page); ResearchView hosts it as the third tab
+(lazy chunk) alongside AI Notes (self-gated Growth+) and Practice Notes.
+`researchTab` context/hash deep-links; the legacy `/analyzer` route renders
+ResearchView with the analyzer tab pre-selected. The standalone Sidebar +
+BottomNav Contract Analyzer items are gone; Research is NO LONGER
+plan-locked on either surface (locking it would take the standard-plan
+analyzer away from Core firms — the AI Notes tab gates itself instead).
+navParity.test.ts pins the new contract.
+
+**2. Error-telemetry unification (the "11 vs 0" contradiction).** Root
+cause: ALOA X counted `error_events` (server-side cron/webhook/action
+failures from observability.ts) while System Status read `analytics_events`
+(client product analytics, name-filtered, NOISE_PATTERNS-excluded) — two
+tables, two definitions, one confused founder. getSystemErrors now reads
+`error_events` (same table, same 24h/7d windows, stack + context
+expandable); the header quotes BOTH counts. Backend-error alerts deep-link
+to System Status (linkViewFor: backend.*→system, ingestion.*→ingestion;
+VIEW_MAP gained `system`), and the AloaX Backend card + open alert are
+clickable → their detail screen. No dead-end cards.
+
+**3. The 02:00 UTC backup check, honestly.** The pipeline EXISTS (cron →
+runBackup → gzip → GitHub/Telegram → backup_log) but silently no-ops with
+NO_TARGETS_CONFIGURED when no env vars are set — which read as "never
+completed." evaluateBackups is now config-aware: no targets → INFO (no
+alert, honest "NOT CONFIGURED" card naming the env vars + Runbook);
+configured-but-never-succeeded → real warning; stale → the old ladder.
+runBackup records one `none` row per unconfigured run (7-row retention) so
+the job's firing is visible. ALL_TABLES was 63 tables stale — it excluded
+the ENTIRE Legal KB, sessions, push tokens, wallets, trust transactions,
+reconciliation reports and the estate stack; it now carries the full
+135-table schema inventory (grouped by domain; legal_raw_artifacts bytes
+stay in file storage — documented boundary).
+
+**4. Cryptic metrics decoded.** The Database card no longer says
+"top: proactive_insights (407)" — TABLE_LABELS renders plain English
+("Largest: AI proactive insights — 407 rows" + what the rows are + measured
+when + cap flag). The Financial Books card is backed by the real
+financial_reconciliation_reports row and shows its figures (unmatched
+proofs, credits waiting, check age, 07:15 UTC cadence). The Legal KB card
+shows operational telemetry (runs, completed/failed/queued, corpus counts,
+last run) instead of a bare "ON" — and gatherSignals now carries completed
+counts + corpus stats.
+
+**5. Founder-login feed honesty.** "No founder logins recorded yet" while
+sessions exist is EXPECTED: tracking began 19 Nov 2026 and long-lived
+"remember me" sessions never re-fire verifyLogin. The empty feed now says
+exactly that, plus live active-session totals, instead of looking broken.
+
+**6. Legal Ingestion strict URL filtering (the owner task).** New pure
+module `src/legal/ingestionEngine/urlFilter.ts`: (1) normalize every
+candidate (force https, strip fragments + utm/fbclid/gclid, sort params,
+trailing slashes); (2) the global block-list (cdn-cgi, cookie/privacy/
+terms, auth, wp-admin, feeds, blog/tag/author, share/gallery/events, asset
+extensions — case-insensitive, bare forms covered); (3) allow-list with
+priority scoring — direct .pdf/.doc/.docx + canonical detail paths
+(/akn/ng/judgment/*, /judgments/*, /legislation/*, …) = DOC_LINK 2, index/
+listing pages = INDEX_DISCOVERY 6 (discovery only — never stored as a
+Judgment/Instrument), everything else rejected WITH a reason; (4) off-domain
+links rejected unless direct document links on an official subdomain of the
+parent. Wiring: enqueueForEngine filters every harvest candidate with the
+parent page; the founder add-a-URL shows its rejection reason;
+seedBuiltinSources refuses policy-violating seeds; PRIORITY shares
+URL_PRIORITY with the schema. **The purge:** purgeBlockedQueuedInternal
+deletes policy-violating QUEUED rows (≤1000/run) before every claim — the
+junk the founder saw (cdn-cgi email-protection, cookie-policy, blog) dies
+on the next 15-minute cycle — and the run summary surfaces a "junk purged"
+chip. Index harvest caps raw candidates at 200 (nav/footer links die in
+the filter). Seeds' lastSweptAt is now stamped by the ENGINE when it
+fetches a seed (not just the Monday cron) — "swept never" while the engine
+had crawled it was a telemetry lie.
+
+**7. Ingestion inspector (no dead-end cards).** Every metric tile
+(JUDGMENTS/INSTRUMENTS/CHUNKS/ARTIFACTS/queue buckets) opens a bottom-sheet
+inspector via the new founder-gated getIngestionInspector: where records
+live (legal_* tables + storage), the exact URL + error + attempts for
+failed rows, dedup/priority/parse info per queue row, and the chunks hint
+explaining "0 embedded" (keyword search works; embeddings are the Python
+ingester's pass — a documented boundary, not a failure). A pipeline stage
+strip (Fetch → Dedupe → Parse → Chunk → Embed → Index) shows live/dormant
+per stage. ADR-0004 held: tiles are div role="button", the file stays
+raw-form-free.
+
+**Gates:** tsc 0 errors; eslint 0 errors on all touched files (11
+pre-existing rounded-xl warnings in untouched ContractAnalyzer lines);
+vitest 3,394 + 68 new/updated (legalUrlFilter.test.ts: 46 pins covering
+normalization, block-list, allow-lists, off-domain doc links, seeds,
+purge/enqueue/priority wiring; aloxWatchdog.test.ts: config-aware backups +
+unification wiring; navParity.test.ts: unlocked-Research contract;
+legalIngestionEngine.test.ts: strict-harvest pin) = 3,394 passed / 1
+skipped; UI-primitives ratchet held at 2218; design-token gate green;
+`npx vite build` clean. Convex deploy note: getSystemErrors/
+getIngestionInspector/alox signals need a production deploy before the
+founder APK shows them (the views degrade gracefully pre-deploy).
