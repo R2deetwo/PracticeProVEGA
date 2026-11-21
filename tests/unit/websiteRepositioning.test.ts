@@ -1036,10 +1036,11 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(collab).toContain("Inside Vega this thread lives in Messages");
     expect(collab).toContain("Message ");
     // R78: re-measured on the current captures — the stack centers in the
-    // bell→divider gap with breathing room (was 8.55cqw edge-to-edge,
-    // hugging the profile text — the owner's "too prominent / floating
-    // awkwardly" report). Smaller avatars (1.6cqw, was 1.95).
-    expect(collab).toContain("9.1cqw");
+    // bell→profile gap with ~0.5% clearance both sides (was 8.55cqw
+    // edge-to-edge, hugging the profile text — the owner's "too
+    // prominent / floating awkwardly" report). Smaller avatars (1.6cqw,
+    // was 1.95).
+    expect(collab).toContain("8.75cqw");
     expect(collab).toContain("s(1.6)");
     expect(collab).toContain("COLLAB_ROSTER");
     expect(vegaHero).toContain("CollabPresence");
