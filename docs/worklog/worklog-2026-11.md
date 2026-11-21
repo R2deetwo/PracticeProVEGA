@@ -2728,3 +2728,29 @@ the hub green recorded below.
 Vega and Complete") must never be implemented at the `:root` token
 level — `:root` is the company register. Product accents are scoped
 classes; the corporate brand is the default.
+
+**Post-promote live check caught a second layer (fixed in 172a6409):**
+the first promote (e870655b) made `:root` green, yet the hub still
+computed blue — the **app-container div wraps the ENTIRE tree, including
+the logged-out marketing router**, and `accentSkinClass('komplete')`
+now returned a class, so `.app-skin-komplete` repainted the hub from
+inside. The accent skin is now **AUTH-GATED** in AccentThemeContext
+(`currentUser ? accentSkinClass(resolved) : ''`): no signed-in user →
+no workspace → no product accent → the corporate green `:root` owns
+every logged-out surface (hub, login, marketing sites). Signed-in
+users keep their product register on every workspace route.
+
+**Live verification (practice-pro-vega.vercel.app @ 172a6409, fresh
+session, DOM computed styles):** P logo `rgb(22,163,74)` · "Pro"
+wordmark `rgb(22,163,74)` · Talk to Us gradient
+`rgb(22,163,74)→rgb(20,83,45)` · app-container carries NO skin class ·
+`:root --color-primary-500: 22 163 74` · Contact drawer primary text
+green · screenshot pixel scan 555 green vs 7 anti-alias samples
+(audit-shots/hub-green-restored-172a6409.png). Production promote run
+44955621200 green; version.json sha 172a6409, healthy. A stale dispatch
+(44955599487, pre-rebase sha) failed harmlessly — always re-dispatch
+after a rebase changes the commit SHA.
+
+**Note for the owner:** a normal browser refresh picks the fix up (the
+CSS URL is cache-busted per deploy); a hard refresh (Ctrl/Cmd+Shift+R)
+clears any stubbornly cached page.
