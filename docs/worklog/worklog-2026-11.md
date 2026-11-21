@@ -2585,3 +2585,94 @@ revive the mirror).
 repo's promote model. After every owner-visible feature batch, either run
 the promote workflow immediately or tell the owner explicitly that
 production lags until they do.
+
+---
+
+## 2026-11-22 (night) — modest-chameleon-129 brought fully online + ALOA Vox branding round + legal-grade session security
+
+### The prod key arrived; modest-chameleon-129 is now a live deployment
+
+The owner supplied the PROD-tier deploy key for `modest-chameleon-129`
+(`prod:…` prefix — Convex project practicepro-vega:practice-pro-production).
+Forensic follow-up on the earlier "bare Server Error for everything"
+mystery: **prod-tier deployments mask error details on the public HTTP
+API** (the CLI with a deploy key shows real errors) — the deployment was
+never "empty-broken"; it had an old bundle and masked errors.
+
+Deploy history this session: the first `npx convex deploy` accidentally
+shipped a STALE round-9 working tree (the sandbox's pprepo snapshot had
+reverted — caught because the CLI's available-functions list lacked
+alox:/legal//sessions:); repo repaired (`git fetch origin && git reset
+--hard origin/main`), CURRENT code redeployed, and all 15 env vars
+mirrored from gregarious-malamute-537 (two parser bugs fixed along the
+way: LEGAL_INGEST_TOKEN had absorbed a trailing line; the Firebase JSON
+was double-quoted). Verified live: `legal/queue:stats` executes against
+the mirrored token (empty corpus — fresh deployment, as expected).
+
+**Migration decision NOT taken unilaterally:** live traffic and ALL data
+(matters, clients, 5,468+ docs) remain on gregarious-malamute-537. The
+GitHub `CONVEX_DEPLOY_KEY` secret still points there (CI continues
+deploying where the data is). Cutting over to modest-chameleon-129
+requires: data export/import (nightly backup JSON → `npx convex import`
+or a scripted insert), repointing VITE_CONVEX_URL in web + APK builds,
+and swapping the CI secret — owner sign-off needed before any of that.
+
+### Missing-keys answer (owner question)
+
+- CLOUDFLARE_API_TOKEN (GitHub secret) — EXISTS but INVALID ("Invalid
+  API Token" in every promote run; mirror skipped, best-effort). Rotate
+  to revive the workers.dev mirror.
+- TELEGRAM_BOT_TOKEN + TELEGRAM_BACKUP_CHAT_ID — unset by design (no bot
+  token exists; GitHub backup target is configured and running).
+- AGENT_INSPECT_SECRET (Convex env) — unset; /api/agent/inspect and the
+  observability drill report "not configured" (ops tooling only).
+- Everything else the code references is set (Chakra ×3 tokens, Brevo,
+  Firebase, Gemini ×2, backup target, LEGAL_INGEST_TOKEN — now on BOTH
+  deployments).
+
+### The five upgrades (commit 58063da2, promoted as build-1248)
+
+1. **Collapsible desktop sidebar** — the w-64↔w-20 icon rail existed
+   (header toggle, tooltips, mobile-landscape auto-collapse); added
+   localStorage persistence so the choice survives reloads.
+2. **Centered Vox box** — the QuickCaptureView compact-header center slot
+   is now an absolutely-centered box button (true notch alignment
+   regardless of side-slot widths), first-use dismissible callout card
+   (voice capture + hybrid Legal Pad + multi-speaker + Growth+ copy),
+   and a subtle brand-tinted resting pulse (voxRestPulse keyframe,
+   prefers-reduced-motion safe). Built on ui/Button (ADR-0004 ratchet
+   held — the first raw <button> draft was caught and converted).
+3. **ALOA Vox naming** — standardized app-wide: header box, wide header,
+   bottom nav, dashboard card, settings (gear menu + Display card),
+   help center, upsell modal, Voice Tips, document.title, Terms
+   definition ("ALOA Vox"/"Vox" defined for Vega), pricing tiers
+   (Growth/Pro/Enterprise/Komplete), landing VegaSuite feature bullet.
+   Zero user-facing Quick Capture/QC/Whisper strings remain (internal
+   identifiers/comments only).
+4. **Session & multi-tab security** (docs/SESSION_SECURITY.md — the full
+   architecture + trade-offs doc): Remember-Me idle-lock exemption
+   RETIRED (15-min idle lock for every staff session; portal users keep
+   logout-on-idle); cross-tab idle truth via shared
+   practicepro_global_activity_ts (activity in any tab keeps all alive,
+   true idle locks all); lock/unlock propagates live across tabs via
+   storage events; second tab opened while locked mounts into the lock
+   screen. Token storage table + HttpOnly-cookie trade-off documented
+   (Convex direct-SPA constraint) with compensating controls.
+5. **Verification** — tsc 0 errors; eslint 0 on all touched files;
+   UI-primitives ratchet held at 2218; vitest 3,414 passed (+4 new
+   useIdleTimer cross-tab cases); vite build ok; CI on 58063da2: Tests,
+   E2E smoke, Staging deploy, APK build, CodeQL all green; production
+   promote run 44951802513 (59724d05 / build-1248) all three jobs green.
+   LIVE-verified on practice-pro-vega.vercel.app: version.json sha
+   59724d05; main bundle carries ALOA Vox aria-labels + sidebar/global
+   activity keys + tier strings; QuickCaptureView chunk carries the box,
+   callout key and rest-pulse class; CSS carries voxRestPulse; landing
+   chunk carries the ALOA Vox suite bullet; old strings ("Unlock Vox —",
+   bare "Vox™ voice") absent everywhere.
+
+**Lesson (re-learned, harder):** the sandbox's pprepo working tree can
+silently revert to a MONTH-OLD snapshot between messages — always
+`git fetch origin && git status` against the expected HEAD BEFORE any
+local build/deploy/test, and re-verify after. The stale deploy to
+modest-chameleon-129 was caught and corrected precisely because the
+deploy-then-probe loop ran.
