@@ -2890,3 +2890,20 @@ stack clearance both sides, 4 hint zones + the pill readout, page-order
 strip + App views label + load-gated overlays, See All pill,
 editor-r78 in the gallery, roster-close on swap. Production promote run
 44962380146 on b95489b3.
+
+**Post-promote LIVE verification (practice-pro-vega.vercel.app @
+d5a453d4, promote run 44962602493 green; the first promote 44962380146
+failed its own test gate — the 9.1cqw pin predated the final centring
+tweak, fixed and re-promoted):** stack clearance 0.51%/0.48% (bell /
+profile text), 4 hint zones mounted, the pill hover readout works, the
+See All pill opens the page-ordered gallery (strip: Dashboard → Matters
+→ Task board → Task list → Team tasks → DraftPro editor → Document
+vault → Research → Contacts → Billing → Invoice → Analytics → Calendar
+→ Matter notes, under the "App views" label), the DraftPro exhibit
+serves editor-r78.jpg with load-gated overlays. Audit shots:
+audit-shots/r78-hero-hint-zones.png, r78-suite-editor-exhibit.png,
+r78-live-lightbox-editor.png.
+
+**LESSON (re-learned):** the promote workflow's own test gate is a REAL
+gate — after a last-mile geometry tweak, re-run the touched test files
+before dispatching, or the pin fails in CI exactly as it would locally.
