@@ -2834,3 +2834,59 @@ prompt. Post-promote live verification recorded below.
   transcript top, scrollTop stable through the reveal, "↓ More below"
   pill showing. Audit shots: audit-shots/vega-aloa-product-specialist-
   9dcf349d.png + vega-institutional-band-9dcf349d.png.
+
+---
+
+## 2026-11-22 — R78: the preview refinements — centred presence stack, hint zones, See All pill, page-order gallery, lawyer-grade DraftPro capture
+
+**Owner spec (three asks, all on /vega):**
+
+1. **Teammate badges** ("too prominent and can linger or float awkwardly
+   across transitions"). Root causes found by re-measuring the CURRENT
+   captures (the R69 geometry predated the R74 capture refresh): the
+   stack's right edge sat 0.08% from the "Demo User" text —
+   edge-to-edge in the bell→profile gap. Fixes: smaller stack (1.6cqw
+   avatars, was 1.95; smaller +5 chip), centred in the gap (right
+   8.75cqw — measured live at 0.51% / 0.48% clearance); and the
+   TRANSITION layer — overlays are exhibit-keyed + load-gated in both
+   the lightbox and the suite card, so open roster/composer panels reset
+   on navigate and the stack only fades in once the swapped image has
+   painted (verified live: roster open + exhibit swap → roster closes).
+
+2. **Hover hints + expand + page order.** The capture-foot pill doubles
+   as the hover readout — hovering/focusing the workspace switcher,
+   profile, main-menu rail, Recent Matters, Firm Tasks or the calendar
+   shows that zone's one-line descriptor; the four new zones carry the
+   soft ring and click through to the lightbox. The lightbox gallery
+   now walks the app's own page order (Overview → Matters → Tasks →
+   Documents → Contacts → Financials → Team) under a visible "App
+   views" label (PAGE_GROUPS). Expand controls verified clean — zero
+   "review" wording anywhere on the page.
+
+3. **See All pill + DraftPro document.** A clean See All pill on the
+   workflow tab bar opens the page-ordered gallery at the current
+   exhibit. The DraftPro capture is RE-CAPTURED (editor-r78.jpg —
+   renamed, immutable-cache lesson): a Statement of Claim built through
+   the app's OWN assemble pipeline, shot from the real dev app at 2x —
+   centred caption, right-aligned suit number, dotted-leader parties,
+   centred bold underlined title, numbered paragraphs, proper franking
+   (VLM-verified to a lawyer's eye). TWO GENUINE PRODUCT BUGS fixed on
+   the way: the franking block hard-coded "(Counsel) for the Applicant"
+   on every process (now per-process: Claimant/Defendant/Petitioner/
+   Appellant/Respondent), and Tailwind's preflight stripped the
+   ordered-list markers so the AST's <ol> numbered paragraphs rendered
+   unnumbered in the editor (.ProseMirror ol/ul now carry markers;
+   print/DOCX already did).
+
+**Tooling:** scripts/build-soc-draft.ts (the pipeline builder) +
+scripts/capture-editor-r78.ts (Playwright capture: demo session seed +
+draft-session stash + /editor?draftKey screenshot at DPR 2 — the repo's
+Playwright build doesn't match the sandbox's chromium-1200, so the
+script points at it directly).
+
+**Gates:** tsc 0 · convex tsc 0 · vitest 3,428/3,428 (+5) · eslint 0 ·
+ratchet 2,218 held · build green. Live-checked in the headless preview:
+stack clearance both sides, 4 hint zones + the pill readout, page-order
+strip + App views label + load-gated overlays, See All pill,
+editor-r78 in the gallery, roster-close on swap. Production promote run
+44962380146 on b95489b3.
