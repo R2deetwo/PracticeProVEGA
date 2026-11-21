@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { ArrowsExpandIcon } from '../../../constants';
+import { Button } from '../../../components/ui';
 import { VegaAppShot } from './VegaAppShot';
 import { AppShotLightbox, type LightboxGroup } from './AppShotLightbox';
 
@@ -113,7 +115,7 @@ const TABS: SuiteTab[] = [
         ],
         shots: [
             {
-                src: '/assets/landing/app/editor.jpg',
+                src: '/assets/landing/app/editor-r78.jpg',
                 alt: 'DraftPro editor — a statement of claim under drafting, with the legal tools ribbon',
                 caption: 'THE DRAFTPRO EDITOR: A4 PAGINATION, LEGAL FONTS, [PLACEHOLDER] GUARDRAILS',
                 label: 'Editor',
@@ -215,12 +217,92 @@ const TABS: SuiteTab[] = [
 ];
 
 /** R69: the suite's exhibits as lightbox groups — also imported by
- *  VegaHero so the hero's dashboard capture rides the same gallery. */
+ *  VegaHero so the hero's dashboard capture rides the same gallery.
+ *  Kept for the suite's own tab vocabulary (tests pin it); the R78
+ *  lightbox walks PAGE_GROUPS (the app's page order) instead. */
 export const SUITE_GROUPS: LightboxGroup[] = TABS.map((t) => ({
     id: t.id,
     label: t.label,
     exhibits: t.shots,
 }));
+
+/** The hero's Dashboard exhibit — shared with PAGE_GROUPS. */
+const DASHBOARD_EXHIBIT = {
+    src: '/assets/landing/app/dashboard.jpg',
+    alt: 'Vega dashboard — the practice at a glance: matters, hearings, billing and tasks',
+    caption: 'THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA',
+    label: 'Dashboard',
+};
+
+/** R78 (owner spec 2026-11-22): the multi-screen preview navigation in
+ *  LOGICAL PAGE ORDER — "Overview / Dashboard, Matters, Tasks, Documents,
+ *  Contacts, Financials" under a clear section label, rather than an
+ *  arbitrary order or a raw image-swapping feel. The lightbox strip
+ *  walks the app's own sidebar sequence, exhibits labeled by the page
+ *  they are. Both the suite and the hero lightbox consume this one
+ *  gallery. */
+const shot = (tabId: string, src: string) => {
+    const t = TABS.find((x) => x.id === tabId)!;
+    return t.shots.find((s) => s.src === src)!;
+};
+export const PAGE_GROUPS: LightboxGroup[] = [
+    {
+        id: 'overview',
+        label: 'Overview',
+        exhibits: [DASHBOARD_EXHIBIT],
+    },
+    {
+        id: 'matters',
+        label: 'Matters',
+        exhibits: [{ ...shot('matters', '/assets/landing/app/matters-ledger.jpg'), label: 'Matters' }],
+    },
+    {
+        id: 'tasks',
+        label: 'Tasks',
+        exhibits: [
+            { ...shot('matters', '/assets/landing/app/tasks-status.jpg'), label: 'Task board' },
+            { ...shot('matters', '/assets/landing/app/tasks-flat.jpg'), label: 'Task list' },
+            { ...shot('team', '/assets/landing/app/tasks-team.jpg'), label: 'Team tasks' },
+        ],
+    },
+    {
+        id: 'documents',
+        label: 'Documents',
+        exhibits: [
+            { ...shot('documents', '/assets/landing/app/editor-r78.jpg'), label: 'DraftPro editor' },
+            { ...shot('documents', '/assets/landing/app/documents.jpg'), label: 'Document vault' },
+            { ...shot('documents', '/assets/landing/app/research.jpg'), label: 'Research' },
+        ],
+    },
+    {
+        id: 'contacts',
+        label: 'Contacts',
+        exhibits: [{ ...shot('matters', '/assets/landing/app/contacts.jpg'), label: 'Contacts' }],
+    },
+    {
+        id: 'financials',
+        label: 'Financials',
+        exhibits: [
+            { ...shot('billing', '/assets/landing/app/billing.jpg'), label: 'Billing' },
+            { ...shot('billing', '/assets/landing/app/invoice-bank.jpg'), label: 'Invoice' },
+            { ...shot('billing', '/assets/landing/app/analytics.jpg'), label: 'Analytics' },
+        ],
+    },
+    {
+        id: 'team',
+        label: 'Team',
+        exhibits: [
+            { ...shot('team', '/assets/landing/app/calendar.jpg'), label: 'Calendar' },
+            { ...shot('team', '/assets/landing/app/matter-notes.jpg'), label: 'Matter notes' },
+        ],
+    },
+];
+
+/** Flat index of an exhibit src in the page-ordered gallery — the
+ *  lightbox open key for any capture. */
+export function pageIndexOf(src: string): number {
+    return PAGE_GROUPS.flatMap((g) => g.exhibits).findIndex((e) => e.src === src);
+}
 
 export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => {
     const [active, setActive] = useState(0);
@@ -236,8 +318,10 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
     };
     const tab = TABS[active];
     const exhibit = tab.shots[shot];
-    const flatIndexOf = (tabIdx: number, shotIdx: number) =>
-        TABS.slice(0, tabIdx).reduce((n, t) => n + t.shots.length, 0) + shotIdx;
+    // R78: the lightbox walks the page-ordered gallery — open at the
+    // current exhibit's position in PAGE_GROUPS (by src, so the tab
+    // vocabulary and the page vocabulary never drift apart).
+    const openLightboxAt = (src: string) => setLightbox(Math.max(0, pageIndexOf(src)));
 
     return (
         <section
@@ -290,6 +374,20 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                             {t.label}
                         </button>
                     ))}
+                    {/* R78 (owner spec): the See All pill alongside the
+                        workflow tabs — one clean action that opens the full
+                        app-view gallery in page order, at the CURRENT tab's
+                        first exhibit. ui/Button (the ADR-0004 ratchet — no
+                        new raw elements). */}
+                    <Button
+                        variant="bare"
+                        onClick={() => openLightboxAt(exhibit.src)}
+                        aria-label="See all app views — open the full gallery"
+                        className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2.5 rounded-full text-sm font-semibold border border-indigo-200 bg-white text-indigo-700 hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-200 active:scale-[0.98]"
+                    >
+                        <ArrowsExpandIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                        See All
+                    </Button>
                 </div>
 
                 {/* The panel — copy left, the live capture right. */}
@@ -349,18 +447,21 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                             caption={exhibit.caption}
                             label={exhibit.label}
                             onSignup={onSignup}
-                            onExpand={() => setLightbox(flatIndexOf(active, shot))}
-                            collab={exhibit.src !== '/assets/landing/app/editor.jpg'}
+                            onExpand={() => openLightboxAt(exhibit.src)}
+                            collab={exhibit.src !== '/assets/landing/app/editor-r78.jpg'}
                         />
                     </div>
                 </div>
             </div>
 
             {/* R69: the expanded gallery — every exhibit of every tab one
-                click away, prominently labeled, ←/→/Escape on the keys. */}
+                click away, prominently labeled, ←/→/Escape on the keys.
+                R78: the walk is PAGE_GROUPS — the app's own page order
+                (Overview → Matters → Tasks → Documents → Contacts →
+                Financials → Team) under the visible "App views" label. */}
             {lightbox !== null && (
                 <AppShotLightbox
-                    groups={SUITE_GROUPS}
+                    groups={PAGE_GROUPS}
                     index={lightbox}
                     onNavigate={setLightbox}
                     onClose={() => setLightbox(null)}

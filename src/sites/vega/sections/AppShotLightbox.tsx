@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../../components/ui';
 import { ArrowsExpandIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from '../../../constants';
@@ -8,9 +8,11 @@ import { DashboardHotspots } from './DashboardHotspots';
 import { Z_CLASS } from '../../../overlays/constants';
 /**
  * AppShotLightbox — R69: the expandable, navigable view of the live
- * captures.
+ * captures; R78: the gallery walks in APP PAGE ORDER under a visible
+ * "App views" section label, and the interactive overlays are
+ * load-gated + exhibit-keyed.
  *
- * Owner direction (verbatim shape): "add a hover effect or
+ * Owner direction, R69 (verbatim shape): "add a hover effect or
  * click-to-expand feature that allows users to open a larger
  * modal/lightbox view of the live capture... users should be able to
  * seamlessly scroll or click through the different available app views
@@ -19,14 +21,20 @@ import { Z_CLASS } from '../../../overlays/constants';
  * prominently labeled (matching the tab titles like Tasks, Calendar,
  * Notes)."
  *
- * One flat exhibit index across every group (Dashboard + the four suite
- * tabs): prev/next and the pill strip walk the WHOLE gallery, so a
- * visitor opened on "Calendar" can step straight into "Notes" or the
- * DraftPro editor without closing. The label is prominent — the exhibit
- * name in the display face, the group above it in mono — matching the
- * page's tab/exhibit vocabulary. The collab presence overlay rides the
- * expanded capture too (owner: "visible across all relevant live capture
- * views"), at 1.3x scale where the header strip has room for it.
+ * R78 owner direction (2026-11-22): the multi-screen preview navigation
+ * reads as "an arbitrary order or raw image-swapping" — the groups now
+ * walk the APP'S OWN PAGE ORDER (Overview → Matters → Tasks → Documents
+ * → Contacts → Financials → Team) with a visible mono "App views"
+ * section label above the strip.
+ *
+ * R78 TRANSITION FIX (the "floating badges" bug): the overlays
+ * (CollabPresence, DashboardHotspots) used to stay mounted across
+ * exhibit changes — an open roster/composer panel kept floating over
+ * the SWAPPED preview, and the stack rendered over a still-loading
+ * frame. The exhibits now gate on the image's OWN load event: the
+ * overlays mount fresh (keyed by exhibit src — menus reset, nothing
+ * lingers) and fade in only once the pixels are on screen. Badges
+ * never float unattached over loading or swapped previews.
  *
  * Practical notes: portal'd to document.body (the page scrolls in an
  * inner container and the capture frames clip); the scroller is locked
@@ -56,11 +64,18 @@ export const AppShotLightbox: React.FC<{
 }> = ({ groups, index, onNavigate, onClose, onSignup }) => {
     const dialogRef = useRef<HTMLDivElement>(null);
     const openerRef = useRef<Element | null>(null);
+    // R78: the current exhibit's load state — the overlays mount only
+    // once the swapped-in image has actually painted, and reset (keyed)
+    // on every navigation so no panel state survives a preview change.
+    const [imgLoaded, setImgLoaded] = useState(false);
 
     // Flatten once per render for the nav + strip.
     const flat = groups.flatMap((g) => g.exhibits.map((e) => ({ ...e, group: g.label })));
     const count = flat.length;
     const current = flat[Math.max(0, Math.min(index, count - 1))];
+
+    // Any exhibit change re-arms the load gate.
+    useEffect(() => { setImgLoaded(false); }, [current.src]);
 
     // Focus + scroll lock — ONCE per open (the landing page scrolls inside
     // its [data-public-page] root; lock it while the lightbox is open).
@@ -151,13 +166,23 @@ export const AppShotLightbox: React.FC<{
                             alt={current.alt}
                             className="absolute inset-0 h-full w-full object-cover select-none"
                             decoding="async"
+                            onLoad={() => setImgLoaded(true)}
                         />
-                        <CollabPresence scale={1.3} onSignup={onSignup} />
-                        {/* R74: on the dashboard exhibit, the same hotspots
-                            as the hero card — the expanded view answers
-                            clicks too (workspace, profile, Aloa). */}
-                        {current.src === '/assets/landing/app/dashboard.jpg' && (
-                            <DashboardHotspots scale={1.3} onSignup={onSignup} />
+                        {/* R78: the interactive overlays mount FRESH per
+                            exhibit (keyed by src — open menus reset, the
+                            stack never lingers over a swapped preview) and
+                            only after the image has painted (load-gated,
+                            one quiet fade-in). */}
+                        {imgLoaded && (
+                            <div key={`overlays-${current.src}`} className="absolute inset-0 animate-fade-in">
+                                <CollabPresence scale={1.3} onSignup={onSignup} />
+                                {/* R74: on the dashboard exhibit, the same hotspots
+                                    as the hero card — the expanded view answers
+                                    clicks too (workspace, profile, Aloa). */}
+                                {current.src === '/assets/landing/app/dashboard.jpg' && (
+                                    <DashboardHotspots scale={1.3} onSignup={onSignup} />
+                                )}
+                            </div>
                         )}
                     </div>
                     <figcaption className="mt-3 font-mono text-2xs tracking-widest text-slate-400 text-center px-14 sm:px-2">
@@ -176,12 +201,17 @@ export const AppShotLightbox: React.FC<{
             </div>
 
             {/* The gallery strip — every exhibit one click away, the
-                active one marked. Grouped with separators so the strip
-                reads as the page's tab structure. */}
+                active one marked. R78: a visible mono "App views" section
+                label above the pills (the strip reads as the app's own
+                page order, not raw image-swapping), groups separated so
+                the walk mirrors the sidebar's page sequence. */}
             <nav
                 aria-label="App views"
-                className="flex flex-wrap justify-center items-center gap-1.5 px-4 sm:px-6 py-4 border-t border-white/10 max-h-[22vh] overflow-y-auto"
+                className="flex flex-wrap justify-center items-center gap-1.5 px-4 sm:px-6 pt-3 pb-4 border-t border-white/10 max-h-[22vh] overflow-y-auto"
             >
+                <p className="w-full text-center font-mono text-2xs tracking-[0.18em] uppercase text-slate-400 mb-1" aria-hidden="true">
+                    App views
+                </p>
                 {groups.map((g, gi) => (
                     <React.Fragment key={g.id}>
                         {gi > 0 && <span aria-hidden="true" className="mx-1 h-4 w-px bg-white/15" />}

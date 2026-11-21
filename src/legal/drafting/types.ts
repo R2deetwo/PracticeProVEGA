@@ -249,7 +249,7 @@ export type Block =
   | { t: "numbered"; items: Slot[]; style: "arabic" | "roman" | "alpha" }
   | { t: "section"; number: string; heading: string; children: Block[] } // e.g. "1.0 INTRODUCTION"
   | { t: "dateLine"; value: Slot }
-  | { t: "frankingBlock"; counsel: Slot; firm: Slot; address: Slot; email: Slot; phone: Slot }
+  | { t: "frankingBlock"; party: string; counsel: Slot; firm: Slot; address: Slot; email: Slot; phone: Slot }
   | { t: "serviceBlock"; recipients: Slot[] } // FOR SERVICE ON:
   | { t: "jurat"; place: Slot; commissioner: true }
   | { t: "signature"; label: string; name: Slot }

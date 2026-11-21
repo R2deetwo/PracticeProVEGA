@@ -1035,23 +1035,39 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(collab).toContain("New group message");
     expect(collab).toContain("Inside Vega this thread lives in Messages");
     expect(collab).toContain("Message ");
-    expect(collab).toContain("8.55cqw");
+    // R78: re-measured on the current captures — the stack centers in the
+    // bell→divider gap with breathing room (was 8.55cqw edge-to-edge,
+    // hugging the profile text — the owner's "too prominent / floating
+    // awkwardly" report). Smaller avatars (1.6cqw, was 1.95).
+    expect(collab).toContain("9.1cqw");
+    expect(collab).toContain("s(1.6)");
     expect(collab).toContain("COLLAB_ROSTER");
     expect(vegaHero).toContain("CollabPresence");
     expect(vegaSuite).toContain("CollabPresence");
     expect(lightbox).toContain("CollabPresence");
     // The editor capture (DraftPro toolbar, no app header) opts out.
-    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor.jpg'}");
+    // R78: the editor exhibit is the re-captured editor-r78.jpg (the
+    // properly-formatted statement of claim, assembled through the app's
+    // own pipeline).
+    expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor-r78.jpg'}");
     // THE LIGHTBOX: shared gallery — the hero's Dashboard plus every
     // suite exhibit; labeled with the exhibit + group vocabulary;
-    // ←/→/Escape; the pill strip walks everything.
+    // ←/→/Escape; the pill strip walks everything. R78: the walk is
+    // PAGE_GROUPS — the app's own page order under a visible "App views"
+    // section label — and the overlays are load-gated + exhibit-keyed.
     expect(vegaHero).toContain("AppShotLightbox");
-    expect(vegaHero).toContain("SUITE_GROUPS");
+    expect(vegaHero).toContain("PAGE_GROUPS");
     expect(vegaSuite).toContain("AppShotLightbox");
     expect(lightbox).toContain("ArrowRight");
     expect(lightbox).toContain("ArrowLeft");
     expect(lightbox).toContain("'Escape'");
     expect(lightbox).toContain("aria-modal");
+    // R78: badges never float over loading or swapped previews — the
+    // overlays mount per-exhibit (keyed by src) and only after the
+    // image's own load event.
+    expect(lightbox).toContain("imgLoaded");
+    expect(lightbox).toContain("onLoad={() => setImgLoaded(true)}");
+    expect(lightbox).toContain("App views");
     // Click-to-expand on the captures (the hover hint + touch chip).
     expect(appShot).toContain("onExpand");
     expect(appShot).toContain("ExpandHint");
@@ -1059,6 +1075,39 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // The suite keeps its R42 exhibit selector (aria-pressed) — the
     // lightbox is additive, not a replacement.
     expect(vegaSuite).toContain("aria-pressed={shot === i}");
+  });
+
+  it("R78: the preview refines — hint zones, the See All pill, page-order gallery, load-gated overlays", () => {
+    // Owner spec 2026-11-22: (1) teammate badges restricted to the
+    // preview context, never floating over loading/swapped previews;
+    // (2) subtle hover hints on the key zones + a clean expand control
+    // + page-order navigation under a section label; (3) the See All
+    // pill on the workflow tabs + a lawyer-grade DraftPro document.
+    const hotspots = read("src", "sites", "vega", "sections", "DashboardHotspots.tsx");
+    const suite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
+    const appShotSrc = read("src", "sites", "vega", "sections", "VegaAppShot.tsx");
+    // The hint zones: nav rail + Recent Matters + Firm Tasks + calendar,
+    // named in the capture-foot pill on hover/focus, clicking through to
+    // the lightbox — mounted only where the host provides onExpand.
+    expect(hotspots).toContain("ZONE_HINTS");
+    expect(hotspots).toContain("Recent Matters");
+    expect(hotspots).toContain("Firm Tasks");
+    expect(hotspots).toContain("The firm calendar");
+    expect(hotspots).toContain("Main menu");
+    expect(hotspots).toContain("onExpand?: () => void");
+    expect(vegaHero).toContain("onExpand={() => setLightbox(0)}");
+    // The See All pill on the tab bar opens the page-ordered gallery.
+    expect(suite).toContain("See All");
+    expect(suite).toContain("PAGE_GROUPS");
+    expect(suite).toContain("pageIndexOf");
+    // The gallery walks the app's page order: Overview → Matters → Tasks
+    // → Documents → Contacts → Financials → Team.
+    expect(suite).toContain("id: 'overview'");
+    expect(suite).toContain("id: 'financials'");
+    expect(suite).toContain("id: 'contacts'");
+    // VegaAppShot keys + load-gates the presence overlay per exhibit.
+    expect(appShotSrc).toContain("key={`collab-${src}`}");
+    expect(appShotSrc).toContain("imgLoaded");
   });
 
   it("R71: the presence stack is quiet chrome — no hover pop, no highlight plate", () => {
@@ -1297,7 +1346,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).toContain("/assets/landing/app/tasks-status.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-flat.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/contacts.jpg");
-    expect(vegaSuite).toContain("/assets/landing/app/editor.jpg");
+    expect(vegaSuite).toContain("/assets/landing/app/editor-r78.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/research.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-team.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/calendar.jpg");

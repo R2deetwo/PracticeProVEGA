@@ -340,3 +340,39 @@ describe("the focused blueprint retry prompt", () => {
     expect(bp.documents).toEqual([]);
   });
 });
+
+// ─── R78 (2026-11-22): the franking party label + on-screen list markers ───
+// Caught while building the landing page's DraftPro capture: the franking
+// block hard-coded "(Counsel) for the Applicant" on EVERY process (a
+// statement of claim spoke as the Applicant), and Tailwind's preflight
+// stripped the ordered-list markers so numbered paragraphs rendered as
+// plain prose on screen. These pins hold the fixes.
+describe("R78 franking party label per process", () => {
+  const assembleDocType = (documentType: string) =>
+    runPipeline({
+      documents: [documentType],
+      reliefs: [],
+      groundsOrFacts: [],
+    }).html;
+
+  it("a statement of claim franks for the CLAIMANT (was hard-coded Applicant)", () => {
+    const html = assembleDocType("statement_of_claim");
+    expect(html).toContain("(Counsel) for the Claimant");
+    expect(html).not.toContain("(Counsel) for the Applicant");
+  });
+
+  it("a statement of defence franks for the DEFENDANT", () => {
+    const html = assembleDocType("statement_of_defence");
+    expect(html).toContain("(Counsel) for the Defendant");
+  });
+
+  it("a motion still franks for the APPLICANT", () => {
+    const html = assembleDocType("motion_on_notice");
+    expect(html).toContain("(Counsel) for the Applicant");
+  });
+
+  it("numbered blocks render as <ol> so the editor can show the markers", () => {
+    const html = assembleDocType("statement_of_claim");
+    expect(html).toMatch(/<ol>/);
+  });
+});

@@ -140,9 +140,15 @@ function capacityLabelFor(kind: ProcessKind, side: "claim" | "defend"): string {
 
 // ─── Franking / service / signature / jurat ─────────────────────────────────
 
-export function frankingBlockFromCtx(ctx: HydratedDraftContext): Block {
+export function frankingBlockFromCtx(ctx: HydratedDraftContext, party = "Applicant"): Block {
+  // R78: the moving party's designation — "(Counsel) for the CLAIMANT" on
+  // a statement of claim, "…APPLICANT" on a motion, "…APPELLANT" on an
+  // appeal. Previously hard-coded "Applicant" in the renderer, so every
+  // pleading's franking block mis-labelled the party (caught while
+  // building the landing page's DraftPro capture, 2026-11-22).
   return {
     t: "frankingBlock",
+    party,
     counsel: hyd("firm.counselName", ctx.firm.counselName, "COUNSEL NAME"),
     firm: hyd("firm.firmName", ctx.firm.firmName, "FIRM NAME"),
     address: hyd("firm.firmAddress", ctx.firm.firmAddress, "FIRM ADDRESS"),

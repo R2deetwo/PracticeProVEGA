@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui';
 import { CollabPresence } from './CollabPresence';
 import { ExpandHint } from './AppShotLightbox';
@@ -30,6 +30,12 @@ import { ExpandHint } from './AppShotLightbox';
  *      lightbox. The stack overlay sits ABOVE the expand hit-area
  *      (z-20 vs z-10) so presence clicks never open the lightbox.
  *
+ * R78 — the presence overlay is KEYED BY SRC and gated on the image's
+ *   own load event: when the host section swaps exhibits, the roster
+ *   closes (state resets) and the stack fades back in only once the
+ *   new capture has painted — the badges never linger or float over a
+ *   swapped/loading preview (the owner's report).
+ *
  * The image wrapper declares container-type: inline-size so the presence
  * overlay's cqw units track the capture at any render width.
  *
@@ -52,7 +58,13 @@ export const VegaAppShot: React.FC<{
     label?: string;
     /** R69: signup hand-off for the presence menu's demo note. */
     onSignup?: () => void;
-}> = ({ src, alt, caption, className = '', collab = true, onExpand, label, onSignup }) => (
+}> = ({ src, alt, caption, className = '', collab = true, onExpand, label, onSignup }) => {
+    // R78: the presence overlay mounts per-exhibit (keyed by src) and
+    // only after the image paints — swapping exhibits closes any open
+    // roster and never shows the stack over an unloaded frame.
+    const [imgLoaded, setImgLoaded] = useState(false);
+    useEffect(() => { setImgLoaded(false); }, [src]);
+    return (
     <figure className={className}>
         <div className="vg-shot">
             <div
@@ -66,9 +78,14 @@ export const VegaAppShot: React.FC<{
                     decoding="async"
                     width={1440}
                     height={900}
+                    onLoad={() => setImgLoaded(true)}
                     className="vg-shot__img"
                 />
-                {collab && <CollabPresence onSignup={onSignup} />}
+                {collab && imgLoaded && (
+                    <div key={`collab-${src}`} className="absolute inset-0 animate-fade-in">
+                        <CollabPresence onSignup={onSignup} />
+                    </div>
+                )}
                 {onExpand && (
                     <>
                         <Button
@@ -84,4 +101,5 @@ export const VegaAppShot: React.FC<{
         </div>
         <figcaption className="font-mono text-2xs tracking-widest text-slate-600 mt-4">{caption}</figcaption>
     </figure>
-);
+    );
+};

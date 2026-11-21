@@ -314,7 +314,7 @@ function pleadingFamily(
           ),
         });
       }
-      blocks.push(dateLineBlock(ctx), frankingBlockFromCtx(ctx), serviceBlockFromCtx(ctx, "claim"));
+      blocks.push(dateLineBlock(ctx), frankingBlockFromCtx(ctx, documentType === "statement_of_defence" || opts?.counterclaim ? "Defendant" : "Claimant"), serviceBlockFromCtx(ctx, "claim"));
       return { id: `${documentType}-0`, documentType, blocks };
     },
   };
@@ -407,7 +407,7 @@ function briefFamily(documentType: DocumentType, title: string): DocumentTemplat
           ? [{ t: "numbered", items: authorities.map((a) => lit(a)), style: "arabic" }]
           : [{ t: "clause", text: lit("[[LIST OF AUTHORITIES — add after counsel verification]]") }],
       });
-      blocks.push(dateLineBlock(ctx), frankingBlockFromCtx(ctx), serviceBlockFromCtx(ctx, "appeal"));
+      blocks.push(dateLineBlock(ctx), frankingBlockFromCtx(ctx, documentType === "respondents_brief" ? "Respondent" : "Appellant"), serviceBlockFromCtx(ctx, "appeal"));
       return { id: `${documentType}-0`, documentType, blocks };
     },
   };
@@ -589,7 +589,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         { t: "clause", text: lit("INDEORSEMENT OF CLAIM:") },
         { t: "clause", text: proseSlot(writIndorsementSlot, fills) },
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Claimant"),
         serviceBlockFromCtx(ctx, "claim"),
       ],
     }),
@@ -609,7 +609,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         { t: "processTitle", text: "INDEORSEMENT OF CLAIM" },
         { t: "clause", text: proseSlot(writIndorsementSlot, fills) },
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Claimant"),
       ],
     }),
   },
@@ -642,7 +642,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
           fills
         ),
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Applicant"),
         serviceBlockFromCtx(ctx, "motion"),
       ],
     }),
@@ -672,7 +672,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         { t: "clause", text: lit("WHEREFORE the Petitioner prays as follows:") },
         numberedFromFill(prose("petition.prayer", "Prayer", "", 3000, "numbered"), fills),
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Petitioner"),
         serviceBlockFromCtx(ctx, "claim"),
       ],
     }),
@@ -708,7 +708,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
           { t: "clause", text: lit("GROUNDS:") },
           dictatedOrProseBlock(ctx, prose("originating_motion.grounds", "Grounds", "", 4000, "numbered"), fills, { fromDictated: "groundsOrFacts" }),
           dateLineBlock(ctx),
-          frankingBlockFromCtx(ctx),
+          frankingBlockFromCtx(ctx, "Applicant"),
           serviceBlockFromCtx(ctx, "motion"),
         ],
       };
@@ -759,7 +759,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
           { t: "processTitle", text: "LIST OF WITNESSES" },
           items ? { t: "numbered", items, style: "arabic" } : numberedFromFill(prose("list_of_witnesses.witnesses", "Witnesses", "", 3000, "numbered"), fills),
           dateLineBlock(ctx),
-          frankingBlockFromCtx(ctx),
+          frankingBlockFromCtx(ctx, "Applicant"),
         ],
       };
     },
@@ -785,7 +785,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
             ? { t: "numbered", items: docs, style: "arabic" }
             : numberedFromFill(prose("list_of_documents.documents", "Documents", "", 4000, "numbered"), fills),
           dateLineBlock(ctx),
-          frankingBlockFromCtx(ctx),
+          frankingBlockFromCtx(ctx, "Applicant"),
         ],
       };
     },
@@ -807,7 +807,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         { t: "clause", text: lit("Number of witnesses: [[NUMBER OF WITNESSES]]") },
         dictatedOrProseBlock(ctx, prose("pre_trial_information_sheet.details", "Pre-trial information", "", 5000, "numbered"), fills, { fromDictated: "specialInstructions" }),
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Claimant"),
       ],
     }),
   },
@@ -864,7 +864,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         { t: "clause", text: lit("BY CONSENT of the parties, the following terms of settlement are adopted as the judgment of this Honourable Court:") },
         dictatedOrProseBlock(ctx, prose("terms_of_settlement.terms", "Settlement terms", "", 6000, "numbered"), fills, { fromDictated: "specialInstructions" }),
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Claimant"),
       ],
     }),
   },
@@ -896,7 +896,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
         { t: "clause", text: lit("3. GROUNDS OF APPEAL: As per the Notice/Grounds of Appeal filed herewith — see the Grounds of Appeal document in this bundle.") },
         { t: "clause", text: lit("4. ADDRESS FOR SERVICE: the Appellant's address for service is c/o [[COUNSEL NAME AND FIRM]], [[FIRM ADDRESS]].") },
         dateLineBlock(ctx),
-        frankingBlockFromCtx(ctx),
+        frankingBlockFromCtx(ctx, "Appellant"),
       ],
     }),
   },
@@ -933,7 +933,7 @@ export const TEMPLATES: Record<DocumentType, DocumentTemplate> = {
           { t: "clause", text: lit("The Appellant will rely upon the following grounds of appeal at the hearing of the appeal:") },
           { t: "numbered", items, style: "arabic" },
           dateLineBlock(ctx),
-          frankingBlockFromCtx(ctx),
+          frankingBlockFromCtx(ctx, "Appellant"),
         ],
       };
     },

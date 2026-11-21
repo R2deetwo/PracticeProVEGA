@@ -37,11 +37,28 @@ import {
  * quiet-chrome rule as the presence stack) and gain only a soft
  * focus-style ring on hover/focus so the pointer finds them naturally.
  *
+ * R78 (owner spec 2026-11-22, "subtle, tasteful hover hints"): the
+ * hover cue now also NAMES the zone — hovering (or keyboard-focusing)
+ * any key area turns the capture-foot pill into that area's one-line
+ * descriptor ("Recent Matters — the firm's active files at a glance"),
+ * and the hint extends beyond the three click-hotspots to the zones a
+ * visitor's eye actually lands on: the left navigation rail, Recent
+ * Matters, Firm Tasks and the firm calendar. The hint zones carry the
+ * same soft ring, click through to the lightbox (the inspection
+ * state), and mount ONLY where the host provides onExpand (the hero
+ * card) — the lightbox keeps the three real hotspots without the
+ * informational layer.
+ *
  * GEOMETRY (VLM-measured on dashboard.jpg, 1440×900): sidebar head
  * x 1.2–16.5%, y 1.5–7.2%; profile block x 88–99%, y 1.5–7.2%; Aloa
- * FAB x 93.5–98.7%, y 89.7–95.8%. Sized in cqw inside the capture's
- * container-type: inline-size wrapper — same system as CollabPresence,
- * so everything tracks the image at any width (card and lightbox).
+ * FAB x 93.5–98.7%, y 89.7–95.8%. R78 hint zones (pixel-scanned on
+ * the current capture): main menu x 1.0–16.6%, y 8.5–72%h; the three
+ * content cards (Recent Matters x 19.9–44.8%, Firm Tasks x 46.5–71.2%,
+ * calendar x 73.0–97.8%) all y 36.5–88%h. Verticals converted to cqw
+ * at the capture's fixed 8:5 aspect (×1.6). Sized in cqw inside the
+ * capture's container-type: inline-size wrapper — same system as
+ * CollabPresence, so everything tracks the image at any width (card
+ * and lightbox).
  *
  * Presentational chrome only; every interactive element is ui/Button
  * (ADR-0004). All state is local demo state — nothing leaves the
@@ -50,6 +67,36 @@ import {
  */
 
 type Hotspot = 'workspace' | 'profile' | 'aloa' | null;
+
+/** R78: the hover-descriptor copy per zone — the capture-foot pill
+ *  becomes the named hint while a zone is hovered/focused. */
+interface ZoneHint {
+    id: string;
+    label: string;
+    desc: string;
+}
+
+const ZONE_HINTS: Record<string, ZoneHint> = {
+    workspace: { id: 'workspace', label: 'Workspace', desc: 'Badejo & Associates — switch or connect firms' },
+    profile: { id: 'profile', label: 'Your profile', desc: 'Profile, settings, lock and sign-out' },
+    aloa: { id: 'aloa', label: 'Aloa', desc: 'Ask the legal AI anything' },
+    nav: { id: 'nav', label: 'Main menu', desc: 'Every workspace one click away' },
+    recent: { id: 'recent', label: 'Recent Matters', desc: "The firm's active files at a glance" },
+    tasks: { id: 'tasks', label: 'Firm Tasks', desc: "Today's work — assigned and dated" },
+    calendar: { id: 'calendar', label: 'The firm calendar', desc: 'Hearings and events in one diary' },
+};
+
+/** R78: the informational hover zones — nav rail + the three content
+ *  cards. Geometry in cqw (verticals pre-converted from % of height at
+ *  the capture's 8:5 aspect). Clicks open the lightbox (the same
+ *  inspection state as the capture's expand control). btn/ring carry
+ *  LITERAL Tailwind classes (the JIT scanner must see them). */
+const HINT_ZONES: Array<ZoneHint & { top: number; left: number; height: number; width: number; btn: string; ring: string }> = [
+    { ...ZONE_HINTS.nav, top: 13.6, left: 1.0, height: 100.8, width: 15.6, btn: 'rounded-lg', ring: '!rounded-lg' },
+    { ...ZONE_HINTS.recent, top: 58.4, left: 19.9, height: 82, width: 24.9, btn: 'rounded-xl', ring: '!rounded-xl' },
+    { ...ZONE_HINTS.tasks, top: 58.4, left: 46.5, height: 82, width: 24.7, btn: 'rounded-xl', ring: '!rounded-xl' },
+    { ...ZONE_HINTS.calendar, top: 58.4, left: 73.0, height: 82, width: 24.8, btn: 'rounded-xl', ring: '!rounded-xl' },
+];
 
 interface Workspace {
     id: string;
@@ -98,10 +145,17 @@ export const DashboardHotspots: React.FC<{
     scale?: number;
     /** "Start free" hand-off for the Aloa panel's closing CTA. */
     onSignup?: () => void;
-}> = ({ scale = 1, onSignup }) => {
+    /** R78: present on the hero card — mounts the informational hint
+     *  zones (nav rail, Recent Matters, Firm Tasks, calendar); clicking
+     *  a zone opens the host's lightbox (the inspection state). */
+    onExpand?: () => void;
+}> = ({ scale = 1, onSignup, onExpand }) => {
     const [open, setOpen] = useState<Hotspot>(null);
     const [anchor, setAnchor] = useState<{ top: number; right: number; left?: number } | null>(null);
     const [interacted, setInteracted] = useState(false);
+    // R78: the hovered/focused zone id — drives the capture-foot pill's
+    // descriptor text (ZONE_HINTS).
+    const [hintZone, setHintZone] = useState<string | null>(null);
 
     // Current workspace + the connect-a-workspace flow state.
     const [currentWs, setCurrentWs] = useState('badejo');
@@ -163,18 +217,34 @@ export const DashboardHotspots: React.FC<{
 
     const s = (v: number) => `${(v * scale).toFixed(3)}cqw`;
 
+    // R78: the capture-foot pill — the discoverability affordance AND the
+    // hover-descriptor readout. Default copy until first interaction;
+    // while a zone is hovered/focused it names that zone; it stays gone
+    // after the first interaction EXCEPT while actively hinting.
+    const hint = hintZone ? ZONE_HINTS[hintZone] : null;
+    const pillText = hint ? `${hint.label} — ${hint.desc}` : 'Interactive preview — click around';
+    const pillVisible = !interacted || !!hint;
+    const zoneProps = (id: string) => ({
+        onMouseEnter: () => setHintZone(id),
+        onMouseLeave: () => setHintZone(null),
+        onFocus: () => setHintZone(id),
+        onBlur: () => setHintZone(null),
+    });
+
     return (
         <>
             {/* ── The affordance pill — quiet, mono, rides the capture foot
-                until the first interaction. Mobile says TAP, pointer says
-                CLICK. Never blocks the hotspots (pointer-events-none). ── */}
+                until the first interaction; while a zone is hovered or
+                focused it becomes that zone's one-line descriptor (R78).
+                Mobile says TAP, pointer says CLICK. Never blocks the
+                hotspots (pointer-events-none). ── */}
             <span
                 aria-hidden="true"
-                className={`pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 bottom-[2.5%] hidden sm:inline-flex items-center gap-2 rounded-full bg-slate-950/70 backdrop-blur-sm px-3.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-100 shadow-lg transition-opacity duration-500 ${interacted ? 'opacity-0' : 'opacity-100'}`}
+                className={`pointer-events-none absolute z-20 left-1/2 -translate-x-1/2 bottom-[2.5%] hidden sm:inline-flex items-center gap-2 rounded-full bg-slate-950/70 backdrop-blur-sm px-3.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-100 shadow-lg transition-opacity duration-500 max-w-[94%] ${pillVisible ? 'opacity-100' : 'opacity-0'}`}
                 style={{ whiteSpace: 'nowrap' }}
             >
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                Interactive preview — click around
+                <span className="truncate">{pillText}</span>
             </span>
             <span
                 aria-hidden="true"
@@ -193,6 +263,7 @@ export const DashboardHotspots: React.FC<{
                 aria-haspopup="menu"
                 aria-expanded={open === 'workspace'}
                 onClick={(e) => openPanel('workspace', e)}
+                {...zoneProps('workspace')}
                 className="group-hs absolute z-20 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500"
                 style={{ top: s(1.4), left: s(1.1), height: s(6.2), width: s(15.6) }}
             >
@@ -210,6 +281,7 @@ export const DashboardHotspots: React.FC<{
                 aria-haspopup="menu"
                 aria-expanded={open === 'profile'}
                 onClick={(e) => openPanel('profile', e)}
+                {...zoneProps('profile')}
                 className="group-hs absolute z-20 rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500"
                 style={{ top: s(1.4), right: s(0.8), height: s(6.2), width: s(7.5) }}
             >
@@ -224,11 +296,33 @@ export const DashboardHotspots: React.FC<{
                 aria-haspopup="dialog"
                 aria-expanded={open === 'aloa'}
                 onClick={(e) => openPanel('aloa', e)}
+                {...zoneProps('aloa')}
                 className="group-hs absolute z-20 rounded-full focus-visible:ring-2 focus-visible:ring-indigo-500"
                 style={{ bottom: s(3.9), right: s(1.4), height: s(6.2), width: s(6.2) }}
             >
                 <HotspotRing className="!rounded-full" />
             </Button>
+
+            {/* ── R78: the informational hint zones — nav rail + the three
+                content cards. Soft ring on hover/focus + the capture-foot
+                pill names the zone; clicking opens the lightbox (the same
+                inspection state as the capture's expand control). Mounted
+                ONLY where the host provides onExpand (the hero card) —
+                above the expand hit-area (z-[15]) but below the three
+                menu hotspots (z-20). ── */}
+            {onExpand && HINT_ZONES.map((z) => (
+                <Button
+                    key={z.id}
+                    variant="bare"
+                    aria-label={`${z.label} — ${z.desc}. Expand this view.`}
+                    onClick={() => { setOpen(null); onExpand(); }}
+                    {...zoneProps(z.id)}
+                    className={`group-hs absolute z-[15] ${z.btn} focus-visible:ring-2 focus-visible:ring-indigo-500`}
+                    style={{ top: s(z.top), left: s(z.left), height: s(z.height), width: s(z.width) }}
+                >
+                    <HotspotRing className={z.ring} />
+                </Button>
+            ))}
 
             {/* ── The open panel — one at a time, portal'd. ── */}
             {open && anchor && createPortal(

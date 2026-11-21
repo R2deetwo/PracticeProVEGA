@@ -31,12 +31,17 @@ import { Z_CLASS } from '../../../overlays/constants';
  * The panel is honest about being a preview (a small mono chip) without
  * narrating itself. All state is local; nothing leaves the browser.
  *
- * GEOMETRY (unchanged from R69/R71, measured on the 1440 captures):
- * the stack pins into the app header's bell→profile gap — right 8.55cqw,
- * top 1.25cqw — inside the capture frame's container-type: inline-size
- * wrapper, so it tracks the image at every render width (suite card,
- * hero dashboard card, lightbox). cqw sizes carry no px fallback class
- * here beyond the trigger hit-area, matching the shipped R71 stack.
+ * GEOMETRY (R78 re-measure on the current 1440 captures, 2026-11-22):
+ * the header's right cluster is bell icon x 85.76–86.74%, divider
+ * ~90.7%, "Demo User" text x 91.53%+. The R69 seat (right 8.55cqw →
+ * right edge 91.45%) filled the gap EDGE-TO-EDGE — zero breathing
+ * room, hugging the profile text (the owner's "too prominent /
+ * floating awkwardly" report). The stack is now smaller (1.6cqw
+ * avatars, was 1.95) and sits INSIDE the gap with clearance on both
+ * sides: right edge 90.9cqw (0.6cqw clear of the text), left edge
+ * ~87.1% (0.35cqw clear of the bell). All cqw, inside the capture
+ * frame's container-type: inline-size wrapper, so it tracks the image
+ * at every render width (suite card, hero dashboard card, lightbox).
  *
  * INTERACTION (R71 contract, kept): the trigger never enlarges, never
  * gains a plate, shows no hover state — only the keyboard focus ring.
@@ -153,31 +158,35 @@ export const CollabPresence: React.FC<{
                 onClick={openMenu}
                 className="absolute z-20 flex items-center justify-end rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-1"
                 style={{
-                    // The measured gap: right edge 8.55% of image width,
-                    // top 1.25cqw, height 1.95cqw (the header strip's
-                    // content band), width 5.6cqw (the gap + margin).
-                    top: '1.25cqw', right: '8.55cqw', height: '1.95cqw', width: '5.6cqw',
+                    // R78: the measured gap on the current captures — bell
+                    // ends 86.74%, "Demo User" starts 91.53%. The stack
+                    // (avatars + the +5 chip, ≈3.8% wide incl. the button's
+                    // own padding) CENTERS in the gap — measured live at
+                    // ~0.5% clearance both sides (was right 8.55cqw /
+                    // width 5.6cqw — edge-to-edge, hugging the text).
+                    top: '1.4cqw', right: '8.75cqw', height: '1.6cqw', width: '4.2cqw',
                 }}
             >
                 {/* R71: the static stack — three avatars + the "+5"
                     chip, exactly as it reads in the app header. Nothing
-                    here responds to hover. */}
-                <span className="relative flex items-center" style={{ height: '1.95cqw' }}>
+                    here responds to hover. R78: quieter — 1.6cqw avatars
+                    (was 1.95), gentler overlap, smaller chip. */}
+                <span className="relative flex items-center" style={{ height: '1.6cqw' }}>
                     {COLLAB_ROSTER.slice(0, 3).map((m, i) => (
                         <span
                             key={m.initials}
                             className={`relative flex items-center justify-center rounded-full ring-2 ring-white shadow-sm font-bold ${m.avatarClass}`}
                             style={{
-                                height: s(1.95), width: s(1.95),
-                                marginLeft: i === 0 ? 0 : s(-0.58),
-                                fontSize: s(0.78),
+                                height: s(1.6), width: s(1.6),
+                                marginLeft: i === 0 ? 0 : s(-0.5),
+                                fontSize: s(0.62),
                                 zIndex: 3 - i,
                             }}
                         >
                             {m.initials}
                             {i === 2 && (
                                 <span
-                                    className="absolute font-bold rounded-full bg-slate-900 text-white ring-2 ring-white flex items-center justify-center"
+                                    className="absolute font-bold rounded-full bg-slate-800 text-white ring-2 ring-white flex items-center justify-center"
                                     style={{
                                         // The "+5" corner chip on the last
                                         // avatar — adds no stack width, and
@@ -186,9 +195,10 @@ export const CollabPresence: React.FC<{
                                         // already stops short of the
                                         // profile text; the first VLM pass
                                         // caught a hanging chip clipping
-                                        // "Demo User").
-                                        top: s(-0.45), right: 0,
-                                        height: s(1.05), minWidth: s(1.05), padding: `0 ${s(0.18)}`, fontSize: s(0.62),
+                                        // "Demo User"). R78: smaller
+                                        // (0.92cqw, was 1.05) — quieter.
+                                        top: s(-0.4), right: 0,
+                                        height: s(0.92), minWidth: s(0.92), padding: `0 ${s(0.16)}`, fontSize: s(0.52),
                                     }}
                                 >
                                     +5

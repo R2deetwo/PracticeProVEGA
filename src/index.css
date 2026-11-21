@@ -1902,6 +1902,28 @@ h3.legal-heading,
   line-height: 1.5;
 }
 
+/* R78 (2026-11-22): ordered/unordered lists must SHOW their markers in
+   the editor. Tailwind's preflight resets list-style:none, which rendered
+   the AST pipeline's <ol> blocks (the NUMBERED PARAGRAPHS of pleadings —
+   statement of claim facts, reliefs, affidavit facts) as unnumbered
+   prose on screen, while print (PAGE_CSS_PRINT, no Tailwind) and DOCX
+   kept the numbers. A statement of claim whose paragraphs show no "1. 2.
+   3." is a query at the registry — caught while capturing the landing
+   page's DraftPro exhibit. */
+.ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.6em;
+  margin: 0 0 0.75em;
+}
+.ProseMirror ol li {
+  margin-bottom: 0.4em;
+}
+.ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.6em;
+  margin: 0 0 0.75em;
+}
+
 /* Placeholder Styling */
 /* --- ProTip Animations --- */
 @keyframes tip-enter {

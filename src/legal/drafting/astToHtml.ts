@@ -99,7 +99,7 @@ function renderBlock(b: Block): string {
     case "frankingBlock":
       return `<div>
 <p data-align="right" style="text-align: right;">________________________</p>
-<p data-align="right" style="text-align: right;">(Counsel) for the ${"Applicant"}</p>
+<p data-align="right" style="text-align: right;">(Counsel) for the ${escapeHtml(b.party)}</p>
 <p data-align="right" style="text-align: right;">${renderSlot(b.counsel)}</p>
 <p data-align="right" style="text-align: right;">${renderSlot(b.firm)}</p>
 <p data-align="right" style="text-align: right;">${renderSlot(b.address)}</p>

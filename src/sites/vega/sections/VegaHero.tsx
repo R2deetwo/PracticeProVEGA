@@ -3,8 +3,8 @@ import { HeroVideo } from '../../../components/HeroVideo';
 import { Button } from '../../../components/ui';
 import { CollabPresence } from './CollabPresence';
 import { DashboardHotspots } from './DashboardHotspots';
-import { AppShotLightbox, ExpandHint, type LightboxGroup } from './AppShotLightbox';
-import { SUITE_GROUPS } from './VegaSuite';
+import { AppShotLightbox, ExpandHint } from './AppShotLightbox';
+import { PAGE_GROUPS } from './VegaSuite';
 
 /**
  * VegaHero — R56: the light-enterprise hero; R65/R67: the lifestyle-video
@@ -51,21 +51,10 @@ export const VegaHero: React.FC<{
     // R39: cache-busted like every landing asset (VITE_BUILD_SHA).
     const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
     // R69: the lightbox — the Dashboard capture plus every suite exhibit.
+    // R78: the gallery is PAGE_GROUPS — the app's own page order
+    // (Overview → Matters → Tasks → Documents → Contacts → Financials →
+    // Team) under the visible "App views" label.
     const [lightbox, setLightbox] = useState<number | null>(null);
-
-    const groups: LightboxGroup[] = [
-        {
-            id: 'dashboard',
-            label: 'Dashboard',
-            exhibits: [{
-                src: '/assets/landing/app/dashboard.jpg',
-                alt: 'Vega dashboard — the practice at a glance: matters, hearings, billing and tasks',
-                caption: 'THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — CLICK THE WORKSPACE, YOUR PROFILE, A TEAMMATE OR ALOA',
-                label: 'Dashboard',
-            }],
-        },
-        ...SUITE_GROUPS,
-    ];
 
     return (
         <section id="home" className="relative overflow-hidden bg-white">
@@ -183,9 +172,13 @@ export const VegaHero: React.FC<{
                             hit-area, so presence clicks open the roster).
                             R74: the workspace chip, your profile and the
                             Aloa orb join it — the capture answers clicks
-                            like the app does. */}
+                            like the app does. R78: the hotspots also carry
+                            the hint zones (nav rail, Recent Matters, Firm
+                            Tasks, calendar) — hovering names the zone in
+                            the capture-foot pill, clicking opens the
+                            page-ordered gallery. */}
                         <CollabPresence onSignup={onSignup} />
-                        <DashboardHotspots onSignup={onSignup} />
+                        <DashboardHotspots onSignup={onSignup} onExpand={() => setLightbox(0)} />
                         <Button
                             variant="bare"
                             onClick={() => setLightbox(0)}
@@ -201,10 +194,10 @@ export const VegaHero: React.FC<{
             </div>
 
             {/* R69: the shared gallery — Dashboard plus every suite
-                exhibit, one flat walk. */}
+                exhibit, one flat walk. R78: page order. */}
             {lightbox !== null && (
                 <AppShotLightbox
-                    groups={groups}
+                    groups={PAGE_GROUPS}
                     index={lightbox}
                     onNavigate={setLightbox}
                     onClose={() => setLightbox(null)}
