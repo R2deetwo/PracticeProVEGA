@@ -2816,3 +2816,21 @@ through the reveal), More-below pill.
 (production promote run 44958507443 on 9dcf349d) — until then the panel
 calls the old backend and legal questions still get answered by the old
 prompt. Post-promote live verification recorded below.
+
+**Post-promote LIVE verification (practice-pro-vega.vercel.app @
+9dcf349d, promote run 44958507443 green):**
+- Backend (deployed Convex, direct POSTs): legal question → the EXACT
+  approved decline copy + `action: official_directories` + the new
+  disclaimer ("Product guidance for Vega — PracticePro is a software
+  provider, not a law firm"); product question ("how would Vega help my
+  litigation firm…") → product answer with the Lagos High Court concrete
+  example, no action; non_lawyer asking for a lawyer → decline + action.
+- Frontend (headless on production): Institutional band renders with the
+  spec headline and ZERO "RPC" text; audience toggle defaults to
+  "I am a Lawyer" with the product chips; "I am not a Lawyer" reveals
+  the notice + NBA link; the drawer opens with all 3 official cards;
+  the in-panel legal question declined live and rendered the Official
+  Legal Directories card; the user's prompt anchored at 12px from the
+  transcript top, scrollTop stable through the reveal, "↓ More below"
+  pill showing. Audit shots: audit-shots/vega-aloa-product-specialist-
+  9dcf349d.png + vega-institutional-band-9dcf349d.png.
