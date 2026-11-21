@@ -2539,3 +2539,49 @@ Actions audit trail.
 fallback source-scans) / 1 skipped; UI-primitives ratchet 2218 held;
 identity audit green; three production deploys this session (embedding
 upgrade, instrument fix, backup fix) — all verified live afterwards.
+
+---
+
+## 2026-11-22 (late) — Production PROMOTE of main HEAD (050685f8): the 03fdcc62 batch reaches the live app
+
+**OWNER REPORT:** "Contract Analyzer is not on the Research page — suspect
+many things were never committed." Forensic result: everything WAS on
+`main` (050685f8, incl. 03fdcc62 Research 3-tab, 90c1fb86 help-center/
+settings/slim-row/notification-center, 97f2b2e2 founder-notification
+fixes, 8f580d0a legal embeddings, b22cdb96 legal+backup live-verification)
+— but production had NOT been promoted since 2026-11-19 (run 44579358310;
+Vercel's git auto-deploy last fired at da385a33, Nov 20 12:21 UTC).
+`production-deploy.yml` is a deliberate manual promote, so push-to-main
+alone never updates production. The gap was deployment, not commits.
+
+**Promote executed:** workflow_dispatch (blank sha = latest main) → run
+44943182711 on 050685f8 — Typecheck+unit tests ✓, Vercel+Convex prod ✓,
+Cloudflare mirror SKIPPED (CLOUDFLARE_API_TOKEN invalid again — best-effort
+by design; production truth remains Vercel + Convex; rotate the token to
+revive the mirror).
+
+**Verified live (never trust the deploy step):**
+- practice-pro-vega.vercel.app/version.json → 050685f8 (built 19:54 UTC).
+- ResearchView chunk serves the 3 tabs — "AI Notes" / "Practice Notes" /
+  "Contract Analyzer" all present; the old standalone sidebar entry
+  (`view:"analyzer"`) is GONE from the main bundle; `/analyzer` deep link
+  renders Research with the analyzer tab preselected.
+- Production Convex (gregarious-malamute-537): legal/queue:stats answers
+  the LEGAL_INGEST_TOKEN gate (queue 125 completed / 12 failed / 19
+  queued / 20 dedup-skipped; chunks 1, embedded 1, judgments 1, raw
+  artifacts 1); audit trail shows engine.run sweeps every ~15 min;
+  alox:getAloxStatus is deployed (founder-session-gated as designed).
+- Custom HTTP routes are served on `.convex.site` (NOT `.convex.cloud`,
+  which 404s them — same trap as the CI probe in vercel-production-deploy
+  line 230): /ai/landing-chat answers with real handler logic;
+  /api/agent/inspect correctly reports "not configured"
+  (AGENT_INSPECT_SECRET unset — ops drill tooling only, not app-facing).
+- Founder APK: build-1246 (v1.0.841) was already built from b22cdb96
+  (run 44940774140, tests ✓, artifact practicepro-v1.0.841, 44.7 MB) —
+  includes the full batch. Owner must INSTALL the new APK; an older
+  APK on the device will keep showing the old UI regardless of deploys.
+
+**Lesson (re-learned):** "pushed to main" ≠ "live in production" in this
+repo's promote model. After every owner-visible feature batch, either run
+the promote workflow immediately or tell the owner explicitly that
+production lags until they do.
