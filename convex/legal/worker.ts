@@ -3,6 +3,7 @@ import { internalAction, internalMutation, internalQuery } from "../_generated/s
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import { urlHash } from "./shared";
+import { embedTexts, embeddingConfigured, EMBEDDING_DIMS } from "./embed";
 import { PRIORITY } from "./schema";
 import {
   robotsUrlFor,
@@ -49,10 +50,13 @@ import {
  * HONEST BOUNDARIES (same philosophy as the corpus):
  *   - PDFs are DEFERRED (outcome pdf_deferred): no pypdf in Convex. The
  *     Python ingester with pypdf remains the full-fidelity PDF path.
- *   - Embeddings are NOT generated here (keyword-only ingestion) — the
- *     sparse BM25-style search leg works; the dense vector leg stays
- *     dormant until embeddings run (Python tool or a future engine
- *     upgrade), exactly as LEGAL_KB.md documents.
+ *   - Embeddings (2026-11-22 upgrade): generated IN-ENGINE with the
+ *     platform GEMINI_API_KEY (legal/embed.ts) whenever that env var is
+ *     set — same 768-dim contract as the Python tool, so chunks land
+ *     with vectors and the dense search leg goes live on its own. No
+ *     key → keyword-only (the old documented boundary), audited as
+ *     embeddings.skipped and explained in the inspector. A bounded
+ *     backfill pass also embeds pre-existing vector-less chunks.
  *   - Judgment metadata is heuristic; unfound fields stay UNKNOWN.
  *
  * Every step writes system_audit_logs (actor "ingester:engine").
@@ -83,6 +87,12 @@ export interface EngineRunSummary {
   /** 2026-11-22 strict-filter round: junk queued URLs deleted by the
    *  pre-run purge (block-list/allow-list violators). */
   purgedBlocked: number;
+  /** 2026-11-22 embedding round: chunks that reached storage WITH a
+   *  768-dim vector this run (GEMINI_API_KEY configured). */
+  chunksEmbedded: number;
+  /** 2026-11-22 embedding round: legacy vector-less chunks given a
+   *  vector by the bounded backfill pass. */
+  embeddedBackfilled: number;
   durationMs: number;
   startedAt: number;
 }
@@ -90,7 +100,8 @@ export interface EngineRunSummary {
 const emptySummary = (): EngineRunSummary => ({
   claimed: 0, completed: 0, failed: 0, notModified: 0, dedupSkipped: 0,
   robotsSkipped: 0, pdfDeferred: 0, chunksIngested: 0, documentsIngested: 0,
-  indexesHarvested: 0, purgedBlocked: 0, durationMs: 0, startedAt: Date.now(),
+  indexesHarvested: 0, purgedBlocked: 0, chunksEmbedded: 0, embeddedBackfilled: 0,
+  durationMs: 0, startedAt: Date.now(),
 });
 
 // ── Internal state access ───────────────────────────────────────────────────
@@ -460,6 +471,63 @@ export const recordEngineRun = internalMutation({
   },
 });
 
+// ── Embedding backfill (2026-11-22) ──────────────────────────────────────
+// Chunks ingested before the in-engine embedding upgrade (or while its
+// key was missing) carry no vector. The worker run embeds a bounded
+// batch of them each cycle — the "0 embedded" state self-heals without
+// a Python-tool pass, and the legal_chunks.by_embedding vector index
+// fills retroactively.
+
+/** Bounded list of chunk rows still missing their 768-dim vector. */
+export const getUnembeddedChunksInternal = internalQuery({
+  args: { limit: v.number() },
+  handler: async (ctx, args) => {
+    const limit = Math.max(1, Math.min(args.limit, 64));
+    const rows = await ctx.db.query("legal_chunks").order("asc").take(400);
+    const pending = rows.filter(
+      (c: any) => !Array.isArray(c.embedding) || c.embedding.length !== EMBEDDING_DIMS,
+    );
+    return pending.slice(0, limit).map((c: any) => ({
+      id: c._id,
+      text: String(c.text || ""),
+    }));
+  },
+});
+
+/** Patch computed vectors onto chunk rows (content is unchanged — only
+ *  the vector leg is filled in). */
+export const patchChunkEmbeddingsInternal = internalMutation({
+  args: {
+    patches: v.array(
+      v.object({
+        id: v.id("legal_chunks"),
+        embedding: v.array(v.number()),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    let patched = 0;
+    const now = Date.now();
+    for (const p of args.patches) {
+      if (p.embedding.length !== EMBEDDING_DIMS) continue;
+      try {
+        await ctx.db.patch(p.id, { embedding: p.embedding });
+        patched++;
+      } catch { /* deleted mid-run — skip */ }
+    }
+    if (patched > 0) {
+      await ctx.db.insert("system_audit_logs", {
+        eventType: "embeddings.backfill",
+        actor: "ingester:engine",
+        status: "ok",
+        payload: { patched },
+        createdAt: now,
+      });
+    }
+    return { patched };
+  },
+});
+
 // ── The worker action (cron + founder "Run Now") ────────────────────────────
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -729,6 +797,20 @@ async function processTask(
     // is unavailable for this item until the next successful fetch.
   }
 
+  // ── embeddings (2026-11-22): the same run that chunks also embeds,
+  //  with the platform GEMINI_API_KEY — the dense search leg no longer
+  //  waits for the Python tool. Any failure degrades to keyword-only
+  //  (vectors=[] → no embedding field); the run-level audit records
+  //  the skip once, never per-task spam.
+  let vectors: number[][] = [];
+  if (embeddingConfigured()) {
+    try {
+      vectors = await embedTexts(chunks.map((c) => c.text));
+    } catch { vectors = []; }
+    if (vectors.length !== chunks.length) vectors = [];
+    if (vectors.length > 0) summary.chunksEmbedded += vectors.length;
+  }
+
   const result = await ctx.runMutation(internal.legal.ingest.ingestDocumentInternal, {
     artifact: {
       sha256: sha,
@@ -742,11 +824,14 @@ async function processTask(
     },
     judgment,
     instrument,
-    chunks: chunks.map((c) => ({
+    chunks: chunks.map((c, i) => ({
       boundaryPath: c.boundaryPath,
       heading: c.heading,
       text: c.text,
       citations: c.citations,
+      ...(vectors[i] && vectors[i].length === EMBEDDING_DIMS
+        ? { embedding: vectors[i] }
+        : {}),
     })),
     actor: "ingester:engine",
   });
@@ -822,7 +907,63 @@ export const runIngestionWorker = internalAction({
       }
     }
 
-    // 5. Record the run.
+    // 5. Embedding backfill (2026-11-22): heal legacy vector-less chunks
+    //    with the platform key — bounded so a huge backlog drains over
+    //    successive 15-minute cycles instead of one long run.
+    if (embeddingConfigured()) {
+      try {
+        const pending = await ctx.runQuery(internal.legal.worker.getUnembeddedChunksInternal, {
+          limit: 32,
+        });
+        if (pending && pending.length > 0) {
+          const vectors = await embedTexts(pending.map((p: any) => p.text));
+          if (vectors.length === pending.length) {
+            const patches = pending
+              .map((p: any, i: number) => ({ id: p.id, embedding: vectors[i] }))
+              .filter((p: any) => Array.isArray(p.embedding) && p.embedding.length === EMBEDDING_DIMS);
+            if (patches.length > 0) {
+              const res = await ctx.runMutation(internal.legal.worker.patchChunkEmbeddingsInternal, {
+                patches,
+              });
+              summary.embeddedBackfilled += res?.patched ?? 0;
+            }
+          }
+        }
+        // Honest audit when the configured key produced nothing all run:
+        // chunksEmbedded===0 AND embeddedBackfilled===0 while chunks
+        // exist and were ingested — one row per run, never per task.
+        const ingestedChunksNeedingVectors = summary.chunksIngested > 0;
+        if (
+          summary.chunksEmbedded === 0 &&
+          summary.embeddedBackfilled === 0 &&
+          ingestedChunksNeedingVectors
+        ) {
+          await ctx.runMutation(internal.legal.audit.logInternal, {
+            eventType: "embeddings.skipped",
+            actor: "ingester:engine",
+            status: "error",
+            payload: {
+              reason: "GEMINI_API_KEY is set but no vectors were produced (provider error or model unavailable) — ingestion continued keyword-only",
+              chunksIngested: summary.chunksIngested,
+            },
+          });
+        }
+      } catch { /* backfill must never kill the run */ }
+    } else if (summary.chunksIngested > 0) {
+      // Key absent: the documented keyword-only boundary, stated once
+      // per run so the audit trail explains the inspector's "not
+      // embedded" rows without spam.
+      try {
+        await ctx.runMutation(internal.legal.audit.logInternal, {
+          eventType: "embeddings.skipped",
+          actor: "ingester:engine",
+          status: "ok",
+          payload: { reason: "GEMINI_API_KEY not configured — keyword-only ingestion (the documented boundary)" },
+        });
+      } catch { /* audit must never kill the run */ }
+    }
+
+    // 6. Record the run.
     summary.durationMs = Date.now() - summary.startedAt;
     await ctx.runMutation(internal.legal.worker.recordEngineRun, { summary });
     return { summary };

@@ -220,8 +220,10 @@ export const IngestionEngine: React.FC = () => {
     const lastSummary = engine?.lastRunSummary ?? null;
 
     // Pipeline stage strip (2026-11-22): where documents succeed or stall,
-    // visible at a glance. Embed shows "dormant" while 0 chunks carry
-    // embeddings — an honest boundary, not a failure.
+    // visible at a glance. Embed goes live once chunks carry vectors — the
+    // engine generates them in-run with the platform Gemini key
+    // (corpus.embeddingConfigured); "dormant" now only means the pass
+    // hasn't produced a vector yet, never "impossible by design".
     const stages: Array<{ label: string; state: 'ok' | 'dormant' }> = [
         { label: 'Fetch', state: (engine?.runsCount ?? 0) > 0 ? 'ok' : 'dormant' },
         { label: 'Dedupe', state: (engine?.runsCount ?? 0) > 0 ? 'ok' : 'dormant' },
@@ -334,7 +336,9 @@ export const IngestionEngine: React.FC = () => {
                             </div>
                             {(corpus?.chunksEmbedded ?? 0) === 0 && (corpus?.chunks ?? 0) > 0 && (
                                 <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1.5 leading-relaxed">
-                                    Embed is dormant by design: keyword search works today; the vector leg joins when the Python ingester runs the embedding pass.
+                                    {corpus?.embeddingConfigured
+                                        ? 'Embed pass pending: the engine embeds chunks in-run with the platform Gemini key and backfills vector-less chunks every 15-minute cycle — this clears itself.'
+                                        : 'Embed is dormant: no GEMINI_API_KEY is configured in the Convex environment. Keyword search works today; set the key and the engine will embed every chunk by itself.'}
                                 </p>
                             )}
                         </div>

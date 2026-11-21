@@ -132,6 +132,12 @@ export const getIngestionDashboard = query({
         chunks: chunks.length,
         chunksEmbedded: chunks.filter((c: any) => Array.isArray(c.embedding) && c.embedding.length > 0).length,
         rawArtifacts: artifacts.length,
+        // 2026-11-22: the engine embeds in-run with the platform key
+        // (legal/embed.ts). True = vectors are being generated; the UI
+        // explains 0-embedded as "pass pending/retrying", not "by design".
+        embeddingConfigured: Boolean(
+          process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 0,
+        ),
       },
       seeds: seeds.map((s: any) => ({
         id: s._id,
@@ -394,12 +400,17 @@ export const getIngestionInspector = query({
       const embedded = total.filter(
         (c: any) => Array.isArray(c.embedding) && c.embedding.length > 0
       ).length;
+      const embeddingConfigured = Boolean(
+        process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 0,
+      );
       return {
         bucket,
         hint:
           embedded > 0
             ? `Stored in the legal_chunks table — the search index ALOA retrieves from (${embedded} of ${total.length} sampled rows carry 768-dim embeddings; keyword + vector search both active).`
-            : "Stored in the legal_chunks table — keyword search (BM25-style) works today. 0 embedded is EXPECTED: the in-Convex worker never generates embeddings by design (no embedding API key in the Convex runtime); the dense vector leg joins when the Python ingester runs the embedding pass. This is a documented boundary, not a failure.",
+            : embeddingConfigured
+              ? "Stored in the legal_chunks table — keyword search works today, and the engine now embeds in-run with the platform Gemini key (768-dim). 0 embedded means the embedding pass has not completed yet; it runs every 15-minute cycle and backfills vector-less chunks — check back shortly."
+              : "Stored in the legal_chunks table — keyword search (BM25-style) works today. 0 embedded because no GEMINI_API_KEY is configured in the Convex environment: set it (Settings → Environment Variables) and the engine will embed every chunk in-run and backfill the rest. This is a configuration gap, not a failure.",
         rows: rows.map((c: any) => ({
           title: c.heading || (c.boundaryPath || []).join(" › ") || c.documentKey,
           sub: `${c.documentType} · ${(c.boundaryPath || []).join(" › ") || "no boundary"} · ${c.tokenCount} tokens · ${Array.isArray(c.embedding) && c.embedding.length > 0 ? "embedded" : "not embedded (keyword-only)"}`,

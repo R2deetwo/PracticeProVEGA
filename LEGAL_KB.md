@@ -127,8 +127,18 @@ Optional in the same `.env`:
 - `EMBEDDINGS_API_KEY` (+ BASE_URL/MODEL) → 768-dim vectors on every
   chunk (OpenAI `text-embedding-3-small` with `dimensions=768`, or any
   OpenAI-compatible 768-dim endpoint such as Gemini
-  `text-embedding-004`). **Without a key, ingestion is keyword-only —
-  the sparse search leg works; the dense vector leg stays dormant.**
+  `text-embedding-004`). **Without a key, the PYTHON tool ingests
+  keyword-only — the sparse search leg works; the dense vector leg
+  stays dormant.**
+
+**In-engine embeddings (2026-11-22):** the in-Convex engine no longer
+depends on the Python pass — it embeds every chunk in-run with the
+platform `GEMINI_API_KEY` from the Convex environment (`legal/embed.ts`,
+`batchEmbedContents`, 768-dim, model fallback `text-embedding-004` →
+`gemini-embedding-001`, override via `LEGAL_EMBEDDING_MODEL`), and each
+15-minute run backfills up to 32 legacy vector-less chunks. With the key
+set, `embedded` grows on its own; without it, the old keyword-only
+boundary applies and the inspector says exactly that.
 
 ### Step 3 — prove the install
 
