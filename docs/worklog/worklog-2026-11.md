@@ -2754,3 +2754,65 @@ after a rebase changes the commit SHA.
 **Note for the owner:** a normal browser refresh picks the fix up (the
 CSS URL is cache-busted per deploy); a hard refresh (Ctrl/Cmd+Shift+R)
 clears any stubbornly cached page.
+
+---
+
+## 2026-11-22 — R77: ALOA the Vega product specialist + the audience toggle, NBA directories drawer, anchor scroll UX, Institutional Readiness band
+
+**Owner spec (two prompts, one round):** landing-page ALOA becomes a
+strict Product Guide & Onboarding Specialist for Vega — not a public
+legal Q&A; a scroll-UX bug fix; the lawyer/non-lawyer audience toggle;
+the Official Legal Directories (NBA) drawer; and a restrained
+"Institutional & Cross-Border Readiness" positioning band. Supersedes
+the 2026-11-16 non-lawyer-first legal-guide register for VEGA (ARIA /
+atrium keeps its everyday property-guide register — the rework is a
+Vega-only directive).
+
+**Backend (convex/landingChat.ts):** new vega system prompt — product
+mastery with a concrete-example mandate (matters, in-app ALOA, DraftPro,
+Vox, practice profiles, RPC Rule 23 trust accounting + NDPA), verified
+plans from tiers.ts (Free / Growth ₦45,000/mo ₦432,000/yr / Pro
+₦80,000/mo ₦768,000/yr / Enterprise), HARD legal boundary (no substantive
+legal answers, no legal education, never "contact us for legal help"),
+RPC Rule 39 neutrality ("vetted lawyers"/"good lawyers"/"our consortium"
+forbidden; representation referrals point ONLY to official NBA
+resources), the approved 2–3 sentence decline ending in the
+[[OFFICIAL_DIRECTORIES]] marker (stripped server-side, surfaced as
+action:'official_directories'), and userRole:'non_lawyer' reinforcing
+the boundary on every reply.
+
+**Frontend:** audience toggle (default "I am a Lawyer") replaces the
+trust chips; "I am not a Lawyer" reveals the product-only notice + NBA
+link and flips the userRole sent to the engine. New product prompt chips
+(concrete scenarios; consumer-legal topics retired from vega). Full copy
+sweep — nudge/FAB/header/intro/placeholder/footer all read "Vega product
+guide"; zero "legal help"/"you don't need to be a lawyer" language left.
+New LegalDirectoriesDrawer (slide-over / bottom sheet; neutrality
+disclosure; NBA-SLP Law Firms Directory, NBA Find a Lawyer, Local NBA
+Branches Lagos). New VegaInstitutional band between trust and pricing
+(no RPC mention, no hype, page-native tokens).
+
+**Scroll UX (owner bug: aggressive auto-scroll to bottom):** the
+continuous bottom-pin is RETIRED. One instant anchor on submit + one
+corrective re-anchor at reply-land (skipped if the visitor scrolled):
+the user's prompt sits 12px from the transcript top and the reply grows
+below the fold. Sticky "↓ More below" pill when content overflows.
+LESSONS (measured live in headless preview): (1) smooth programmatic
+scrolls are canceled/retargeted by layout churn (chip collapse, reveal
+ticks) — anchors are instant, only the pill click is smooth; (2) a plain
+flex-1 transcript (basis 0) let the long product chips squeeze it to
+24px on fresh open — flex-[1_1_300px] floor restores the conversation
+as the main event (252px at 1280×900 vs production's 112px).
+
+**Gates:** tsc 0 · convex tsc 0 · vitest 3,423/3,423 (+8: persona,
+product knowledge, hard boundary, userRole, marker contract, ARIA
+isolation; vega section-order pin updated; e2e smoke now asks a product
+question) · eslint 0 · ratchet 2,218 held · build green. Live-checked
+locally: section + RPC absence, both toggle states, notice + NBA link,
+drawer cards, anchor scroll trace (you bubble at 12px, scrollTop stable
+through the reveal), More-below pill.
+
+**Deploy note:** the new prompt only takes effect when CONVEX deploys
+(production promote run 44958507443 on 9dcf349d) — until then the panel
+calls the old backend and legal questions still get answered by the old
+prompt. Post-promote live verification recorded below.
