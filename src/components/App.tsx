@@ -15,6 +15,9 @@ import { useConvex, useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useOnboarding } from '../contexts/OnboardingProvider';
 import { useIdleTimer } from '../hooks/useIdleTimer';
+// REMINDERS & NOTIFICATION CENTER (owner direction 2026-11-22): fires event
+// reminders as persistent Notification Center rows + device notifications.
+import { useReminderEngine } from '../hooks/useReminderEngine';
 import { OfficeBuildingIcon, Logo } from '../constants';
 import { useProduct } from '../contexts/ProductContext';
 import { useAccentTheme } from '../contexts/AccentThemeContext';
@@ -812,6 +815,12 @@ export const App: React.FC = () => {
     // FIREBASE_SERVICE_ACCOUNT_JSON on the Convex deployment (the legacy
     // FCM_SERVER_KEY mechanism was shut down by Google in June 2024).
     usePushNotifications(currentUser?.id, currentUser?.firmId ?? undefined, bearerToken);
+
+    // ─── Reminder engine: fire event reminders → Notification Center ─────
+    // Persistent in-app notification rows + pre-scheduled device (shade)
+    // notifications for the next 24h of reminders. No-ops until data is
+    // loaded; see src/hooks/useReminderEngine.ts and src/utils/reminderEngine.ts.
+    useReminderEngine();
 
     // ─── Push tap deep-linking ──────────────────────────────────────────────
     // usePushNotifications has no router access, so it broadcasts a

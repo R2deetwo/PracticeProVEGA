@@ -262,7 +262,11 @@ export interface PracticeProfile {
     completedAt?: string;
 }
 export interface ProfessionalStandards { lastPracticingFeePaidYear: number; nbaStampStatus: 'Approved' | 'Pending'; completedCpdHours: number; }
-export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; }
+// REMINDERS & NOTIFICATION CENTER (2026-11-22): the reminder*/device* keys
+// drive the client reminder engine (useReminderEngine) and the Reminders &
+// Device Notifications card in NotificationSettings. All default to ON /
+// sensible values — the engine treats `undefined` as "use the default".
+export interface NotificationSettings { newMessage?: boolean; assignedToMatter?: boolean; taskAssignedToMe?: boolean; newTaskInMyMatter?: boolean; eventTaskHalfway?: boolean; taskStartedByTeamMember?: boolean; taskCompletedByTeamMember?: boolean; reminderEvents?: boolean; reminderDraftsAI?: boolean; reminderMatterUpdates?: boolean; reminderPayments?: boolean; reminderMessages?: boolean; defaultReminderLead?: number; defaultReminderLeadUnit?: 'minutes' | 'hours' | 'days'; defaultSnoozeMinutes?: number; deviceNotificationsEnabled?: boolean; }
 export type Product = 'legal' | 'property' | 'unified' | 'atrium' | 'vega';
 export interface User { id: string; firmId?: string | null; joinedFirmIds?: string[]; name: string; email: string; role: UserRole; avatarUrl?: string; barNumber?: string; showProTips: boolean; professionalStandards?: ProfessionalStandards; notificationSettings?: NotificationSettings; defaultViewModes?: { matters?: 'list' | 'board'; tasks?: 'list' | 'board'; calendar?: 'month' | 'week' | 'diary'; units?: 'console' | 'cards'; }; accessibleMatterIds?: string[]; namePronunciation?: string; lastViewedPortalAt?: string; enableLiveFlashes?: boolean; defaultMatterType?: string; onboardingCompleted?: boolean; tokenIdentifier?: string; _id?: any; isMfaEnabled?: boolean; product?: Product; portalPresenceHidden?: boolean; portalAccessToken?: string; professionalTitle?: string; titleCustom?: string; }
 export interface ContactCategory { id: string; firmId: string; name: string; product?: Product; }

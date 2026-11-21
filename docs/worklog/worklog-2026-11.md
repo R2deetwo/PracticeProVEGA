@@ -2202,3 +2202,111 @@ is a standing exposure — rotate by replace-first if that ever matters.
 identity audit passed, UI ratchet held. Deployed to production via the
 targeted `convex-production-deploy.yml` (full quality gate re-ran in CI);
 post-deploy diagnostics verify the baseline adoption + alert resolution.
+
+## 2026-11-22 (a) — Help Center IA, Profile/Display dedup, slim-row hover fix, and the Reminder Engine + Notification Center upgrade
+
+Owner direction (verbatim themes): the Help Center "could be better
+organized" (Allora tips "scrolls past the Allora tips itself. It should
+start at the beginning"; AI content should sit "in the same space");
+Settings has Profile→General/Appearance duplicating Display ("We should
+just have only one… stick with the one that is not in profile, the one
+that is in display"); the slim matter row's hover checkbox overlaps the
+title; and reminders — especially single-occurrence ones — must land in a
+persistent Notification Center with device notifications and quick
+actions, plus a clean preferences view.
+
+**(1) HELP CENTER REORGANIZATION** (`HelpView.tsx`). Five ordered
+categories with sticky-style group headers inside the accordion:
+Getting Started → Core Workflows (Matters/Records/Operations) → AI & Voice
+(Vox, DraftPro, Assistants — aloa-tips, quick-capture-voice,
+draftpro-editor, research-guide, aldia-analysis, ai-research-mode all in
+ONE space) → Notifications & Reminders → Account, Settings &
+Troubleshooting. "Getting Started: The Basics" is now the FIRST accordion
+item (it was second, after Vox). The two Allora articles renamed for
+scannability: "Mastering Allora (AI Assistant)" → "Allora — Your AI
+Assistant", and "…Research Mode & AI Engine" → "Allora — Research Mode &
+AI Engine" (ids unchanged: emailed deep links keep working). Search now
+matches the category label too ("ai" surfaces the whole AI & Voice group)
+and result cards carry a category chip. New article `notifications-reminders`
+documents the Notification Center, reminder firing, quick actions, device
+notifications and preferences. **The scroll-past bug root cause:** the
+card click opened the target section while the section ABOVE it
+simultaneously collapsed — `scrollIntoView` grabbed a position
+mid-animation (100ms into a 300ms max-height transition) and the viewport
+settled PAST the target. Fix: `scrollToSection()` does an immediate pass
+plus a corrective pass at 380ms (after the transition settles); combined
+with the existing `scroll-mt-24` the heading lands exactly at
+header-bottom + scroll-margin (verified live: aloa-tips top = 160px =
+64px sticky header + 96px margin).
+
+**(2) SETTINGS DEDUP** (`ProfileSettings.tsx`, `SettingsView.tsx`). The
+Profile tab's "General | Appearance" sub-tabs are gone. Profile is now a
+single focused panel (identity + professional standards + in-app guidance,
+with a pointer row to the Display tab). Appearance lives ONLY in Settings
+→ Display (the richer home: ThemePicker with swatches, accent colour, font
+size, live flashes, startup view, haptics). Deep links re-routed:
+`display-settings` and `theme-preference` → Display tab (the long-press
+theme toggle target), `notification-settings` → Notifications tab. Group
+description updated ("Your info & account details"). Also fixed en route:
+`portals:getNotificationPreferences` threw Unauthenticated for DEV demo
+sessions and tripped the error boundary on the Notifications tab — now
+skipped for demo (same pattern as the Header), so the tab renders with
+defaults.
+
+**(3) SLIM-ROW HOVER CHECKBOX FIX** (`MatterList.tsx`). The matter card's
+selection checkbox floated `absolute left-1.5 top-1.5` OVER the title —
+on hover it covered the first letters. It now owns a DEDICATED FLEX SLOT
+that slides open (w-0 → w-6 + mr-2, 200ms) on hover/focus-within at md+
+breakpoints, is permanently open on touch devices (<md) and in selection
+mode; the title column keeps `min-w-0` + `truncate` so text is never
+overlapped or clipped. The input remains the real accessible control
+(24px, aria-label, keyboard-operable). Verified live with a real pointer:
+idle slot=0px/opacity 0; hover slot=24px, title shifts 280→312px,
+checkbox right edge 304px < title left 312px — zero overlap.
+
+**(4) REMINDER ENGINE + NOTIFICATION CENTER** (new
+`src/utils/reminderEngine.ts`, new `src/hooks/useReminderEngine.ts`,
+`Header.tsx`, `NotificationSettings.tsx`, `EventForm.tsx`, `types.ts`).
+The gap: `CalendarEvent.reminder` was collected at event creation but
+NOTHING ever fired — one-off reminders were silently missed. The engine
+(mounted from App.tsx) closes the loop every 30s tick:
+- **In-app (persistent):** due occurrences (incl. missed-while-closed,
+  24h lookback) write a durable `notifications` row, type
+  `event_reminder`, with title/time/context and a deep link (matter task
+  list or calendar). It lands in the bell's Notification Center and STAYS
+  until read/dismissed.
+- **Device (native):** upcoming triggers within 24h are PRE-scheduled via
+  @capacitor/local-notifications (`schedule.at`) so reminders reach the
+  shade even with the app killed; a localStorage registry reconciles the
+  schedule (cancels edited/deleted events' rows); taps route through the
+  existing `practicepro-notification-tap` → navigateTo flow. Web gets the
+  browser Notification API when the user opts in.
+- **Recurrence:** occurrences expand per period, dedup key
+  `<eventId>@<occurrenceStartMs>` (per-user namespace) — recurring events
+  fire once per occurrence, never double-fire, never skip.
+- **Quick actions:** `event_reminder` rows in the bell render Open ·
+  Snooze {default}m · 1h · Done. Snooze registers a localStorage snooze
+  (engine re-creates the in-app row when due) + a scheduled device
+  notification; Done marks read + clears.
+- **Preferences:** new "Reminders & Device Notifications" card at the top
+  of Settings → Notifications — device-notification status/enable (native
+  permission or web Notification.requestPermission), five category
+  toggles (Reminders & Deadlines / AI Drafts & Analysis / Matters & Tasks
+  / Payments & Billing / Messages) stored on
+  `user.notificationSettings`, default reminder lead time (pre-fills
+  EventForm) and default snooze duration. New NotificationSettings keys
+  added to the User type; EventForm's default lead now follows the
+  preference.
+- ADR-0004 compliance: quick actions use ui/Button, selects use ui/Select,
+  and the file's per-row switch markup is deduped into one PrefSwitch —
+  the raw-element ratchet held at exactly the 2218 baseline.
+
+**Gates:** tsc 0 errors, eslint clean on all touched files, vitest
+3,316 + 12 new (reminderEngine.test.ts: lead-time math, recurrence
+expansion, lookback window, cancelled-event skip, category prefs, copy,
+stable device ids) = 3,328 passed / 1 skipped, UI-primitives ratchet held,
+`npm run build` clean (local version.json churn reverted — CI owns it).
+Live smoke test in DEV demo mode (Vega): Help categories/order/search
+verified, Profile has no sub-tabs, Display holds all appearance settings,
+Notifications tab renders the new card without the error boundary, and
+the matter-row hover geometry measured overlap-free.

@@ -14,7 +14,7 @@ interface HelpViewProps {
      *  links (welcome email "Get Started" buttons) and any external link
      *  that targets a specific Help Center section. */
     initialSection?: string | null;
-}
+                        }
 
 const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const { currentHistoryEntry, navigateTo } = useUI();
@@ -27,15 +27,28 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const assistantFullName = getAssistantFullName(isProperty);
     const accordionRef = useRef<HTMLDivElement>(null);
 
+    // HELP CENTER SCROLL FIX (owner report 2026-11-22): clicking a card
+    // opened the target section while the section ABOVE it simultaneously
+    // collapsed — scrollIntoView grabbed a position mid-animation and the
+    // viewport ended up scrolled PAST the target's start ("when I hit Allora
+    // tips, it kind of scrolls past the Allora tips itself"). Two-stage
+    // scroll: an immediate pass, then a corrective pass AFTER the
+    // accordion's 300ms height transition settles. Combined with the
+    // AccordionItem's scroll-mt (sticky-header clearance) the section
+    // heading always lands at the true top of the viewport.
+    const scrollToSection = (sectionId: string) => {
+        const scroll = () => {
+            const element = document.getElementById(sectionId);
+            if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        scroll();
+        window.setTimeout(scroll, 380);
+    };
+
     React.useEffect(() => {
         if (currentHistoryEntry.context?.activeSection) {
             setActiveSection(currentHistoryEntry.context.activeSection);
-            setTimeout(() => {
-                const element = document.getElementById(currentHistoryEntry.context!.activeSection);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 100);
+            scrollToSection(currentHistoryEntry.context.activeSection);
         }
     }, [currentHistoryEntry.context?.activeSection]);
 
@@ -47,23 +60,13 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     React.useEffect(() => {
         if (!initialSection) return;
         setActiveSection(initialSection);
-        const t = window.setTimeout(() => {
-            const element = document.getElementById(initialSection);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 150);
+        const t = window.setTimeout(() => scrollToSection(initialSection), 150);
         return () => window.clearTimeout(t);
     }, [initialSection]);
 
     const handleCardClick = (sectionId: string) => {
         setActiveSection(sectionId);
-        setTimeout(() => {
-            const element = document.getElementById(sectionId);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 100);
+        scrollToSection(sectionId);
     };
 
     const handleAskAloa = () => {
@@ -86,34 +89,40 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const hasSearch = searchQuery.trim().length > 0;
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    // Section metadata: id + title + subtitle + keywords for search matching.
-    // Updated to reflect all current features. Obsolete sections removed;
-    // new sections added for Messaging, Portals, Trust Accounting, etc.
+    // Section metadata: id + title + subtitle + category + keywords for search matching.
+    // HELP CENTER REORG (owner direction 2026-11-22): sections are grouped into
+    // five logical categories — Getting Started first, then Core Workflows,
+    // AI & Voice (all AI things in one space), Notifications & Reminders, and
+    // Account/Settings/Troubleshooting last. The order here MUST match the
+    // accordion render order below.
     const SECTIONS = useMemo(() => [
-        { id: 'getting-started', title: 'Getting Started: The Basics', subtitle: 'Dashboard, modules, and navigation', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics', 'navigation', 'sidebar'] },
-        { id: 'aloa-tips', title: `Mastering ${assistantName} (AI Assistant)`, subtitle: 'Voice dictation, drafting, research, and daily briefings', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria'] },
-        { id: 'quick-capture-voice', title: 'Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
-        { id: 'notes-backlinks', title: 'Notes & Bidirectional Backlinks', subtitle: 'Link notes to matters, contacts, properties, and documents', keywords: ['notes', 'backlinks', 'bidirectional', 'link', 'endorsements', 'mention', 'notebook', '[['] },
-        { id: 'draftpro-editor', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
-        { id: 'messaging', title: 'Messaging & Compose', subtitle: 'Conversations, notices, scheduled messages, bulk compose', keywords: ['messaging', 'messages', 'compose', 'whatsapp', 'email', 'notice', 'scheduled', 'ticket', 'conversation', 'inbox', 'resident', 'client', 'team'] },
-        { id: 'admin-guide', title: 'Admin Guide & Settings', subtitle: 'Users, branding, letterhead, templates, portal access', keywords: ['admin', 'settings', 'users', 'branding', 'firm', 'logo', 'letterhead', 'workflow', 'template', 'portal', 'invite', 'permissions'] },
-        { id: 'research-guide', title: 'Research Studio', subtitle: 'Chronology, legal matrix, gap analysis, audio briefings', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery', 'matrix', 'gap', 'audio', 'briefing'] },
-        { id: 'aldia-analysis', title: 'ALDIA Document Analysis', subtitle: 'Risk scoring, metadata extraction, PII detection', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii', 'ndpa', 'rpc', 'compliance', 'opposing counsel'] },
-        { id: 'litigation-tracking', title: 'Litigation Tracking', subtitle: 'Court process pipeline: Preparation → Filing → Service → Proof', keywords: ['litigation', 'court', 'filing', 'deadline', 'process', 'pipeline', 'service', 'proof', 'court process'] },
-        { id: 'property-management', title: 'Property Management', subtitle: 'Properties, rent, maintenance, leases, service charges', keywords: ['property', 'rent', 'resident', 'lease', 'maintenance', 'service charge', 'unit', 'tenant', 'landlord'] },
-        { id: 'revenue-engine', title: 'Revenue Monitor (Atrium)', subtitle: 'Defaulter dashboard, ledger, automations, rent collection', keywords: ['revenue', 'monitor', 'defaulter', 'ledger', 'rent', 'collection', 'atrium', 'service charge', 'sce', 'automations'] },
-        { id: 'portals', title: 'Client & Resident Portals', subtitle: 'Self-service portal for clients and residents', keywords: ['portal', 'client', 'resident', 'tenant', 'self-service', 'intake', 'access', 'invite', 'password'] },
-        { id: 'trust-accounting', title: 'Trust Accounting', subtitle: 'Trust ledger, deposits, withdrawals, transfers', keywords: ['trust', 'accounting', 'ledger', 'deposit', 'withdrawal', 'transfer', 'escrow', 'client funds'] },
-        { id: 'enterprise-jurisdiction', title: 'Enterprise Jurisdiction & Intake', subtitle: 'Procedural intelligence, party representation, intake wizard', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules', 'procedural', 'wizard', 'party', 'claimant', 'defendant'] },
-        { id: 'ai-research-mode', title: `${assistantName} Research Mode & AI Engine`, subtitle: 'Auto/Flash/Pro/Research modes, web querying, citations, jurisdiction guardrails', keywords: ['research', 'mode', 'auto', 'flash', 'pro', 'engine', 'citation', 'jurisdiction', 'web', 'url', 'fetch', 'bluebook', 'oscola', 'nigerian', 'reasoning', 'thinking'] },
-        { id: 'security-2fa', title: 'Security & 2FA', subtitle: 'Two-factor authentication, biometrics, lockout recovery, admin reset', keywords: ['security', '2fa', 'two-factor', 'biometric', 'fingerprint', 'face id', 'lockout', 'recovery', 'disable', 'admin', 'account'] },
+        { id: 'getting-started', category: 'Getting Started', title: 'Getting Started: The Basics', subtitle: 'Dashboard, modules, and navigation', keywords: ['welcome', 'practicepro', 'modules', 'dashboard', 'overview', 'basics', 'navigation', 'sidebar'] },
+        { id: 'litigation-tracking', category: 'Core Workflows', title: 'Litigation Tracking', subtitle: 'Court process pipeline: Preparation → Filing → Service → Proof', keywords: ['litigation', 'court', 'filing', 'deadline', 'process', 'pipeline', 'service', 'proof', 'court process'] },
+        { id: 'notes-backlinks', category: 'Core Workflows', title: 'Notes & Bidirectional Backlinks', subtitle: 'Link notes to matters, contacts, properties, and documents', keywords: ['notes', 'backlinks', 'bidirectional', 'link', 'endorsements', 'mention', 'notebook', '[['] },
+        { id: 'messaging', category: 'Core Workflows', title: 'Messaging & Compose', subtitle: 'Conversations, notices, scheduled messages, bulk compose', keywords: ['messaging', 'messages', 'compose', 'whatsapp', 'email', 'notice', 'scheduled', 'ticket', 'conversation', 'inbox', 'resident', 'client', 'team'] },
+        { id: 'property-management', category: 'Core Workflows', title: 'Property Management', subtitle: 'Properties, rent, maintenance, leases, service charges', keywords: ['property', 'rent', 'resident', 'lease', 'maintenance', 'service charge', 'unit', 'tenant', 'landlord'] },
+        { id: 'revenue-engine', category: 'Core Workflows', title: 'Revenue Monitor (Atrium)', subtitle: 'Defaulter dashboard, ledger, automations, rent collection', keywords: ['revenue', 'monitor', 'defaulter', 'ledger', 'rent', 'collection', 'atrium', 'service charge', 'sce', 'automations'] },
+        { id: 'portals', category: 'Core Workflows', title: 'Client & Resident Portals', subtitle: 'Self-service portal for clients and residents', keywords: ['portal', 'client', 'resident', 'tenant', 'self-service', 'intake', 'access', 'invite', 'password'] },
+        { id: 'trust-accounting', category: 'Core Workflows', title: 'Trust Accounting', subtitle: 'Trust ledger, deposits, withdrawals, transfers', keywords: ['trust', 'accounting', 'ledger', 'deposit', 'withdrawal', 'transfer', 'escrow', 'client funds'] },
+        { id: 'enterprise-jurisdiction', category: 'Core Workflows', title: 'Enterprise Jurisdiction & Intake', subtitle: 'Procedural intelligence, party representation, intake wizard', keywords: ['enterprise', 'jurisdiction', 'intake', 'court rules', 'procedural', 'wizard', 'party', 'claimant', 'defendant'] },
+        { id: 'aloa-tips', category: 'AI & Voice', title: `${assistantName} — Your AI Assistant`, subtitle: 'Commands, dictation, briefings and everyday use', keywords: ['ai', 'assistant', 'voice', 'dictation', 'briefing', 'rag', 'brain', 'chat', 'notetaker', 'recorder', assistantName.toLowerCase(), 'aromitse', 'aria', 'tips', 'mastering'] },
+        { id: 'quick-capture-voice', category: 'AI & Voice', title: 'Vox & Voice Guide', subtitle: 'Voice notes, read-only questions, new matters, endorsements, snippets, dictionary, quiet mode, edit by voice', keywords: ['vox', 'quick capture', 'voice note', 'voice', 'dictation', 'microphone', 'mic', 'recording', 'quiet mode', 'quiet', 'snippet', 'dictionary', 'backtracking', 'scratch that', 'edit selection', 'endorsement', 'reminder', 'diary', 'standalone task', 'expense', 'property note', 'draft kickoff', 'sino truck', 'matter creation', 'personal dictionary', 'voice dictionary', 'question', 'questions', 'read only', 'read-only', 'quick ask', 'ask', 'lookup', 'schedule today', 'whats my schedule', 'hearings this week'] },
+        { id: 'draftpro-editor', category: 'AI & Voice', title: 'DraftPro Document Editor', subtitle: 'AI drafting, watermarks, focus mode, zoom, line spacing', keywords: ['draftpro', 'editor', 'drafting', 'document', 'page', 'font', 'watermark', 'focus', 'zoom', 'spacing', 'ribbon', 'toolbar', 'placeholder', 'template', 'redraft', 'auto-format'] },
+        { id: 'research-guide', category: 'AI & Voice', title: 'Research Studio', subtitle: 'Chronology, legal matrix, gap analysis, audio briefings', keywords: ['research', 'chronology', 'case law', 'notebook', 'discovery', 'matrix', 'gap', 'audio', 'briefing'] },
+        { id: 'aldia-analysis', category: 'AI & Voice', title: 'ALDIA Document Analysis', subtitle: 'Risk scoring, metadata extraction, PII detection', keywords: ['aldia', 'document', 'analysis', 'risk', 'metadata', 'pii', 'ndpa', 'rpc', 'compliance', 'opposing counsel'] },
+        { id: 'ai-research-mode', category: 'AI & Voice', title: `${assistantName} — Research Mode & AI Engine`, subtitle: 'Auto/Flash/Pro/Research modes, web querying, citations, jurisdiction guardrails', keywords: ['research', 'mode', 'auto', 'flash', 'pro', 'engine', 'citation', 'jurisdiction', 'web', 'url', 'fetch', 'bluebook', 'oscola', 'nigerian', 'reasoning', 'thinking'] },
+        { id: 'notifications-reminders', category: 'Notifications & Reminders', title: 'Notifications & Reminders', subtitle: 'Notification Center, event reminders, snooze, device alerts, preferences', keywords: ['notification', 'notifications', 'reminder', 'reminders', 'bell', 'snooze', 'device', 'push', 'alert', 'deadline', 'hearing', 'court date', 'inspection', 'preferences', 'quiet'] },
+        { id: 'admin-guide', category: 'Account, Settings & Troubleshooting', title: 'Admin Guide & Settings', subtitle: 'Users, branding, letterhead, templates, portal access', keywords: ['admin', 'settings', 'users', 'branding', 'firm', 'logo', 'letterhead', 'workflow', 'template', 'portal', 'invite', 'permissions'] },
+        { id: 'security-2fa', category: 'Account, Settings & Troubleshooting', title: 'Security & 2FA', subtitle: 'Two-factor authentication, biometrics, lockout recovery, admin reset', keywords: ['security', '2fa', 'two-factor', 'biometric', 'fingerprint', 'face id', 'lockout', 'recovery', 'disable', 'admin', 'account'] },
     ], [assistantName]);
 
-    // Filter sections based on search query
+    // Filter sections based on search query — matching covers the category
+    // label too, so "ai" surfaces the whole AI & Voice group.
     const visibleSections = hasSearch
         ? SECTIONS.filter(s =>
             s.title.toLowerCase().includes(normalizedQuery) ||
             s.subtitle.toLowerCase().includes(normalizedQuery) ||
+            s.category.toLowerCase().includes(normalizedQuery) ||
             s.keywords.some(k => k.includes(normalizedQuery))
         )
         : SECTIONS;
@@ -135,12 +144,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
     const handleResultClick = (sectionId: string) => {
         setActiveSection(sectionId);
         setSearchQuery(''); // Clear search so the accordion returns to normal mode
-        setTimeout(() => {
-            const element = document.getElementById(sectionId);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 150);
+        window.setTimeout(() => scrollToSection(sectionId), 150);
     };
 
     return (
@@ -211,6 +215,9 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                             <p className="text-xs text-slate-500 dark:text-zinc-400 truncate">
                                                 {s.subtitle}
                                             </p>
+                                            <p className="text-3xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mt-0.5">
+                                                {s.category}
+                                            </p>
                                         </div>
                                         <svg className="w-4 h-4 text-slate-300 dark:text-zinc-600 group-hover:text-primary-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -252,8 +259,8 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                         <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-800 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-200 mb-4 group-hover:scale-110 transition-transform">
                             <ZapIcon className="w-6 h-6" />
                         </div>
-                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">{assistantName} Tips</h3>
-                        <p className="text-sm text-slate-600 dark:text-zinc-400">Master your AI assistant. Learn commands for drafting, research, and analysis.</p>
+                        <h3 className="font-bold text-lg mb-2 text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400">AI &amp; Voice</h3>
+                        <p className="text-sm text-slate-600 dark:text-zinc-400">{assistantName}, Vox, DraftPro, Research Studio and ALDIA — every AI feature in one place.</p>
                     </button>
 
                     <button
@@ -292,24 +299,15 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
 
                 <div ref={accordionRef} className="bg-white dark:bg-zinc-900 rounded-lg shadow-sm border border-slate-200 dark:border-zinc-800 p-6 sm:p-8">
                     <Accordion>
-                        <AccordionItem
-                            id="quick-capture-voice"
-                            title="Vox & Voice Guide"
-                            isOpen={isSectionOpen('quick-capture-voice')}
-                            onToggle={() => handleSectionToggle('quick-capture-voice')}
-                        >
-                            <div className="space-y-4">
-                                <p className="text-sm text-slate-600 dark:text-slate-300">
-                                    Vox turns spoken dictation into structured firm
-                                    records — matters, diary entries, endorsements, property
-                                    notes, expenses, drafts and more. Questions stay
-                                    strictly read-only (“What's my schedule today?” never
-                                    creates an entry). Everything below works
-                                    on mobile, desktop and inside the ALOA panel.
-                                </p>
-                                <VoiceTipsPanel bare />
+
+                        {/* ── Category: Getting Started ── */}
+                        {!hasSearch && (
+                            <div className="pt-0 pb-1 flex items-center gap-2">
+                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Getting Started</p>
+                                <div className="flex-1 h-px bg-slate-100 dark:bg-zinc-800" />
                             </div>
-                        </AccordionItem>
+                        )}
+
                         <AccordionItem
                             id="getting-started"
                             title="Getting Started: The Basics"
@@ -350,72 +348,60 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                 </div>
                             </div>
                         </AccordionItem>
+                        {/* ── Category: Core Workflows · Matters, Records & Operations ── */}
+                        {!hasSearch && (
+                            <div className="pt-6 pb-1 flex items-center gap-2">
+                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Core Workflows · Matters, Records & Operations</p>
+                                <div className="flex-1 h-px bg-slate-100 dark:bg-zinc-800" />
+                            </div>
+                        )}
 
-                        <AccordionItem
-                            id="aloa-tips"
-                            title={`Mastering ${assistantName} (AI Assistant)`}
-                            isOpen={isSectionOpen('aloa-tips')}
-                            onToggle={() => handleSectionToggle('aloa-tips')}
+                        {hasLegalFeatures && <AccordionItem
+                            id="litigation-tracking"
+                            title="Litigation Tracking"
+                            isOpen={isSectionOpen('litigation-tracking')}
+                            onToggle={() => handleSectionToggle('litigation-tracking')}
                         >
                             <div className="space-y-6">
-                                <div className="flex items-start gap-4 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg">
-                                    <ZapIcon className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
-                                    <div>
-                                        <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is {assistantName}?</h4>
-                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{assistantName} is your AI-powered {isProperty ? 'assistant and portfolio manager' : 'paralegal and practice manager'}. It drafts documents, checks team schedules, takes dictation notes, and organizes your {isProperty ? 'agency' : 'firm'}'s data.</p>
-                                    </div>
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Overview</h4>
+                                    <p>Track the status of court processes throughout their lifecycle from preparation to proof of service.</p>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg mb-2">Key Capabilities</h4>
-                                    <ul className="grid sm:grid-cols-2 gap-4">
-                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
-                                            <strong className="block mb-1 text-primary-600">Team Scheduling</strong>
-                                            "Who is free next week for a meeting?"
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Document Status Pipeline</h4>
+                                    <ul className="space-y-2">
+                                        <li className="p-3 border-l-4 border-slate-400 bg-slate-50 dark:bg-slate-800 rounded-r">
+                                            <strong>1. Preparation:</strong> Document is being drafted and prepared
                                         </li>
-                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
-                                            <strong className="block mb-1 text-primary-600">Task Delegation</strong>
-                                            "Create a task for John to trace the title documents."
+                                        <li className="p-3 border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-r">
+                                            <strong>2. Filing:</strong> Document has been filed at court
                                         </li>
-                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
-                                            <strong className="block mb-1 text-primary-600">Contextual Insight</strong>
-                                            "What do I have to do in this matter?" (While viewing a matter)
+                                        <li className="p-3 border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-r">
+                                            <strong>3. Service:</strong> Document has been served on the opposing party
                                         </li>
-                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
-                                            <strong className="block mb-1 text-primary-600">Drafting</strong>
-                                            {isProperty ? '"Draft a notice to the resident regarding lease renewal terms."' : '"Draft a letter to the opposing counsel for adjournment."'}
+                                        <li className="p-3 border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-r">
+                                            <strong>4. Proof of Service:</strong> Proof of service has been filed
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg mb-2">The Integrated Note Taker (Voice Dictation)</h4>
-                                    <p className="mb-2">{assistantName} includes a powerful dictation engine for note-taking directly within its chat panel.</p>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
-                                        <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts — speech is transcribed into text automatically.</li>
-                                        <li><strong>Append, Don't Overwrite:</strong> As you speak, transcribed text is appended to your note (not replaced). Keep talking — your words build up naturally.</li>
-                                        <li><strong>Quick Save:</strong> Use the "Save to Matter" feature to instantly store your typed or dictated memo into a Matter's Endorsements tab or a notebook.</li>
-                                        <li><strong>Zero Layout Shift:</strong> Open {assistantName} securely over any screen, take your voice notes, and close it without losing your place in the app.</li>
-                                    </ul>
-                                    <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Note: Voice dictation requires microphone permission. On the Android app, you'll see a permission dialog the first time you tap the mic. On web, your browser will prompt for mic access.</p>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Track</h4>
+                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
+                                        <li>Mark a document as a <strong>Court Process</strong> when creating/editing it (toggle in the document form).</li>
+                                        <li>Navigate to the document detail view and select the <strong>Litigation Pipeline</strong> tab.</li>
+                                        <li>Click the status buttons to update the document's progress through the pipeline.</li>
+                                        <li>The visual timeline will update automatically.</li>
+                                    </ol>
                                 </div>
 
                                 <div>
-                                    <h4 className="font-bold text-lg mb-2">{isProperty ? "Portfolio Brain (RAG)" : "Firm-Wide Brain (RAG)"}</h4>
-                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with it, and it will cross-reference your specific uploaded documents to generate accurate results.</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg mb-2">On-Demand Briefings</h4>
-                                    <p className="text-sm">Get an instant snapshot of your practice. Ask {assistantName} "Give me a daily briefing" to receive your urgent tasks, {isProperty ? 'upcoming inspections and deadlines' : 'upcoming court appearances'}, financial highlights, and recent notes securely packaged together.</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg mb-2">File Attachments in Chat</h4>
-                                    <p className="text-sm">You can attach documents, images, and PDFs directly in your chat with {assistantName}. The AI will analyze the attached file and answer questions about its contents. Attachments appear as thumbnails or file chips in the chat.</p>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Filing Deadlines</h4>
+                                    <p className="text-sm">When you mark a document as a court process, the app automatically calculates filing deadlines based on the court's procedural rules. These appear in your Calendar and on the Dashboard.</p>
                                 </div>
                             </div>
-                        </AccordionItem>
+                        </AccordionItem>}
 
                         <AccordionItem
                             id="notes-backlinks"
@@ -469,79 +455,6 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                         </AccordionItem>
 
                         <AccordionItem
-                            id="draftpro-editor"
-                            title={
-                                <div className="flex items-center gap-2">
-                                    DraftPro Document Editor
-                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-3xs text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
-                                </div>
-                            }
-                            isOpen={isSectionOpen('draftpro-editor')}
-                            onToggle={() => handleSectionToggle('draftpro-editor')}
-                        >
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">What is DraftPro?</h4>
-                                    <p>DraftPro is PracticePro's built-in {isProperty ? 'document editor' : 'legal document editor'} with AI-powered drafting assistance. Create professional {isProperty ? 'documents' : 'legal documents'} without leaving the app — then save to a {isProperty ? 'property' : 'matter'}, print, or copy to your preferred word processor.</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Key Features</h4>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers with the MS Word-style ribbon toolbar</li>
-                                        <li><strong>AI Drafting:</strong> Use {assistantName} to generate entire documents from a prompt — text streams live onto the page</li>
-                                        <li><strong>AI Redraft:</strong> Regenerate an existing document with improvement instructions. Your previous content is saved automatically and can be restored if the redraft doesn't meet your needs</li>
-                                        <li><strong>Auto-Format:</strong> {!isProperty ? 'Apply Nigerian legal formatting rules (uppercase headings, numbered paragraphs) with one click' : 'Apply formatting rules with one click'}</li>
-                                        <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
-                                        <li><strong>Smart Fill:</strong> Auto-fill all placeholders from matter/property data with one click</li>
-                                        <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'} or save your own</li>
-                                        <li><strong>Watermarks:</strong> Add DRAFT, CONFIDENTIAL, WITHOUT PREJUDICE, or PRIVATE & CONFIDENTIAL watermarks to every page</li>
-                                        <li><strong>Page Numbers:</strong> Fully configurable — toggle on/off, choose position (center/right/left), format (Page X of Y, Page X, -X-, X only), and starting page number</li>
-                                        <li><strong>Focus Mode:</strong> Press <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">F11</code> to hide the ribbon for distraction-free drafting</li>
-                                        <li><strong>Line Spacing:</strong> Single (1.0), 1.5, or Double (2.0) spacing — applies to the entire document</li>
-                                        <li><strong>Zoom Presets:</strong> Choose from 50%–200% presets, or use <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+=</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+-</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+0</code> keyboard shortcuts</li>
-                                        <li><strong>True Page Pagination:</strong> A4 page sheets with real page breaks, page numbers, and letterhead support</li>
-                                        <li><strong>Letterhead Designer:</strong> Design your firm's letterhead with logo, firm name, and address — appears on every page</li>
-                                        <li><strong>Print Preview:</strong> Click the Preview button to see a live A4 print-ready preview with margins, typography, and page breaks before printing</li>
-                                        <li><strong>DOCX Export:</strong> Download your document as a .docx file that opens in Microsoft Word or Google Docs — formatting is preserved</li>
-                                        <li><strong>Auto-Save:</strong> Your work is saved automatically as you type</li>
-                                        <li><strong>Export Options:</strong> Print to PDF, export as DOCX, or copy to Word/Google Docs with formatting preserved</li>
-                                    </ul>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Keyboard Shortcuts</h4>
-                                    <div className="grid sm:grid-cols-2 gap-2 text-sm">
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+S</kbd> Save</div>
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+Enter</kbd> Page Break</div>
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+=</kbd> Zoom In</div>
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+-</kbd> Zoom Out</div>
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+0</kbd> Reset Zoom</div>
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">F11</kbd> Focus Mode</div>
-                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Esc</kbd> Close Modal</div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Use</h4>
-                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
-                                        <li>Click <strong>DraftPro</strong> in the Documents page to open the editor.</li>
-                                        <li>Choose a template or start from scratch.</li>
-                                        <li>Use the ribbon toolbar for formatting, or click <strong>Redraft</strong> in the DraftPro AI group to generate content with AI.</li>
-                                        <li>Fill any placeholder blanks using <strong>Smart Fill</strong> — printing is blocked until they are all resolved.</li>
-                                        <li>Add a watermark (DRAFT, CONFIDENTIAL, etc.) from the File group if needed.</li>
-                                        <li>When finished, save to a {isProperty ? 'property' : 'matter'}, print to PDF, or copy and paste into your preferred word processor. Bold, italic, underline, and font formatting are preserved.</li>
-                                    </ol>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
-                                    <p className="text-sm text-slate-600 dark:text-dim-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
-                                </div>
-                            </div>
-                        </AccordionItem>
-
-                        <AccordionItem
                             id="messaging"
                             title="Messaging & Compose"
                             isOpen={isSectionOpen('messaging')}
@@ -584,174 +497,6 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                 </div>
                             </div>
                         </AccordionItem>
-
-                        <AccordionItem
-                            id="admin-guide"
-                            title="Admin Guide & Settings"
-                            isOpen={isSectionOpen('admin-guide')}
-                            onToggle={() => handleSectionToggle('admin-guide')}
-                        >
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Firm Settings</h4>
-                                    <p className="text-sm">Access via <strong>Settings</strong> in the sidebar. Key sections:</p>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
-                                        <li><strong>Profile:</strong> Your personal preferences and defaults</li>
-                                        <li><strong>Firm Details:</strong> Firm name, address, logo, letterhead designer, AI settings (API key)</li>
-                                        <li><strong>Subscription:</strong> Plan management and billing</li>
-                                        <li><strong>Security:</strong> Two-factor authentication, session management</li>
-                                        <li><strong>Templates:</strong> Document templates and clause library</li>
-                                        <li><strong>{hasLegalFeatures ? 'Practice' : 'Portfolio'} Blueprint{hasLegalFeatures && hasPropertyFeatures ? ' & Portfolio Blueprint' : ''}:</strong> Re-run anytime from <strong>Settings → Help</strong> — pre-configures matter workflows, categories, event types and checklists for the {hasLegalFeatures ? 'practice areas' : 'property types'}{hasLegalFeatures && hasPropertyFeatures ? ' or portfolio types' : ''} you select</li>
-                                        <li><strong>Portal Access:</strong> {hasLegalFeatures ? 'Client Portal' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'Resident Portal' : ''} invites and settings</li>
-                                        <li><strong>Agents:</strong> AI agent configuration</li>
-                                    </ul>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Inviting Team Members</h4>
-                                    <ol className="list-decimal pl-5 space-y-1 text-sm">
-                                        <li>Go to Settings → scroll to the Users section</li>
-                                        <li>Click "Add User" — enter their name and email</li>
-                                        <li>Share the invite code with them, or they'll receive an email</li>
-                                        <li>They authenticate using their email and set up a password</li>
-                                        <li>Assign their role: {isProperty ? 'Manager, Staff, or Portfolio Administrator' : 'Lawyer, Paralegal, or Firm Administrator'}</li>
-                                    </ol>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Letterhead Designer</h4>
-                                    <p className="text-sm">Design your firm's letterhead in Settings → Firm Details → Letterhead. Add your logo, firm name, and address. The letterhead appears on every page when printing from DraftPro.</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">AI API Key</h4>
-                                    <p className="text-sm">To use AI features (drafting, analysis, voice dictation), configure your Gemini API key in Settings → Firm Details → AI Settings. You can get a free key from Google AI Studio. The key is stored securely and used for all AI operations across the app.</p>
-                                </div>
-                            </div>
-                        </AccordionItem>
-
-                        <AccordionItem
-                            id="research-guide"
-                            title="Research Studio"
-                            isOpen={isSectionOpen('research-guide')}
-                            onToggle={() => handleSectionToggle('research-guide')}
-                        >
-                            <div className="space-y-6">
-                                <div className="flex items-start gap-4 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg">
-                                    <SparklesIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-                                    <div>
-                                        <h4 className="font-bold text-amber-800 dark:text-amber-200">What is Research Studio?</h4>
-                                        <p className="text-amber-700 dark:text-amber-300 text-sm mt-1">{isProperty ? 'An AI-powered workspace for analyzing property documents, generating reports, and preparing management briefs.' : 'An AI-powered workspace for analyzing case files, generating chronologies, and preparing legal arguments.'}</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Research Notebooks</h4>
-                                    <p className="text-sm">Organize your research into notebooks. Each notebook can contain sources (documents, web pages, case law), analysis, and AI-generated insights.</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Key Features</h4>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Chronology Builder:</strong> Automatically generate a timeline of events from your documents</li>
-                                        {!isProperty && <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format)</li>}
-                                        {!isProperty && <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies</li>}
-                                        <li><strong>Audio Briefing:</strong> Generates a podcast-style {isProperty ? 'audio summary of your documents' : 'audio summary of your case file'} for listening on the go</li>
-                                        <li><strong>Source Management:</strong> Upload and organize source documents within each notebook</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </AccordionItem>
-
-                        <AccordionItem
-                            id="aldia-analysis"
-                            title="ALDIA Document Analysis"
-                            isOpen={isSectionOpen('aldia-analysis')}
-                            onToggle={() => handleSectionToggle('aldia-analysis')}
-                        >
-                            <div className="space-y-6">
-                                <div className="flex items-start gap-4 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
-                                    <SparklesIcon className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-1" />
-                                    <div>
-                                        <h4 className="font-bold text-indigo-800 dark:text-indigo-200">What is ALDIA?</h4>
-                                        <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">{isProperty ? 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your property documents' : 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your legal documents'} for risk, compliance, and key metadata extraction.</p>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Use</h4>
-                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
-                                        <li>Navigate to <strong>Documents</strong> and select any document.</li>
-                                        <li>Click the <strong>ALDIA Analysis</strong> tab in the document detail view.</li>
-                                        <li>Click <strong>Analyze Document</strong> to start the AI analysis.</li>
-                                        <li>Review the executive summary, risk scores, and extracted metadata.</li>
-                                    </ol>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Analysis Features</h4>
-                                    <ul className="list-disc pl-5 space-y-1 text-sm">
-                                        <li><strong>Risk Analysis:</strong> {isProperty ? 'Commercial, compliance, and operational risk scores' : 'Legal, commercial, compliance, and operational risk scores'} (1-10)</li>
-                                        <li><strong>Metadata Extraction:</strong> {isProperty ? 'Parties, dates, and key terms' : 'Parties, dates, governing law, jurisdiction'}</li>
-                                        <li><strong>{isProperty ? 'Stakeholder Detection' : 'Opposing Counsel Detection'}:</strong> Automatically extracts {isProperty ? 'stakeholder' : 'opposing counsel'} contact information for quick saving</li>
-                                        <li><strong>Data Protection:</strong> Identifies PII and assesses data protection compliance</li>
-                                        {!isProperty && <li><strong>RPC Guardian:</strong> Ethical compliance check against professional conduct rules</li>}
-                                    </ul>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Save {isProperty ? 'Stakeholder' : 'Opposing Counsel'}</h4>
-                                    <p>When ALDIA detects {isProperty ? 'stakeholder' : 'opposing counsel'} contact information in a document, you'll see a <strong>"Save to Contacts"</strong> button. Click it to automatically create a contact with the extracted details.</p>
-                                </div>
-                            </div>
-                        </AccordionItem>
-
-                        {hasLegalFeatures && <AccordionItem
-                            id="litigation-tracking"
-                            title="Litigation Tracking"
-                            isOpen={isSectionOpen('litigation-tracking')}
-                            onToggle={() => handleSectionToggle('litigation-tracking')}
-                        >
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Overview</h4>
-                                    <p>Track the status of court processes throughout their lifecycle from preparation to proof of service.</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Document Status Pipeline</h4>
-                                    <ul className="space-y-2">
-                                        <li className="p-3 border-l-4 border-slate-400 bg-slate-50 dark:bg-slate-800 rounded-r">
-                                            <strong>1. Preparation:</strong> Document is being drafted and prepared
-                                        </li>
-                                        <li className="p-3 border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-r">
-                                            <strong>2. Filing:</strong> Document has been filed at court
-                                        </li>
-                                        <li className="p-3 border-l-4 border-orange-500 bg-orange-50 dark:bg-orange-900/20 rounded-r">
-                                            <strong>3. Service:</strong> Document has been served on the opposing party
-                                        </li>
-                                        <li className="p-3 border-l-4 border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-r">
-                                            <strong>4. Proof of Service:</strong> Proof of service has been filed
-                                        </li>
-                                    </ul>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Track</h4>
-                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
-                                        <li>Mark a document as a <strong>Court Process</strong> when creating/editing it (toggle in the document form).</li>
-                                        <li>Navigate to the document detail view and select the <strong>Litigation Pipeline</strong> tab.</li>
-                                        <li>Click the status buttons to update the document's progress through the pipeline.</li>
-                                        <li>The visual timeline will update automatically.</li>
-                                    </ol>
-                                </div>
-
-                                <div>
-                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Filing Deadlines</h4>
-                                    <p className="text-sm">When you mark a document as a court process, the app automatically calculates filing deadlines based on the court's procedural rules. These appear in your Calendar and on the Dashboard.</p>
-                                </div>
-                            </div>
-                        </AccordionItem>}
 
                         {hasPropertyFeatures && <AccordionItem
                             id="property-management"
@@ -982,11 +727,251 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                 </div>
                             </div>
                         </AccordionItem>}
+                        {/* ── Category: AI & Voice · Vox, DraftPro & Assistants ── */}
+                        {!hasSearch && (
+                            <div className="pt-6 pb-1 flex items-center gap-2">
+                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">AI & Voice · Vox, DraftPro & Assistants</p>
+                                <div className="flex-1 h-px bg-slate-100 dark:bg-zinc-800" />
+                            </div>
+                        )}
 
-                        {/* ── AI Research Mode & Engine ── */}
+                        <AccordionItem
+                            id="aloa-tips"
+                            title={`${assistantName} — Your AI Assistant`}
+                            isOpen={isSectionOpen('aloa-tips')}
+                            onToggle={() => handleSectionToggle('aloa-tips')}
+                        >
+                            <div className="space-y-6">
+                                <div className="flex items-start gap-4 bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg">
+                                    <ZapIcon className="w-6 h-6 text-emerald-600 flex-shrink-0 mt-1" />
+                                    <div>
+                                        <h4 className="font-bold text-emerald-800 dark:text-emerald-200">What is {assistantName}?</h4>
+                                        <p className="text-emerald-700 dark:text-emerald-300 text-sm mt-1">{assistantName} is your AI-powered {isProperty ? 'assistant and portfolio manager' : 'paralegal and practice manager'}. It drafts documents, checks team schedules, takes dictation notes, and organizes your {isProperty ? 'agency' : 'firm'}'s data.</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">Key Capabilities</h4>
+                                    <ul className="grid sm:grid-cols-2 gap-4">
+                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                                            <strong className="block mb-1 text-primary-600">Team Scheduling</strong>
+                                            "Who is free next week for a meeting?"
+                                        </li>
+                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                                            <strong className="block mb-1 text-primary-600">Task Delegation</strong>
+                                            "Create a task for John to trace the title documents."
+                                        </li>
+                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                                            <strong className="block mb-1 text-primary-600">Contextual Insight</strong>
+                                            "What do I have to do in this matter?" (While viewing a matter)
+                                        </li>
+                                        <li className="p-3 border border-slate-200 dark:border-zinc-700 rounded-lg">
+                                            <strong className="block mb-1 text-primary-600">Drafting</strong>
+                                            {isProperty ? '"Draft a notice to the resident regarding lease renewal terms."' : '"Draft a letter to the opposing counsel for adjournment."'}
+                                        </li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">The Integrated Note Taker (Voice Dictation)</h4>
+                                    <p className="mb-2">{assistantName} includes a powerful dictation engine for note-taking directly within its chat panel.</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
+                                        <li><strong>Voice Dictation:</strong> Click the microphone icon to record your thoughts — speech is transcribed into text automatically.</li>
+                                        <li><strong>Append, Don't Overwrite:</strong> As you speak, transcribed text is appended to your note (not replaced). Keep talking — your words build up naturally.</li>
+                                        <li><strong>Quick Save:</strong> Use the "Save to Matter" feature to instantly store your typed or dictated memo into a Matter's Endorsements tab or a notebook.</li>
+                                        <li><strong>Zero Layout Shift:</strong> Open {assistantName} securely over any screen, take your voice notes, and close it without losing your place in the app.</li>
+                                    </ul>
+                                    <p className="mt-2 text-xs text-slate-500 dark:text-zinc-400">Note: Voice dictation requires microphone permission. On the Android app, you'll see a permission dialog the first time you tap the mic. On web, your browser will prompt for mic access.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">{isProperty ? "Portfolio Brain (RAG)" : "Firm-Wide Brain (RAG)"}</h4>
+                                    <p className="text-sm">{assistantName} constantly {isProperty ? "reads your portfolio documents and delivers localized answers" : "reads your firm's case files and delivers localized legal answers"}. You can search across your knowledge base simply by chatting with it, and it will cross-reference your specific uploaded documents to generate accurate results.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">On-Demand Briefings</h4>
+                                    <p className="text-sm">Get an instant snapshot of your practice. Ask {assistantName} "Give me a daily briefing" to receive your urgent tasks, {isProperty ? 'upcoming inspections and deadlines' : 'upcoming court appearances'}, financial highlights, and recent notes securely packaged together.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg mb-2">File Attachments in Chat</h4>
+                                    <p className="text-sm">You can attach documents, images, and PDFs directly in your chat with {assistantName}. The AI will analyze the attached file and answer questions about its contents. Attachments appear as thumbnails or file chips in the chat.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
+                            id="quick-capture-voice"
+                            title="Vox & Voice Guide"
+                            isOpen={isSectionOpen('quick-capture-voice')}
+                            onToggle={() => handleSectionToggle('quick-capture-voice')}
+                        >
+                            <div className="space-y-4">
+                                <p className="text-sm text-slate-600 dark:text-slate-300">
+                                    Vox turns spoken dictation into structured firm
+                                    records — matters, diary entries, endorsements, property
+                                    notes, expenses, drafts and more. Questions stay
+                                    strictly read-only (“What's my schedule today?” never
+                                    creates an entry). Everything below works
+                                    on mobile, desktop and inside the ALOA panel.
+                                </p>
+                                <VoiceTipsPanel bare />
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
+                            id="draftpro-editor"
+                            title={
+                                <div className="flex items-center gap-2">
+                                    DraftPro Document Editor
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-3xs text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">Beta</span>
+                                </div>
+                            }
+                            isOpen={isSectionOpen('draftpro-editor')}
+                            onToggle={() => handleSectionToggle('draftpro-editor')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">What is DraftPro?</h4>
+                                    <p>DraftPro is PracticePro's built-in {isProperty ? 'document editor' : 'legal document editor'} with AI-powered drafting assistance. Create professional {isProperty ? 'documents' : 'legal documents'} without leaving the app — then save to a {isProperty ? 'property' : 'matter'}, print, or copy to your preferred word processor.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Key Features</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Rich Text Editing:</strong> Format text, add lists, tables, and headers with the MS Word-style ribbon toolbar</li>
+                                        <li><strong>AI Drafting:</strong> Use {assistantName} to generate entire documents from a prompt — text streams live onto the page</li>
+                                        <li><strong>AI Redraft:</strong> Regenerate an existing document with improvement instructions. Your previous content is saved automatically and can be restored if the redraft doesn't meet your needs</li>
+                                        <li><strong>Auto-Format:</strong> {!isProperty ? 'Apply Nigerian legal formatting rules (uppercase headings, numbered paragraphs) with one click' : 'Apply formatting rules with one click'}</li>
+                                        <li><strong>Placeholder Guardrails:</strong> Printing is blocked until every blank placeholder is filled — so you never accidentally send an incomplete document</li>
+                                        <li><strong>Smart Fill:</strong> Auto-fill all placeholders from matter/property data with one click</li>
+                                        <li><strong>Template System:</strong> Start from pre-built {isProperty ? 'professional templates' : 'legal templates'} or save your own</li>
+                                        <li><strong>Watermarks:</strong> Add DRAFT, CONFIDENTIAL, WITHOUT PREJUDICE, or PRIVATE & CONFIDENTIAL watermarks to every page</li>
+                                        <li><strong>Page Numbers:</strong> Fully configurable — toggle on/off, choose position (center/right/left), format (Page X of Y, Page X, -X-, X only), and starting page number</li>
+                                        <li><strong>Focus Mode:</strong> Press <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">F11</code> to hide the ribbon for distraction-free drafting</li>
+                                        <li><strong>Line Spacing:</strong> Single (1.0), 1.5, or Double (2.0) spacing — applies to the entire document</li>
+                                        <li><strong>Zoom Presets:</strong> Choose from 50%–200% presets, or use <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+=</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+-</code> / <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 font-mono text-xs">Ctrl+0</code> keyboard shortcuts</li>
+                                        <li><strong>True Page Pagination:</strong> A4 page sheets with real page breaks, page numbers, and letterhead support</li>
+                                        <li><strong>Letterhead Designer:</strong> Design your firm's letterhead with logo, firm name, and address — appears on every page</li>
+                                        <li><strong>Print Preview:</strong> Click the Preview button to see a live A4 print-ready preview with margins, typography, and page breaks before printing</li>
+                                        <li><strong>DOCX Export:</strong> Download your document as a .docx file that opens in Microsoft Word or Google Docs — formatting is preserved</li>
+                                        <li><strong>Auto-Save:</strong> Your work is saved automatically as you type</li>
+                                        <li><strong>Export Options:</strong> Print to PDF, export as DOCX, or copy to Word/Google Docs with formatting preserved</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Keyboard Shortcuts</h4>
+                                    <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+S</kbd> Save</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+Enter</kbd> Page Break</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+=</kbd> Zoom In</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+-</kbd> Zoom Out</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Ctrl+0</kbd> Reset Zoom</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">F11</kbd> Focus Mode</div>
+                                        <div className="flex items-center gap-2"><kbd className="px-2 py-1 text-xs bg-slate-100 dark:bg-zinc-800 rounded border border-slate-300 dark:border-zinc-600">Esc</kbd> Close Modal</div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Use</h4>
+                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
+                                        <li>Click <strong>DraftPro</strong> in the Documents page to open the editor.</li>
+                                        <li>Choose a template or start from scratch.</li>
+                                        <li>Use the ribbon toolbar for formatting, or click <strong>Redraft</strong> in the DraftPro AI group to generate content with AI.</li>
+                                        <li>Fill any placeholder blanks using <strong>Smart Fill</strong> — printing is blocked until they are all resolved.</li>
+                                        <li>Add a watermark (DRAFT, CONFIDENTIAL, etc.) from the File group if needed.</li>
+                                        <li>When finished, save to a {isProperty ? 'property' : 'matter'}, print to PDF, or copy and paste into your preferred word processor. Bold, italic, underline, and font formatting are preserved.</li>
+                                    </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Copying to Word or Google Docs</h4>
+                                    <p className="text-sm text-slate-600 dark:text-dim-400">Select the text you want, copy it (Ctrl+C / Cmd+C), and paste directly into Word or Google Docs. Your formatting — bold, italic, underline, font family, and font size — is carried over cleanly. No need to use "Paste Plain Text" — just paste normally.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
+                            id="research-guide"
+                            title="Research Studio"
+                            isOpen={isSectionOpen('research-guide')}
+                            onToggle={() => handleSectionToggle('research-guide')}
+                        >
+                            <div className="space-y-6">
+                                <div className="flex items-start gap-4 bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg">
+                                    <SparklesIcon className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
+                                    <div>
+                                        <h4 className="font-bold text-amber-800 dark:text-amber-200">What is Research Studio?</h4>
+                                        <p className="text-amber-700 dark:text-amber-300 text-sm mt-1">{isProperty ? 'An AI-powered workspace for analyzing property documents, generating reports, and preparing management briefs.' : 'An AI-powered workspace for analyzing case files, generating chronologies, and preparing legal arguments.'}</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Research Notebooks</h4>
+                                    <p className="text-sm">Organize your research into notebooks. Each notebook can contain sources (documents, web pages, case law), analysis, and AI-generated insights.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Key Features</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Chronology Builder:</strong> Automatically generate a timeline of events from your documents</li>
+                                        {!isProperty && <li><strong>Legal Matrix:</strong> Maps facts found in your documents to legal elements (IRAC format)</li>}
+                                        {!isProperty && <li><strong>Discovery Gaps:</strong> Analyzes your file to identify missing evidence or logical inconsistencies</li>}
+                                        <li><strong>Audio Briefing:</strong> Generates a podcast-style {isProperty ? 'audio summary of your documents' : 'audio summary of your case file'} for listening on the go</li>
+                                        <li><strong>Source Management:</strong> Upload and organize source documents within each notebook</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
+                        <AccordionItem
+                            id="aldia-analysis"
+                            title="ALDIA Document Analysis"
+                            isOpen={isSectionOpen('aldia-analysis')}
+                            onToggle={() => handleSectionToggle('aldia-analysis')}
+                        >
+                            <div className="space-y-6">
+                                <div className="flex items-start gap-4 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
+                                    <SparklesIcon className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-1" />
+                                    <div>
+                                        <h4 className="font-bold text-indigo-800 dark:text-indigo-200">What is ALDIA?</h4>
+                                        <p className="text-indigo-700 dark:text-indigo-300 text-sm mt-1">{isProperty ? 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your property documents' : 'ALDIA (Advanced Legal Document Intelligence Agent) analyzes your legal documents'} for risk, compliance, and key metadata extraction.</p>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">How to Use</h4>
+                                    <ol className="list-decimal pl-5 space-y-2 marker:text-slate-500">
+                                        <li>Navigate to <strong>Documents</strong> and select any document.</li>
+                                        <li>Click the <strong>ALDIA Analysis</strong> tab in the document detail view.</li>
+                                        <li>Click <strong>Analyze Document</strong> to start the AI analysis.</li>
+                                        <li>Review the executive summary, risk scores, and extracted metadata.</li>
+                                    </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Analysis Features</h4>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm">
+                                        <li><strong>Risk Analysis:</strong> {isProperty ? 'Commercial, compliance, and operational risk scores' : 'Legal, commercial, compliance, and operational risk scores'} (1-10)</li>
+                                        <li><strong>Metadata Extraction:</strong> {isProperty ? 'Parties, dates, and key terms' : 'Parties, dates, governing law, jurisdiction'}</li>
+                                        <li><strong>{isProperty ? 'Stakeholder Detection' : 'Opposing Counsel Detection'}:</strong> Automatically extracts {isProperty ? 'stakeholder' : 'opposing counsel'} contact information for quick saving</li>
+                                        <li><strong>Data Protection:</strong> Identifies PII and assesses data protection compliance</li>
+                                        {!isProperty && <li><strong>RPC Guardian:</strong> Ethical compliance check against professional conduct rules</li>}
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Save {isProperty ? 'Stakeholder' : 'Opposing Counsel'}</h4>
+                                    <p>When ALDIA detects {isProperty ? 'stakeholder' : 'opposing counsel'} contact information in a document, you'll see a <strong>"Save to Contacts"</strong> button. Click it to automatically create a contact with the extracted details.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
                         <AccordionItem
                             id="ai-research-mode"
-                            title={`${assistantName} Research Mode & AI Engine`}
+                            title={`${assistantName} — Research Mode & AI Engine`}
                             isOpen={isSectionOpen('ai-research-mode')}
                             onToggle={() => handleSectionToggle('ai-research-mode')}
                         >
@@ -1051,8 +1036,123 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                 </div>
                             </div>
                         </AccordionItem>
+                        {/* ── Category: Notifications & Reminders ── */}
+                        {!hasSearch && (
+                            <div className="pt-6 pb-1 flex items-center gap-2">
+                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Notifications & Reminders</p>
+                                <div className="flex-1 h-px bg-slate-100 dark:bg-zinc-800" />
+                            </div>
+                        )}
 
-                        {/* ── Security & 2FA ── */}
+                        <AccordionItem
+                            id="notifications-reminders"
+                            title="Notifications & Reminders"
+                            isOpen={isSectionOpen('notifications-reminders')}
+                            onToggle={() => handleSectionToggle('notifications-reminders')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">The Notification Center</h4>
+                                    <p className="text-sm mb-2">The bell in the top bar is your Notification Center. Everything that needs your attention lands here and stays until you read or dismiss it — a reminder is never a toast that disappears after five seconds.</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
+                                        <li><strong>Platform Notices:</strong> announcements and system alerts from PracticePro (updates, security, broadcasts).</li>
+                                        <li><strong>Firm Notices:</strong> messages and activity from your team, clients and residents.</li>
+                                        <li>The red dot on the bell shows unread items; the count appears when you open the panel.</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Event Reminders That Actually Fire</h4>
+                                    <p className="text-sm mb-2">When you create an event (court hearing, inspection, meeting, filing deadline) and turn on <strong>Notifications</strong>, the reminder fires at the lead time you choose — for example 30 minutes or 1 day before:</p>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
+                                        <li>A <strong>persistent notification</strong> appears in the Notification Center with the event title, time and context.</li>
+                                        <li>On mobile, a <strong>device notification</strong> shows in your phone's notification shade — even if the app is closed.</li>
+                                        <li>On web, a <strong>browser notification</strong> appears if you've enabled device notifications (see below).</li>
+                                    </ol>
+                                    <p className="text-sm mt-2">Recurring events remind you once per occurrence. Missed while the app was closed? The reminder still lands the next time you open PracticePro (within 24 hours of its due time).</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Quick Actions on Reminders</h4>
+                                    <p className="text-sm mb-2">Reminder notifications carry action buttons so one-off reminders are never silently missed:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
+                                        <li><strong>Open</strong> — jump straight to the event (or its matter's task list).</li>
+                                        <li><strong>Snooze</strong> — push the reminder back by your default snooze duration (10 minutes, 30 minutes or 1 hour).</li>
+                                        <li><strong>Done</strong> — mark the reminder complete and clear it.</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Device Notifications</h4>
+                                    <p className="text-sm">On the Android app, allow notifications when prompted (or via Settings → Notifications → Reminders &amp; Device Notifications → Enable). On web, click <strong>Enable</strong> in the same place and accept your browser's permission prompt. Device notifications cover reminders, deadlines, hearing dates, completed AI drafts and analysis results, task and matter updates, payments and receipts, and messages.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Choosing What You're Notified About</h4>
+                                    <p className="text-sm">Go to <strong>Settings → Notifications</strong> to tune everything in one place:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700 dark:text-zinc-300">
+                                        <li><strong>Notify me about</strong> — toggle whole categories: Reminders &amp; Deadlines, AI Drafts &amp; Analysis, Matters &amp; Tasks, Payments &amp; Billing, Messages.</li>
+                                        <li><strong>Default reminder lead time</strong> — pre-fills every new event you create.</li>
+                                        <li><strong>Snooze duration</strong> — what the Snooze quick action uses.</li>
+                                        <li><strong>My In-App Notifications</strong> — per-user toggles for messages, assignments and task activity.</li>
+                                        <li><strong>Email Notifications</strong> — firm-wide email delivery per event type (admins).</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </AccordionItem>
+                        {/* ── Category: Account, Settings & Troubleshooting ── */}
+                        {!hasSearch && (
+                            <div className="pt-6 pb-1 flex items-center gap-2">
+                                <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest">Account, Settings & Troubleshooting</p>
+                                <div className="flex-1 h-px bg-slate-100 dark:bg-zinc-800" />
+                            </div>
+                        )}
+
+                        <AccordionItem
+                            id="admin-guide"
+                            title="Admin Guide & Settings"
+                            isOpen={isSectionOpen('admin-guide')}
+                            onToggle={() => handleSectionToggle('admin-guide')}
+                        >
+                            <div className="space-y-6">
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Firm Settings</h4>
+                                    <p className="text-sm">Access via <strong>Settings</strong> in the sidebar. Key sections:</p>
+                                    <ul className="list-disc pl-5 space-y-1 text-sm mt-2">
+                                        <li><strong>Profile:</strong> Your personal preferences and defaults</li>
+                                        <li><strong>Firm Details:</strong> Firm name, address, logo, letterhead designer, AI settings (API key)</li>
+                                        <li><strong>Subscription:</strong> Plan management and billing</li>
+                                        <li><strong>Security:</strong> Two-factor authentication, session management</li>
+                                        <li><strong>Templates:</strong> Document templates and clause library</li>
+                                        <li><strong>{hasLegalFeatures ? 'Practice' : 'Portfolio'} Blueprint{hasLegalFeatures && hasPropertyFeatures ? ' & Portfolio Blueprint' : ''}:</strong> Re-run anytime from <strong>Settings → Help</strong> — pre-configures matter workflows, categories, event types and checklists for the {hasLegalFeatures ? 'practice areas' : 'property types'}{hasLegalFeatures && hasPropertyFeatures ? ' or portfolio types' : ''} you select</li>
+                                        <li><strong>Portal Access:</strong> {hasLegalFeatures ? 'Client Portal' : ''} {hasLegalFeatures && hasPropertyFeatures ? 'and ' : ''}{hasPropertyFeatures ? 'Resident Portal' : ''} invites and settings</li>
+                                        <li><strong>Agents:</strong> AI agent configuration</li>
+                                    </ul>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Inviting Team Members</h4>
+                                    <ol className="list-decimal pl-5 space-y-1 text-sm">
+                                        <li>Go to Settings → scroll to the Users section</li>
+                                        <li>Click "Add User" — enter their name and email</li>
+                                        <li>Share the invite code with them, or they'll receive an email</li>
+                                        <li>They authenticate using their email and set up a password</li>
+                                        <li>Assign their role: {isProperty ? 'Manager, Staff, or Portfolio Administrator' : 'Lawyer, Paralegal, or Firm Administrator'}</li>
+                                    </ol>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">Letterhead Designer</h4>
+                                    <p className="text-sm">Design your firm's letterhead in Settings → Firm Details → Letterhead. Add your logo, firm name, and address. The letterhead appears on every page when printing from DraftPro.</p>
+                                </div>
+
+                                <div>
+                                    <h4 className="font-bold text-lg text-slate-800 dark:text-white mb-2">AI API Key</h4>
+                                    <p className="text-sm">To use AI features (drafting, analysis, voice dictation), configure your Gemini API key in Settings → Firm Details → AI Settings. You can get a free key from Google AI Studio. The key is stored securely and used for all AI operations across the app.</p>
+                                </div>
+                            </div>
+                        </AccordionItem>
+
                         <AccordionItem
                             id="security-2fa"
                             title="Security & 2FA"
@@ -1092,7 +1192,7 @@ const HelpView: React.FC<HelpViewProps> = ({ initialSection }) => {
                                 </div>
                             </div>
                         </AccordionItem>
-                    </Accordion>
+                                            </Accordion>
 
                     {/* No results → ALOA fallback offer */}
                     {noResults && (

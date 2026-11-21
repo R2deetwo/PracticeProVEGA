@@ -66,8 +66,13 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
     // immediately resets the field to "1". The number is parsed at submit
     // time with a sane fallback. The stepper buttons (+/-) provide an even
     // smoother touch UX.
-    const [reminderValueStr, setReminderValueStr] = useState('30');
-    const [reminderUnit, setReminderUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
+    // REMINDER PREFERENCES (2026-11-22): the initial lead time comes from the
+    // user's Notification Settings (default 30 minutes) so what the reminder
+    // engine fires matches what the user asked for.
+    const defaultLead = currentUser?.notificationSettings?.defaultReminderLead ?? 30;
+    const defaultLeadUnit = currentUser?.notificationSettings?.defaultReminderLeadUnit ?? 'minutes';
+    const [reminderValueStr, setReminderValueStr] = useState(String(defaultLead));
+    const [reminderUnit, setReminderUnit] = useState<'minutes' | 'hours' | 'days'>(defaultLeadUnit as 'minutes' | 'hours' | 'days');
 
     const [recurrenceEnabled, setRecurrenceEnabled] = useState(false);
     // Calendar round: the union matches CalendarEvent['recurrence']['frequency']
@@ -320,6 +325,11 @@ export const EventForm: React.FC<EventFormProps> = ({ matters, users, appMode, e
                              </div>
                              <div className="flex-grow">
                                 <label htmlFor="reminderEnabled" className="text-xs font-black text-slate-700 dark:text-zinc-200 uppercase tracking-widest cursor-pointer block mb-1">Notifications</label>
+                                {/* REMINDER ENGINE (2026-11-22): a short hint that the
+                                    reminder now actually FIRES — Notification Center row
+                                    with quick actions + device notification — instead of
+                                    being silently stored. */}
+                                <p className="text-3xs text-slate-400 dark:text-zinc-500 mb-1.5">Alerts you in the Notification Center and on your device{reminderEnabled ? ' before this event starts' : ''}.</p>
                                 <div className="flex items-center gap-3">
                                     <input autoComplete="off" data-lpignore="true"  type="checkbox" id="reminderEnabled" checked={reminderEnabled} onChange={e => setReminderEnabled(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-primary-600 dark:text-primary-300 focus:ring-primary-500 cursor-pointer" />
                                     {reminderEnabled && (

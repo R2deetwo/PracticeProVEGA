@@ -175,19 +175,22 @@ const MatterCardItem: React.FC<{
                 the meta row instead of a third footer row with a divider.
                 All matter data (client, stage, adjourned date, overdue,
                 review reminder, close/reopen, delete, assignees) is kept. */}
-            <div className="flex items-start gap-2">
-                {/* Checkbox — visible on hover or when selection mode active */}
-                {/* V7 (E: touch target + keyboard): the checkbox was a 14px
-                    dummy input (onChange no-op — the wrapper div handled clicks,
-                    so keyboard users could not select matters at all) and the
-                    row actions were 22px taps. The input is now the real
-                    control at the WCAG 2.2 AA minimum (24px), and the icon
-                    buttons carry ≥26px hit areas with proper labels.
-                    SLIM: it no longer occupies a permanent layout column —
-                    it floats over the card's top-left corner so the body
-                    starts flush-left like the Properties card. */}
+            <div className="flex items-start">
+                {/* Checkbox — a DEDICATED FLEX SLOT, not an overlay.
+                    SLIM-ROW HOVER FIX (owner report 2026-11-22): the checkbox
+                    used to float absolutely over the card's top-left corner and
+                    covered the first letters of the matter title on hover.
+                    It now owns a real flex column that slides open on hover /
+                    focus-within (desktop) and is always open on touch devices
+                    and in selection mode, so the title is never overlapped or
+                    clipped — the text column keeps min-w-0 + truncate.
+                    Keyboard: the input is the real control (24px WCAG 2.2 AA). */}
                 <div
-                    className={`absolute left-1.5 top-1.5 z-10 rounded transition-opacity ${selectionMode ? 'opacity-100 bg-white/80 dark:bg-zinc-900/80' : 'opacity-100 md:opacity-0 md:group-hover:opacity-100 md:hover:opacity-100 md:focus-within:opacity-100'}`}
+                    className={`shrink-0 self-start overflow-hidden transition-all duration-200 ease-in-out ${
+                        selectionMode
+                            ? 'w-6 mr-2'
+                            : 'w-6 mr-2 md:w-0 md:mr-0 md:group-hover:w-6 md:group-hover:mr-2 md:group-focus-within:w-6 md:group-focus-within:mr-2'
+                    }`}
                 >
                     <input autoComplete="off" data-lpignore="true"
                         type="checkbox"
@@ -195,7 +198,11 @@ const MatterCardItem: React.FC<{
                         onChange={() => { onSelect?.(matter.id, !isSelected); }}
                         onClick={e => e.stopPropagation()}
                         aria-label={`Select ${matter.title}`}
-                        className="w-6 h-6 rounded border-dim-300 text-primary-600 focus:ring-primary-500 focus:ring-2 cursor-pointer"
+                        className={`shrink-0 w-6 h-6 rounded border-dim-300 text-primary-600 focus:ring-primary-500 focus:ring-2 cursor-pointer transition-opacity ${
+                            selectionMode
+                                ? 'opacity-100'
+                                : 'opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100'
+                        }`}
                     />
                 </div>
                 <div className="flex-1 min-w-0">

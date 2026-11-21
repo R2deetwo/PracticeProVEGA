@@ -19,6 +19,9 @@ import { useProduct } from '../contexts/ProductContext';
 import { useAloa } from '../contexts/AloaProvider';
 import { useHapticFeedback } from '../hooks/useHapticFeedback';
 import { Button } from './ui/Button';
+// REMINDERS & NOTIFICATION CENTER (owner direction 2026-11-22): quick actions
+// on reminder notifications — Open · Snooze · Done.
+import { snoozeReminder, DEFAULT_SNOOZE_MINUTES } from '../utils/reminderEngine';
 
 import { Z_CLASS } from '../overlays/constants';
 interface HeaderProps {
@@ -65,6 +68,8 @@ const Header: React.FC = React.memo(() => {
     const { openPanel: openAloaPanel } = useAloa();
     const openAloaCapture = React.useCallback(() => openAloaPanel('capture'), [openAloaPanel]);
     const { light: hapticLight } = useHapticFeedback();
+    // Default snooze interval for the quick action (per-user preference).
+    const defaultSnoozeMinutes = (currentUser?.notificationSettings as any)?.defaultSnoozeMinutes || DEFAULT_SNOOZE_MINUTES;
     // VOX ENTITLEMENT (owner spec 2026-11-20): drives the mic's Free-tier
     // lock dot — see the mic button render below.
     const { canUseVox: voxEnabled } = useFeatures();
@@ -654,8 +659,9 @@ const Header: React.FC = React.memo(() => {
                                                         className={`group relative p-4 hover:bg-slate-50 dark:hover:bg-zinc-700/50 flex gap-4 transition-colors ${!notification.isRead ? 'bg-primary-50/30 dark:bg-primary-900/10' : ''}`}
                                                     >
                                                         <div className="mt-1 flex-shrink-0">{style.icon}</div>
+                                                        <div className="flex-grow min-w-0 flex flex-col">
                                                         <div
-                                                            className="flex-grow cursor-pointer"
+                                                            className="cursor-pointer"
                                                             onClick={() => {
                                                                 if (notification.link) {
                                                                     navigateTo(notification.link.view, notification.link.id, notification.link.context);
@@ -668,6 +674,74 @@ const Header: React.FC = React.memo(() => {
                                                                 {notification.title ? `${notification.title}: ` : ''}{notification.message}
                                                             </p>
                                                             <p className="text-2xs font-medium text-slate-400">{timeAgo(notification.timestampStr)}</p>
+                                                        </div>
+                                                        {/* ── QUICK ACTIONS (reminders) ──────────────────────────
+                                                            Reminder notifications (type 'event_reminder', created by
+                                                            useReminderEngine) carry quick actions so a one-off reminder
+                                                            is never silently missed: Open the item, Snooze it back into
+                                                            the queue, or Mark done / dismiss it. */}
+                                                        {String(notification.type || '') === 'event_reminder' && (
+                                                            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                                                <Button
+                                                                    variant="bare"
+                                                                    onClick={(e) => { e.stopPropagation(); if (notification.link) { navigateTo(notification.link.view, notification.link.id, notification.link.context); setNotificationsOpen(false); if (!notification.isRead) handleMarkNotificationsRead([String(notification._id || notification.id || '')]); } }}
+                                                                    className="px-2 py-1 text-2xs font-bold rounded-md bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors"
+                                                                >
+                                                                    Open
+                                                                </Button>
+                                                                <Button
+                                                                    variant="bare"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        snoozeReminder({
+                                                                            minutes: defaultSnoozeMinutes,
+                                                                            title: notification.title || 'Reminder',
+                                                                            message: notification.message,
+                                                                            link: notification.link,
+                                                                            occurrenceKey: notification.link?.context?.occurrenceKey,
+                                                                        });
+                                                                        actions.handleDismissNotification(String(notification._id || notification.id || ''));
+                                                                        hapticLight();
+                                                                        addToast(`Snoozed for ${defaultSnoozeMinutes} minutes.`, { type: 'info' });
+                                                                    }}
+                                                                    className="px-2 py-1 text-2xs font-bold rounded-md bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                                                                >
+                                                                    Snooze {defaultSnoozeMinutes}m
+                                                                </Button>
+                                                                <Button
+                                                                    variant="bare"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        snoozeReminder({
+                                                                            minutes: 60,
+                                                                            title: notification.title || 'Reminder',
+                                                                            message: notification.message,
+                                                                            link: notification.link,
+                                                                            occurrenceKey: notification.link?.context?.occurrenceKey,
+                                                                        });
+                                                                        actions.handleDismissNotification(String(notification._id || notification.id || ''));
+                                                                        hapticLight();
+                                                                        addToast('Snoozed for 1 hour.', { type: 'info' });
+                                                                    }}
+                                                                    className="px-2 py-1 text-2xs font-bold rounded-md bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-600 transition-colors"
+                                                                >
+                                                                    1h
+                                                                </Button>
+                                                                <Button
+                                                                    variant="bare"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (!notification.isRead) handleMarkNotificationsRead([String(notification._id || notification.id || '')]);
+                                                                        actions.handleDismissNotification(String(notification._id || notification.id || ''));
+                                                                        hapticLight();
+                                                                        addToast('Marked done.', { type: 'success' });
+                                                                    }}
+                                                                    className="px-2 py-1 text-2xs font-bold rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+                                                                >
+                                                                    Done
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                         </div>
                                                         <button
                                                             onClick={(e) => {

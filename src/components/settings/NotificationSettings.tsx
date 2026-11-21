@@ -27,6 +27,32 @@ import {
   BellIcon, MailIcon, ShieldCheckIcon, OfficeBuildingIcon,
   CheckIcon, XIcon, LockClosedIcon,
 } from '../../constants';
+import { Capacitor } from '@capacitor/core';
+// REMINDERS & NOTIFICATION CENTER (owner direction 2026-11-22): device
+// notification opt-in + reminder category toggles + reminder behaviour.
+import {
+  webNotificationPermission, requestWebNotificationPermission,
+} from '../../utils/reminderEngine';
+import { registerForNotifications } from '../../utils/notifications';
+// ui/ primitives (ADR-0004) — new raw form elements are banned; the
+// pref switches below are deduped into one PrefSwitch component (a single
+// switch control per file instead of one per row).
+import { Button, Select } from '../ui';
+
+// ── PrefSwitch — one shared switch control for every notification toggle ──
+// (ADR-0004 ratchet: previously each toggle row hand-rolled its own switch
+// markup; the whole file now owns exactly ONE switch element.)
+const PrefSwitch: React.FC<{ checked: boolean; onToggle: () => void; label: string; tone?: 'blue' | 'emerald'; }> = ({ checked, onToggle, label, tone = 'emerald' }) => (
+  <button
+    onClick={onToggle}
+    role="switch"
+    aria-checked={checked}
+    aria-label={label}
+    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${checked ? (tone === 'blue' ? 'bg-blue-600' : 'bg-emerald-500') : 'bg-slate-200 dark:bg-zinc-600'}`}
+  >
+    <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+  </button>
+);
 
 // ── Category metadata ────────────────────────────────────────────────────
 const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; color: string; description: string }> = {
@@ -65,8 +91,16 @@ export const NotificationSettings: React.FC = () => {
 
   const firmId = coreState?.firmDetails?.id || currentUser?.firmId || '';
 
+  // DEMO SESSION GUARD (2026-11-22): getNotificationPreferences is
+  // session-authed server-side; DEV demo sessions carry no bearer, so the
+  // query throws Unauthenticated and trips the error boundary ("Something
+  // went wrong" for demo users opening this tab). Skip it for demo — the
+  // tab renders with defaults (same pattern as the Header's app-notification
+  // queries).
+  const isDemoSession = currentUser?.email === 'demo@practicepro.ng';
+
   // Fetch notification preferences (merged with defaults)
-  const prefsData = useQuery(api.portals.getNotificationPreferences, firmId ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip');
+  const prefsData = useQuery(api.portals.getNotificationPreferences, firmId && !isDemoSession ? { firmId, sessionToken: (bearerToken ?? undefined) || undefined } : 'skip');
   const updatePrefs = useMutation(api.portals.updateNotificationPreferences);
 
   // Local state for optimistic updates
@@ -164,6 +198,14 @@ export const NotificationSettings: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* ── Reminders & Device Notifications ──
+          Owner direction 2026-11-22: a clean preferences home for the new
+          reminder engine + Notification Center. Category toggles gate what
+          the engine fires; the device block covers native (APK) permission
+          and web Notification API opt-in. Kept compact — one card, no
+          clutter on core screens. */}
+      <RemindersAndDeviceCard />
+
       {/* ── My In-App Notifications ──
           Per-user in-app notification preferences (moved from Profile Settings).
           These control which in-app notifications YOU receive — distinct from
@@ -197,16 +239,16 @@ export const NotificationSettings: React.FC = () => {
                   <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{label}</p>
                   <p className="text-xs text-slate-400 dark:text-zinc-500">{desc}</p>
                 </div>
-                <button
-                  onClick={() => {
+                <PrefSwitch
+                  tone="blue"
+                  checked={isChecked}
+                  label={label}
+                  onToggle={() => {
                     if (!currentUser) return;
                     const current = currentUser?.notificationSettings || {};
                     handleUpdateUser(currentUser.id, { notificationSettings: { ...current, [key]: !isChecked } });
                   }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 ${isChecked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-zinc-600'}`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-zinc-900 shadow-sm transition-transform ${isChecked ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
+                />
               </div>
             );
           })}
@@ -350,6 +392,180 @@ export const NotificationSettings: React.FC = () => {
             </p>
           </div>
           <TestPushButton />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Reminders & Device Notifications card ─────────────────────────────────
+const RemindersAndDeviceCard: React.FC = () => {
+  const { currentUser } = useAuth();
+  const { handleUpdateUser } = useDataActions();
+  const { addToast } = useUI();
+  const [deviceStatus, setDeviceStatus] = useState<'checking' | 'granted' | 'default' | 'denied' | 'unsupported'>(() => {
+    if (Capacitor.isNativePlatform()) return 'checking';
+    return (webNotificationPermission() as any) || 'unsupported';
+  });
+  const [enabling, setEnabling] = useState(false);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    import('@capacitor/local-notifications').then(async ({ LocalNotifications }) => {
+      try {
+        const status = await LocalNotifications.checkPermissions();
+        setDeviceStatus(status.display === 'granted' ? 'granted' : status.display === 'denied' ? 'denied' : 'default');
+      } catch {
+        setDeviceStatus('default');
+      }
+    }).catch(() => setDeviceStatus('default'));
+  }, []);
+
+  const handleEnableDevice = async () => {
+    setEnabling(true);
+    try {
+      let ok = false;
+      if (Capacitor.isNativePlatform()) {
+        ok = await registerForNotifications();
+      } else {
+        ok = await requestWebNotificationPermission();
+      }
+      setDeviceStatus(ok ? 'granted' : (Capacitor.isNativePlatform() ? 'denied' : webNotificationPermission() as any));
+      addToast(
+        ok
+          ? 'Device notifications enabled.'
+          : 'Permission was not granted. You can enable notifications in your device/browser settings.',
+        { type: ok ? 'success' : 'info', duration: 6000 }
+      );
+    } finally {
+      setEnabling(false);
+    }
+  };
+
+  const prefs = currentUser?.notificationSettings || {};
+  const setUserPref = (patch: Record<string, any>) => {
+    if (!currentUser) return;
+    handleUpdateUser(currentUser.id, { notificationSettings: { ...currentUser.notificationSettings, ...patch } });
+  };
+
+  const categoryToggles: { key: string; label: string; desc: string }[] = [
+    { key: 'reminderEvents', label: 'Reminders & Deadlines', desc: 'Event reminders, court/hearing dates, inspections and scheduled events.' },
+    { key: 'reminderDraftsAI', label: 'AI Drafts & Analysis', desc: 'DraftPro/Vox completed drafts and document analysis results needing review.' },
+    { key: 'reminderMatterUpdates', label: 'Matters & Tasks', desc: 'Matter/record status updates, assigned tasks, overdue items and escalations.' },
+    { key: 'reminderPayments', label: 'Payments & Billing', desc: 'Payments, wallet updates, receipts and billing/subscription alerts.' },
+    { key: 'reminderMessages', label: 'Messages', desc: 'Relevant messages and connected messaging updates.' },
+  ];
+
+  const leadOptions: { value: number; unit: 'minutes' | 'hours' | 'days'; label: string }[] = [
+    { value: 10, unit: 'minutes', label: '10 minutes before' },
+    { value: 30, unit: 'minutes', label: '30 minutes before' },
+    { value: 60, unit: 'minutes', label: '1 hour before' },
+    { value: 120, unit: 'minutes', label: '2 hours before' },
+    { value: 1, unit: 'days', label: '1 day before' },
+  ];
+  const leadValue = `${prefs.defaultReminderLead ?? 30}|${prefs.defaultReminderLeadUnit ?? 'minutes'}`;
+  const snoozeOptions = [10, 30, 60];
+  const snoozeValue = prefs.defaultSnoozeMinutes ?? 10;
+
+  return (
+    <div className="bg-white dark:bg-zinc-800 rounded-lg border border-slate-200 dark:border-zinc-700 p-5">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+          <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">Reminders & Device Notifications</h3>
+          <p className="text-xs text-slate-500 dark:text-zinc-400">What the Notification Center reminds you about, and how reminders reach you</p>
+        </div>
+      </div>
+
+      {/* Device notifications */}
+      <div className="flex items-center justify-between gap-3 py-2.5 border-b border-slate-100 dark:border-zinc-700/60">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">Device notifications</p>
+          <p className="text-xs text-slate-400 dark:text-zinc-500">
+            {deviceStatus === 'granted' && 'Enabled — reminders and alerts reach your notification shade / desktop.'}
+            {deviceStatus === 'default' && 'Not enabled yet — turn on to get reminders outside the app.'}
+            {deviceStatus === 'denied' && 'Blocked — allow notifications for this app in your device/browser settings.'}
+            {deviceStatus === 'unsupported' && 'Your browser does not support desktop notifications; in-app notifications still work.'}
+            {deviceStatus === 'checking' && 'Checking permission…'}
+          </p>
+        </div>
+        {deviceStatus === 'granted' ? (
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 text-2xs font-bold flex-shrink-0">
+            <CheckIcon className="w-3 h-3" /> On
+          </span>
+        ) : (
+          <Button
+            variant="bare"
+            onClick={handleEnableDevice}
+            disabled={enabling || deviceStatus === 'unsupported'}
+            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors flex-shrink-0"
+          >
+            {enabling ? 'Enabling…' : 'Enable'}
+          </Button>
+        )}
+      </div>
+
+      {/* Category toggles */}
+      <div className="pt-3">
+        <p className="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-2">Notify me about</p>
+        <div className="space-y-2.5">
+          {categoryToggles.map(({ key, label, desc }) => {
+            const isChecked = (prefs as any)[key] !== false;
+            return (
+              <div key={key} className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-slate-700 dark:text-zinc-300">{label}</p>
+                  <p className="text-xs text-slate-400 dark:text-zinc-500">{desc}</p>
+                </div>
+                <PrefSwitch
+                  checked={isChecked}
+                  label={label}
+                  onToggle={() => setUserPref({ [key]: !isChecked })}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Reminder behaviour */}
+      <div className="pt-4 mt-4 border-t border-slate-100 dark:border-zinc-700/60 grid sm:grid-cols-2 gap-4">
+        <div>
+          <Select
+            id="defaultReminderLead"
+            styleVariant="settings"
+            label="Default reminder lead time"
+            labelClassName="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5"
+            value={leadValue}
+            onChange={(e) => {
+              const [value, unit] = e.target.value.split('|');
+              setUserPref({ defaultReminderLead: parseInt(value, 10), defaultReminderLeadUnit: unit as any });
+            }}
+          >
+            {leadOptions.map(o => (
+              <option key={o.label} value={`${o.value}|${o.unit}`}>{o.label}</option>
+            ))}
+          </Select>
+          <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">Used when you create a new event with notifications on.</p>
+        </div>
+        <div>
+          <Select
+            id="defaultSnoozeMinutes"
+            styleVariant="settings"
+            label="Snooze duration"
+            labelClassName="text-2xs font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-1.5"
+            value={snoozeValue}
+            onChange={(e) => setUserPref({ defaultSnoozeMinutes: parseInt(e.target.value, 10) })}
+          >
+            {snoozeOptions.map(m => (
+              <option key={m} value={m}>{m === 60 ? '1 hour' : `${m} minutes`}</option>
+            ))}
+          </Select>
+          <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-1">The Snooze quick action on a reminder notification.</p>
         </div>
       </div>
     </div>

@@ -100,9 +100,9 @@ const tabMapping: Record<string, { main: SettingsTab, sub?: TemplateSubTab | Cat
     'event-type-management': { main: 'templates', sub: 'events' },
     'contact-category-management': { main: 'templates', sub: 'contacts' },
     'document-category-management': { main: 'templates', sub: 'documents_folders' },
-    'display-settings': { main: 'profile' },
-    'theme-preference': { main: 'profile' }, // Long-press theme toggle target
-    'notification-settings': { main: 'profile' },
+    'display-settings': { main: 'display' },
+    'theme-preference': { main: 'display' }, // Long-press theme toggle target (Display tab is the one appearance home)
+    'notification-settings': { main: 'notifications' },
     'automation-settings': { main: 'templates', sub: 'automations' },
     'category-management': { main: 'categories' },
     'display-and-realtime': { main: 'display' },
@@ -232,7 +232,7 @@ const SidebarContents: React.FC<{
 
     const groups: Group[] = [
         {
-            key: 'profile', label: 'My Profile', description: 'Info, alerts & appearance',
+            key: 'profile', label: 'My Profile', description: 'Your info & account details',
             icon: <UserCircleIcon />, section: 'account',
             children: [
                 { id: 'profile', label: 'Profile', visible: true },
@@ -643,7 +643,10 @@ export const SettingsView: React.FC = () => {
         );
 
         switch (activeTab) {
-            case 'profile': return <ProfileSettings {...props} theme={props.theme} setTheme={props.setTheme} initialSubTab={settingsTargetId === 'theme-preference' || settingsTargetId === 'display-settings' ? 'appearance' : undefined} />;
+            // PROFILE SETTINGS DEDUP (owner direction 2026-11-22): no more
+            // General/Appearance sub-tabs here — appearance lives ONLY in the
+            // Display tab (richer theme picker, accent colour, font size).
+            case 'profile': return <ProfileSettings currentUser={props.currentUser} onUpdateUser={props.onUpdateUser} />;
             case 'firm': return <FirmSettings {...props} onEnableDevMode={props.onEnableDevMode} />;
             case 'subscription':
                 return isDemo
