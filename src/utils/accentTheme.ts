@@ -18,13 +18,12 @@
  * Vega and Complete — if it's only Atrium, use the green colour... it
  * doesn't make sense to have a different colour." Vega and Komplete now
  * share THE SAME register — the Vega blue #1D4ED8 / #1E3A8A (the colour
- * Vox always wore). Green/jade remains EXCLUSIVE to Atrium. The accent
+ * Vox always wore). Jade remains EXCLUSIVE to Atrium. The accent
  * still resolves in exactly one place, from two inputs:
  *
  *   1. the ACTIVE PRODUCT (ProductContext — the app= URL param stays
- *      purely informational): 'unified' → komplete BLUE (the :root
- *      register), 'vega' → the SAME blue (the skin mirrors :root),
- *      'atrium' → the estate jade;
+ *      purely informational): 'unified' → komplete BLUE, 'vega' → the
+ *      SAME blue, 'atrium' → the estate jade;
  *   2. the USER'S LOCKED PREFERENCE (Settings → Display → Appearance),
  *      persisted per-account in localStorage, which overrides the
  *      product default when set to anything other than 'auto'.
@@ -32,8 +31,16 @@
  * Application mechanism (unchanged from R28, it already beats the
  * html.theme-* cascade): a scope class on the app-container div remaps
  * the --color-primary-* ramp that every primary-* Tailwind class reads.
- * Komplete needs NO class — the :root default IS the (now blue)
- * komplete register — so the default path stays byte-identical.
+ *
+ * 2026-11-22 GREEN-RESTORE CORRECTION (owner: "blue is not the brand
+ * color for Practice Pro, it's the green… the P on Practice Pro… is now
+ * blue… revert it back"): :root is the CORPORATE PracticePro green
+ * (#16A34A, the favicon green — the hub landing page, login and every
+ * unscoped surface). The 2026-11-20 uniform blue is an APP accent and is
+ * now scoped: komplete resolves to .app-skin-komplete (previously '' —
+ * it leaned on a blue :root, which leaked the product accent onto the
+ * company brand). Inside the app container nothing changed for users:
+ * Vega firms and Komplete firms still render the one uniform blue.
  */
 
 import type { Product } from '../types';
@@ -41,7 +48,7 @@ import type { Product } from '../types';
 /** What the user picks in Settings (or 'auto' to follow the product). */
 export type AccentThemePreference = 'auto' | 'komplete' | 'vega' | 'atrium';
 
-/** A concrete palette id. 'komplete' is the default (no scope class). */
+/** A concrete palette id. 'komplete' is the default product register. */
 export type AccentThemeId = 'komplete' | 'vega' | 'atrium';
 
 export const ACCENT_PREFERENCES: AccentThemePreference[] = ['auto', 'komplete', 'vega', 'atrium'];
@@ -64,20 +71,21 @@ export function resolveAccentTheme(
     if (preference !== 'auto') return preference;
     if (product === 'vega' || product === 'legal') return 'vega';
     if (product === 'atrium' || product === 'property') return 'atrium';
-    return 'komplete'; // 'unified' / 'komplete' / unresolved → the default (Vega blue) register
+    return 'komplete'; // 'unified' / 'komplete' / unresolved → the komplete (Vega blue) register, scoped via .app-skin-komplete
 }
 
 /**
- * The scope class for the app container. Komplete returns '' — the :root
- * blue ramp already is the komplete register, so the default DOM is
- * byte-identical for Komplete firms (and logged-out surfaces). The vega
- * skin class exists for stored 'vega' preferences but mirrors :root's
- * blue exactly (one uniform register, 2026-11-20).
+ * The scope class for the app container. Every product now scopes its
+ * register explicitly (2026-11-22): :root is the corporate PracticePro
+ * green, so komplete carries .app-skin-komplete — the same Vega blue as
+ * .app-skin-vega (one uniform register, 2026-11-20) — and atrium carries
+ * the estate jade. Only surfaces OUTSIDE the app container (the hub
+ * landing page, login, marketing sites) fall back to the corporate green.
  */
 export function accentSkinClass(id: AccentThemeId): string {
     if (id === 'vega') return 'app-skin-vega';
     if (id === 'atrium') return 'app-skin-atrium';
-    return '';
+    return 'app-skin-komplete';
 }
 
 /** Settings UI metadata: label + swatch per option (incl. 'auto'). */

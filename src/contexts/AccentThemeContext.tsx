@@ -39,7 +39,7 @@ export interface AccentThemeContextValue {
     setPreference: (preference: AccentThemePreference) => void;
     /** The palette actually active right now (never 'auto'). */
     resolved: AccentThemeId;
-    /** The scope class for the app container ('' | 'app-skin-vega' | 'app-skin-atrium'). */
+    /** The scope class for the app container ('app-skin-komplete' | 'app-skin-vega' | 'app-skin-atrium'). */
     skinClass: string;
 }
 

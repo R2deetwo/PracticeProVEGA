@@ -236,31 +236,37 @@
   --color-white: 255 255 255;
   --color-black: 0 0 0;
 
-  /* Primary (Vega Blue) — the ONE accent for Vega AND Komplete workspaces
-     (owner directive 2026-11-20: "use the blue accent for Vega and Complete
-     — if it's only Atrium, use the green; it doesn't make sense to have a
-     different colour" — Quick Capture was blue while the Full Office and
-     Legal Pad were green). #1D4ED8 main / #1E3A8A hover. The Atrium estate
-     jade remains exclusive to the .app-skin-atrium register.
+  /* Primary (Green) — THE PracticePro corporate brand colour, restored
+     2026-11-22 (owner: "blue is not the brand color for Practice Pro,
+     it's the green… revert it back to how it was"). #16A34A = the
+     favicon green, the colour of the hub's "P" mark, Talk to Us, nav
+     pills, footer links and every unscoped surface (the marketing sites,
+     login, logged-out modals).
+     The 2026-11-20 "uniform Vega blue" directive is an APP accent, not a
+     corporate one: it lives ONLY inside the app container via the
+     .app-skin-vega / .app-skin-komplete scopes (Vega + Komplete = blue,
+     Atrium = jade). f98bab2e briefly repainted :root itself blue, which
+     leaked the product accent onto the company brand — this is the
+     revert, with the blue re-scoped where it belongs.
      IMPORTANT: This MUST be defined in :root so the landing page (which has
      no theme class applied) still gets a primary color. Without this,
      text-primary-500 resolves to rgb( / 1) which is INVALID CSS and the
      color is missing entirely. */
-  --color-primary-50:  239 246 255;
-  --color-primary-100: 219 234 254;
-  --color-primary-200: 191 219 254;
-  --color-primary-300: 147 197 253;
-  --color-primary-400: 96 165 250;
-  --color-primary-500: 30 78 216;    /* #1D4ED8 — THE Vega blue */
-  --color-primary-600: 30 78 216;    /* buttons sit on the blue; hover goes deep */
-  --color-primary-700: 30 58 138;    /* #1E3A8A — deep blue for hover/active */
-  --color-primary-800: 30 58 138;
-  --color-primary-900: 23 37 84;
-  --color-primary-950: 23 37 84;
+  --color-primary-50:  240 253 244;
+  --color-primary-100: 220 252 231;
+  --color-primary-200: 187 247 208;
+  --color-primary-300: 134 239 172;
+  --color-primary-400: 74 222 128;
+  --color-primary-500: 22 163 74;    /* #16A34A — favicon green, the PracticePro brand */
+  --color-primary-600: 21 128 61;    /* darker for hover/active */
+  --color-primary-700: 20 83 45;
+  --color-primary-800: 22 101 52;
+  --color-primary-900: 20 83 45;
+  --color-primary-950: 5 46 22;
 
   /* App semantic tokens */
-  --primary-accent: 30, 78, 216;     /* match primary-500 */
-  --primary-light:  219, 234, 254;   /* match primary-100 */
+  --primary-accent: 22, 163, 74;     /* match primary-500 */
+  --primary-light:  220, 252, 231;   /* match primary-100 */
   /* UX-02: semantic STATUS tokens — the ONE status vocabulary. Success /
      warning / danger / info mean the same thing on every screen and flip
      with the theme (light ramps here, dark ramps in .dark). Consume via
@@ -353,20 +359,46 @@
  * Appearance) — never per-view. Applies when the resolved accent is
  * 'vega': a pure Vega firm on auto (every route), or any user who locks
  * the Vega palette.
- * 2026-11-20: the vega register and the komplete register are now THE
- * SAME VEGA BLUE (#1D4ED8 / #1E3A8A) — owner directive: "we should use
- * the blue accent for Vega and Complete... let's have a uniform colour
- * for Complete, which is that blue colour." The skin class stays (a
- * stored 'vega' preference keeps resolving to it) but its values mirror
- * :root exactly, so Vega firms and Komplete firms render one uniform
- * accent. Only Atrium keeps a distinct (jade) register. */
+ * 2026-11-20: the vega register and the komplete register are the SAME
+ * VEGA BLUE (#1D4ED8 / #1E3A8A) — owner directive: "we should use the
+ * blue accent for Vega and Complete... let's have a uniform colour
+ * for Complete, which is that blue colour."
+ * 2026-11-22: the blue is now APP-SCOPED ONLY. :root went back to the
+ * corporate PracticePro green (owner: the hub's P and Talk to Us must
+ * stay green), so Komplete no longer inherits its register from :root —
+ * it carries its own identical blue ramp via .app-skin-komplete below. */
 .app-skin-vega {
   --color-primary-50:  239 246 255;
   --color-primary-100: 219 234 254;
   --color-primary-200: 191 219 254;
   --color-primary-300: 147 197 253;
   --color-primary-400: 96 165 250;
-  --color-primary-500: 30 78 216;    /* #1D4ED8 — THE Vega blue (uniform with :root) */
+  --color-primary-500: 30 78 216;    /* #1D4ED8 — THE Vega blue (the app register, NOT :root) */
+  --color-primary-600: 30 78 216;
+  --color-primary-700: 30 58 138;    /* #1E3A8A — deep blue for hover/active */
+  --color-primary-800: 30 58 138;
+  --color-primary-900: 23 37 84;
+  --color-primary-950: 23 37 84;
+  --primary-accent: 30, 78, 216;     /* match primary-500 */
+  --primary-light:  219, 234, 254;   /* match primary-100 */
+}
+
+/* 2026-11-22 — THE KOMPLETE APP SKIN. Same Vega blue as .app-skin-vega
+ * (the 2026-11-20 uniform-accent directive: Vega and Komplete share ONE
+ * blue register INSIDE the app). Before the green restore, Komplete
+ * resolved to NO class because the :root ramp itself was blue — but that
+ * repainted the corporate hub (the PracticePro "P", Talk to Us, footer)
+ * blue too, which is not the brand. :root is the corporate green again,
+ * so Komplete firms scope the blue explicitly via this class on the app
+ * container. Logged-out surfaces (login, marketing sites) correctly fall
+ * back to the corporate green. */
+.app-skin-komplete {
+  --color-primary-50:  239 246 255;
+  --color-primary-100: 219 234 254;
+  --color-primary-200: 191 219 254;
+  --color-primary-300: 147 197 253;
+  --color-primary-400: 96 165 250;
+  --color-primary-500: 30 78 216;    /* #1D4ED8 — THE Vega blue (uniform with .app-skin-vega) */
   --color-primary-600: 30 78 216;
   --color-primary-700: 30 58 138;    /* #1E3A8A — deep blue for hover/active */
   --color-primary-800: 30 58 138;

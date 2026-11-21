@@ -768,13 +768,15 @@ export const App: React.FC = () => {
     // scheme"). The R28 legal-side skin (the per-view list that switched
     // Komplete firms to copper on matters/documents/research) is retired:
     // the accent now resolves in ONE place — AccentThemeContext — from
-    // the active product (Komplete → the favicon green on EVERY route;
-    // Vega → the Warm Chambers copper; Atrium → the estate jade), with
-    // the user able to lock a palette in Settings → Display → Appearance
-    // (persisted per-account in localStorage). Komplete resolves to NO
-    // scope class — the :root green ramp already is the komplete
-    // register — so the default path is byte-identical to pre-R28 for
-    // Komplete firms and logged-out surfaces.
+    // the active product (Komplete → the uniform Vega blue on EVERY
+    // route via the komplete skin class; Vega → the SAME blue via the
+    // vega skin class; Atrium → the estate jade), with the user able to
+    // lock a palette in Settings → Display → Appearance (persisted
+    // per-account in localStorage). 2026-11-22: :root is the CORPORATE
+    // PracticePro green (the favicon #16A34A — the hub landing page,
+    // login and every unscoped surface); the product registers are
+    // scoped to the app container only, so the company brand no longer
+    // inherits the app accent.
     const { skinClass: accentSkinClass } = useAccentTheme();
     // 2026-09-23 DraftPro-ambush fix: the auto-starting product tour was
     // firing inside dedicated DraftPro tabs (opened by ALOA start_drafting)

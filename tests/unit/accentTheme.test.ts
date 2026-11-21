@@ -49,8 +49,10 @@ describe('R52 accent resolution — one accent per product, no per-view switchin
         expect(resolveAccentTheme('atrium', 'unified')).toBe('atrium');
     });
 
-    it('komplete maps to NO scope class — the :root blue is the komplete register', () => {
-        expect(accentSkinClass('komplete')).toBe('');
+    it('every product scopes its register — komplete blue, vega blue, atrium jade (2026-11-22)', () => {
+        // :root is the CORPORATE PracticePro green; the blue is an app
+        // accent scoped via classes, so komplete no longer leans on :root
+        expect(accentSkinClass('komplete')).toBe('app-skin-komplete');
         expect(accentSkinClass('vega')).toBe('app-skin-vega');
         expect(accentSkinClass('atrium')).toBe('app-skin-atrium');
     });
@@ -123,17 +125,20 @@ describe('R52 wiring — one application point, no per-view skinning', () => {
         expect(accentIdx).toBeGreaterThan(productIdx);
     });
 
-    it('index.css carries the registers: default Vega blue (komplete), the same vega blue, atrium jade', () => {
+    it('index.css carries the registers: corporate green :root, blue komplete/vega app skins, atrium jade', () => {
         const css = read('src', 'index.css');
-        // Komplete = the :root Vega blue #1D4ED8 (owner directive
-        // 2026-11-20: uniform blue for Vega AND Komplete — green is
-        // Atrium-only)
-        expect(css).toContain('--color-primary-500: 30 78 216');
-        // Vega = the SAME blue (one uniform register; the skin mirrors
-        // :root so a stored 'vega' preference changes nothing visually)
+        // :root = the CORPORATE PracticePro green #16A34A (the favicon
+        // green — the hub "P", Talk to Us, login; owner 2026-11-22:
+        // "blue is not the brand color for Practice Pro, it's the green")
+        expect(css).toMatch(/:root\s*\{[\s\S]*?--color-primary-500: 22 163 74/);
+        // Komplete = the SAME Vega blue, scoped to the app container
+        // (no longer inherited from :root)
+        expect(css).toMatch(/\.app-skin-komplete\s*\{[\s\S]*?--color-primary-500: 30 78 216/);
+        expect(css).toMatch(/\.app-skin-komplete\s*\{[\s\S]*?--color-primary-700: 30 58 138/);
+        // Vega = the SAME blue (one uniform register, 2026-11-20)
         expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-500: 30 78 216/);
         expect(css).toMatch(/\.app-skin-vega\s*\{[\s\S]*?--color-primary-700: 30 58 138/);
-        // Atrium = the estate jade ramp (the only green left)
+        // Atrium = the estate jade ramp
         expect(css).toMatch(/\.app-skin-atrium\s*\{[\s\S]*?--color-primary-500: 5 150 105/);
         expect(css).toMatch(/\.app-skin-atrium\s*\{[\s\S]*?--color-primary-600: 12 122 87/);
     });
