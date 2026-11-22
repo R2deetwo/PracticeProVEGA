@@ -689,7 +689,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     recorded date then drives the CPR
                                     deadline engine below. */}
                                 {!isProperty && captureStep === 'filed' && (
-                                    <div className="mb-8 p-5 bg-white dark:bg-zinc-800 rounded-xl border-2 border-orange-200 dark:border-orange-900/50 shadow-sm animate-fade-in">
+                                    <div className="mb-8 p-5 bg-white dark:bg-zinc-800 rounded-2xl border-2 border-orange-200 dark:border-orange-900/50 shadow-sm animate-fade-in">
                                         <h6 className="text-sm font-black text-slate-900 dark:text-white mb-1">Record the registry filing</h6>
                                         <p className="text-2xs text-slate-500 mb-4">When was this process filed? The date is kept with the process record.</p>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -709,7 +709,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     </div>
                                 )}
                                 {!isProperty && captureStep === 'served' && (
-                                    <div className="mb-8 p-5 bg-white dark:bg-zinc-800 rounded-xl border-2 border-blue-200 dark:border-blue-900/50 shadow-sm animate-fade-in">
+                                    <div className="mb-8 p-5 bg-white dark:bg-zinc-800 rounded-2xl border-2 border-blue-200 dark:border-blue-900/50 shadow-sm animate-fade-in">
                                         <h6 className="text-sm font-black text-slate-900 dark:text-white mb-1">Record the service</h6>
                                         <p className="text-2xs text-slate-500 mb-4">
                                             The service date is what the response windows run from — record it as the affidavit of service / proof states.
@@ -755,7 +755,7 @@ const DocumentDetailViewContent: React.FC = () => {
                                     courts — a manual deadline can be set
                                     instead). */}
                                 {!isProperty && (
-                                    <div className="mb-8 bg-white dark:bg-zinc-800 rounded-xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
+                                    <div className="mb-8 bg-white dark:bg-zinc-800 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-sm overflow-hidden">
                                         <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-700 flex items-center gap-2">
                                             <ClockIcon className="w-4 h-4 text-primary-600" />
                                             <h6 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Deadlines under the matter's rules</h6>
