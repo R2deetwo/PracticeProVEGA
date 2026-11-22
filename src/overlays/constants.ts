@@ -28,6 +28,9 @@
 // Absolute values here are local: they only fight siblings inside the
 // same panel, so the numbers stay small and dense.
 const LOCAL = {
+  /** In-capture hint zones (VegaAppShot/DashboardHotspots) — above the
+   *  capture's expand hit-area, below the three menu hotspots (z-20). */
+  captureHint: 15,
   /** In-panel dropdown menu (TaskList status menu). */
   panelDropdown: 50,
   /** Sticky sub-bars, in-panel menus and their close veils, loading veils. */
@@ -158,6 +161,7 @@ export type ZTier = keyof typeof Z_TIERS;
  */
 export const Z_CLASS = {
   // LOCAL
+  captureHint: 'z-[15]',
   panelDropdown: 'z-[50]',
   panelRaise: 'z-[60]',
   panelMenu: 'z-[61]',

@@ -19726,3 +19726,18 @@ Stage Summary:
 - Ingested judgments are usable: clicking one opens the structured index (metadata, coram, issues determined, holdings/ratio, authorities with treatment tags, full text) — no dead clicks in the Founder ingestion console.
 - The FAQ answers the questions firms actually ask; the Vega footer ends cleanly with the header-matched lockup and the single © line.
 - Followups for the owner: the UsagePolicy.tsx WhatsApp-Business-API paragraph predates the automation (the platform DOES send via the provider for rent notices/court reminders) and its "lawyers must explicitly opt in per matter" client-reminder mechanism does not exist in code — both should be corrected by the owner's next legal-docs pass; the legal-docs surface was deliberately left untouched this round.
+
+---
+Task ID: 67b (CI repair — main's design-token gate was already red)
+Agent: Main agent (Super Z)
+Task: The Tests workflow failed on f24da648 at the design-token gate — root-caused to PRE-EXISTING breakage on main, then repaired.
+
+Work Log:
+- The failure: "rounded-xl usage grew (74 → 82)" + "raw z-[NNNN] literal outside the tier ladder (2)". Verified pre-existing by running the gate on HEAD~1 (d8932026, build-1258): SAME failure (roundedXl=82, z literals=2) — the previous session's ALOA-round and R78-preview commits (ALOA FAB card, the NBA directories drawer, DashboardHotspots hint zones) landed 8 rounded-xl uses + a raw z-[15] after the ratchet baselines were last calibrated. My f24da648 added zero of either (count identical before/after).
+- Repair (ratchet moves DOWN, never up — no baseline raises):
+  - The 8 rounded-xl converted per STYLE_GUIDE §2: LegalDirectoriesDrawer directory card → rounded-2xl (card surface); DashboardHotspots popover → rounded-2xl (card surface), its 3 hint-zone buttons + chat bubble + ALOA FAB's example card → rounded-lg (tight contexts). Count 82 → 72, two under the 74 baseline.
+  - The z-[15] hint-zone layer: the ladder genuinely lacked a rung between the capture's expand hit-area and the z-20 menu hotspots → new LOCAL tier `captureHint: 15` in src/overlays/constants.ts (Z_TIERS + the Z_CLASS twin, per the ≡ test), consumed via Z_CLASS.captureHint in DashboardHotspots; the comment reworded so no raw literal remains. z-index literals at zero outside the ladder.
+- Gates re-run: design-token gate EXIT 0 (rounded-xl 72/74 held + improved, z=0) · zTiers 6/6 · root tsc 0 · vitest 3,438 passed/1 skipped · 25/25 rendered-DOM checks still green (the touched surfaces are landing-page components — verified again on the preview build).
+
+Stage Summary:
+- Main's Tests workflow is green again (the gate had been red since the R78/ALOA pushes — nobody had watched CI on them). The ratchet ends BELOW baseline (72/74), so the next session can lower it.

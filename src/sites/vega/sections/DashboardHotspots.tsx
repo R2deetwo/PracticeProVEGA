@@ -93,9 +93,9 @@ const ZONE_HINTS: Record<string, ZoneHint> = {
  *  LITERAL Tailwind classes (the JIT scanner must see them). */
 const HINT_ZONES: Array<ZoneHint & { top: number; left: number; height: number; width: number; btn: string; ring: string }> = [
     { ...ZONE_HINTS.nav, top: 13.6, left: 1.0, height: 100.8, width: 15.6, btn: 'rounded-lg', ring: '!rounded-lg' },
-    { ...ZONE_HINTS.recent, top: 58.4, left: 19.9, height: 82, width: 24.9, btn: 'rounded-xl', ring: '!rounded-xl' },
-    { ...ZONE_HINTS.tasks, top: 58.4, left: 46.5, height: 82, width: 24.7, btn: 'rounded-xl', ring: '!rounded-xl' },
-    { ...ZONE_HINTS.calendar, top: 58.4, left: 73.0, height: 82, width: 24.8, btn: 'rounded-xl', ring: '!rounded-xl' },
+    { ...ZONE_HINTS.recent, top: 58.4, left: 19.9, height: 82, width: 24.9, btn: 'rounded-lg', ring: '!rounded-lg' },
+    { ...ZONE_HINTS.tasks, top: 58.4, left: 46.5, height: 82, width: 24.7, btn: 'rounded-lg', ring: '!rounded-lg' },
+    { ...ZONE_HINTS.calendar, top: 58.4, left: 73.0, height: 82, width: 24.8, btn: 'rounded-lg', ring: '!rounded-lg' },
 ];
 
 interface Workspace {
@@ -308,8 +308,8 @@ export const DashboardHotspots: React.FC<{
                 pill names the zone; clicking opens the lightbox (the same
                 inspection state as the capture's expand control). Mounted
                 ONLY where the host provides onExpand (the hero card) —
-                above the expand hit-area (z-[15]) but below the three
-                menu hotspots (z-20). ── */}
+                above the expand hit-area (Z_CLASS.captureHint) but below
+                the three menu hotspots (z-20). ── */}
             {onExpand && HINT_ZONES.map((z) => (
                 <Button
                     key={z.id}
@@ -317,7 +317,7 @@ export const DashboardHotspots: React.FC<{
                     aria-label={`${z.label} — ${z.desc}. Expand this view.`}
                     onClick={() => { setOpen(null); onExpand(); }}
                     {...zoneProps(z.id)}
-                    className={`group-hs absolute z-[15] ${z.btn} focus-visible:ring-2 focus-visible:ring-indigo-500`}
+                    className={`group-hs absolute ${Z_CLASS.captureHint} ${z.btn} focus-visible:ring-2 focus-visible:ring-indigo-500`}
                     style={{ top: s(z.top), left: s(z.left), height: s(z.height), width: s(z.width) }}
                 >
                     <HotspotRing className={z.ring} />
@@ -330,7 +330,7 @@ export const DashboardHotspots: React.FC<{
                     role={open === 'aloa' ? 'dialog' : 'menu'}
                     aria-label={open === 'workspace' ? 'Workspaces' : open === 'profile' ? 'Your menu' : 'Aloa'}
                     data-hs-menu
-                    className={`fixed ${Z_CLASS.hotspot} w-[300px] rounded-xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 overflow-hidden`}
+                    className={`fixed ${Z_CLASS.hotspot} w-[300px] rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-900/20 overflow-hidden`}
                     style={anchor.left !== undefined
                         ? { top: Math.min(anchor.top, window.innerHeight - 300), left: anchor.left }
                         : { top: Math.min(anchor.top, window.innerHeight - 380), right: anchor.right }}
@@ -476,7 +476,7 @@ export const DashboardHotspots: React.FC<{
                             <div className="max-h-[240px] overflow-y-auto px-3.5 py-3 space-y-2.5">
                                 {aloaThread.map((m, i) => (
                                     <div key={i} className={`flex ${m.from === 'you' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[85%] rounded-xl px-3 py-2 text-[12px] leading-relaxed ${
+                                        <div className={`max-w-[85%] rounded-lg px-3 py-2 text-[12px] leading-relaxed ${
                                             m.from === 'you'
                                                 ? 'rounded-br-sm bg-indigo-600 text-white'
                                                 : 'rounded-bl-sm bg-slate-100 text-slate-800 border border-slate-200'

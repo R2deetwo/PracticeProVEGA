@@ -161,7 +161,7 @@ const LegalDirectoriesDrawer: React.FC<{
                                     )}
                                 </>
                             );
-                            const cls = 'group flex items-start gap-3.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all p-4 text-left';
+                            const cls = 'group flex items-start gap-3.5 rounded-2xl border border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm transition-all p-4 text-left';
                             return d.href ? (
                                 <a key={d.id} href={d.href} target="_blank" rel="noopener noreferrer" className={cls}>
                                     {inner}

@@ -1287,7 +1287,7 @@ const AloaAssistantFab: React.FC<{
                                                 {b.directoriesAction && (
                                                     <button
                                                         onClick={onOpenDirectories}
-                                                        className="mt-2 w-full flex items-center gap-3 rounded-xl border border-slate-200 bg-white hover:border-[#1E3A8A]/40 hover:shadow-sm transition-all text-left px-3 py-2.5"
+                                                        className="mt-2 w-full flex items-center gap-3 rounded-lg border border-slate-200 bg-white hover:border-[#1E3A8A]/40 hover:shadow-sm transition-all text-left px-3 py-2.5"
                                                     >
                                                         <span className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center shrink-0" aria-hidden="true">
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={1.6} viewBox="0 0 24 24">
