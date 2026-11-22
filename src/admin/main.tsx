@@ -17,7 +17,15 @@ import { AdminApp } from './AdminApp';
 import '../index.css';
 
 const CONVEX_URL = import.meta.env.VITE_CONVEX_URL || "https://gregarious-malamute-537.convex.cloud";
-const convex = new ConvexReactClient(CONVEX_URL);
+// unsavedChangesWarning: false — Task-74 sign-out "Leave site?" fix (2026-11-22) (see
+// src/main.tsx for the full rationale): the default Convex beforeunload
+// listener turns any hard navigation with a mutation in flight into the
+// browser's native "Leave site?" dialog over the page you were already
+// leaving. The founder console signs out via its own logout() followed by
+// window.location.reload() — with this console's mutations (ingestion,
+// security center, engine pacing) routinely in flight, the same phantom
+// dialog fires here too.
+const convex = new ConvexReactClient(CONVEX_URL, { unsavedChangesWarning: false });
 
 // Global unhandled promise rejection handler
 window.addEventListener('unhandledrejection', (event) => {
