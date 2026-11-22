@@ -125,14 +125,14 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
         expect(lib).toContain('ct[j] = Math.hypot(Math.cos(Math.PI * R.twist * v + R.sp * 0.8 * t + R.ph), o.floor) / norm;');
     });
 
-    it('a shared vertical fade gradient softens both ends of every line', () => {
-        // one linear gradient (transparent → solid at fade → solid →
-        // transparent) strokes all lines of a ribbon — ends melt into the
-        // ground instead of stopping dead
-        expect(lib).toContain('ctx.createLinearGradient(0, 0, 0, H)');
-        expect(lib).toContain('grad.addColorStop(o.fade,');
-        expect(lib).toContain('grad.addColorStop(1 - o.fade,');
-        expect(lib).toContain('ctx.strokeStyle = grad;');
+    it('R82: SOLID stroke colour — the end-fade is two static CSS overlays in HeroRibbons', () => {
+        // the glide pass: a gradient strokeStyle measured ~35% slower to
+        // rasterise than a solid colour stroke. The ribbon lines stroke in
+        // one solid rgb; the vertical end-fade moved to two static CSS
+        // gradient overlays in the component (same navy as the ground) at
+        // zero per-frame cost.
+        expect(lib).not.toContain('createLinearGradient');
+        expect(lib).toContain('ctx.strokeStyle = `rgb(${r},${g},${b})`');
     });
 
     it('clears each frame and takes the blend from the options', () => {
@@ -144,12 +144,13 @@ describe('R55 the preset (src/lib/ribbons.ts)', () => {
 describe('R55 the component (src/components/HeroRibbons.tsx)', () => {
     const comp = read('src', 'components', 'HeroRibbons.tsx');
 
-    it('clamps DPR to 1.5 on resize (R79 calm pass — fill cost −44% vs 2)', () => {
-        // R79: profiling showed the full-viewport additive canvas alone
-        // pushed median frame times 16.7ms → 50ms. The DPR cap drops to
-        // 1.5 and the canvas becomes a right-side crop (see the crop test
-        // below); 1.1px hairlines are visually identical at 1.5×.
-        expect(comp).toContain('Math.min(window.devicePixelRatio || 1, 1.5)');
+    it('R82: DPR = max(1, min(devicePixelRatio, 2) × tier.dprScale) — tier-scaled, never below 1', () => {
+        // the glide pass: quality is a tier chosen by measurement. The DPR
+        // cap returns to 2 (R79's fixed 1.5 up-scaled 1.33× on 2x displays
+        // — soft, shimmering hairlines); under load the pacer sheds dpr
+        // through the tiers instead, floored at 1.
+        expect(comp).toContain('Math.min(window.devicePixelRatio || 1, 2) * tier.dprScale');
+        expect(comp).toContain('Math.max(1,');
     });
 
     it('R79: the canvas is a RIGHT-SIDE CROP — 54% wide, not full-viewport', () => {
@@ -158,13 +159,16 @@ describe('R55 the component (src/components/HeroRibbons.tsx)', () => {
         expect(comp).toContain('absolute top-0 right-0 h-full w-[54%]');
     });
 
-    it('R79: painting MUTES while the scroll host moves (and 150ms after)', () => {
+    it('R82: scroll never freezes — paints halve to ~30fps but time keeps advancing', () => {
         // the page scrolls in a div container — the nearest scrollable
-        // ancestor is found and its scroll events hold the ribbon pose
+        // ancestor is found and, while it moves (and 150ms after), the
+        // paint gap floors at 33ms but `t` keeps accumulating: the ribbons
+        // never hold their pose, never jump on resume
         expect(comp).toContain("addEventListener('scroll', onScroll, { passive: true })");
         expect(comp).toContain('scrollUntil = performance.now() + 150');
-        expect(comp).toContain('acc = 0; // scrolling: hold the pose, drop the time');
         expect(comp).toContain("scrollHost.removeEventListener('scroll', onScroll)");
+        expect(comp).toContain('Math.max(tier.minFrameMs, 33)');
+        expect(comp).not.toContain('acc = 0');
     });
 
     it('clamps frame delta to 0.1s (no jump after a tab switch)', () => {
@@ -192,6 +196,19 @@ describe('R55 the component (src/components/HeroRibbons.tsx)', () => {
         expect(comp).toContain('pointer-events-none');
         expect(comp).toContain('aria-hidden="true"');
         expect(comp).toContain('opacity-40 md:opacity-100');
+    });
+
+    it('R82: the end-fade overlays — static CSS gradients in the ground colour, both ends', () => {
+        // the vertical fade the old gradient strokeStyle used to paint per
+        // frame is now two static overlay divs: linear-gradient(to bottom,
+        // ground, ground00) at the top and (to top, …) at the bottom, each
+        // fade-fraction tall, right-cropped like the canvas
+        expect(comp).toContain('linear-gradient(to bottom, ${ground}');
+        expect(comp).toContain('linear-gradient(to top, ${ground}');
+        expect(comp).toContain("ground = '#050B18'");
+        expect(comp).toContain('const fadePct = `${RIBBON_PRESET.fade * 100}%`');
+        // and the hero ground it must match is unchanged
+        expect(read('src', 'sites', 'hub', 'sections', 'HeroSection.tsx')).toContain("HUB_HERO_GROUND = '#050B18'");
     });
 });
 

@@ -4,7 +4,7 @@ import { Button } from '../../../components/ui';
 import { Z_CLASS } from '../../../overlays/constants';
 import { CollabPresence } from './CollabPresence';
 import {
-    CheckIcon, CheckCircleIcon, ChevronDownIcon, CogIcon,
+    CalendarIcon, CheckIcon, CheckCircleIcon, ChevronDownIcon, CogIcon,
     LockClosedIcon, LogoutIcon, PlusIcon, SendIcon, SparklesIcon, UserIcon,
 } from '../../../constants';
 
@@ -21,21 +21,30 @@ import {
  * and put it inside the See All space… it could be larger and the user
  * can hover over things and get info on them."
  *
- * THE R80 MODEL:
+ * OWNER DIRECTION (2026-11-22, this round):
+ *   • VISIBLE AT REST — "do NOT hide interactive hotspot/badge elements
+ *     until the mouse hovers over them." The teammate monikers are
+ *     ALWAYS visible (the R80 hide-at-rest model is retired; CollabPresence
+ *     keeps reporting hover so the spotlight still fires), and every zone
+ *     carries a soft DASHED INDIGO outline at rest that sharpens to the
+ *     solid ring + wash on hover/focus.
+ *   • THE SPOTLIGHT KEEPS ITS MODEL — hovering/focusing a zone keeps the
+ *     hovered element lit inside its ring while the dim veil darkens the
+ *     rest of the capture, and the floating hint explains the feature.
+ *   • PER-DATE CALENDAR — "make dates interactive so clicking a date
+ *     flips/toggles it to reveal that date's schedule/event info." Every
+ *     November date is its own button overlaid on the capture's month
+ *     grid; clicking one flips the card to THAT date's day view (the
+ *     R80 single fixed-day flip is retired). The marked dates (2, 6, 11,
+ *     14) carry the firm's real diary; the rest open an honest clear day.
+ *
+ * THE R80 MODEL (kept):
  *   • The preview lives ONLY in the AppShotLightbox's Dashboard exhibit
  *     (the owner moved it off the hero card into See All).
- *   • HOVER a zone → the zone keeps its normal colour inside a soft
- *     indigo ring while THE REST OF THE CAPTURE GRAYS OUT (a dim veil
- *     with a hole cut at the zone's rect), and a FLOATING HINT note
- *     appears beside the zone (replacing the old capture-foot pill).
- *   • The teammate monikers are HIDDEN at rest and appear exactly as
- *     they always rendered when the presence gap is hovered (the owner:
- *     "hover over the monikers, then the monikers look just like this").
  *   • CLICK still answers on the real furniture: the workspace chip opens
  *     the multi-workspace switcher, the profile opens the user menu, the
- *     Aloa orb opens the mini exchange, the presence stack opens the
- *     roster — and the CALENDAR card FLIPS to a day view with the firm's
- *     hearings, deadlines and sessions for that date.
+ *     Aloa orb opens the mini exchange — and the CALENDAR DATES flip the
+ *     card to their day view.
  *
  * GEOMETRY FIX (the R78 inversion): zones are sized in cqw inside the
  * capture frame's container-type: inline-size wrapper (frame = 100cqw ×
@@ -93,7 +102,7 @@ const ZONES: ZoneDef[] = [
     { id: 'stats', label: 'The practice at a glance', desc: 'Active matters, overdue tasks and outstanding invoices — counted live.', top: 14.5, left: 20.2, width: 77.5, height: 8.7, shape: 'lg' },
     { id: 'recent', label: 'Recent Matters', desc: "The firm's active files — stage, court and next deadline on every row.", top: 23.8, left: 19.9, width: 24.9, height: 32.0, shape: 'lg', hintAbove: true },
     { id: 'tasks', label: 'Firm Tasks', desc: "Today's work — assigned, dated, and reminded on the 7 · 3 · 1 cadence.", top: 23.8, left: 46.5, width: 24.7, height: 32.0, shape: 'lg', hintAbove: true },
-    { id: 'calendar', label: 'The firm calendar', desc: 'Hearings and firm events in one diary. Click a date to open its day.', top: 23.8, left: 73.0, width: 24.8, height: 32.0, shape: 'lg', hintAbove: true },
+    { id: 'calendar', label: 'The firm calendar', desc: 'Hearings and firm events in one diary — click any date to open its day.', top: 23.8, left: 73.0, width: 24.8, height: 32.0, shape: 'lg', hintAbove: true },
 ];
 
 const zoneById = (id: ZoneId) => ZONES.find((z) => z.id === id)!;
@@ -127,14 +136,64 @@ const ALOA_REPLIES: Record<string, string> = {
 const ALOA_FALLBACK =
     'In the running workspace I\u2019d pull your matters, deadlines and files to answer that properly — start free and ask me anything inside.';
 
-/** The calendar's flipped day view — a representative day with activity,
- *  in the app's own register (one quiet Preview chip, nothing narrated). */
-const DAY_ENTRIES: { time: string; kind: string; text: string }[] = [
-    { time: '9:00', kind: 'Hearing', text: 'Okafor v. Bale — High Court of Lagos, Ikeja, Court 12' },
-    { time: '11:30', kind: 'Filing', text: 'MAR/2024/011 — affidavit of service due' },
-    { time: '2:00', kind: 'Session', text: 'Meridian Agro — client intake (Vox, recorded)' },
-    { time: '4:00', kind: 'Debrief', text: 'LIT/2023/042 — pre-trial bundle review' },
+/** The calendar's month grid — NOVEMBER 2026, exactly as the capture
+ *  renders it (Monday-first: Oct 26–31 grayed in row 1's first six cells,
+ *  Nov 30 in row 6's first cell, Dec 1–6 grayed after it; the selected
+ *  navy circle sits on 22). Only November dates are live; the grayed
+ *  adjacent-month cells stay capture pixels. */
+const NOV_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const novWeekday = (d: number) => NOV_WEEKDAYS[(d - 1) % 7]; // Nov 1 2026 is a Sunday
+const NOV_GRID: (number | null)[][] = [
+    [null, null, null, null, null, null, 1],
+    [2, 3, 4, 5, 6, 7, 8],
+    [9, 10, 11, 12, 13, 14, 15],
+    [16, 17, 18, 19, 20, 21, 22],
+    [23, 24, 25, 26, 27, 28, 29],
+    [30, null, null, null, null, null, null],
 ];
+
+/** The diary behind the dotted dates — VLM + pixel-verified on the
+ *  2026-11-22 re-capture: blue dots on 16 and 20, blue+red on 24, red
+ *  on 29, and TODAY (the selected 22) dot-free. Every other November
+ *  date — including today — opens an honest clear day. */
+const NOV_SCHEDULE: Record<number, { time: string; kind: string; text: string }[]> = {
+    16: [
+        { time: '10:00', kind: 'Hearing', text: 'LIT/2023/042 — pre-trial review, High Court of Lagos, Ikeja' },
+    ],
+    20: [
+        { time: '9:30', kind: 'Hearing', text: 'N.A. v. Z-Alpha Bank PLC — Federal High Court, Court 8' },
+    ],
+    24: [
+        { time: '9:00', kind: 'Hearing', text: 'Okafor v. Bale — High Court of Lagos, Ikeja, Court 12' },
+        { time: '4:00', kind: 'Deadline', text: 'EMP/2024/008 — defence window closes under the CPR' },
+    ],
+    29: [
+        { time: '4:00', kind: 'Deadline', text: 'MAR/2024/011 — affidavit of service due' },
+    ],
+};
+
+/** Calendar-grid geometry — measured on the 2026-11-22 re-capture with
+ *  pixel analysis (scripts/measure_calendar.py) + a VLM cross-check on a
+ *  crop of dashboard.jpg covering x 72.9–97.9%w × y 37.7–91.3%h (in
+ *  frame units: left 72.9cqw, top 23.56cqw, 25.0cqw wide, 33.5cqw
+ *  tall). Column centres and row bands are % of that crop; calX/calY
+ *  convert to frame cqw. Row bands are centred on each row's number
+ *  band (pitch ≈ 7.46% of crop height); the selected navy circle sits
+ *  on 22 (row 4, SUN) and the dots on 16 · 20 · 24 · 29. */
+const CAL = {
+    left: 72.9,
+    top: 23.56,
+    w: 25.0,
+    h: 33.5,
+    colCenters: [11.4, 24.2, 37.1, 49.7, 62.6, 75.6, 88.5],
+    rows: [
+        [28.6, 36.0], [36.0, 43.4], [43.4, 50.9],
+        [50.9, 58.4], [58.4, 65.8], [65.8, 73.3],
+    ],
+};
+const calX = (pct: number) => CAL.left + (pct / 100) * CAL.w;
+const calY = (pct: number) => CAL.top + (pct / 100) * CAL.h;
+const CAL_CELL_W = 3.1; // cqw hit width — the capture's column pitch is ~3.2cqw
 
 const DemoChip: React.FC = () => (
     <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.14em] text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
@@ -149,10 +208,14 @@ export const DashboardHotspots: React.FC<{
     const [open, setOpen] = useState<MenuHotspot>(null);
     const [anchor, setAnchor] = useState<{ top: number; right: number; left?: number } | null>(null);
     // R80: the hovered zone — drives the dim veil, the floating hint and
-    // the presence reveal. `presence` is set by CollabPresence's own
-    // trigger reporting hover up.
+    // the spotlight. `presence` is set by CollabPresence's own trigger
+    // reporting hover up (the stack itself is ALWAYS visible now — the
+    // 2026-11-22 owner direction retired the hide-at-rest model).
     const [hoverZone, setHoverZone] = useState<ZoneId | null>(null);
+    // 2026-11-22: per-date calendar — the clicked date drives the flipped
+    // day view (the R80 single fixed-day flip is retired).
     const [calendarFlipped, setCalendarFlipped] = useState(false);
+    const [selectedDate, setSelectedDate] = useState<number | null>(null);
 
     // Current workspace + the connect-a-workspace flow state.
     const [currentWs, setCurrentWs] = useState('badejo');
@@ -245,11 +308,12 @@ export const DashboardHotspots: React.FC<{
             </div>
 
             {/* ── The teammate monikers — CollabPresence owns the trigger;
-                R80: hidden at rest, revealed on its own hover (reported
-                up via onHoverChange) exactly as they always rendered. ── */}
+                2026-11-22: the stack is ALWAYS VISIBLE (owner: "do NOT
+                hide interactive hotspot/badge elements until hovered") —
+                hovering it fires the spotlight (dim veil + floating hint)
+                via onHoverChange, exactly like every other zone. ── */}
             <CollabPresence
                 onSignup={onSignup}
-                revealed={hoverZone === 'presence'}
                 onHoverChange={(h) => setHoverZone((prev) => (h ? 'presence' : prev === 'presence' ? null : prev))}
             />
 
@@ -307,23 +371,53 @@ export const DashboardHotspots: React.FC<{
                 <ZoneRing shape="full" />
             </Button>
 
-            {/* ── The CALENDAR zone — click flips the card to its day
-                view (the owner: "the calendar should be flippable"). ── */}
-            <Button
-                variant="bare"
-                data-hs-trigger
-                aria-label="The firm calendar — hearings and events in one diary. Opens the day view."
-                aria-expanded={calendarFlipped}
-                onClick={() => setCalendarFlipped((v) => !v)}
+            {/* ── The CALENDAR — an informational hover zone (the veil +
+                the "click any date" hint) with a PER-DATE button grid
+                overlaid on the capture's month cells (2026-11-22 owner
+                direction: "clicking a date flips/toggles it to reveal
+                that date's schedule/event info"). Only November dates
+                are live; the grayed adjacent-month cells stay pixels. ── */}
+            <div
+                role="img"
+                aria-label={`${zoneById('calendar').label} — ${zoneById('calendar').desc}`}
                 onMouseEnter={() => setHoverZone('calendar')}
                 onMouseLeave={() => setHoverZone((v) => (v === 'calendar' ? null : v))}
-                onFocus={() => setHoverZone('calendar')}
-                onBlur={() => setHoverZone((v) => (v === 'calendar' ? null : v))}
-                className={`group-hs absolute ${Z_CLASS.captureHint} rounded-lg focus-visible:ring-2 focus-visible:ring-indigo-500`}
+                className={`absolute ${Z_CLASS.captureHint} rounded-lg group-hs`}
                 style={{ top: '23.8cqw', left: '73.0cqw', height: '32.0cqw', width: '24.8cqw' }}
             >
                 <ZoneRing shape="lg" />
-            </Button>
+            </div>
+            {!calendarFlipped && NOV_GRID.map((row, r) =>
+                row.map((date, c) => {
+                    if (date === null) return null;
+                    const [rowTop, rowBottom] = CAL.rows[r];
+                    const entries = NOV_SCHEDULE[date];
+                    return (
+                        <Button
+                            key={`cal-${date}`}
+                            variant="bare"
+                            aria-label={`Open ${novWeekday(date)}, ${date} November — ${entries ? `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}` : 'the day view'}`}
+                            onClick={() => { setSelectedDate(date); setCalendarFlipped(true); }}
+                            className={`group-hs absolute ${Z_CLASS.captureDate} rounded-md focus-visible:ring-2 focus-visible:ring-indigo-500`}
+                            style={{
+                                left: `${calX(CAL.colCenters[c]) - CAL_CELL_W / 2}cqw`,
+                                top: `${calY(rowTop)}cqw`,
+                                width: `${CAL_CELL_W}cqw`,
+                                height: `${calY(rowBottom) - calY(rowTop)}cqw`,
+                            }}
+                        >
+                            {/* The date's own resting marker — a soft ring on
+                                hover/focus only; the capture's own number,
+                                dots and selected circle show through at
+                                rest (the cells ARE the visible dates). */}
+                            <span
+                                aria-hidden="true"
+                                className="pointer-events-none absolute inset-[0.1cqw] rounded-[0.4cqw] ring-1 ring-indigo-500/0 bg-indigo-400/0 transition-all duration-150 group-hs:hover:ring-indigo-500/80 group-hs:hover:bg-indigo-400/[0.10] group-hs:focus-visible:ring-indigo-500"
+                            />
+                        </Button>
+                    );
+                }),
+            )}
 
             {/* ── The informational hover zones — nav rail, the three
                 stat cards, Recent Matters, Firm Tasks. Hover/focus only
@@ -348,17 +442,18 @@ export const DashboardHotspots: React.FC<{
 
             {/* ── R80: THE FLOATING HINT — the zone's explanation, floating
                 beside the zone (replacing the old capture-foot pill).
-                Clamped to the frame; pointer-events-none so it never
-                blocks the zone it explains. ── */}
+                Clamped INSIDE the frame (2026-11-22: notes for zones high
+                or low in the frame never clip — hintAbove notes anchor by
+                top, below notes cap at the frame foot); pointer-events-none
+                so it never blocks the zone it explains. ── */}
             {zone && (
                 <div
                     aria-hidden="true"
                     className={`pointer-events-none absolute ${Z_CLASS.captureHintNote} -translate-x-1/2 w-max max-w-[40cqw] rounded-lg bg-slate-950/90 backdrop-blur-sm px-[1.3cqw] py-[0.9cqw] shadow-xl animate-fade-in`}
-                    style={
-                        zone.hintAbove
-                            ? { left: `${Math.min(Math.max(zone.left + zone.width / 2, 21), 79)}cqw`, bottom: `${62.5 - zone.top + 1.2}cqw` }
-                            : { left: `${Math.min(Math.max(zone.left + zone.width / 2, 21), 79)}cqw`, top: `${zone.top + zone.height + 1.2}cqw` }
-                    }
+                    style={{
+                        left: `${Math.min(Math.max(zone.left + zone.width / 2, 21), 79)}cqw`,
+                        top: `${zone.hintAbove ? Math.max(zone.top - 6.4, 1) : Math.min(zone.top + zone.height + 1.2, 56)}cqw`,
+                    }}
                 >
                     <p className="font-mono uppercase tracking-[0.12em] font-semibold text-indigo-300" style={{ fontSize: '1.05cqw' }}>
                         {zone.label}
@@ -369,44 +464,68 @@ export const DashboardHotspots: React.FC<{
                 </div>
             )}
 
-            {/* ── R80: THE CALENDAR FLIP — the card turns over to a day
-                with activity. The wrapper holds the 3D context at the
+            {/* ── THE CALENDAR FLIP — the card turns over to the CLICKED
+                date's day view (2026-11-22: per-date, replacing the R80
+                single fixed day). The wrapper holds the 3D context at the
                 calendar card's exact rect; the front face is transparent
                 (the capture's own month grid shows through until the
-                flip), the back face is the day view. ── */}
+                flip), the back face is the selected date's day. ── */}
             <div
                 aria-hidden={!calendarFlipped}
-                className={`absolute ${Z_CLASS.captureHint} transition-transform duration-500 [transform-style:preserve-3d]`}
+                className={`absolute ${Z_CLASS.captureFlip} transition-transform duration-500 [transform-style:preserve-3d]`}
                 style={{
                     top: '23.8cqw', left: '73.0cqw', height: '32.0cqw', width: '24.8cqw',
                     perspective: '60cqw',
                     transform: calendarFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                    // The un-flipped wrapper is a transparent 3D stage over
+                    // the date buttons (captureDate) — it must never swallow
+                    // their clicks; only the flipped back face takes events.
+                    pointerEvents: calendarFlipped ? 'auto' : 'none',
                 }}
             >
                 {/* Front face — transparent: the capture's month grid. */}
                 <div className="absolute inset-0 [backface-visibility:hidden]" />
-                {/* Back face — the day view, mirrored back upright. */}
+                {/* Back face — the CLICKED date's day view, mirrored back
+                    upright. Empty dates open an honest clear day. */}
                 <div
                     className="absolute inset-0 [backface-visibility:hidden] rounded-lg bg-white border border-slate-200 shadow-xl overflow-hidden flex flex-col [transform:rotateY(180deg)]"
                     style={{ fontSize: '1.05cqw' }}
                 >
                     <div className="flex items-center justify-between gap-[0.8cqw] px-[1.2cqw] py-[0.9cqw] border-b border-slate-100 bg-slate-50">
                         <div className="min-w-0">
-                            <p className="font-bold text-slate-900 truncate" style={{ fontSize: '1.25cqw' }}>Thursday, 14 November</p>
-                            <p className="text-slate-500" style={{ fontSize: '0.95cqw' }}>4 entries · reminders fired 7 · 3 · 1 days out</p>
+                            <p className="font-bold text-slate-900 truncate" style={{ fontSize: '1.25cqw' }}>
+                                {selectedDate ? `${novWeekday(selectedDate)}, ${selectedDate} November` : 'The day view'}
+                            </p>
+                            <p className="text-slate-500" style={{ fontSize: '0.95cqw' }}>
+                                {selectedDate && NOV_SCHEDULE[selectedDate]
+                                    ? `${NOV_SCHEDULE[selectedDate].length} entr${NOV_SCHEDULE[selectedDate].length === 1 ? 'y' : 'ies'} · reminders fired 7 · 3 · 1 days out`
+                                    : 'Nothing scheduled — the diary is clear'}
+                            </p>
                         </div>
                         <DemoChip />
                     </div>
                     <div className="flex-1 min-h-0 overflow-hidden px-[1.2cqw] py-[1cqw] flex flex-col gap-[0.9cqw]">
-                        {DAY_ENTRIES.map((e) => (
-                            <div key={e.time} className="flex gap-[0.9cqw] items-start">
-                                <span className="font-mono font-semibold text-indigo-700 shrink-0" style={{ fontSize: '1cqw' }}>{e.time}</span>
-                                <span className="min-w-0">
-                                    <span className="block font-semibold text-slate-900" style={{ fontSize: '1.05cqw' }}>{e.kind}</span>
-                                    <span className="block text-slate-600 leading-[1.4]" style={{ fontSize: '0.95cqw' }}>{e.text}</span>
+                        {selectedDate && NOV_SCHEDULE[selectedDate] ? (
+                            NOV_SCHEDULE[selectedDate].map((e) => (
+                                <div key={e.time + e.kind} className="flex gap-[0.9cqw] items-start">
+                                    <span className="font-mono font-semibold text-indigo-700 shrink-0" style={{ fontSize: '1cqw' }}>{e.time}</span>
+                                    <span className="min-w-0">
+                                        <span className="block font-semibold text-slate-900" style={{ fontSize: '1.05cqw' }}>{e.kind}</span>
+                                        <span className="block text-slate-600 leading-[1.4]" style={{ fontSize: '0.95cqw' }}>{e.text}</span>
+                                    </span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center gap-[0.5cqw] px-[1cqw]">
+                                <span className="flex items-center justify-center rounded-full bg-slate-100 text-slate-400" style={{ width: '2.6cqw', height: '2.6cqw' }} aria-hidden="true">
+                                    <CalendarIcon className="h-[1.3cqw] w-[1.3cqw]" />
                                 </span>
+                                <p className="font-semibold text-slate-700" style={{ fontSize: '1.05cqw' }}>A clear day</p>
+                                <p className="text-slate-500 leading-[1.4]" style={{ fontSize: '0.95cqw' }}>
+                                    Hearings and deadlines land here from the matter diary — each one reminded 7 · 3 · 1 days out.
+                                </p>
                             </div>
-                        ))}
+                        )}
                     </div>
                     <div className="border-t border-slate-100 px-[1.2cqw] py-[0.8cqw]">
                         <Button
@@ -638,12 +757,17 @@ export const DashboardHotspots: React.FC<{
     );
 };
 
-/** The zone's soft ring — invisible at rest, a gentle indigo frame on
- *  hover/focus (the zone's own pixels stay at normal colour inside it). */
-const ZoneRing: React.FC<{ shape?: 'lg' | 'full' }> = ({ shape = 'lg' }) => (
+/** The zone's resting marker — a soft DASHED INDIGO outline, VISIBLE
+ *  AT REST (2026-11-22 owner direction: interactive markers are never
+ *  hidden until hover), sharpening to the solid ring + indigo wash on
+ *  hover/focus while the zone's own pixels stay at normal colour inside
+ *  it (the spotlight veil handles the dimming of everything else).
+ *  Exported for MattersHotspots — the same marker contract on both
+ *  interactive exhibits. */
+export const ZoneRing: React.FC<{ shape?: 'lg' | 'full' }> = ({ shape = 'lg' }) => (
     <span
         aria-hidden="true"
-        className={`pointer-events-none absolute -inset-[0.25cqw] ${shape === 'full' ? 'rounded-full' : 'rounded-[0.7cqw]'} ring-2 ring-indigo-400/0 bg-indigo-400/0 transition-all duration-150 group-hs:hover:ring-indigo-500/90 group-hs:hover:bg-indigo-400/[0.08] group-hs:focus-visible:ring-indigo-500`}
+        className={`pointer-events-none absolute -inset-[0.25cqw] ${shape === 'full' ? 'rounded-full' : 'rounded-[0.7cqw]'} border-2 border-dashed border-indigo-500/70 transition-all duration-150 group-hs:hover:border-solid group-hs:hover:border-indigo-500 group-hs:hover:bg-indigo-400/[0.08] group-hs:focus-visible:border-solid group-hs:focus-visible:border-indigo-500`}
     />
 );
 

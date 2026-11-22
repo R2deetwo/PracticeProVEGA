@@ -1,8 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { HeroVideo } from '../../../components/HeroVideo';
-import { Button } from '../../../components/ui';
-import { AppShotLightbox, ExpandHint } from './AppShotLightbox';
-import { PAGE_GROUPS } from './VegaSuite';
 
 /**
  * VegaHero — R56: the light-enterprise hero; R65/R67: the lifestyle-video
@@ -14,9 +11,10 @@ import { PAGE_GROUPS } from './VegaSuite';
  * to a framed card below the copy for every width under 2xl (only
  * >=1536px kept the background band); the owner rejected that on seeing
  * it live. The wrapper now anchors the copy INTO the band at every
- * width and is min-h'd to the band's box, so the dashboard always
- * starts past the band foot. R68's de-shove (top-24, never top-0) and
- * R67's exact-16:9 zero-crop are held; the R69 copy seat is untouched.
+ * width and is min-h'd to the band's box, so whatever follows the band
+ * always starts past the band foot. R68's de-shove (top-24, never
+ * top-0) and R67's exact-16:9 zero-crop are held; the R69 copy seat is
+ * untouched.
  *
  * Owner direction, R69 (verbatim shape): "Remove the small pill badge at
  * the top of the hero section" — the indigo attribution pill above the
@@ -27,14 +25,14 @@ import { PAGE_GROUPS } from './VegaSuite';
  * footer carries "A PracticePro product" (D8) and the hub keeps the
  * built-by line.
  *
- * R69 also landed the live-capture upgrades on the dashboard card:
- * the CollabPresence overlay and the R74 interactive hotspots. R80
- * (owner, 2026-11-22) MOVES the interactive preview off the hero card
- * into the See All lightbox ("take this and then put it inside the see
- * all space… it could be larger") — the hero card becomes a clean
- * capture with the expand affordance; expanding opens the lightbox at
- * the Dashboard exhibit, which now carries the hover-model preview
- * (zones, floating hints, the flippable calendar).
+ * OWNER DIRECTION (2026-11-22): the standalone Dashboard viewer card
+ * (the framed app-domain capture with its multi-still switcher) that
+ * lived between the clip band and "One workspace, every workflow" is
+ * RETIRED — scrolling down from the hero/video now goes DIRECTLY to
+ * the suite band. The interactive preview and the whole app-view walk
+ * live inside the suite's See All gallery (Overview → … → Team), not
+ * as a separate section above it.
+ * The hero is the copy + the clip band, nothing else.
  *
  * Copy (headline, sub-copy, CTAs, micro pill), fonts and spacing rhythm
  * are untouched since R56/R65. Presentational only — the CTAs arrive via
@@ -46,156 +44,80 @@ export const VegaHero: React.FC<{
     /** The secondary "View Live Demo" node — R64: opens the demo-access
      *  modal (the Vega | Atrium toggle), pre-toggled to Vega. */
     demoCta: React.ReactNode;
-    /** R69: signup hand-off for the capture overlays' demo note. */
-    onSignup?: () => void;
-}> = ({ cta, demoCta, onSignup }) => {
-    // R39: cache-busted like every landing asset (VITE_BUILD_SHA).
-    const buildSha = (import.meta as any).env?.VITE_BUILD_SHA || Date.now();
-    // R69: the lightbox — the Dashboard capture plus every suite exhibit.
-    // R78: the gallery is PAGE_GROUPS — the app's own page order
-    // (Overview → Matters → Tasks → Documents → Contacts → Financials →
-    // Team) under the visible "App views" label.
-    const [lightbox, setLightbox] = useState<number | null>(null);
-
-    return (
-        <section id="home" className="relative overflow-hidden bg-white">
-            {/* ── The copy — riding ON the band at EVERY width (R70: the
-                restore — "it is supposed to be on the landingpage
-                background; put it back there"). The wrapper is sized to
-                AT LEAST the band's box (6rem = the band's top-24 offset,
-                56.25vw = the 16:9 band height at any width) so the
-                dashboard below always starts past the band foot; min-h,
-                not h (R68 had 2xl:h), because at narrow widths the copy
-                is TALLER than the band — it runs on past the foot onto
-                the section's white (R67's mobile behaviour, held). The
-                copy is top-anchored into the band at 11.5vw — R69's
-                measured seat (the headline keeps its exact y=317 at
-                1920). ── */}
-            <div className="relative z-10 px-4 sm:px-6 pt-[calc(6rem+11.5vw)] min-h-[calc(6rem+56.25vw)]">
-                <div className="max-w-7xl mx-auto">
-                    <div className="max-w-3xl mx-auto text-center">
-                        {/* Headline — crisp, deep slate, tight tracking. */}
-                        <h1
-                            className="font-display text-[2.5rem] sm:text-6xl lg:text-[4.25rem] font-semibold leading-[1.05] tracking-tight text-slate-900 mb-6"
-                            data-vg-reveal
-                            style={{ '--vg-d': '90ms' } as React.CSSProperties}
-                        >
-                            Legal workflow automation
-                            <br />
-                            for{' '}
-                            <span className="text-[#1E3A8A]">
-                                Nigerian law firms.
-                            </span>
-                        </h1>
-
-                        {/* Sub-copy — the one-system story, R49 DraftPro keeps. */}
-                        <p
-                            className="text-base md:text-lg leading-[1.75] text-slate-800 max-w-2xl mx-auto mb-9"
-                            data-vg-reveal
-                            style={{ '--vg-d': '150ms' } as React.CSSProperties}
-                        >
-                            Matters, court-rule deadlines, DraftPro&trade; drafting and naira
-                            billing — one light, fast workspace that runs the whole practice:
-                            from intake to judgment, with every hearing reminder fired on time.
-                        </p>
-
-                        {/* Dual CTAs — Get Started (navy) + View Live Demo (outline). */}
-                        <div
-                            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-5"
-                            data-vg-reveal
-                            style={{ '--vg-d': '210ms' } as React.CSSProperties}
-                        >
-                            {cta}
-                            {demoCta}
-                        </div>
-
-                        {/* R67: the trial microcopy rides on an opaque white
-                            pill (mirroring the eyebrow pill above) — its video
-                            backdrop at this depth is near-black (worst-frame
-                            patch lum 0.003), so slate-600 on solid white
-                            (6.98:1, deterministic) is the only reliable carry. */}
-                        <p
-                            className="inline-block rounded-full border border-slate-200 bg-white px-5 py-1.5 font-mono text-2xs tracking-widest text-slate-600"
-                            data-vg-reveal
-                            style={{ '--vg-d': '270ms' } as React.CSSProperties}
-                        >
-                            NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── The clip playlist — the full-bleed band (absolute)
-                behind the copy wrapper above, at EVERY width (R70: the
-                under-2xl card variant is retired — see HeroVideo). ── */}
-            <HeroVideo />
-
-            {/* ── The product UI dashboard preview — the REAL capture in a
-                clean light browser container with a soft drop shadow.
-                R70: the wrapper above is min-h'd to the band's box at
-                every width, so this always starts past the band foot.
-                R80: a CLEAN capture — the interactive preview lives in
-                the See All lightbox now; clicking the card opens it at
-                the Dashboard exhibit (the hover-model preview). ── */}
-            <div
-                className="relative max-w-5xl mx-auto px-4 sm:px-6 mt-14 2xl:mt-16 mb-20 2xl:mb-24"
-                data-vg-reveal
-                style={{ '--vg-d': '340ms' } as React.CSSProperties}
-            >
-                <div className="rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10 overflow-hidden">
-                    {/* Browser chrome — three dots + the address bar. */}
-                    <div className="flex items-center gap-3 border-b border-slate-200/80 bg-slate-50 px-4 py-3">
-                        <div className="flex gap-1.5" aria-hidden="true">
-                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                            <span className="h-2.5 w-2.5 rounded-full bg-slate-300" />
-                        </div>
-                        <div className="flex-1 max-w-sm mx-auto rounded-md bg-white border border-slate-200 px-3 py-1 text-center text-xs text-slate-500 truncate">
-                            app.practicepro.ng — Dashboard
-                        </div>
-                        <div className="w-10" aria-hidden="true" />
-                    </div>
-                    <div
-                        className="relative group cursor-zoom-in"
-                        style={{ containerType: 'inline-size' }}
+}> = ({ cta, demoCta }) => (
+    <section id="home" className="relative overflow-hidden bg-white">
+        {/* ── The copy — riding ON the band at EVERY width (R70: the
+            restore — "it is supposed to be on the landingpage
+            background; put it back there"). The wrapper is sized to
+            AT LEAST the band's box (6rem = the band's top-24 offset,
+            56.25vw = the 16:9 band height at any width) so whatever
+            follows the hero always starts past the band foot; min-h,
+            not h (R68 had 2xl:h), because at narrow widths the copy
+            is TALLER than the band — it runs on past the foot onto
+            the section's white (R67's mobile behaviour, held). The
+            copy is top-anchored into the band at 11.5vw — R69's
+            measured seat (the headline keeps its exact y=317 at
+            1920). ── */}
+        <div className="relative z-10 px-4 sm:px-6 pt-[calc(6rem+11.5vw)] min-h-[calc(6rem+56.25vw)]">
+            <div className="max-w-7xl mx-auto">
+                <div className="max-w-3xl mx-auto text-center">
+                    {/* Headline — crisp, deep slate, tight tracking. */}
+                    <h1
+                        className="font-display text-[2.5rem] sm:text-6xl lg:text-[4.25rem] font-semibold leading-[1.05] tracking-tight text-slate-900 mb-6"
+                        data-vg-reveal
+                        style={{ '--vg-d': '90ms' } as React.CSSProperties}
                     >
-                        <img
-                            src={`/assets/landing/app/dashboard.jpg?v=${buildSha}`}
-                            alt="Vega dashboard — the practice at a glance: matters, hearings, billing and tasks"
-                            loading="eager"
-                            decoding="async"
-                            width={1440}
-                            height={900}
-                            className="block w-full h-auto"
-                        />
-                        {/* R80: the interactive furniture moved to the
-                            lightbox (See All) — this card is a clean
-                            capture whose single click opens the preview. */}
-                        <Button
-                            variant="bare"
-                            onClick={() => setLightbox(0)}
-                            aria-label="Expand the Dashboard view — open the interactive preview"
-                            className="absolute inset-0 z-10 focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset"
-                        />
-                        <ExpandHint />
-                    </div>
-                </div>
-                <p className="font-mono text-2xs tracking-widest text-slate-500 text-center mt-4">
-                    THE VEGA DASHBOARD, AS THE FIRM SEES IT EACH MORNING — OPEN THE INTERACTIVE PREVIEW
-                </p>
-            </div>
+                        Legal workflow automation
+                        <br />
+                        for{' '}
+                        <span className="text-[#1E3A8A]">
+                            Nigerian law firms.
+                        </span>
+                    </h1>
 
-            {/* R69: the shared gallery — Dashboard plus every suite
-                exhibit, one flat walk. R78: page order. */}
-            {lightbox !== null && (
-                <AppShotLightbox
-                    groups={PAGE_GROUPS}
-                    index={lightbox}
-                    onNavigate={setLightbox}
-                    onClose={() => setLightbox(null)}
-                    onSignup={onSignup}
-                />
-            )}
-        </section>
-    );
-};
+                    {/* Sub-copy — the one-system story, R49 DraftPro keeps. */}
+                    <p
+                        className="text-base md:text-lg leading-[1.75] text-slate-800 max-w-2xl mx-auto mb-9"
+                        data-vg-reveal
+                        style={{ '--vg-d': '150ms' } as React.CSSProperties}
+                    >
+                        Matters, court-rule deadlines, DraftPro&trade; drafting and naira
+                        billing — one light, fast workspace that runs the whole practice:
+                        from intake to judgment, with every hearing reminder fired on time.
+                    </p>
+
+                    {/* Dual CTAs — Get Started (navy) + View Live Demo (outline). */}
+                    <div
+                        className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-5"
+                        data-vg-reveal
+                        style={{ '--vg-d': '210ms' } as React.CSSProperties}
+                    >
+                        {cta}
+                        {demoCta}
+                    </div>
+
+                    {/* R67: the trial microcopy rides on an opaque white
+                        pill (mirroring the eyebrow pill above) — its video
+                        backdrop at this depth is near-black (worst-frame
+                        patch lum 0.003), so slate-600 on solid white
+                        (6.98:1, deterministic) is the only reliable carry. */}
+                    <p
+                        className="inline-block rounded-full border border-slate-200 bg-white px-5 py-1.5 font-mono text-2xs tracking-widest text-slate-600"
+                        data-vg-reveal
+                        style={{ '--vg-d': '270ms' } as React.CSSProperties}
+                    >
+                        NO CREDIT CARD · 30-DAY TRIAL · DRAFTPRO INCLUDED
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        {/* ── The clip playlist — the full-bleed band (absolute)
+            behind the copy wrapper above, at EVERY width (R70: the
+            under-2xl card variant is retired — see HeroVideo). Below
+            the band foot the section ends and the suite band ("One
+            workspace, every workflow") begins directly — no dashboard
+            viewer block between them (2026-11-22 owner direction). ── */}
+        <HeroVideo />
+    </section>
+);

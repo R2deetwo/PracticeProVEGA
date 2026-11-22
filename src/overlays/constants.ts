@@ -34,6 +34,14 @@ const LOCAL = {
   /** In-capture hint zones (VegaAppShot/DashboardHotspots) — above the
    *  capture's expand hit-area, below the three menu hotspots (z-20). */
   captureHint: 15,
+  /** R82: the interactive preview's per-date calendar buttons — above
+   *  the zone rings (z-15) so every date stays clickable, below the
+   *  flip stage. */
+  captureDate: 16,
+  /** R82: the interactive preview's calendar flip stage — the 3D card
+   *  that turns over to the clicked date's day view; above the date
+   *  buttons, below the floating hint notes (z-25). */
+  captureFlip: 17,
   /** R80: the interactive preview's floating hint notes — above the
    * zones and the calendar flip, below the menu hotspots (z-20). */
   captureHintNote: 25,
@@ -169,6 +177,8 @@ export const Z_CLASS = {
   // LOCAL
   captureDim: 'z-[5]',
   captureHint: 'z-[15]',
+  captureDate: 'z-[16]',
+  captureFlip: 'z-[17]',
   captureHintNote: 'z-[25]',
   panelDropdown: 'z-[50]',
   panelRaise: 'z-[60]',

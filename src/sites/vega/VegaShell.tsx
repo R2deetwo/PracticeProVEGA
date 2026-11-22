@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeftIcon, ExternalLinkIcon } from '../../constants';
+import { ExternalLinkIcon } from '../../constants';
 import { VegaMark, AtriumMark } from '../../components/marketing/brand/ProductMarks';
 import { PrimaryButton } from '../shared/ctas';
 import { vegaSiteConfig } from './siteConfig';
@@ -15,6 +15,13 @@ import { Z_CLASS } from '../../overlays/constants';
  * white page — slate links, navy accents, cool hairlines. The footer
  * joins the light system (white stock, slate type, navy accents). No
  * activeProduct ternaries remain.
+ *
+ * TOP-LEFT BEHAVIOR (owner, 2026-11-22): the Vega mark is THIS PAGE's
+ * brand — clicking it RELOADS the current page (window.location.reload)
+ * and NEVER routes back to the PracticePro hub; the "← ALL PRODUCTS"
+ * breadcrumb is retired from both the desktop masthead and the mobile
+ * sheet. Cross-product discovery keeps its two honest homes: the
+ * Products dropdown and the footer.
  */
 
 // R30 motion pass — every chrome affordance carries press feedback
@@ -34,8 +41,7 @@ export const VegaNavBar: React.FC<{
     onResources: () => void;
     onContactSales: () => void;
     onOpenProduct: (p: 'vega' | 'atrium') => void;
-    onBackToHub: () => void;
-}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, onOpenProduct, onBackToHub }) => {
+}> = ({ activeSection, scrollTo, onLogin, onSignup, onResources, onContactSales, onOpenProduct }) => {
     const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
     // Products dropdown — click-toggle (not hover) so iPad/tablet touch users
     // can open it. Outside-pointer closes, Escape closes, choosing closes.
@@ -93,11 +99,15 @@ export const VegaNavBar: React.FC<{
         <div className="absolute inset-0 backdrop-blur-md border-b transition-colors duration-500 bg-white/90 border-slate-200/80" />
 
         <div className="relative container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            {/* Product lockup + back-to-hub breadcrumb */}
+            {/* Product lockup — the page's OWN brand (2026-11-22): the
+                mark reloads the current page; it never routes back to the
+                PracticePro hub, and the "← ALL PRODUCTS" breadcrumb is
+                retired (the Products dropdown and the footer carry
+                cross-product discovery instead). */}
             <div className="flex items-center gap-3">
                 <button
-                    onClick={onBackToHub}
-                    aria-label="Vega — a PracticePro product, back to all products"
+                    onClick={() => window.location.reload()}
+                    aria-label="Vega — reload this page"
                     className="flex items-center gap-2.5 group"
                 >
                     <VegaMark className="h-8 w-8 group-hover:scale-105 active:scale-[0.98] transition-transform duration-150" />
@@ -106,14 +116,6 @@ export const VegaNavBar: React.FC<{
                             Vega
                         </span>
                     </span>
-                </button>
-                <button
-                    onClick={onBackToHub}
-                    className="hidden md:flex items-center gap-1 pl-3 border-l h-7 text-xs font-black uppercase tracking-widest transition-colors border-slate-200 text-slate-500 hover:text-[#1E3A8A]"
-                    aria-label="Back to all products"
-                >
-                    <ArrowLeftIcon className="w-3 h-3" />
-                    <span>All Products</span>
                 </button>
             </div>
 
@@ -248,13 +250,6 @@ export const VegaNavBar: React.FC<{
         {mobileMenuOpen && (
             <div className={`lg:hidden fixed inset-0 top-[calc(4rem+env(safe-area-inset-top,0px))] ${Z_CLASS.shellMenu} overflow-y-auto bg-white menu-in-top origin-top`}>
                 <nav className="container mx-auto px-4 py-6 flex flex-col gap-1" aria-label="Mobile navigation">
-                    {/* Back-to-hub affordance — mobile users need a way back. */}
-                    <button
-                        onClick={() => handleNavClick(onBackToHub)}
-                        className={`w-full text-left px-4 py-3 mb-2 rounded-lg text-sm font-semibold flex items-center gap-3 ${menuItemCls}`}
-                    >
-                        <ArrowLeftIcon className="w-5 h-5 opacity-70" /> All Products
-                    </button>
                     <div className="mb-2">
                         <p className="text-2xs font-bold uppercase tracking-wider text-slate-600 px-4 py-2">Products</p>
                         <button onClick={() => handleNavClick(() => onOpenProduct('vega'))} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-3 transition-all duration-150 active:scale-[0.98] ${vegaItemCls}`}>

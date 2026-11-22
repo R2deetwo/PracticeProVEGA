@@ -116,11 +116,6 @@ export const VegaSite: React.FC = () => {
         };
     }, []);
 
-    // W14 (navigation truth): from a product page, the mark is the way HOME.
-    const handleBackToHub = () => {
-        if (window.location.pathname !== vegaSiteConfig.hubUrl) navigate(vegaSiteConfig.hubUrl);
-    };
-
     // R21 (owner direction): selecting a product OPENS ITS OWN PAGE IN A
     // NEW TAB.
     const openProductPage = (p: 'vega' | 'atrium') => {
@@ -142,7 +137,6 @@ export const VegaSite: React.FC = () => {
                 onResources={() => navigate(vegaSiteConfig.resourcesPath)}
                 onContactSales={() => openContactSales('Nav')}
                 onOpenProduct={openProductPage}
-                onBackToHub={handleBackToHub}
             />
 
             {/* Skip to content link — Vega's focus state lands on ink. */}
@@ -165,7 +159,6 @@ export const VegaSite: React.FC = () => {
                             View Live Demo
                         </GhostButton>
                     )}
-                    onSignup={openSignup}
                 />
                 {/* The six core bands (R56): the tabbed suite hub, the
                     Nigeria differentiators, the trust/segments band, the

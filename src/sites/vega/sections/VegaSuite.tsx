@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowsExpandIcon } from '../../../constants';
 import { Button } from '../../../components/ui';
 import { VegaAppShot } from './VegaAppShot';
+import { TaskBoardPreview } from './TaskBoardPreview';
 import { AppShotLightbox, type LightboxGroup } from './AppShotLightbox';
 
 /**
@@ -32,7 +33,25 @@ import { AppShotLightbox, type LightboxGroup } from './AppShotLightbox';
  * are exported so the hero's dashboard capture joins the same gallery.
  */
 
-type Shot = { src: string; alt: string; caption: string; label: string };
+/** 2026-11-22 (owner direction): the redundant "Flat list" task exhibit
+ *  is RETIRED alongside "Task board"'s grouped-list capture — Task board
+ *  renders as a TRUE KANBAN (three status columns, click a card to
+ *  advance it) and Team tasks as the per-counsel table with overlapping
+ *  multi-assignee stacks, both as interactive TaskBoardPreview exhibits
+ *  (the app's task model carries assignedUsers[] — the stacks are real
+ *  behaviour, honestly Preview-chipped). The task exhibits move to the
+ *  Team Workflows tab, where they belong; the Matters tab keeps the
+ *  ledger and contacts, and the ledger exhibit gains the interactive
+ *  highlight callouts (MattersHotspots) in the gallery. */
+type Shot = {
+    src: string;
+    alt: string;
+    caption: string;
+    label: string;
+    /** 2026-11-22: render the interactive TaskBoardPreview instead of a
+     *  static capture (the Kanban / the per-counsel table). */
+    preview?: 'taskboard' | 'teamtasks';
+};
 
 type SuiteTab = {
     id: string;
@@ -71,20 +90,8 @@ const TABS: SuiteTab[] = [
             {
                 src: '/assets/landing/app/matters-ledger.jpg',
                 alt: "Vega matters ledger — every case with its client, stage and court",
-                caption: 'THE MATTERS LEDGER: EVERY CASE WITH ITS CLIENT, STAGE AND COURT',
+                caption: 'THE MATTERS LEDGER — HOVER THE SEARCH, THE FILTERS, THE STAGES, COUNSEL OR THE DETAIL PANE',
                 label: 'Ledger',
-            },
-            {
-                src: '/assets/landing/app/tasks-status.jpg',
-                alt: 'Vega task board — tasks grouped into status sections: To Do, In Progress, Done',
-                caption: 'THE TASK BOARD, GROUPED BY STATUS',
-                label: 'Task board',
-            },
-            {
-                src: '/assets/landing/app/tasks-flat.jpg',
-                alt: 'Vega task board — the same tasks as a flat list',
-                caption: 'THE SAME BOARD AS A FLAT LIST',
-                label: 'Flat list',
             },
             {
                 src: '/assets/landing/app/contacts.jpg',
@@ -182,7 +189,7 @@ const TABS: SuiteTab[] = [
         features: [
             {
                 title: 'Work assigned per counsel',
-                detail: 'Assignments, due dates and matter links ride every task row — nobody works from a stale list.',
+                detail: 'Assignments, due dates and matter links ride every task row — shared files can carry co-assignees, and nobody works from a stale list.',
             },
             {
                 title: 'The firm calendar',
@@ -195,10 +202,18 @@ const TABS: SuiteTab[] = [
         ],
         shots: [
             {
+                src: '/assets/landing/app/tasks-status.jpg',
+                alt: 'Vega task board — a kanban of To Do, In Progress and Done columns, each card carrying its matter, due date, priority and assignees',
+                caption: 'THE TASK BOARD — A TRUE KANBAN: CLICK A CARD TO ADVANCE IT',
+                label: 'Task board',
+                preview: 'taskboard',
+            },
+            {
                 src: '/assets/landing/app/tasks-team.jpg',
-                alt: 'Vega task board — work assigned across the team',
-                caption: 'THE TEAM TASK BOARD: WORK ASSIGNED PER COUNSEL',
-                label: 'Tasks',
+                alt: 'Vega team tasks — work assigned per counsel, with overlapping co-assignee avatars on shared files',
+                caption: 'TEAM TASKS — FILTER BY COUNSEL; SHARED FILES CARRY CO-ASSIGNEES',
+                label: 'Team tasks',
+                preview: 'teamtasks',
             },
             {
                 src: '/assets/landing/app/calendar.jpg',
@@ -261,8 +276,7 @@ export const PAGE_GROUPS: LightboxGroup[] = [
         id: 'tasks',
         label: 'Tasks',
         exhibits: [
-            { ...shot('matters', '/assets/landing/app/tasks-status.jpg'), label: 'Task board' },
-            { ...shot('matters', '/assets/landing/app/tasks-flat.jpg'), label: 'Task list' },
+            { ...shot('team', '/assets/landing/app/tasks-status.jpg'), label: 'Task board' },
             { ...shot('team', '/assets/landing/app/tasks-team.jpg'), label: 'Team tasks' },
         ],
     },
@@ -440,15 +454,46 @@ export const VegaSuite: React.FC<{ onSignup?: () => void }> = ({ onSignup }) => 
                                 </button>
                             ))}
                         </div>
-                        <VegaAppShot
-                            src={exhibit.src}
-                            alt={exhibit.alt}
-                            caption={exhibit.caption}
-                            label={exhibit.label}
-                            onSignup={onSignup}
-                            onExpand={() => openLightboxAt(exhibit.src)}
-                            collab={exhibit.src !== '/assets/landing/app/editor-r81.jpg'}
-                        />
+                        {/* 2026-11-22: the task exhibits render as interactive
+                            TaskBoardPreview exhibits (the Kanban and the
+                            per-counsel table) in a compact seat; every other
+                            exhibit stays the REAL capture in the sheet
+                            chrome, with the presence overlay and the expand
+                            affordance. */}
+                        {exhibit.preview ? (
+                            <figure>
+                                <div className="vg-shot">
+                                    {/* The HTML previews take a TALLER seat than the 8:5
+                                        captures — they are layouts, not screenshots, and
+                                        the compact panel needs the extra rows (the table
+                                        and the kanban both fit at 4:3; the lightbox keeps
+                                        the capture ratio). */}
+                                    <div className="relative" style={{ containerType: 'inline-size', aspectRatio: '4 / 3' }}>
+                                        <TaskBoardPreview view={exhibit.preview} compact />
+                                        <Button
+                                            variant="bare"
+                                            onClick={() => openLightboxAt(exhibit.src)}
+                                            aria-label={`Expand the ${exhibit.label} view — open the full gallery`}
+                                            className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border border-indigo-200 bg-white/95 text-indigo-700 hover:border-indigo-400 hover:bg-indigo-50 shadow-sm transition-all active:scale-[0.98]"
+                                        >
+                                            <ArrowsExpandIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                                            Expand
+                                        </Button>
+                                    </div>
+                                </div>
+                                <figcaption className="font-mono text-2xs tracking-widest text-slate-600 mt-4">{exhibit.caption}</figcaption>
+                            </figure>
+                        ) : (
+                            <VegaAppShot
+                                src={exhibit.src}
+                                alt={exhibit.alt}
+                                caption={exhibit.caption}
+                                label={exhibit.label}
+                                onSignup={onSignup}
+                                onExpand={() => openLightboxAt(exhibit.src)}
+                                collab={exhibit.src !== '/assets/landing/app/editor-r81.jpg'}
+                            />
+                        )}
                     </div>
                 </div>
             </div>

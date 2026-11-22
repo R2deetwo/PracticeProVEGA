@@ -13,7 +13,7 @@ export interface RibbonOptions {
   lw: number;      // base line width, CSS px
   aMin: number;    // faintest line alpha
   aMax: number;    // boldest line alpha
-  fade: number;    // fraction of height used to fade the ribbon ends (0..0.5)
+  fade: number;    // fraction of height faded at each end (drawn by CSS overlays in HeroRibbons)
   floor: number;   // minimum twist width; higher = ribbon never pinches fully
   rgb: [number, number, number];
   ribbons: RibbonSpec[];
@@ -62,12 +62,11 @@ export function drawRibbons(
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const [r, g, b] = o.rgb;
-  const grad = ctx.createLinearGradient(0, 0, 0, H); // shared vertical fade
-  grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
-  grad.addColorStop(o.fade, `rgba(${r},${g},${b},1)`);
-  grad.addColorStop(1 - o.fade, `rgba(${r},${g},${b},1)`);
-  grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-  ctx.strokeStyle = grad;
+  // R82 (the glide pass): SOLID stroke colour. The vertical end-fade is
+  // now two static CSS gradient overlays in HeroRibbons (same navy as
+  // the ground), because a gradient strokeStyle measured ~35% slower to
+  // rasterise than a solid one.
+  ctx.strokeStyle = `rgb(${r},${g},${b})`;
   const e = 1e-3;
   const norm = Math.hypot(1, o.floor);
 

@@ -44,7 +44,10 @@ const TasksWidget: React.FC<TasksWidgetProps> = ({ tasks, matters, currentUser, 
     // Enrich tasks with matter titles for simplicity
     const enrichedTasks = activeTasks.map(t => ({
         ...t,
-        matterTitle: t.matterId ? (matters.find(m => m.id === t.matterId)?.title || 'Matter Not Found') : 'Generic Task'
+        // 2026-11-22: a dangling matterId renders as the quiet "No
+        // matter" (the TaskList vocabulary) — the old "Matter Not Found"
+        // read as an error state and shipped to the landing exhibit.
+        matterTitle: t.matterId ? (matters.find(m => m.id === t.matterId)?.title || 'No matter') : 'Generic Task'
     }));
 
     if (viewType === 'matter') {

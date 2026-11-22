@@ -648,20 +648,26 @@ describe("W11 — the interiors go real, and our own tool joins the portfolio", 
 });
 
 describe("W14 — navigation truth, the pulse, the descent and the pitch", () => {
-  it("the logo and All Products carry you home from any product page", () => {
+  it("the ATRIUM logo carries you home; the VEGA mark reloads its own page (2026-11-22)", () => {
     // R21: on a product page the brand is the PRODUCT lockup (mark +
-    // wordmark) and it navigates back to the hub; on the
-    // hub the PracticePro logo scrolls to the top. The two are separate
-    // buttons now — no conditional handler.
-    // P0: the ternary is gone by design — each product shell carries its
-    // own narrowed literal lockup aria-label.
+    // wordmark). W14 made it navigate back to the hub on both product
+    // pages. 2026-11-22 owner direction splits the contract: on /vega the
+    // mark is THE PAGE'S OWN BRAND — clicking it RELOADS the current
+    // page and never routes back to PracticePro, and the "← ALL
+    // PRODUCTS" breadcrumb is retired from the desktop masthead AND the
+    // mobile sheet (cross-product discovery keeps the Products dropdown
+    // and the footer). Atrium keeps the W14 hub return unchanged.
     // R24 (owner, 2026-10-13): no visible "BY PRACTICEPRO" line in the
     // header lockup — the header is mark + wordmark only. The company
     // attribution lives in the footer brand column (one occurrence per
     // shell source). 2026-11-22 footer cleanup: Vega's attribution is
     // re-cased "by Practice Pro" and seated below the mark+wordmark
     // lockup (mirroring the header); Atrium keeps the mono caps.
-    expect(vegaShell).toContain('aria-label="Vega — a PracticePro product, back to all products"');
+    expect(vegaShell).toContain('aria-label="Vega — reload this page"');
+    expect(vegaShell).toContain("window.location.reload()");
+    expect(vegaShell).not.toContain("All Products");
+    expect(vegaShell).not.toContain("ArrowLeftIcon");
+    expect(vegaShell).not.toContain("onBackToHub");
     expect(atriumShell).toContain('aria-label="Atrium — a PracticePro product, back to all products"');
     expect(productPages).toContain("onClick={onBackToHub}");
     expect(hub).toContain("onClick={() => scrollTo('home')}");
@@ -900,14 +906,14 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     }
   });
 
-  it("R56: the hero is the light-enterprise register — white ground, dashboard preview (R39 kept honest)", () => {
+  it("R56: the hero is the light-enterprise register — white ground, the copy + the clip band only", () => {
     // R56 (owner: "a clean, modern, light-themed, enterprise-grade landing
     // page"): the full-screen photograph and its dark gradient are
-    // RETIRED; the hero is white with a subtle grid + pastel ribbon, a
-    // crisp headline on legal workflow automation, dual CTAs (navy Get
-    // Started + outline View Live Demo), and the REAL dashboard capture
-    // in a light browser container (R28 kept: "use stuff from the app so
-    // we are not showing false images").
+    // RETIRED; the hero is white with a crisp headline on legal workflow
+    // automation and dual CTAs (navy Get Started + outline View Live
+    // Demo). 2026-11-22: the dashboard preview card is retired too — the
+    // hero is the copy + the clip band, nothing else (the all-views
+    // walk lives in the suite's See All gallery).
     expect(vegaHero).not.toContain("bg-clip-text");
     expect(vegaHero).not.toContain("text-transparent");
     expect(vegaHero).not.toContain("vg-pleading");
@@ -937,13 +943,17 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaHero).not.toContain("h-px w-24 bg-vega-gilt");
     expect(vegaHero).not.toContain("vg-hero-bg");
     expect(vegaHero).not.toContain("vg-grain");
-    // The dashboard preview: the real capture in the light browser frame.
-    expect(vegaHero).toContain("/assets/landing/app/dashboard.jpg");
-    expect(vegaHero).toContain("rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10");
-    // R80: the caption points at the interactive preview in See All (the
-    // hero card is a clean capture now) — and the LIVE CAPTURE label
-    // stays retired.
-    expect(vegaHero).toContain("OPEN THE INTERACTIVE PREVIEW");
+    // 2026-11-22 (owner direction): the standalone app.practicepro.ng
+    // Dashboard viewer card that sat between the clip band and "One
+    // workspace, every workflow" is RETIRED — scrolling down from the
+    // hero/video goes DIRECTLY to the suite band, and all-views
+    // browsing lives inside the suite's See All gallery. The hero is
+    // the copy + the clip band, nothing else.
+    expect(vegaHero).not.toContain("/assets/landing/app/dashboard.jpg");
+    expect(vegaHero).not.toContain("app.practicepro.ng");
+    expect(vegaHero).not.toContain("AppShotLightbox");
+    expect(vegaHero).not.toContain("ExpandHint");
+    expect(vegaHero).not.toContain("OPEN THE INTERACTIVE PREVIEW");
     expect(vegaHero).not.toContain("LIVE CAPTURE");
     // The headline sells legal workflow automation in Nigeria.
     expect(vegaHero).toContain("Legal workflow automation");
@@ -1065,13 +1075,15 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // R80: the editor capture is re-captured as editor-r81.jpg (reduced
     // top gap: the pt-32 detach retired, no empty letterhead band).
     expect(vegaSuite).toContain("collab={exhibit.src !== '/assets/landing/app/editor-r81.jpg'}");
-    // THE LIGHTBOX: shared gallery — the hero's Dashboard plus every
-    // suite exhibit; labeled with the exhibit + group vocabulary;
-    // ←/→/Escape; the pill strip walks everything. R78: the walk is
-    // PAGE_GROUPS — the app's own page order under a visible "App views"
-    // section label — and the overlays are load-gated + exhibit-keyed.
-    expect(vegaHero).toContain("AppShotLightbox");
-    expect(vegaHero).toContain("PAGE_GROUPS");
+    // THE LIGHTBOX: shared gallery — every suite exhibit; labeled with
+    // the exhibit + group vocabulary; ←/→/Escape; the pill strip walks
+    // everything. R78: the walk is PAGE_GROUPS — the app's own page
+    // order under a visible "App views" section label — and the overlays
+    // are load-gated + exhibit-keyed. 2026-11-22: the hero card is
+    // RETIRED — the gallery opens from the suite (tab exhibits + See
+    // All) only.
+    expect(vegaHero).not.toContain("AppShotLightbox");
+    expect(vegaHero).not.toContain("PAGE_GROUPS");
     expect(vegaSuite).toContain("AppShotLightbox");
     expect(lightbox).toContain("ArrowRight");
     expect(lightbox).toContain("ArrowLeft");
@@ -1083,10 +1095,11 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(lightbox).toContain("imgLoaded");
     expect(lightbox).toContain("onLoad={() => setImgLoaded(true)}");
     expect(lightbox).toContain("App views");
-    // Click-to-expand on the captures (the hover hint + touch chip).
+    // Click-to-expand on the captures (the hover hint + touch chip) —
+    // the suite's VegaAppShot owns it now (the hero card is retired).
     expect(appShot).toContain("onExpand");
     expect(appShot).toContain("ExpandHint");
-    expect(vegaHero).toContain("ExpandHint");
+    expect(vegaHero).not.toContain("ExpandHint");
     // The suite keeps its R42 exhibit selector (aria-pressed) — the
     // lightbox is additive, not a replacement.
     expect(vegaSuite).toContain("aria-pressed={shot === i}");
@@ -1149,7 +1162,7 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(lightbox).toContain("calc((100dvh - 175px) * 1.6)");
     expect(lightbox).toContain("setZoom((z) => (z === 'fit' ? 'full' : 'fit'))");
     expect(lightbox).toContain("cursor-grab");
-    expect(lightbox).toContain("imgLoaded && isInteractive");
+    expect(lightbox).toContain("imgLoaded && current.src");
     expect(lightbox).not.toContain("<CollabPresence");
     // Non-dashboard exhibits are CLEAN captures — the monikers can never
     // float over a view they don't belong on (the DraftPro title bug).
@@ -1178,18 +1191,37 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     // pins the correct frame math (frame = 100cqw × 62.5cqw).
     expect(hotspots).toContain("frame 100 × 62.5");
     expect(hotspots).not.toContain("const s = (v: number)");
-    // THE MONIKERS ON HOVER: CollabPresence hides at rest inside the
-    // preview (revealed on its own hover, reported up) and stays
-    // quiet chrome on the suite cards (revealed defaults true).
+    // THE MONIKERS, ALWAYS VISIBLE (2026-11-22 owner direction: "do
+    // NOT hide interactive hotspot/badge elements until the mouse
+    // hovers over them"): CollabPresence keeps its quiet-chrome
+    // contract (revealed defaults true) and the preview NEVER hides the
+    // stack — hovering it fires the spotlight (dim veil + floating
+    // hint) via onHoverChange, exactly like every other zone.
     expect(collab).toContain("revealed = true");
     expect(collab).toContain("revealed ? 'opacity-100' : 'opacity-0'");
-    expect(hotspots).toContain("revealed={hoverZone === 'presence'}");
-    // THE FLIPPABLE CALENDAR: clicking the calendar zone flips the card
-    // to its day view (hearings, deadlines, sessions; a back control).
+    expect(hotspots).not.toContain("revealed={hoverZone === 'presence'}");
+    expect(hotspots).toContain("onHoverChange={(h) => setHoverZone((prev) => (h ? 'presence'");
+    // THE VISIBLE-AT-REST MARKERS: every zone wears a soft dashed
+    // indigo outline at rest (never hidden until hover), sharpening to
+    // the solid ring + wash on hover/focus (the R80 hide-at-rest model
+    // is retired).
+    expect(hotspots).toContain("border-2 border-dashed border-indigo-500/70");
+    expect(hotspots).toContain("group-hs:hover:border-solid");
+    // THE PER-DATE CALENDAR (2026-11-22: "make dates interactive so
+    // clicking a date flips/toggles it to reveal that date's
+    // schedule/event info"): every November date is its own button over
+    // the capture's month cells; the flip shows THAT date's day view —
+    // the marked dates (2 · 6 · 11 · 14) carry the firm's diary, empty
+    // dates open an honest clear day (the R80 single fixed-day flip is
+    // retired).
     expect(hotspots).toContain("calendarFlipped");
+    expect(hotspots).toContain("NOV_GRID");
+    expect(hotspots).toContain("NOV_SCHEDULE");
+    expect(hotspots).toContain("setSelectedDate(date); setCalendarFlipped(true)");
     expect(hotspots).toContain("[transform-style:preserve-3d]");
     expect(hotspots).toContain("Back to the month");
     expect(hotspots).toContain("reminders fired 7 · 3 · 1 days out");
+    expect(hotspots).toContain("novWeekday");
   });
 
   it("R71: the presence stack is quiet chrome — no hover pop, no highlight plate", () => {
@@ -1269,6 +1301,62 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     const dockedModal = read("src", "components", "modals", "DockedModal.tsx");
     expect(modalLayer).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
     expect(dockedModal).toContain("<NewDirectMessageForm users={coreState.users} onClose={closeModal} initialContext={modalContext} />");
+  });
+
+  it("2026-11-22: the Matters callouts, the true Kanban, the multi-assignee stacks and the always-visible close X", () => {
+    // Owner direction (verbatim shape): "extend interactive highlightable
+    // feature callouts — explaining what each feature does and its
+    // practical benefit to a law firm — to Matters as well, rather than
+    // limiting highlights/explanations to Dashboard"; "Remove redundant
+    // Task list alongside Task board and render Task Board as a true
+    // Kanban board view instead of a list. On Team Tasks, ensure tasks
+    // can visibly show multiple assignees… using overlapping avatars in
+    // the Assigned column"; and the close X beside Fit/1:1 must be
+    // "clearly visible at all times — not invisible until hovered".
+    const matters = read("src", "sites", "vega", "sections", "MattersHotspots.tsx");
+    const board = read("src", "sites", "vega", "sections", "TaskBoardPreview.tsx");
+    const lightbox = read("src", "sites", "vega", "sections", "AppShotLightbox.tsx");
+    const suite = read("src", "sites", "vega", "sections", "VegaSuite.tsx");
+    // MATTERS gains the Dashboard's engine: zones, the dim veil, the
+    // floating hints — the matters story (New matter, filters, search,
+    // stage-tagged cards, co-counsel, the detail pane, Aloa).
+    expect(matters).toContain("ZONES");
+    expect(matters).toContain("Open a matter in seconds");
+    expect(matters).toContain("Stage-tagged files");
+    expect(matters).toContain("Counsel on every file");
+    expect(matters).toContain("The file, one click deep");
+    expect(matters).toContain("boxShadow: '0 0 0 200cqw rgba(2, 6, 23, 0.55)'");
+    expect(matters).toContain("ZoneRing");
+    expect(lightbox).toContain("MattersHotspots");
+    expect(lightbox).toContain("'/assets/landing/app/matters-ledger.jpg'");
+    // THE TRUE KANBAN: three status columns, cards advancing on click,
+    // the matter chips, due dates, priority pills and assignee stacks.
+    expect(board).toContain("NEXT_STATUS");
+    expect(board).toContain("Grouped by status");
+    expect(board).toContain("In Progress");
+    // THE MULTI-ASSIGNEE STACKS: the Assigned column renders one ringed
+    // circle per assignee, overlapped (the app model carries
+    // assignedUsers[] — this is the real behaviour, Preview-chipped).
+    expect(board).toContain("AssigneeStack");
+    expect(board).toContain("ring-2 ring-white");
+    expect(board).toContain("All Users · ");
+    expect(board).toContain("Preview");
+    // WIRED into both seats: the gallery exhibits and the suite panel
+    // (compact), with the redundant Task list retired.
+    expect(suite).toContain("preview: 'taskboard'");
+    expect(suite).toContain("preview: 'teamtasks'");
+    expect(suite).toContain("TaskBoardPreview");
+    expect(suite).toContain("THE TASK BOARD — A TRUE KANBAN: CLICK A CARD TO ADVANCE IT");
+    expect(suite).toContain("TEAM TASKS — FILTER BY COUNSEL; SHARED FILES CARRY CO-ASSIGNEES");
+    expect(suite).not.toContain("label: 'Task list'");
+    expect(lightbox).toContain("TaskBoardPreview");
+    expect(lightbox).toContain("current.preview");
+    // THE CLOSE X: a clearly visible chip at all times (the same
+    // white-glass treatment as Fit/1:1 and the prev/next arrows).
+    expect(lightbox).toContain("bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:text-white");
+    // The zoom toggle stays a capture-only affordance (the HTML previews
+    // scale with the stage; 1:1 would be a no-op on them).
+    expect(lightbox).toContain("{isCapture && (");
   });
 
   it("R74: the 'live shot' labelling retires — a live shot is shown, never captioned as one", () => {
@@ -1422,12 +1510,15 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaSuite).not.toContain("bg-vega-ink");
     expect(vegaSuite).not.toContain("text-vega-night");
     // The captures are the real product, honestly captioned — the
-    // matters ledger, both task-board layouts, contacts, the editor, the
-    // vault, research, the team board, the calendar, matter notes,
-    // billing, analytics and the bank-transfer invoice.
+    // matters ledger, contacts, the editor, the vault, research, the
+    // calendar, matter notes, billing, analytics and the bank-transfer
+    // invoice. 2026-11-22: the redundant flat-list task exhibit is
+    // RETIRED (owner: "remove redundant Task list alongside Task board")
+    // and the task exhibits render as interactive previews instead —
+    // see the 2026-11-22 Kanban block.
     expect(vegaSuite).toContain("/assets/landing/app/matters-ledger.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/tasks-status.jpg");
-    expect(vegaSuite).toContain("/assets/landing/app/tasks-flat.jpg");
+    expect(vegaSuite).not.toContain("/assets/landing/app/tasks-flat.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/contacts.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/editor-r81.jpg");
     expect(vegaSuite).toContain("/assets/landing/app/research.jpg");

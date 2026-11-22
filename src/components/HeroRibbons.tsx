@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { drawRibbons, RIBBON_PRESET } from '@/lib/ribbons';
+import { drawRibbons, RIBBON_PRESET, type RibbonOptions } from '@/lib/ribbons';
+import { RIBBON_TIERS, createPacer } from '@/lib/ribbonPacer';
 
-export function HeroRibbons({ className = '' }: { className?: string }) {
+export function HeroRibbons({ className = '', ground = '#050B18' }: { className?: string; ground?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -12,31 +13,17 @@ export function HeroRibbons({ className = '' }: { className?: string }) {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let W = 0, H = 0, heroW = 0, ox = 0, t = reduce ? 2 : 0, last = 0, raf = 0, visible = true;
 
-    const draw = () => drawRibbons(ctx, W, H, t, RIBBON_PRESET, { heroW, ox });
+    // R82: quality is a TIER (dpr scale, line count, frame-rate floor) chosen by
+    // measurement, not a fixed 10 fps throttle. Tiers only ever step DOWN.
+    const pacer = createPacer(0);
+    const optsFor = (tier: number): RibbonOptions => ({ ...RIBBON_PRESET, lines: RIBBON_TIERS[tier].lines });
+    let opts = optsFor(0);
 
-    // R73 (the silk pass): the sway is a slow ~11s breath — a 60fps redraw
-    // doubles the CPU/GPU cost for motion nobody can perceive. The loop
-    // still ticks on every rAF and accumulates skipped time into `t`, so
-    // the sway SPEED is identical to a 60fps loop. R79 (the calm pass)
-    // widens the budget 33ms → 100ms after profiling: the ribbons were the
-    // single heaviest thing on the landing page — a full-viewport
-    // additively-blended canvas whose per-paint compositor upload pushed
-    // median frame times from 16.7ms to 50ms. The JS draw itself measures
-    // ~1ms; the cost is the canvas→compositor texture upload, which scales
-    // with paint FREQUENCY. At an 11s sway, adjacent 100ms poses differ by
-    // ~1–2px — the motion reads continuous; film judder needs far larger
-    // per-frame displacements. Result: ~10 pose updates/s instead of 30.
-    const FRAME_MIN_MS = 100;
-    let lastPaint = 0;
-    let acc = 0;
+    const draw = () => drawRibbons(ctx, W, H, t, opts, { heroW, ox });
 
-    // R79 (the calm pass): SCROLL MUTE. The page scrolls inside a div
-    // container (not the window), and that container's scroll work is
-    // exactly when main-thread contention is felt as jank. While the
-    // scroll host moves — and for 150ms after it stops — the loop drops
-    // its accumulated time and paints nothing: the ribbons hold their
-    // pose (invisible during motion) and the main thread is left entirely
-    // to the scroll/transition work. The sway resumes where it left off.
+    // Scrolling no longer FREEZES the ribbons (the freeze/resume read as a
+    // glitch). While the scroll host moves, paints halve to ~30 fps but time
+    // keeps advancing, so motion never stops or jumps.
     let scrollUntil = 0;
     const scrollHost = (() => {
       let node: HTMLElement | null = canvas.parentElement;
@@ -50,50 +37,48 @@ export function HeroRibbons({ className = '' }: { className?: string }) {
     const onScroll = () => { scrollUntil = performance.now() + 150; };
     scrollHost.addEventListener('scroll', onScroll, { passive: true });
 
+    let lastPaint = 0;
     const tick = (now: number) => {
+      raf = requestAnimationFrame(tick); // schedule first: a throw in draw() can never kill the loop
       const dt = last ? Math.min((now - last) / 1000, 0.1) : 0; // clamp: no jump after tab switch
+      const dtMs = last ? now - last : 0;
       last = now;
-      if (now < scrollUntil) {
-        acc = 0; // scrolling: hold the pose, drop the time
-      } else {
-        acc += dt;
-        if (now - lastPaint >= FRAME_MIN_MS) {
-          lastPaint = now;
-          t += acc;
-          acc = 0;
-          if (W > 0 && H > 0) draw();
-        }
+      t += dt; // time ALWAYS advances, painted or not
+
+      const tier = RIBBON_TIERS[pacer.tier()];
+      const scrolling = now < scrollUntil;
+      const minGap = scrolling ? Math.max(tier.minFrameMs, 33) : tier.minFrameMs;
+      // 2ms slack so rAF jitter around a 33ms cadence never skips to 50ms
+      if (minGap && now - lastPaint < minGap - 2) return;
+      lastPaint = now;
+      if (W > 0 && H > 0) draw();
+
+      // judge only frames that were free to run at full rate
+      if (!scrolling && tier.minFrameMs === 0) {
+        const next = pacer.push(dtMs);
+        if (next !== null) { opts = optsFor(next); resize(); }
       }
-      raf = requestAnimationFrame(tick);
     };
     const start = () => {
       if (!raf && !reduce && visible && !document.hidden) { last = 0; raf = requestAnimationFrame(tick); }
     };
     const stop = () => { cancelAnimationFrame(raf); raf = 0; };
 
-    const resize = () => {
-      // R79: DPR capped at 1.5 (was 2). The ribbons are 1.1px additive
-      // hairlines — at 1.5× they are visually identical to 2× on every
-      // screen tested, and fill cost falls ~44% ((1.5/2)^2).
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-      const r = canvas.getBoundingClientRect();
-      const hero = canvas.parentElement?.getBoundingClientRect();
+    function resize() {
+      const tier = RIBBON_TIERS[pacer.tier()];
+      const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2) * tier.dprScale);
+      const r = canvas!.getBoundingClientRect();
+      const hero = canvas!.parentElement?.getBoundingClientRect();
       W = r.width; H = r.height;
-      heroW = hero?.width ?? r.width;          // geometry base — the FULL hero
+      heroW = hero?.width ?? r.width;          // geometry base: the FULL hero
       ox = hero ? r.left - hero.left : 0;      // canvas left edge inside the hero
-      canvas.width = Math.round(W * dpr);
-      canvas.height = Math.round(H * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      canvas!.width = Math.round(W * dpr);
+      canvas!.height = Math.round(H * dpr);
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
       draw();
-    };
+    }
 
     const ro = new ResizeObserver(resize); ro.observe(canvas);
-    // R62: when the hero scrolls out of view the loop already stops —
-    // and now the canvas element hides too, so the compositor drops the
-    // (huge, additive-blended) layer entirely instead of carrying it
-    // around off-screen. A frozen-but-present canvas layer was measured
-    // starving main-thread transitions further down the page on
-    // software-composited devices; hidden, the layer costs nothing.
     const io = new IntersectionObserver(([e]) => {
       visible = e.isIntersecting;
       canvas.style.visibility = visible ? 'visible' : 'hidden';
@@ -111,11 +96,19 @@ export function HeroRibbons({ className = '' }: { className?: string }) {
     };
   }, []);
 
+  // Vertical end-fade: two STATIC gradient layers in the hero ground colour.
+  // On a flat ground this equals fading the stroke alpha, at no per-frame cost.
+  const fadePct = `${RIBBON_PRESET.fade * 100}%`;
+  const box = 'pointer-events-none absolute right-0 w-[54%]';
   return (
-    <canvas
-      ref={ref}
-      aria-hidden="true"
-      className={`pointer-events-none absolute top-0 right-0 h-full w-[54%] opacity-40 md:opacity-100 ${className}`}
-    />
+    <>
+      <canvas
+        ref={ref}
+        aria-hidden="true"
+        className={`pointer-events-none absolute top-0 right-0 h-full w-[54%] opacity-40 md:opacity-100 ${className}`}
+      />
+      <div aria-hidden="true" className={`${box} top-0`} style={{ height: fadePct, background: `linear-gradient(to bottom, ${ground}, ${ground}00)` }} />
+      <div aria-hidden="true" className={`${box} bottom-0`} style={{ height: fadePct, background: `linear-gradient(to top, ${ground}, ${ground}00)` }} />
+    </>
   );
 }

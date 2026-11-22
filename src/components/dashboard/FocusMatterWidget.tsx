@@ -124,10 +124,31 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
         <div className="card-premium flex flex-col h-full overflow-hidden halo-hover transition-all duration-300">
             <div className="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-3.5 border-b border-slate-100 dark:border-zinc-800/50 bg-slate-50/30 dark:bg-zinc-900/30 gap-2">
                 <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                   {/* SIMPLIFY FIX: replaced the hidden chevron carousel (users had
-                       no way to know 'Review'/'Stale' existed — the label just
-                       silently changed) with a visible 3-segment pill. 'Stale'
-                       renamed to 'Quiet' (plain language for 21+ days no activity). */}
+                   {/* 2026-11-22 alignment fix (owner report): the TITLE leads
+                       at the left edge — aligned with the matter rows below —
+                       and the 3-segment pill follows it; the old order (pills
+                       first, title squeezed between them and "All") read as
+                       misaligned drift. 'Stale' stays renamed to 'Quiet'
+                       (plain language for 21+ days no activity). */}
+                    <div className="group flex items-center gap-1.5 min-w-0 flex-shrink-0">
+                       {activeCategory === 'Stale' ? (
+                           <button
+                               onClick={() => activeCategory === 'Stale' && onNavigateToDetail('reporting', null, { activeMainTab: 'dashboard', activeDashboardTab: 'bi', scrollTo: 'stale-matters-section', highlight: true })}
+                               className="active-press group flex items-center gap-2 px-2 sm:px-3 py-1 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-full border border-slate-200 dark:border-zinc-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-200 transition-all"
+                           >
+                               <h3 className="text-2xs sm:text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 transition-colors truncate">
+                                   {activeCategory} Matters
+                               </h3>
+                               <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse flex-shrink-0" />
+                           </button>
+                       ) : (
+                           <h3
+                            className="text-2xs sm:text-xs font-black uppercase tracking-widest transition-colors text-slate-500 dark:text-zinc-400 truncate"
+                           >
+                               {activeCategory} Matters
+                           </h3>
+                       )}
+                   </div>
                    <div className="flex items-center bg-slate-100 dark:bg-zinc-800 rounded-lg p-0.5 flex-shrink-0">
                         {(['Recent', 'Review', 'Quiet'] as const).map(cat => (
                             <button
@@ -142,25 +163,6 @@ const RecentMattersWidget: React.FC<RecentMattersWidgetProps> = ({ matters, cont
                                 {cat}
                             </button>
                         ))}
-                   </div>
-                    <div className="group flex items-center gap-1.5 min-w-0">
-                       {activeCategory === 'Stale' ? (
-                           <button 
-                               onClick={() => activeCategory === 'Stale' && onNavigateToDetail('reporting', null, { activeMainTab: 'dashboard', activeDashboardTab: 'bi', scrollTo: 'stale-matters-section', highlight: true })}
-                               className="active-press group flex items-center gap-2 px-2 sm:px-3 py-1 bg-white/50 dark:bg-zinc-800/50 backdrop-blur-sm rounded-full border border-slate-200 dark:border-zinc-700/50 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:border-primary-200 transition-all"
-                           >
-                               <h3 className="text-2xs sm:text-xs font-black uppercase tracking-widest text-primary-600 dark:text-primary-400 transition-colors truncate">
-                                   {activeCategory} Matters
-                               </h3>
-                               <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse flex-shrink-0" />
-                           </button>
-                       ) : (
-                           <h3 
-                            className="text-2xs sm:text-xs font-black uppercase tracking-widest transition-colors text-slate-500 dark:text-zinc-400 truncate"
-                           >
-                               {activeCategory} Matters
-                           </h3>
-                       )}
                    </div>
                 </div>
                 <button onClick={() => onNavigateToDetail('matters', null)} className="active-press touch-target text-2xs font-bold text-slate-400 hover:text-primary-600 transition-colors uppercase tracking-widest h-fit flex-shrink-0 px-1">All</button>

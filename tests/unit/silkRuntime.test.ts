@@ -33,15 +33,16 @@ const read = (...p: string[]) => readFileSync(join(__dirname, '..', '..', ...p),
 describe('R73 runtime: the ribbon canvas frame cap (HeroRibbons.tsx)', () => {
     const comp = read('src', 'components', 'HeroRibbons.tsx');
 
-    it('paints at most once per 100ms while ticking every rAF, accumulating skipped time (R79: 33→100)', () => {
-        // R79 (the calm pass): profiling isolated the ribbons as the single
-        // heaviest cost on the landing page (median frame 50ms with them,
-        // 16.7ms without; the JS draw is ~1ms — the cost is the per-paint
-        // compositor upload). An ~11s sway at 10 pose updates/s reads
-        // continuous (adjacent poses differ ~1–2px).
-        expect(comp).toContain('const FRAME_MIN_MS = 100');
-        expect(comp).toContain('acc += dt');
-        expect(comp).toContain('t += acc');
+    it('R82 (the glide pass): paints every rAF at tier 0 — the fixed frame cap is gone', () => {
+        // the fixed 100ms throttle (FRAME_MIN_MS) made 1px hairlines step
+        // at ~10 fps — strobing. Quality is now a TIER chosen by
+        // measurement (src/lib/ribbonPacer.ts): under load the pacer sheds
+        // pixels and lines first and only at the last tier caps the rate
+        // at ~30 fps. Time always advances (`t += dt`), painted or not, so
+        // motion never stops or jumps.
+        expect(comp).not.toContain('FRAME_MIN_MS');
+        expect(comp).toContain('createPacer(0)');
+        expect(comp).toContain('t += dt');
         // the rAF still reschedules every frame (resume/pause timing unchanged)
         expect(comp).toContain('raf = requestAnimationFrame(tick);');
     });
