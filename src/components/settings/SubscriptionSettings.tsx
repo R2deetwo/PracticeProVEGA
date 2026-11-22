@@ -57,9 +57,12 @@ const tierIdToSubscriptionPlan = (id: TierId): SubscriptionPlan => {
 };
 
 const TIER_SETTINGS_COPY: Record<TierId, { description: string; userLimit: string }> = {
+    // 2026-11-23: userLimit copy aligned with the tier matrix source of
+    // truth (tiers.ts maxUsers) — Growth is 5 users and Pro is UNLIMITED
+    // (the old "Up to 3" / "Up to 10" copy had drifted from the real limits).
     Core: { description: 'Solo practitioners or small portfolios starting out.', userLimit: '1 User Account' },
-    Growth: { description: 'AI and automation for growing firms and agencies.', userLimit: 'Up to 3 Users' },
-    Pro: { description: 'Full-scale legal or property operations.', userLimit: 'Up to 10 Users' },
+    Growth: { description: 'AI and automation for growing firms and agencies.', userLimit: 'Up to 5 Users' },
+    Pro: { description: 'Full-scale legal or property operations.', userLimit: 'Unlimited Users' },
     Enterprise: { description: 'Custom limits and onboarding.', userLimit: 'Unlimited Users' },
 };
 
@@ -113,6 +116,10 @@ const PlanCard: React.FC<{
     currentPlan: SubscriptionPlan;
     price: string;
     features: (string | React.ReactNode)[];
+    /** 2026-11-23 (owner direction): the no-repetition model — the tier
+     *  below is carried wholesale ("Everything in Growth, plus:") and
+     *  `features` lists only what this tier adds. */
+    baseLine?: string;
     onSelect: () => void;
     isPopular?: boolean;
     isKomplete?: boolean;
@@ -120,7 +127,7 @@ const PlanCard: React.FC<{
     userLimit?: string;
     viewAsMonthlyCost: boolean;
     isAnnual: boolean;
-}> = ({ plan, currentPlan, price, features, onSelect, isPopular, isKomplete, description, userLimit, viewAsMonthlyCost, isAnnual }) => {
+}> = ({ plan, currentPlan, price, features, baseLine, onSelect, isPopular, isKomplete, description, userLimit, viewAsMonthlyCost, isAnnual }) => {
     const isCurrent = plan === currentPlan;
     const currentLevel = getPlanLevel(currentPlan);
     const targetLevel = getPlanLevel(plan);
@@ -179,6 +186,11 @@ const PlanCard: React.FC<{
             <div className="flex-grow">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Includes:</p>
                 <ul className="space-y-3 mb-8">
+                    {baseLine && (
+                        <li className="text-sm font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-zinc-700">
+                            {baseLine}
+                        </li>
+                    )}
                     {features.map((feat, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-slate-700 dark:text-zinc-300">
                             <CheckIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${isKomplete ? 'text-indigo-500' : isPopular ? 'text-primary-500' : 'text-slate-400'}`} />
@@ -1008,6 +1020,7 @@ const SubscriptionSettings: React.FC<SubscriptionSettingsProps> = ({ firmDetails
                     viewAsMonthlyCost={viewAsMonthlyCost}
                     isAnnual={isAnnual}
                             features={tier.features}
+                            baseLine={tier.baseLine}
                             isPopular={tier.recommended}
                             isKomplete={currentPlan === SubscriptionPlan.Komplete}
                             onSelect={() => processUpgrade(plan, upgradePrice)}

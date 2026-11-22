@@ -121,6 +121,17 @@ export const VegaPricing: React.FC<{
                                     {id === 'Enterprise' ? 'Custom — sized to the firm' : 'Annual saves 20%'}
                                 </p>
                                 <ul className="space-y-2.5">
+                                    {/* 2026-11-23 (owner direction): the no-repetition
+                                        model — every tier above Free carries the tier
+                                        below it wholesale ("Everything in Growth,
+                                        plus:") and lists ONLY what it adds. No feature
+                                        is repeated across cards (Aloa Vox lives on the
+                                        Pro card alone). */}
+                                    {t.baseLine && (
+                                        <li className="text-sm font-semibold text-slate-900 leading-[1.5] pb-1 border-b border-slate-100">
+                                            {t.baseLine}
+                                        </li>
+                                    )}
                                     {t.features.map((f) => (
                                         <li key={f} className="flex items-start gap-2.5 text-sm text-slate-600 leading-[1.6]">
                                             <span className="mt-[7px] inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full bg-indigo-500" aria-hidden="true" />

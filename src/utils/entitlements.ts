@@ -199,12 +199,14 @@ export function computeEntitlements(input: EntitlementInput): Entitlements {
 
         canUseAI: isGrowthOrAbove,
         canUseAutomation: isEnterpriseOrAbove,
-        // VOX (owner spec 2026-11-20): voice capture, multi-speaker
-        // diarization and the hybrid Legal Pad are MIDDLE TIER AND ABOVE —
-        // Growth / Pro / Enterprise / Komplete (a live trial of any of
-        // those counts). Mirrors convex/tierLimits.ts canUseVox, which the
+        // VOX (owner direction, 2026-11-23): voice capture, multi-speaker
+        // diarization and the hybrid Legal Pad are PRO AND ABOVE —
+        // Pro / Enterprise / Komplete (a live trial of any of those
+        // counts). Vox is sold as a Pro feature on the pricing matrix
+        // ("It should be in Pro, not in Growth anymore") and the gate
+        // now matches. Mirrors convex/tierLimits.ts canUseVox, which the
         // backend enforces on every Vox action (UPGRADE_REQUIRED_FOR_VOX).
-        canUseVox: isGrowthOrAbove,
+        canUseVox: isProOrAbove,
         canUseAdvancedReporting: isProOrAbove,
         canUsePropertyManager,
         canUseClientPortal: isGrowthOrAbove,
@@ -233,7 +235,7 @@ export function computeEntitlements(input: EntitlementInput): Entitlements {
         checkFeatureAccess: (feature: string) => {
             switch (feature) {
                 case 'ai': return isGrowthOrAbove;
-                case 'vox': return isGrowthOrAbove;
+                case 'vox': return isProOrAbove;
                 case 'automation': return isEnterpriseOrAbove;
                 case 'team': return isGrowthOrAbove;
                 case 'bi': return isProOrAbove;

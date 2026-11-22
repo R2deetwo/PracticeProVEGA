@@ -390,7 +390,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, currentUser }) 
                         plan (R48), so the Research item is no longer plan-
                         locked either: Practice Notes and Contract Analyzer
                         are open to every legal workspace, and the AI Notes
-                        tab gates itself inside the view (Growth+). */}
+                        tab gates itself inside the view (Growth+; Vox is
+                        Pro+). */}
                     {isLegal && (
                         <NavItemLink
                             item={{ view: 'research', text: 'Research', icon: <ResearchIcon /> }}

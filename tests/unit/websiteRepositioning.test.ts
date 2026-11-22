@@ -1587,6 +1587,49 @@ describe("Vega rebrand — the R56 light-enterprise page", () => {
     expect(vegaFAQ).toContain("30-day money-back guarantee");
   });
 
+  it("2026-11-23: the pricing cards render the no-repetition baseLine model", () => {
+    // Owner direction: "It should just be something like everything in
+    // Growth, Growth, and then the other extra things… there's no need to
+    // repeat Aloa Vox multiple times." Every card above Free carries the
+    // tier below it wholesale (a distinct baseLine row) and lists only
+    // its additions; the three surfaces that render the matrix (landing
+    // pricing band, in-app subscription page, signup onboarding wizard)
+    // all render the baseLine row.
+    expect(vegaFAQ).toContain("{t.baseLine && (");
+    expect(vegaFAQ).toContain("{t.baseLine}");
+    const subSettings = read("src", "components", "settings", "SubscriptionSettings.tsx");
+    expect(subSettings).toContain("baseLine={tier.baseLine}");
+    expect(subSettings).toContain("{baseLine && (");
+    const wizard = read("src", "components", "modals", "OnboardingWizard.tsx");
+    expect(wizard).toContain("{tier.baseLine && (");
+    // The user-limit chips on the in-app cards match the matrix (the old
+    // copy had drifted: Growth said 3 users, Pro said 10).
+    expect(subSettings).toContain("userLimit: 'Up to 5 Users'");
+    expect(subSettings).toContain("userLimit: 'Unlimited Users'");
+  });
+
+  it("2026-11-23: ALOA Vox is sold on the Pro card — every surface says Pro, none says Growth", () => {
+    // Owner direction: "Aloa Vox should now be in Pro. It should be in
+    // Pro, not in Growth anymore." The pricing matrix carries the Vox
+    // line on the Pro tier only (pinned in vegaTiersDraftPro.test.ts);
+    // the landing band, the quick-capture upsell and the app's locked
+    // mic copy all name Pro.
+    const tiersSrc = read("src", "constants", "tiers.ts");
+    expect(tiersSrc).toContain("Everything in Growth, plus:");
+    const vegaVox = read("src", "sites", "vega", "sections", "VegaVox.tsx");
+    expect(vegaVox).toContain("Pro plan and above");
+    expect(vegaVox).not.toContain("Growth plan and above");
+    const upsell = read("src", "components", "quickcapture", "VoxUpsellModal.tsx");
+    expect(upsell).toContain("Available on Pro and above.");
+    expect(upsell).toContain("requestedPlan: SubscriptionPlan.Pro");
+    expect(upsell).not.toContain("requestedPlan: SubscriptionPlan.Growth");
+    const quickCapture = read("src", "components", "quickcapture", "QuickCaptureView.tsx");
+    expect(quickCapture).toContain("Available on Pro and above");
+    // The suite band's Vox feature card carries the same tier truth.
+    expect(vegaSuite).toContain("Pro tier and above");
+    expect(vegaSuite).not.toContain("Growth tier and above");
+  });
+
   it("credentials fold the trust badges into a mono colophon (no chip strip)", () => {
     // 2026-11-22 claims audit: "NDPA 2023 Compliant" overstated a
     // certification nobody issued — the honest house phrasing (hub,

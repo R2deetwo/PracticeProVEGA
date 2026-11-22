@@ -448,10 +448,11 @@ const Header: React.FC = React.memo(() => {
                     (voice, dictation and AI share one unified home).
                     Built on the ui/Button primitive (ADR-0004) with the
                     'bare' variant for the one-off emerald look.
-                    VOX ENTITLEMENT (owner spec 2026-11-20): Free-tier users
-                    still see the mic (discoverability) with a subtle lock
-                    dot — tapping it opens Vox, where the upgrade card
-                    explains what they get on Growth. */}
+                    VOX ENTITLEMENT (owner spec 2026-11-20; Pro-target since
+                    2026-11-23): Free- and Growth-tier users still see the
+                    mic (discoverability) with a subtle lock dot — tapping it
+                    opens Vox, where the upgrade card explains what they get
+                    on Pro. */}
                 <div className="relative">
                     <Button
                         variant="bare"

@@ -270,7 +270,7 @@ export const VegaVox: React.FC = () => {
                         <p className="text-2xs text-slate-400 mt-3 leading-relaxed">
                             A Vox session, as the firm sees it: the speaker-labelled transcript,
                             the generated file note and the extracted checklist — exportable to
-                            Word in one tap. Vox is available on the Growth plan and above.
+                            Word in one tap. Vox is available on the Pro plan and above.
                         </p>
                     </div>
                 </div>

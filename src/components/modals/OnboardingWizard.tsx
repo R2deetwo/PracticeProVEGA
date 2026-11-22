@@ -148,8 +148,15 @@ const PlanCard: React.FC<{
           </div>
         )}
 
-        {/* Features — scrollable if tall */}
+        {/* Features — scrollable if tall. 2026-11-23: the no-repetition
+            model — the tier below rides wholesale via baseLine ("Everything
+            in Growth, plus:") and the bullets list only what this tier adds. */}
         <ul className="space-y-1.5 flex-grow overflow-y-auto custom-scrollbar text-left pr-1" style={{ maxHeight: '180px' }}>
+          {tier.baseLine && (
+            <li className="text-2xs font-black text-slate-900 dark:text-white leading-snug pb-1.5 border-b border-slate-100 dark:border-zinc-700">
+              {tier.baseLine}
+            </li>
+          )}
           {tier.features.map((f, i) => (
             <li key={i} className="text-2xs text-slate-500 font-medium flex items-start gap-1.5 leading-snug">
               <CheckIcon className="w-3 h-3 text-emerald-500 mt-0.5 flex-shrink-0" />

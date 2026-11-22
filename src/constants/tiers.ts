@@ -37,6 +37,11 @@ export interface TierDef {
   annualPrice: number | null;
   monthlyPriceDisplay: string;
   annualPriceDisplay: string;
+  /** 2026-11-23 (owner direction): the no-repetition model — every tier
+   *  above the base carries the tier BELOW it wholesale and lists ONLY
+   *  what is new (e.g. "Everything in Growth, plus:"). The UI renders
+   *  this line above the feature bullets; `features` is INCREMENTAL. */
+  baseLine?: string;
   features: string[];
   maxUsers: number | null;
   /** Property: managed units (null = unlimited) */
@@ -105,51 +110,28 @@ function calcScaleBasedSce(
   };
 }
 
-function buildAtriumFeatures(t: Pick<TierDef, 'maxUsers' | 'maxUnits' | 'maxManagedProperties' | 'maxActiveTenants' | 'whatsappLimit'> & { extras?: string[] }): string[] {
-  const tenantCap =
-    t.maxActiveTenants == null
-      ? 'Unlimited Total Tenant Capacity'
-      : `Up to ${t.maxActiveTenants} Total Tenant Capacity`;
-  // FIX: WhatsApp is now unlimited on ALL tiers. The tier-specific sophistication
-  // copy (template-based, automated triggers, AI-personalized, custom API) is
-  // added via the extras[] array by each tier definition. No longer generate a
-  // generic WhatsApp line here — it would duplicate the extras line.
-  const unitsLine =
-    t.maxUnits == null
-      ? 'Unlimited managed units across portfolio'
-      : `Up to ${t.maxUnits} managed units across portfolio`;
-  const base = [
-    tenantCap,
-    unitsLine,
-    'Revenue Monitor — defaulter dashboard & ledger',
-  ];
-  return [...base, ...(t.extras || [])];
-}
-
-function buildVegaFeatures(t: Pick<TierDef, 'maxUsers' | 'maxActiveMatters' | 'maxCaseFileStorageGb'> & { extras: string[]; isProperty?: boolean }): string[] {
-  const { isProperty = false } = t;
-  const matters =
-    t.maxActiveMatters == null
-      ? 'Unlimited active matters'
-      : `${t.maxActiveMatters} active matters`;
-  const storage = `${t.maxCaseFileStorageGb} GB digital ${isProperty ? 'property' : 'case'} file storage`;
-  const extras = t.extras.map(e =>
-    isProperty
-      ? e
-          .replace('Advanced legal billing & analytics', 'Advanced revenue billing & analytics')
-          .replace('Legal billing', 'Revenue billing')
-      : e
-  );
-  return [
-    matters,
-    storage,
-    ...extras,
-  ];
-}
+// (buildAtriumFeatures and buildVegaFeatures retired 2026-11-23: the
+// no-repetition model lists each tier's INCREMENTAL features explicitly —
+// the builders auto-prepended the same base lines on every tier, which is
+// exactly the repetition the owner rejected.)
 
 // (kompletPrice function removed — Komplete is now a single flat-rate tier)
 
-// ─── VEGA (Legal / PracticePro) ───────────────────────────────────────────────
+/**
+ * THE TIER MATRIX MODEL (owner direction, 2026-11-23): NO REPETITION.
+ * "It should just be something like everything in Growth, Growth, and
+ * then the other extra things… there's no need to repeat Aloa Vox
+ * multiple times." Every tier above the base carries `baseLine`
+ * ("Everything in <lower tier>, plus:") and its `features` list ONLY
+ * what that tier ADDS — limits that scale with the tier (users,
+ * matters, storage, units) are restated as the tier's own incremental
+ * lines because the numbers differ. ALOA Vox™ is a PRO feature
+ * (owner, 2026-11-23: "It should be in Pro, not in Growth anymore") —
+ * it appears in exactly one Vega tier list, and Enterprise/Komplete
+ * inherit it through their baseLine/plan.
+ */
+
+// ─── VEGA (Legal / PracticePro) ───────────────────────────────────────────────────
 export const VEGA_TIERS: Record<TierId, TierDef> = {
   Core: {
     id: 'Core',
@@ -158,15 +140,13 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
     annualPrice: 0,
     monthlyPriceDisplay: 'Free',
     annualPriceDisplay: 'Free',
-    features: buildVegaFeatures({
-      maxUsers: 1,
-      maxActiveMatters: 10,
-      maxCaseFileStorageGb: 1,
-      extras: [
-        'Legal billing & ledger record-keeping',
-        'DraftPro™ contract analyzer (standard)',
-      ],
-    }),
+    features: [
+      '1 user — the sole practitioner',
+      '10 active matters',
+      '1 GB digital case file storage',
+      'Legal billing & ledger record-keeping',
+      'DraftPro™ contract analyzer (standard)',
+    ],
     maxUsers: 1,
     maxUnits: null,
     maxManagedProperties: null,
@@ -182,21 +162,17 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
     annualPrice: 432000,
     monthlyPriceDisplay: fmt(45000),
     annualPriceDisplay: fmt(432000),
-    features: buildVegaFeatures({
-      maxUsers: 5,
-      maxActiveMatters: null,
-      maxCaseFileStorageGb: 20,
-      extras: [
-        'ALOA Vox™ voice capture & hybrid Legal Pad — dictate hands-free, speaker-labelled consultations',
-        'Legal billing & ledger record-keeping',
-        'Court rules & procedural intelligence',
-        'Client Portal — milestone tracking, document vault, KYC uploads (up to 20 clients)',
-        'ALOA™ AI copilot (Standard)',
-        'DraftPro™ — AI contract analysis & redlining (standard)',
-        'Automated Retainer Billing & Client Auto-Invoicing',
-        'Court Date Reminders — automated alerts 7/3/1 days before hearings (WhatsApp)',
-      ],
-    }),
+    baseLine: 'Everything in Free, plus:',
+    features: [
+      'Up to 5 users',
+      'Unlimited active matters',
+      '20 GB digital case file storage',
+      'Court rules & procedural intelligence',
+      'Client Portal — milestone tracking, document vault, KYC uploads (up to 20 clients)',
+      'ALOA™ AI copilot (Standard)',
+      'Automated Retainer Billing & Client Auto-Invoicing',
+      'Court Date Reminders — automated alerts 7/3/1 days before hearings (WhatsApp)',
+    ],
     maxUsers: 5,
     maxUnits: null,
     maxManagedProperties: null,
@@ -212,22 +188,16 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
     annualPrice: 768000,
     monthlyPriceDisplay: fmt(80000),
     annualPriceDisplay: fmt(768000),
-    features: buildVegaFeatures({
-      maxUsers: null,
-      maxActiveMatters: null,
-      maxCaseFileStorageGb: 100,
-      extras: [
-        'ALOA Vox™ voice capture & hybrid Legal Pad — dictate hands-free, speaker-labelled consultations',
-        'Advanced legal billing & analytics',
-        'Court rules & procedural intelligence',
-        'Uncapped Client Portal — milestone tracking, document vault, KYC uploads',
-        'ALOA™ AI copilot (Uncapped Priority)',
-        'DraftPro™ — AI contract analysis & redlining (standard)',
-        'Automated Retainer Billing & Client Auto-Invoicing',
-        'Billing Monitor — pending queue, lawyer override controls',
-        'Court Date Reminders — automated alerts 7/3/1 days before hearings (WhatsApp)',
-      ],
-    }),
+    baseLine: 'Everything in Growth, plus:',
+    features: [
+      'Unlimited users',
+      '100 GB digital case file storage',
+      'ALOA Vox™ voice capture & hybrid Legal Pad — dictate hands-free, speaker-labelled consultations',
+      'Advanced legal billing & analytics',
+      'Uncapped Client Portal — no client-count limit',
+      'ALOA™ AI copilot (Uncapped Priority)',
+      'Billing Monitor — pending queue, lawyer override controls',
+    ],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,
@@ -244,7 +214,13 @@ export const VEGA_TIERS: Record<TierId, TierDef> = {
     annualPrice: null,
     monthlyPriceDisplay: 'Custom',
     annualPriceDisplay: 'Custom',
-    features: ['Unlimited users', 'Unlimited matters', 'ALOA Vox™ voice capture & hybrid Legal Pad — dictate hands-free, speaker-labelled consultations', 'DraftPro™ — AI contract analysis & redlining (standard)', 'Regulatory & Compliance Cross-Referencing engine — statutory audits with exact section citations (CAMA 2020, Labour Act, FCCPA 2018, Lagos Tenancy Law)', 'Custom court document archives', 'Court Date Reminders — automated alerts 7/3/1 days before hearings (WhatsApp)', 'Contact sales for onboarding'],
+    baseLine: 'Everything in Pro, plus:',
+    features: [
+      'Unlimited case file storage',
+      'Regulatory & Compliance Cross-Referencing engine — statutory audits with exact section citations (CAMA 2020, Labour Act, FCCPA 2018, Lagos Tenancy Law)',
+      'Custom court document archives',
+      'Dedicated account manager & custom integrations',
+    ],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,
@@ -268,14 +244,17 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: 490000,
     monthlyPriceDisplay: fmt(49000),
     annualPriceDisplay: fmt(490000),
-    features: buildAtriumFeatures({
-      maxUsers: 1,
-      maxUnits: 10,
-      maxManagedProperties: 10,
-      maxActiveTenants: 15,
-      whatsappLimit: null,              // FIX: Unlimited — no longer count-gated
-      extras: ['Lease tracking & maintenance log', 'Includes 10 units, then ₦2,700/unit/month', 'Automated rent & demand notices by email/portal — with one-tap WhatsApp share*'],
-    }),
+    // 2026-11-23: the no-repetition model (see VEGA_TIERS) — the base
+    // tier lists its own features; every tier above carries it via baseLine.
+    features: [
+      '1 user — the single operator',
+      'Up to 10 managed units across portfolio',
+      'Up to 15 total tenant capacity',
+      'Revenue Monitor — defaulter dashboard & ledger',
+      'Lease tracking & maintenance log',
+      'Includes 10 units, then ₦2,700/unit/month',
+      'Automated rent & demand notices by email/portal — with one-tap WhatsApp share*',
+    ],
     maxUsers: 1,
     maxUnits: 10,
     maxManagedProperties: 10,
@@ -296,14 +275,16 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: 965000,
     monthlyPriceDisplay: fmt(96500),
     annualPriceDisplay: fmt(965000),
-    features: buildAtriumFeatures({
-      maxUsers: 5,
-      maxUnits: 25,
-      maxManagedProperties: 25,
-      maxActiveTenants: 40,
-      whatsappLimit: null,              // FIX: Unlimited — adds automated triggers
-      extras: ['Service charge tracking', 'Rent demand notice templates', "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Includes 25 units, then ₦2,100/unit/month (upgrade to Pro at 70 units)', 'Automated triggers (auto-receipts, service charge notices) by email/portal — with one-tap WhatsApp share*'],
-    }),
+    baseLine: 'Everything in Starter, plus:',
+    features: [
+      'Up to 5 users',
+      'Up to 25 managed units & 40 tenants',
+      'Service charge tracking',
+      'Rent demand notice templates',
+      "Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets",
+      'Includes 25 units, then ₦2,100/unit/month (upgrade to Pro at 70 units)',
+      'Automated triggers (auto-receipts, service charge notices) by email/portal — with one-tap WhatsApp share*',
+    ],
     maxUsers: 5,
     maxUnits: 25,
     maxManagedProperties: 25,
@@ -326,14 +307,17 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: 2100000,
     monthlyPriceDisplay: fmt(210000),
     annualPriceDisplay: fmt(2100000),
-    features: buildAtriumFeatures({
-      maxUsers: null,
-      maxUnits: 100,
-      maxManagedProperties: null,
-      maxActiveTenants: null,
-      whatsappLimit: null,
-      extras: ['Estate administration document generation (notices & demands)', 'Live defaulter dashboard', "Uncapped Residents' Portal — SC/MV status, payment ledgers, automated receipts, maintenance tickets", 'Smart notification batching — digest delivery instead of scattered pings', 'Includes 100 units, then ₦1,600/unit/month', 'Unlimited WhatsApp — AI-personalized notices, live-triggered by defaulter dashboard events*'],
-    }),
+    baseLine: 'Everything in Growth, plus:',
+    features: [
+      'Unlimited users',
+      'Up to 100 managed units — unlimited properties & tenants',
+      'Estate administration document generation (notices & demands)',
+      'Live defaulter dashboard',
+      "Uncapped Residents' Portal (all features)",
+      'Smart notification batching — digest delivery instead of scattered pings',
+      'Includes 100 units, then ₦1,600/unit/month',
+      'Unlimited WhatsApp — AI-personalized notices, live-triggered by defaulter dashboard events*',
+    ],
     maxUsers: null,
     maxUnits: 100,
     maxManagedProperties: null,
@@ -355,7 +339,12 @@ export const ATRIUM_TIERS: Record<TierId, TierDef> = {
     annualPrice: null,
     monthlyPriceDisplay: 'Custom',
     annualPriceDisplay: 'Custom',
-    features: ['Unlimited users, units & properties', 'Unlimited WhatsApp — custom automation flows via API*', "Uncapped Residents' Portal (all features)", 'Dedicated onboarding', '400+ units — custom scaling', 'Dedicated support & custom integrations'],
+    baseLine: 'Everything in Pro, plus:',
+    features: [
+      'Unlimited units & properties — 400+ estates at custom scale',
+      'Unlimited WhatsApp — custom automation flows via API*',
+      'Dedicated onboarding, support & custom integrations',
+    ],
     maxUsers: null,
     maxUnits: null,
     maxManagedProperties: null,

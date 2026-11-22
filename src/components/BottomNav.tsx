@@ -175,9 +175,10 @@ const BottomNav: React.FC<BottomNavProps> = ({ currentView, setView }) => {
         billing: !hasPropertyFeatures && !features.canUseAdvancedBilling,
         // Analytics: Growth+ (Sidebar: locked + upgrade modal)
         reporting: !features.canUseReportGenerator,
-        // VOX (owner spec 2026-11-20): voice capture is Growth+ — the tab
-        // stays VISIBLE with a lock badge (discoverability), and tapping it
-        // opens the DEDICATED Vox upgrade card, not the generic one.
+        // VOX (owner spec 2026-11-20; Pro-target since 2026-11-23): voice
+        // capture is Pro+ — the tab stays VISIBLE with a lock badge
+        // (discoverability), and tapping it opens the DEDICATED Vox upgrade
+        // card, not the generic one.
         quickCapture: !features.canUseVox,
     };
 

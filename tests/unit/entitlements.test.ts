@@ -331,18 +331,20 @@ describe('12. Cross-product permissions — staffCanViewBilling', () => {
     });
 });
 
-// ─── VOX ENTITLEMENT (owner spec 2026-11-20) ────────────────────────────────
+// ─── VOX ENTITLEMENT (owner direction, 2026-11-23) ────────────────────────────────
 //
 // Vox — voice capture, multi-speaker diarization and the hybrid Legal Pad —
-// is MIDDLE TIER AND ABOVE: Free (Core / legacy Starter) is locked; Growth,
-// Pro, Enterprise and Komplete unlock it; a LIVE trial of any entitled plan
-// unlocks it for the trial window. Both mirrors (frontend computeEntitlements
-// and the convex tierLimits canUseVox the backend enforces with
-// UPGRADE_REQUIRED_FOR_VOX) must agree.
+// is a PRO feature: Free (Core / legacy Starter) AND Growth are locked;
+// Pro, Enterprise and Komplete unlock it; a LIVE trial of any entitled
+// plan unlocks it for the trial window (the 2026-11-23 move from Growth+
+// to Pro+ matches the pricing matrix, where Vox is sold on the Pro card:
+// "It should be in Pro, not in Growth anymore"). Both mirrors (frontend
+// computeEntitlements and the convex tierLimits canUseVox the backend
+// enforces with UPGRADE_REQUIRED_FOR_VOX) must agree.
 
-describe('canUseVox — Vox is Growth-and-above on BOTH mirrors', () => {
-    const entitled = ['Growth', 'Pro', 'Enterprise', 'Komplete'];
-    const locked = ['Core', 'Starter', '', undefined as any, null];
+describe('canUseVox — Vox is Pro-and-above on BOTH mirrors', () => {
+    const entitled = ['Pro', 'Enterprise', 'Komplete'];
+    const locked = ['Core', 'Starter', 'Growth', '', undefined as any, null];
 
     it.each(entitled)('unlocks Vox on the %s plan (frontend)', (plan) => {
         const e = computeEntitlements({ billingPlan: plan });
@@ -360,19 +362,25 @@ describe('canUseVox — Vox is Growth-and-above on BOTH mirrors', () => {
         expect(canUseVox(plan)).toBe(true);
     });
 
-    it.each(['Core', 'Starter'])('locks Vox on the %s plan (convex mirror)', (plan) => {
+    it.each(['Core', 'Starter', 'Growth'])('locks Vox on the %s plan (convex mirror)', (plan) => {
         expect(canUseVox(plan)).toBe(false);
     });
 
-    it('a LIVE Growth trial unlocks Vox (trial-aware, both mirrors)', () => {
+    it('a LIVE Pro trial unlocks Vox (trial-aware, both mirrors)', () => {
         const future = Date.now() + 86_400_000;
-        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Growth', trialEndsAt: future }).canUseVox).toBe(true);
-        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Growth', trialEndsAt: future }))).toBe(true);
+        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Pro', trialEndsAt: future }).canUseVox).toBe(true);
+        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Pro', trialEndsAt: future }))).toBe(true);
     });
 
-    it('an EXPIRED Growth trial re-locks Vox (both mirrors)', () => {
+    it('a LIVE Growth trial does NOT unlock Vox (Vox moved to Pro+, 2026-11-23)', () => {
+        const future = Date.now() + 86_400_000;
+        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Growth', trialEndsAt: future }).canUseVox).toBe(false);
+        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Growth', trialEndsAt: future }))).toBe(false);
+    });
+
+    it('an EXPIRED Pro trial re-locks Vox (both mirrors)', () => {
         const past = Date.now() - 86_400_000;
-        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Growth', trialEndsAt: past }).canUseVox).toBe(false);
-        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Growth', trialEndsAt: past }))).toBe(false);
+        expect(computeEntitlements({ billingPlan: 'Core', trialPlan: 'Pro', trialEndsAt: past }).canUseVox).toBe(false);
+        expect(canUseVox(effectiveFirmPlan({ subscriptionPlan: 'Core', trialPlan: 'Pro', trialEndsAt: past }))).toBe(false);
     });
 });

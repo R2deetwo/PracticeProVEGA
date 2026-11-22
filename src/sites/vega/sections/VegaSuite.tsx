@@ -75,7 +75,7 @@ const TABS: SuiteTab[] = [
             },
             {
                 title: 'ALOA Vox™ voice workspace',
-                detail: 'Fast dictation for drafting, plus session capture that turns consultations and interviews into speaker-labelled transcripts, file notes, action lists and issue maps. Growth tier and above.',
+                detail: 'Fast dictation for drafting, plus session capture that turns consultations and interviews into speaker-labelled transcripts, file notes, action lists and issue maps. Pro tier and above.',
             },
             {
                 title: 'Deadlines by the right rules',

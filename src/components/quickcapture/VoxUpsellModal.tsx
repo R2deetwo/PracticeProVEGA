@@ -1,16 +1,18 @@
 /**
- * VoxUpsellModal — the dedicated upgrade experience for Free-tier users
- * tapping into Vox (owner spec, 2026-11-20: "Restrict Vox to Middle Tier
- * and Above & Implement Clean Upgrade Upsell").
+ * VoxUpsellModal — the dedicated upgrade experience for Free- and
+ * Growth-tier users tapping into Vox (owner spec 2026-11-20: "Restrict
+ * Vox to Middle Tier and Above & Implement Clean Upgrade Upsell";
+ * RE-TARGETED 2026-11-23 per owner direction: "Aloa Vox should now be
+ * in Pro. It should be in Pro, not in Growth anymore.").
  *
  * WHY A DEDICATED MODAL: the generic UpgradeModal pitches Pro/Komplete.
- * Vox unlocks at GROWTH — the middle tier — so the card names Growth,
- * shows the three Vox-specific value points (verbatim from the owner
- * spec), and routes the Primary CTA straight into the existing
- * billing/Paystack flow with Growth PRE-SELECTED
- * (openModal('paymentGateway', { subscriptionContext.requestedPlan:
- * 'Growth' }) — the same path SubscriptionSettings.processUpgrade uses,
- * so payment verification + plan activation stay server-authoritative).
+ * Vox unlocks at PRO — so the card names Pro, shows the three
+ * Vox-specific value points (verbatim from the owner spec), and routes
+ * the Primary CTA straight into the existing billing/Paystack flow with
+ * Pro PRE-SELECTED (openModal('paymentGateway', {
+ * subscriptionContext.requestedPlan: 'Pro' }) — the same path
+ * SubscriptionSettings.processUpgrade uses, so payment verification +
+ * plan activation stay server-authoritative).
  *
  * Brand rules: the feature is "Vox" (never "Quick Capture"/"QC"/"Whisper"),
  * "Komplete" is spelled with a K, and the palette is Vega Deep Blue &
@@ -51,13 +53,13 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
   const { coreState } = useCoreState();
   const isProperty = useIsProperty();
 
-  const growthPrice = useMemo(() => {
+  const proPrice = useMemo(() => {
     const tiers = isProperty ? ATRIUM_TIERS : VEGA_TIERS;
-    const g = tiers.Growth;
-    if (!g) return null;
+    const p = tiers.Pro;
+    if (!p) return null;
     return {
-      monthly: g.monthlyPriceDisplay,
-      annual: g.annualPriceDisplay,
+      monthly: p.monthlyPriceDisplay,
+      annual: p.annualPriceDisplay,
     };
   }, [isProperty]);
 
@@ -65,14 +67,15 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
     // Same server-authoritative flow as SubscriptionSettings upgrades:
     // the paymentGateway modal writes the subscriptionRequest (Paystack
     // inline when configured, bank transfer otherwise) and the plan only
-    // flips on webhook/verified payment. Growth is PRE-SELECTED.
+    // flips on webhook/verified payment. Pro is PRE-SELECTED (Vox is a
+    // Pro feature — owner direction, 2026-11-23).
     openModal("paymentGateway", null, {
-      amount: growthPrice?.annual ?? 0,
-      title: "Upgrade to Growth",
-      description: `${coreState.firmDetails?.name || "Your firm"} — unlocks ALOA Vox voice capture and the full Growth feature set`,
+      amount: proPrice?.annual ?? 0,
+      title: "Upgrade to Pro",
+      description: `${coreState.firmDetails?.name || "Your firm"} — unlocks ALOA Vox voice capture and the full Pro feature set`,
       forcePracticeProAccount: true,
       subscriptionContext: {
-        requestedPlan: SubscriptionPlan.Growth,
+        requestedPlan: SubscriptionPlan.Pro,
         billingInterval: "annual",
         firmId: coreState.firmDetails?.id || "",
       },
@@ -102,7 +105,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
           <h3 id="vox-upsell-title" className="text-lg font-black leading-snug">
             Unlock ALOA Vox — Voice-First Legal Capture
           </h3>
-          <p className="text-sm text-white/80 mt-1">Available on Growth and above.</p>
+          <p className="text-sm text-white/80 mt-1">Available on Pro and above.</p>
         </div>
 
         {/* Value points — the three from the owner spec, verbatim substance */}
@@ -119,9 +122,9 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
 
         {/* Price hint + CTAs */}
         <div className="px-6 pb-6 pt-1">
-          {growthPrice ? (
+          {proPrice ? (
             <p className="text-center text-xs text-slate-400 mb-4">
-              Growth — {growthPrice.monthly}/mo monthly or {growthPrice.annual}/yr annual
+              Pro — {proPrice.monthly}/mo monthly or {proPrice.annual}/yr annual
             </p>
           ) : null}
           <Button
@@ -132,7 +135,7 @@ export const VoxUpsellModal: React.FC<VoxUpsellModalProps> = ({ onClose }) => {
             className="!bg-primary-600 hover:!bg-[#1E3A8A]"
             onClick={handleUpgrade}
           >
-            Upgrade to Growth
+            Upgrade to Pro
           </Button>
           <Button
             variant="ghost"

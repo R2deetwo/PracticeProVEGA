@@ -324,8 +324,12 @@ describe('voxSessions — landing band pins (the Vega Vox showcase)', () => {
   });
 
   it('VegaVox keeps the honest tier line', () => {
+    // 2026-11-23: Vox is a PRO feature (owner: "It should be in Pro, not
+    // in Growth anymore") — the landing band says so and the pricing
+    // matrix sells it on the Pro card.
     const src = read('src/sites/vega/sections/VegaVox.tsx');
-    expect(src).toContain('Growth plan and above');
+    expect(src).toContain('Pro plan and above');
+    expect(src).not.toContain('Growth plan and above');
   });
 
   it('the Vega page mounts the Vox band between the suite and the practice band', () => {

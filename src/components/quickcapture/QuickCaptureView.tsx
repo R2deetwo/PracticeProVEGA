@@ -875,7 +875,7 @@ export const QuickCaptureView: React.FC<QuickCaptureViewProps> = ({
                     matters, straight from your voice.
                   </p>
                   <p className="text-2xs text-slate-400 dark:text-zinc-500 mt-2 leading-relaxed">
-                    Available on Growth and above — the mic below is always
+                    Available on Pro and above — the mic below is always
                     one tap away.
                   </p>
                   <div className="flex justify-end gap-2 mt-3">
