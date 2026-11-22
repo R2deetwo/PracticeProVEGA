@@ -19831,3 +19831,9 @@ Stage Summary:
 - The DraftPro parties block is now structurally correct Nigerian practice — designations in a right-hand column under the suit number, one uniform full-width dotted leader — in the editor, the print drawer AND the Word export (native right-tab + dot leader).
 - Expand finally expands: the lightbox is larger by default and reads captures at native 1:1 resolution with pan.
 - The deadlines claim is real: record the service of a court process (date, method, proof) and the response windows compute under the matter's court with the governing rule cited on every entry — verified for Lagos, FCT and the Federal High Court plus the appellate periods, manual for any other court, tracked in tasks and calendar automatically.
+
+Task 75 addendum (CI gate fixes):
+- Push 1 (fef18741) failed the Tests workflow twice on ratchets that pass locally only if run — both fixed:
+  (a) design-tokens: the new litigation panels used rounded-xl (74→75; deprecated per STYLE_GUIDE) → rounded-2xl (ratchet held 72/74);
+  (b) ADR-0004 ui-primitives: the Record Filing / Record Service forms + the manual-deadline row added 12 raw form elements → migrated to ui/Button, ui/Input, ui/Select; the ONE remaining raw input is the PartyRow designation control inside the TipTap NodeView (the ui Input's wrapper+label contract breaks the seamless flex party row — same precedent as LegalPartiesGroup), baselined 2218→2219 with the per-file ledger updated.
+- Final gates on 31db8949: Tests ✓ · E2E smoke ✓ · Build Android APK ✓ · Deploy to Staging ✓ (CodeQL completing at press time).
